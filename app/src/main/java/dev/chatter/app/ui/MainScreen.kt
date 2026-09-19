@@ -82,7 +82,9 @@ fun MainScreen(vm: MainViewModel, onSettings: () -> Unit) {
     val lifecycleOwner = LocalLifecycleOwner.current
     val scope = rememberCoroutineScope()
     val snackbar = remember { SnackbarHostState() }
-    val pagerState = rememberPagerState { channels.size }
+    // Opening the settings takes this screen out of the composition, so the pager starts over.
+    // Anchoring it to the channel the user was last on keeps them there when they come back.
+    val pagerState = rememberPagerState(initialPage = channels.indexOf(active).coerceAtLeast(0)) { channels.size }
 
     var actionItem by remember { mutableStateOf<ChatItem?>(null) }
     var emoteCard by remember { mutableStateOf<Segment.EmoteSeg?>(null) }
