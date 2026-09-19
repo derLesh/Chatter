@@ -55,6 +55,7 @@ class ChatRepository(
     private val thirdParty: ThirdPartyApi,
     private val auth: AuthRepository,
     private val commands: CommandExecutor,
+    private val chatterRegistry: ChatterRegistry,
     private val settings: StateFlow<Settings>,
     private val scope: CoroutineScope,
 ) {
@@ -68,7 +69,6 @@ class ChatRepository(
     private var publishJob: Job? = null
     private val userStates = HashMap<String, Map<String, String>>()
     private var globalUserState: Map<String, String> = emptyMap()
-    private val chatters = HashMap<String, LinkedHashMap<String, String>>()
     private val lastSent = HashMap<String, Pair<String, Long>>()
     private val rateLimiter = RateLimiter(30_000)
     private val loadedChannels = HashSet<String>()
@@ -180,7 +180,7 @@ class ChatRepository(
 
     /** Display names of recently active chatters, most recent first. */
     suspend fun chatters(channel: String): List<String> = withContext(worker) {
-        chatters[channel]?.values?.reversed().orEmpty()
+        chatterRegistry.names(channel)
     }
 
     suspend fun send(channel: String, input: String, replyTo: ChatItem?): SendResult = withContext(worker) {
@@ -223,7 +223,7 @@ class ChatRepository(
     fun reset() = scope.launch(worker) {
         buffers.clear()
         bufferIds.clear()
-        chatters.clear()
+        chatterRegistry.clear()
         userStates.clear()
         loadedChannels.clear()
         lastLiveTimestamp.clear()
@@ -254,7 +254,7 @@ class ChatRepository(
             irc.part(ch)
             buffers.remove(ch)
             bufferIds.remove(ch)
-            chatters.remove(ch)
+            chatterRegistry.remove(ch)
             loadedChannels.remove(ch)
             flows.remove(ch)
             _roomStates.update { it - ch }
@@ -383,9 +383,7 @@ class ChatRepository(
 
     private fun rememberChatter(channel: String, item: ChatItem) {
         val login = item.login ?: return
-        val map = chatters.getOrPut(channel) { LinkedHashMap(64, 0.75f, true) }
-        map[login] = item.displayName ?: login
-        if (map.size > MAX_CHATTERS) map.remove(map.keys.first())
+        chatterRegistry.remember(channel, login, item.displayName, item.color)
     }
 
     private fun system(channel: String, text: String) = append(
@@ -457,7 +455,6 @@ class ChatRepository(
     private companion object {
         const val TAG = "ChatRepository"
         const val PUBLISH_INTERVAL_MS = 32L
-        const val MAX_CHATTERS = 500
         const val DUPLICATE_BYPASS = " \uDB40\uDC00"
         const val CTCP_ACTION = "\u0001ACTION "
         const val CTCP_END = "\u0001"

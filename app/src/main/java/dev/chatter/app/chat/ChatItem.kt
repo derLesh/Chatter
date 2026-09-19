@@ -8,7 +8,11 @@ sealed interface Segment {
     data class Text(val text: String) : Segment
     data class EmoteSeg(val emote: Emote, val overlays: List<Emote> = emptyList()) : Segment
     data class Link(val text: String, val url: String) : Segment
-    data class Mention(val name: String) : Segment
+    /**
+     * "@name". [login] and [color] are set only while that user is chatting in the channel,
+     * so unknown names stay in the default text color.
+     */
+    data class Mention(val name: String, val login: String? = null, val color: Int? = null) : Segment
 }
 
 enum class MessageKind { Chat, Action, UserNotice, Notice }

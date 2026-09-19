@@ -80,6 +80,22 @@ class MessageBuilderTest {
     }
 
     @Test
+    fun mentionsOfActiveChattersCarryTheirColor() {
+        val chatters = ChatterRegistry().apply {
+            remember("chan", "Forsen", "Forsen", 0xFF00FF00.toInt())
+            remember("chan", "nocolor", "NoColor", null)
+            remember("other", "elsewhere", "Elsewhere", 0xFFFF0000.toInt())
+        }
+        val builder = MessageBuilder(emotes, { _, _ -> emptyList() }, chatters)
+        val mentioned = builder.build(privmsg("@forsen, @NoColor @elsewhere @stranger"), "lukas", "1", mentions)!!
+            .segments.filterIsInstance<Segment.Mention>()
+
+        // Known chatters keep their login (so the row can color them), even with trailing punctuation.
+        assertEquals(listOf("forsen", "NoColor", null, null), mentioned.map { it.login })
+        assertEquals(listOf(0xFF00FF00.toInt(), null, null, null), mentioned.map { it.color })
+    }
+
+    @Test
     fun actionMessages() {
         val item = build(privmsg("\u0001ACTION waves\u0001"))
         assertEquals(MessageKind.Action, item.kind)

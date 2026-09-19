@@ -240,7 +240,10 @@ private fun AnnotatedString.Builder.appendSegments(segments: List<Segment>, inli
             is Segment.Link -> withLink(
                 LinkAnnotation.Url(seg.url, TextLinkStyles(SpanStyle(color = style.linkColor, textDecoration = TextDecoration.Underline))),
             ) { append(seg.text) }
-            is Segment.Mention -> withStyle(SpanStyle(fontWeight = FontWeight.Bold)) { append(seg.name) }
+            is Segment.Mention -> {
+                val color = seg.login?.let { readableNameColor(seg.color, it, style.dark) } ?: Color.Unspecified
+                withStyle(SpanStyle(color = color, fontWeight = FontWeight.Bold)) { append(seg.name) }
+            }
         }
     }
 }

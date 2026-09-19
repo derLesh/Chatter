@@ -29,6 +29,7 @@ fun interface BadgeSource {
 class MessageBuilder(
     private val emotes: EmoteSource,
     private val badges: BadgeSource,
+    private val chatters: ChatterRegistry = ChatterRegistry(),
     private val options: () -> EmoteOptions = { EmoteOptions() },
 ) {
     fun build(
@@ -69,7 +70,7 @@ class MessageBuilder(
             displayName = userState["display-name"]?.ifEmpty { null } ?: selfLogin,
             color = parseColor(userState["color"]),
             badges = badges.resolve(channelId, userState["badges"]),
-            segments = segments(body, emptyList(), channelId, ownMessage = true),
+            segments = segments(channel, body, emptyList(), channelId, ownMessage = true),
             text = body,
             isOwn = true,
             reply = reply,
@@ -106,7 +107,7 @@ class MessageBuilder(
             displayName = msg.tag("display-name") ?: login,
             color = parseColor(msg.tag("color")),
             badges = badges.resolve(channelId ?: msg.tag("room-id"), msg.tag("badges")),
-            segments = segments(body, emoteRanges, channelId ?: msg.tag("room-id"), ownMessage = false),
+            segments = segments(channel, body, emoteRanges, channelId ?: msg.tag("room-id"), ownMessage = false),
             text = body,
             isMention = !isOwn && (mentions.matches(body) || reply?.parentLogin.equals(selfLogin, ignoreCase = true)),
             isOwn = isOwn,
@@ -130,7 +131,7 @@ class MessageBuilder(
             displayName = msg.tag("display-name") ?: login,
             color = parseColor(msg.tag("color")),
             badges = if (body.isEmpty()) emptyList() else badges.resolve(channelId ?: msg.tag("room-id"), msg.tag("badges")),
-            segments = segments(body, twitchEmotes(body, msg.tag("emotes")), channelId ?: msg.tag("room-id"), ownMessage = false),
+            segments = segments(channel, body, twitchEmotes(body, msg.tag("emotes")), channelId ?: msg.tag("room-id"), ownMessage = false),
             systemText = msg.tag("system-msg"),
             text = body,
             isMention = body.isNotEmpty() && !login.equals(selfLogin, ignoreCase = true) && mentions.matches(body),
@@ -170,7 +171,7 @@ class MessageBuilder(
         return result
     }
 
-    internal fun segments(text: String, twitchRanges: List<EmoteRange>, channelId: String?, ownMessage: Boolean): List<Segment> {
+    internal fun segments(channel: String, text: String, twitchRanges: List<EmoteRange>, channelId: String?, ownMessage: Boolean): List<Segment> {
         val opts = options()
         // With emotes turned off, every word (Twitch emotes included) stays plain text.
         val twitch = if (opts.enabled) twitchRanges else emptyList()
@@ -228,7 +229,7 @@ class MessageBuilder(
                 }
                 word.length > 1 && word[0] == '@' -> {
                     flush()
-                    out += Segment.Mention(word)
+                    out += mention(channel, word)
                 }
                 else -> buf.append(word)
             }
@@ -236,6 +237,17 @@ class MessageBuilder(
         }
         flush()
         return out
+    }
+
+    /**
+     * "@name" plus the mentioned user's chat color, but only while they are chatting in this
+     * channel. Trailing punctuation ("@name," / "@name?") still has to find the user.
+     */
+    private fun mention(channel: String, word: String): Segment.Mention {
+        val login = word.drop(1).trimEnd { !it.isLetterOrDigit() && it != '_' }
+        val chatter = login.takeIf { it.isNotEmpty() }?.let { chatters.find(channel, it) }
+            ?: return Segment.Mention(word)
+        return Segment.Mention(word, login = login, color = chatter.color)
     }
 
     private fun replyInfo(msg: IrcMessage): ReplyInfo? {
