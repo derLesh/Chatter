@@ -10,11 +10,13 @@ import androidx.lifecycle.viewModelScope
 import dev.chatter.app.AppContainer
 import dev.chatter.app.R
 import dev.chatter.app.auth.DeviceLogin
+import dev.chatter.app.chat.ChatCommand
 import dev.chatter.app.chat.ChatItem
 import dev.chatter.app.chat.CommandParser
 import dev.chatter.app.chat.SendResult
 import dev.chatter.app.emotes.Emote
 import dev.chatter.app.net.HelixChannelSearch
+import dev.chatter.app.net.HelixUser
 import dev.chatter.app.settings.ThemeMode
 import dev.chatter.app.util.Autocomplete
 import kotlinx.coroutines.Job
@@ -31,10 +33,12 @@ sealed interface LoginUi {
     data class Failed(val message: String) : LoginUi
 }
 
+data class UserCardData(val user: HelixUser?, val recentMessages: List<ChatItem>)
+
 sealed interface Suggestion {
     data class EmoteSuggestion(val emote: Emote) : Suggestion
-    data class CommandSuggestion(val name: String, val usage: String) : Suggestion
     data class UserSuggestion(val name: String) : Suggestion
+    data class CommandSuggestion(val name: String, val usage: String) : Suggestion
 }
 
 class MainViewModel(private val c: AppContainer) : ViewModel() {
@@ -45,6 +49,7 @@ class MainViewModel(private val c: AppContainer) : ViewModel() {
     val settings = c.settings.settings
     val connection = c.irc.state
     val activeChannel = c.chat.activeChannel
+    val modChannels = c.chat.modChannels
     val emoteVersion = c.emotes.version
 
     val imageLoader get() = c.imageLoader
@@ -112,13 +117,13 @@ class MainViewModel(private val c: AppContainer) : ViewModel() {
             } else emptyList()
         }
     }
-            is Suggestion.CommandSuggestion -> "/${s.name}"
 
     fun applySuggestion(s: Suggestion) {
         val word = Autocomplete.currentWord(input.text, input.selection.start) ?: return
         val value = when (s) {
             is Suggestion.EmoteSuggestion -> s.emote.name.also { rememberEmote(it) }
             is Suggestion.UserSuggestion -> "@${s.name}"
+            is Suggestion.CommandSuggestion -> "/${s.name}"
         }
         val (text, cursor) = Autocomplete.replace(input.text, word, value)
         input = TextFieldValue(text, TextRange(cursor))
@@ -142,6 +147,28 @@ class MainViewModel(private val c: AppContainer) : ViewModel() {
     }
 
     fun emotesFor(channel: String?): List<Emote> = c.emotes.available(channel?.let { c.chat.roomId(it) })
+
+    /** Profile (may be null if Twitch is unreachable) plus the user's recent messages here. */
+    suspend fun loadUserCard(item: ChatItem): UserCardData {
+        val login = item.login ?: return UserCardData(null, emptyList())
+        val recent = c.chat.messagesFrom(item.channel, login)
+        val user = runCatching { c.helix.users(listOf(login)).firstOrNull() }.getOrNull()
+        return UserCardData(user, recent)
+    }
+
+    fun deleteMessage(item: ChatItem) {
+        c.chat.runCommand(item.channel, ChatCommand.Delete(item.id))
+    }
+
+    fun timeoutUser(item: ChatItem, seconds: Int = 600) {
+        val login = item.login ?: return
+        c.chat.runCommand(item.channel, ChatCommand.Timeout(login, seconds, null))
+    }
+
+    fun banUser(item: ChatItem) {
+        val login = item.login ?: return
+        c.chat.runCommand(item.channel, ChatCommand.Ban(login, null))
+    }
 
     fun startReply(item: ChatItem) {
         replyTo = item
@@ -256,6 +283,7 @@ class MainViewModel(private val c: AppContainer) : ViewModel() {
     fun setMentionKeywords(v: String) {
         viewModelScope.launch { c.settings.setMentionKeywords(v) }
     }
+
     fun setThemeMode(v: ThemeMode) {
         viewModelScope.launch { c.settings.setThemeMode(v) }
     }
@@ -263,7 +291,6 @@ class MainViewModel(private val c: AppContainer) : ViewModel() {
     fun setDynamicColor(v: Boolean) {
         viewModelScope.launch { c.settings.setDynamicColor(v) }
     }
-
 
     fun setAnimatedEmotes(v: Boolean) {
         viewModelScope.launch { c.settings.setAnimatedEmotes(v) }

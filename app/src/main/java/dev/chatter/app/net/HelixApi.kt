@@ -3,10 +3,10 @@ package dev.chatter.app.net
 import dev.chatter.app.BuildConfig
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
+import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
 import kotlinx.serialization.json.putJsonObject
-import kotlinx.serialization.json.JsonObject
 import okhttp3.HttpUrl.Companion.toHttpUrl
 import okhttp3.OkHttpClient
 
@@ -65,6 +65,17 @@ class HelixApi(
         return all
     }
 
+    suspend fun globalEmotes(): List<HelixEmote> =
+        http.getJson<HelixList<HelixEmote>>(url("chat/emotes/global"), headers()).data
+
+    /** All Twitch emotes of a channel (subscriber tiers, bits, follower). */
+    suspend fun channelEmotes(channelId: String): List<HelixEmote> =
+        http.getJson<HelixList<HelixEmote>>(url("chat/emotes", "broadcaster_id" to channelId), headers()).data
+
+    suspend fun isFollowing(userId: String, channelId: String): Boolean =
+        http.getJson<HelixList<JsonObject>>(url("channels/followed", "user_id" to userId, "broadcaster_id" to channelId), headers())
+            .data.isNotEmpty()
+
     // ---- Moderation (the IRC slash commands were removed by Twitch) ------------------------
 
     /** [durationSeconds] null = permanent ban. */
@@ -121,17 +132,6 @@ class HelixApi(
     suspend fun setChatColor(userId: String, color: String) {
         http.send("PUT", url("chat/color", "user_id" to userId, "color" to color), headers())
     }
-
-    suspend fun globalEmotes(): List<HelixEmote> =
-
-    /** All Twitch emotes of a channel (subscriber tiers, bits, follower). */
-    suspend fun channelEmotes(channelId: String): List<HelixEmote> =
-        http.getJson<HelixList<HelixEmote>>(url("chat/emotes", "broadcaster_id" to channelId), headers()).data
-
-    suspend fun isFollowing(userId: String, channelId: String): Boolean =
-        http.getJson<HelixList<JsonObject>>(url("channels/followed", "user_id" to userId, "broadcaster_id" to channelId), headers())
-            .data.isNotEmpty()
-        http.getJson<HelixList<HelixEmote>>(url("chat/emotes/global"), headers()).data
 }
 
 @Serializable
@@ -157,6 +157,10 @@ data class HelixUser(
     val login: String,
     @SerialName("display_name") val displayName: String,
     @SerialName("profile_image_url") val profileImageUrl: String = "",
+    @SerialName("created_at") val createdAt: String = "",
+    val description: String = "",
+    /** "partner", "affiliate" or "". */
+    @SerialName("broadcaster_type") val broadcasterType: String = "",
 )
 
 @Serializable

@@ -50,11 +50,11 @@ class ChatRepository(
     private val irc: IrcConnection,
     private val builder: MessageBuilder,
     private val emotes: EmoteRepository,
-    private val commands: CommandExecutor,
     private val badges: BadgeRepository,
     private val channelRepo: ChannelRepository,
     private val thirdParty: ThirdPartyApi,
     private val auth: AuthRepository,
+    private val commands: CommandExecutor,
     private val settings: StateFlow<Settings>,
     private val scope: CoroutineScope,
 ) {
@@ -80,14 +80,14 @@ class ChatRepository(
     private val flows = ConcurrentHashMap<String, MutableStateFlow<List<ChatItem>>>()
     private val flowWatchers = ConcurrentHashMap<String, Job>()
     private val roomIds = ConcurrentHashMap<String, String>()
-    private val _modChannels = MutableStateFlow<Set<String>>(emptySet())
-    /** Channels where the user is moderator or broadcaster. */
-    val modChannels: StateFlow<Set<String>> = _modChannels
-
 
     private val _mentionEvents = MutableSharedFlow<ChatItem>(extraBufferCapacity = 32)
     /** Emitted for live (non-history) messages that mention the user in a channel they are not looking at. */
     val mentionEvents: SharedFlow<ChatItem> = _mentionEvents
+
+    private val _modChannels = MutableStateFlow<Set<String>>(emptySet())
+    /** Channels where the user is moderator or broadcaster. */
+    val modChannels: StateFlow<Set<String>> = _modChannels
 
     private val _unreadMentions = MutableStateFlow<Map<String, Int>>(emptyMap())
     val unreadMentions: StateFlow<Map<String, Int>> = _unreadMentions
@@ -141,6 +141,11 @@ class ChatRepository(
 
     fun clearUnread(channel: String) = _unreadMentions.update { it - channel }
 
+    /** The latest messages of one user in a channel (oldest first), for the user card. */
+    suspend fun messagesFrom(channel: String, login: String, limit: Int = 30): List<ChatItem> = withContext(worker) {
+        buffers[channel]?.filter { it.login.equals(login, ignoreCase = true) }?.takeLast(limit).orEmpty()
+    }
+
     /** Display names of recently active chatters, most recent first. */
     suspend fun chatters(channel: String): List<String> = withContext(worker) {
         chatters[channel]?.values?.reversed().orEmpty()
@@ -164,15 +169,8 @@ class ChatRepository(
             it.startsWith("moderator/") || it.startsWith("broadcaster/") || it.startsWith("vip/")
         }
         if (!rateLimiter.tryAcquire(now, if (privileged) 100 else 20)) return@withContext SendResult.RateLimited
-    /** Runs a moderation command (e.g. from the message actions) and reports the result in the chat. */
-    fun runCommand(channel: String, command: ChatCommand) = scope.launch(worker) {
-        system(channel, commands.execute(command, roomIds[channel]))
-    }
-
 
         val wire = if (text.startsWith("/me ")) "$CTCP_ACTION${text.substring(4)}$CTCP_END" else text
-        lastLiveTimestamp.clear()
-        _modChannels.value = emptySet()
         val replyParent = replyTo?.takeIf { it.canReply && !it.id.startsWith("local-") }
         if (!irc.sendMessage(channel, wire, replyParent?.id)) return@withContext SendResult.NotConnected
 
@@ -184,6 +182,11 @@ class ChatRepository(
         SendResult.Ok
     }
 
+    /** Runs a moderation command (e.g. from the message actions) and reports the result in the chat. */
+    fun runCommand(channel: String, command: ChatCommand) = scope.launch(worker) {
+        system(channel, commands.execute(command, roomIds[channel]))
+    }
+
     /** Drops all buffers, e.g. after logout. */
     fun reset() = scope.launch(worker) {
         buffers.clear()
@@ -191,6 +194,8 @@ class ChatRepository(
         chatters.clear()
         userStates.clear()
         loadedChannels.clear()
+        lastLiveTimestamp.clear()
+        _modChannels.value = emptySet()
         joinedChannels = emptyList()
         flows.values.forEach { it.value = emptyList() }
         _unreadMentions.value = emptyMap()
@@ -267,7 +272,6 @@ class ChatRepository(
             }
             if (items.isEmpty()) return@withContext
             // Stable sort: live messages and history end up in chronological order.
-                lastLiveTimestamp[channel] = item.timestamp
             val merged = ArrayList<ChatItem>(buffer.size + items.size).apply {
                 addAll(buffer)
                 addAll(items)
@@ -286,6 +290,7 @@ class ChatRepository(
             "PRIVMSG", "USERNOTICE" -> {
                 if (channel == null) return
                 val item = builder.build(msg, auth.account?.login.orEmpty(), roomIds[channel], mentions) ?: return
+                lastLiveTimestamp[channel] = item.timestamp
                 rememberChatter(channel, item)
                 append(item)
                 if (item.isMention) onMention(item)

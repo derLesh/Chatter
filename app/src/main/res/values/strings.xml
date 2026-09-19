@@ -24,8 +24,8 @@
     <string name="reply_to">↪ Replying to @%1$s: %2$s</string>
     <string name="more_messages">New messages</string>
     <string name="action_reply">Reply</string>
-    <string name="action_mention">Mention @%1$s</string>
-    <string name="action_copy">Copy message</string>
+    <string name="action_mention">Mention</string>
+    <string name="action_copy">Copy</string>
     <string name="emotes">Emotes</string>
     <string name="input_hint">Send a message</string>
     <string name="input_hint_disabled">Not connected</string>
@@ -90,6 +90,11 @@
     <string name="error_rate_limited">You are sending messages too quickly.</string>
     <string name="error_unsupported_command">Unknown command: /%1$s</string>
     <string name="error_invalid_channel">That is not a valid channel name.</string>
+
+    <!-- Commands & moderation -->
+    <string name="action_delete">Delete</string>
+    <string name="action_timeout">Timeout</string>
+    <string name="action_ban">Ban</string>
     <string name="settings_appearance">Appearance</string>
     <string name="settings_theme">Theme</string>
     <string name="theme_system">System</string>
@@ -97,7 +102,6 @@
     <string name="theme_dark">Dark</string>
     <string name="settings_dynamic_color">Material You colors</string>
     <string name="settings_dynamic_color_hint">Use colors from your wallpaper instead of Twitch purple</string>
-    <!-- Commands & moderation -->
     <string name="cmd_usage">Usage: %1$s</string>
     <string name="cmd_banned">%1$s has been banned.</string>
     <string name="cmd_timed_out">%1$s has been timed out for %2$s.</string>
@@ -118,4 +122,11 @@
     <string name="cmd_error_permission">Not allowed: %1$s</string>
     <string name="cmd_error_generic">Command failed: %1$s</string>
     <string name="cmd_error_no_user">User %1$s not found</string>
+
+    <!-- User card -->
+    <string name="user_recent_messages">Recent messages in this channel</string>
+    <string name="user_no_messages">No messages yet</string>
+    <string name="user_partner">Partner</string>
+    <string name="user_affiliate">Affiliate</string>
+    <string name="user_created">Account created %1$s</string>
 </resources>

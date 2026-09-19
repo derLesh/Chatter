@@ -56,10 +56,10 @@ import dev.chatter.app.ui.chat.ChatList
 import dev.chatter.app.ui.chat.ChatStyle
 import dev.chatter.app.ui.chat.EmotePickerSheet
 import dev.chatter.app.ui.chat.InputBar
-import dev.chatter.app.ui.chat.MessageActionsSheet
+import dev.chatter.app.ui.chat.UserCardSheet
+import dev.chatter.app.ui.theme.isAppInDarkTheme
 import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.launch
-import dev.chatter.app.ui.theme.isAppInDarkTheme
 
 @Composable
 fun MainScreen(vm: MainViewModel, onSettings: () -> Unit) {
@@ -70,6 +70,7 @@ fun MainScreen(vm: MainViewModel, onSettings: () -> Unit) {
     val settings by vm.settings.collectAsStateWithLifecycle()
     val active by vm.activeChannel.collectAsStateWithLifecycle()
     val emoteVersion by vm.emoteVersion.collectAsStateWithLifecycle()
+    val modChannels by vm.modChannels.collectAsStateWithLifecycle()
 
     val context = LocalContext.current
     val lifecycleOwner = LocalLifecycleOwner.current
@@ -195,10 +196,17 @@ fun MainScreen(vm: MainViewModel, onSettings: () -> Unit) {
     }
 
     actionItem?.let { item ->
-        MessageActionsSheet(
+        UserCardSheet(
             item = item,
+            canModerate = item.channel in modChannels,
+            style = style,
+            imageLoader = loader,
+            load = { vm.loadUserCard(item) },
             onReply = { vm.startReply(item) },
             onMention = { vm.mention(item) },
+            onDelete = { vm.deleteMessage(item) },
+            onTimeout = { vm.timeoutUser(item) },
+            onBan = { vm.banUser(item) },
             onDismiss = { actionItem = null },
         )
     }
