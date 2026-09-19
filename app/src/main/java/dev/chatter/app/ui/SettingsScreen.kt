@@ -72,6 +72,7 @@ import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
@@ -383,15 +384,34 @@ private fun AccountPage(login: String, onLogout: () -> Unit) {
 
 @Composable
 private fun AboutPage() {
-    SettingsGroup {
-        item {
-            ListItem(
-                headlineContent = { Text(stringResource(R.string.app_name), fontWeight = FontWeight.Medium) },
-                supportingContent = { Text(stringResource(R.string.settings_version, BuildConfig.VERSION_NAME)) },
-                leadingContent = { CategoryIcon(Icons.Default.Info) },
-                colors = transparentItem(),
+    // App icon (monochrome glyph from the icon pack, tinted with the theme like a themed icon).
+    Column(
+        horizontalAlignment = Alignment.CenterHorizontally,
+        modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
+    ) {
+        Box(
+            contentAlignment = Alignment.Center,
+            modifier = Modifier
+                .size(112.dp)
+                .clip(RoundedCornerShape(32.dp))
+                .background(MaterialTheme.colorScheme.primaryContainer),
+        ) {
+            Icon(
+                painterResource(R.drawable.ic_chatter_monochrome),
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.onPrimaryContainer,
+                modifier = Modifier.size(112.dp),
             )
         }
+        Spacer(Modifier.height(16.dp))
+        Text(stringResource(R.string.app_name), style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold)
+        Text(
+            stringResource(R.string.settings_version, BuildConfig.VERSION_NAME),
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+    }
+    SettingsGroup {
         item {
             ListItem(
                 headlineContent = { Text(stringResource(R.string.settings_credits)) },
