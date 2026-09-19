@@ -39,6 +39,7 @@ import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Notifications
+import androidx.compose.material.icons.filled.Person
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -89,6 +90,9 @@ import dev.chatter.app.chat.MessageKind
 import dev.chatter.app.chat.Segment
 import dev.chatter.app.settings.Settings
 import dev.chatter.app.settings.ThemeMode
+import dev.chatter.app.ui.channels.ManageChannelsPage
+import dev.chatter.app.ui.channels.RenameChannelDialog
+import dev.chatter.app.ui.channels.AddChannelDialog
 import dev.chatter.app.ui.chat.ChatStyle
 import dev.chatter.app.ui.chat.MessageRow
 import dev.chatter.app.ui.theme.highlightBackground
@@ -102,6 +106,7 @@ private enum class SettingsPage(val title: Int, val summary: Int, val icon: Imag
     Appearance(R.string.settings_appearance, R.string.settings_appearance_summary, Icons.Default.Edit),
     Chat(R.string.settings_chat, R.string.settings_chat_summary, Icons.AutoMirrored.Filled.List),
     Notifications(R.string.settings_notifications, R.string.settings_notifications_summary, Icons.Default.Notifications),
+    Channels(R.string.settings_channels, R.string.settings_channels_summary, Icons.Default.Person),
     Account(R.string.settings_account, R.string.settings_account_summary, Icons.Default.AccountCircle),
     About(R.string.settings_about, R.string.settings_about_summary, Icons.Default.Info),
 }
@@ -141,6 +146,7 @@ fun SettingsScreen(vm: MainViewModel, onBack: () -> Unit) {
                 SettingsPage.Appearance -> AppearancePage(settings, vm)
                 SettingsPage.Chat -> ChatPage(settings, vm)
                 SettingsPage.Notifications -> NotificationsPage(settings, vm)
+                SettingsPage.Channels -> ChannelsPage(vm)
                 SettingsPage.Account -> AccountPage(login) { vm.logout(); onBack() }
                 SettingsPage.About -> AboutPage()
             }
@@ -392,6 +398,42 @@ private fun AccountPage(login: String, onLogout: () -> Unit) {
                 colors = transparentItem(),
             )
         }
+    }
+}
+
+@Composable
+private fun ChannelsPage(vm: MainViewModel) {
+    val channels by vm.channels.collectAsStateWithLifecycle()
+    val info by vm.channelInfo.collectAsStateWithLifecycle()
+    val customNames by vm.customNames.collectAsStateWithLifecycle()
+    var renameTarget by remember { mutableStateOf<String?>(null) }
+    var showAdd by remember { mutableStateOf(false) }
+
+    ManageChannelsPage(
+        channels = channels,
+        info = info,
+        imageLoader = vm.imageLoader,
+        onMove = vm::moveChannel,
+        onRename = { renameTarget = it },
+        onRemove = vm::removeChannel,
+        onAdd = { showAdd = true },
+    )
+    renameTarget?.let { login ->
+        RenameChannelDialog(
+            login = login,
+            currentName = customNames[login].orEmpty(),
+            twitchName = vm.twitchName(login),
+            onRename = { vm.renameChannel(login, it) },
+            onDismiss = { renameTarget = null },
+        )
+    }
+    if (showAdd) {
+        AddChannelDialog(
+            search = vm::searchChannels,
+            imageLoader = vm.imageLoader,
+            onAdd = { vm.addChannel(it); showAdd = false },
+            onDismiss = { showAdd = false },
+        )
     }
 }
 

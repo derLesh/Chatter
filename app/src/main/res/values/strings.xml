@@ -137,6 +137,9 @@
     <string name="settings_account_summary">Login</string>
     <string name="settings_about">About</string>
     <string name="settings_about_summary">Version, credits</string>
+    <string name="settings_channels">Channels</string>
+    <string name="settings_channels_summary">Order, names, notifications</string>
+    <string name="reorder_channel">Drag to reorder</string>
     <string name="settings_group_colors">Colors</string>
     <string name="settings_group_messages">Messages</string>
     <string name="settings_group_mentions">Mentions</string>

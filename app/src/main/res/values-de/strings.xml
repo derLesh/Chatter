@@ -131,6 +131,9 @@
     <string name="settings_account_summary">Anmeldung</string>
     <string name="settings_about">Über</string>
     <string name="settings_about_summary">Version, Danksagungen</string>
+    <string name="settings_channels">Kanäle</string>
+    <string name="settings_channels_summary">Reihenfolge, Namen, Benachrichtigungen</string>
+    <string name="reorder_channel">Zum Sortieren ziehen</string>
     <string name="settings_group_colors">Farben</string>
     <string name="settings_group_messages">Nachrichten</string>
     <string name="settings_group_mentions">Erwähnungen</string>
