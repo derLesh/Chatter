@@ -146,4 +146,12 @@
     <string name="settings_version">Version %1$s</string>
     <string name="settings_credits">Danksagungen</string>
     <string name="settings_credits_text">Emotes von Twitch, 7TV, BetterTTV und FrankerFaceZ. Chatverlauf von recent-messages.robotty.de.</string>
+
+    <!-- Chat modes (header chips) -->
+    <string name="mode_slow">Langsam %1$ds</string>
+    <string name="mode_followers">Follower</string>
+    <string name="mode_followers_time">Follower %1$s</string>
+    <string name="mode_subs">Subs</string>
+    <string name="mode_emotes">Nur Emotes</string>
+    <string name="mode_unique">Unique</string>
 </resources>

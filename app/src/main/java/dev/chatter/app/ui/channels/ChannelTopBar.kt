@@ -3,6 +3,11 @@ package dev.chatter.app.ui.channels
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -46,7 +51,9 @@ import androidx.compose.ui.unit.dp
 import coil3.ImageLoader
 import coil3.compose.AsyncImage
 import dev.chatter.app.R
+import dev.chatter.app.badges.Badge
 import dev.chatter.app.channels.ChannelInfo
+import dev.chatter.app.chat.RoomState
 import dev.chatter.app.irc.ConnectionState
 import dev.chatter.app.ui.theme.LiveRed
 
@@ -58,6 +65,8 @@ fun ChannelTopBar(
     info: Map<String, ChannelInfo>,
     unread: Map<String, Int>,
     unreadMessages: Map<String, Int>,
+    roomState: RoomState?,
+    roleBadge: Badge?,
     connection: ConnectionState,
     imageLoader: ImageLoader,
     onSelect: (String) -> Unit,
@@ -111,11 +120,59 @@ fun ChannelTopBar(
             }
         },
         actions = {
+            ChannelModes(roomState, roleBadge, imageLoader)
             IconButton(onClick = onSettings) {
                 Icon(Icons.Default.Settings, contentDescription = stringResource(R.string.settings))
             }
         },
     )
+}
+
+/** The user's role badge and the active chat modes as small chips, next to the settings icon. */
+@Composable
+private fun ChannelModes(state: RoomState?, roleBadge: Badge?, imageLoader: ImageLoader) {
+    val modes = buildList {
+        if (state == null) return@buildList
+        if (state.slow > 0) add(stringResource(R.string.mode_slow, state.slow))
+        if (state.followersOnly == 0) add(stringResource(R.string.mode_followers))
+        if (state.followersOnly > 0) add(stringResource(R.string.mode_followers_time, formatMinutes(state.followersOnly)))
+        if (state.subsOnly) add(stringResource(R.string.mode_subs))
+        if (state.emoteOnly) add(stringResource(R.string.mode_emotes))
+        if (state.uniqueChat) add(stringResource(R.string.mode_unique))
+    }
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(4.dp),
+        modifier = Modifier.widthIn(max = 170.dp).horizontalScroll(rememberScrollState()),
+    ) {
+        modes.forEach { label ->
+            Text(
+                text = label,
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSecondaryContainer,
+                maxLines = 1,
+                modifier = Modifier
+                    .clip(RoundedCornerShape(6.dp))
+                    .background(MaterialTheme.colorScheme.secondaryContainer)
+                    .padding(horizontal = 6.dp, vertical = 3.dp),
+            )
+        }
+        if (roleBadge != null) {
+            AsyncImage(
+                model = roleBadge.url,
+                contentDescription = roleBadge.title,
+                imageLoader = imageLoader,
+                modifier = Modifier.padding(start = 4.dp).size(22.dp),
+            )
+        }
+    }
+}
+
+private fun formatMinutes(minutes: Int): String = when {
+    minutes % 10_080 == 0 -> "${minutes / 10_080}w"
+    minutes % 1440 == 0 -> "${minutes / 1440}d"
+    minutes % 60 == 0 -> "${minutes / 60}h"
+    else -> "${minutes}m"
 }
 
 @Composable

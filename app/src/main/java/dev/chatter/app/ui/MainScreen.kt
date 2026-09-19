@@ -73,6 +73,8 @@ fun MainScreen(vm: MainViewModel, onSettings: () -> Unit) {
     val active by vm.activeChannel.collectAsStateWithLifecycle()
     val emoteVersion by vm.emoteVersion.collectAsStateWithLifecycle()
     val modChannels by vm.modChannels.collectAsStateWithLifecycle()
+    val roomStates by vm.roomStates.collectAsStateWithLifecycle()
+    val roles by vm.roles.collectAsStateWithLifecycle()
 
     val context = LocalContext.current
     val lifecycleOwner = LocalLifecycleOwner.current
@@ -148,6 +150,8 @@ fun MainScreen(vm: MainViewModel, onSettings: () -> Unit) {
                 info = info,
                 unread = unread,
                 unreadMessages = unreadMessages,
+                roomState = active?.let { roomStates[it] },
+                roleBadge = active?.let { ch -> roles[ch]?.let { vm.roleBadge(ch, it) } },
                 connection = connection,
                 imageLoader = vm.imageLoader,
                 onSelect = { ch -> scope.launch { pagerState.scrollToPage(channels.indexOf(ch).coerceAtLeast(0)) } },

@@ -10,7 +10,9 @@ import androidx.lifecycle.viewModelScope
 import dev.chatter.app.AppContainer
 import dev.chatter.app.R
 import dev.chatter.app.auth.DeviceLogin
+import dev.chatter.app.badges.Badge
 import dev.chatter.app.chat.ChatCommand
+import dev.chatter.app.chat.ChatRole
 import dev.chatter.app.chat.ChatItem
 import dev.chatter.app.chat.CommandParser
 import dev.chatter.app.chat.SendResult
@@ -51,6 +53,8 @@ class MainViewModel(private val c: AppContainer) : ViewModel() {
     val connection = c.irc.state
     val activeChannel = c.chat.activeChannel
     val modChannels = c.chat.modChannels
+    val roomStates = c.chat.roomStates
+    val roles = c.chat.roles
     val emoteVersion = c.emotes.version
 
     val imageLoader get() = c.imageLoader
@@ -156,6 +160,10 @@ class MainViewModel(private val c: AppContainer) : ViewModel() {
         val user = runCatching { c.helix.users(listOf(login)).firstOrNull() }.getOrNull()
         return UserCardData(user, recent)
     }
+
+    /** Twitch badge image for the user's role in a channel (moderator sword etc.). */
+    fun roleBadge(channel: String, role: ChatRole): Badge? =
+        role.badgeTag?.let { c.badges.resolve(c.chat.roomId(channel), it).firstOrNull() }
 
     fun deleteMessage(item: ChatItem) {
         c.chat.runCommand(item.channel, ChatCommand.Delete(item.id))

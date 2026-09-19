@@ -89,6 +89,14 @@ class ChatRepository(
     /** Channels where the user is moderator or broadcaster. */
     val modChannels: StateFlow<Set<String>> = _modChannels
 
+    private val _roomStates = MutableStateFlow<Map<String, RoomState>>(emptyMap())
+    /** Active chat modes (slow, followers-only, ...) per channel. */
+    val roomStates: StateFlow<Map<String, RoomState>> = _roomStates
+
+    private val _roles = MutableStateFlow<Map<String, ChatRole>>(emptyMap())
+    /** The user's role (VIP, moderator, broadcaster) per channel. */
+    val roles: StateFlow<Map<String, ChatRole>> = _roles
+
     private val _unreadMentions = MutableStateFlow<Map<String, Int>>(emptyMap())
     val unreadMentions: StateFlow<Map<String, Int>> = _unreadMentions
 
@@ -208,6 +216,8 @@ class ChatRepository(
         loadedChannels.clear()
         lastLiveTimestamp.clear()
         _modChannels.value = emptySet()
+        _roomStates.value = emptyMap()
+        _roles.value = emptyMap()
         joinedChannels = emptyList()
         flows.values.forEach { it.value = emptyList() }
         _unreadMentions.value = emptyMap()
@@ -235,6 +245,8 @@ class ChatRepository(
             chatters.remove(ch)
             loadedChannels.remove(ch)
             flows.remove(ch)
+            _roomStates.update { it - ch }
+            _roles.update { it - ch }
             flowWatchers.remove(ch)?.cancel()
             clearUnread(ch)
         }
@@ -318,14 +330,19 @@ class ChatRepository(
             "NOTICE" -> if (channel != null) builder.build(msg, "", null, mentions)?.let(::append)
             "CLEARCHAT" -> if (channel != null) onClearChat(channel, msg)
             "CLEARMSG" -> if (channel != null) msg.tag("target-msg-id")?.let { id -> markDeleted(channel) { it.id == id } }
-            "ROOMSTATE" -> if (channel != null) msg.tag("room-id")?.let { id ->
-                if (roomIds.put(channel, id) == null) scope.launch { loadEmotesAndBadges(id) }
+            "ROOMSTATE" -> if (channel != null) {
+                _roomStates.update { it + (channel to (it[channel] ?: RoomState()).update(msg.tags)) }
+                msg.tag("room-id")?.let { id ->
+                    if (roomIds.put(channel, id) == null) scope.launch { loadEmotesAndBadges(id) }
+                }
             }
             "USERSTATE" -> if (channel != null) {
                 userStates[channel] = msg.tags
                 val badges = msg.tag("badges").orEmpty()
-                val isMod = badges.contains("moderator/") || badges.contains("broadcaster/")
+                val role = ChatRole.fromBadges(badges)
+                val isMod = role == ChatRole.Moderator || role == ChatRole.Broadcaster
                 _modChannels.update { if (isMod) it + channel else it - channel }
+                _roles.update { if (it[channel] == role) it else it + (channel to role) }
             }
             "GLOBALUSERSTATE" -> globalUserState = msg.tags
         }
