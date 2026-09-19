@@ -14,6 +14,13 @@ interface EmoteSource {
     fun lookupOwnTwitch(channelId: String?, word: String): Emote?
 }
 
+/** User preferences that change how emotes are recognized in new messages. */
+data class EmoteOptions(
+    val enabled: Boolean = true,
+    val zeroWidth: Boolean = true,
+    val showUnlisted: Boolean = false,
+)
+
 fun interface BadgeSource {
     fun resolve(channelId: String?, badgesTag: String?): List<Badge>
 }
@@ -22,6 +29,7 @@ fun interface BadgeSource {
 class MessageBuilder(
     private val emotes: EmoteSource,
     private val badges: BadgeSource,
+    private val options: () -> EmoteOptions = { EmoteOptions() },
 ) {
     fun build(
         msg: IrcMessage,
@@ -162,7 +170,10 @@ class MessageBuilder(
         return result
     }
 
-    internal fun segments(text: String, twitch: List<EmoteRange>, channelId: String?, ownMessage: Boolean): List<Segment> {
+    internal fun segments(text: String, twitchRanges: List<EmoteRange>, channelId: String?, ownMessage: Boolean): List<Segment> {
+        val opts = options()
+        // With emotes turned off, every word (Twitch emotes included) stays plain text.
+        val twitch = if (opts.enabled) twitchRanges else emptyList()
         val out = ArrayList<Segment>()
         val buf = StringBuilder()
         var nextTwitch = 0
@@ -178,7 +189,7 @@ class MessageBuilder(
 
         fun addEmote(emote: Emote) {
             val last = out.lastOrNull()
-            if (emote.zeroWidth && last is Segment.EmoteSeg && buf.isBlank()) {
+            if (emote.zeroWidth && opts.zeroWidth && last is Segment.EmoteSeg && buf.isBlank()) {
                 buf.setLength(0)
                 out[out.lastIndex] = last.copy(overlays = last.overlays + emote)
             } else {
@@ -205,7 +216,10 @@ class MessageBuilder(
             var end = text.indexOf(' ', i)
             if (end == -1) end = len
             val word = text.substring(i, end)
-            val emote = (if (ownMessage) emotes.lookupOwnTwitch(channelId, word) else null) ?: emotes.lookup(channelId, word)
+            val emote = if (!opts.enabled) null else {
+                ((if (ownMessage) emotes.lookupOwnTwitch(channelId, word) else null) ?: emotes.lookup(channelId, word))
+                    ?.takeIf { opts.showUnlisted || !it.unlisted }
+            }
             when {
                 emote != null -> addEmote(emote)
                 isLink(word) -> {

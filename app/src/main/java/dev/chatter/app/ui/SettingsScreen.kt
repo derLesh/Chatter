@@ -241,7 +241,13 @@ private fun AppearancePage(settings: Settings, vm: MainViewModel) {
                 vm::setSmoothScrolling, R.string.settings_smooth_scrolling_hint,
             )
         }
+    }
+
+    SettingsGroup(R.string.settings_group_emotes) {
+        item { SwitchItem(R.string.settings_emotes_enabled, settings.emotesEnabled, vm::setEmotesEnabled, R.string.settings_emotes_new_messages_hint) }
         item { SwitchItem(R.string.settings_animated_emotes, settings.animatedEmotes, vm::setAnimatedEmotes) }
+        item { SwitchItem(R.string.settings_zero_width, settings.zeroWidthEmotes, vm::setZeroWidthEmotes, R.string.settings_zero_width_hint) }
+        item { SwitchItem(R.string.settings_unlisted_7tv, settings.showUnlisted7tv, vm::setShowUnlisted7tv, R.string.settings_unlisted_7tv_hint) }
     }
 }
 

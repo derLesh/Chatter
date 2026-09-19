@@ -34,6 +34,10 @@ data class Settings(
     val loadHistory: Boolean = true,
     /** Animate new messages into view instead of jumping. */
     val smoothScrolling: Boolean = true,
+    val emotesEnabled: Boolean = true,
+    /** Draw zero-width emotes on top of the previous emote (off: show them next to it). */
+    val zeroWidthEmotes: Boolean = true,
+    val showUnlisted7tv: Boolean = false,
 ) {
     companion object {
         // Real ARGB colors are always opaque (0xFF......), so these can never clash with one.
@@ -60,6 +64,9 @@ class SettingsRepository(
             highlightColor = p[HIGHLIGHT_COLOR] ?: Settings.HIGHLIGHT_DEFAULT,
             loadHistory = p[LOAD_HISTORY] ?: true,
             smoothScrolling = p[SMOOTH_SCROLLING] ?: true,
+            emotesEnabled = p[EMOTES_ENABLED] ?: true,
+            zeroWidthEmotes = p[ZERO_WIDTH] ?: true,
+            showUnlisted7tv = p[UNLISTED_7TV] ?: false,
         )
     }.stateIn(scope, SharingStarted.Eagerly, Settings())
 
@@ -74,6 +81,9 @@ class SettingsRepository(
     suspend fun setHighlightColor(v: Int) = store.edit { it[HIGHLIGHT_COLOR] = v }
     suspend fun setLoadHistory(v: Boolean) = store.edit { it[LOAD_HISTORY] = v }
     suspend fun setSmoothScrolling(v: Boolean) = store.edit { it[SMOOTH_SCROLLING] = v }
+    suspend fun setEmotesEnabled(v: Boolean) = store.edit { it[EMOTES_ENABLED] = v }
+    suspend fun setZeroWidthEmotes(v: Boolean) = store.edit { it[ZERO_WIDTH] = v }
+    suspend fun setShowUnlisted7tv(v: Boolean) = store.edit { it[UNLISTED_7TV] = v }
 
     suspend fun addRecentEmote(name: String) = store.edit { p ->
         val list = p[RECENT_EMOTES].orEmpty().split(' ').filter { it.isNotEmpty() && it != name }
@@ -93,6 +103,9 @@ class SettingsRepository(
         val HIGHLIGHT_COLOR = intPreferencesKey("highlight_color")
         val LOAD_HISTORY = booleanPreferencesKey("load_history")
         val SMOOTH_SCROLLING = booleanPreferencesKey("smooth_scrolling")
+        val EMOTES_ENABLED = booleanPreferencesKey("emotes_enabled")
+        val ZERO_WIDTH = booleanPreferencesKey("zero_width_emotes")
+        val UNLISTED_7TV = booleanPreferencesKey("show_unlisted_7tv")
         const val MAX_RECENT = 40
     }
 }

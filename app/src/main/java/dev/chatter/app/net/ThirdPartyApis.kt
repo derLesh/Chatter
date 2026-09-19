@@ -45,7 +45,12 @@ data class SevenTvEmoteSet(val emotes: List<SevenTvActiveEmote>? = null)
 data class SevenTvActiveEmote(val id: String, val name: String, val flags: Int = 0, val data: SevenTvEmoteData? = null)
 
 @Serializable
-data class SevenTvEmoteData(val animated: Boolean = false, val flags: Int = 0, val host: SevenTvHost? = null)
+data class SevenTvEmoteData(
+    val animated: Boolean = false,
+    val flags: Int = 0,
+    val listed: Boolean = true,
+    val host: SevenTvHost? = null,
+)
 
 @Serializable
 data class SevenTvHost(val url: String, val files: List<SevenTvFile> = emptyList())

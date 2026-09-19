@@ -158,4 +158,13 @@
     <string name="settings_text_size_sample">Hallo Chat, so groß werden Nachrichten angezeigt.</string>
     <string name="settings_smooth_scrolling">Weiches Scrollen</string>
     <string name="settings_smooth_scrolling_hint">Neue Nachrichten gleiten ins Bild statt zu springen</string>
+
+    <!-- Emote settings -->
+    <string name="settings_group_emotes">Emotes</string>
+    <string name="settings_emotes_enabled">Emotes anzeigen</string>
+    <string name="settings_emotes_new_messages_hint">Aus: Emote-Namen werden als Text angezeigt. Gilt für neue Nachrichten</string>
+    <string name="settings_zero_width">Zero-Width-Emotes</string>
+    <string name="settings_zero_width_hint">Overlay-Emotes (z. B. Hüte) werden über das vorherige Emote gelegt</string>
+    <string name="settings_unlisted_7tv">Ungelistete 7TV-Emotes</string>
+    <string name="settings_unlisted_7tv_hint">7TV-Emotes anzeigen, die nicht öffentlich gelistet sind</string>
 </resources>

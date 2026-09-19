@@ -146,6 +146,7 @@ class EmoteRepository(
             // Flag 1 on the active emote or 256 on the emote itself marks it as zero-width.
             zeroWidth = (flags and 1) != 0 || (data.flags and 256) != 0,
             isChannel = channel,
+            unlisted = !data.listed,
         )
     }
 

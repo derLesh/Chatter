@@ -117,7 +117,7 @@ class MainViewModel(private val c: AppContainer) : ViewModel() {
             } else if (word.text.startsWith("@")) {
                 Autocomplete.rankUsers(word.text, c.chat.chatters(channel)).map { Suggestion.UserSuggestion(it) }
             } else if (word.text.length >= 2) {
-                Autocomplete.rankEmotes(word.text, c.emotes.available(c.chat.roomId(channel)))
+                Autocomplete.rankEmotes(word.text, emotesFor(channel))
                     .map { Suggestion.EmoteSuggestion(it) }
             } else emptyList()
         }
@@ -151,7 +151,11 @@ class MainViewModel(private val c: AppContainer) : ViewModel() {
         viewModelScope.launch { c.settings.addRecentEmote(name) }
     }
 
-    fun emotesFor(channel: String?): List<Emote> = c.emotes.available(channel?.let { c.chat.roomId(it) })
+    /** Emotes the user can type in [channel]; unlisted 7TV emotes only if enabled in settings. */
+    fun emotesFor(channel: String?): List<Emote> {
+        val all = c.emotes.available(channel?.let { c.chat.roomId(it) })
+        return if (settings.value.showUnlisted7tv) all else all.filterNot { it.unlisted }
+    }
 
     /** Profile (may be null if Twitch is unreachable) plus the user's recent messages here. */
     suspend fun loadUserCard(item: ChatItem): UserCardData {
@@ -311,6 +315,18 @@ class MainViewModel(private val c: AppContainer) : ViewModel() {
 
     fun setSmoothScrolling(v: Boolean) {
         viewModelScope.launch { c.settings.setSmoothScrolling(v) }
+    }
+
+    fun setEmotesEnabled(v: Boolean) {
+        viewModelScope.launch { c.settings.setEmotesEnabled(v) }
+    }
+
+    fun setZeroWidthEmotes(v: Boolean) {
+        viewModelScope.launch { c.settings.setZeroWidthEmotes(v) }
+    }
+
+    fun setShowUnlisted7tv(v: Boolean) {
+        viewModelScope.launch { c.settings.setShowUnlisted7tv(v) }
     }
 
     fun setLoadHistory(v: Boolean) {

@@ -15,6 +15,8 @@ data class Emote(
     val zeroWidth: Boolean = false,
     /** True for channel-specific emotes (as opposed to global ones). */
     val isChannel: Boolean = false,
+    /** 7TV emotes that are not publicly listed (not approved by 7TV moderators). */
+    val unlisted: Boolean = false,
 )
 
 fun twitchEmoteUrl(id: String) = "https://static-cdn.jtvnw.net/emoticons/v2/$id/default/dark/2.0"

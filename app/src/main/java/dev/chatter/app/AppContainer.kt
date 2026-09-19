@@ -17,6 +17,7 @@ import dev.chatter.app.badges.BadgeRepository
 import dev.chatter.app.channels.ChannelRepository
 import dev.chatter.app.chat.ChatRepository
 import dev.chatter.app.chat.CommandExecutor
+import dev.chatter.app.chat.EmoteOptions
 import dev.chatter.app.chat.MessageBuilder
 import dev.chatter.app.emotes.EmoteRepository
 import dev.chatter.app.irc.ConnectionState
@@ -63,7 +64,7 @@ class AppContainer(private val context: Context) {
     val irc = IrcConnection(socketHttp, scope)
     val notifier = MentionNotifier(context)
     val chat = ChatRepository(
-        context, irc, MessageBuilder(emotes, badges), emotes, badges, channels, thirdParty, auth,
+        context, irc, MessageBuilder(emotes, badges, ::emoteOptions), emotes, badges, channels, thirdParty, auth,
         CommandExecutor(context, helix, auth), settings.settings, scope,
     )
 
@@ -73,6 +74,10 @@ class AppContainer(private val context: Context) {
             .directory(context.cacheDir.resolve("images"))
             .maxSizeBytes(100L * 1024 * 1024)
             .build()
+    }
+
+    private fun emoteOptions() = settings.settings.value.let {
+        EmoteOptions(enabled = it.emotesEnabled, zeroWidth = it.zeroWidthEmotes, showUnlisted = it.showUnlisted7tv)
     }
 
     val imageLoader: ImageLoader = imageLoader(animated = true)

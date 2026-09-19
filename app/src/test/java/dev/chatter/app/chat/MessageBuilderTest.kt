@@ -20,7 +20,7 @@ class MessageBuilderTest {
         override fun lookup(channelId: String?, word: String) = thirdParty[word]
         override fun lookupOwnTwitch(channelId: String?, word: String) = own[word]
     }
-    private val builder = MessageBuilder(emotes) { _, _ -> emptyList() }
+    private val builder = MessageBuilder(emotes, { _, _ -> emptyList() })
     private val mentions = MentionMatcher("lukas", listOf("chatter"))
 
     private fun privmsg(text: String, tags: String = "") =
@@ -119,6 +119,26 @@ class MessageBuilderTest {
         assertEquals(listOf("Kappa", "OMEGALUL"), item.segments.filterIsInstance<Segment.EmoteSeg>().map { it.emote.name })
         assertEquals("Lukas", item.displayName)
         assertEquals(0xFF00FF00.toInt(), item.color)
+    }
+
+    @Test
+    fun emoteOptions() {
+        val unlisted = Emote("Secret", "4", "u4", EmoteProvider.SevenTv, unlisted = true)
+        val source = object : EmoteSource {
+            override fun lookup(channelId: String?, word: String) = if (word == "Secret") unlisted else thirdParty[word]
+            override fun lookupOwnTwitch(channelId: String?, word: String) = null
+        }
+        fun segments(options: EmoteOptions, text: String, tags: String = "") =
+            MessageBuilder(source, { _, _ -> emptyList() }) { options }.build(privmsg(text, tags), "lukas", "1", mentions)!!.segments
+
+        // Emotes off: everything is text, also Twitch emotes from the tag.
+        assertEquals(listOf<Segment>(Segment.Text("Kappa OMEGALUL")), segments(EmoteOptions(enabled = false), "Kappa OMEGALUL", "emotes=25:0-4"))
+        // Zero-width off: the overlay becomes a normal emote next to the base.
+        val noZw = segments(EmoteOptions(zeroWidth = false), "OMEGALUL RainTime")
+        assertEquals(listOf("OMEGALUL", "RainTime"), noZw.filterIsInstance<Segment.EmoteSeg>().map { it.emote.name })
+        // Unlisted 7TV emotes are text unless enabled.
+        assertEquals(listOf<Segment>(Segment.Text("Secret")), segments(EmoteOptions(showUnlisted = false), "Secret"))
+        assertTrue(segments(EmoteOptions(showUnlisted = true), "Secret").single() is Segment.EmoteSeg)
     }
 
     @Test
