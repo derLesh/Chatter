@@ -145,7 +145,16 @@
     <string name="settings_logout_hint">Entfernt die Anmeldung von diesem Gerät</string>
     <string name="settings_version">Version %1$s</string>
     <string name="settings_credits">Danksagungen</string>
-    <string name="settings_credits_text">Emotes von Twitch, 7TV, BetterTTV und FrankerFaceZ. Chatverlauf von recent-messages.robotty.de.</string>
+    <string name="settings_credits_twitch">Twitch</string>
+    <string name="settings_credits_twitch_summary">Chat, Emotes und Badges</string>
+    <string name="settings_credits_seventv">7TV</string>
+    <string name="settings_credits_seventv_summary">Emotes und Live-Aktualisierung</string>
+    <string name="settings_credits_bttv">BetterTTV</string>
+    <string name="settings_credits_bttv_summary">Emotes</string>
+    <string name="settings_credits_ffz">FrankerFaceZ</string>
+    <string name="settings_credits_ffz_summary">Emotes</string>
+    <string name="settings_credits_recent">recent-messages.robotty.de</string>
+    <string name="settings_credits_recent_summary">Chatverlauf beim Betreten eines Kanals</string>
     <string name="settings_source_code">Quellcode</string>
     <string name="settings_source_code_summary">github.com/derLesh/Chatter</string>
     <string name="settings_report_issue">Problem melden</string>

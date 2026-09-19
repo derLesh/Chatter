@@ -428,16 +428,21 @@ private fun AboutPage() {
         item { LinkItem(R.string.settings_source_code, R.string.settings_source_code_summary, REPO_URL) }
         item { LinkItem(R.string.settings_report_issue, R.string.settings_report_issue_summary, "$REPO_URL/issues/new") }
     }
-    SettingsGroup {
-        item {
-            ListItem(
-                headlineContent = { Text(stringResource(R.string.settings_credits)) },
-                supportingContent = { Text(stringResource(R.string.settings_credits_text)) },
-                colors = transparentItem(),
-            )
+    SettingsGroup(R.string.settings_credits) {
+        CREDITS.forEach { (title, summary, url) ->
+            item { LinkItem(title, summary, url) }
         }
     }
 }
+
+/** The services Chatter builds on, each linking to where it comes from. */
+private val CREDITS = listOf(
+    Triple(R.string.settings_credits_twitch, R.string.settings_credits_twitch_summary, "https://twitch.tv"),
+    Triple(R.string.settings_credits_seventv, R.string.settings_credits_seventv_summary, "https://7tv.app"),
+    Triple(R.string.settings_credits_bttv, R.string.settings_credits_bttv_summary, "https://betterttv.com"),
+    Triple(R.string.settings_credits_ffz, R.string.settings_credits_ffz_summary, "https://frankerfacez.com"),
+    Triple(R.string.settings_credits_recent, R.string.settings_credits_recent_summary, "https://recent-messages.robotty.de"),
+)
 
 private const val REPO_URL = "https://github.com/derLesh/Chatter"
 

@@ -151,7 +151,16 @@
     <string name="settings_logout_hint">Removes the login from this device</string>
     <string name="settings_version">Version %1$s</string>
     <string name="settings_credits">Credits</string>
-    <string name="settings_credits_text">Emotes by Twitch, 7TV, BetterTTV and FrankerFaceZ. Chat history by recent-messages.robotty.de.</string>
+    <string name="settings_credits_twitch">Twitch</string>
+    <string name="settings_credits_twitch_summary">Chat, emotes and badges</string>
+    <string name="settings_credits_seventv">7TV</string>
+    <string name="settings_credits_seventv_summary">Emotes and live emote updates</string>
+    <string name="settings_credits_bttv">BetterTTV</string>
+    <string name="settings_credits_bttv_summary">Emotes</string>
+    <string name="settings_credits_ffz">FrankerFaceZ</string>
+    <string name="settings_credits_ffz_summary">Emotes</string>
+    <string name="settings_credits_recent">recent-messages.robotty.de</string>
+    <string name="settings_credits_recent_summary">Chat history when joining a channel</string>
     <string name="settings_source_code">Source code</string>
     <string name="settings_source_code_summary">github.com/derLesh/Chatter</string>
     <string name="settings_report_issue">Report a problem</string>
