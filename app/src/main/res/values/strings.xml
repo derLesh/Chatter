@@ -160,7 +160,7 @@
     <string name="settings_emote_suggestions">Emote suggestions</string>
     <string name="settings_emote_suggestions_hint">Suggest emotes while typing.</string>
     <string name="settings_user_suggestions">Name suggestions</string>
-    <string name="settings_user_suggestions_hint">Suggest names of recent chatters after an @.</string>
+    <string name="settings_user_suggestions_hint">Suggest names of recent chatters, with or without an @.</string>
     <string name="settings_group_colors">Colors</string>
     <string name="settings_group_messages">Messages</string>
     <string name="settings_group_mentions">Mentions</string>

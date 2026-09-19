@@ -154,7 +154,7 @@
     <string name="settings_emote_suggestions">Emote-Vorschläge</string>
     <string name="settings_emote_suggestions_hint">Emotes beim Tippen vorschlagen.</string>
     <string name="settings_user_suggestions">Namensvorschläge</string>
-    <string name="settings_user_suggestions_hint">Nach einem @ Namen aus dem Chat vorschlagen.</string>
+    <string name="settings_user_suggestions_hint">Namen aus dem Chat vorschlagen, mit oder ohne @.</string>
     <string name="settings_group_colors">Farben</string>
     <string name="settings_group_messages">Nachrichten</string>
     <string name="settings_group_mentions">Erwähnungen</string>

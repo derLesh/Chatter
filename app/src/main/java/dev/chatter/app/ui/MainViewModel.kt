@@ -122,9 +122,18 @@ class MainViewModel(private val c: AppContainer) : ViewModel() {
             } else if (word.text.startsWith("@")) {
                 if (!settings.value.userSuggestions) emptyList()
                 else Autocomplete.rankUsers(word.text, c.chat.chatters(channel)).map { Suggestion.UserSuggestion(it) }
-            } else if (word.text.length >= 2 && settings.value.emoteSuggestions) {
-                Autocomplete.rankEmotes(word.text, emotesFor(channel))
-                    .map { Suggestion.EmoteSuggestion(it) }
+            } else if (word.text.length >= 2) {
+                val s = settings.value
+                // A plain word can be either, so offer both: emotes first, as they are what one
+                // usually types without an "@", with the names behind them.
+                val emotes = if (!s.emoteSuggestions) emptyList() else {
+                    Autocomplete.rankEmotes(word.text, emotesFor(channel)).map { Suggestion.EmoteSuggestion(it) }
+                }
+                val users = if (!s.userSuggestions) emptyList() else {
+                    Autocomplete.rankUsers(word.text, c.chat.chatters(channel), limit = 15)
+                        .map { Suggestion.UserSuggestion(it) }
+                }
+                emotes + users
             } else emptyList()
         }
     }
