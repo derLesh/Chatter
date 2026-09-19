@@ -15,11 +15,15 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Menu
+import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material3.Button
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
@@ -59,9 +63,11 @@ fun ManageChannelsPage(
     channels: List<String>,
     info: Map<String, ChannelInfo>,
     muted: Set<String>,
+    hiddenUnread: Set<String>,
     imageLoader: ImageLoader,
     onMove: (String, Int) -> Unit,
     onNotify: (String, Boolean) -> Unit,
+    onUnreadVisible: (String, Boolean) -> Unit,
     onRename: (String) -> Unit,
     onRemove: (String) -> Unit,
     onAdd: () -> Unit,
@@ -98,8 +104,10 @@ fun ManageChannelsPage(
                     login = login,
                     info = info[login],
                     notify = login !in muted,
+                    inTitleBar = login !in hiddenUnread,
                     imageLoader = imageLoader,
                     onNotify = { onNotify(login, it) },
+                    onUnreadVisible = { onUnreadVisible(login, it) },
                     onRename = { onRename(login) },
                     onRemove = { onRemove(login) },
                     dragHandle = Modifier.pointerInput(login, channels) {
@@ -134,8 +142,10 @@ private fun ChannelRow(
     login: String,
     info: ChannelInfo?,
     notify: Boolean,
+    inTitleBar: Boolean,
     imageLoader: ImageLoader,
     onNotify: (Boolean) -> Unit,
+    onUnreadVisible: (Boolean) -> Unit,
     onRename: () -> Unit,
     onRemove: () -> Unit,
     dragHandle: Modifier,
@@ -173,8 +183,29 @@ private fun ChannelRow(
             else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.38f),
             onClick = { onNotify(!notify) },
         )
-        RowAction(Icons.Default.Edit, R.string.rename_channel, onRename)
-        RowAction(Icons.Default.Delete, R.string.remove_channel, onRemove)
+        // Renaming, removing and the title bar option share a menu: four icons in a row would
+        // leave no room for the name on a narrow screen.
+        var menu by remember { mutableStateOf(false) }
+        Box {
+            RowAction(Icons.Default.MoreVert, R.string.channel_options, { menu = true })
+            DropdownMenu(expanded = menu, onDismissRequest = { menu = false }) {
+                DropdownMenuItem(
+                    text = { Text(stringResource(R.string.rename_channel)) },
+                    leadingIcon = { Icon(Icons.Default.Edit, null) },
+                    onClick = { menu = false; onRename() },
+                )
+                DropdownMenuItem(
+                    text = { Text(stringResource(R.string.channel_in_title_bar)) },
+                    leadingIcon = { if (inTitleBar) Icon(Icons.Default.Check, null) },
+                    onClick = { menu = false; onUnreadVisible(!inTitleBar) },
+                )
+                DropdownMenuItem(
+                    text = { Text(stringResource(R.string.remove_channel)) },
+                    leadingIcon = { Icon(Icons.Default.Delete, null) },
+                    onClick = { menu = false; onRemove() },
+                )
+            }
+        }
     }
 }
 

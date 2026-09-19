@@ -62,6 +62,19 @@ class ChannelRepository(
         .map { p -> p[MUTED].orEmpty().split(',').filter { it.isNotEmpty() }.toSet() }
         .stateIn(scope, SharingStarted.Eagerly, emptySet())
 
+    /** Channels kept out of the unread strip in the title bar. Absent means they show up. */
+    val hiddenUnread: StateFlow<Set<String>> = store.data
+        .map { p -> p[NO_TITLE_BAR].orEmpty().split(',').filter { it.isNotEmpty() }.toSet() }
+        .stateIn(scope, SharingStarted.Eagerly, emptySet())
+
+    suspend fun setUnreadVisible(login: String, visible: Boolean) {
+        store.edit { p ->
+            val hidden = p[NO_TITLE_BAR].orEmpty().split(',').filter { it.isNotEmpty() }.toMutableSet()
+            if (visible) hidden -= login else hidden += login
+            p[NO_TITLE_BAR] = hidden.joinToString(",")
+        }
+    }
+
     suspend fun setNotify(login: String, enabled: Boolean) {
         store.edit { p ->
             val muted = p[MUTED].orEmpty().split(',').filter { it.isNotEmpty() }.toMutableSet()
@@ -96,6 +109,7 @@ class ChannelRepository(
             val names = decodeNames(p[CUSTOM_NAMES])
             if (login in names) p[CUSTOM_NAMES] = AppJson.encodeToString(names - login)
             p[MUTED] = p[MUTED].orEmpty().split(',').filter { it.isNotEmpty() && it != login }.joinToString(",")
+            p[NO_TITLE_BAR] = p[NO_TITLE_BAR].orEmpty().split(',').filter { it.isNotEmpty() && it != login }.joinToString(",")
         }
     }
 
@@ -179,6 +193,7 @@ class ChannelRepository(
         private val INFO_CACHE = stringPreferencesKey("channel_info")
         private val CUSTOM_NAMES = stringPreferencesKey("channel_names")
         private val MUTED = stringPreferencesKey("channels_muted")
+        private val NO_TITLE_BAR = stringPreferencesKey("channels_no_title_bar")
 
         private fun decodeNames(raw: String?): Map<String, String> =
             raw?.let { runCatching { AppJson.decodeFromString<Map<String, String>>(it) }.getOrNull() }.orEmpty()

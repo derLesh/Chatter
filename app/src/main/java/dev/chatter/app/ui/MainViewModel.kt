@@ -49,6 +49,7 @@ class MainViewModel(private val c: AppContainer) : ViewModel() {
     val channelInfo = c.channels.info
     val customNames = c.channels.customNames
     val mutedChannels = c.channels.mutedChannels
+    val hiddenUnread = c.channels.hiddenUnread
     val unreadMentions = c.chat.unreadMentions
     val unreadMessages = c.chat.unreadMessages
     val settings = c.settings.settings
@@ -231,6 +232,10 @@ class MainViewModel(private val c: AppContainer) : ViewModel() {
 
     fun setUnreadInTitleBar(v: Boolean) {
         viewModelScope.launch { c.settings.setUnreadInTitleBar(v) }
+    }
+
+    fun setChannelUnreadVisible(login: String, visible: Boolean) {
+        viewModelScope.launch { c.channels.setUnreadVisible(login, visible) }
     }
 
     fun setChannelNotify(login: String, enabled: Boolean) {

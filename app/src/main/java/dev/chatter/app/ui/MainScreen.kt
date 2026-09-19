@@ -75,6 +75,7 @@ fun MainScreen(vm: MainViewModel, onSettings: () -> Unit) {
     val settings by vm.settings.collectAsStateWithLifecycle()
     val active by vm.activeChannel.collectAsStateWithLifecycle()
     val customNames by vm.customNames.collectAsStateWithLifecycle()
+    val hiddenUnread by vm.hiddenUnread.collectAsStateWithLifecycle()
     val emoteVersion by vm.emoteVersion.collectAsStateWithLifecycle()
     val modChannels by vm.modChannels.collectAsStateWithLifecycle()
     val roomStates by vm.roomStates.collectAsStateWithLifecycle()
@@ -162,6 +163,7 @@ fun MainScreen(vm: MainViewModel, onSettings: () -> Unit) {
                 roleBadge = active?.let { ch -> roles[ch]?.let { vm.roleBadge(ch, it) } },
                 connection = connection,
                 showUnread = settings.unreadInTitleBar,
+                hiddenUnread = hiddenUnread,
                 imageLoader = vm.imageLoader,
                 onSelect = { ch -> scope.launch { pagerState.scrollToPage(channels.indexOf(ch).coerceAtLeast(0)) } },
                 onAdd = { showAdd = true },

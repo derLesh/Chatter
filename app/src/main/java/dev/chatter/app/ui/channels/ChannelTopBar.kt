@@ -75,6 +75,7 @@ fun ChannelTopBar(
     roleBadge: Badge?,
     connection: ConnectionState,
     showUnread: Boolean,
+    hiddenUnread: Set<String>,
     imageLoader: ImageLoader,
     onSelect: (String) -> Unit,
     onAdd: () -> Unit,
@@ -132,7 +133,7 @@ fun ChannelTopBar(
         },
         actions = {
             if (showUnread) UnreadStrip(
-                channels = channels,
+                channels = channels - hiddenUnread,
                 active = active,
                 info = info,
                 unread = unread,
