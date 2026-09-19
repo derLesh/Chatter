@@ -1,0 +1,137 @@
+package dev.chatter.app.emotes
+
+import android.util.Log
+import dev.chatter.app.chat.EmoteSource
+import dev.chatter.app.net.BttvEmote
+import dev.chatter.app.net.FfzEmote
+import dev.chatter.app.net.HelixApi
+import dev.chatter.app.net.SevenTvActiveEmote
+import dev.chatter.app.net.ThirdPartyApi
+import kotlinx.coroutines.async
+import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
+import java.util.concurrent.ConcurrentHashMap
+
+/**
+ * Holds every emote known to the app, keyed by the exact word that triggers it.
+ * Lookups are plain HashMap gets so parsing a message stays O(words).
+ */
+class EmoteRepository(
+    private val helix: HelixApi,
+    private val thirdParty: ThirdPartyApi,
+) : EmoteSource {
+    @Volatile private var global: Map<String, Emote> = emptyMap()
+    @Volatile private var twitchUser: Map<String, Emote> = emptyMap()
+    private val channels = ConcurrentHashMap<String, Map<String, Emote>>()
+    private val globalLock = Mutex()
+    private var globalLoaded = false
+
+    /** Increments whenever emote data changes, so UI lists (picker, autocomplete) can refresh. */
+    private val _version = MutableStateFlow(0)
+    val version: StateFlow<Int> = _version
+
+    /** Third-party emote (channel first, then global) for a word in someone's message. */
+    override fun lookup(channelId: String?, word: String): Emote? =
+        channelId?.let { channels[it]?.get(word) } ?: global[word]
+
+    /** Twitch emote the logged-in user owns; used to render our own (locally echoed) messages. */
+    override fun lookupOwnTwitch(word: String): Emote? = twitchUser[word]
+
+    /** Everything the user can type in the given channel, for autocomplete and the picker. */
+    fun available(channelId: String?): List<Emote> {
+        val result = LinkedHashMap<String, Emote>()
+        global.values.forEach { result[it.name] = it }
+        twitchUser.values.forEach { result[it.name] = it }
+        channelId?.let { channels[it] }?.values?.forEach { result[it.name] = it }
+        return result.values.toList()
+    }
+
+    suspend fun loadGlobal() = globalLock.withLock {
+        if (globalLoaded) return@withLock
+        coroutineScope {
+            val ffz = async { safe("FFZ global") { thirdParty.ffzGlobal().let { g -> g.defaultSets.flatMap { g.sets[it.toString()]?.emoticons.orEmpty() } }.map { it.toEmote(false) } } }
+            val bttv = async { safe("BTTV global") { thirdParty.bttvGlobal().map { it.toEmote(false) } } }
+            val stv = async { safe("7TV global") { thirdParty.sevenTvGlobal().emotes.orEmpty().mapNotNull { it.toEmote(false) } } }
+            // Later providers win on name clashes: FFZ < BTTV < 7TV.
+            val merged = HashMap<String, Emote>()
+            listOf(ffz.await(), bttv.await(), stv.await()).forEach { list -> list?.forEach { merged[it.name] = it } }
+            global = merged
+            globalLoaded = ffz.await() != null && bttv.await() != null && stv.await() != null
+        }
+        _version.update { it + 1 }
+    }
+
+    suspend fun loadTwitchUserEmotes(userId: String) {
+        val list = safe("Twitch user emotes") { helix.userEmotes(userId) } ?: return
+        twitchUser = list.associate { it.name to Emote(it.name, it.id, twitchEmoteUrl(it.id), EmoteProvider.Twitch, isChannel = it.emoteType != "globals" && it.emoteType != "smilies") }
+        _version.update { it + 1 }
+    }
+
+    suspend fun loadChannel(channelId: String) = coroutineScope {
+        val ffz = async { safe("FFZ channel") { thirdParty.ffzChannel(channelId)?.sets?.values?.flatMap { it.emoticons }?.map { it.toEmote(true) }.orEmpty() } }
+        val bttv = async { safe("BTTV channel") { thirdParty.bttvChannel(channelId)?.let { it.channelEmotes + it.sharedEmotes }?.map { it.toEmote(true) }.orEmpty() } }
+        val stv = async { safe("7TV channel") { thirdParty.sevenTvChannel(channelId)?.emoteSet?.emotes.orEmpty().mapNotNull { it.toEmote(true) } } }
+        val merged = HashMap<String, Emote>()
+        listOf(ffz.await(), bttv.await(), stv.await()).forEach { list -> list?.forEach { merged[it.name] = it } }
+        channels[channelId] = merged
+        _version.update { it + 1 }
+    }
+
+    fun clear() {
+        channels.clear()
+        twitchUser = emptyMap()
+    }
+
+    private suspend fun <T> safe(what: String, block: suspend () -> T): T? = try {
+        block()
+    } catch (e: Exception) {
+        if (e is kotlinx.coroutines.CancellationException) throw e
+        Log.w("EmoteRepository", "Loading $what failed: ${e.message}")
+        null
+    }
+
+    private fun BttvEmote.toEmote(channel: Boolean) = Emote(
+        name = code, id = id,
+        url = "https://cdn.betterttv.net/emote/$id/2x.webp",
+        provider = EmoteProvider.Bttv,
+        aspectRatio = if (width != null && height != null && height > 0) width.toFloat() / height else 1f,
+        zeroWidth = !channel && code in BTTV_ZERO_WIDTH,
+        isChannel = channel,
+    )
+
+    private fun FfzEmote.toEmote(channel: Boolean): Emote {
+        val raw = animated?.let { it["2"] ?: it["1"] } ?: urls["2"] ?: urls["1"] ?: ""
+        return Emote(
+            name = name, id = id.toString(),
+            url = if (raw.startsWith("//")) "https:$raw" else raw,
+            provider = EmoteProvider.Ffz,
+            aspectRatio = if (height > 0) width.toFloat() / height else 1f,
+            isChannel = channel,
+        )
+    }
+
+    private fun SevenTvActiveEmote.toEmote(channel: Boolean): Emote? {
+        val host = data?.host ?: return null
+        val file = host.files.firstOrNull { it.name.startsWith("1x") }
+        val base = if (host.url.startsWith("//")) "https:${host.url}" else host.url
+        return Emote(
+            name = name, id = id,
+            url = "$base/2x.webp",
+            provider = EmoteProvider.SevenTv,
+            aspectRatio = if (file != null && file.height > 0) file.width.toFloat() / file.height else 1f,
+            // Flag 1 on the active emote or 256 on the emote itself marks it as zero-width.
+            zeroWidth = (flags and 1) != 0 || (data.flags and 256) != 0,
+            isChannel = channel,
+        )
+    }
+
+    private companion object {
+        val BTTV_ZERO_WIDTH = setOf(
+            "SoSnowy", "IceCold", "SantaHat", "TopHat", "ReinDeer", "CandyCane", "cvMask", "cvHazmat",
+        )
+    }
+}

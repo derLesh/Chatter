@@ -1,0 +1,93 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name" translatable="false">Chatter</string>
+
+    <!-- Notifications -->
+    <string name="notif_channel_connection">Chat connection</string>
+    <string name="notif_channel_mentions">Mentions</string>
+    <string name="notif_me">Me</string>
+    <string name="notif_connecting">Connecting…</string>
+    <plurals name="notif_connected">
+        <item quantity="one">Connected to %d channel</item>
+        <item quantity="other">Connected to %d channels</item>
+    </plurals>
+    <string name="notif_disconnect">Disconnect</string>
+
+    <!-- Chat system messages -->
+    <string name="chat_reconnected">Reconnected.</string>
+    <string name="chat_disconnected">Disconnected. Reconnecting…</string>
+    <string name="chat_cleared">Chat has been cleared by a moderator.</string>
+    <string name="chat_timeout">%1$s has been timed out for %2$d seconds.</string>
+    <string name="chat_ban">%1$s has been banned.</string>
+
+    <!-- Chat -->
+    <string name="reply_to">↪ Replying to @%1$s: %2$s</string>
+    <string name="more_messages">New messages</string>
+    <string name="action_reply">Reply</string>
+    <string name="action_mention">Mention @%1$s</string>
+    <string name="action_copy">Copy message</string>
+    <string name="emotes">Emotes</string>
+    <string name="input_hint">Send a message</string>
+    <string name="input_hint_disabled">Not connected</string>
+    <string name="send">Send</string>
+    <string name="replying_to">Replying to @%1$s: %2$s</string>
+    <string name="cancel">Cancel</string>
+    <string name="emotes_recent">Recent</string>
+    <string name="emotes_twitch" translatable="false">Twitch</string>
+    <string name="emotes_7tv" translatable="false">7TV</string>
+    <string name="emotes_bttv" translatable="false">BTTV</string>
+    <string name="emotes_ffz" translatable="false">FFZ</string>
+    <string name="emotes_empty">No emotes here yet</string>
+
+    <!-- Channels -->
+    <string name="no_channels_title">No channels</string>
+    <string name="no_channels_text">Add a Twitch channel to start chatting.</string>
+    <string name="channels">Channels</string>
+    <string name="status_connecting">Connecting…</string>
+    <string name="status_live">Live · %1$s</string>
+    <string name="status_offline">Offline</string>
+    <string name="channel_options">Channel options</string>
+    <string name="move_up">Move up</string>
+    <string name="move_down">Move down</string>
+    <string name="remove_channel">Remove</string>
+    <string name="add_channel">Add channel</string>
+    <string name="channel_name">Channel name</string>
+    <string name="live">LIVE</string>
+    <string name="add">Add</string>
+
+    <!-- Login -->
+    <string name="login_subtitle">A fast, lightweight Twitch chat.</string>
+    <string name="login_missing_client_id">No Twitch Client ID configured. Add twitch.clientId to local.properties and rebuild the app.</string>
+    <string name="login_button">Log in with Twitch</string>
+    <string name="login_with_code">Log in with a code instead</string>
+    <string name="login_code_hint">Confirm this code on Twitch. The page opens in your browser.</string>
+    <string name="login_open_twitch">Open Twitch</string>
+    <string name="login_copy_code">Copy code</string>
+    <string name="login_waiting">Waiting for confirmation…</string>
+    <string name="login_failed">Login failed: %1$s</string>
+
+    <!-- Settings -->
+    <string name="settings">Settings</string>
+    <string name="back">Back</string>
+    <string name="settings_chat">Chat</string>
+    <string name="settings_font_size">Font size: %1$d</string>
+    <string name="settings_message_limit">Messages kept per channel: %1$d</string>
+    <string name="settings_timestamps">Show timestamps</string>
+    <string name="settings_animated_emotes">Animated emotes</string>
+    <string name="settings_mentions">Mentions</string>
+    <string name="settings_keywords">Extra highlight words</string>
+    <string name="settings_keywords_hint">Comma-separated. Your username is always included.</string>
+    <string name="save">Save</string>
+    <string name="settings_notifications">Notifications</string>
+    <string name="settings_notifications_hint">Sound, vibration and more in the system settings</string>
+    <string name="open">Open</string>
+    <string name="settings_account">Account</string>
+    <string name="settings_logged_in_as">Logged in as %1$s</string>
+    <string name="logout">Log out</string>
+
+    <!-- Errors -->
+    <string name="error_not_connected">Not connected to chat.</string>
+    <string name="error_rate_limited">You are sending messages too quickly.</string>
+    <string name="error_unsupported_command">Chat commands other than /me are not supported yet.</string>
+    <string name="error_invalid_channel">That is not a valid channel name.</string>
+</resources>

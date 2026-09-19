@@ -1,0 +1,87 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Notifications -->
+    <string name="notif_channel_connection">Chat-Verbindung</string>
+    <string name="notif_channel_mentions">Erwähnungen</string>
+    <string name="notif_me">Ich</string>
+    <string name="notif_connecting">Verbinde…</string>
+    <plurals name="notif_connected">
+        <item quantity="one">Mit %d Channel verbunden</item>
+        <item quantity="other">Mit %d Channels verbunden</item>
+    </plurals>
+    <string name="notif_disconnect">Trennen</string>
+
+    <!-- Chat system messages -->
+    <string name="chat_reconnected">Wieder verbunden.</string>
+    <string name="chat_disconnected">Verbindung getrennt. Verbinde neu…</string>
+    <string name="chat_cleared">Der Chat wurde von einem Moderator geleert.</string>
+    <string name="chat_timeout">%1$s wurde für %2$d Sekunden stummgeschaltet.</string>
+    <string name="chat_ban">%1$s wurde gebannt.</string>
+
+    <!-- Chat -->
+    <string name="reply_to">↪ Antwort an @%1$s: %2$s</string>
+    <string name="more_messages">Neue Nachrichten</string>
+    <string name="action_reply">Antworten</string>
+    <string name="action_mention">@%1$s erwähnen</string>
+    <string name="action_copy">Nachricht kopieren</string>
+    <string name="emotes">Emotes</string>
+    <string name="input_hint">Nachricht senden</string>
+    <string name="input_hint_disabled">Nicht verbunden</string>
+    <string name="send">Senden</string>
+    <string name="replying_to">Antwort an @%1$s: %2$s</string>
+    <string name="cancel">Abbrechen</string>
+    <string name="emotes_recent">Zuletzt</string>
+    <string name="emotes_empty">Hier gibt es noch keine Emotes</string>
+
+    <!-- Channels -->
+    <string name="no_channels_title">Keine Channels</string>
+    <string name="no_channels_text">Füge einen Twitch-Channel hinzu, um loszuchatten.</string>
+    <string name="channels">Channels</string>
+    <string name="status_connecting">Verbinde…</string>
+    <string name="status_live">Live · %1$s</string>
+    <string name="status_offline">Offline</string>
+    <string name="channel_options">Channel-Optionen</string>
+    <string name="move_up">Nach oben</string>
+    <string name="move_down">Nach unten</string>
+    <string name="remove_channel">Entfernen</string>
+    <string name="add_channel">Channel hinzufügen</string>
+    <string name="channel_name">Channel-Name</string>
+    <string name="live">LIVE</string>
+    <string name="add">Hinzufügen</string>
+
+    <!-- Login -->
+    <string name="login_subtitle">Ein schneller, schlanker Twitch-Chat.</string>
+    <string name="login_missing_client_id">Keine Twitch Client ID eingerichtet. Trage twitch.clientId in local.properties ein und baue die App neu.</string>
+    <string name="login_button">Mit Twitch anmelden</string>
+    <string name="login_with_code">Stattdessen mit Code anmelden</string>
+    <string name="login_code_hint">Bestätige diesen Code auf Twitch. Die Seite öffnet sich in deinem Browser.</string>
+    <string name="login_open_twitch">Twitch öffnen</string>
+    <string name="login_copy_code">Code kopieren</string>
+    <string name="login_waiting">Warte auf Bestätigung…</string>
+    <string name="login_failed">Anmeldung fehlgeschlagen: %1$s</string>
+
+    <!-- Settings -->
+    <string name="settings">Einstellungen</string>
+    <string name="back">Zurück</string>
+    <string name="settings_chat">Chat</string>
+    <string name="settings_font_size">Schriftgröße: %1$d</string>
+    <string name="settings_message_limit">Gespeicherte Nachrichten pro Channel: %1$d</string>
+    <string name="settings_timestamps">Zeitstempel anzeigen</string>
+    <string name="settings_animated_emotes">Animierte Emotes</string>
+    <string name="settings_mentions">Erwähnungen</string>
+    <string name="settings_keywords">Zusätzliche Hervorhebungswörter</string>
+    <string name="settings_keywords_hint">Mit Komma getrennt. Dein Nutzername ist immer dabei.</string>
+    <string name="save">Speichern</string>
+    <string name="settings_notifications">Benachrichtigungen</string>
+    <string name="settings_notifications_hint">Ton, Vibration und mehr in den Systemeinstellungen</string>
+    <string name="open">Öffnen</string>
+    <string name="settings_account">Konto</string>
+    <string name="settings_logged_in_as">Angemeldet als %1$s</string>
+    <string name="logout">Abmelden</string>
+
+    <!-- Errors -->
+    <string name="error_not_connected">Nicht mit dem Chat verbunden.</string>
+    <string name="error_rate_limited">Du sendest Nachrichten zu schnell.</string>
+    <string name="error_unsupported_command">Chat-Befehle außer /me werden noch nicht unterstützt.</string>
+    <string name="error_invalid_channel">Das ist kein gültiger Channel-Name.</string>
+</resources>
