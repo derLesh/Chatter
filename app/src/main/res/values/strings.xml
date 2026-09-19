@@ -196,7 +196,6 @@
 
     <!-- App icon -->
     <string name="settings_app_icon">App icon</string>
-    <string name="settings_app_icon_hint">The launcher may take a moment to update. Home screen shortcuts might need to be re-added.</string>
     <string name="app_icon_light">White</string>
     <string name="app_icon_dark">Black</string>
 </resources>

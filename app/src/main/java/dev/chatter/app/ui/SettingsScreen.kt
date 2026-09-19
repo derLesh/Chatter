@@ -528,8 +528,7 @@ private fun AppIconPicker() {
         headlineContent = { Text(stringResource(R.string.settings_app_icon)) },
         supportingContent = {
             Column {
-                Text(stringResource(R.string.settings_app_icon_hint))
-                Row(horizontalArrangement = Arrangement.spacedBy(20.dp), modifier = Modifier.padding(top = 12.dp)) {
+                Row(horizontalArrangement = Arrangement.spacedBy(20.dp), modifier = Modifier.padding(top = 4.dp)) {
                     listOf(
                         Triple(AppIcon.Light, Color.White, R.string.app_icon_light),
                         Triple(AppIcon.Dark, Color(0xFF111111), R.string.app_icon_dark),

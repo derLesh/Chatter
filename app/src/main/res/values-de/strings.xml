@@ -190,7 +190,6 @@
 
     <!-- App icon -->
     <string name="settings_app_icon">App-Icon</string>
-    <string name="settings_app_icon_hint">Der Launcher braucht evtl. einen Moment. Verknüpfungen auf dem Startbildschirm müssen ggf. neu angelegt werden.</string>
     <string name="app_icon_light">Weiß</string>
     <string name="app_icon_dark">Schwarz</string>
 </resources>
