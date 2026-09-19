@@ -155,6 +155,8 @@
     <string name="settings_credits_ffz_summary">Emotes</string>
     <string name="settings_credits_recent">recent-messages.robotty.de</string>
     <string name="settings_credits_recent_summary">Chatverlauf beim Betreten eines Kanals</string>
+    <string name="settings_licenses">Open-Source-Lizenzen</string>
+    <string name="license_apache2">Apache-Lizenz 2.0</string>
     <string name="settings_source_code">Quellcode</string>
     <string name="settings_source_code_summary">github.com/derLesh/Chatter</string>
     <string name="settings_report_issue">Problem melden</string>

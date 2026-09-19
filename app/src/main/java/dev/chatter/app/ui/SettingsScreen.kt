@@ -433,7 +433,23 @@ private fun AboutPage() {
             item { LinkItem(title, summary, url) }
         }
     }
+    SettingsGroup(R.string.settings_licenses) {
+        DEPENDENCIES.forEach { (name, url) ->
+            item { LinkItem(name, stringResource(R.string.license_apache2), url) }
+        }
+    }
 }
+
+/** The libraries Chatter ships, for the license listing. All of them are Apache 2.0. */
+private val DEPENDENCIES = listOf(
+    "Kotlin" to "https://kotlinlang.org",
+    "Kotlin Coroutines" to "https://github.com/Kotlin/kotlinx.coroutines",
+    "kotlinx.serialization" to "https://github.com/Kotlin/kotlinx.serialization",
+    "AndroidX (Core, Activity, Lifecycle, DataStore)" to "https://developer.android.com/jetpack/androidx",
+    "Jetpack Compose" to "https://developer.android.com/jetpack/compose",
+    "OkHttp" to "https://square.github.io/okhttp/",
+    "Coil" to "https://coil-kt.github.io/coil/",
+)
 
 /** The services Chatter builds on, each linking to where it comes from. */
 private val CREDITS = listOf(
@@ -446,13 +462,17 @@ private val CREDITS = listOf(
 
 private const val REPO_URL = "https://github.com/derLesh/Chatter"
 
+@Composable
+private fun LinkItem(title: Int, summary: Int, url: String) =
+    LinkItem(stringResource(title), stringResource(summary), url)
+
 /** A settings row that hands the link to the browser. */
 @Composable
-private fun LinkItem(title: Int, summary: Int, url: String) {
+private fun LinkItem(title: String, summary: String, url: String) {
     val context = LocalContext.current
     ListItem(
-        headlineContent = { Text(stringResource(title)) },
-        supportingContent = { Text(stringResource(summary)) },
+        headlineContent = { Text(title) },
+        supportingContent = { Text(summary) },
         trailingContent = { Icon(Icons.AutoMirrored.Filled.ArrowForward, contentDescription = null) },
         colors = transparentItem(),
         modifier = Modifier.clickable { context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url))) },
