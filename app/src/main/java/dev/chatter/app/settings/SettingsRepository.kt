@@ -38,6 +38,8 @@ data class Settings(
     /** Draw zero-width emotes on top of the previous emote (off: show them next to it). */
     val zeroWidthEmotes: Boolean = true,
     val showUnlisted7tv: Boolean = false,
+    /** Live 7TV emote changes (added / removed / renamed) as notices in the chat. */
+    val sevenTvEvents: Boolean = true,
 ) {
     companion object {
         // Real ARGB colors are always opaque (0xFF......), so these can never clash with one.
@@ -67,6 +69,7 @@ class SettingsRepository(
             emotesEnabled = p[EMOTES_ENABLED] ?: true,
             zeroWidthEmotes = p[ZERO_WIDTH] ?: true,
             showUnlisted7tv = p[UNLISTED_7TV] ?: false,
+            sevenTvEvents = p[SEVENTV_EVENTS] ?: true,
         )
     }.stateIn(scope, SharingStarted.Eagerly, Settings())
 
@@ -84,6 +87,7 @@ class SettingsRepository(
     suspend fun setEmotesEnabled(v: Boolean) = store.edit { it[EMOTES_ENABLED] = v }
     suspend fun setZeroWidthEmotes(v: Boolean) = store.edit { it[ZERO_WIDTH] = v }
     suspend fun setShowUnlisted7tv(v: Boolean) = store.edit { it[UNLISTED_7TV] = v }
+    suspend fun setSevenTvEvents(v: Boolean) = store.edit { it[SEVENTV_EVENTS] = v }
 
     suspend fun addRecentEmote(name: String) = store.edit { p ->
         val list = p[RECENT_EMOTES].orEmpty().split(' ').filter { it.isNotEmpty() && it != name }
@@ -106,6 +110,7 @@ class SettingsRepository(
         val EMOTES_ENABLED = booleanPreferencesKey("emotes_enabled")
         val ZERO_WIDTH = booleanPreferencesKey("zero_width_emotes")
         val UNLISTED_7TV = booleanPreferencesKey("show_unlisted_7tv")
+        val SEVENTV_EVENTS = booleanPreferencesKey("seventv_events")
         const val MAX_RECENT = 40
     }
 }

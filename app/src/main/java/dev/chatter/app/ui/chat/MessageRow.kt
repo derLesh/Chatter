@@ -188,6 +188,10 @@ private fun buildLine(item: ChatItem, style: ChatStyle): BuiltLine {
             withStyle(SpanStyle(color = style.secondaryText, fontStyle = FontStyle.Italic)) {
                 if (style.showTimestamps) append(timeFormat.get()!!.format(Date(item.timestamp)) + " ")
                 append(item.systemText ?: item.text)
+                if (item.segments.isNotEmpty()) {
+                    append(' ')
+                    appendSegments(item.segments, inline, style)
+                }
             }
         }
         return BuiltLine(text, inline)
@@ -219,24 +223,26 @@ private fun buildLine(item: ChatItem, style: ChatStyle): BuiltLine {
             fontStyle = if (isAction) FontStyle.Italic else FontStyle.Normal,
             textDecoration = if (item.deleted) TextDecoration.LineThrough else null,
         )
-        withStyle(body) {
-            item.segments.forEachIndexed { i, seg ->
-                when (seg) {
-                    is Segment.Text -> append(seg.text)
-                    is Segment.EmoteSeg -> {
-                        val id = "e$i"
-                        inline[id] = InlineData.EmoteData(seg)
-                        appendInlineContent(id, seg.emote.name)
-                    }
-                    is Segment.Link -> withLink(
-                        LinkAnnotation.Url(seg.url, TextLinkStyles(SpanStyle(color = style.linkColor, textDecoration = TextDecoration.Underline))),
-                    ) { append(seg.text) }
-                    is Segment.Mention -> withStyle(SpanStyle(fontWeight = FontWeight.Bold)) { append(seg.name) }
-                }
-            }
-        }
+        withStyle(body) { appendSegments(item.segments, inline, style) }
     }
     return BuiltLine(text, inline)
+}
+
+private fun AnnotatedString.Builder.appendSegments(segments: List<Segment>, inline: MutableMap<String, InlineData>, style: ChatStyle) {
+    segments.forEachIndexed { i, seg ->
+        when (seg) {
+            is Segment.Text -> append(seg.text)
+            is Segment.EmoteSeg -> {
+                val id = "e$i"
+                inline[id] = InlineData.EmoteData(seg)
+                appendInlineContent(id, seg.emote.name)
+            }
+            is Segment.Link -> withLink(
+                LinkAnnotation.Url(seg.url, TextLinkStyles(SpanStyle(color = style.linkColor, textDecoration = TextDecoration.Underline))),
+            ) { append(seg.text) }
+            is Segment.Mention -> withStyle(SpanStyle(fontWeight = FontWeight.Bold)) { append(seg.name) }
+        }
+    }
 }
 
 /** "Name" or "Name (login)" for localized display names like Japanese or Korean ones. */

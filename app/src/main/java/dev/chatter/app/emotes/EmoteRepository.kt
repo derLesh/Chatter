@@ -29,6 +29,10 @@ class EmoteRepository(
     private val channels = ConcurrentHashMap<String, Map<String, Emote>>()
     /** Twitch follower emotes the user may use in a channel (keyed by channel id). */
     private val channelTwitch = ConcurrentHashMap<String, Map<String, Emote>>()
+
+    /** 7TV ids per Twitch channel id, for live updates via the 7TV EventAPI. */
+    private val sevenTvSets = ConcurrentHashMap<String, String>()
+    private val sevenTvUsers = ConcurrentHashMap<String, String>()
     private val globalLock = Mutex()
     private var globalLoaded = false
 
@@ -80,7 +84,14 @@ class EmoteRepository(
         val follower = async { if (userId != null) loadFollowerEmotes(channelId, userId) }
         val ffz = async { safe("FFZ channel") { thirdParty.ffzChannel(channelId)?.sets?.values?.flatMap { it.emoticons }?.map { it.toEmote(true) }.orEmpty() } }
         val bttv = async { safe("BTTV channel") { thirdParty.bttvChannel(channelId)?.let { it.channelEmotes + it.sharedEmotes }?.map { it.toEmote(true) }.orEmpty() } }
-        val stv = async { safe("7TV channel") { thirdParty.sevenTvChannel(channelId)?.emoteSet?.emotes.orEmpty().mapNotNull { it.toEmote(true) } } }
+        val stv = async {
+            safe("7TV channel") {
+                val user = thirdParty.sevenTvChannel(channelId)
+                user?.emoteSet?.id?.takeIf { it.isNotEmpty() }?.let { sevenTvSets[channelId] = it } ?: sevenTvSets.remove(channelId)
+                user?.user?.id?.takeIf { it.isNotEmpty() }?.let { sevenTvUsers[channelId] = it } ?: sevenTvUsers.remove(channelId)
+                user?.emoteSet?.emotes.orEmpty().mapNotNull { it.toEmote(true) }
+            }
+        }
         val merged = HashMap<String, Emote>()
         listOf(ffz.await(), bttv.await(), stv.await()).forEach { list -> list?.forEach { merged[it.name] = it } }
         channels[channelId] = merged
@@ -99,8 +110,32 @@ class EmoteRepository(
         }
     }
 
+    /** What to subscribe to at the 7TV EventAPI: set changes and set switches of every channel. */
+    fun sevenTvSubscriptions(): Set<Pair<String, String>> =
+        sevenTvSets.values.map { "emote_set.update" to it }.toSet() + sevenTvUsers.values.map { "user.update" to it }
+
+    fun channelForSevenTvSet(setId: String): String? = sevenTvSets.entries.firstOrNull { it.value == setId }?.key
+    fun channelForSevenTvUser(userId: String): String? = sevenTvUsers.entries.firstOrNull { it.value == userId }?.key
+
+    /** Applies a pushed 7TV set change to the channel's emotes. Returns the added emotes (converted). */
+    fun applySevenTvUpdate(channelId: String, event: SevenTvEvent.EmoteSetUpdate): List<Emote> {
+        val map = HashMap(channels[channelId].orEmpty())
+        event.removed.forEach { e -> if (map[e.name]?.provider == EmoteProvider.SevenTv) map.remove(e.name) }
+        event.renamed.forEach { (old, new) ->
+            val existing = map.remove(old.name)
+            (new.toEmote(true) ?: existing?.copy(name = new.name))?.let { map[new.name] = it }
+        }
+        val added = event.added.mapNotNull { it.toEmote(true) }
+        added.forEach { map[it.name] = it }
+        channels[channelId] = map
+        _version.update { it + 1 }
+        return added
+    }
+
     fun clear() {
         channels.clear()
+        sevenTvSets.clear()
+        sevenTvUsers.clear()
         channelTwitch.clear()
         twitchUser = emptyMap()
     }

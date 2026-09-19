@@ -54,7 +54,7 @@ data class FfzRoom(val sets: Map<String, FfzSet> = emptyMap())
 // ---- 7TV ---------------------------------------------------------------------
 
 @Serializable
-data class SevenTvEmoteSet(val emotes: List<SevenTvActiveEmote>? = null)
+data class SevenTvEmoteSet(val id: String = "", val emotes: List<SevenTvActiveEmote>? = null)
 
 @Serializable
 data class SevenTvActiveEmote(val id: String, val name: String, val flags: Int = 0, val data: SevenTvEmoteData? = null)
@@ -78,7 +78,14 @@ data class SevenTvHost(val url: String, val files: List<SevenTvFile> = emptyList
 data class SevenTvFile(val name: String, val width: Int = 0, val height: Int = 0, val format: String = "")
 
 @Serializable
-data class SevenTvUser(@kotlinx.serialization.SerialName("emote_set") val emoteSet: SevenTvEmoteSet? = null)
+data class SevenTvUser(
+    @kotlinx.serialization.SerialName("emote_set") val emoteSet: SevenTvEmoteSet? = null,
+    /** The 7TV account behind the Twitch connection. */
+    val user: SevenTvUserRef? = null,
+)
+
+@Serializable
+data class SevenTvUserRef(val id: String = "")
 
 // ---- Recent messages (history) -----------------------------------------------
 

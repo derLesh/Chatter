@@ -317,6 +317,7 @@ private fun ChatPage(settings: Settings, vm: MainViewModel) {
             )
         }
         item { SwitchItem(R.string.settings_load_history, settings.loadHistory, vm::setLoadHistory, R.string.settings_load_history_hint) }
+        item { SwitchItem(R.string.settings_seventv_events, settings.sevenTvEvents, vm::setSevenTvEvents, R.string.settings_seventv_events_hint) }
     }
 }
 

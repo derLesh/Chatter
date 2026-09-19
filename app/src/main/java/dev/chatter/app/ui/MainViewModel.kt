@@ -329,6 +329,10 @@ class MainViewModel(private val c: AppContainer) : ViewModel() {
         viewModelScope.launch { c.settings.setShowUnlisted7tv(v) }
     }
 
+    fun setSevenTvEvents(v: Boolean) {
+        viewModelScope.launch { c.settings.setSevenTvEvents(v) }
+    }
+
     fun setLoadHistory(v: Boolean) {
         viewModelScope.launch { c.settings.setLoadHistory(v) }
     }

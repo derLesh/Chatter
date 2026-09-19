@@ -154,6 +154,18 @@ class ChatRepository(
 
     fun roomId(channel: String): String? = roomIds[channel]
 
+    fun channelForRoomId(id: String): String? = roomIds.entries.firstOrNull { it.value == id }?.key
+
+    fun knownRoomIds(): List<String> = roomIds.values.toList()
+
+    /** Adds an informational line (e.g. 7TV activity), optionally followed by emotes/text segments. */
+    fun postNotice(channel: String, text: String, segments: List<Segment> = emptyList()) = scope.launch(worker) {
+        append(
+            ChatItem(id = UUID.randomUUID().toString(), channel = channel, kind = MessageKind.Notice,
+                timestamp = System.currentTimeMillis(), systemText = text, text = text, segments = segments)
+        )
+    }
+
     fun clearUnread(channel: String) {
         _unreadMentions.update { it - channel }
         scope.launch(worker) {

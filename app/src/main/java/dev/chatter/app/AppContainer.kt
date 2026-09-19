@@ -20,6 +20,8 @@ import dev.chatter.app.chat.CommandExecutor
 import dev.chatter.app.chat.EmoteOptions
 import dev.chatter.app.chat.MessageBuilder
 import dev.chatter.app.emotes.EmoteRepository
+import dev.chatter.app.emotes.SevenTvEventClient
+import dev.chatter.app.emotes.SevenTvLiveUpdates
 import dev.chatter.app.irc.ConnectionState
 import dev.chatter.app.irc.IrcConnection
 import dev.chatter.app.net.HelixApi
@@ -80,6 +82,8 @@ class AppContainer(private val context: Context) {
         EmoteOptions(enabled = it.emotesEnabled, zeroWidth = it.zeroWidthEmotes, showUnlisted = it.showUnlisted7tv)
     }
 
+    private val sevenTvLive = SevenTvLiveUpdates(context, SevenTvEventClient(socketHttp, scope), emotes, chat, settings.settings, scope)
+
     val imageLoader: ImageLoader = imageLoader(animated = true)
     /** Used when animated emotes are turned off: decodes only the first frame. */
     val staticImageLoader: ImageLoader = imageLoader(animated = false)
@@ -87,6 +91,7 @@ class AppContainer(private val context: Context) {
     fun start() {
         notifier.createChannels()
         chat.start()
+        sevenTvLive.start()
         scope.launch {
             channels.loadCache()
             auth.restore()

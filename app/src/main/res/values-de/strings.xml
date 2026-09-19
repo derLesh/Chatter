@@ -178,4 +178,13 @@
     <string name="emote_copy_name">Name kopieren</string>
     <string name="emote_open_page">Seite öffnen</string>
     <string name="emote_stack">Übereinander gelegte Emotes</string>
+
+    <!-- 7TV activity -->
+    <string name="settings_seventv_events">7TV-Aktivität</string>
+    <string name="settings_seventv_events_hint">Im Chat anzeigen, wenn 7TV-Emotes hinzugefügt, entfernt oder umbenannt werden (solange die App offen ist)</string>
+    <string name="seventv_added">7TV: %1$s hat hinzugefügt:</string>
+    <string name="seventv_removed">7TV: %1$s hat %2$s entfernt</string>
+    <string name="seventv_renamed">7TV: %1$s hat %2$s umbenannt in</string>
+    <string name="seventv_set_changed">7TV: %1$s hat das aktive Emote-Set gewechselt</string>
+    <string name="seventv_someone">Jemand</string>
 </resources>
