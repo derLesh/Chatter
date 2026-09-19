@@ -24,7 +24,6 @@ import androidx.compose.material.icons.filled.Face
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextField
 import androidx.compose.material3.TextFieldDefaults
@@ -59,46 +58,46 @@ fun InputBar(
     onSend: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    Surface(color = MaterialTheme.colorScheme.surfaceContainer, modifier = modifier) {
-        Column {
-            if (suggestions.isNotEmpty()) {
-                SuggestionRow(suggestions, imageLoader, onSuggestion)
+    // No bar of its own: the input sits straight on the chat background, so only the rounded
+    // field, the chips and the reply strip stand out.
+    Column(modifier) {
+        if (suggestions.isNotEmpty()) {
+            SuggestionRow(suggestions, imageLoader, onSuggestion)
+        }
+        if (replyTo != null) {
+            ReplyBar(replyTo, onCancelReply)
+        }
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            modifier = Modifier.padding(horizontal = 4.dp, vertical = 4.dp),
+        ) {
+            IconButton(onClick = onEmotePicker, enabled = enabled) {
+                Icon(Icons.Default.Face, contentDescription = stringResource(R.string.emotes))
             }
-            if (replyTo != null) {
-                ReplyBar(replyTo, onCancelReply)
-            }
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                modifier = Modifier.padding(horizontal = 4.dp, vertical = 4.dp),
-            ) {
-                IconButton(onClick = onEmotePicker, enabled = enabled) {
-                    Icon(Icons.Default.Face, contentDescription = stringResource(R.string.emotes))
-                }
-                TextField(
-                    value = value,
-                    onValueChange = onValueChange,
-                    enabled = enabled,
-                    placeholder = { Text(stringResource(if (enabled) R.string.input_hint else R.string.input_hint_disabled)) },
-                    maxLines = 4,
-                    keyboardOptions = KeyboardOptions(
-                        capitalization = KeyboardCapitalization.Sentences,
-                        imeAction = ImeAction.Send,
-                    ),
-                    keyboardActions = KeyboardActions(onSend = { onSend() }),
-                    shape = RoundedCornerShape(20.dp),
-                    colors = TextFieldDefaults.colors(
-                        focusedContainerColor = MaterialTheme.colorScheme.surfaceContainerHighest,
-                        unfocusedContainerColor = MaterialTheme.colorScheme.surfaceContainerHighest,
-                        disabledContainerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
-                        focusedIndicatorColor = Color.Transparent,
-                        unfocusedIndicatorColor = Color.Transparent,
-                        disabledIndicatorColor = Color.Transparent,
-                    ),
-                    modifier = Modifier.weight(1f),
-                )
-                IconButton(onClick = onSend, enabled = enabled && value.text.isNotBlank()) {
-                    Icon(Icons.AutoMirrored.Filled.Send, contentDescription = stringResource(R.string.send))
-                }
+            TextField(
+                value = value,
+                onValueChange = onValueChange,
+                enabled = enabled,
+                placeholder = { Text(stringResource(if (enabled) R.string.input_hint else R.string.input_hint_disabled)) },
+                maxLines = 4,
+                keyboardOptions = KeyboardOptions(
+                    capitalization = KeyboardCapitalization.Sentences,
+                    imeAction = ImeAction.Send,
+                ),
+                keyboardActions = KeyboardActions(onSend = { onSend() }),
+                shape = RoundedCornerShape(20.dp),
+                colors = TextFieldDefaults.colors(
+                    focusedContainerColor = MaterialTheme.colorScheme.surfaceContainerHighest,
+                    unfocusedContainerColor = MaterialTheme.colorScheme.surfaceContainerHighest,
+                    disabledContainerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
+                    focusedIndicatorColor = Color.Transparent,
+                    unfocusedIndicatorColor = Color.Transparent,
+                    disabledIndicatorColor = Color.Transparent,
+                ),
+                modifier = Modifier.weight(1f),
+            )
+            IconButton(onClick = onSend, enabled = enabled && value.text.isNotBlank()) {
+                Icon(Icons.AutoMirrored.Filled.Send, contentDescription = stringResource(R.string.send))
             }
         }
     }
