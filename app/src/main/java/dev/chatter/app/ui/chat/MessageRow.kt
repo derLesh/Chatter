@@ -45,6 +45,7 @@ import dev.chatter.app.badges.Badge
 import dev.chatter.app.chat.ChatItem
 import dev.chatter.app.chat.MessageKind
 import dev.chatter.app.chat.Segment
+import dev.chatter.app.settings.TimestampFormat
 import dev.chatter.app.ui.theme.readableNameColor
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -54,7 +55,7 @@ import java.util.Locale
 @Immutable
 data class ChatStyle(
     val fontSize: Float,
-    val showTimestamps: Boolean,
+    val timestamps: TimestampFormat,
     val dark: Boolean,
     val secondaryText: Color,
     val linkColor: Color,
@@ -79,9 +80,13 @@ private sealed interface InlineData {
     data class EmoteData(val seg: Segment.EmoteSeg) : InlineData
 }
 
-private val timeFormat = object : ThreadLocal<SimpleDateFormat>() {
-    override fun initialValue() = SimpleDateFormat("HH:mm", Locale.getDefault())
+// One formatter per pattern and thread: they are not safe to share across threads.
+private val timeFormats = object : ThreadLocal<MutableMap<String, SimpleDateFormat>>() {
+    override fun initialValue() = mutableMapOf<String, SimpleDateFormat>()
 }
+
+private fun formatTime(pattern: String, at: Long): String =
+    timeFormats.get()!!.getOrPut(pattern) { SimpleDateFormat(pattern, Locale.getDefault()) }.format(Date(at))
 
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
@@ -188,7 +193,7 @@ private fun buildLine(item: ChatItem, style: ChatStyle): BuiltLine {
     if (item.kind == MessageKind.Notice) {
         val text = buildAnnotatedString {
             withStyle(SpanStyle(color = style.secondaryText, fontStyle = FontStyle.Italic)) {
-                if (style.showTimestamps) append(timeFormat.get()!!.format(Date(item.timestamp)) + " ")
+                style.timestamps.pattern?.let { append(formatTime(it, item.timestamp) + " ") }
                 append(item.systemText ?: item.text)
                 if (item.segments.isNotEmpty()) {
                     append(' ')
@@ -203,9 +208,9 @@ private fun buildLine(item: ChatItem, style: ChatStyle): BuiltLine {
     val nameColor = readableNameColor(item.color, item.login, style.dark)
     val isAction = item.kind == MessageKind.Action
     val text = buildAnnotatedString {
-        if (style.showTimestamps) {
+        style.timestamps.pattern?.let { pattern ->
             withStyle(SpanStyle(color = style.secondaryText, fontSize = (style.fontSize - 2).sp)) {
-                append(timeFormat.get()!!.format(Date(item.timestamp)))
+                append(formatTime(pattern, item.timestamp))
             }
             append(' ')
         }

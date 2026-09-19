@@ -15,9 +15,17 @@ import kotlinx.coroutines.flow.stateIn
 
 enum class ThemeMode { System, Light, Dark }
 
+/** How the time in front of a message is written, or [Off] for no timestamp at all. */
+enum class TimestampFormat(val pattern: String?) {
+    Off(null),
+    Short("HH:mm"),
+    Seconds("HH:mm:ss"),
+    Twelve("h:mm a"),
+}
+
 data class Settings(
     val fontSize: Float = 14f,
-    val showTimestamps: Boolean = true,
+    val timestamps: TimestampFormat = TimestampFormat.Short,
     val messageLimit: Int = 500,
     val mentionKeywords: List<String> = emptyList(),
     val animatedEmotes: Boolean = true,
@@ -63,7 +71,9 @@ class SettingsRepository(
     val settings: StateFlow<Settings> = store.data.map { p ->
         Settings(
             fontSize = p[FONT_SIZE] ?: 14f,
-            showTimestamps = p[TIMESTAMPS] ?: true,
+            // Falls back to the old on/off switch so an existing choice survives the update.
+            timestamps = p[TIMESTAMP_FORMAT]?.let { v -> TimestampFormat.entries.firstOrNull { it.name == v } }
+                ?: if (p[TIMESTAMPS] == false) TimestampFormat.Off else TimestampFormat.Short,
             messageLimit = p[LIMIT] ?: 500,
             mentionKeywords = p[KEYWORDS].orEmpty().split(',').map { it.trim() }.filter { it.isNotEmpty() },
             animatedEmotes = p[ANIMATED] ?: true,
@@ -86,7 +96,7 @@ class SettingsRepository(
     }.stateIn(scope, SharingStarted.Eagerly, Settings())
 
     suspend fun setFontSize(v: Float) = store.edit { it[FONT_SIZE] = v }
-    suspend fun setShowTimestamps(v: Boolean) = store.edit { it[TIMESTAMPS] = v }
+    suspend fun setTimestamps(v: TimestampFormat) = store.edit { it[TIMESTAMP_FORMAT] = v.name }
     suspend fun setMessageLimit(v: Int) = store.edit { it[LIMIT] = v }
     suspend fun setMentionKeywords(v: String) = store.edit { it[KEYWORDS] = v }
     suspend fun setAnimatedEmotes(v: Boolean) = store.edit { it[ANIMATED] = v }
@@ -113,6 +123,7 @@ class SettingsRepository(
     private companion object {
         val FONT_SIZE = floatPreferencesKey("font_size")
         val TIMESTAMPS = booleanPreferencesKey("timestamps")
+        val TIMESTAMP_FORMAT = stringPreferencesKey("timestamp_format")
         val LIMIT = intPreferencesKey("message_limit")
         val KEYWORDS = stringPreferencesKey("mention_keywords")
         val ANIMATED = booleanPreferencesKey("animated_emotes")

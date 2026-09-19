@@ -20,6 +20,7 @@ import dev.chatter.app.emotes.Emote
 import dev.chatter.app.net.HelixChannelSearch
 import dev.chatter.app.net.HelixUser
 import dev.chatter.app.settings.ThemeMode
+import dev.chatter.app.settings.TimestampFormat
 import dev.chatter.app.util.Autocomplete
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.channels.Channel
@@ -235,6 +236,10 @@ class MainViewModel(private val c: AppContainer) : ViewModel() {
         viewModelScope.launch { c.settings.setUnreadInTitleBar(v) }
     }
 
+    fun setTimestamps(v: TimestampFormat) {
+        viewModelScope.launch { c.settings.setTimestamps(v) }
+    }
+
     fun setShowDeleted(v: Boolean) {
         viewModelScope.launch { c.settings.setShowDeleted(v) }
     }
@@ -318,10 +323,6 @@ class MainViewModel(private val c: AppContainer) : ViewModel() {
 
     fun setFontSize(v: Float) {
         viewModelScope.launch { c.settings.setFontSize(v) }
-    }
-
-    fun setShowTimestamps(v: Boolean) {
-        viewModelScope.launch { c.settings.setShowTimestamps(v) }
     }
 
     fun setMessageLimit(v: Int) {

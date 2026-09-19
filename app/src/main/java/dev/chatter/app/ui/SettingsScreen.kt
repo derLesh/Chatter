@@ -99,6 +99,11 @@ import dev.chatter.app.ui.theme.highlightBackground
 import dev.chatter.app.ui.theme.isAppInDarkTheme
 import dev.chatter.app.util.AppIcon
 import dev.chatter.app.ui.theme.highlightColor
+import androidx.compose.material3.RadioButton
+import dev.chatter.app.settings.TimestampFormat
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 import kotlin.math.roundToInt
 
 /** Top level of the settings, like the Android settings app: categories that open a page. */
@@ -245,7 +250,6 @@ private fun AppearancePage(settings: Settings, vm: MainViewModel) {
 
     SettingsGroup(R.string.settings_group_text) {
         item { TextSizeItem(settings, vm) }
-        item { SwitchItem(R.string.settings_timestamps, settings.showTimestamps, vm::setShowTimestamps) }
     }
 
     SettingsGroup(R.string.settings_group_messages) {
@@ -287,7 +291,7 @@ private fun TextSizeItem(settings: Settings, vm: MainViewModel) {
     }
     val style = ChatStyle(
         fontSize = size.roundToInt().toFloat(),
-        showTimestamps = settings.showTimestamps,
+        timestamps = settings.timestamps,
         dark = dark,
         secondaryText = scheme.onSurfaceVariant,
         linkColor = scheme.primary,
@@ -340,6 +344,7 @@ private fun ChatPage(settings: Settings, vm: MainViewModel) {
         item { SwitchItem(R.string.settings_load_history, settings.loadHistory, vm::setLoadHistory, R.string.settings_load_history_hint) }
         item { SwitchItem(R.string.settings_seventv_events, settings.sevenTvEvents, vm::setSevenTvEvents, R.string.settings_seventv_events_hint) }
         item { SwitchItem(R.string.settings_show_deleted, settings.showDeleted, vm::setShowDeleted, R.string.settings_show_deleted_hint) }
+        item { TimestampPicker(settings.timestamps, vm::setTimestamps) }
     }
     SettingsGroup(R.string.settings_suggestions) {
         item { SwitchItem(R.string.settings_emote_suggestions, settings.emoteSuggestions, vm::setEmoteSuggestions, R.string.settings_emote_suggestions_hint) }
@@ -633,6 +638,38 @@ private fun SliderItem(
         headlineContent = { Text(title) },
         supportingContent = {
             Slider(value = value, onValueChange = onChange, onValueChangeFinished = onDone, valueRange = range, steps = steps)
+        },
+        colors = transparentItem(),
+    )
+}
+
+/** How the time in front of a message is written, each option showing the current time in it. */
+@Composable
+private fun TimestampPicker(selected: TimestampFormat, onSelect: (TimestampFormat) -> Unit) {
+    val now = remember { System.currentTimeMillis() }
+    ListItem(
+        headlineContent = { Text(stringResource(R.string.settings_timestamps)) },
+        supportingContent = {
+            Column(Modifier.padding(top = 4.dp)) {
+                TimestampFormat.entries.forEach { format ->
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(12.dp))
+                            .clickable { onSelect(format) }
+                            .padding(vertical = 2.dp),
+                    ) {
+                        RadioButton(selected = format == selected, onClick = { onSelect(format) })
+                        Text(
+                            text = format.pattern?.let { p ->
+                                SimpleDateFormat(p, Locale.getDefault()).format(Date(now))
+                            } ?: stringResource(R.string.settings_timestamps_off),
+                            style = MaterialTheme.typography.bodyMedium,
+                        )
+                    }
+                }
+            }
         },
         colors = transparentItem(),
     )

@@ -74,7 +74,8 @@
     <string name="settings_chat">Chat</string>
     <string name="settings_font_size">Text size: %1$d</string>
     <string name="settings_message_limit">Messages kept per channel: %1$d</string>
-    <string name="settings_timestamps">Show timestamps</string>
+    <string name="settings_timestamps">Timestamps</string>
+    <string name="settings_timestamps_off">No time</string>
     <string name="settings_animated_emotes">Animated emotes</string>
     <string name="settings_keywords">Extra highlight words</string>
     <string name="settings_keywords_hint">Comma-separated. Your username is always included.</string>
