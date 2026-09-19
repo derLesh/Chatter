@@ -118,8 +118,9 @@ class MainViewModel(private val c: AppContainer) : ViewModel() {
                 CommandParser.COMMANDS.filterKeys { it.startsWith(typed) }
                     .map { (name, usage) -> Suggestion.CommandSuggestion(name, usage) }
             } else if (word.text.startsWith("@")) {
-                Autocomplete.rankUsers(word.text, c.chat.chatters(channel)).map { Suggestion.UserSuggestion(it) }
-            } else if (word.text.length >= 2) {
+                if (!settings.value.userSuggestions) emptyList()
+                else Autocomplete.rankUsers(word.text, c.chat.chatters(channel)).map { Suggestion.UserSuggestion(it) }
+            } else if (word.text.length >= 2 && settings.value.emoteSuggestions) {
                 Autocomplete.rankEmotes(word.text, emotesFor(channel))
                     .map { Suggestion.EmoteSuggestion(it) }
             } else emptyList()
@@ -232,6 +233,14 @@ class MainViewModel(private val c: AppContainer) : ViewModel() {
 
     fun setUnreadInTitleBar(v: Boolean) {
         viewModelScope.launch { c.settings.setUnreadInTitleBar(v) }
+    }
+
+    fun setEmoteSuggestions(v: Boolean) {
+        viewModelScope.launch { c.settings.setEmoteSuggestions(v) }
+    }
+
+    fun setUserSuggestions(v: Boolean) {
+        viewModelScope.launch { c.settings.setUserSuggestions(v) }
     }
 
     fun setChannelUnreadVisible(login: String, visible: Boolean) {

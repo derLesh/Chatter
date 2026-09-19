@@ -42,6 +42,10 @@ data class Settings(
     val sevenTvEvents: Boolean = true,
     /** Show the avatars of channels with unread messages in the title bar. */
     val unreadInTitleBar: Boolean = true,
+    /** Suggest emotes while typing. */
+    val emoteSuggestions: Boolean = true,
+    /** Suggest the names of recent chatters after an "@". */
+    val userSuggestions: Boolean = true,
 ) {
     companion object {
         // Real ARGB colors are always opaque (0xFF......), so these can never clash with one.
@@ -73,6 +77,8 @@ class SettingsRepository(
             showUnlisted7tv = p[UNLISTED_7TV] ?: false,
             sevenTvEvents = p[SEVENTV_EVENTS] ?: true,
             unreadInTitleBar = p[UNREAD_TITLE_BAR] ?: true,
+            emoteSuggestions = p[EMOTE_SUGGESTIONS] ?: true,
+            userSuggestions = p[USER_SUGGESTIONS] ?: true,
         )
     }.stateIn(scope, SharingStarted.Eagerly, Settings())
 
@@ -92,6 +98,8 @@ class SettingsRepository(
     suspend fun setShowUnlisted7tv(v: Boolean) = store.edit { it[UNLISTED_7TV] = v }
     suspend fun setSevenTvEvents(v: Boolean) = store.edit { it[SEVENTV_EVENTS] = v }
     suspend fun setUnreadInTitleBar(v: Boolean) = store.edit { it[UNREAD_TITLE_BAR] = v }
+    suspend fun setEmoteSuggestions(v: Boolean) = store.edit { it[EMOTE_SUGGESTIONS] = v }
+    suspend fun setUserSuggestions(v: Boolean) = store.edit { it[USER_SUGGESTIONS] = v }
 
     suspend fun addRecentEmote(name: String) = store.edit { p ->
         val list = p[RECENT_EMOTES].orEmpty().split(' ').filter { it.isNotEmpty() && it != name }
@@ -116,6 +124,8 @@ class SettingsRepository(
         val UNLISTED_7TV = booleanPreferencesKey("show_unlisted_7tv")
         val SEVENTV_EVENTS = booleanPreferencesKey("seventv_events")
         val UNREAD_TITLE_BAR = booleanPreferencesKey("unread_title_bar")
+        val EMOTE_SUGGESTIONS = booleanPreferencesKey("emote_suggestions")
+        val USER_SUGGESTIONS = booleanPreferencesKey("user_suggestions")
         const val MAX_RECENT = 40
     }
 }
