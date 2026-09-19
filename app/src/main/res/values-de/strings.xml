@@ -130,7 +130,7 @@
     <string name="settings_notifications_summary">Erwähnungen, Hervorhebungswörter</string>
     <string name="settings_account_summary">Anmeldung</string>
     <string name="settings_about">Über</string>
-    <string name="settings_about_summary">Version, Danksagungen</string>
+    <string name="settings_about_summary">Version, Credits</string>
     <string name="settings_channels">Kanäle</string>
     <string name="settings_channels_summary">Reihenfolge, Namen, Benachrichtigungen</string>
     <string name="reorder_channel">Zum Sortieren ziehen</string>
@@ -154,7 +154,7 @@
     <string name="settings_logged_in">Mit Twitch angemeldet</string>
     <string name="settings_logout_hint">Entfernt die Anmeldung von diesem Gerät</string>
     <string name="settings_version">Version %1$s</string>
-    <string name="settings_credits">Danksagungen</string>
+    <string name="settings_credits">Credits</string>
     <string name="settings_credits_twitch">Twitch</string>
     <string name="settings_credits_twitch_summary">Chat, Emotes und Badges</string>
     <string name="settings_credits_seventv">7TV</string>
