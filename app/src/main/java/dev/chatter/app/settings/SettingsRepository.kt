@@ -26,7 +26,19 @@ data class Settings(
     val themeMode: ThemeMode = ThemeMode.System,
     /** Material You: colors derived from the wallpaper instead of Twitch purple. */
     val dynamicColor: Boolean = true,
-)
+    /** Alternate the background of every other message for easier reading. */
+    val alternateBackground: Boolean = false,
+    /** Mention highlight: [HIGHLIGHT_DEFAULT] (red), [HIGHLIGHT_ACCENT] (theme color) or an ARGB color. */
+    val highlightColor: Int = HIGHLIGHT_DEFAULT,
+    /** Load recent messages from the recent-messages service when joining a channel. */
+    val loadHistory: Boolean = true,
+) {
+    companion object {
+        // Real ARGB colors are always opaque (0xFF......), so these can never clash with one.
+        const val HIGHLIGHT_DEFAULT = 0
+        const val HIGHLIGHT_ACCENT = 1
+    }
+}
 
 class SettingsRepository(
     private val store: DataStore<Preferences>,
@@ -42,6 +54,9 @@ class SettingsRepository(
             recentEmotes = p[RECENT_EMOTES].orEmpty().split(' ').filter { it.isNotEmpty() },
             themeMode = p[THEME_MODE]?.let { v -> ThemeMode.entries.firstOrNull { it.name == v } } ?: ThemeMode.System,
             dynamicColor = p[DYNAMIC_COLOR] ?: true,
+            alternateBackground = p[ALTERNATE_BG] ?: false,
+            highlightColor = p[HIGHLIGHT_COLOR] ?: Settings.HIGHLIGHT_DEFAULT,
+            loadHistory = p[LOAD_HISTORY] ?: true,
         )
     }.stateIn(scope, SharingStarted.Eagerly, Settings())
 
@@ -52,6 +67,9 @@ class SettingsRepository(
     suspend fun setAnimatedEmotes(v: Boolean) = store.edit { it[ANIMATED] = v }
     suspend fun setThemeMode(v: ThemeMode) = store.edit { it[THEME_MODE] = v.name }
     suspend fun setDynamicColor(v: Boolean) = store.edit { it[DYNAMIC_COLOR] = v }
+    suspend fun setAlternateBackground(v: Boolean) = store.edit { it[ALTERNATE_BG] = v }
+    suspend fun setHighlightColor(v: Int) = store.edit { it[HIGHLIGHT_COLOR] = v }
+    suspend fun setLoadHistory(v: Boolean) = store.edit { it[LOAD_HISTORY] = v }
 
     suspend fun addRecentEmote(name: String) = store.edit { p ->
         val list = p[RECENT_EMOTES].orEmpty().split(' ').filter { it.isNotEmpty() && it != name }
@@ -67,6 +85,9 @@ class SettingsRepository(
         val RECENT_EMOTES = stringPreferencesKey("recent_emotes")
         val THEME_MODE = stringPreferencesKey("theme_mode")
         val DYNAMIC_COLOR = booleanPreferencesKey("dynamic_color")
+        val ALTERNATE_BG = booleanPreferencesKey("alternate_background")
+        val HIGHLIGHT_COLOR = intPreferencesKey("highlight_color")
+        val LOAD_HISTORY = booleanPreferencesKey("load_history")
         const val MAX_RECENT = 40
     }
 }

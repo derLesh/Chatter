@@ -292,6 +292,18 @@ class MainViewModel(private val c: AppContainer) : ViewModel() {
         viewModelScope.launch { c.settings.setDynamicColor(v) }
     }
 
+    fun setAlternateBackground(v: Boolean) {
+        viewModelScope.launch { c.settings.setAlternateBackground(v) }
+    }
+
+    fun setHighlightColor(v: Int) {
+        viewModelScope.launch { c.settings.setHighlightColor(v) }
+    }
+
+    fun setLoadHistory(v: Boolean) {
+        viewModelScope.launch { c.settings.setLoadHistory(v) }
+    }
+
     fun setAnimatedEmotes(v: Boolean) {
         viewModelScope.launch { c.settings.setAnimatedEmotes(v) }
     }

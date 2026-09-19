@@ -56,6 +56,8 @@ data class ChatStyle(
     val secondaryText: Color,
     val linkColor: Color,
     val mentionBackground: Color,
+    /** Background of every other message, or null when alternating backgrounds are off. */
+    val alternateBackground: Color?,
     val noticeBackground: Color,
     val accent: Color,
 )
@@ -97,6 +99,7 @@ fun MessageRow(
     val background = when {
         item.isMention -> style.mentionBackground
         item.kind == MessageKind.UserNotice -> style.noticeBackground
+        item.alternate && style.alternateBackground != null -> style.alternateBackground
         else -> Color.Transparent
     }
 

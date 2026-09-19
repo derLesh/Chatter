@@ -41,6 +41,12 @@ data class ChatItem(
     val reply: ReplyInfo? = null,
     val deleted: Boolean = false,
     val historical: Boolean = false,
+    /**
+     * Every other message in a channel buffer, fixed when the message is added. Stored on the
+     * item (instead of using the list position) so the pattern doesn't flip when old messages
+     * are dropped from the top.
+     */
+    val alternate: Boolean = false,
 ) {
     val canReply: Boolean get() = kind == MessageKind.Chat || kind == MessageKind.Action
 }

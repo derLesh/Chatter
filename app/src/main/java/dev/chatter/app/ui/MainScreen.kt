@@ -57,6 +57,7 @@ import dev.chatter.app.ui.chat.ChatStyle
 import dev.chatter.app.ui.chat.EmotePickerSheet
 import dev.chatter.app.ui.chat.InputBar
 import dev.chatter.app.ui.chat.UserCardSheet
+import dev.chatter.app.ui.theme.highlightBackground
 import dev.chatter.app.ui.theme.isAppInDarkTheme
 import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.launch
@@ -85,14 +86,15 @@ fun MainScreen(vm: MainViewModel, onSettings: () -> Unit) {
     val loader = if (settings.animatedEmotes) vm.imageLoader else vm.staticImageLoader
     val dark = isAppInDarkTheme()
     val colors = MaterialTheme.colorScheme
-    val style = remember(settings.fontSize, settings.showTimestamps, dark, colors) {
+    val style = remember(settings.fontSize, settings.showTimestamps, settings.highlightColor, settings.alternateBackground, dark, colors) {
         ChatStyle(
             fontSize = settings.fontSize,
             showTimestamps = settings.showTimestamps,
             dark = dark,
             secondaryText = colors.onSurfaceVariant,
             linkColor = colors.primary,
-            mentionBackground = colors.error.copy(alpha = 0.16f),
+            mentionBackground = highlightBackground(settings.highlightColor, colors),
+            alternateBackground = if (settings.alternateBackground) colors.onSurface.copy(alpha = 0.05f) else null,
             noticeBackground = colors.primaryContainer.copy(alpha = 0.35f),
             accent = colors.primary,
         )

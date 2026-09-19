@@ -2,6 +2,7 @@ package dev.chatter.app.ui.theme
 
 import android.app.Activity
 import androidx.compose.foundation.isSystemInDarkTheme
+import androidx.compose.material3.ColorScheme
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.dynamicDarkColorScheme
@@ -16,6 +17,7 @@ import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalView
 import androidx.core.view.WindowCompat
+import dev.chatter.app.settings.Settings
 import dev.chatter.app.settings.ThemeMode
 import kotlin.math.abs
 
@@ -125,6 +127,16 @@ fun ChatterTheme(
 
     MaterialTheme(colorScheme = colors, content = content)
 }
+
+/** Resolves the mention highlight setting (see [Settings.highlightColor]) to a color. */
+fun highlightColor(setting: Int, scheme: ColorScheme): Color = when (setting) {
+    Settings.HIGHLIGHT_DEFAULT -> LiveRed
+    Settings.HIGHLIGHT_ACCENT -> scheme.primary
+    else -> Color(setting)
+}
+
+/** Background tint of highlighted (mention) messages. */
+fun highlightBackground(setting: Int, scheme: ColorScheme): Color = highlightColor(setting, scheme).copy(alpha = 0.2f)
 
 /** True if the current color scheme is dark (whatever the system setting says). */
 @Composable

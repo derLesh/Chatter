@@ -253,6 +253,7 @@ class ChatRepository(
      * time. With [since], only messages newer than that timestamp are added (gap after reconnect).
      */
     private suspend fun loadHistory(channel: String, since: Long? = null) {
+        if (!settings.value.loadHistory) return
         val lines = try {
             thirdParty.recentMessages(channel, 100).messages
         } catch (e: Exception) {
@@ -278,7 +279,8 @@ class ChatRepository(
                 sortBy { it.timestamp }
             }
             buffer.clear()
-            buffer.addAll(merged)
+            // Re-number the alternating backgrounds (only happens on join / reconnect).
+            merged.forEachIndexed { i, m -> buffer.addLast(if (m.alternate == (i % 2 == 1)) m else m.copy(alternate = i % 2 == 1)) }
             trim(channel, buffer)
             markDirty(channel)
         }
@@ -352,7 +354,7 @@ class ChatRepository(
     private fun append(item: ChatItem) {
         val buffer = buffers[item.channel] ?: return
         if (!bufferIds.getOrPut(item.channel) { HashSet() }.add(item.id)) return
-        buffer.addLast(item)
+        buffer.addLast(item.copy(alternate = !(buffer.lastOrNull()?.alternate ?: true)))
         trim(item.channel, buffer)
         markDirty(item.channel)
     }
