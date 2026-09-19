@@ -57,6 +57,19 @@ class ChannelRepository(
         else info.mapValues { (login, i) -> names[login]?.let { i.copy(displayName = it) } ?: i }
     }.stateIn(scope, SharingStarted.Eagerly, emptyMap())
 
+    /** Channels the user switched notifications off for. Absent means notifications are on. */
+    val mutedChannels: StateFlow<Set<String>> = store.data
+        .map { p -> p[MUTED].orEmpty().split(',').filter { it.isNotEmpty() }.toSet() }
+        .stateIn(scope, SharingStarted.Eagerly, emptySet())
+
+    suspend fun setNotify(login: String, enabled: Boolean) {
+        store.edit { p ->
+            val muted = p[MUTED].orEmpty().split(',').filter { it.isNotEmpty() }.toMutableSet()
+            if (enabled) muted -= login else muted += login
+            p[MUTED] = muted.joinToString(",")
+        }
+    }
+
     /** Loads cached profile info so avatars show instantly on start. */
     suspend fun loadCache() {
         val raw = store.data.first()[INFO_CACHE] ?: return
@@ -82,6 +95,7 @@ class ChannelRepository(
             p[CHANNELS] = p[CHANNELS].orEmpty().split(',').filter { it.isNotEmpty() && it != login }.joinToString(",")
             val names = decodeNames(p[CUSTOM_NAMES])
             if (login in names) p[CUSTOM_NAMES] = AppJson.encodeToString(names - login)
+            p[MUTED] = p[MUTED].orEmpty().split(',').filter { it.isNotEmpty() && it != login }.joinToString(",")
         }
     }
 
@@ -164,6 +178,7 @@ class ChannelRepository(
         private val CHANNELS = stringPreferencesKey("channels")
         private val INFO_CACHE = stringPreferencesKey("channel_info")
         private val CUSTOM_NAMES = stringPreferencesKey("channel_names")
+        private val MUTED = stringPreferencesKey("channels_muted")
 
         private fun decodeNames(raw: String?): Map<String, String> =
             raw?.let { runCatching { AppJson.decodeFromString<Map<String, String>>(it) }.getOrNull() }.orEmpty()

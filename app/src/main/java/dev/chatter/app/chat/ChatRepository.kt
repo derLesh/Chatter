@@ -363,6 +363,8 @@ class ChatRepository(
     private fun onMention(item: ChatItem) {
         if (uiVisible.value && activeChannel.value == item.channel) return
         _unreadMentions.update { it + (item.channel to (it[item.channel] ?: 0) + 1) }
+        // A muted channel still counts its mentions, it just does not notify about them.
+        if (item.channel in channelRepo.mutedChannels.value) return
         _mentionEvents.tryEmit(item)
     }
 

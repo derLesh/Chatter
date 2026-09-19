@@ -134,6 +134,8 @@
     <string name="settings_channels">Kanäle</string>
     <string name="settings_channels_summary">Reihenfolge, Namen, Benachrichtigungen</string>
     <string name="reorder_channel">Zum Sortieren ziehen</string>
+    <string name="channel_notify_on">Benachrichtigungen an</string>
+    <string name="channel_notify_off">Benachrichtigungen aus</string>
     <string name="settings_group_colors">Farben</string>
     <string name="settings_group_messages">Nachrichten</string>
     <string name="settings_group_mentions">Erwähnungen</string>

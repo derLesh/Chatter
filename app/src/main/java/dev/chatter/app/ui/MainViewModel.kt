@@ -48,6 +48,7 @@ class MainViewModel(private val c: AppContainer) : ViewModel() {
     val channels = c.channels.channels
     val channelInfo = c.channels.info
     val customNames = c.channels.customNames
+    val mutedChannels = c.channels.mutedChannels
     val unreadMentions = c.chat.unreadMentions
     val unreadMessages = c.chat.unreadMessages
     val settings = c.settings.settings
@@ -226,6 +227,10 @@ class MainViewModel(private val c: AppContainer) : ViewModel() {
 
     fun removeChannel(login: String) {
         viewModelScope.launch { c.channels.remove(login) }
+    }
+
+    fun setChannelNotify(login: String, enabled: Boolean) {
+        viewModelScope.launch { c.channels.setNotify(login, enabled) }
     }
 
     fun renameChannel(login: String, name: String) {

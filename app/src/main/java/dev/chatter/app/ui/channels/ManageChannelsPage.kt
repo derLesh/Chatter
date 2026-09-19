@@ -18,6 +18,7 @@ import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Menu
+import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material3.Button
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -32,6 +33,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.pointer.pointerInput
@@ -56,8 +58,10 @@ private val ROW_HEIGHT = 64.dp
 fun ManageChannelsPage(
     channels: List<String>,
     info: Map<String, ChannelInfo>,
+    muted: Set<String>,
     imageLoader: ImageLoader,
     onMove: (String, Int) -> Unit,
+    onNotify: (String, Boolean) -> Unit,
     onRename: (String) -> Unit,
     onRemove: (String) -> Unit,
     onAdd: () -> Unit,
@@ -93,7 +97,9 @@ fun ManageChannelsPage(
                 ChannelRow(
                     login = login,
                     info = info[login],
+                    notify = login !in muted,
                     imageLoader = imageLoader,
+                    onNotify = { onNotify(login, it) },
                     onRename = { onRename(login) },
                     onRemove = { onRemove(login) },
                     dragHandle = Modifier.pointerInput(login, channels) {
@@ -127,7 +133,9 @@ fun ManageChannelsPage(
 private fun ChannelRow(
     login: String,
     info: ChannelInfo?,
+    notify: Boolean,
     imageLoader: ImageLoader,
+    onNotify: (Boolean) -> Unit,
     onRename: () -> Unit,
     onRemove: () -> Unit,
     dragHandle: Modifier,
@@ -157,13 +165,26 @@ private fun ChannelRow(
                 )
             }
         }
+        // Lit means mentions here notify; dimmed means they only count towards the badge.
+        RowAction(
+            icon = Icons.Default.Notifications,
+            label = if (notify) R.string.channel_notify_on else R.string.channel_notify_off,
+            tint = if (notify) MaterialTheme.colorScheme.primary
+            else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.38f),
+            onClick = { onNotify(!notify) },
+        )
         RowAction(Icons.Default.Edit, R.string.rename_channel, onRename)
         RowAction(Icons.Default.Delete, R.string.remove_channel, onRemove)
     }
 }
 
 @Composable
-private fun RowAction(icon: ImageVector, label: Int, onClick: () -> Unit) {
+private fun RowAction(
+    icon: ImageVector,
+    label: Int,
+    onClick: () -> Unit,
+    tint: Color = MaterialTheme.colorScheme.onSurfaceVariant,
+) {
     Box(
         contentAlignment = Alignment.Center,
         modifier = Modifier
@@ -171,7 +192,7 @@ private fun RowAction(icon: ImageVector, label: Int, onClick: () -> Unit) {
             .clip(RoundedCornerShape(12.dp))
             .clickable(onClick = onClick),
     ) {
-        Icon(icon, contentDescription = stringResource(label), tint = MaterialTheme.colorScheme.onSurfaceVariant)
+        Icon(icon, contentDescription = stringResource(label), tint = tint)
     }
 }
 

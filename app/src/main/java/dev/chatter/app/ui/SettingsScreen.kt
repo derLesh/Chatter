@@ -406,14 +406,17 @@ private fun ChannelsPage(vm: MainViewModel) {
     val channels by vm.channels.collectAsStateWithLifecycle()
     val info by vm.channelInfo.collectAsStateWithLifecycle()
     val customNames by vm.customNames.collectAsStateWithLifecycle()
+    val muted by vm.mutedChannels.collectAsStateWithLifecycle()
     var renameTarget by remember { mutableStateOf<String?>(null) }
     var showAdd by remember { mutableStateOf(false) }
 
     ManageChannelsPage(
         channels = channels,
         info = info,
+        muted = muted,
         imageLoader = vm.imageLoader,
         onMove = vm::moveChannel,
+        onNotify = vm::setChannelNotify,
         onRename = { renameTarget = it },
         onRemove = vm::removeChannel,
         onAdd = { showAdd = true },
