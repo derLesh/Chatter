@@ -136,7 +136,7 @@
     <string name="reorder_channel">Zum Sortieren ziehen</string>
     <string name="channel_notify_on">Benachrichtigungen an</string>
     <string name="channel_notify_off">Benachrichtigungen aus</string>
-    <string name="channel_in_title_bar">In Titelleiste anzeigen</string>
+    <string name="channel_in_title_bar">Ungelesene anzeigen</string>
     <string name="settings_unread_title_bar">Ungelesene Kanäle in der Titelleiste</string>
     <string name="settings_unread_title_bar_hint">Die Bilder der Kanäle mit neuen Nachrichten, neben dem Kanalnamen. Einzelne Kanäle lassen sich in ihrem Menü ausnehmen.</string>
     <string name="settings_group_colors">Farben</string>
