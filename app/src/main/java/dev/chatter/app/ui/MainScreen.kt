@@ -67,6 +67,7 @@ fun MainScreen(vm: MainViewModel, onSettings: () -> Unit) {
     val channels by vm.channels.collectAsStateWithLifecycle()
     val info by vm.channelInfo.collectAsStateWithLifecycle()
     val unread by vm.unreadMentions.collectAsStateWithLifecycle()
+    val unreadMessages by vm.unreadMessages.collectAsStateWithLifecycle()
     val connection by vm.connection.collectAsStateWithLifecycle()
     val settings by vm.settings.collectAsStateWithLifecycle()
     val active by vm.activeChannel.collectAsStateWithLifecycle()
@@ -146,6 +147,7 @@ fun MainScreen(vm: MainViewModel, onSettings: () -> Unit) {
                 active = active,
                 info = info,
                 unread = unread,
+                unreadMessages = unreadMessages,
                 connection = connection,
                 imageLoader = vm.imageLoader,
                 onSelect = { ch -> scope.launch { pagerState.scrollToPage(channels.indexOf(ch).coerceAtLeast(0)) } },

@@ -46,6 +46,7 @@ class MainViewModel(private val c: AppContainer) : ViewModel() {
     val channels = c.channels.channels
     val channelInfo = c.channels.info
     val unreadMentions = c.chat.unreadMentions
+    val unreadMessages = c.chat.unreadMessages
     val settings = c.settings.settings
     val connection = c.irc.state
     val activeChannel = c.chat.activeChannel

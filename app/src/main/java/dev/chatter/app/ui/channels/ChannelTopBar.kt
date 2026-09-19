@@ -57,6 +57,7 @@ fun ChannelTopBar(
     active: String?,
     info: Map<String, ChannelInfo>,
     unread: Map<String, Int>,
+    unreadMessages: Map<String, Int>,
     connection: ConnectionState,
     imageLoader: ImageLoader,
     onSelect: (String) -> Unit,
@@ -99,6 +100,7 @@ fun ChannelTopBar(
                     active = active,
                     info = info,
                     unread = unread,
+                    unreadMessages = unreadMessages,
                     imageLoader = imageLoader,
                     onDismiss = { expanded = false },
                     onSelect = { expanded = false; onSelect(it) },
@@ -138,6 +140,7 @@ private fun ChannelDropdown(
     active: String?,
     info: Map<String, ChannelInfo>,
     unread: Map<String, Int>,
+    unreadMessages: Map<String, Int>,
     imageLoader: ImageLoader,
     onDismiss: () -> Unit,
     onSelect: (String) -> Unit,
@@ -171,7 +174,17 @@ private fun ChannelDropdown(
                 },
                 trailingIcon = {
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        unread[login]?.let { Badge { Text(it.toString()) } }
+                        // New messages (neutral) and mentions (red) since the channel was last viewed.
+                        unreadMessages[login]?.takeIf { login != active }?.let { count ->
+                            Badge(
+                                containerColor = MaterialTheme.colorScheme.secondaryContainer,
+                                contentColor = MaterialTheme.colorScheme.onSecondaryContainer,
+                            ) { Text(formatCount(count)) }
+                        }
+                        unread[login]?.let {
+                            Spacer(Modifier.width(4.dp))
+                            Badge { Text("@" + formatCount(it)) }
+                        }
                         Box {
                             IconButton(onClick = { menu = true }) {
                                 Icon(Icons.Default.MoreVert, contentDescription = stringResource(R.string.channel_options))
@@ -234,6 +247,8 @@ fun ChannelAvatar(info: ChannelInfo?, imageLoader: ImageLoader, size: Dp) {
         }
     }
 }
+
+private fun formatCount(n: Int): String = if (n > 999) "999+" else n.toString()
 
 fun formatViewers(n: Int): String = when {
     n >= 1_000_000 -> String.format(java.util.Locale.getDefault(), "%.1fM", n / 1_000_000f)

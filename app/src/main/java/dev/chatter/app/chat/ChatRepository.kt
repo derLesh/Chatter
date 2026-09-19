@@ -92,6 +92,13 @@ class ChatRepository(
     private val _unreadMentions = MutableStateFlow<Map<String, Int>>(emptyMap())
     val unreadMentions: StateFlow<Map<String, Int>> = _unreadMentions
 
+    // New messages per channel since the user last looked at it. Counted on `worker`,
+    // published together with the message lists (not on every single message).
+    private val unreadCounts = HashMap<String, Int>()
+    private var unreadCountsDirty = false
+    private val _unreadMessages = MutableStateFlow<Map<String, Int>>(emptyMap())
+    val unreadMessages: StateFlow<Map<String, Int>> = _unreadMessages
+
     /** The channel currently shown on screen, and whether the app UI is visible at all. */
     val activeChannel = MutableStateFlow<String?>(null)
     val uiVisible = MutableStateFlow(false)
@@ -139,7 +146,12 @@ class ChatRepository(
 
     fun roomId(channel: String): String? = roomIds[channel]
 
-    fun clearUnread(channel: String) = _unreadMentions.update { it - channel }
+    fun clearUnread(channel: String) {
+        _unreadMentions.update { it - channel }
+        scope.launch(worker) {
+            if (unreadCounts.remove(channel) != null) _unreadMessages.value = HashMap(unreadCounts)
+        }
+    }
 
     /** The latest messages of one user in a channel (oldest first), for the user card. */
     suspend fun messagesFrom(channel: String, login: String, limit: Int = 30): List<ChatItem> = withContext(worker) {
@@ -199,6 +211,8 @@ class ChatRepository(
         joinedChannels = emptyList()
         flows.values.forEach { it.value = emptyList() }
         _unreadMentions.value = emptyMap()
+        unreadCounts.clear()
+        _unreadMessages.value = emptyMap()
     }
 
     /** Joins all channels of the list again. Called after login. */
@@ -295,6 +309,10 @@ class ChatRepository(
                 lastLiveTimestamp[channel] = item.timestamp
                 rememberChatter(channel, item)
                 append(item)
+                if (!item.isOwn && !(uiVisible.value && activeChannel.value == channel)) {
+                    unreadCounts[channel] = (unreadCounts[channel] ?: 0) + 1
+                    unreadCountsDirty = true
+                }
                 if (item.isMention) onMention(item)
             }
             "NOTICE" -> if (channel != null) builder.build(msg, "", null, mentions)?.let(::append)
@@ -399,6 +417,10 @@ class ChatRepository(
                 if (flow == null || flow.subscriptionCount.value == 0) continue
                 flow.value = buffers[ch]?.toList().orEmpty()
                 iterator.remove()
+            }
+            if (unreadCountsDirty) {
+                unreadCountsDirty = false
+                _unreadMessages.value = HashMap(unreadCounts)
             }
         }
     }
