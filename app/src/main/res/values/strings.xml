@@ -147,6 +147,9 @@
     <string name="settings_unread_title_bar">Show unread channels in the title bar</string>
     <string name="settings_unread_title_bar_hint">The avatars of channels with new messages, next to the channel name. Single channels can be left out in their menu.</string>
     <string name="settings_suggestions">Suggestions</string>
+    <string name="settings_group_screen">Screen</string>
+    <string name="settings_keep_screen_on">Keep the screen on</string>
+    <string name="settings_keep_screen_on_hint">Stops the display from sleeping while the chat is open.</string>
     <string name="settings_emote_providers">Emote providers</string>
     <string name="settings_provider_twitch">Twitch</string>
     <string name="settings_provider_seventv">7TV</string>

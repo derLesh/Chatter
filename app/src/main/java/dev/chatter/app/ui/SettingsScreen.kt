@@ -268,6 +268,15 @@ private fun AppearancePage(settings: Settings, vm: MainViewModel) {
         }
     }
 
+    SettingsGroup(R.string.settings_group_screen) {
+        item {
+            SwitchItem(
+                R.string.settings_keep_screen_on, settings.keepScreenOn,
+                vm::setKeepScreenOn, R.string.settings_keep_screen_on_hint,
+            )
+        }
+    }
+
     SettingsGroup(R.string.settings_group_emotes) {
         item { SwitchItem(R.string.settings_emotes_enabled, settings.emotesEnabled, vm::setEmotesEnabled, R.string.settings_emotes_new_messages_hint) }
         item { SwitchItem(R.string.settings_animated_emotes, settings.animatedEmotes, vm::setAnimatedEmotes) }

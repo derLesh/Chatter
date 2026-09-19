@@ -239,6 +239,10 @@ class MainViewModel(private val c: AppContainer) : ViewModel() {
         viewModelScope.launch { c.settings.setUnreadInTitleBar(v) }
     }
 
+    fun setKeepScreenOn(v: Boolean) {
+        viewModelScope.launch { c.settings.setKeepScreenOn(v) }
+    }
+
     fun setEmoteProvider(provider: EmoteProvider, enabled: Boolean) {
         val current = settings.value.emoteProviders
         viewModelScope.launch {

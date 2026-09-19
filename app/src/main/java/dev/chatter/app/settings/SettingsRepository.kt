@@ -59,6 +59,8 @@ data class Settings(
     val showDeleted: Boolean = true,
     /** The emote providers whose emotes are shown; the others stay plain text. */
     val emoteProviders: Set<EmoteProvider> = EmoteProvider.entries.toSet(),
+    /** Keep the screen awake while the chat is on screen. */
+    val keepScreenOn: Boolean = false,
 ) {
     companion object {
         // Real ARGB colors are always opaque (0xFF......), so these can never clash with one.
@@ -95,6 +97,7 @@ class SettingsRepository(
             emoteSuggestions = p[EMOTE_SUGGESTIONS] ?: true,
             userSuggestions = p[USER_SUGGESTIONS] ?: true,
             showDeleted = p[SHOW_DELETED] ?: true,
+            keepScreenOn = p[KEEP_SCREEN_ON] ?: false,
             emoteProviders = p[EMOTE_PROVIDERS]
                 ?.split(',')?.mapNotNull { v -> EmoteProvider.entries.firstOrNull { it.name == v } }?.toSet()
                 ?: EmoteProvider.entries.toSet(),
@@ -120,6 +123,7 @@ class SettingsRepository(
     suspend fun setEmoteSuggestions(v: Boolean) = store.edit { it[EMOTE_SUGGESTIONS] = v }
     suspend fun setUserSuggestions(v: Boolean) = store.edit { it[USER_SUGGESTIONS] = v }
     suspend fun setShowDeleted(v: Boolean) = store.edit { it[SHOW_DELETED] = v }
+    suspend fun setKeepScreenOn(v: Boolean) = store.edit { it[KEEP_SCREEN_ON] = v }
     suspend fun setEmoteProviders(v: Set<EmoteProvider>) = store.edit { p -> p[EMOTE_PROVIDERS] = v.joinToString(",") { it.name } }
 
     suspend fun addRecentEmote(name: String) = store.edit { p ->
@@ -149,6 +153,7 @@ class SettingsRepository(
         val EMOTE_SUGGESTIONS = booleanPreferencesKey("emote_suggestions")
         val USER_SUGGESTIONS = booleanPreferencesKey("user_suggestions")
         val SHOW_DELETED = booleanPreferencesKey("show_deleted")
+        val KEEP_SCREEN_ON = booleanPreferencesKey("keep_screen_on")
         val EMOTE_PROVIDERS = stringPreferencesKey("emote_providers")
         const val MAX_RECENT = 40
     }

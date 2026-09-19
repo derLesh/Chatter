@@ -141,6 +141,9 @@
     <string name="settings_unread_title_bar">Ungelesene Kanäle in der Titelleiste</string>
     <string name="settings_unread_title_bar_hint">Die Bilder der Kanäle mit neuen Nachrichten, neben dem Kanalnamen. Einzelne Kanäle lassen sich in ihrem Menü ausnehmen.</string>
     <string name="settings_suggestions">Vorschläge</string>
+    <string name="settings_group_screen">Bildschirm</string>
+    <string name="settings_keep_screen_on">Bildschirm anlassen</string>
+    <string name="settings_keep_screen_on_hint">Verhindert, dass sich das Display beim Lesen ausschaltet.</string>
     <string name="settings_emote_providers">Emote-Anbieter</string>
     <string name="settings_provider_twitch">Twitch</string>
     <string name="settings_provider_seventv">7TV</string>

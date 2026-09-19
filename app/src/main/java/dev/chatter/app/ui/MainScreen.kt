@@ -27,6 +27,7 @@ import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -36,6 +37,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
@@ -111,6 +113,13 @@ fun MainScreen(vm: MainViewModel, onSettings: () -> Unit) {
             accent = colors.primary,
             showDeleted = settings.showDeleted,
         )
+    }
+
+    // Only while the chat is on screen; leaving it (or the settings) lets the screen sleep again.
+    val view = LocalView.current
+    DisposableEffect(settings.keepScreenOn) {
+        view.keepScreenOn = settings.keepScreenOn
+        onDispose { view.keepScreenOn = false }
     }
 
     // Keep the chat service (and with it the connection) running while there are channels.
