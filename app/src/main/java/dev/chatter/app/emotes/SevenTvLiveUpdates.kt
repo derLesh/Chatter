@@ -61,8 +61,10 @@ class SevenTvLiveUpdates(
         when (event) {
             is SevenTvEvent.EmoteSetUpdate -> {
                 val channelId = emotes.channelForSevenTvSet(event.setId) ?: return
-                val channel = chat.channelForRoomId(channelId) ?: return
+                // Take the emotes over first: they must land even when no channel name can be
+                // resolved to write a notice into, which would otherwise drop the change entirely.
                 val added = emotes.applySevenTvUpdate(channelId, event)
+                val channel = chat.channelForRoomId(channelId) ?: return
                 if (added.isNotEmpty()) {
                     chat.postNotice(
                         channel,
@@ -77,9 +79,9 @@ class SevenTvLiveUpdates(
             }
             is SevenTvEvent.ActiveSetChanged -> {
                 val channelId = emotes.channelForSevenTvUser(event.userId) ?: return
+                emotes.loadChannel(channelId, null) // new set id -> new subscriptions via version
                 val channel = chat.channelForRoomId(channelId) ?: return
                 chat.postNotice(channel, context.getString(R.string.seventv_set_changed, actor))
-                emotes.loadChannel(channelId, null) // new set id -> new subscriptions via version
             }
         }
     }
