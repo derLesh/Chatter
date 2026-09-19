@@ -129,7 +129,8 @@ private fun SuggestionRow(suggestions: List<Suggestion>, imageLoader: ImageLoade
                             model = s.emote.url,
                             contentDescription = null,
                             imageLoader = imageLoader,
-                            modifier = Modifier.size(width = (26 * s.emote.aspectRatio).coerceAtMost(60f).dp, height = 26.dp),
+                            onSuccess = EmoteSizes.onLoaded(s.emote),
+                            modifier = Modifier.size(width = (26 * EmoteSizes.aspectRatio(s.emote)).coerceAtMost(60f).dp, height = 26.dp),
                         )
                         Spacer(Modifier.width(6.dp))
                         Text(s.emote.name, style = MaterialTheme.typography.bodyMedium)

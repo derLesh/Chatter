@@ -9,6 +9,8 @@ data class Emote(
     val provider: EmoteProvider,
     /** width / height, used to size the inline placeholder before the image is loaded. */
     val aspectRatio: Float = 1f,
+    /** False if the provider does not tell the size (BTTV); it is then measured once loaded. */
+    val sizeKnown: Boolean = true,
     /** Zero-width emotes are drawn on top of the previous emote instead of next to it. */
     val zeroWidth: Boolean = false,
     /** True for channel-specific emotes (as opposed to global ones). */

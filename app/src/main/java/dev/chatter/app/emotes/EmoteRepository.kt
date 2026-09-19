@@ -99,6 +99,7 @@ class EmoteRepository(
         url = "https://cdn.betterttv.net/emote/$id/2x.webp",
         provider = EmoteProvider.Bttv,
         aspectRatio = if (width != null && height != null && height > 0) width.toFloat() / height else 1f,
+        sizeKnown = width != null && height != null && height > 0,
         zeroWidth = !channel && code in BTTV_ZERO_WIDTH,
         isChannel = channel,
     )

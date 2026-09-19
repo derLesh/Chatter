@@ -83,7 +83,12 @@ fun MessageRow(
     onAction: (ChatItem) -> Unit,
 ) {
     val built = remember(item, style) { buildLine(item, style) }
-    val inlineContent = remember(built, imageLoader) {
+    // Reading measured sizes here makes the row re-layout once a BTTV emote's real width is known.
+    val measured = built.inline.values.mapNotNull { data ->
+        (data as? InlineData.EmoteData)?.seg?.takeIf { s -> !s.emote.sizeKnown || s.overlays.any { !it.sizeKnown } }
+            ?.let { s -> (s.overlays + s.emote).maxOf { EmoteSizes.aspectRatio(it) } }
+    }
+    val inlineContent = remember(built, imageLoader, measured) {
         built.inline.mapValues { (_, data) -> inlineFor(data, imageLoader) }
     }
 
@@ -138,14 +143,20 @@ private fun inlineFor(data: InlineData, loader: ImageLoader): InlineTextContent 
     is InlineData.EmoteData -> {
         val base = data.seg.emote
         // Wide zero-width overlays should not be clipped: use the widest aspect ratio.
-        val aspect = (data.seg.overlays.map { it.aspectRatio } + base.aspectRatio).max()
+        val aspect = (data.seg.overlays + base).maxOf { EmoteSizes.aspectRatio(it) }
         InlineTextContent(
             Placeholder((EMOTE_EM * aspect).em, EMOTE_EM.em, PlaceholderVerticalAlign.Center),
         ) {
             Box(Modifier.fillMaxSize()) {
-                AsyncImage(model = base.url, contentDescription = base.name, imageLoader = loader, contentScale = ContentScale.Fit, modifier = Modifier.fillMaxSize())
-                data.seg.overlays.forEach { o ->
-                    AsyncImage(model = o.url, contentDescription = o.name, imageLoader = loader, contentScale = ContentScale.Fit, modifier = Modifier.fillMaxSize())
+                (listOf(base) + data.seg.overlays).forEach { e ->
+                    AsyncImage(
+                        model = e.url,
+                        contentDescription = e.name,
+                        imageLoader = loader,
+                        contentScale = ContentScale.Fit,
+                        onSuccess = EmoteSizes.onLoaded(e),
+                        modifier = Modifier.fillMaxSize(),
+                    )
                 }
             }
         }
