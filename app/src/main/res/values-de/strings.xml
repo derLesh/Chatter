@@ -187,4 +187,10 @@
     <string name="seventv_renamed">7TV: %1$s hat %2$s umbenannt in</string>
     <string name="seventv_set_changed">7TV: %1$s hat das aktive Emote-Set gewechselt</string>
     <string name="seventv_someone">Jemand</string>
+
+    <!-- App icon -->
+    <string name="settings_app_icon">App-Icon</string>
+    <string name="settings_app_icon_hint">Der Launcher braucht evtl. einen Moment. Verknüpfungen auf dem Startbildschirm müssen ggf. neu angelegt werden.</string>
+    <string name="app_icon_light">Weiß</string>
+    <string name="app_icon_dark">Schwarz</string>
 </resources>

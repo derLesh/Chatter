@@ -90,6 +90,7 @@ import dev.chatter.app.ui.chat.ChatStyle
 import dev.chatter.app.ui.chat.MessageRow
 import dev.chatter.app.ui.theme.highlightBackground
 import dev.chatter.app.ui.theme.isAppInDarkTheme
+import dev.chatter.app.util.AppIcon
 import dev.chatter.app.ui.theme.highlightColor
 import kotlin.math.roundToInt
 
@@ -222,6 +223,7 @@ private fun AppearancePage(settings: Settings, vm: MainViewModel) {
         }
         item { SwitchItem(R.string.settings_dynamic_color, settings.dynamicColor, vm::setDynamicColor, R.string.settings_dynamic_color_hint) }
         item { HighlightColorPicker(settings.highlightColor, vm::setHighlightColor) }
+        item { AppIconPicker() }
     }
 
     SettingsGroup(R.string.settings_group_text) {
@@ -512,6 +514,69 @@ private fun SliderItem(
         headlineContent = { Text(title) },
         supportingContent = {
             Slider(value = value, onValueChange = onChange, onValueChangeFinished = onDone, valueRange = range, steps = steps)
+        },
+        colors = transparentItem(),
+    )
+}
+
+/** Choice of launcher icon: black C on white or white C on black. */
+@Composable
+private fun AppIconPicker() {
+    val context = LocalContext.current
+    var current by remember { mutableStateOf(AppIcon.current(context)) }
+    ListItem(
+        headlineContent = { Text(stringResource(R.string.settings_app_icon)) },
+        supportingContent = {
+            Column {
+                Text(stringResource(R.string.settings_app_icon_hint))
+                Row(horizontalArrangement = Arrangement.spacedBy(20.dp), modifier = Modifier.padding(top = 12.dp)) {
+                    listOf(
+                        Triple(AppIcon.Light, Color.White, R.string.app_icon_light),
+                        Triple(AppIcon.Dark, Color(0xFF111111), R.string.app_icon_dark),
+                    ).forEach { (icon, background, label) ->
+                        val selected = icon == current
+                        Column(
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(16.dp))
+                                .clickable {
+                                    if (!selected) {
+                                        AppIcon.set(context, icon)
+                                        current = icon
+                                    }
+                                }
+                                .padding(8.dp),
+                        ) {
+                            Box(
+                                contentAlignment = Alignment.Center,
+                                modifier = Modifier
+                                    .size(64.dp)
+                                    .clip(CircleShape)
+                                    .background(background)
+                                    .border(
+                                        if (selected) 3.dp else 1.dp,
+                                        if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outlineVariant,
+                                        CircleShape,
+                                    ),
+                            ) {
+                                Icon(
+                                    painterResource(R.drawable.ic_chatter_monochrome),
+                                    contentDescription = null,
+                                    tint = if (background == Color.White) Color(0xFF111111) else Color.White,
+                                    modifier = Modifier.size(64.dp),
+                                )
+                            }
+                            Spacer(Modifier.height(6.dp))
+                            Text(
+                                stringResource(label),
+                                style = MaterialTheme.typography.labelLarge,
+                                color = if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+                                fontWeight = if (selected) FontWeight.Bold else FontWeight.Normal,
+                            )
+                        }
+                    }
+                }
+            }
         },
         colors = transparentItem(),
     )
