@@ -98,7 +98,7 @@ fun MainScreen(vm: MainViewModel, onSettings: () -> Unit) {
     val loader = if (settings.animatedEmotes) vm.imageLoader else vm.staticImageLoader
     val dark = isAppInDarkTheme()
     val colors = MaterialTheme.colorScheme
-    val style = remember(settings.fontSize, settings.showTimestamps, settings.highlightColor, settings.alternateBackground, dark, colors) {
+    val style = remember(settings.fontSize, settings.showTimestamps, settings.highlightColor, settings.alternateBackground, settings.showDeleted, dark, colors) {
         ChatStyle(
             fontSize = settings.fontSize,
             showTimestamps = settings.showTimestamps,
@@ -109,6 +109,7 @@ fun MainScreen(vm: MainViewModel, onSettings: () -> Unit) {
             alternateBackground = if (settings.alternateBackground) colors.onSurface.copy(alpha = 0.05f) else null,
             noticeBackground = colors.primaryContainer.copy(alpha = 0.35f),
             accent = colors.primary,
+            showDeleted = settings.showDeleted,
         )
     }
 

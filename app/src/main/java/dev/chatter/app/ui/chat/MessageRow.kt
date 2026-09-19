@@ -63,6 +63,8 @@ data class ChatStyle(
     val alternateBackground: Color?,
     val noticeBackground: Color,
     val accent: Color,
+    /** Keep deleted messages visible (struck through) instead of dropping them from the list. */
+    val showDeleted: Boolean,
 )
 
 private const val BADGE_EM = 1.35f

@@ -46,6 +46,8 @@ data class Settings(
     val emoteSuggestions: Boolean = true,
     /** Suggest the names of recent chatters after an "@". */
     val userSuggestions: Boolean = true,
+    /** Keep deleted messages in the chat, struck through, instead of hiding them. */
+    val showDeleted: Boolean = true,
 ) {
     companion object {
         // Real ARGB colors are always opaque (0xFF......), so these can never clash with one.
@@ -79,6 +81,7 @@ class SettingsRepository(
             unreadInTitleBar = p[UNREAD_TITLE_BAR] ?: true,
             emoteSuggestions = p[EMOTE_SUGGESTIONS] ?: true,
             userSuggestions = p[USER_SUGGESTIONS] ?: true,
+            showDeleted = p[SHOW_DELETED] ?: true,
         )
     }.stateIn(scope, SharingStarted.Eagerly, Settings())
 
@@ -100,6 +103,7 @@ class SettingsRepository(
     suspend fun setUnreadInTitleBar(v: Boolean) = store.edit { it[UNREAD_TITLE_BAR] = v }
     suspend fun setEmoteSuggestions(v: Boolean) = store.edit { it[EMOTE_SUGGESTIONS] = v }
     suspend fun setUserSuggestions(v: Boolean) = store.edit { it[USER_SUGGESTIONS] = v }
+    suspend fun setShowDeleted(v: Boolean) = store.edit { it[SHOW_DELETED] = v }
 
     suspend fun addRecentEmote(name: String) = store.edit { p ->
         val list = p[RECENT_EMOTES].orEmpty().split(' ').filter { it.isNotEmpty() && it != name }
@@ -126,6 +130,7 @@ class SettingsRepository(
         val UNREAD_TITLE_BAR = booleanPreferencesKey("unread_title_bar")
         val EMOTE_SUGGESTIONS = booleanPreferencesKey("emote_suggestions")
         val USER_SUGGESTIONS = booleanPreferencesKey("user_suggestions")
+        val SHOW_DELETED = booleanPreferencesKey("show_deleted")
         const val MAX_RECENT = 40
     }
 }

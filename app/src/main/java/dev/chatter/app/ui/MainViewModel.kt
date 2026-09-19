@@ -235,6 +235,10 @@ class MainViewModel(private val c: AppContainer) : ViewModel() {
         viewModelScope.launch { c.settings.setUnreadInTitleBar(v) }
     }
 
+    fun setShowDeleted(v: Boolean) {
+        viewModelScope.launch { c.settings.setShowDeleted(v) }
+    }
+
     fun setEmoteSuggestions(v: Boolean) {
         viewModelScope.launch { c.settings.setEmoteSuggestions(v) }
     }

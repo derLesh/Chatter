@@ -146,6 +146,8 @@
     <string name="settings_unread_title_bar">Show unread channels in the title bar</string>
     <string name="settings_unread_title_bar_hint">The avatars of channels with new messages, next to the channel name. Single channels can be left out in their menu.</string>
     <string name="settings_suggestions">Suggestions</string>
+    <string name="settings_show_deleted">Show deleted messages</string>
+    <string name="settings_show_deleted_hint">Keep them struck through instead of hiding them.</string>
     <string name="settings_emote_suggestions">Emote suggestions</string>
     <string name="settings_emote_suggestions_hint">Suggest emotes while typing.</string>
     <string name="settings_user_suggestions">Name suggestions</string>
