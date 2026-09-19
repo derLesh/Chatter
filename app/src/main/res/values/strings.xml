@@ -152,6 +152,10 @@
     <string name="settings_version">Version %1$s</string>
     <string name="settings_credits">Credits</string>
     <string name="settings_credits_text">Emotes by Twitch, 7TV, BetterTTV and FrankerFaceZ. Chat history by recent-messages.robotty.de.</string>
+    <string name="settings_source_code">Source code</string>
+    <string name="settings_source_code_summary">github.com/derLesh/Chatter</string>
+    <string name="settings_report_issue">Report a problem</string>
+    <string name="settings_report_issue_summary">Opens a new issue on GitHub</string>
 
     <!-- Chat modes (header chips) -->
     <string name="mode_slow">Slow %1$ds</string>

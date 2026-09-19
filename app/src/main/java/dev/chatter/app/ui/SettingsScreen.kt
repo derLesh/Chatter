@@ -1,6 +1,7 @@
 package dev.chatter.app.ui
 
 import android.content.Intent
+import android.net.Uri
 import android.provider.Settings as AndroidSettings
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedContent
@@ -31,6 +32,7 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.automirrored.filled.List
 import androidx.compose.material.icons.filled.AccountCircle
 import androidx.compose.material.icons.filled.Check
@@ -423,6 +425,10 @@ private fun AboutPage() {
         )
     }
     SettingsGroup {
+        item { LinkItem(R.string.settings_source_code, R.string.settings_source_code_summary, REPO_URL) }
+        item { LinkItem(R.string.settings_report_issue, R.string.settings_report_issue_summary, "$REPO_URL/issues/new") }
+    }
+    SettingsGroup {
         item {
             ListItem(
                 headlineContent = { Text(stringResource(R.string.settings_credits)) },
@@ -431,6 +437,21 @@ private fun AboutPage() {
             )
         }
     }
+}
+
+private const val REPO_URL = "https://github.com/derLesh/Chatter"
+
+/** A settings row that hands the link to the browser. */
+@Composable
+private fun LinkItem(title: Int, summary: Int, url: String) {
+    val context = LocalContext.current
+    ListItem(
+        headlineContent = { Text(stringResource(title)) },
+        supportingContent = { Text(stringResource(summary)) },
+        trailingContent = { Icon(Icons.AutoMirrored.Filled.ArrowForward, contentDescription = null) },
+        colors = transparentItem(),
+        modifier = Modifier.clickable { context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url))) },
+    )
 }
 
 // ---- Building blocks ----------------------------------------------------------------------
