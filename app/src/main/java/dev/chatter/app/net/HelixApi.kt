@@ -3,6 +3,9 @@ package dev.chatter.app.net
 import dev.chatter.app.BuildConfig
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
+import kotlinx.serialization.json.buildJsonObject
+import kotlinx.serialization.json.put
+import kotlinx.serialization.json.putJsonObject
 import kotlinx.serialization.json.JsonObject
 import okhttp3.HttpUrl.Companion.toHttpUrl
 import okhttp3.OkHttpClient
@@ -60,6 +63,63 @@ class HelixApi(
             cursor = page.pagination?.cursor
         } while (!cursor.isNullOrEmpty())
         return all
+    }
+
+    // ---- Moderation (the IRC slash commands were removed by Twitch) ------------------------
+
+    /** [durationSeconds] null = permanent ban. */
+    suspend fun ban(channelId: String, modId: String, userId: String, durationSeconds: Int?, reason: String?) {
+        val body = buildJsonObject {
+            putJsonObject("data") {
+                put("user_id", userId)
+                durationSeconds?.let { put("duration", it) }
+                if (!reason.isNullOrBlank()) put("reason", reason)
+            }
+        }
+        http.send("POST", url("moderation/bans", "broadcaster_id" to channelId, "moderator_id" to modId), headers(), body.toString())
+    }
+
+    suspend fun unban(channelId: String, modId: String, userId: String) {
+        http.send("DELETE", url("moderation/bans", "broadcaster_id" to channelId, "moderator_id" to modId, "user_id" to userId), headers())
+    }
+
+    /** Deletes one message, or clears the whole chat when [messageId] is null. */
+    suspend fun deleteMessages(channelId: String, modId: String, messageId: String?) {
+        http.send("DELETE", url("moderation/chat", "broadcaster_id" to channelId, "moderator_id" to modId, "message_id" to messageId), headers())
+    }
+
+    suspend fun updateChatSettings(channelId: String, modId: String, settings: JsonObject) {
+        http.send("PATCH", url("chat/settings", "broadcaster_id" to channelId, "moderator_id" to modId), headers(), settings.toString())
+    }
+
+    suspend fun setModerator(channelId: String, userId: String, add: Boolean) {
+        http.send(if (add) "POST" else "DELETE", url("moderation/moderators", "broadcaster_id" to channelId, "user_id" to userId), headers())
+    }
+
+    suspend fun setVip(channelId: String, userId: String, add: Boolean) {
+        http.send(if (add) "POST" else "DELETE", url("channels/vips", "broadcaster_id" to channelId, "user_id" to userId), headers())
+    }
+
+    suspend fun announce(channelId: String, modId: String, message: String) {
+        val body = buildJsonObject { put("message", message) }
+        http.send("POST", url("chat/announcements", "broadcaster_id" to channelId, "moderator_id" to modId), headers(), body.toString())
+    }
+
+    suspend fun shoutout(channelId: String, modId: String, targetId: String) {
+        http.send("POST", url("chat/shoutouts", "from_broadcaster_id" to channelId, "to_broadcaster_id" to targetId, "moderator_id" to modId), headers())
+    }
+
+    suspend fun startRaid(channelId: String, targetId: String) {
+        http.send("POST", url("raids", "from_broadcaster_id" to channelId, "to_broadcaster_id" to targetId), headers())
+    }
+
+    suspend fun cancelRaid(channelId: String) {
+        http.send("DELETE", url("raids", "broadcaster_id" to channelId), headers())
+    }
+
+    /** [color] is a named Twitch color (e.g. "blue_violet") or "#RRGGBB" (Turbo/Prime only). */
+    suspend fun setChatColor(userId: String, color: String) {
+        http.send("PUT", url("chat/color", "user_id" to userId, "color" to color), headers())
     }
 
     suspend fun globalEmotes(): List<HelixEmote> =

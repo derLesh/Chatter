@@ -11,6 +11,7 @@ import dev.chatter.app.AppContainer
 import dev.chatter.app.R
 import dev.chatter.app.auth.DeviceLogin
 import dev.chatter.app.chat.ChatItem
+import dev.chatter.app.chat.CommandParser
 import dev.chatter.app.chat.SendResult
 import dev.chatter.app.emotes.Emote
 import dev.chatter.app.net.HelixChannelSearch
@@ -31,6 +32,7 @@ sealed interface LoginUi {
 
 sealed interface Suggestion {
     data class EmoteSuggestion(val emote: Emote) : Suggestion
+    data class CommandSuggestion(val name: String, val usage: String) : Suggestion
     data class UserSuggestion(val name: String) : Suggestion
 }
 
@@ -97,7 +99,11 @@ class MainViewModel(private val c: AppContainer) : ViewModel() {
             return
         }
         suggestionJob = viewModelScope.launch {
-            suggestions = if (word.text.startsWith("@")) {
+            suggestions = if (word.start == 0 && word.text.startsWith("/")) {
+                val typed = word.text.substring(1).lowercase()
+                CommandParser.COMMANDS.filterKeys { it.startsWith(typed) }
+                    .map { (name, usage) -> Suggestion.CommandSuggestion(name, usage) }
+            } else if (word.text.startsWith("@")) {
                 Autocomplete.rankUsers(word.text, c.chat.chatters(channel)).map { Suggestion.UserSuggestion(it) }
             } else if (word.text.length >= 2) {
                 Autocomplete.rankEmotes(word.text, c.emotes.available(c.chat.roomId(channel)))
@@ -105,6 +111,7 @@ class MainViewModel(private val c: AppContainer) : ViewModel() {
             } else emptyList()
         }
     }
+            is Suggestion.CommandSuggestion -> "/${s.name}"
 
     fun applySuggestion(s: Suggestion) {
         val word = Autocomplete.currentWord(input.text, input.selection.start) ?: return
@@ -157,7 +164,7 @@ class MainViewModel(private val c: AppContainer) : ViewModel() {
                 SendResult.Empty -> Unit
                 SendResult.NotConnected -> _messages.send(R.string.error_not_connected)
                 SendResult.RateLimited -> _messages.send(R.string.error_rate_limited)
-                SendResult.UnsupportedCommand -> _messages.send(R.string.error_unsupported_command)
+                SendResult.CommandError -> Unit // the hint is shown in the chat
             }
         }
     }

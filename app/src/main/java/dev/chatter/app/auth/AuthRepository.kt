@@ -260,7 +260,13 @@ class AuthRepository(
 
     companion object {
         const val REDIRECT_URI = "http://localhost"
-        val SCOPES = listOf("chat:read", "chat:edit", "user:read:emotes", "user:read:follows")
+        val SCOPES = listOf(
+            "chat:read", "chat:edit", "user:read:emotes", "user:read:follows", "user:manage:chat_color",
+            // Moderation commands (only work where the user is moderator/broadcaster).
+            "moderator:manage:banned_users", "moderator:manage:chat_messages", "moderator:manage:chat_settings",
+            "moderator:manage:announcements", "moderator:manage:shoutouts",
+            "channel:manage:moderators", "channel:manage:vips", "channel:manage:raids",
+        )
         private const val REFRESH_MARGIN_MS = 10 * 60_000L
 
         private val TOKEN_KEY = stringPreferencesKey("token")

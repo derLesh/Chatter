@@ -82,6 +82,27 @@
     <!-- Errors -->
     <string name="error_not_connected">Nicht mit dem Chat verbunden.</string>
     <string name="error_rate_limited">Du sendest Nachrichten zu schnell.</string>
-    <string name="error_unsupported_command">Chat-Befehle außer /me werden noch nicht unterstützt.</string>
+    <string name="error_unsupported_command">Unbekannter Befehl: /%1$s</string>
     <string name="error_invalid_channel">Das ist kein gültiger Channel-Name.</string>
+    <!-- Commands & moderation -->
+    <string name="cmd_usage">Verwendung: %1$s</string>
+    <string name="cmd_banned">%1$s wurde gebannt.</string>
+    <string name="cmd_timed_out">%1$s wurde für %2$s stummgeschaltet.</string>
+    <string name="cmd_unbanned">%1$s wurde entbannt.</string>
+    <string name="cmd_deleted">Nachricht gelöscht.</string>
+    <string name="cmd_cleared">Chat geleert.</string>
+    <string name="cmd_settings_updated">Chat-Einstellungen geändert.</string>
+    <string name="cmd_modded">%1$s ist jetzt Moderator.</string>
+    <string name="cmd_unmodded">%1$s ist kein Moderator mehr.</string>
+    <string name="cmd_vipped">%1$s ist jetzt VIP.</string>
+    <string name="cmd_unvipped">%1$s ist kein VIP mehr.</string>
+    <string name="cmd_announced">Ankündigung gesendet.</string>
+    <string name="cmd_shoutout">Shoutout an %1$s gesendet.</string>
+    <string name="cmd_raid">Raid zu %1$s gestartet.</string>
+    <string name="cmd_unraid">Raid abgebrochen.</string>
+    <string name="cmd_color">Namensfarbe geändert zu %1$s.</string>
+    <string name="cmd_error_scope">Für diesen Befehl fehlt eine Berechtigung. Melde dich ab und wieder an, um sie zu erteilen.</string>
+    <string name="cmd_error_permission">Nicht erlaubt: %1$s</string>
+    <string name="cmd_error_generic">Befehl fehlgeschlagen: %1$s</string>
+    <string name="cmd_error_no_user">Nutzer %1$s nicht gefunden</string>
 </resources>

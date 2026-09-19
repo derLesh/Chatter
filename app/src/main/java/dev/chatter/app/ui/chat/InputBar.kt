@@ -112,6 +112,7 @@ private fun SuggestionRow(suggestions: List<Suggestion>, imageLoader: ImageLoade
             when (it) {
                 is Suggestion.EmoteSuggestion -> "e:" + it.emote.name
                 is Suggestion.UserSuggestion -> "u:" + it.name
+                is Suggestion.CommandSuggestion -> "c:" + it.name
             }
         }) { s ->
             Row(
@@ -135,6 +136,7 @@ private fun SuggestionRow(suggestions: List<Suggestion>, imageLoader: ImageLoade
                         Spacer(Modifier.width(6.dp))
                         Text(s.emote.name, style = MaterialTheme.typography.bodyMedium)
                     }
+                    is Suggestion.CommandSuggestion -> Text(s.usage, style = MaterialTheme.typography.bodyMedium)
                     is Suggestion.UserSuggestion -> Text("@" + s.name, style = MaterialTheme.typography.bodyMedium)
                 }
             }

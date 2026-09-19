@@ -16,6 +16,7 @@ import dev.chatter.app.auth.AuthState
 import dev.chatter.app.badges.BadgeRepository
 import dev.chatter.app.channels.ChannelRepository
 import dev.chatter.app.chat.ChatRepository
+import dev.chatter.app.chat.CommandExecutor
 import dev.chatter.app.chat.MessageBuilder
 import dev.chatter.app.emotes.EmoteRepository
 import dev.chatter.app.irc.ConnectionState
@@ -63,7 +64,7 @@ class AppContainer(private val context: Context) {
     val notifier = MentionNotifier(context)
     val chat = ChatRepository(
         context, irc, MessageBuilder(emotes, badges), emotes, badges, channels, thirdParty, auth,
-        settings.settings, scope,
+        CommandExecutor(context, helix, auth), settings.settings, scope,
     )
 
     // One disk cache shared by both loaders (two caches on the same directory would corrupt it).

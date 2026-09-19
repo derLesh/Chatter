@@ -31,7 +31,11 @@ import kotlinx.coroutines.withContext
 import java.util.UUID
 import java.util.concurrent.ConcurrentHashMap
 
-enum class SendResult { Ok, Empty, NotConnected, RateLimited, UnsupportedCommand }
+enum class SendResult {
+    Ok, Empty, NotConnected, RateLimited,
+    /** A command was not executed (unknown / wrong usage); the hint is shown in the chat. */
+    CommandError,
+}
 
 /**
  * Owns the message buffers of all channels.
@@ -46,6 +50,7 @@ class ChatRepository(
     private val irc: IrcConnection,
     private val builder: MessageBuilder,
     private val emotes: EmoteRepository,
+    private val commands: CommandExecutor,
     private val badges: BadgeRepository,
     private val channelRepo: ChannelRepository,
     private val thirdParty: ThirdPartyApi,
@@ -75,6 +80,10 @@ class ChatRepository(
     private val flows = ConcurrentHashMap<String, MutableStateFlow<List<ChatItem>>>()
     private val flowWatchers = ConcurrentHashMap<String, Job>()
     private val roomIds = ConcurrentHashMap<String, String>()
+    private val _modChannels = MutableStateFlow<Set<String>>(emptySet())
+    /** Channels where the user is moderator or broadcaster. */
+    val modChannels: StateFlow<Set<String>> = _modChannels
+
 
     private val _mentionEvents = MutableSharedFlow<ChatItem>(extraBufferCapacity = 32)
     /** Emitted for live (non-history) messages that mention the user in a channel they are not looking at. */
@@ -140,7 +149,11 @@ class ChatRepository(
     suspend fun send(channel: String, input: String, replyTo: ChatItem?): SendResult = withContext(worker) {
         var text = input.trim()
         if (text.isEmpty()) return@withContext SendResult.Empty
-        if (text.startsWith("/") && !text.startsWith("/me ")) return@withContext SendResult.UnsupportedCommand
+        CommandParser.parse(text)?.let { command ->
+            system(channel, commands.execute(command, roomIds[channel]))
+            val invalid = command is ChatCommand.Usage || command is ChatCommand.Unknown
+            return@withContext if (invalid) SendResult.CommandError else SendResult.Ok
+        }
 
         val now = System.currentTimeMillis()
         // Twitch drops identical consecutive messages; an invisible tag character avoids that.
@@ -151,8 +164,15 @@ class ChatRepository(
             it.startsWith("moderator/") || it.startsWith("broadcaster/") || it.startsWith("vip/")
         }
         if (!rateLimiter.tryAcquire(now, if (privileged) 100 else 20)) return@withContext SendResult.RateLimited
+    /** Runs a moderation command (e.g. from the message actions) and reports the result in the chat. */
+    fun runCommand(channel: String, command: ChatCommand) = scope.launch(worker) {
+        system(channel, commands.execute(command, roomIds[channel]))
+    }
+
 
         val wire = if (text.startsWith("/me ")) "$CTCP_ACTION${text.substring(4)}$CTCP_END" else text
+        lastLiveTimestamp.clear()
+        _modChannels.value = emptySet()
         val replyParent = replyTo?.takeIf { it.canReply && !it.id.startsWith("local-") }
         if (!irc.sendMessage(channel, wire, replyParent?.id)) return@withContext SendResult.NotConnected
 
@@ -276,7 +296,12 @@ class ChatRepository(
             "ROOMSTATE" -> if (channel != null) msg.tag("room-id")?.let { id ->
                 if (roomIds.put(channel, id) == null) scope.launch { loadEmotesAndBadges(id) }
             }
-            "USERSTATE" -> if (channel != null) userStates[channel] = msg.tags
+            "USERSTATE" -> if (channel != null) {
+                userStates[channel] = msg.tags
+                val badges = msg.tag("badges").orEmpty()
+                val isMod = badges.contains("moderator/") || badges.contains("broadcaster/")
+                _modChannels.update { if (isMod) it + channel else it - channel }
+            }
             "GLOBALUSERSTATE" -> globalUserState = msg.tags
         }
     }
