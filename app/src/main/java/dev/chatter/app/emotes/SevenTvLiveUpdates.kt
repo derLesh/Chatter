@@ -8,16 +8,16 @@ import dev.chatter.app.settings.Settings
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.collectLatest
-import kotlinx.coroutines.flow.combine
-import kotlinx.coroutines.flow.distinctUntilChanged
-import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 
 /**
  * Keeps the channels' 7TV emotes up to date via the 7TV EventAPI and reports changes in the chat.
  *
- * To save battery the connection only runs while the app is on screen. After more than
- * [RELOAD_AFTER_MS] away, the 7TV emotes are reloaded once to catch up on missed changes.
+ * This runs for every joined channel, not just the one on screen. Whether the changes are also
+ * announced in the chat is a display choice and does not affect keeping the emotes current.
+ *
+ * To save battery the connection only runs while the app is on screen; coming back reloads the
+ * 7TV emotes once to catch up on what was missed.
  */
 class SevenTvLiveUpdates(
     private val context: Context,
@@ -27,25 +27,22 @@ class SevenTvLiveUpdates(
     private val settings: StateFlow<Settings>,
     private val scope: CoroutineScope,
 ) {
-    private var hiddenSince = 0L
-
     fun start() {
         // Subscribe to whatever sets/users the loaded channels have.
         scope.launch {
             emotes.version.collect { client.setSubscriptions(emotes.sevenTvSubscriptions()) }
         }
         scope.launch {
-            combine(chat.uiVisible, settings.map { it.sevenTvEvents }.distinctUntilChanged()) { visible, enabled -> visible && enabled }
-                .distinctUntilChanged()
-                .collectLatest { active ->
-                    if (active) {
-                        if (hiddenSince != 0L && System.currentTimeMillis() - hiddenSince > RELOAD_AFTER_MS) reloadAll()
-                        client.start()
-                    } else {
-                        client.stop()
-                        hiddenSince = System.currentTimeMillis()
-                    }
+            chat.uiVisible.collectLatest { active ->
+                if (active) {
+                    client.start()
+                    // Catch up on anything missed while the socket was down, and on channels whose
+                    // first load failed: without this their set is never subscribed to at all.
+                    reloadAll()
+                } else {
+                    client.stop()
                 }
+            }
         }
         scope.launch {
             client.events.collect { handle(it) }
@@ -64,7 +61,7 @@ class SevenTvLiveUpdates(
                 // Take the emotes over first: they must land even when no channel name can be
                 // resolved to write a notice into, which would otherwise drop the change entirely.
                 val added = emotes.applySevenTvUpdate(channelId, event)
-                val channel = chat.channelForRoomId(channelId) ?: return
+                val channel = chat.channelForRoomId(channelId)?.takeIf { settings.value.sevenTvEvents } ?: return
                 if (added.isNotEmpty()) {
                     chat.postNotice(
                         channel,
@@ -80,13 +77,9 @@ class SevenTvLiveUpdates(
             is SevenTvEvent.ActiveSetChanged -> {
                 val channelId = emotes.channelForSevenTvUser(event.userId) ?: return
                 emotes.loadChannel(channelId, null) // new set id -> new subscriptions via version
-                val channel = chat.channelForRoomId(channelId) ?: return
+                val channel = chat.channelForRoomId(channelId)?.takeIf { settings.value.sevenTvEvents } ?: return
                 chat.postNotice(channel, context.getString(R.string.seventv_set_changed, actor))
             }
         }
-    }
-
-    private companion object {
-        const val RELOAD_AFTER_MS = 10 * 60_000L
     }
 }
