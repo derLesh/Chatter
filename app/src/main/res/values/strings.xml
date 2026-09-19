@@ -142,6 +142,8 @@
     <string name="reorder_channel">Drag to reorder</string>
     <string name="channel_notify_on">Notifications on</string>
     <string name="channel_notify_off">Notifications off</string>
+    <string name="settings_unread_title_bar">Show unread channels in the title bar</string>
+    <string name="settings_unread_title_bar_hint">The avatars of channels with new messages, next to the channel name.</string>
     <string name="settings_group_colors">Colors</string>
     <string name="settings_group_messages">Messages</string>
     <string name="settings_group_mentions">Mentions</string>

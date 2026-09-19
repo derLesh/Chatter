@@ -161,6 +161,7 @@ fun MainScreen(vm: MainViewModel, onSettings: () -> Unit) {
                 roomState = active?.let { roomStates[it] },
                 roleBadge = active?.let { ch -> roles[ch]?.let { vm.roleBadge(ch, it) } },
                 connection = connection,
+                showUnread = settings.unreadInTitleBar,
                 imageLoader = vm.imageLoader,
                 onSelect = { ch -> scope.launch { pagerState.scrollToPage(channels.indexOf(ch).coerceAtLeast(0)) } },
                 onAdd = { showAdd = true },

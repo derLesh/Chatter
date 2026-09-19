@@ -229,6 +229,10 @@ class MainViewModel(private val c: AppContainer) : ViewModel() {
         viewModelScope.launch { c.channels.remove(login) }
     }
 
+    fun setUnreadInTitleBar(v: Boolean) {
+        viewModelScope.launch { c.settings.setUnreadInTitleBar(v) }
+    }
+
     fun setChannelNotify(login: String, enabled: Boolean) {
         viewModelScope.launch { c.channels.setNotify(login, enabled) }
     }

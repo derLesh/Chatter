@@ -146,7 +146,7 @@ fun SettingsScreen(vm: MainViewModel, onBack: () -> Unit) {
                 SettingsPage.Appearance -> AppearancePage(settings, vm)
                 SettingsPage.Chat -> ChatPage(settings, vm)
                 SettingsPage.Notifications -> NotificationsPage(settings, vm)
-                SettingsPage.Channels -> ChannelsPage(vm)
+                SettingsPage.Channels -> ChannelsPage(vm, settings)
                 SettingsPage.Account -> AccountPage(login) { vm.logout(); onBack() }
                 SettingsPage.About -> AboutPage()
             }
@@ -402,7 +402,7 @@ private fun AccountPage(login: String, onLogout: () -> Unit) {
 }
 
 @Composable
-private fun ChannelsPage(vm: MainViewModel) {
+private fun ChannelsPage(vm: MainViewModel, settings: Settings) {
     val channels by vm.channels.collectAsStateWithLifecycle()
     val info by vm.channelInfo.collectAsStateWithLifecycle()
     val customNames by vm.customNames.collectAsStateWithLifecycle()
@@ -421,6 +421,16 @@ private fun ChannelsPage(vm: MainViewModel) {
         onRemove = vm::removeChannel,
         onAdd = { showAdd = true },
     )
+    SettingsGroup {
+        item {
+            SwitchItem(
+                R.string.settings_unread_title_bar,
+                settings.unreadInTitleBar,
+                { vm.setUnreadInTitleBar(it) },
+                R.string.settings_unread_title_bar_hint,
+            )
+        }
+    }
     renameTarget?.let { login ->
         RenameChannelDialog(
             login = login,
