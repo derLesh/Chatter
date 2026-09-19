@@ -32,6 +32,8 @@ data class Settings(
     val highlightColor: Int = HIGHLIGHT_DEFAULT,
     /** Load recent messages from the recent-messages service when joining a channel. */
     val loadHistory: Boolean = true,
+    /** Animate new messages into view instead of jumping. */
+    val smoothScrolling: Boolean = true,
 ) {
     companion object {
         // Real ARGB colors are always opaque (0xFF......), so these can never clash with one.
@@ -57,6 +59,7 @@ class SettingsRepository(
             alternateBackground = p[ALTERNATE_BG] ?: false,
             highlightColor = p[HIGHLIGHT_COLOR] ?: Settings.HIGHLIGHT_DEFAULT,
             loadHistory = p[LOAD_HISTORY] ?: true,
+            smoothScrolling = p[SMOOTH_SCROLLING] ?: true,
         )
     }.stateIn(scope, SharingStarted.Eagerly, Settings())
 
@@ -70,6 +73,7 @@ class SettingsRepository(
     suspend fun setAlternateBackground(v: Boolean) = store.edit { it[ALTERNATE_BG] = v }
     suspend fun setHighlightColor(v: Int) = store.edit { it[HIGHLIGHT_COLOR] = v }
     suspend fun setLoadHistory(v: Boolean) = store.edit { it[LOAD_HISTORY] = v }
+    suspend fun setSmoothScrolling(v: Boolean) = store.edit { it[SMOOTH_SCROLLING] = v }
 
     suspend fun addRecentEmote(name: String) = store.edit { p ->
         val list = p[RECENT_EMOTES].orEmpty().split(' ').filter { it.isNotEmpty() && it != name }
@@ -88,6 +92,7 @@ class SettingsRepository(
         val ALTERNATE_BG = booleanPreferencesKey("alternate_background")
         val HIGHLIGHT_COLOR = intPreferencesKey("highlight_color")
         val LOAD_HISTORY = booleanPreferencesKey("load_history")
+        val SMOOTH_SCROLLING = booleanPreferencesKey("smooth_scrolling")
         const val MAX_RECENT = 40
     }
 }

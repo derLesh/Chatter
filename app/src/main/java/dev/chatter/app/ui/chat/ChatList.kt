@@ -1,5 +1,9 @@
 package dev.chatter.app.ui.chat
 
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.tween
+import androidx.compose.foundation.interaction.DragInteraction
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
@@ -42,20 +46,31 @@ fun ChatList(
     imageLoader: ImageLoader,
     onAction: (ChatItem) -> Unit,
     modifier: Modifier = Modifier,
+    smoothScrolling: Boolean = false,
 ) {
     val items by messages.collectAsStateWithLifecycle()
     val listState = rememberLazyListState()
     val scope = rememberCoroutineScope()
     var follow by remember { mutableStateOf(true) }
+    // Only the user's own drags decide whether we keep following new messages. Our own
+    // (possibly interrupted) scroll animations must not switch following off.
+    var userScrolling by remember { mutableStateOf(false) }
 
-    // Decide whether to keep following only once a scroll gesture has ended.
+    LaunchedEffect(listState) {
+        listState.interactionSource.interactions.collect { if (it is DragInteraction.Start) userScrolling = true }
+    }
     LaunchedEffect(listState) {
         snapshotFlow { listState.isScrollInProgress }.collect { scrolling ->
-            if (!scrolling) follow = listState.firstVisibleItemIndex == 0
+            if (!scrolling && userScrolling) {
+                userScrolling = false
+                follow = listState.firstVisibleItemIndex == 0
+            }
         }
     }
     LaunchedEffect(items) {
-        if (follow && items.isNotEmpty() && !listState.isScrollInProgress) listState.scrollToItem(0)
+        if (follow && items.isNotEmpty() && !userScrolling) {
+            if (smoothScrolling) listState.animateScrollToItem(0) else listState.scrollToItem(0)
+        }
     }
 
     Box(modifier) {
@@ -72,7 +87,10 @@ fun ChatList(
                 key = { items[count - 1 - it].id },
                 contentType = { items[count - 1 - it].kind },
             ) { index ->
-                MessageRow(items[count - 1 - index], style, imageLoader, onAction)
+                val rowModifier = if (smoothScrolling) {
+                    Modifier.animateItem(fadeInSpec = tween(180), placementSpec = spring(stiffness = Spring.StiffnessMediumLow), fadeOutSpec = null)
+                } else Modifier
+                Box(rowModifier) { MessageRow(items[count - 1 - index], style, imageLoader, onAction) }
             }
         }
         if (!follow) {

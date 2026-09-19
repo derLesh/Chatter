@@ -235,6 +235,12 @@ private fun AppearancePage(settings: Settings, vm: MainViewModel) {
                 vm::setAlternateBackground, R.string.settings_alternate_background_hint,
             )
         }
+        item {
+            SwitchItem(
+                R.string.settings_smooth_scrolling, settings.smoothScrolling,
+                vm::setSmoothScrolling, R.string.settings_smooth_scrolling_hint,
+            )
+        }
         item { SwitchItem(R.string.settings_animated_emotes, settings.animatedEmotes, vm::setAnimatedEmotes) }
     }
 }

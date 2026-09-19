@@ -184,6 +184,7 @@ fun MainScreen(vm: MainViewModel, onSettings: () -> Unit) {
                         imageLoader = loader,
                         onAction = { actionItem = it },
                         modifier = Modifier.fillMaxSize(),
+                        smoothScrolling = settings.smoothScrolling,
                     )
                 }
             }

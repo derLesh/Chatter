@@ -162,4 +162,6 @@
     <string name="mode_unique">Unique</string>
     <string name="settings_group_text">Text</string>
     <string name="settings_text_size_sample">Hello chat, this is how big messages will be.</string>
+    <string name="settings_smooth_scrolling">Smooth scrolling</string>
+    <string name="settings_smooth_scrolling_hint">New messages glide into view instead of jumping</string>
 </resources>

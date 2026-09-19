@@ -309,6 +309,10 @@ class MainViewModel(private val c: AppContainer) : ViewModel() {
         viewModelScope.launch { c.settings.setHighlightColor(v) }
     }
 
+    fun setSmoothScrolling(v: Boolean) {
+        viewModelScope.launch { c.settings.setSmoothScrolling(v) }
+    }
+
     fun setLoadHistory(v: Boolean) {
         viewModelScope.launch { c.settings.setLoadHistory(v) }
     }
