@@ -3,22 +3,46 @@ package dev.chatter.app.ui
 import android.content.Intent
 import android.provider.Settings as AndroidSettings
 import androidx.activity.compose.BackHandler
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.slideOutHorizontally
+import androidx.compose.animation.togetherWith
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.List
+import androidx.compose.material.icons.filled.AccountCircle
+import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.Info
+import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.LargeTopAppBar
 import androidx.compose.material3.ListItem
+import androidx.compose.material3.ListItemDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
@@ -27,43 +51,105 @@ import androidx.compose.material3.SegmentedButton
 import androidx.compose.material3.SegmentedButtonDefaults
 import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import androidx.compose.material3.Slider
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.TopAppBarDefaults
+import androidx.compose.material3.rememberTopAppBarState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.luminance
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import dev.chatter.app.BuildConfig
 import dev.chatter.app.R
 import dev.chatter.app.auth.AuthState
+import dev.chatter.app.settings.Settings
 import dev.chatter.app.settings.ThemeMode
+import dev.chatter.app.ui.theme.highlightBackground
+import dev.chatter.app.ui.theme.highlightColor
 import kotlin.math.roundToInt
 
-@OptIn(ExperimentalMaterial3Api::class)
+/** Top level of the settings, like the Android settings app: categories that open a page. */
+private enum class SettingsPage(val title: Int, val summary: Int, val icon: ImageVector) {
+    Appearance(R.string.settings_appearance, R.string.settings_appearance_summary, Icons.Default.Edit),
+    Chat(R.string.settings_chat, R.string.settings_chat_summary, Icons.AutoMirrored.Filled.List),
+    Notifications(R.string.settings_notifications, R.string.settings_notifications_summary, Icons.Default.Notifications),
+    Account(R.string.settings_account, R.string.settings_account_summary, Icons.Default.AccountCircle),
+    About(R.string.settings_about, R.string.settings_about_summary, Icons.Default.Info),
+}
+
 @Composable
 fun SettingsScreen(vm: MainViewModel, onBack: () -> Unit) {
-    BackHandler(onBack = onBack)
+    var page by rememberSaveable { mutableStateOf<SettingsPage?>(null) }
+    val goBack = { if (page != null) page = null else onBack() }
+    BackHandler(onBack = goBack)
+
     val settings by vm.settings.collectAsStateWithLifecycle()
     val auth by vm.authState.collectAsStateWithLifecycle()
-    val context = LocalContext.current
+    val login = (auth as? AuthState.LoggedIn)?.account?.login.orEmpty()
 
+    AnimatedContent(
+        targetState = page,
+        transitionSpec = {
+            // Like Android: the opened page (title bar included) slides in over the list; going
+            // back, it slides out on top. Pages are opaque, so nothing shows through.
+            val forward = targetState != null
+            val transform = if (forward) {
+                slideInHorizontally { it } togetherWith
+                    (slideOutHorizontally { -it / 4 } + fadeOut(targetAlpha = 0.5f))
+            } else {
+                (slideInHorizontally { -it / 4 } + fadeIn(initialAlpha = 0.5f)) togetherWith
+                    slideOutHorizontally { it }
+            }
+            transform.apply { targetContentZIndex = if (forward) 1f else -1f }
+        },
+        label = "settings-page",
+    ) { current ->
+        SettingsPageScaffold(title = current?.title ?: R.string.settings, onBack = goBack) {
+            when (current) {
+                null -> Home(login) { page = it }
+                SettingsPage.Appearance -> AppearancePage(settings, vm)
+                SettingsPage.Chat -> ChatPage(settings, vm)
+                SettingsPage.Notifications -> NotificationsPage(settings, vm)
+                SettingsPage.Account -> AccountPage(login) { vm.logout(); onBack() }
+                SettingsPage.About -> AboutPage()
+            }
+        }
+    }
+}
+
+/** One settings page: its own collapsing large title bar and scrolling content. */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun SettingsPageScaffold(title: Int, onBack: () -> Unit, content: @Composable () -> Unit) {
+    val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior(rememberTopAppBarState())
     Scaffold(
+        modifier = Modifier.nestedScroll(scrollBehavior.nestedScrollConnection),
+        containerColor = MaterialTheme.colorScheme.surface,
         topBar = {
-            TopAppBar(
-                title = { Text(stringResource(R.string.settings)) },
+            LargeTopAppBar(
+                title = { Text(stringResource(title)) },
                 navigationIcon = {
                     IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Filled.ArrowBack, stringResource(R.string.back)) }
                 },
+                scrollBehavior = scrollBehavior,
             )
         },
     ) { padding ->
@@ -71,9 +157,41 @@ fun SettingsScreen(vm: MainViewModel, onBack: () -> Unit) {
             Modifier
                 .fillMaxSize()
                 .padding(padding)
-                .verticalScroll(rememberScrollState()),
+                .verticalScroll(rememberScrollState())
+                .padding(horizontal = 16.dp, vertical = 8.dp),
+            verticalArrangement = Arrangement.spacedBy(24.dp),
         ) {
-            SectionTitle(R.string.settings_appearance)
+            content()
+            Spacer(Modifier.height(16.dp))
+        }
+    }
+}
+
+// ---- Pages ------------------------------------------------------------------------------------
+
+@Composable
+private fun Home(login: String, open: (SettingsPage) -> Unit) {
+    SettingsGroup {
+        SettingsPage.entries.forEach { p ->
+            item {
+                ListItem(
+                    headlineContent = { Text(stringResource(p.title), fontWeight = FontWeight.Medium) },
+                    supportingContent = {
+                        Text(if (p == SettingsPage.Account && login.isNotEmpty()) login else stringResource(p.summary))
+                    },
+                    leadingContent = { CategoryIcon(p.icon) },
+                    colors = transparentItem(),
+                    modifier = Modifier.clickable { open(p) },
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun AppearancePage(settings: Settings, vm: MainViewModel) {
+    SettingsGroup(R.string.settings_group_colors) {
+        item {
             ListItem(
                 headlineContent = { Text(stringResource(R.string.settings_theme)) },
                 supportingContent = {
@@ -92,46 +210,59 @@ fun SettingsScreen(vm: MainViewModel, onBack: () -> Unit) {
                         }
                     }
                 },
+                colors = transparentItem(),
             )
-            SwitchItem(R.string.settings_dynamic_color, settings.dynamicColor, vm::setDynamicColor, R.string.settings_dynamic_color_hint)
+        }
+        item { SwitchItem(R.string.settings_dynamic_color, settings.dynamicColor, vm::setDynamicColor, R.string.settings_dynamic_color_hint) }
+        item { HighlightColorPicker(settings.highlightColor, vm::setHighlightColor) }
+    }
 
-            HorizontalDivider()
-            SectionTitle(R.string.settings_chat)
-
+    SettingsGroup(R.string.settings_group_messages) {
+        item {
+            SwitchItem(
+                R.string.settings_alternate_background, settings.alternateBackground,
+                vm::setAlternateBackground, R.string.settings_alternate_background_hint,
+            )
+        }
+        item {
             var fontSize by remember(settings.fontSize) { mutableFloatStateOf(settings.fontSize) }
-            ListItem(
-                headlineContent = { Text(stringResource(R.string.settings_font_size, fontSize.roundToInt())) },
-                supportingContent = {
-                    Slider(
-                        value = fontSize,
-                        onValueChange = { fontSize = it },
-                        onValueChangeFinished = { vm.setFontSize(fontSize.roundToInt().toFloat()) },
-                        valueRange = 10f..24f,
-                        steps = 13,
-                    )
-                },
+            SliderItem(
+                title = stringResource(R.string.settings_font_size, fontSize.roundToInt()),
+                value = fontSize,
+                onChange = { fontSize = it },
+                onDone = { vm.setFontSize(fontSize.roundToInt().toFloat()) },
+                range = 10f..24f,
+                steps = 13,
             )
+        }
+        item { SwitchItem(R.string.settings_timestamps, settings.showTimestamps, vm::setShowTimestamps) }
+        item { SwitchItem(R.string.settings_animated_emotes, settings.animatedEmotes, vm::setAnimatedEmotes) }
+    }
+}
 
+@Composable
+private fun ChatPage(settings: Settings, vm: MainViewModel) {
+    SettingsGroup {
+        item {
             var limit by remember(settings.messageLimit) { mutableFloatStateOf(settings.messageLimit.toFloat()) }
-            ListItem(
-                headlineContent = { Text(stringResource(R.string.settings_message_limit, limit.roundToInt())) },
-                supportingContent = {
-                    Slider(
-                        value = limit,
-                        onValueChange = { limit = it },
-                        onValueChangeFinished = { vm.setMessageLimit(limit.roundToInt()) },
-                        valueRange = 100f..2000f,
-                        steps = 18,
-                    )
-                },
+            SliderItem(
+                title = stringResource(R.string.settings_message_limit, limit.roundToInt()),
+                value = limit,
+                onChange = { limit = it },
+                onDone = { vm.setMessageLimit(limit.roundToInt()) },
+                range = 100f..2000f,
+                steps = 18,
             )
+        }
+        item { SwitchItem(R.string.settings_load_history, settings.loadHistory, vm::setLoadHistory, R.string.settings_load_history_hint) }
+    }
+}
 
-            SwitchItem(R.string.settings_timestamps, settings.showTimestamps, vm::setShowTimestamps)
-            SwitchItem(R.string.settings_animated_emotes, settings.animatedEmotes, vm::setAnimatedEmotes)
-
-            HorizontalDivider()
-            SectionTitle(R.string.settings_mentions)
-
+@Composable
+private fun NotificationsPage(settings: Settings, vm: MainViewModel) {
+    val context = LocalContext.current
+    SettingsGroup(R.string.settings_group_mentions) {
+        item {
             var keywords by remember(settings.mentionKeywords) { mutableStateOf(settings.mentionKeywords.joinToString(", ")) }
             OutlinedTextField(
                 value = keywords,
@@ -144,12 +275,13 @@ fun SettingsScreen(vm: MainViewModel, onBack: () -> Unit) {
                 trailingIcon = {
                     TextButton(onClick = { vm.setMentionKeywords(keywords) }) { Text(stringResource(R.string.save)) }
                 },
-                modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp),
+                modifier = Modifier.fillMaxWidth().padding(16.dp),
             )
+        }
+        item {
             ListItem(
-                headlineContent = { Text(stringResource(R.string.settings_notifications)) },
+                headlineContent = { Text(stringResource(R.string.settings_system_notifications)) },
                 supportingContent = { Text(stringResource(R.string.settings_notifications_hint)) },
-                modifier = Modifier.padding(top = 8.dp),
                 trailingContent = {
                     OutlinedButton(onClick = {
                         context.startActivity(
@@ -158,40 +290,211 @@ fun SettingsScreen(vm: MainViewModel, onBack: () -> Unit) {
                         )
                     }) { Text(stringResource(R.string.open)) }
                 },
-            )
-
-            HorizontalDivider()
-            SectionTitle(R.string.settings_account)
-            val login = (auth as? AuthState.LoggedIn)?.account?.login
-            ListItem(
-                headlineContent = { Text(stringResource(R.string.settings_logged_in_as, login.orEmpty())) },
-                trailingContent = {
-                    OutlinedButton(onClick = { vm.logout(); onBack() }) { Text(stringResource(R.string.logout)) }
-                },
+                colors = transparentItem(),
             )
         }
     }
 }
 
 @Composable
-private fun SectionTitle(res: Int) {
-    Text(
-        stringResource(res),
-        style = MaterialTheme.typography.titleSmall,
-        color = MaterialTheme.colorScheme.primary,
-        modifier = Modifier.padding(start = 16.dp, top = 20.dp, bottom = 4.dp),
+private fun AccountPage(login: String, onLogout: () -> Unit) {
+    SettingsGroup {
+        item {
+            ListItem(
+                headlineContent = { Text(login, fontWeight = FontWeight.Medium) },
+                supportingContent = { Text(stringResource(R.string.settings_logged_in)) },
+                leadingContent = { CategoryIcon(Icons.Default.AccountCircle) },
+                colors = transparentItem(),
+            )
+        }
+        item {
+            ListItem(
+                headlineContent = { Text(stringResource(R.string.logout)) },
+                supportingContent = { Text(stringResource(R.string.settings_logout_hint)) },
+                trailingContent = { OutlinedButton(onClick = onLogout) { Text(stringResource(R.string.logout)) } },
+                colors = transparentItem(),
+            )
+        }
+    }
+}
+
+@Composable
+private fun AboutPage() {
+    SettingsGroup {
+        item {
+            ListItem(
+                headlineContent = { Text(stringResource(R.string.app_name), fontWeight = FontWeight.Medium) },
+                supportingContent = { Text(stringResource(R.string.settings_version, BuildConfig.VERSION_NAME)) },
+                leadingContent = { CategoryIcon(Icons.Default.Info) },
+                colors = transparentItem(),
+            )
+        }
+        item {
+            ListItem(
+                headlineContent = { Text(stringResource(R.string.settings_credits)) },
+                supportingContent = { Text(stringResource(R.string.settings_credits_text)) },
+                colors = transparentItem(),
+            )
+        }
+    }
+}
+
+// ---- Building blocks ----------------------------------------------------------------------
+
+private class GroupScope {
+    val items = mutableListOf<@Composable () -> Unit>()
+    fun item(content: @Composable () -> Unit) {
+        items += content
+    }
+}
+
+/**
+ * Related settings as separate tiles with a small gap (Android 16 style): the outer corners
+ * of the group are strongly rounded, the corners between tiles only slightly.
+ */
+@Composable
+private fun SettingsGroup(title: Int? = null, build: GroupScope.() -> Unit) {
+    val items = GroupScope().apply(build).items
+    Column {
+        if (title != null) {
+            Text(
+                stringResource(title),
+                style = MaterialTheme.typography.titleSmall,
+                color = MaterialTheme.colorScheme.primary,
+                modifier = Modifier.padding(start = 16.dp, bottom = 8.dp),
+            )
+        }
+        Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+            items.forEachIndexed { i, content ->
+                Surface(
+                    color = MaterialTheme.colorScheme.surfaceContainer,
+                    shape = tileShape(i, items.size),
+                    modifier = Modifier.fillMaxWidth(),
+                ) {
+                    Box(Modifier.padding(vertical = 2.dp)) { content() }
+                }
+            }
+        }
+    }
+}
+
+private fun tileShape(index: Int, count: Int): RoundedCornerShape {
+    val outer = 24.dp
+    val inner = 4.dp
+    return RoundedCornerShape(
+        topStart = if (index == 0) outer else inner,
+        topEnd = if (index == 0) outer else inner,
+        bottomStart = if (index == count - 1) outer else inner,
+        bottomEnd = if (index == count - 1) outer else inner,
     )
 }
+
+@Composable
+private fun CategoryIcon(icon: ImageVector) {
+    Box(
+        contentAlignment = Alignment.Center,
+        modifier = Modifier
+            .size(40.dp)
+            .clip(CircleShape)
+            .background(MaterialTheme.colorScheme.primaryContainer),
+    ) {
+        Icon(icon, contentDescription = null, tint = MaterialTheme.colorScheme.onPrimaryContainer)
+    }
+}
+
+@Composable
+private fun transparentItem() = ListItemDefaults.colors(containerColor = Color.Transparent)
 
 @Composable
 private fun SwitchItem(res: Int, checked: Boolean, onChange: (Boolean) -> Unit, hint: Int? = null) {
     ListItem(
         headlineContent = { Text(stringResource(res)) },
         supportingContent = hint?.let { { Text(stringResource(it)) } },
-        trailingContent = {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Switch(checked = checked, onCheckedChange = onChange)
+        trailingContent = { Switch(checked = checked, onCheckedChange = onChange) },
+        colors = transparentItem(),
+        modifier = Modifier.clickable { onChange(!checked) },
+    )
+}
+
+@Composable
+private fun SliderItem(
+    title: String,
+    value: Float,
+    onChange: (Float) -> Unit,
+    onDone: () -> Unit,
+    range: ClosedFloatingPointRange<Float>,
+    steps: Int,
+) {
+    ListItem(
+        headlineContent = { Text(title) },
+        supportingContent = {
+            Slider(value = value, onValueChange = onChange, onValueChangeFinished = onDone, valueRange = range, steps = steps)
+        },
+        colors = transparentItem(),
+    )
+}
+
+/** Swatches for the mention highlight, plus a preview of a highlighted message. */
+@Composable
+private fun HighlightColorPicker(selected: Int, onSelect: (Int) -> Unit) {
+    val scheme = MaterialTheme.colorScheme
+    val options = listOf(
+        Settings.HIGHLIGHT_DEFAULT, Settings.HIGHLIGHT_ACCENT,
+        0xFFFF9800.toInt(), 0xFFFFC107.toInt(), 0xFF4CAF50.toInt(), 0xFF00BCD4.toInt(),
+        0xFF2196F3.toInt(), 0xFF9C27B0.toInt(), 0xFFE91E63.toInt(),
+    )
+    ListItem(
+        headlineContent = { Text(stringResource(R.string.settings_highlight_color)) },
+        supportingContent = {
+            Column {
+                Text(stringResource(R.string.settings_highlight_color_hint))
+                // A plain scrolling Row: ListItem measures intrinsically, which lazy lists don't support.
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(10.dp),
+                    modifier = Modifier.padding(top = 12.dp).horizontalScroll(rememberScrollState()),
+                ) {
+                    options.forEach { option ->
+                        val color = highlightColor(option, scheme)
+                        Box(
+                            contentAlignment = Alignment.Center,
+                            modifier = Modifier
+                                .size(40.dp)
+                                .clip(CircleShape)
+                                .background(color)
+                                .then(
+                                    if (option == selected) Modifier.border(3.dp, scheme.onSurface, CircleShape) else Modifier
+                                )
+                                .clickable { onSelect(option) },
+                        ) {
+                            if (option == selected) {
+                                Icon(
+                                    Icons.Default.Check,
+                                    contentDescription = null,
+                                    tint = if (color.luminance() > 0.5f) Color.Black else Color.White,
+                                )
+                            }
+                        }
+                    }
+                }
+                // Preview of a highlighted chat line.
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier
+                        .padding(top = 12.dp)
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(12.dp))
+                        .background(highlightBackground(selected, scheme))
+                        .padding(horizontal = 12.dp, vertical = 10.dp),
+                ) {
+                    Text(
+                        stringResource(R.string.settings_highlight_preview_name) + ": ",
+                        fontWeight = FontWeight.Bold,
+                        color = scheme.primary,
+                    )
+                    Text(stringResource(R.string.settings_highlight_preview_text), color = scheme.onSurface)
+                }
             }
         },
+        colors = transparentItem(),
     )
 }

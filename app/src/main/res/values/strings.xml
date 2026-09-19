@@ -74,7 +74,6 @@
     <string name="settings_message_limit">Messages kept per channel: %1$d</string>
     <string name="settings_timestamps">Show timestamps</string>
     <string name="settings_animated_emotes">Animated emotes</string>
-    <string name="settings_mentions">Mentions</string>
     <string name="settings_keywords">Extra highlight words</string>
     <string name="settings_keywords_hint">Comma-separated. Your username is always included.</string>
     <string name="save">Save</string>
@@ -82,7 +81,6 @@
     <string name="settings_notifications_hint">Sound, vibration and more in the system settings</string>
     <string name="open">Open</string>
     <string name="settings_account">Account</string>
-    <string name="settings_logged_in_as">Logged in as %1$s</string>
     <string name="logout">Log out</string>
 
     <!-- Errors -->
@@ -129,4 +127,29 @@
     <string name="user_partner">Partner</string>
     <string name="user_affiliate">Affiliate</string>
     <string name="user_created">Account created %1$s</string>
+
+    <!-- Settings pages -->
+    <string name="settings_appearance_summary">Theme, colors, font size</string>
+    <string name="settings_chat_summary">Message history, stored messages</string>
+    <string name="settings_notifications_summary">Mentions, highlight words</string>
+    <string name="settings_account_summary">Login</string>
+    <string name="settings_about">About</string>
+    <string name="settings_about_summary">Version, credits</string>
+    <string name="settings_group_colors">Colors</string>
+    <string name="settings_group_messages">Messages</string>
+    <string name="settings_group_mentions">Mentions</string>
+    <string name="settings_alternate_background">Alternating background</string>
+    <string name="settings_alternate_background_hint">Shade every other message for easier reading</string>
+    <string name="settings_highlight_color">Highlight color</string>
+    <string name="settings_highlight_color_hint">Background of messages that mention you</string>
+    <string name="settings_highlight_preview_name">viewer</string>
+    <string name="settings_highlight_preview_text">hey @you, look at this!</string>
+    <string name="settings_load_history">Load recent messages</string>
+    <string name="settings_load_history_hint">Show the last messages when opening a channel (via recent-messages.robotty.de)</string>
+    <string name="settings_system_notifications">System notification settings</string>
+    <string name="settings_logged_in">Logged in with Twitch</string>
+    <string name="settings_logout_hint">Removes the login from this device</string>
+    <string name="settings_version">Version %1$s</string>
+    <string name="settings_credits">Credits</string>
+    <string name="settings_credits_text">Emotes by Twitch, 7TV, BetterTTV and FrankerFaceZ. Chat history by recent-messages.robotty.de.</string>
 </resources>
