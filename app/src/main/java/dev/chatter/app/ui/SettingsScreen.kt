@@ -55,6 +55,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.material3.rememberTopAppBarState
 import androidx.compose.runtime.Composable
@@ -130,7 +131,9 @@ fun SettingsScreen(vm: MainViewModel, onBack: () -> Unit) {
         },
         label = "settings-page",
     ) { current ->
-        SettingsPageScaffold(title = current?.title ?: R.string.settings, onBack = goBack) {
+        // The about page carries its own icon and app name, so it gets no title bar heading.
+        val title = if (current == SettingsPage.About) null else current?.title ?: R.string.settings
+        SettingsPageScaffold(title = title, onBack = goBack) {
             when (current) {
                 null -> Home(login) { page = it }
                 SettingsPage.Appearance -> AppearancePage(settings, vm)
@@ -146,19 +149,25 @@ fun SettingsScreen(vm: MainViewModel, onBack: () -> Unit) {
 /** One settings page: its own collapsing large title bar and scrolling content. */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun SettingsPageScaffold(title: Int, onBack: () -> Unit, content: @Composable () -> Unit) {
+private fun SettingsPageScaffold(title: Int?, onBack: () -> Unit, content: @Composable () -> Unit) {
     val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior(rememberTopAppBarState())
+    val back = @Composable {
+        IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Filled.ArrowBack, stringResource(R.string.back)) }
+    }
     Scaffold(
         modifier = Modifier.nestedScroll(scrollBehavior.nestedScrollConnection),
         containerColor = MaterialTheme.colorScheme.surface,
         topBar = {
-            LargeTopAppBar(
-                title = { Text(stringResource(title)) },
-                navigationIcon = {
-                    IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Filled.ArrowBack, stringResource(R.string.back)) }
-                },
-                scrollBehavior = scrollBehavior,
-            )
+            // Without a heading a large bar would just be empty space, so it shrinks to a plain one.
+            if (title == null) {
+                TopAppBar(title = {}, navigationIcon = back)
+            } else {
+                LargeTopAppBar(
+                    title = { Text(stringResource(title)) },
+                    navigationIcon = back,
+                    scrollBehavior = scrollBehavior,
+                )
+            }
         },
     ) { padding ->
         Column(
