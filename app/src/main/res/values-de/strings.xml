@@ -44,6 +44,8 @@
     <string name="move_up">Nach oben</string>
     <string name="move_down">Nach unten</string>
     <string name="remove_channel">Entfernen</string>
+    <string name="rename_channel">Umbenennen</string>
+    <string name="rename_channel_hint">Leer lassen, um wieder den Twitch-Namen zu verwenden.</string>
     <string name="add_channel">Channel hinzufügen</string>
     <string name="channel_name">Channel-Name</string>
     <string name="live">LIVE</string>

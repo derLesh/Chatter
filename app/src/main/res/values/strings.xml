@@ -50,6 +50,8 @@
     <string name="move_up">Move up</string>
     <string name="move_down">Move down</string>
     <string name="remove_channel">Remove</string>
+    <string name="rename_channel">Rename</string>
+    <string name="rename_channel_hint">Leave empty to use the Twitch name again.</string>
     <string name="add_channel">Add channel</string>
     <string name="channel_name">Channel name</string>
     <string name="live">LIVE</string>

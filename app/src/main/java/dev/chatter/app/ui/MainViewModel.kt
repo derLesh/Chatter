@@ -47,6 +47,7 @@ class MainViewModel(private val c: AppContainer) : ViewModel() {
     val authState = c.auth.state
     val channels = c.channels.channels
     val channelInfo = c.channels.info
+    val customNames = c.channels.customNames
     val unreadMentions = c.chat.unreadMentions
     val unreadMessages = c.chat.unreadMessages
     val settings = c.settings.settings
@@ -226,6 +227,13 @@ class MainViewModel(private val c: AppContainer) : ViewModel() {
     fun removeChannel(login: String) {
         viewModelScope.launch { c.channels.remove(login) }
     }
+
+    fun renameChannel(login: String, name: String) {
+        viewModelScope.launch { c.channels.rename(login, name) }
+    }
+
+    /** The name Twitch reports, for showing what clearing a custom name restores. */
+    fun twitchName(login: String): String = c.channels.twitchName(login)
 
     fun moveChannel(login: String, delta: Int) {
         viewModelScope.launch { c.channels.move(login, delta) }

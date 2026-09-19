@@ -52,6 +52,7 @@ import dev.chatter.app.chat.Segment
 import dev.chatter.app.irc.ConnectionState
 import dev.chatter.app.service.ChatService
 import dev.chatter.app.ui.channels.AddChannelDialog
+import dev.chatter.app.ui.channels.RenameChannelDialog
 import dev.chatter.app.ui.channels.ChannelTopBar
 import dev.chatter.app.ui.chat.ChatList
 import dev.chatter.app.ui.chat.ChatStyle
@@ -73,6 +74,7 @@ fun MainScreen(vm: MainViewModel, onSettings: () -> Unit) {
     val connection by vm.connection.collectAsStateWithLifecycle()
     val settings by vm.settings.collectAsStateWithLifecycle()
     val active by vm.activeChannel.collectAsStateWithLifecycle()
+    val customNames by vm.customNames.collectAsStateWithLifecycle()
     val emoteVersion by vm.emoteVersion.collectAsStateWithLifecycle()
     val modChannels by vm.modChannels.collectAsStateWithLifecycle()
     val roomStates by vm.roomStates.collectAsStateWithLifecycle()
@@ -90,6 +92,7 @@ fun MainScreen(vm: MainViewModel, onSettings: () -> Unit) {
     var emoteCard by remember { mutableStateOf<Segment.EmoteSeg?>(null) }
     var showPicker by remember { mutableStateOf(false) }
     var showAdd by remember { mutableStateOf(false) }
+    var renameTarget by remember { mutableStateOf<String?>(null) }
 
     val loader = if (settings.animatedEmotes) vm.imageLoader else vm.staticImageLoader
     val dark = isAppInDarkTheme()
@@ -162,6 +165,7 @@ fun MainScreen(vm: MainViewModel, onSettings: () -> Unit) {
                 onSelect = { ch -> scope.launch { pagerState.scrollToPage(channels.indexOf(ch).coerceAtLeast(0)) } },
                 onAdd = { showAdd = true },
                 onRemove = vm::removeChannel,
+                onRename = { renameTarget = it },
                 onMove = vm::moveChannel,
                 onSettings = onSettings,
             )
@@ -249,6 +253,15 @@ fun MainScreen(vm: MainViewModel, onSettings: () -> Unit) {
             imageLoader = vm.imageLoader,
             onAdd = { vm.addChannel(it); showAdd = false },
             onDismiss = { showAdd = false },
+        )
+    }
+    renameTarget?.let { login ->
+        RenameChannelDialog(
+            login = login,
+            currentName = customNames[login].orEmpty(),
+            twitchName = vm.twitchName(login),
+            onRename = { vm.renameChannel(login, it) },
+            onDismiss = { renameTarget = null },
         )
     }
 }

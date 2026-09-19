@@ -12,6 +12,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
@@ -41,7 +42,20 @@ class ChannelRepository(
         .stateIn(scope, SharingStarted.Eagerly, emptyList())
 
     private val _info = MutableStateFlow<Map<String, ChannelInfo>>(emptyMap())
-    val info: StateFlow<Map<String, ChannelInfo>> = _info
+
+    /** Names the user gave channels themselves, by login. Empty unless one was renamed. */
+    val customNames: StateFlow<Map<String, String>> = store.data
+        .map { p -> decodeNames(p[CUSTOM_NAMES]) }
+        .stateIn(scope, SharingStarted.Eagerly, emptyMap())
+
+    /**
+     * Profile info with the user's own names already applied, so every screen showing a channel
+     * picks them up without knowing they exist.
+     */
+    val info: StateFlow<Map<String, ChannelInfo>> = combine(_info, customNames) { info, names ->
+        if (names.isEmpty()) info
+        else info.mapValues { (login, i) -> names[login]?.let { i.copy(displayName = it) } ?: i }
+    }.stateIn(scope, SharingStarted.Eagerly, emptyMap())
 
     /** Loads cached profile info so avatars show instantly on start. */
     suspend fun loadCache() {
@@ -66,8 +80,22 @@ class ChannelRepository(
     suspend fun remove(login: String) {
         store.edit { p ->
             p[CHANNELS] = p[CHANNELS].orEmpty().split(',').filter { it.isNotEmpty() && it != login }.joinToString(",")
+            val names = decodeNames(p[CUSTOM_NAMES])
+            if (login in names) p[CUSTOM_NAMES] = AppJson.encodeToString(names - login)
         }
     }
+
+    /** Gives a channel a name of the user's choosing; a blank name restores the Twitch one. */
+    suspend fun rename(login: String, name: String) {
+        val chosen = name.trim()
+        store.edit { p ->
+            val names = decodeNames(p[CUSTOM_NAMES])
+            p[CUSTOM_NAMES] = AppJson.encodeToString(if (chosen.isEmpty()) names - login else names + (login to chosen))
+        }
+    }
+
+    /** The name Twitch reports, ignoring any renaming, for showing what a reset would restore. */
+    fun twitchName(login: String): String = _info.value[login]?.displayName ?: login
 
     suspend fun move(login: String, delta: Int) {
         store.edit { p ->
@@ -135,6 +163,10 @@ class ChannelRepository(
         private const val TAG = "ChannelRepository"
         private val CHANNELS = stringPreferencesKey("channels")
         private val INFO_CACHE = stringPreferencesKey("channel_info")
+        private val CUSTOM_NAMES = stringPreferencesKey("channel_names")
+
+        private fun decodeNames(raw: String?): Map<String, String> =
+            raw?.let { runCatching { AppJson.decodeFromString<Map<String, String>>(it) }.getOrNull() }.orEmpty()
         private val VALID = Regex("^[a-z0-9_]{1,25}$")
 
         fun normalize(input: String): String? {

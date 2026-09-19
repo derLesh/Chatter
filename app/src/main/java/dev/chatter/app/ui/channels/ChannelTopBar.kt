@@ -20,6 +20,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.ArrowDropDown
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material.icons.filled.MoreVert
@@ -77,6 +78,7 @@ fun ChannelTopBar(
     onSelect: (String) -> Unit,
     onAdd: () -> Unit,
     onRemove: (String) -> Unit,
+    onRename: (String) -> Unit,
     onMove: (String, Int) -> Unit,
     onSettings: () -> Unit,
 ) {
@@ -122,6 +124,7 @@ fun ChannelTopBar(
                     onSelect = { expanded = false; onSelect(it) },
                     onAdd = { expanded = false; onAdd() },
                     onRemove = onRemove,
+                    onRename = { expanded = false; onRename(it) },
                     onMove = onMove,
                 )
             }
@@ -267,6 +270,7 @@ private fun ChannelDropdown(
     onSelect: (String) -> Unit,
     onAdd: () -> Unit,
     onRemove: (String) -> Unit,
+    onRename: (String) -> Unit,
     onMove: (String, Int) -> Unit,
 ) {
     val width = LocalConfiguration.current.screenWidthDp.dp - DROPDOWN_MARGIN * 2
@@ -328,6 +332,11 @@ private fun ChannelDropdown(
                                     text = { Text(stringResource(R.string.move_down)) },
                                     leadingIcon = { Icon(Icons.Default.KeyboardArrowDown, null) },
                                     onClick = { menu = false; onMove(login, 1) },
+                                )
+                                DropdownMenuItem(
+                                    text = { Text(stringResource(R.string.rename_channel)) },
+                                    leadingIcon = { Icon(Icons.Default.Edit, null) },
+                                    onClick = { menu = false; onRename(login) },
                                 )
                                 DropdownMenuItem(
                                     text = { Text(stringResource(R.string.remove_channel)) },
