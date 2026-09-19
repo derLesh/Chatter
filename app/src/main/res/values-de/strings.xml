@@ -64,7 +64,7 @@
     <string name="settings">Einstellungen</string>
     <string name="back">Zurück</string>
     <string name="settings_chat">Chat</string>
-    <string name="settings_font_size">Schriftgröße: %1$d</string>
+    <string name="settings_font_size">Textgröße: %1$d</string>
     <string name="settings_message_limit">Gespeicherte Nachrichten pro Channel: %1$d</string>
     <string name="settings_timestamps">Zeitstempel anzeigen</string>
     <string name="settings_animated_emotes">Animierte Emotes</string>
@@ -154,4 +154,6 @@
     <string name="mode_subs">Subs</string>
     <string name="mode_emotes">Nur Emotes</string>
     <string name="mode_unique">Unique</string>
+    <string name="settings_group_text">Text</string>
+    <string name="settings_text_size_sample">Hallo Chat, so groß werden Nachrichten angezeigt.</string>
 </resources>

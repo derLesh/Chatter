@@ -80,9 +80,15 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import dev.chatter.app.BuildConfig
 import dev.chatter.app.R
 import dev.chatter.app.auth.AuthState
+import dev.chatter.app.chat.ChatItem
+import dev.chatter.app.chat.MessageKind
+import dev.chatter.app.chat.Segment
 import dev.chatter.app.settings.Settings
 import dev.chatter.app.settings.ThemeMode
+import dev.chatter.app.ui.chat.ChatStyle
+import dev.chatter.app.ui.chat.MessageRow
 import dev.chatter.app.ui.theme.highlightBackground
+import dev.chatter.app.ui.theme.isAppInDarkTheme
 import dev.chatter.app.ui.theme.highlightColor
 import kotlin.math.roundToInt
 
@@ -217,6 +223,11 @@ private fun AppearancePage(settings: Settings, vm: MainViewModel) {
         item { HighlightColorPicker(settings.highlightColor, vm::setHighlightColor) }
     }
 
+    SettingsGroup(R.string.settings_group_text) {
+        item { TextSizeItem(settings, vm) }
+        item { SwitchItem(R.string.settings_timestamps, settings.showTimestamps, vm::setShowTimestamps) }
+    }
+
     SettingsGroup(R.string.settings_group_messages) {
         item {
             SwitchItem(
@@ -224,20 +235,59 @@ private fun AppearancePage(settings: Settings, vm: MainViewModel) {
                 vm::setAlternateBackground, R.string.settings_alternate_background_hint,
             )
         }
-        item {
-            var fontSize by remember(settings.fontSize) { mutableFloatStateOf(settings.fontSize) }
-            SliderItem(
-                title = stringResource(R.string.settings_font_size, fontSize.roundToInt()),
-                value = fontSize,
-                onChange = { fontSize = it },
-                onDone = { vm.setFontSize(fontSize.roundToInt().toFloat()) },
-                range = 10f..24f,
-                steps = 13,
-            )
-        }
-        item { SwitchItem(R.string.settings_timestamps, settings.showTimestamps, vm::setShowTimestamps) }
         item { SwitchItem(R.string.settings_animated_emotes, settings.animatedEmotes, vm::setAnimatedEmotes) }
     }
+}
+
+/** Chat text size with a live preview of a chat line at that size. */
+@Composable
+private fun TextSizeItem(settings: Settings, vm: MainViewModel) {
+    var size by remember(settings.fontSize) { mutableFloatStateOf(settings.fontSize) }
+    val scheme = MaterialTheme.colorScheme
+    val dark = isAppInDarkTheme()
+    val sampleText = stringResource(R.string.settings_text_size_sample)
+    val sample = remember(sampleText) {
+        ChatItem(
+            id = "preview", channel = "", kind = MessageKind.Chat, timestamp = System.currentTimeMillis(),
+            login = "chatter", displayName = "Chatter", color = 0xFF1E90FF.toInt(),
+            segments = listOf(Segment.Text(sampleText)), text = sampleText,
+        )
+    }
+    val style = ChatStyle(
+        fontSize = size.roundToInt().toFloat(),
+        showTimestamps = settings.showTimestamps,
+        dark = dark,
+        secondaryText = scheme.onSurfaceVariant,
+        linkColor = scheme.primary,
+        mentionBackground = Color.Transparent,
+        alternateBackground = null,
+        noticeBackground = Color.Transparent,
+        accent = scheme.primary,
+    )
+    ListItem(
+        headlineContent = { Text(stringResource(R.string.settings_font_size, size.roundToInt())) },
+        supportingContent = {
+            Column {
+                Slider(
+                    value = size,
+                    onValueChange = { size = it },
+                    onValueChangeFinished = { vm.setFontSize(size.roundToInt().toFloat()) },
+                    valueRange = 10f..24f,
+                    steps = 13,
+                )
+                Surface(
+                    color = scheme.surface,
+                    shape = RoundedCornerShape(12.dp),
+                    modifier = Modifier.fillMaxWidth().padding(top = 4.dp),
+                ) {
+                    Box(Modifier.padding(vertical = 8.dp)) {
+                        MessageRow(sample, style, vm.imageLoader, onAction = {})
+                    }
+                }
+            }
+        },
+        colors = transparentItem(),
+    )
 }
 
 @Composable
