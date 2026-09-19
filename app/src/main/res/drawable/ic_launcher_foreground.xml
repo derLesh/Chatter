@@ -1,9 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Chatter icon (from the Chatter icon pack): black C with three dots, for the white launcher background. -->
+<!-- Launcher foreground (white icon): black Chatter glyph.
+     The glyph is scaled to half size so it sits in the launcher icon with the same
+     proportions as the icon previews in the settings. -->
 <vector xmlns:android="http://schemas.android.com/apk/res/android" android:width="108dp" android:height="108dp" android:viewportWidth="108" android:viewportHeight="108">
-    <!-- The icon pack draws the glyph up to the canvas edge; scale it into the 66dp safe zone
-         so launcher masks (circle, squircle) do not cut the C off. -->
-    <group android:pivotX="54" android:pivotY="54" android:scaleX="0.75" android:scaleY="0.75">
+    <group android:pivotX="54" android:pivotY="54" android:scaleX="0.5" android:scaleY="0.5">
         <path android:fillColor="@android:color/transparent" android:strokeColor="#FF111111" android:strokeWidth="15.61" android:strokeLineCap="round" android:strokeLineJoin="round" android:pathData="M 75.78,75.78 L 74.09,77.34 L 72.29,78.78 L 70.38,80.08 L 68.39,81.23 L 66.32,82.23 L 64.17,83.07 L 61.97,83.75 L 59.73,84.26 L 57.45,84.60 L 55.15,84.78 L 52.85,84.78 L 50.55,84.60 L 48.27,84.26 L 46.03,83.75 L 43.83,83.07 L 41.68,82.23 L 39.61,81.23 L 37.62,80.08 L 35.71,78.78 L 33.91,77.34 L 32.22,75.78 L 30.66,74.09 L 29.22,72.29 L 27.92,70.38 L 26.77,68.39 L 25.77,66.32 L 24.93,64.17 L 24.25,61.97 L 23.74,59.73 L 23.40,57.45 L 23.22,55.15 L 23.22,52.85 L 23.40,50.55 L 23.74,48.27 L 24.25,46.03 L 24.93,43.83 L 25.77,41.68 L 26.77,39.61 L 27.92,37.62 L 29.22,35.71 L 30.66,33.91 L 32.22,32.22 L 33.91,30.66 L 35.71,29.22 L 37.62,27.92 L 39.61,26.77 L 41.68,25.77 L 43.83,24.93 L 46.03,24.25 L 48.27,23.74 L 50.55,23.40 L 52.85,23.22 L 55.15,23.22 L 57.45,23.40 L 59.73,23.74 L 61.97,24.25 L 64.17,24.93 L 66.32,25.77 L 68.39,26.77 L 70.38,27.92 L 72.29,29.22 L 74.09,30.66 L 75.78,32.22" />
         <path android:fillColor="#FF111111" android:pathData="M43.88,49.15 H48.52 A2.53,2.53 0 0 1 51.05,51.68 V56.32 A2.53,2.53 0 0 1 48.52,58.85 H43.88 A2.53,2.53 0 0 1 41.34,56.32 V51.68 A2.53,2.53 0 0 1 43.88,49.15 Z" />
         <path android:fillColor="#FF111111" android:pathData="M58.43,49.15 H63.07 A2.53,2.53 0 0 1 65.60,51.68 V56.32 A2.53,2.53 0 0 1 63.07,58.85 H58.43 A2.53,2.53 0 0 1 55.90,56.32 V51.68 A2.53,2.53 0 0 1 58.43,49.15 Z" />
