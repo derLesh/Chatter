@@ -81,7 +81,6 @@ fun ChannelTopBar(
     onSettings: () -> Unit,
 ) {
     var expanded by remember { mutableStateOf(false) }
-    val otherUnread = unread.filterKeys { it != active }.values.sum()
     // Where the title sits, so the full-width menu below it can be centered on the screen.
     var anchorX by remember { mutableStateOf(0.dp) }
     val density = LocalDensity.current
@@ -109,7 +108,6 @@ fun ChannelTopBar(
                         Text(stringResource(R.string.no_channels_title), style = MaterialTheme.typography.titleMedium)
                     }
                     Icon(Icons.Default.ArrowDropDown, contentDescription = stringResource(R.string.channels))
-                    if (otherUnread > 0) Badge { Text(otherUnread.toString()) }
                 }
                 ChannelDropdown(
                     expanded = expanded,
@@ -129,12 +127,69 @@ fun ChannelTopBar(
             }
         },
         actions = {
+            UnreadStrip(
+                channels = channels,
+                active = active,
+                info = info,
+                unread = unread,
+                unreadMessages = unreadMessages,
+                imageLoader = imageLoader,
+                onSelect = onSelect,
+            )
             ChannelModes(roomState, roleBadge, imageLoader)
             IconButton(onClick = onSettings) {
                 Icon(Icons.Default.Settings, contentDescription = stringResource(R.string.settings))
             }
         },
     )
+}
+
+/**
+ * The other channels that have something new, as tappable avatars: a red count for mentions,
+ * a plain dot for ordinary messages. Channels the user has caught up on are not shown at all.
+ */
+@Composable
+private fun UnreadStrip(
+    channels: List<String>,
+    active: String?,
+    info: Map<String, ChannelInfo>,
+    unread: Map<String, Int>,
+    unreadMessages: Map<String, Int>,
+    imageLoader: ImageLoader,
+    onSelect: (String) -> Unit,
+) {
+    val pending = channels.filter { it != active && ((unread[it] ?: 0) > 0 || (unreadMessages[it] ?: 0) > 0) }
+    if (pending.isEmpty()) return
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(2.dp),
+        modifier = Modifier.widthIn(max = 132.dp).horizontalScroll(rememberScrollState()),
+    ) {
+        pending.forEach { login ->
+            val mentions = unread[login] ?: 0
+            val name = info[login]?.displayName ?: login
+            Box(
+                modifier = Modifier
+                    .clip(CircleShape)
+                    .clickable(onClickLabel = stringResource(R.string.unread_in_channel, name)) { onSelect(login) }
+                    .padding(3.dp),
+            ) {
+                ChannelAvatar(info[login], imageLoader, 26.dp)
+                if (mentions > 0) {
+                    Badge(Modifier.align(Alignment.TopEnd)) { Text(formatCount(mentions)) }
+                } else {
+                    Box(
+                        Modifier
+                            .align(Alignment.TopEnd)
+                            .size(9.dp)
+                            .clip(CircleShape)
+                            .background(MaterialTheme.colorScheme.primary)
+                            .border(1.5.dp, MaterialTheme.colorScheme.surfaceContainer, CircleShape),
+                    )
+                }
+            }
+        }
+    }
 }
 
 /** The user's role badge and the active chat modes as small chips, next to the settings icon. */
@@ -152,7 +207,7 @@ private fun ChannelModes(state: RoomState?, roleBadge: Badge?, imageLoader: Imag
     Row(
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(4.dp),
-        modifier = Modifier.widthIn(max = 170.dp).horizontalScroll(rememberScrollState()),
+        modifier = Modifier.widthIn(max = 150.dp).horizontalScroll(rememberScrollState()),
     ) {
         modes.forEach { label ->
             Text(

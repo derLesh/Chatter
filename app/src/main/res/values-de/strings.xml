@@ -39,6 +39,7 @@
     <string name="channels">Channels</string>
     <string name="status_connecting">Verbinde…</string>
     <string name="status_live">Live · %1$s</string>
+    <string name="unread_in_channel">Ungelesene Nachrichten in %1$s</string>
     <string name="channel_options">Channel-Optionen</string>
     <string name="move_up">Nach oben</string>
     <string name="move_down">Nach unten</string>
