@@ -15,6 +15,7 @@ import dev.chatter.app.chat.CommandParser
 import dev.chatter.app.chat.SendResult
 import dev.chatter.app.emotes.Emote
 import dev.chatter.app.net.HelixChannelSearch
+import dev.chatter.app.settings.ThemeMode
 import dev.chatter.app.util.Autocomplete
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.channels.Channel
@@ -255,6 +256,14 @@ class MainViewModel(private val c: AppContainer) : ViewModel() {
     fun setMentionKeywords(v: String) {
         viewModelScope.launch { c.settings.setMentionKeywords(v) }
     }
+    fun setThemeMode(v: ThemeMode) {
+        viewModelScope.launch { c.settings.setThemeMode(v) }
+    }
+
+    fun setDynamicColor(v: Boolean) {
+        viewModelScope.launch { c.settings.setDynamicColor(v) }
+    }
+
 
     fun setAnimatedEmotes(v: Boolean) {
         viewModelScope.launch { c.settings.setAnimatedEmotes(v) }

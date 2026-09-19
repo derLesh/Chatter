@@ -69,7 +69,7 @@ fun ChannelTopBar(
     val otherUnread = unread.filterKeys { it != active }.values.sum()
 
     TopAppBar(
-        colors = TopAppBarDefaults.topAppBarColors(containerColor = MaterialTheme.colorScheme.surface),
+        colors = TopAppBarDefaults.topAppBarColors(containerColor = MaterialTheme.colorScheme.surfaceContainer),
         title = {
             Box {
                 Row(
@@ -219,7 +219,7 @@ fun ChannelAvatar(info: ChannelInfo?, imageLoader: ImageLoader, size: Dp) {
             modifier = Modifier
                 .size(size)
                 .clip(CircleShape)
-                .background(MaterialTheme.colorScheme.surfaceVariant)
+                .background(MaterialTheme.colorScheme.surfaceContainerHighest)
                 .then(if (info?.isLive == true) Modifier.border(2.dp, LiveRed, CircleShape) else Modifier),
         )
         if (info?.isLive == true) {
@@ -229,7 +229,7 @@ fun ChannelAvatar(info: ChannelInfo?, imageLoader: ImageLoader, size: Dp) {
                     .size(size / 3.5f)
                     .clip(CircleShape)
                     .background(LiveRed)
-                    .border(1.5.dp, MaterialTheme.colorScheme.surface, CircleShape),
+                    .border(1.5.dp, MaterialTheme.colorScheme.surfaceContainer, CircleShape),
             )
         }
     }

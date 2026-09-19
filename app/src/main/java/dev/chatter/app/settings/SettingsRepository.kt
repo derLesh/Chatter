@@ -13,6 +13,8 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 
+enum class ThemeMode { System, Light, Dark }
+
 data class Settings(
     val fontSize: Float = 14f,
     val showTimestamps: Boolean = true,
@@ -21,6 +23,9 @@ data class Settings(
     val animatedEmotes: Boolean = true,
     /** Names of the most recently used emotes, newest first. */
     val recentEmotes: List<String> = emptyList(),
+    val themeMode: ThemeMode = ThemeMode.System,
+    /** Material You: colors derived from the wallpaper instead of Twitch purple. */
+    val dynamicColor: Boolean = true,
 )
 
 class SettingsRepository(
@@ -35,6 +40,8 @@ class SettingsRepository(
             mentionKeywords = p[KEYWORDS].orEmpty().split(',').map { it.trim() }.filter { it.isNotEmpty() },
             animatedEmotes = p[ANIMATED] ?: true,
             recentEmotes = p[RECENT_EMOTES].orEmpty().split(' ').filter { it.isNotEmpty() },
+            themeMode = p[THEME_MODE]?.let { v -> ThemeMode.entries.firstOrNull { it.name == v } } ?: ThemeMode.System,
+            dynamicColor = p[DYNAMIC_COLOR] ?: true,
         )
     }.stateIn(scope, SharingStarted.Eagerly, Settings())
 
@@ -43,6 +50,8 @@ class SettingsRepository(
     suspend fun setMessageLimit(v: Int) = store.edit { it[LIMIT] = v }
     suspend fun setMentionKeywords(v: String) = store.edit { it[KEYWORDS] = v }
     suspend fun setAnimatedEmotes(v: Boolean) = store.edit { it[ANIMATED] = v }
+    suspend fun setThemeMode(v: ThemeMode) = store.edit { it[THEME_MODE] = v.name }
+    suspend fun setDynamicColor(v: Boolean) = store.edit { it[DYNAMIC_COLOR] = v }
 
     suspend fun addRecentEmote(name: String) = store.edit { p ->
         val list = p[RECENT_EMOTES].orEmpty().split(' ').filter { it.isNotEmpty() && it != name }
@@ -56,6 +65,8 @@ class SettingsRepository(
         val KEYWORDS = stringPreferencesKey("mention_keywords")
         val ANIMATED = booleanPreferencesKey("animated_emotes")
         val RECENT_EMOTES = stringPreferencesKey("recent_emotes")
+        val THEME_MODE = stringPreferencesKey("theme_mode")
+        val DYNAMIC_COLOR = booleanPreferencesKey("dynamic_color")
         const val MAX_RECENT = 40
     }
 }

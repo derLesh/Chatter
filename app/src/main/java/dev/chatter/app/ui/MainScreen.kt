@@ -5,7 +5,6 @@ import android.content.pm.PackageManager
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
-import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -37,7 +36,6 @@ import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
@@ -61,6 +59,7 @@ import dev.chatter.app.ui.chat.InputBar
 import dev.chatter.app.ui.chat.MessageActionsSheet
 import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.launch
+import dev.chatter.app.ui.theme.isAppInDarkTheme
 
 @Composable
 fun MainScreen(vm: MainViewModel, onSettings: () -> Unit) {
@@ -83,7 +82,7 @@ fun MainScreen(vm: MainViewModel, onSettings: () -> Unit) {
     var showAdd by remember { mutableStateOf(false) }
 
     val loader = if (settings.animatedEmotes) vm.imageLoader else vm.staticImageLoader
-    val dark = isSystemInDarkTheme()
+    val dark = isAppInDarkTheme()
     val colors = MaterialTheme.colorScheme
     val style = remember(settings.fontSize, settings.showTimestamps, dark, colors) {
         ChatStyle(
@@ -91,10 +90,10 @@ fun MainScreen(vm: MainViewModel, onSettings: () -> Unit) {
             showTimestamps = settings.showTimestamps,
             dark = dark,
             secondaryText = colors.onSurfaceVariant,
-            linkColor = colors.secondary,
-            mentionBackground = Color(0x33EB0400),
-            noticeBackground = colors.primary.copy(alpha = 0.12f),
-            accent = colors.secondary,
+            linkColor = colors.primary,
+            mentionBackground = colors.error.copy(alpha = 0.16f),
+            noticeBackground = colors.primaryContainer.copy(alpha = 0.35f),
+            accent = colors.primary,
         )
     }
 

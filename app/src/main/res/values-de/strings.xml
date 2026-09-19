@@ -84,6 +84,13 @@
     <string name="error_rate_limited">Du sendest Nachrichten zu schnell.</string>
     <string name="error_unsupported_command">Unbekannter Befehl: /%1$s</string>
     <string name="error_invalid_channel">Das ist kein gültiger Channel-Name.</string>
+    <string name="settings_appearance">Darstellung</string>
+    <string name="settings_theme">Design</string>
+    <string name="theme_system">System</string>
+    <string name="theme_light">Hell</string>
+    <string name="theme_dark">Dunkel</string>
+    <string name="settings_dynamic_color">Material-You-Farben</string>
+    <string name="settings_dynamic_color_hint">Farben aus deinem Hintergrundbild statt Twitch-Lila verwenden</string>
     <!-- Commands & moderation -->
     <string name="cmd_usage">Verwendung: %1$s</string>
     <string name="cmd_banned">%1$s wurde gebannt.</string>

@@ -59,7 +59,7 @@ fun InputBar(
     onSend: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    Surface(color = MaterialTheme.colorScheme.surface, modifier = modifier) {
+    Surface(color = MaterialTheme.colorScheme.surfaceContainer, modifier = modifier) {
         Column {
             if (suggestions.isNotEmpty()) {
                 SuggestionRow(suggestions, imageLoader, onSuggestion)
@@ -87,6 +87,9 @@ fun InputBar(
                     keyboardActions = KeyboardActions(onSend = { onSend() }),
                     shape = RoundedCornerShape(20.dp),
                     colors = TextFieldDefaults.colors(
+                        focusedContainerColor = MaterialTheme.colorScheme.surfaceContainerHighest,
+                        unfocusedContainerColor = MaterialTheme.colorScheme.surfaceContainerHighest,
+                        disabledContainerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
                         focusedIndicatorColor = Color.Transparent,
                         unfocusedIndicatorColor = Color.Transparent,
                         disabledIndicatorColor = Color.Transparent,
@@ -120,7 +123,7 @@ private fun SuggestionRow(suggestions: List<Suggestion>, imageLoader: ImageLoade
                 modifier = Modifier
                     .height(36.dp)
                     .clip(RoundedCornerShape(18.dp))
-                    .background(MaterialTheme.colorScheme.surfaceVariant)
+                    .background(MaterialTheme.colorScheme.surfaceContainerHighest)
                     .clickable { onClick(s) }
                     .padding(horizontal = 10.dp),
             ) {
@@ -136,8 +139,8 @@ private fun SuggestionRow(suggestions: List<Suggestion>, imageLoader: ImageLoade
                         Spacer(Modifier.width(6.dp))
                         Text(s.emote.name, style = MaterialTheme.typography.bodyMedium)
                     }
-                    is Suggestion.CommandSuggestion -> Text(s.usage, style = MaterialTheme.typography.bodyMedium)
                     is Suggestion.UserSuggestion -> Text("@" + s.name, style = MaterialTheme.typography.bodyMedium)
+                    is Suggestion.CommandSuggestion -> Text(s.usage, style = MaterialTheme.typography.bodyMedium)
                 }
             }
         }
@@ -150,12 +153,13 @@ private fun ReplyBar(item: ChatItem, onCancel: () -> Unit) {
         verticalAlignment = Alignment.CenterVertically,
         modifier = Modifier
             .fillMaxWidth()
-            .background(MaterialTheme.colorScheme.surfaceVariant)
+            .background(MaterialTheme.colorScheme.secondaryContainer)
             .padding(start = 12.dp),
     ) {
         Text(
             text = stringResource(R.string.replying_to, item.displayName ?: item.login.orEmpty(), item.text),
             style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSecondaryContainer,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
             modifier = Modifier.weight(1f),

@@ -61,6 +61,8 @@ data class ChatStyle(
 )
 
 private const val BADGE_EM = 1.35f
+/** Messages loaded from history are clearly dimmed so live chat stands out. */
+private const val HISTORICAL_ALPHA = 0.5f
 private const val EMOTE_EM = 2.1f
 
 private class BuiltLine(val text: AnnotatedString, val inline: Map<String, InlineData>)
@@ -104,7 +106,13 @@ fun MessageRow(
             .background(background)
             .combinedClickable(onClick = { onAction(item) }, onLongClick = { onAction(item) })
             .padding(horizontal = 8.dp, vertical = 2.dp)
-            .alpha(if (item.deleted) 0.45f else if (item.historical) 0.8f else 1f),
+            .alpha(
+                when {
+                    item.deleted -> 0.4f
+                    item.historical -> HISTORICAL_ALPHA
+                    else -> 1f
+                },
+            ),
     ) {
         item.reply?.let { reply ->
             Text(

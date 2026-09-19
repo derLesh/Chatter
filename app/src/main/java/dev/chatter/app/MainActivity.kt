@@ -6,6 +6,8 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.viewModels
+import androidx.compose.runtime.getValue
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
 import dev.chatter.app.service.MentionNotifier
@@ -23,7 +25,8 @@ class MainActivity : ComponentActivity() {
         enableEdgeToEdge()
         handleIntent(intent)
         setContent {
-            ChatterTheme { AppRoot(vm) }
+            val settings by vm.settings.collectAsStateWithLifecycle()
+            ChatterTheme(themeMode = settings.themeMode, dynamicColor = settings.dynamicColor) { AppRoot(vm) }
         }
     }
 

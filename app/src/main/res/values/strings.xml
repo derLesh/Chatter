@@ -90,6 +90,13 @@
     <string name="error_rate_limited">You are sending messages too quickly.</string>
     <string name="error_unsupported_command">Unknown command: /%1$s</string>
     <string name="error_invalid_channel">That is not a valid channel name.</string>
+    <string name="settings_appearance">Appearance</string>
+    <string name="settings_theme">Theme</string>
+    <string name="theme_system">System</string>
+    <string name="theme_light">Light</string>
+    <string name="theme_dark">Dark</string>
+    <string name="settings_dynamic_color">Material You colors</string>
+    <string name="settings_dynamic_color_hint">Use colors from your wallpaper instead of Twitch purple</string>
     <!-- Commands & moderation -->
     <string name="cmd_usage">Usage: %1$s</string>
     <string name="cmd_banned">%1$s has been banned.</string>

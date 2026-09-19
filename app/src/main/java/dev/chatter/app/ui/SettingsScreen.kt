@@ -23,6 +23,9 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SegmentedButton
+import androidx.compose.material3.SegmentedButtonDefaults
+import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import androidx.compose.material3.Slider
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
@@ -43,6 +46,7 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import dev.chatter.app.R
 import dev.chatter.app.auth.AuthState
+import dev.chatter.app.settings.ThemeMode
 import kotlin.math.roundToInt
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -69,6 +73,29 @@ fun SettingsScreen(vm: MainViewModel, onBack: () -> Unit) {
                 .padding(padding)
                 .verticalScroll(rememberScrollState()),
         ) {
+            SectionTitle(R.string.settings_appearance)
+            ListItem(
+                headlineContent = { Text(stringResource(R.string.settings_theme)) },
+                supportingContent = {
+                    val modes = listOf(
+                        ThemeMode.System to R.string.theme_system,
+                        ThemeMode.Light to R.string.theme_light,
+                        ThemeMode.Dark to R.string.theme_dark,
+                    )
+                    SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth().padding(top = 8.dp)) {
+                        modes.forEachIndexed { i, (mode, label) ->
+                            SegmentedButton(
+                                selected = settings.themeMode == mode,
+                                onClick = { vm.setThemeMode(mode) },
+                                shape = SegmentedButtonDefaults.itemShape(i, modes.size),
+                            ) { Text(stringResource(label)) }
+                        }
+                    }
+                },
+            )
+            SwitchItem(R.string.settings_dynamic_color, settings.dynamicColor, vm::setDynamicColor, R.string.settings_dynamic_color_hint)
+
+            HorizontalDivider()
             SectionTitle(R.string.settings_chat)
 
             var fontSize by remember(settings.fontSize) { mutableFloatStateOf(settings.fontSize) }
@@ -157,9 +184,10 @@ private fun SectionTitle(res: Int) {
 }
 
 @Composable
-private fun SwitchItem(res: Int, checked: Boolean, onChange: (Boolean) -> Unit) {
+private fun SwitchItem(res: Int, checked: Boolean, onChange: (Boolean) -> Unit, hint: Int? = null) {
     ListItem(
         headlineContent = { Text(stringResource(res)) },
+        supportingContent = hint?.let { { Text(stringResource(it)) } },
         trailingContent = {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Switch(checked = checked, onCheckedChange = onChange)
