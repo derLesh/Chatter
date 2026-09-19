@@ -18,7 +18,7 @@ class MessageBuilderTest {
 
     private val emotes = object : EmoteSource {
         override fun lookup(channelId: String?, word: String) = thirdParty[word]
-        override fun lookupOwnTwitch(word: String) = own[word]
+        override fun lookupOwnTwitch(channelId: String?, word: String) = own[word]
     }
     private val builder = MessageBuilder(emotes) { _, _ -> emptyList() }
     private val mentions = MentionMatcher("lukas", listOf("chatter"))

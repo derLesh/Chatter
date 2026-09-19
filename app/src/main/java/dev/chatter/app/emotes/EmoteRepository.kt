@@ -27,6 +27,8 @@ class EmoteRepository(
     @Volatile private var global: Map<String, Emote> = emptyMap()
     @Volatile private var twitchUser: Map<String, Emote> = emptyMap()
     private val channels = ConcurrentHashMap<String, Map<String, Emote>>()
+    /** Twitch follower emotes the user may use in a channel (keyed by channel id). */
+    private val channelTwitch = ConcurrentHashMap<String, Map<String, Emote>>()
     private val globalLock = Mutex()
     private var globalLoaded = false
 
@@ -39,13 +41,15 @@ class EmoteRepository(
         channelId?.let { channels[it]?.get(word) } ?: global[word]
 
     /** Twitch emote the logged-in user owns; used to render our own (locally echoed) messages. */
-    override fun lookupOwnTwitch(word: String): Emote? = twitchUser[word]
+    override fun lookupOwnTwitch(channelId: String?, word: String): Emote? =
+        twitchUser[word] ?: channelId?.let { channelTwitch[it]?.get(word) }
 
     /** Everything the user can type in the given channel, for autocomplete and the picker. */
     fun available(channelId: String?): List<Emote> {
         val result = LinkedHashMap<String, Emote>()
         global.values.forEach { result[it.name] = it }
         twitchUser.values.forEach { result[it.name] = it }
+        channelId?.let { channelTwitch[it] }?.values?.forEach { result[it.name] = it }
         channelId?.let { channels[it] }?.values?.forEach { result[it.name] = it }
         return result.values.toList()
     }
@@ -71,18 +75,33 @@ class EmoteRepository(
         _version.update { it + 1 }
     }
 
-    suspend fun loadChannel(channelId: String) = coroutineScope {
+    /** Third-party channel emotes plus the channel's Twitch follower emotes (if [userId] follows). */
+    suspend fun loadChannel(channelId: String, userId: String?) = coroutineScope {
+        val follower = async { if (userId != null) loadFollowerEmotes(channelId, userId) }
         val ffz = async { safe("FFZ channel") { thirdParty.ffzChannel(channelId)?.sets?.values?.flatMap { it.emoticons }?.map { it.toEmote(true) }.orEmpty() } }
         val bttv = async { safe("BTTV channel") { thirdParty.bttvChannel(channelId)?.let { it.channelEmotes + it.sharedEmotes }?.map { it.toEmote(true) }.orEmpty() } }
         val stv = async { safe("7TV channel") { thirdParty.sevenTvChannel(channelId)?.emoteSet?.emotes.orEmpty().mapNotNull { it.toEmote(true) } } }
         val merged = HashMap<String, Emote>()
         listOf(ffz.await(), bttv.await(), stv.await()).forEach { list -> list?.forEach { merged[it.name] = it } }
         channels[channelId] = merged
+        follower.await()
         _version.update { it + 1 }
+    }
+
+    private suspend fun loadFollowerEmotes(channelId: String, userId: String) {
+        val emotes = safe("Twitch channel emotes") { helix.channelEmotes(channelId) }
+            ?.filter { it.emoteType == "follower" }
+            ?.takeIf { it.isNotEmpty() } ?: return
+        // The broadcaster can always use their own emotes.
+        val usable = userId == channelId || safe("follow status") { helix.isFollowing(userId, channelId) } == true
+        if (usable) {
+            channelTwitch[channelId] = emotes.associate { it.name to Emote(it.name, it.id, twitchEmoteUrl(it.id), EmoteProvider.Twitch, isChannel = true) }
+        }
     }
 
     fun clear() {
         channels.clear()
+        channelTwitch.clear()
         twitchUser = emptyMap()
     }
 

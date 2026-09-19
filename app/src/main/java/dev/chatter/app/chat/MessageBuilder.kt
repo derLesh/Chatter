@@ -10,7 +10,8 @@ import java.util.UUID
 /** Where the builder gets emotes and badges from. Implemented by the repositories, faked in tests. */
 interface EmoteSource {
     fun lookup(channelId: String?, word: String): Emote?
-    fun lookupOwnTwitch(word: String): Emote?
+    /** Twitch emotes the user may use (their emote sets plus follower emotes of the channel). */
+    fun lookupOwnTwitch(channelId: String?, word: String): Emote?
 }
 
 fun interface BadgeSource {
@@ -204,7 +205,7 @@ class MessageBuilder(
             var end = text.indexOf(' ', i)
             if (end == -1) end = len
             val word = text.substring(i, end)
-            val emote = (if (ownMessage) emotes.lookupOwnTwitch(word) else null) ?: emotes.lookup(channelId, word)
+            val emote = (if (ownMessage) emotes.lookupOwnTwitch(channelId, word) else null) ?: emotes.lookup(channelId, word)
             when {
                 emote != null -> addEmote(emote)
                 isLink(word) -> {

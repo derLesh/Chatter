@@ -219,7 +219,7 @@ class ChatRepository(
     }
 
     private suspend fun loadEmotesAndBadges(channelId: String) = coroutineScope {
-        launch { emotes.loadChannel(channelId) }
+        launch { emotes.loadChannel(channelId, auth.account?.userId) }
         launch { badges.loadChannel(channelId) }
     }
 

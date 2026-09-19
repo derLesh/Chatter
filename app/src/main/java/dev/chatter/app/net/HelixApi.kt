@@ -3,6 +3,7 @@ package dev.chatter.app.net
 import dev.chatter.app.BuildConfig
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
+import kotlinx.serialization.json.JsonObject
 import okhttp3.HttpUrl.Companion.toHttpUrl
 import okhttp3.OkHttpClient
 
@@ -62,6 +63,14 @@ class HelixApi(
     }
 
     suspend fun globalEmotes(): List<HelixEmote> =
+
+    /** All Twitch emotes of a channel (subscriber tiers, bits, follower). */
+    suspend fun channelEmotes(channelId: String): List<HelixEmote> =
+        http.getJson<HelixList<HelixEmote>>(url("chat/emotes", "broadcaster_id" to channelId), headers()).data
+
+    suspend fun isFollowing(userId: String, channelId: String): Boolean =
+        http.getJson<HelixList<JsonObject>>(url("channels/followed", "user_id" to userId, "broadcaster_id" to channelId), headers())
+            .data.isNotEmpty()
         http.getJson<HelixList<HelixEmote>>(url("chat/emotes/global"), headers()).data
 }
 
