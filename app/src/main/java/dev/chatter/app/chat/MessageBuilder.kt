@@ -19,6 +19,8 @@ data class EmoteOptions(
     val enabled: Boolean = true,
     val zeroWidth: Boolean = true,
     val showUnlisted: Boolean = false,
+    /** Emotes from other providers are left as plain text. */
+    val providers: Set<EmoteProvider> = EmoteProvider.entries.toSet(),
 )
 
 fun interface BadgeSource {
@@ -174,7 +176,7 @@ class MessageBuilder(
     internal fun segments(channel: String, text: String, twitchRanges: List<EmoteRange>, channelId: String?, ownMessage: Boolean): List<Segment> {
         val opts = options()
         // With emotes turned off, every word (Twitch emotes included) stays plain text.
-        val twitch = if (opts.enabled) twitchRanges else emptyList()
+        val twitch = if (opts.enabled && EmoteProvider.Twitch in opts.providers) twitchRanges else emptyList()
         val out = ArrayList<Segment>()
         val buf = StringBuilder()
         var nextTwitch = 0
@@ -219,6 +221,7 @@ class MessageBuilder(
             val word = text.substring(i, end)
             val emote = if (!opts.enabled) null else {
                 ((if (ownMessage) emotes.lookupOwnTwitch(channelId, word) else null) ?: emotes.lookup(channelId, word))
+                    ?.takeIf { it.provider in opts.providers }
                     ?.takeIf { opts.showUnlisted || !it.unlisted }
             }
             when {

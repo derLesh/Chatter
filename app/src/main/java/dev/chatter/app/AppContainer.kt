@@ -82,7 +82,12 @@ class AppContainer(private val context: Context) {
     }
 
     private fun emoteOptions() = settings.settings.value.let {
-        EmoteOptions(enabled = it.emotesEnabled, zeroWidth = it.zeroWidthEmotes, showUnlisted = it.showUnlisted7tv)
+        EmoteOptions(
+            enabled = it.emotesEnabled,
+            zeroWidth = it.zeroWidthEmotes,
+            showUnlisted = it.showUnlisted7tv,
+            providers = it.emoteProviders,
+        )
     }
 
     private val sevenTvLive = SevenTvLiveUpdates(context, SevenTvEventClient(socketHttp, scope), emotes, chat, settings.settings, scope)

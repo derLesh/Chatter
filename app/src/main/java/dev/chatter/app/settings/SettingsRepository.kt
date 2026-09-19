@@ -1,6 +1,7 @@
 package dev.chatter.app.settings
 
 import androidx.datastore.core.DataStore
+import dev.chatter.app.emotes.EmoteProvider
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
@@ -56,6 +57,8 @@ data class Settings(
     val userSuggestions: Boolean = true,
     /** Keep deleted messages in the chat, struck through, instead of hiding them. */
     val showDeleted: Boolean = true,
+    /** The emote providers whose emotes are shown; the others stay plain text. */
+    val emoteProviders: Set<EmoteProvider> = EmoteProvider.entries.toSet(),
 ) {
     companion object {
         // Real ARGB colors are always opaque (0xFF......), so these can never clash with one.
@@ -92,6 +95,9 @@ class SettingsRepository(
             emoteSuggestions = p[EMOTE_SUGGESTIONS] ?: true,
             userSuggestions = p[USER_SUGGESTIONS] ?: true,
             showDeleted = p[SHOW_DELETED] ?: true,
+            emoteProviders = p[EMOTE_PROVIDERS]
+                ?.split(',')?.mapNotNull { v -> EmoteProvider.entries.firstOrNull { it.name == v } }?.toSet()
+                ?: EmoteProvider.entries.toSet(),
         )
     }.stateIn(scope, SharingStarted.Eagerly, Settings())
 
@@ -114,6 +120,7 @@ class SettingsRepository(
     suspend fun setEmoteSuggestions(v: Boolean) = store.edit { it[EMOTE_SUGGESTIONS] = v }
     suspend fun setUserSuggestions(v: Boolean) = store.edit { it[USER_SUGGESTIONS] = v }
     suspend fun setShowDeleted(v: Boolean) = store.edit { it[SHOW_DELETED] = v }
+    suspend fun setEmoteProviders(v: Set<EmoteProvider>) = store.edit { p -> p[EMOTE_PROVIDERS] = v.joinToString(",") { it.name } }
 
     suspend fun addRecentEmote(name: String) = store.edit { p ->
         val list = p[RECENT_EMOTES].orEmpty().split(' ').filter { it.isNotEmpty() && it != name }
@@ -142,6 +149,7 @@ class SettingsRepository(
         val EMOTE_SUGGESTIONS = booleanPreferencesKey("emote_suggestions")
         val USER_SUGGESTIONS = booleanPreferencesKey("user_suggestions")
         val SHOW_DELETED = booleanPreferencesKey("show_deleted")
+        val EMOTE_PROVIDERS = stringPreferencesKey("emote_providers")
         const val MAX_RECENT = 40
     }
 }

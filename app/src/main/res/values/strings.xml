@@ -147,6 +147,11 @@
     <string name="settings_unread_title_bar">Show unread channels in the title bar</string>
     <string name="settings_unread_title_bar_hint">The avatars of channels with new messages, next to the channel name. Single channels can be left out in their menu.</string>
     <string name="settings_suggestions">Suggestions</string>
+    <string name="settings_emote_providers">Emote providers</string>
+    <string name="settings_provider_twitch">Twitch</string>
+    <string name="settings_provider_seventv">7TV</string>
+    <string name="settings_provider_bttv">BetterTTV</string>
+    <string name="settings_provider_ffz">FrankerFaceZ</string>
     <string name="settings_show_deleted">Show deleted messages</string>
     <string name="settings_show_deleted_hint">Keep them struck through instead of hiding them.</string>
     <string name="settings_emote_suggestions">Emote suggestions</string>

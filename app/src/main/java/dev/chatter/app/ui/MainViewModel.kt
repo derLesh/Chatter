@@ -17,6 +17,7 @@ import dev.chatter.app.chat.ChatItem
 import dev.chatter.app.chat.CommandParser
 import dev.chatter.app.chat.SendResult
 import dev.chatter.app.emotes.Emote
+import dev.chatter.app.emotes.EmoteProvider
 import dev.chatter.app.net.HelixChannelSearch
 import dev.chatter.app.net.HelixUser
 import dev.chatter.app.settings.ThemeMode
@@ -158,8 +159,10 @@ class MainViewModel(private val c: AppContainer) : ViewModel() {
 
     /** Emotes the user can type in [channel]; unlisted 7TV emotes only if enabled in settings. */
     fun emotesFor(channel: String?): List<Emote> {
-        val all = c.emotes.available(channel?.let { c.chat.roomId(it) })
-        return if (settings.value.showUnlisted7tv) all else all.filterNot { it.unlisted }
+        val s = settings.value
+        return c.emotes.available(channel?.let { c.chat.roomId(it) })
+            .filter { it.provider in s.emoteProviders }
+            .filterNot { !s.showUnlisted7tv && it.unlisted }
     }
 
     /** Profile (may be null if Twitch is unreachable) plus the user's recent messages here. */
@@ -234,6 +237,13 @@ class MainViewModel(private val c: AppContainer) : ViewModel() {
 
     fun setUnreadInTitleBar(v: Boolean) {
         viewModelScope.launch { c.settings.setUnreadInTitleBar(v) }
+    }
+
+    fun setEmoteProvider(provider: EmoteProvider, enabled: Boolean) {
+        val current = settings.value.emoteProviders
+        viewModelScope.launch {
+            c.settings.setEmoteProviders(if (enabled) current + provider else current - provider)
+        }
     }
 
     fun setTimestamps(v: TimestampFormat) {

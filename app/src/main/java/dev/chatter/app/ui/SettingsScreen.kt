@@ -104,6 +104,7 @@ import dev.chatter.app.settings.TimestampFormat
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
+import dev.chatter.app.emotes.EmoteProvider
 import kotlin.math.roundToInt
 
 /** Top level of the settings, like the Android settings app: categories that open a page. */
@@ -345,6 +346,13 @@ private fun ChatPage(settings: Settings, vm: MainViewModel) {
         item { SwitchItem(R.string.settings_seventv_events, settings.sevenTvEvents, vm::setSevenTvEvents, R.string.settings_seventv_events_hint) }
         item { SwitchItem(R.string.settings_show_deleted, settings.showDeleted, vm::setShowDeleted, R.string.settings_show_deleted_hint) }
         item { TimestampPicker(settings.timestamps, vm::setTimestamps) }
+    }
+    SettingsGroup(R.string.settings_emote_providers) {
+        PROVIDERS.forEach { (provider, label) ->
+            item {
+                SwitchItem(label, provider in settings.emoteProviders, { vm.setEmoteProvider(provider, it) })
+            }
+        }
     }
     SettingsGroup(R.string.settings_suggestions) {
         item { SwitchItem(R.string.settings_emote_suggestions, settings.emoteSuggestions, vm::setEmoteSuggestions, R.string.settings_emote_suggestions_hint) }
@@ -642,6 +650,14 @@ private fun SliderItem(
         colors = transparentItem(),
     )
 }
+
+/** The emote providers, in the order their emotes take precedence over each other. */
+private val PROVIDERS = listOf(
+    EmoteProvider.Twitch to R.string.settings_provider_twitch,
+    EmoteProvider.SevenTv to R.string.settings_provider_seventv,
+    EmoteProvider.Bttv to R.string.settings_provider_bttv,
+    EmoteProvider.Ffz to R.string.settings_provider_ffz,
+)
 
 /** How the time in front of a message is written, each option showing the current time in it. */
 @Composable
