@@ -43,6 +43,11 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.layout.positionInWindow
+import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.unit.DpOffset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
@@ -77,11 +82,14 @@ fun ChannelTopBar(
 ) {
     var expanded by remember { mutableStateOf(false) }
     val otherUnread = unread.filterKeys { it != active }.values.sum()
+    // Where the title sits, so the full-width menu below it can be centered on the screen.
+    var anchorX by remember { mutableStateOf(0.dp) }
+    val density = LocalDensity.current
 
     TopAppBar(
         colors = TopAppBarDefaults.topAppBarColors(containerColor = MaterialTheme.colorScheme.surfaceContainer),
         title = {
-            Box {
+            Box(Modifier.onGloballyPositioned { anchorX = with(density) { it.positionInWindow().x.toDp() } }) {
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
                     modifier = Modifier
@@ -111,6 +119,7 @@ fun ChannelTopBar(
                     unread = unread,
                     unreadMessages = unreadMessages,
                     imageLoader = imageLoader,
+                    anchorX = anchorX,
                     onDismiss = { expanded = false },
                     onSelect = { expanded = false; onSelect(it) },
                     onAdd = { expanded = false; onAdd() },
@@ -177,15 +186,14 @@ private fun formatMinutes(minutes: Int): String = when {
 
 @Composable
 private fun ChannelStatus(info: ChannelInfo?, connection: ConnectionState) {
-    val text = when {
-        connection != ConnectionState.Connected -> stringResource(R.string.status_connecting)
-        info?.isLive == true -> stringResource(R.string.status_live, formatViewers(info.viewers))
-        else -> stringResource(R.string.status_offline)
-    }
+    // An offline channel says nothing at all; only a live stream or a dropped connection is news.
+    if (connection == ConnectionState.Connected && info?.isLive != true) return
+    val live = connection == ConnectionState.Connected
     Text(
-        text = text,
+        text = if (live) stringResource(R.string.status_live, formatViewers(info!!.viewers))
+        else stringResource(R.string.status_connecting),
         style = MaterialTheme.typography.labelMedium,
-        color = if (info?.isLive == true && connection == ConnectionState.Connected) LiveRed else MaterialTheme.colorScheme.onSurfaceVariant,
+        color = if (live) LiveRed else MaterialTheme.colorScheme.onSurfaceVariant,
         maxLines = 1,
     )
 }
@@ -199,13 +207,22 @@ private fun ChannelDropdown(
     unread: Map<String, Int>,
     unreadMessages: Map<String, Int>,
     imageLoader: ImageLoader,
+    anchorX: Dp,
     onDismiss: () -> Unit,
     onSelect: (String) -> Unit,
     onAdd: () -> Unit,
     onRemove: (String) -> Unit,
     onMove: (String, Int) -> Unit,
 ) {
-    DropdownMenu(expanded = expanded, onDismissRequest = onDismiss) {
+    val width = LocalConfiguration.current.screenWidthDp.dp - DROPDOWN_MARGIN * 2
+    DropdownMenu(
+        expanded = expanded,
+        onDismissRequest = onDismiss,
+        // The menu is wider than the space right of the title, so it would be flushed against the
+        // right edge. Pulling it back to the title's own inset leaves an even margin on both sides.
+        offset = DpOffset(DROPDOWN_MARGIN - anchorX, 0.dp),
+        modifier = Modifier.width(width),
+    ) {
         channels.forEachIndexed { index, login ->
             val i = info[login]
             var menu by remember { mutableStateOf(false) }
@@ -219,11 +236,11 @@ private fun ChannelDropdown(
                             color = if (login == active) MaterialTheme.colorScheme.primary else Color.Unspecified,
                             maxLines = 1,
                         )
-                        Text(
-                            text = if (i?.isLive == true) listOf(stringResource(R.string.status_live, formatViewers(i.viewers)), i.game).filter { it.isNotEmpty() }.joinToString(" \u00B7 ")
-                            else stringResource(R.string.status_offline),
+                        if (i?.isLive == true) Text(
+                            text = listOf(stringResource(R.string.status_live, formatViewers(i.viewers)), i.game)
+                                .filter { it.isNotEmpty() }.joinToString(" \u00B7 "),
                             style = MaterialTheme.typography.labelSmall,
-                            color = if (i?.isLive == true) LiveRed else MaterialTheme.colorScheme.onSurfaceVariant,
+                            color = LiveRed,
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis,
                         )
@@ -304,6 +321,9 @@ fun ChannelAvatar(info: ChannelInfo?, imageLoader: ImageLoader, size: Dp) {
         }
     }
 }
+
+/** Left over on each side once the channel menu is opened up to the full screen width. */
+private val DROPDOWN_MARGIN = 8.dp
 
 private fun formatCount(n: Int): String = if (n > 999) "999+" else n.toString()
 
