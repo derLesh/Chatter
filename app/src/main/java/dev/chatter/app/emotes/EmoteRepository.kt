@@ -121,6 +121,7 @@ class EmoteRepository(
         sizeKnown = width != null && height != null && height > 0,
         zeroWidth = !channel && code in BTTV_ZERO_WIDTH,
         isChannel = channel,
+        author = user?.displayName?.ifEmpty { null },
     )
 
     private fun FfzEmote.toEmote(channel: Boolean): Emote {
@@ -131,6 +132,7 @@ class EmoteRepository(
             provider = EmoteProvider.Ffz,
             aspectRatio = if (height > 0) width.toFloat() / height else 1f,
             isChannel = channel,
+            author = owner?.displayName?.ifEmpty { null },
         )
     }
 
@@ -147,6 +149,7 @@ class EmoteRepository(
             zeroWidth = (flags and 1) != 0 || (data.flags and 256) != 0,
             isChannel = channel,
             unlisted = !data.listed,
+            author = data.owner?.displayName?.ifEmpty { null },
         )
     }
 

@@ -17,6 +17,26 @@ data class Emote(
     val isChannel: Boolean = false,
     /** 7TV emotes that are not publicly listed (not approved by 7TV moderators). */
     val unlisted: Boolean = false,
-)
+    /** Who created / uploaded the emote, if the provider tells. */
+    val author: String? = null,
+) {
+    /** Largest available size, for the emote card. */
+    val largeUrl: String
+        get() = when (provider) {
+            EmoteProvider.Twitch -> url.replace("/2.0", "/3.0")
+            EmoteProvider.SevenTv -> url.replace("/2x.webp", "/4x.webp")
+            EmoteProvider.Bttv -> url.replace("/2x.webp", "/3x.webp")
+            EmoteProvider.Ffz -> url.replace(Regex("/[12]$"), "/4")
+        }
+
+    /** The emote's page on the provider's website (Twitch has none). */
+    val pageUrl: String?
+        get() = when (provider) {
+            EmoteProvider.Twitch -> null
+            EmoteProvider.SevenTv -> "https://7tv.app/emotes/$id"
+            EmoteProvider.Bttv -> "https://betterttv.com/emotes/$id"
+            EmoteProvider.Ffz -> "https://www.frankerfacez.com/emoticon/$id"
+        }
+}
 
 fun twitchEmoteUrl(id: String) = "https://static-cdn.jtvnw.net/emoticons/v2/$id/default/dark/2.0"

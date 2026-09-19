@@ -48,12 +48,14 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.repeatOnLifecycle
 import dev.chatter.app.R
 import dev.chatter.app.chat.ChatItem
+import dev.chatter.app.chat.Segment
 import dev.chatter.app.irc.ConnectionState
 import dev.chatter.app.service.ChatService
 import dev.chatter.app.ui.channels.AddChannelDialog
 import dev.chatter.app.ui.channels.ChannelTopBar
 import dev.chatter.app.ui.chat.ChatList
 import dev.chatter.app.ui.chat.ChatStyle
+import dev.chatter.app.ui.chat.EmoteCardSheet
 import dev.chatter.app.ui.chat.EmotePickerSheet
 import dev.chatter.app.ui.chat.InputBar
 import dev.chatter.app.ui.chat.UserCardSheet
@@ -83,6 +85,7 @@ fun MainScreen(vm: MainViewModel, onSettings: () -> Unit) {
     val pagerState = rememberPagerState { channels.size }
 
     var actionItem by remember { mutableStateOf<ChatItem?>(null) }
+    var emoteCard by remember { mutableStateOf<Segment.EmoteSeg?>(null) }
     var showPicker by remember { mutableStateOf(false) }
     var showAdd by remember { mutableStateOf(false) }
 
@@ -185,6 +188,7 @@ fun MainScreen(vm: MainViewModel, onSettings: () -> Unit) {
                         onAction = { actionItem = it },
                         modifier = Modifier.fillMaxSize(),
                         smoothScrolling = settings.smoothScrolling,
+                        onEmoteClick = { emoteCard = it },
                     )
                 }
             }
@@ -217,6 +221,14 @@ fun MainScreen(vm: MainViewModel, onSettings: () -> Unit) {
             onTimeout = { vm.timeoutUser(item) },
             onBan = { vm.banUser(item) },
             onDismiss = { actionItem = null },
+        )
+    }
+    emoteCard?.let { seg ->
+        EmoteCardSheet(
+            emotes = listOf(seg.emote) + seg.overlays,
+            imageLoader = loader,
+            onInsert = { vm.insertEmote(it) },
+            onDismiss = { emoteCard = null },
         )
     }
     if (showPicker) {

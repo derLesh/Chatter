@@ -7,7 +7,18 @@ import okhttp3.OkHttpClient
 // ---- BetterTTV ---------------------------------------------------------------
 
 @Serializable
-data class BttvEmote(val id: String, val code: String, val animated: Boolean = false, val width: Int? = null, val height: Int? = null)
+data class BttvEmote(
+    val id: String,
+    val code: String,
+    val animated: Boolean = false,
+    val width: Int? = null,
+    val height: Int? = null,
+    /** Uploader; only present for shared emotes. */
+    val user: BttvUser? = null,
+)
+
+@Serializable
+data class BttvUser(val displayName: String = "", val name: String = "")
 
 @Serializable
 data class BttvChannel(val channelEmotes: List<BttvEmote> = emptyList(), val sharedEmotes: List<BttvEmote> = emptyList())
@@ -22,7 +33,11 @@ data class FfzEmote(
     val height: Int = 28,
     val urls: Map<String, String?> = emptyMap(),
     val animated: Map<String, String?>? = null,
+    val owner: FfzOwner? = null,
 )
+
+@Serializable
+data class FfzOwner(@kotlinx.serialization.SerialName("display_name") val displayName: String = "", val name: String = "")
 
 @Serializable
 data class FfzSet(val emoticons: List<FfzEmote> = emptyList())
@@ -50,7 +65,11 @@ data class SevenTvEmoteData(
     val flags: Int = 0,
     val listed: Boolean = true,
     val host: SevenTvHost? = null,
+    val owner: SevenTvOwner? = null,
 )
+
+@Serializable
+data class SevenTvOwner(@kotlinx.serialization.SerialName("display_name") val displayName: String = "", val username: String = "")
 
 @Serializable
 data class SevenTvHost(val url: String, val files: List<SevenTvFile> = emptyList())

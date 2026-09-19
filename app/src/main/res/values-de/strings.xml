@@ -167,4 +167,15 @@
     <string name="settings_zero_width_hint">Overlay-Emotes (z. B. Hüte) werden über das vorherige Emote gelegt</string>
     <string name="settings_unlisted_7tv">Ungelistete 7TV-Emotes</string>
     <string name="settings_unlisted_7tv_hint">7TV-Emotes anzeigen, die nicht öffentlich gelistet sind</string>
+
+    <!-- Emote card -->
+    <string name="emote_channel">Channel-Emote</string>
+    <string name="emote_global">Globales Emote</string>
+    <string name="emote_by">von %1$s</string>
+    <string name="emote_zero_width">Zero-Width</string>
+    <string name="emote_unlisted">Ungelistet</string>
+    <string name="emote_insert">Einfügen</string>
+    <string name="emote_copy_name">Name kopieren</string>
+    <string name="emote_open_page">Seite öffnen</string>
+    <string name="emote_stack">Übereinander gelegte Emotes</string>
 </resources>

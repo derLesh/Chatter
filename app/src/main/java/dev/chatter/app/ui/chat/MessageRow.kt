@@ -2,6 +2,7 @@ package dev.chatter.app.ui.chat
 
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -12,7 +13,9 @@ import androidx.compose.foundation.text.InlineTextContent
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.Immutable
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.graphics.Color
@@ -85,15 +88,19 @@ fun MessageRow(
     style: ChatStyle,
     imageLoader: ImageLoader,
     onAction: (ChatItem) -> Unit,
+    onEmoteClick: ((Segment.EmoteSeg) -> Unit)? = null,
 ) {
     val built = remember(item, style) { buildLine(item, style) }
+    // Stable wrapper, so a new callback instance doesn't rebuild the inline content.
+    val currentEmoteClick by rememberUpdatedState(onEmoteClick)
+    val emoteClick = remember { { seg: Segment.EmoteSeg -> currentEmoteClick?.invoke(seg); Unit } }
     // Reading measured sizes here makes the row re-layout once a BTTV emote's real width is known.
     val measured = built.inline.values.mapNotNull { data ->
         (data as? InlineData.EmoteData)?.seg?.takeIf { s -> !s.emote.sizeKnown || s.overlays.any { !it.sizeKnown } }
             ?.let { s -> (s.overlays + s.emote).maxOf { EmoteSizes.aspectRatio(it) } }
     }
     val inlineContent = remember(built, imageLoader, measured) {
-        built.inline.mapValues { (_, data) -> inlineFor(data, imageLoader) }
+        built.inline.mapValues { (_, data) -> inlineFor(data, imageLoader, emoteClick.takeIf { onEmoteClick != null }) }
     }
 
     val background = when {
@@ -145,7 +152,7 @@ fun MessageRow(
     }
 }
 
-private fun inlineFor(data: InlineData, loader: ImageLoader): InlineTextContent = when (data) {
+private fun inlineFor(data: InlineData, loader: ImageLoader, onEmoteClick: ((Segment.EmoteSeg) -> Unit)?): InlineTextContent = when (data) {
     is InlineData.BadgeData -> InlineTextContent(
         Placeholder(BADGE_EM.em, BADGE_EM.em, PlaceholderVerticalAlign.Center),
     ) {
@@ -158,7 +165,7 @@ private fun inlineFor(data: InlineData, loader: ImageLoader): InlineTextContent 
         InlineTextContent(
             Placeholder((EMOTE_EM * aspect).em, EMOTE_EM.em, PlaceholderVerticalAlign.Center),
         ) {
-            Box(Modifier.fillMaxSize()) {
+            Box(Modifier.fillMaxSize().then(if (onEmoteClick != null) Modifier.clickable { onEmoteClick(data.seg) } else Modifier)) {
                 (listOf(base) + data.seg.overlays).forEach { e ->
                     AsyncImage(
                         model = e.url,

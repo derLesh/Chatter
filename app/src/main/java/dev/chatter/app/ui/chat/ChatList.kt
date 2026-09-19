@@ -32,6 +32,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil3.ImageLoader
 import dev.chatter.app.R
 import dev.chatter.app.chat.ChatItem
+import dev.chatter.app.chat.Segment
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
 
@@ -47,6 +48,7 @@ fun ChatList(
     onAction: (ChatItem) -> Unit,
     modifier: Modifier = Modifier,
     smoothScrolling: Boolean = false,
+    onEmoteClick: ((Segment.EmoteSeg) -> Unit)? = null,
 ) {
     val items by messages.collectAsStateWithLifecycle()
     val listState = rememberLazyListState()
@@ -90,7 +92,7 @@ fun ChatList(
                 val rowModifier = if (smoothScrolling) {
                     Modifier.animateItem(fadeInSpec = tween(180), placementSpec = spring(stiffness = Spring.StiffnessMediumLow), fadeOutSpec = null)
                 } else Modifier
-                Box(rowModifier) { MessageRow(items[count - 1 - index], style, imageLoader, onAction) }
+                Box(rowModifier) { MessageRow(items[count - 1 - index], style, imageLoader, onAction, onEmoteClick) }
             }
         }
         if (!follow) {

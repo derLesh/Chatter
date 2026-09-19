@@ -173,4 +173,15 @@
     <string name="settings_zero_width_hint">Overlay emotes (e.g. hats) are drawn on top of the previous emote</string>
     <string name="settings_unlisted_7tv">Unlisted 7TV emotes</string>
     <string name="settings_unlisted_7tv_hint">Show 7TV emotes that are not publicly listed</string>
+
+    <!-- Emote card -->
+    <string name="emote_channel">Channel emote</string>
+    <string name="emote_global">Global emote</string>
+    <string name="emote_by">by %1$s</string>
+    <string name="emote_zero_width">Zero-width</string>
+    <string name="emote_unlisted">Unlisted</string>
+    <string name="emote_insert">Insert</string>
+    <string name="emote_copy_name">Copy name</string>
+    <string name="emote_open_page">Open page</string>
+    <string name="emote_stack">Stacked emotes</string>
 </resources>
