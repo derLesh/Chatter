@@ -67,6 +67,8 @@ class ChatRepository(
     private val lastSent = HashMap<String, Pair<String, Long>>()
     private val rateLimiter = RateLimiter(30_000)
     private val loadedChannels = HashSet<String>()
+    /** Server timestamp of the newest live message per channel, to fill gaps after a reconnect. */
+    private val lastLiveTimestamp = HashMap<String, Long>()
     private var joinedChannels: List<String> = emptyList()
     private var mentions = MentionMatcher("", emptyList())
 
@@ -103,7 +105,11 @@ class ChatRepository(
             var wasConnected = false
             irc.state.collect { state ->
                 when (state) {
-                    ConnectionState.Connected -> if (wasConnected) systemAll(R.string.chat_reconnected) else wasConnected = true
+                    ConnectionState.Connected -> if (wasConnected) {
+                        systemAll(R.string.chat_reconnected)
+                        // Fetch what was said while we were offline.
+                        buffers.keys.forEach { ch -> scope.launch { loadHistory(ch, since = lastLiveTimestamp[ch] ?: 0L) } }
+                    } else wasConnected = true
                     ConnectionState.Connecting -> if (wasConnected) systemAll(R.string.chat_disconnected)
                     else -> Unit
                 }
@@ -217,7 +223,11 @@ class ChatRepository(
         launch { badges.loadChannel(channelId) }
     }
 
-    private suspend fun loadHistory(channel: String) {
+    /**
+     * Loads recent messages from the recent-messages service and merges them into the buffer by
+     * time. With [since], only messages newer than that timestamp are added (gap after reconnect).
+     */
+    private suspend fun loadHistory(channel: String, since: Long? = null) {
         val lines = try {
             thirdParty.recentMessages(channel, 100).messages
         } catch (e: Exception) {
@@ -232,10 +242,19 @@ class ChatRepository(
                 val msg = IrcMessage.parse(line) ?: return@mapNotNull null
                 if (msg.command != "PRIVMSG" && msg.command != "USERNOTICE") return@mapNotNull null
                 builder.build(msg, self, roomIds[channel], mentions, historical = true)
-                    ?.takeIf { ids.add(it.id) }
+                    ?.takeIf { (since == null || it.timestamp > since) && ids.add(it.id) }
                     ?.also { rememberChatter(channel, it) }
             }
-            items.asReversed().forEach { buffer.addFirst(it) }
+            if (items.isEmpty()) return@withContext
+            // Stable sort: live messages and history end up in chronological order.
+                lastLiveTimestamp[channel] = item.timestamp
+            val merged = ArrayList<ChatItem>(buffer.size + items.size).apply {
+                addAll(buffer)
+                addAll(items)
+                sortBy { it.timestamp }
+            }
+            buffer.clear()
+            buffer.addAll(merged)
             trim(channel, buffer)
             markDirty(channel)
         }
