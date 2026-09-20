@@ -105,7 +105,13 @@ jobs:
           mv app/build/outputs/apk/release/app-release.apk "$apk"
           echo "path=$apk" >> "$GITHUB_OUTPUT"
 
+      # Only a dry run needs this: a real release carries the APK as a release asset, which is
+      # stored separately and does not touch the Actions artifact quota. And nothing here is
+      # allowed to fail the release — the APK is built and signed by this point, and losing a
+      # spare copy of it is no reason to throw that away.
       - name: Upload the APK as a build artifact
+        if: ${{ inputs.dry_run }}
+        continue-on-error: true
         uses: actions/upload-artifact@v4
         with:
           name: chatter-release-apk
