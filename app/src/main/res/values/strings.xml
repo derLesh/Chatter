@@ -16,7 +16,7 @@
     <string name="notif_reply_failed">Your reply could not be sent</string>
 
     <string name="settings_sender_avatars">Profile pictures</string>
-    <string name="settings_sender_avatars_hint">Show the Twitch picture of whoever wrote the message in the notification</string>
+    <string name="settings_sender_avatars_hint">Show the avatar of the user who wrote the message in the notification</string>
 
     <!-- Chat system messages -->
     <string name="chat_reconnected">Reconnected.</string>
@@ -176,15 +176,15 @@
     <string name="settings_highlight_preview_text">hey @you, look at this!</string>
     <string name="settings_load_history">Load recent messages</string>
     <string name="settings_load_history_hint">Show the last messages when opening a channel (via recent-messages.robotty.de)</string>
-    <string name="settings_system_notifications">System notification settings</string>
+    <string name="settings_system_notifications">Notification settings</string>
     <string name="settings_logged_in">Logged in with Twitch</string>
-    <string name="settings_logout_hint">Removes the login from this device</string>
+    <string name="settings_logout_hint">Sign out of Chatter</string>
     <string name="settings_version">Version %1$s</string>
     <string name="settings_credits">Credits</string>
     <string name="settings_credits_twitch">Twitch</string>
     <string name="settings_credits_twitch_summary">Chat, emotes and badges</string>
     <string name="settings_credits_seventv">7TV</string>
-    <string name="settings_credits_seventv_summary">Emotes and live emote updates</string>
+    <string name="settings_credits_seventv_summary">Emotes</string>
     <string name="settings_credits_bttv">BetterTTV</string>
     <string name="settings_credits_bttv_summary">Emotes</string>
     <string name="settings_credits_ffz">FrankerFaceZ</string>
@@ -262,7 +262,7 @@
 
     <string name="settings_group_muted">Muted</string>
     <string name="settings_mute_keywords">Muted words</string>
-    <string name="settings_mute_keywords_summary">Words that keep a message out of the chat</string>
+    <string name="settings_mute_keywords_summary">Words that are hidden in the chat</string>
     <string name="settings_mute_keywords_hint">Messages containing the word, and messages from chatters called that, are hidden</string>
     <string name="keywords_none">No highlight words</string>
     <string name="mute_keywords_none">No muted words</string>
@@ -286,15 +286,15 @@
         <item quantity="other">%d blocked chatters</item>
     </plurals>
     <string name="block_user_title">Block user</string>
-    <string name="block_user_name">Twitch name</string>
+    <string name="block_user_name">Twitch username</string>
     <string name="unblock_confirm_title">Unblock?</string>
-    <string name="unblock_confirm_text">%s will show up in the chat again, here and everywhere else on Twitch.</string>
+    <string name="unblock_confirm_text">%s will be shown to you on Twitch again</string>
     <string name="error_block_failed">Twitch rejected that. Please try again</string>
-    <string name="error_user_unknown">No Twitch user by that name</string>
+    <string name="error_user_unknown">No Twitch user with this name</string>
 
     <!-- Nicknames -->
     <string name="nickname_title">Nickname</string>
-    <string name="nickname_hint">Shown instead of their Twitch name, in every channel. Leave empty to undo</string>
+    <string name="nickname_hint">Shown instead of the Twitch username, in every channel. Leave empty to reset it</string>
 
     <!-- Badges -->
     <string name="settings_badge_providers">Badges</string>
@@ -316,7 +316,7 @@
     <!-- Chat bubble -->
     <string name="settings_group_bubbles">Chat bubble</string>
     <string name="settings_bubbles">Bubbles</string>
-    <string name="settings_bubbles_hint">Mentions can be opened as a floating chat over other apps. Android may ask for permission the first time</string>
+    <string name="settings_bubbles_hint">Mentions can be shown as a chat bubble</string>
     <string name="bubble_unavailable">Open Chatter to read this channel</string>
 
     <string name="settings_group_haptics">Haptics</string>
@@ -342,9 +342,9 @@
     <string name="inbox_tab_whispers">Whispers</string>
     <string name="inbox_from">%1$s in %2$s</string>
     <string name="inbox_whispers_empty">No whispers</string>
-    <string name="inbox_whispers_empty_hint">Whispers sent to you on Twitch land here. They need a permission Chatter only started asking for in this version, so sign in again if nothing ever shows up</string>
+    <string name="inbox_whispers_empty_hint">Whispers show up here. There are none at the moment</string>
     <string name="inbox_empty">No mentions</string>
-    <string name="inbox_empty_hint">Everything anyone writes to you ends up here, in every channel, and stays until you clear it</string>
+    <string name="inbox_empty_hint">Every message that mentions you or holds a highlighted word shows up here</string>
     <string name="inbox_mark_all_read">Mark all as read</string>
     <string name="inbox_clear">Clear</string>
 
@@ -380,10 +380,10 @@
     <!-- Backup -->
     <string name="settings_group_backup">Backup</string>
     <string name="backup_export">Save settings</string>
-    <string name="backup_export_hint">Settings, rules, nicknames and channels as a file, for a new phone or a copy before experimenting</string>
+    <string name="backup_export_hint">Create a backup of all settings. The file is saved on your device</string>
     <string name="backup_save">Save</string>
     <string name="backup_import">Restore settings</string>
-    <string name="backup_import_hint">Reads a file Chatter wrote. What it carries replaces what is set here</string>
+    <string name="backup_import_hint">Load a Chatter backup. Your current settings are overwritten with the ones from the backup</string>
     <string name="backup_exported">Settings saved</string>
     <string name="backup_imported">Settings restored</string>
     <string name="backup_invalid">That is not a Chatter backup</string>
