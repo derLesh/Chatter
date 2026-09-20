@@ -318,6 +318,9 @@
     <string name="settings_bubbles_hint">Mentions can be opened as a floating chat over other apps. Android may ask for permission the first time</string>
     <string name="bubble_unavailable">Open Chatter to read this channel</string>
 
+    <!-- Launcher shortcuts -->
+    <string name="shortcut_inbox">Inbox</string>
+
     <!-- Mention inbox -->
     <string name="inbox_title">Mentions</string>
     <string name="inbox_from">%1$s in %2$s</string>

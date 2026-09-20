@@ -5,6 +5,7 @@ import android.content.Context
 import android.content.Intent
 import androidx.core.app.RemoteInput
 import dev.chatter.app.ChatterApp
+import dev.chatter.app.util.EXTRA_CHANNEL
 import kotlinx.coroutines.launch
 
 /**
@@ -15,7 +16,7 @@ import kotlinx.coroutines.launch
  */
 class ReplyReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent) {
-        val channel = intent.getStringExtra(MentionNotifier.EXTRA_CHANNEL) ?: return
+        val channel = intent.getStringExtra(EXTRA_CHANNEL) ?: return
         val text = RemoteInput.getResultsFromIntent(intent)
             ?.getCharSequence(MentionNotifier.KEY_REPLY)?.toString()?.trim()
         if (text.isNullOrEmpty()) return

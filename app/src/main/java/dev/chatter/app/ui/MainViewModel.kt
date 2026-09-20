@@ -89,6 +89,9 @@ class MainViewModel(private val c: AppContainer) : ViewModel() {
     /** Channel requested from outside (notification tap) that the pager should scroll to. */
     val requestedChannel = MutableStateFlow<String?>(null)
 
+    /** Set when the app was started by the inbox shortcut, so the inbox opens instead of a chat. */
+    val requestedInbox = MutableStateFlow(false)
+
     private val _messages = Channel<Int>(Channel.BUFFERED)
     /** One-off user feedback as string resource ids (shown as snackbar). */
     val messages = _messages.receiveAsFlow()

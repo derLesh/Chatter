@@ -10,10 +10,11 @@ import androidx.compose.runtime.getValue
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
-import dev.chatter.app.service.MentionNotifier
 import dev.chatter.app.ui.AppRoot
 import dev.chatter.app.ui.MainViewModel
 import dev.chatter.app.ui.theme.ChatterTheme
+import dev.chatter.app.util.EXTRA_CHANNEL
+import dev.chatter.app.util.EXTRA_INBOX
 
 class MainActivity : ComponentActivity() {
     private val vm: MainViewModel by viewModels {
@@ -45,8 +46,10 @@ class MainActivity : ComponentActivity() {
         super.onStop()
     }
 
-    /** A tap on a mention notification carries the channel to open. */
+    /** What brought the app up: a mention notification names its channel, a shortcut the inbox. */
     private fun handleIntent(intent: Intent?) {
-        intent?.getStringExtra(MentionNotifier.EXTRA_CHANNEL)?.let { vm.requestedChannel.value = it }
+        intent ?: return
+        intent.getStringExtra(EXTRA_CHANNEL)?.let { vm.requestedChannel.value = it }
+        if (intent.getBooleanExtra(EXTRA_INBOX, false)) vm.requestedInbox.value = true
     }
 }

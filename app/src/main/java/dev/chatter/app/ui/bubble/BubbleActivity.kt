@@ -9,9 +9,9 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
 import dev.chatter.app.ChatterApp
-import dev.chatter.app.service.MentionNotifier
 import dev.chatter.app.ui.MainViewModel
 import dev.chatter.app.ui.theme.ChatterTheme
+import dev.chatter.app.util.EXTRA_CHANNEL
 
 /**
  * One channel's chat, floating over whatever the user is doing, as an Android chat bubble.
@@ -24,7 +24,7 @@ class BubbleActivity : ComponentActivity() {
         viewModelFactory { initializer { MainViewModel((application as ChatterApp).container) } }
     }
 
-    private val channel: String? get() = intent?.getStringExtra(MentionNotifier.EXTRA_CHANNEL)
+    private val channel: String? get() = intent?.getStringExtra(EXTRA_CHANNEL)
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)

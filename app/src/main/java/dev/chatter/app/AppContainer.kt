@@ -36,6 +36,8 @@ import dev.chatter.app.net.ThirdPartyApi
 import dev.chatter.app.service.MentionNotifier
 import dev.chatter.app.settings.BackupManager
 import dev.chatter.app.settings.SettingsRepository
+import dev.chatter.app.util.ChannelIcons
+import dev.chatter.app.util.ChannelShortcuts
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -114,7 +116,9 @@ class AppContainer(private val context: Context) {
     val staticImageLoader: ImageLoader = imageLoader(animated = false)
 
     // After the image loader: mention notifications carry the channel avatar as their icon.
-    val notifier = MentionNotifier(context, channels, helix, settings.settings, imageLoader)
+    private val channelIcons = ChannelIcons(context, channels, imageLoader)
+    val notifier = MentionNotifier(context, channels, helix, settings.settings, channelIcons)
+    private val shortcuts = ChannelShortcuts(context, channels.identities, channelIcons, scope)
 
     fun start() {
         notifier.createChannels()
@@ -123,6 +127,7 @@ class AppContainer(private val context: Context) {
         // Read on every message, so it is mirrored onto the repository instead of passed around.
         scope.launch { settings.settings.collect { badges.enabled = it.badgeProviders } }
         sevenTvLive.start()
+        shortcuts.start()
         // Every mention lands in the inbox, whether or not it was worth a notification.
         scope.launch { chat.allMentions.collect { inbox.add(it.item, read = it.seen) } }
         scope.launch {

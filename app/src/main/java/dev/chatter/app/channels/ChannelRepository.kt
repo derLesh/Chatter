@@ -13,6 +13,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
@@ -30,6 +31,12 @@ data class ChannelInfo(
     val title: String = "",
     val game: String = "",
 )
+
+/**
+ * A channel reduced to what an icon or a shortcut is made of. The live status is deliberately
+ * left out: it changes every two minutes, and everything built from this would be rebuilt with it.
+ */
+data class ChannelIdentity(val login: String, val name: String, val avatarUrl: String?)
 
 /** The user's channel list (persisted, ordered) plus profile info and live status. */
 class ChannelRepository(
@@ -56,6 +63,18 @@ class ChannelRepository(
         if (names.isEmpty()) info
         else info.mapValues { (login, i) -> names[login]?.let { i.copy(displayName = it) } ?: i }
     }.stateIn(scope, SharingStarted.Eagerly, emptyMap())
+
+    /**
+     * The channels in list order, with the name and picture they are shown under. What Android
+     * needs to hear about (shortcuts, notification channels) is built from this, so it is only
+     * told when something it can see has actually changed.
+     */
+    val identities: StateFlow<List<ChannelIdentity>> = combine(channels, info) { list, info ->
+        list.map { login ->
+            val i = info[login]
+            ChannelIdentity(login, i?.displayName ?: login, i?.avatarUrl)
+        }
+    }.distinctUntilChanged().stateIn(scope, SharingStarted.Eagerly, emptyList())
 
     /**
      * The channel the user was last reading. Kept on disk because the chat screen cannot work it

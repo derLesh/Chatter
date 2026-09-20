@@ -10,16 +10,9 @@ import androidx.core.app.NotificationManagerCompat
 import androidx.core.app.Person
 import androidx.core.app.RemoteInput
 import androidx.core.content.LocusIdCompat
-import androidx.core.content.pm.ShortcutInfoCompat
 import androidx.core.content.pm.ShortcutManagerCompat
 import androidx.core.graphics.drawable.IconCompat
 import androidx.core.net.toUri
-import coil3.BitmapImage
-import coil3.ImageLoader
-import coil3.request.ImageRequest
-import coil3.request.SuccessResult
-import coil3.request.allowHardware
-import dev.chatter.app.MainActivity
 import dev.chatter.app.R
 import dev.chatter.app.channels.ChannelRepository
 import dev.chatter.app.chat.ChatItem
@@ -27,6 +20,10 @@ import dev.chatter.app.chat.MessageKind
 import dev.chatter.app.net.HelixApi
 import dev.chatter.app.settings.Settings
 import dev.chatter.app.ui.bubble.BubbleActivity
+import dev.chatter.app.util.ChannelIcons
+import dev.chatter.app.util.EXTRA_CHANNEL
+import dev.chatter.app.util.appLaunchIntent
+import dev.chatter.app.util.channelShortcut
 import kotlinx.coroutines.flow.StateFlow
 import java.util.concurrent.ConcurrentHashMap
 
@@ -42,12 +39,10 @@ class MentionNotifier(
     private val channels: ChannelRepository,
     private val helix: HelixApi,
     private val settings: StateFlow<Settings>,
-    private val imageLoader: ImageLoader,
+    private val icons: ChannelIcons,
 ) {
     private val manager = NotificationManagerCompat.from(context)
     private val recent = HashMap<String, ArrayDeque<ChatItem>>()
-    /** Channel avatars as notification icons, loaded once per channel. */
-    private val icons = ConcurrentHashMap<String, IconCompat>()
     /** Twitch profile pictures of the chatters in the notifications, by lowercase login. */
     private val senderIcons = ConcurrentHashMap<String, IconCompat>()
 
@@ -66,7 +61,7 @@ class MentionNotifier(
     /** Loads the pictures (off the main thread) and then posts the notification. */
     suspend fun notify(item: ChatItem) {
         if (!manager.areNotificationsEnabled()) return
-        val icon = channelIcon(item.channel)
+        val icon = icons.channel(item.channel)
         // Fills the cache for this chatter; the older lines use what is already in it.
         loadSenderIcon(item.login)
         post(item, icon)
@@ -80,7 +75,7 @@ class MentionNotifier(
                 id = "notification-reply-${System.nanoTime()}", channel = channel, kind = MessageKind.Chat,
                 timestamp = System.currentTimeMillis(), text = text, isOwn = true,
             ),
-            channelIcon(channel),
+            icons.channel(channel),
         )
     }
 
@@ -96,7 +91,7 @@ class MentionNotifier(
                 id = "notification-failed-${System.nanoTime()}", channel = channel, kind = MessageKind.Notice,
                 timestamp = System.currentTimeMillis(), text = text, displayName = context.getString(R.string.app_name),
             ),
-            channelIcon(channel),
+            icons.channel(channel),
         )
     }
 
@@ -150,14 +145,6 @@ class MentionNotifier(
 
     private fun channelName(channel: String): String = channels.info.value[channel]?.displayName ?: channel
 
-    /** The channel avatar, falling back to the app icon. */
-    private suspend fun channelIcon(channel: String): IconCompat {
-        icons[channel]?.let { return it }
-        val url = channels.info.value[channel]?.avatarUrl
-        val icon = url?.let { loadIcon(it) } ?: return IconCompat.createWithResource(context, R.mipmap.ic_launcher)
-        return icon.also { icons[channel] = it }
-    }
-
     /**
      * The Twitch profile picture of whoever wrote the message, looked up once per chatter. Off
      * unless the user asked for it: it costs a Twitch request and a download per new name.
@@ -166,7 +153,7 @@ class MentionNotifier(
         val key = login?.lowercase() ?: return
         if (!settings.value.senderAvatars || senderIcons.containsKey(key)) return
         val url = runCatching { helix.users(listOf(key)).firstOrNull()?.profileImageUrl }.getOrNull() ?: return
-        loadIcon(url)?.let {
+        icons.load(url)?.let {
             // Mentions come from ever new people; the cache must not grow without end.
             if (senderIcons.size >= MAX_SENDER_ICONS) senderIcons.clear()
             senderIcons[key] = it
@@ -174,32 +161,14 @@ class MentionNotifier(
     }
 
     /**
-     * Downloads a picture as a notification icon. Deliberately not an adaptive icon: Android
-     * crops those to their inner safe zone, which blows an avatar up and cuts its edges off.
-     */
-    private suspend fun loadIcon(url: String): IconCompat? {
-        // Hardware bitmaps cannot leave the process, and a notification icon does exactly that.
-        val request = ImageRequest.Builder(context).data(url).size(ICON_SIZE_PX).allowHardware(false).build()
-        val image = (runCatching { imageLoader.execute(request) }.getOrNull() as? SuccessResult)?.image
-        return (image as? BitmapImage)?.bitmap?.let { IconCompat.createWithBitmap(it) }
-    }
-
-    /**
-     * The conversation shortcut a notification points at. It has to exist before the notification
-     * arrives, and stays around ("long lived") so the bubble survives the notification itself.
+     * The conversation shortcut a notification points at. The channel list publishes the same
+     * shortcut (see [dev.chatter.app.util.ChannelShortcuts]), but a notification cannot wait for
+     * that: the shortcut has to exist before the notification naming it arrives.
      */
     private fun publishShortcut(channel: String, name: String, icon: IconCompat): String {
-        val id = "$SHORTCUT_PREFIX$channel"
-        val shortcut = ShortcutInfoCompat.Builder(context, id)
-            .setShortLabel(name)
-            .setLongLived(true)
-            .setIcon(icon)
-            .setCategories(setOf(SHORTCUT_CATEGORY))
-            .setPerson(Person.Builder().setName(name).setKey(id).setIcon(icon).setImportant(true).build())
-            .setIntent(launchIntent(context, channel))
-            .build()
+        val shortcut = channelShortcut(context, channel, name, icon)
         runCatching { ShortcutManagerCompat.pushDynamicShortcut(context, shortcut) }
-        return id
+        return shortcut.id
     }
 
     /**
@@ -241,31 +210,13 @@ class MentionNotifier(
         const val CHANNEL_CONNECTION = "connection"
         const val CHANNEL_MENTIONS = "mentions"
         private const val GROUP = "mentions"
-        private const val SHORTCUT_PREFIX = "channel:"
-        private const val SHORTCUT_CATEGORY = "android.shortcut.conversation"
         private const val BUBBLE_HEIGHT_DP = 620
-        /** Android shows notification icons small; anything larger is wasted memory. */
-        private const val ICON_SIZE_PX = 192
         private const val MAX_SENDER_ICONS = 100
-        const val EXTRA_CHANNEL = "channel"
         /** Where Android puts the text typed into the reply action. */
         const val KEY_REPLY = "reply"
 
-        /**
-         * Opens the app on [channel]. It goes through the launcher entry rather than straight to
-         * MainActivity: the app icon is an activity-alias (see AppIcon), so a running task has
-         * that alias as its root. An intent naming MainActivity does not match it, and Android
-         * then only raises the task without ever delivering the intent — the tap would do nothing.
-         */
-        /** The intent behind [openChannelIntent] and behind a conversation shortcut. */
-        private fun launchIntent(context: Context, channel: String?): Intent =
-            (context.packageManager.getLaunchIntentForPackage(context.packageName)
-                ?: Intent(context, MainActivity::class.java).setAction(Intent.ACTION_MAIN))
-                .addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP)
-                .putExtra(EXTRA_CHANNEL, channel)
-
         fun openChannelIntent(context: Context, channel: String?): PendingIntent {
-            val intent = launchIntent(context, channel)
+            val intent = appLaunchIntent(context, channel)
             return PendingIntent.getActivity(
                 context, channel?.hashCode() ?: 0, intent,
                 PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,

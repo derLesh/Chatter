@@ -334,6 +334,15 @@ fun AppRoot(vm: MainViewModel) {
     val auth by vm.authState.collectAsStateWithLifecycle()
     var showSettings by remember { mutableStateOf(false) }
     var showInbox by remember { mutableStateOf(false) }
+
+    // The inbox shortcut sets this before the screen exists, so it is consumed rather than observed.
+    val openInbox by vm.requestedInbox.collectAsStateWithLifecycle()
+    LaunchedEffect(openInbox) {
+        if (!openInbox) return@LaunchedEffect
+        showSettings = false
+        showInbox = true
+        vm.requestedInbox.value = false
+    }
     when (auth) {
         dev.chatter.app.auth.AuthState.Loading -> Box(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background))
         dev.chatter.app.auth.AuthState.LoggedOut -> LoginScreen(vm)
