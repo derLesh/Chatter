@@ -110,6 +110,7 @@ import dev.chatter.app.settings.TimestampFormat
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
+import dev.chatter.app.badges.BadgeProvider
 import dev.chatter.app.emotes.EmoteProvider
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -382,6 +383,11 @@ private fun ChatPage(settings: Settings, vm: MainViewModel) {
                 hint = R.string.settings_mute_keywords_hint,
                 onSave = vm::setMuteKeywords,
             )
+        }
+    }
+    SettingsGroup(R.string.settings_badge_providers) {
+        BADGE_PROVIDERS.forEach { (provider, label) ->
+            item { SwitchItem(label, provider in settings.badgeProviders, { vm.setBadgeProvider(provider, it) }) }
         }
     }
     SettingsGroup(R.string.settings_emote_providers) {
@@ -784,6 +790,13 @@ private fun SliderItem(
         colors = transparentItem(),
     )
 }
+
+/** The badge providers, in the order their badges appear in front of a name. */
+private val BADGE_PROVIDERS = listOf(
+    BadgeProvider.Twitch to R.string.settings_provider_twitch,
+    BadgeProvider.SevenTv to R.string.settings_provider_seventv,
+    BadgeProvider.Chatterino to R.string.settings_provider_chatterino,
+)
 
 /** The emote providers, in the order their emotes take precedence over each other. */
 private val PROVIDERS = listOf(

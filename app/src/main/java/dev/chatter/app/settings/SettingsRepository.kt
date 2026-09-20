@@ -1,6 +1,7 @@
 package dev.chatter.app.settings
 
 import androidx.datastore.core.DataStore
+import dev.chatter.app.badges.BadgeProvider
 import dev.chatter.app.emotes.EmoteProvider
 import dev.chatter.app.ui.theme.NameColorPalette
 import androidx.datastore.preferences.core.Preferences
@@ -62,6 +63,8 @@ data class Settings(
     val mentionWithAt: Boolean = true,
     /** Keep deleted messages in the chat, struck through, instead of hiding them. */
     val showDeleted: Boolean = true,
+    /** The badge providers whose badges are shown in front of a name. */
+    val badgeProviders: Set<BadgeProvider> = BadgeProvider.entries.toSet(),
     /** The emote providers whose emotes are shown; the others stay plain text. */
     val emoteProviders: Set<EmoteProvider> = EmoteProvider.entries.toSet(),
     /** Keep the screen awake while the chat is on screen. */
@@ -112,6 +115,9 @@ class SettingsRepository(
             highlightFirstMessages = p[FIRST_MESSAGES] ?: true,
             nameColors = p[NAME_COLORS]?.let { v -> NameColorPalette.entries.firstOrNull { it.name == v } }
                 ?: NameColorPalette.HslLuma,
+            badgeProviders = p[BADGE_PROVIDERS]
+                ?.split(',')?.mapNotNull { v -> BadgeProvider.entries.firstOrNull { it.name == v } }?.toSet()
+                ?: BadgeProvider.entries.toSet(),
             emoteProviders = p[EMOTE_PROVIDERS]
                 ?.split(',')?.mapNotNull { v -> EmoteProvider.entries.firstOrNull { it.name == v } }?.toSet()
                 ?: EmoteProvider.entries.toSet(),
@@ -142,6 +148,7 @@ class SettingsRepository(
     suspend fun setKeepScreenOn(v: Boolean) = store.edit { it[KEEP_SCREEN_ON] = v }
     suspend fun setHighlightFirstMessages(v: Boolean) = store.edit { it[FIRST_MESSAGES] = v }
     suspend fun setNameColors(v: NameColorPalette) = store.edit { it[NAME_COLORS] = v.name }
+    suspend fun setBadgeProviders(v: Set<BadgeProvider>) = store.edit { p -> p[BADGE_PROVIDERS] = v.joinToString(",") { it.name } }
     suspend fun setEmoteProviders(v: Set<EmoteProvider>) = store.edit { p -> p[EMOTE_PROVIDERS] = v.joinToString(",") { it.name } }
 
     suspend fun addRecentEmote(name: String) = store.edit { p ->
@@ -175,6 +182,7 @@ class SettingsRepository(
         val SHOW_DELETED = booleanPreferencesKey("show_deleted")
         val KEEP_SCREEN_ON = booleanPreferencesKey("keep_screen_on")
         val EMOTE_PROVIDERS = stringPreferencesKey("emote_providers")
+        val BADGE_PROVIDERS = stringPreferencesKey("badge_providers")
         val NAME_COLORS = stringPreferencesKey("name_colors")
         val FIRST_MESSAGES = booleanPreferencesKey("highlight_first_messages")
         const val MAX_RECENT = 40

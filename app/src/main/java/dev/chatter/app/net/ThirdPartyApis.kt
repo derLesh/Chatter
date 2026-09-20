@@ -87,6 +87,35 @@ data class SevenTvUser(
 @Serializable
 data class SevenTvUserRef(val id: String = "")
 
+// ---- Badges from other clients -----------------------------------------------
+
+/** 7TV hands out badges (subscriber, admin, ...) as "cosmetics", with the wearers listed per badge. */
+@Serializable
+data class SevenTvCosmetics(val badges: List<SevenTvBadge> = emptyList())
+
+@Serializable
+data class SevenTvBadge(
+    val id: String = "",
+    val name: String = "",
+    val tooltip: String = "",
+    val host: SevenTvHost? = null,
+    /** Twitch user ids of everyone wearing it. */
+    val users: List<String> = emptyList(),
+)
+
+/** Chatterino's own badge list (contributors, donators, ...), wearers listed by Twitch user id. */
+@Serializable
+data class ChatterinoBadges(val badges: List<ChatterinoBadge> = emptyList())
+
+@Serializable
+data class ChatterinoBadge(
+    val tooltip: String = "",
+    val image1: String = "",
+    val image2: String = "",
+    val image3: String = "",
+    val users: List<String> = emptyList(),
+)
+
 // ---- Recent messages (history) -----------------------------------------------
 
 @Serializable
@@ -104,6 +133,12 @@ class ThirdPartyApi(private val http: OkHttpClient) {
     suspend fun sevenTvGlobal(): SevenTvEmoteSet = http.getJson("https://7tv.io/v3/emote-sets/global")
     suspend fun sevenTvChannel(channelId: String): SevenTvUser? =
         http.getJsonOrNull("https://7tv.io/v3/users/twitch/$channelId")
+
+    suspend fun sevenTvCosmetics(): SevenTvCosmetics =
+        http.getJson("https://7tv.io/v3/cosmetics?user_identifier=twitch_id")
+
+    suspend fun chatterinoBadges(): ChatterinoBadges =
+        http.getJson("https://api.chatterino.com/badges")
 
     suspend fun recentMessages(channel: String, limit: Int): RecentMessages =
         http.getJson("https://recent-messages.robotty.de/api/v2/recent-messages/$channel?limit=$limit")

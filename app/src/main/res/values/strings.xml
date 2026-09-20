@@ -273,4 +273,8 @@
     <!-- Nicknames -->
     <string name="nickname_title">Nickname</string>
     <string name="nickname_hint">Shown instead of their Twitch name, in every channel. Leave empty to undo</string>
+
+    <!-- Badges -->
+    <string name="settings_badge_providers">Badges</string>
+    <string name="settings_provider_chatterino">Chatterino</string>
 </resources>

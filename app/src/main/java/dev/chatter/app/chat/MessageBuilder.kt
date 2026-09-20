@@ -24,7 +24,8 @@ data class EmoteOptions(
 )
 
 fun interface BadgeSource {
-    fun resolve(channelId: String?, badgesTag: String?): List<Badge>
+    /** [userId] comes from the `user-id` tag: badges from other clients hang off it, not off the tag. */
+    fun resolve(channelId: String?, badgesTag: String?, userId: String?): List<Badge>
 }
 
 /** Turns raw IRC messages into [ChatItem]s. All the parsing work happens here, once per message. */
@@ -71,7 +72,7 @@ class MessageBuilder(
             login = selfLogin,
             displayName = userState["display-name"]?.ifEmpty { null } ?: selfLogin,
             color = parseColor(userState["color"]),
-            badges = badges.resolve(channelId, userState["badges"]),
+            badges = badges.resolve(channelId, userState["badges"], userState["user-id"]),
             segments = segments(channel, body, emptyList(), channelId, ownMessage = true),
             text = body,
             isOwn = true,
@@ -108,7 +109,7 @@ class MessageBuilder(
             login = login,
             displayName = msg.tag("display-name") ?: login,
             color = parseColor(msg.tag("color")),
-            badges = badges.resolve(channelId ?: msg.tag("room-id"), msg.tag("badges")),
+            badges = badges.resolve(channelId ?: msg.tag("room-id"), msg.tag("badges"), msg.tag("user-id")),
             segments = segments(channel, body, emoteRanges, channelId ?: msg.tag("room-id"), ownMessage = false),
             text = body,
             isMention = !isOwn && (mentions.matches(body) || reply?.parentLogin.equals(selfLogin, ignoreCase = true)),
@@ -133,7 +134,8 @@ class MessageBuilder(
             login = login,
             displayName = msg.tag("display-name") ?: login,
             color = parseColor(msg.tag("color")),
-            badges = if (body.isEmpty()) emptyList() else badges.resolve(channelId ?: msg.tag("room-id"), msg.tag("badges")),
+            badges = if (body.isEmpty()) emptyList()
+            else badges.resolve(channelId ?: msg.tag("room-id"), msg.tag("badges"), msg.tag("user-id")),
             segments = segments(channel, body, twitchEmotes(body, msg.tag("emotes")), channelId ?: msg.tag("room-id"), ownMessage = false),
             systemText = msg.tag("system-msg"),
             text = body,

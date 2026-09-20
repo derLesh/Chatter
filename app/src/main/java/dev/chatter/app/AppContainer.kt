@@ -65,7 +65,7 @@ class AppContainer(private val context: Context) {
     val helix = HelixApi(http) { auth.freshToken() }.also { auth.helix = it }
     val thirdParty = ThirdPartyApi(http)
     val emotes = EmoteRepository(helix, thirdParty)
-    val badges = BadgeRepository(helix)
+    val badges = BadgeRepository(helix, thirdParty)
     val channels = ChannelRepository(context.channelStore, helix, scope)
     val blocked = BlockedUsersRepository(helix, scope)
     val nicknames = NicknameRepository(context.nicknameStore, scope)
@@ -104,6 +104,8 @@ class AppContainer(private val context: Context) {
     fun start() {
         notifier.createChannels()
         chat.start()
+        // Read on every message, so it is mirrored onto the repository instead of passed around.
+        scope.launch { settings.settings.collect { badges.enabled = it.badgeProviders } }
         sevenTvLive.start()
         scope.launch {
             channels.loadCache()
@@ -121,6 +123,7 @@ class AppContainer(private val context: Context) {
                             chat.resync()
                             launch { emotes.loadGlobal() }
                             launch { badges.loadGlobal() }
+                            launch { badges.loadThirdParty() }
                             launch { emotes.loadTwitchUserEmotes(state.account.userId) }
                             launch { channels.refreshUsers(channels.currentChannels()) }
                             launch { blocked.load(state.account.userId) }

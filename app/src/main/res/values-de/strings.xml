@@ -267,4 +267,8 @@
     <!-- Spitznamen -->
     <string name="nickname_title">Spitzname</string>
     <string name="nickname_hint">Wird statt des Twitch-Namens angezeigt, in jedem Kanal. Leer lassen, um ihn zurückzusetzen</string>
+
+    <!-- Badges -->
+    <string name="settings_badge_providers">Badges</string>
+    <string name="settings_provider_chatterino">Chatterino</string>
 </resources>

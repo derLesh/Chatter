@@ -20,7 +20,7 @@ class MessageBuilderTest {
         override fun lookup(channelId: String?, word: String) = thirdParty[word]
         override fun lookupOwnTwitch(channelId: String?, word: String) = own[word]
     }
-    private val builder = MessageBuilder(emotes, { _, _ -> emptyList() })
+    private val builder = MessageBuilder(emotes, { _, _, _ -> emptyList() })
     private val mentions = MentionMatcher("lukas", listOf("chatter"))
 
     private fun privmsg(text: String, tags: String = "") =
@@ -86,7 +86,7 @@ class MessageBuilderTest {
             remember("chan", "nocolor", "NoColor", null)
             remember("other", "elsewhere", "Elsewhere", 0xFFFF0000.toInt())
         }
-        val builder = MessageBuilder(emotes, { _, _ -> emptyList() }, chatters)
+        val builder = MessageBuilder(emotes, { _, _, _ -> emptyList() }, chatters)
         val mentioned = builder.build(privmsg("@forsen, @NoColor @elsewhere @stranger"), "lukas", "1", mentions)!!
             .segments.filterIsInstance<Segment.Mention>()
 
@@ -101,7 +101,7 @@ class MessageBuilderTest {
             setPresent("chan", mapOf("lurker" to "Lurker"))
             remember("chan", "Forsen", "Forsen", 0xFF00FF00.toInt())
         }
-        val builder = MessageBuilder(emotes, { _, _ -> emptyList() }, chatters)
+        val builder = MessageBuilder(emotes, { _, _, _ -> emptyList() }, chatters)
         val mentioned = builder.build(privmsg("@Lurker @stranger"), "lukas", "1", mentions)!!
             .segments.filterIsInstance<Segment.Mention>()
 
@@ -162,7 +162,7 @@ class MessageBuilderTest {
             override fun lookupOwnTwitch(channelId: String?, word: String) = null
         }
         fun segments(options: EmoteOptions, text: String, tags: String = "") =
-            MessageBuilder(source, { _, _ -> emptyList() }) { options }.build(privmsg(text, tags), "lukas", "1", mentions)!!.segments
+            MessageBuilder(source, { _, _, _ -> emptyList() }) { options }.build(privmsg(text, tags), "lukas", "1", mentions)!!.segments
 
         // Emotes off: everything is text, also Twitch emotes from the tag.
         assertEquals(listOf<Segment>(Segment.Text("Kappa OMEGALUL")), segments(EmoteOptions(enabled = false), "Kappa OMEGALUL", "emotes=25:0-4"))

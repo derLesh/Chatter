@@ -11,6 +11,7 @@ import dev.chatter.app.AppContainer
 import dev.chatter.app.R
 import dev.chatter.app.auth.DeviceLogin
 import dev.chatter.app.badges.Badge
+import dev.chatter.app.badges.BadgeProvider
 import dev.chatter.app.chat.ChatCommand
 import dev.chatter.app.chat.ChatRole
 import dev.chatter.app.chat.ChatItem
@@ -191,7 +192,7 @@ class MainViewModel(private val c: AppContainer) : ViewModel() {
 
     /** Twitch badge image for the user's role in a channel (moderator sword etc.). */
     fun roleBadge(channel: String, role: ChatRole): Badge? =
-        role.badgeTag?.let { c.badges.resolve(c.chat.roomId(channel), it).firstOrNull() }
+        role.badgeTag?.let { c.badges.resolve(c.chat.roomId(channel), it, userId = null).firstOrNull() }
 
     /**
      * Blocks or unblocks on Twitch. Needs the user card's profile for the Twitch id, so it is
@@ -279,6 +280,13 @@ class MainViewModel(private val c: AppContainer) : ViewModel() {
 
     fun setKeepScreenOn(v: Boolean) {
         viewModelScope.launch { c.settings.setKeepScreenOn(v) }
+    }
+
+    fun setBadgeProvider(provider: BadgeProvider, enabled: Boolean) {
+        val current = settings.value.badgeProviders
+        viewModelScope.launch {
+            c.settings.setBadgeProviders(if (enabled) current + provider else current - provider)
+        }
     }
 
     fun setEmoteProvider(provider: EmoteProvider, enabled: Boolean) {
