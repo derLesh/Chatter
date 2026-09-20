@@ -40,6 +40,7 @@ import androidx.compose.material.icons.automirrored.filled.List
 import androidx.compose.material.icons.filled.AccountCircle
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.DateRange
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Info
@@ -54,6 +55,7 @@ import androidx.compose.material3.ListItem
 import androidx.compose.material3.ListItemDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
@@ -124,6 +126,8 @@ import dev.chatter.app.ui.theme.NameColorPalette
 import dev.chatter.app.ui.theme.readableNameColor
 import androidx.compose.material3.RadioButton
 import dev.chatter.app.settings.TimestampFormat
+import java.text.DateFormat
+import java.text.NumberFormat
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -140,6 +144,7 @@ private enum class SettingsPage(val title: Int, val summary: Int, val icon: Imag
     Chat(R.string.settings_chat, R.string.settings_chat_summary, Icons.AutoMirrored.Filled.List),
     Notifications(R.string.settings_notifications, R.string.settings_notifications_summary, Icons.Default.Notifications),
     Channels(R.string.settings_channels, R.string.settings_channels_summary, Icons.Default.Person),
+    Stats(R.string.settings_stats, R.string.settings_stats_summary, Icons.Default.DateRange),
     Account(R.string.settings_account, R.string.settings_account_summary, Icons.Default.AccountCircle),
     About(R.string.settings_about, R.string.settings_about_summary, Icons.Default.Info),
 }
@@ -223,6 +228,7 @@ fun SettingsScreen(vm: MainViewModel, onBack: () -> Unit) {
                     SettingsPage.Chat -> ChatPage(settings, vm) { subPage = it }
                     SettingsPage.Notifications -> NotificationsPage(settings, vm) { subPage = it }
                     SettingsPage.Channels -> ChannelsPage(vm, settings)
+                    SettingsPage.Stats -> StatsPage(vm)
                     SettingsPage.Account -> AccountPage(login, vm, { subPage = it }) { vm.logout(); onBack() }
                     SettingsPage.About -> AboutPage(vm) { subPage = it }
                 }
@@ -782,6 +788,105 @@ private fun ChannelsPage(vm: MainViewModel, settings: Settings) {
         )
     }
 }
+
+/**
+ * What the user has done in chat so far. Everything shown here was counted on this device and
+ * never leaves it, which is also why it can be thrown away in one go at the bottom.
+ */
+@Composable
+private fun StatsPage(vm: MainViewModel) {
+    val stats by vm.stats.collectAsStateWithLifecycle()
+    val info by vm.channelInfo.collectAsStateWithLifecycle()
+    var confirmReset by remember { mutableStateOf(false) }
+    val busiest = remember(stats) { stats.busiestChannels.take(5) }
+
+    SettingsGroup(R.string.settings_stats_group_messages) {
+        item { StatRow(R.string.settings_stats_sent, formatNumber(stats.sent)) }
+        item { StatRow(R.string.settings_stats_received, formatNumber(stats.received)) }
+        item { StatRow(R.string.settings_stats_mentions, formatNumber(stats.mentions)) }
+    }
+    SettingsGroup(R.string.settings_stats_group_days) {
+        item {
+            StatRow(
+                R.string.settings_stats_active_days,
+                pluralStringResource(R.plurals.stats_days, stats.activeDays.size, stats.activeDays.size),
+            )
+        }
+        item {
+            val streak = remember(stats) { stats.streak() }
+            StatRow(
+                R.string.settings_stats_streak,
+                pluralStringResource(R.plurals.stats_days, streak, streak),
+            )
+        }
+        if (stats.since > 0) {
+            item { StatRow(R.string.settings_stats_since, formatDay(stats.since)) }
+        }
+    }
+    SettingsGroup(R.string.settings_stats_group_channels) {
+        if (busiest.isEmpty()) {
+            item {
+                ListItem(
+                    headlineContent = { Text(stringResource(R.string.settings_stats_no_channels)) },
+                    colors = transparentItem(),
+                )
+            }
+        }
+        busiest.forEach { (login, count) ->
+            item {
+                ListItem(
+                    headlineContent = { Text(info[login]?.displayName ?: login) },
+                    trailingContent = { Text(formatNumber(count), fontWeight = FontWeight.Medium) },
+                    colors = transparentItem(),
+                )
+            }
+        }
+    }
+    SettingsGroup {
+        item {
+            ListItem(
+                headlineContent = { Text(stringResource(R.string.settings_stats_reset)) },
+                supportingContent = { Text(stringResource(R.string.settings_stats_reset_hint)) },
+                trailingContent = {
+                    OutlinedButton(onClick = { confirmReset = true }) {
+                        Text(stringResource(R.string.settings_stats_reset_action))
+                    }
+                },
+                colors = transparentItem(),
+            )
+        }
+    }
+
+    if (confirmReset) {
+        AlertDialog(
+            onDismissRequest = { confirmReset = false },
+            title = { Text(stringResource(R.string.settings_stats_reset)) },
+            text = { Text(stringResource(R.string.settings_stats_reset_confirm)) },
+            confirmButton = {
+                TextButton(onClick = { confirmReset = false; vm.resetStats() }) {
+                    Text(stringResource(R.string.settings_stats_reset_action))
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { confirmReset = false }) { Text(stringResource(R.string.cancel)) }
+            },
+        )
+    }
+}
+
+@Composable
+private fun StatRow(label: Int, value: String) {
+    ListItem(
+        headlineContent = { Text(stringResource(label)) },
+        trailingContent = { Text(value, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Medium) },
+        colors = transparentItem(),
+    )
+}
+
+/** Grouped the way the phone's language groups them, so six digits stay readable. */
+private fun formatNumber(n: Long): String = NumberFormat.getIntegerInstance().format(n)
+
+private fun formatDay(at: Long): String = DateFormat.getDateInstance(DateFormat.MEDIUM).format(Date(at))
 
 @Composable
 private fun AboutPage(vm: MainViewModel, open: (SettingsSubPage) -> Unit) {

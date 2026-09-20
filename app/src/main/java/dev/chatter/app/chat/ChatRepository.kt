@@ -14,6 +14,7 @@ import dev.chatter.app.irc.IrcMessage
 import dev.chatter.app.net.HelixApi
 import dev.chatter.app.net.ThirdPartyApi
 import dev.chatter.app.settings.Settings
+import dev.chatter.app.stats.StatsRepository
 import dev.chatter.app.util.RateLimiter
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -63,6 +64,7 @@ class ChatRepository(
     private val commands: CommandExecutor,
     private val chatterRegistry: ChatterRegistry,
     private val blocked: BlockedUsersRepository,
+    private val stats: StatsRepository,
     private val rules: StateFlow<List<ChatRule>>,
     private val settings: StateFlow<Settings>,
     private val scope: CoroutineScope,
@@ -257,6 +259,7 @@ class ChatRepository(
             ReplyInfo(it.id, it.login.orEmpty(), it.displayName.orEmpty(), it.text)
         }
         append(builder.buildOwn(channel, wire, state, auth.account?.login.orEmpty(), roomIds[channel], reply))
+        stats.countSent(channel)
         SendResult.Ok
     }
 
@@ -416,6 +419,8 @@ class ChatRepository(
                 val item = ruleEngine.apply(built) ?: return
                 rememberChatter(channel, item)
                 append(item)
+                // Only live messages: the history fetched on join was received long ago.
+                if (!item.isOwn) stats.countReceived()
                 if (!item.isOwn && !(uiVisible.value && activeChannel.value == channel)) {
                     unreadCounts[channel] = (unreadCounts[channel] ?: 0) + 1
                     unreadCountsDirty = true
@@ -446,6 +451,7 @@ class ChatRepository(
     }
 
     private fun onMention(item: ChatItem) {
+        stats.countMention()
         val watching = uiVisible.value && activeChannel.value == item.channel
         // The inbox keeps every mention; one the user saw arrive is simply already read.
         _allMentions.tryEmit(MentionEvent(item, seen = watching))

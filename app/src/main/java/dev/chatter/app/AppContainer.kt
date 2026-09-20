@@ -39,6 +39,7 @@ import dev.chatter.app.net.ThirdPartyApi
 import dev.chatter.app.service.ChatNotifier
 import dev.chatter.app.settings.BackupManager
 import dev.chatter.app.settings.SettingsRepository
+import dev.chatter.app.stats.StatsRepository
 import dev.chatter.app.util.ChannelIcons
 import dev.chatter.app.util.ChannelShortcuts
 import kotlinx.coroutines.CoroutineScope
@@ -58,6 +59,7 @@ private val Context.settingsStore by preferencesDataStore("settings")
 private val Context.nicknameStore by preferencesDataStore("nicknames")
 private val Context.inboxStore by preferencesDataStore("inbox")
 private val Context.ruleStore by preferencesDataStore("rules")
+private val Context.statsStore by preferencesDataStore("stats")
 
 /**
  * Creates and wires every long-lived object of the app (manual dependency injection).
@@ -86,6 +88,7 @@ class AppContainer(private val context: Context) {
     val inbox = MentionInboxRepository(context.inboxStore, scope)
     val whisperInbox = WhisperInboxRepository(context.inboxStore, scope)
     val rules = RuleRepository(context.ruleStore, scope)
+    val stats = StatsRepository(context.statsStore, scope)
     val backup = BackupManager(settings, rules, nicknames, channels)
     val changelog = ChangelogRepository(context, settings, BuildConfig.VERSION_NAME, scope)
     val irc = IrcConnection(socketHttp, scope)
@@ -94,7 +97,7 @@ class AppContainer(private val context: Context) {
 
     val chat = ChatRepository(
         context, irc, MessageBuilder(emotes, badges, chatters, ::emoteOptions), emotes, badges, channels, thirdParty, helix, auth,
-        CommandExecutor(context, helix, auth, whisperSender), chatters, blocked, rules.rules, settings.settings, scope,
+        CommandExecutor(context, helix, auth, whisperSender), chatters, blocked, stats, rules.rules, settings.settings, scope,
     )
 
     // One disk cache shared by both loaders (two caches on the same directory would corrupt it).
@@ -128,6 +131,7 @@ class AppContainer(private val context: Context) {
     fun start() {
         notifier.createChannels()
         chat.start()
+        stats.start()
         changelog.start()
         // Read on every message, so it is mirrored onto the repository instead of passed around.
         scope.launch { settings.settings.collect { badges.enabled = it.badgeProviders } }

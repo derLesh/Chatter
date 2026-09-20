@@ -76,6 +76,7 @@ class MainViewModel(private val c: AppContainer) : ViewModel() {
     /** What the badge on the inbox button counts: both of its tabs together. */
     val inboxUnread: StateFlow<Int> = combine(mentionUnread, whisperUnread) { m, w -> m + w }
         .stateIn(viewModelScope, SharingStarted.Eagerly, 0)
+    val stats = c.stats.stats
     val releases = c.changelog.releases
     /** Every mention as it arrives, for the feedback the chat screen gives while it is open. */
     val mentions = c.chat.allMentions
@@ -581,6 +582,10 @@ class MainViewModel(private val c: AppContainer) : ViewModel() {
 
     fun setAnimatedEmotes(v: Boolean) {
         viewModelScope.launch { c.settings.setAnimatedEmotes(v) }
+    }
+
+    fun resetStats() {
+        viewModelScope.launch { c.stats.reset() }
     }
 
     /** The update notes have been seen, so they should not come back. */

@@ -326,6 +326,28 @@
     <!-- Launcher shortcuts -->
     <string name="shortcut_inbox">Inbox</string>
 
+    <!-- Stats -->
+    <string name="settings_stats">Stats</string>
+    <string name="settings_stats_summary">Messages, channels, active days</string>
+    <string name="settings_stats_group_messages">Messages</string>
+    <string name="settings_stats_sent">Sent</string>
+    <string name="settings_stats_received">Received</string>
+    <string name="settings_stats_mentions">Mentions</string>
+    <string name="settings_stats_group_days">Days</string>
+    <string name="settings_stats_active_days">Days you wrote something</string>
+    <string name="settings_stats_streak">Current streak</string>
+    <string name="settings_stats_since">Counting since</string>
+    <string name="settings_stats_group_channels">Where you write the most</string>
+    <string name="settings_stats_no_channels">Nothing sent yet</string>
+    <string name="settings_stats_reset">Reset stats</string>
+    <string name="settings_stats_reset_hint">Everything here was counted on this device and never leaves it</string>
+    <string name="settings_stats_reset_action">Reset</string>
+    <string name="settings_stats_reset_confirm">Every count starts at zero again. This cannot be undone</string>
+    <plurals name="stats_days">
+        <item quantity="one">%d day</item>
+        <item quantity="other">%d days</item>
+    </plurals>
+
     <!-- Whispers -->
     <string name="notif_channel_whispers">Whispers</string>
     <string name="whisper_sent">Whisper sent to %1$s</string>

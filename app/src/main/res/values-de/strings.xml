@@ -320,6 +320,28 @@
 
     <string name="shortcut_inbox">Postfach</string>
     <string name="notif_channel_whispers">Flüstern</string>
+    <!-- Statistik -->
+    <string name="settings_stats">Statistik</string>
+    <string name="settings_stats_summary">Nachrichten, Kanäle, aktive Tage</string>
+    <string name="settings_stats_group_messages">Nachrichten</string>
+    <string name="settings_stats_sent">Gesendet</string>
+    <string name="settings_stats_received">Empfangen</string>
+    <string name="settings_stats_mentions">Erwähnungen</string>
+    <string name="settings_stats_group_days">Tage</string>
+    <string name="settings_stats_active_days">Tage mit einer Nachricht</string>
+    <string name="settings_stats_streak">Aktuelle Serie</string>
+    <string name="settings_stats_since">Gezählt seit</string>
+    <string name="settings_stats_group_channels">Wo du am meisten schreibst</string>
+    <string name="settings_stats_no_channels">Noch nichts gesendet</string>
+    <string name="settings_stats_reset">Statistik zurücksetzen</string>
+    <string name="settings_stats_reset_hint">Alles hier wurde auf diesem Gerät gezählt und verlässt es nie</string>
+    <string name="settings_stats_reset_action">Zurücksetzen</string>
+    <string name="settings_stats_reset_confirm">Alle Zähler fangen wieder bei null an. Das lässt sich nicht rückgängig machen</string>
+    <plurals name="stats_days">
+        <item quantity="one">%d Tag</item>
+        <item quantity="other">%d Tage</item>
+    </plurals>
+
     <string name="whisper_sent">Flüsternachricht an %1$s gesendet</string>
     <string name="whisper_reply_title">Flüstern an %1$s</string>
     <string name="whisper_reply_hint">Deine Antwort</string>
