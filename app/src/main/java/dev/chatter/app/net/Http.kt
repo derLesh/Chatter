@@ -1,7 +1,9 @@
 package dev.chatter.app.net
 
 import kotlinx.coroutines.suspendCancellableCoroutine
+import kotlinx.serialization.ExperimentalSerializationApi
 import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.decodeFromStream
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
 import okhttp3.Call
@@ -13,6 +15,7 @@ import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
 import okhttp3.Response
 import java.io.IOException
+import java.io.InputStream
 import kotlin.coroutines.resume
 import kotlin.coroutines.resumeWithException
 
@@ -45,9 +48,41 @@ suspend fun OkHttpClient.fetch(request: Request): String = suspendCancellableCor
     })
 }
 
+/**
+ * Runs the request and hands the body to [decode] while it is still streaming, so nothing has to
+ * hold the whole response as a String first.
+ */
+suspend fun <T> OkHttpClient.fetchDecoding(request: Request, decode: (InputStream) -> T): T =
+    suspendCancellableCoroutine { cont ->
+        val call = newCall(request)
+        cont.invokeOnCancellation { call.cancel() }
+        call.enqueue(object : Callback {
+            override fun onFailure(call: Call, e: IOException) = cont.resumeWithException(e)
+
+            override fun onResponse(call: Call, response: Response) {
+                response.use {
+                    if (!it.isSuccessful) {
+                        cont.resumeWithException(HttpException(it.code, it.body.string().take(200)))
+                        return
+                    }
+                    try {
+                        cont.resume(decode(it.body.byteStream()))
+                    } catch (e: Throwable) {
+                        cont.resumeWithException(e)
+                    }
+                }
+            }
+        })
+    }
+
+/**
+ * A JSON response, parsed straight off the socket. The emote lists of a busy channel run to a few
+ * hundred kilobytes, and reading one into a String only to parse that String held it twice.
+ */
+@OptIn(ExperimentalSerializationApi::class)
 suspend inline fun <reified T> OkHttpClient.getJson(url: String, headers: Map<String, String> = emptyMap()): T {
     val request = Request.Builder().url(url).apply { headers.forEach { (k, v) -> header(k, v) } }.build()
-    return AppJson.decodeFromString(fetch(request))
+    return fetchDecoding(request) { AppJson.decodeFromStream<T>(it) }
 }
 
 /** Like [getJson] but returns null for 404 (e.g. a channel that has no BTTV/7TV account). */

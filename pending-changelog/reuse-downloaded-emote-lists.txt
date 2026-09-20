@@ -1,0 +1,1 @@
+patch: Start quicker and use less data by reusing emote and badge lists already downloaded

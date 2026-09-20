@@ -50,6 +50,7 @@ import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withTimeoutOrNull
+import okhttp3.Cache
 import okhttp3.OkHttpClient
 import java.util.concurrent.TimeUnit
 
@@ -71,10 +72,18 @@ class AppContainer(private val context: Context) {
     val http: OkHttpClient = OkHttpClient.Builder()
         .connectTimeout(10, TimeUnit.SECONDS)
         .readTimeout(20, TimeUnit.SECONDS)
+        // The emote and badge lists of a channel are a few hundred kilobytes each and are asked
+        // for again on every start and every join. All three providers answer with an ETag, so
+        // the second ask costs a 304 and no download at all.
+        .cache(Cache(context.cacheDir.resolve("http"), HTTP_CACHE_BYTES))
         .build()
 
     // Same connection pool, but no read timeout: the chat socket may be silent for minutes.
     private val socketHttp: OkHttpClient = http.newBuilder().readTimeout(0, TimeUnit.MILLISECONDS).build()
+
+    // Coil keeps a disk cache of its own, so the response cache above would hold every emote a
+    // second time — and a few busy channels of images would crowd out the very lists it is for.
+    private val imageHttp: OkHttpClient = http.newBuilder().cache(null).build()
 
     val settings = SettingsRepository(context.settingsStore, scope)
     val auth = AuthRepository(context.authStore, http)
@@ -244,11 +253,14 @@ class AppContainer(private val context: Context) {
     private companion object {
         /** How long a notification reply waits for login and join before giving up. */
         const val NOTIFICATION_SEND_TIMEOUT_MS = 15_000L
+
+        /** Room for the emote and badge lists of a good number of channels, and little else. */
+        const val HTTP_CACHE_BYTES = 20L * 1024 * 1024
     }
 
     private fun imageLoader(animated: Boolean) = ImageLoader.Builder(context)
         .components {
-            add(OkHttpNetworkFetcherFactory(callFactory = { http }))
+            add(OkHttpNetworkFetcherFactory(callFactory = { imageHttp }))
             if (animated) add(AnimatedImageDecoder.Factory())
         }
         .memoryCache { MemoryCache.Builder().maxSizePercent(context, if (animated) 0.15 else 0.05).build() }
