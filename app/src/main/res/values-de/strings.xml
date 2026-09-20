@@ -14,7 +14,7 @@
     <string name="notif_reply_failed">Deine Antwort konnte nicht gesendet werden</string>
 
     <string name="settings_sender_avatars">Profilbilder</string>
-    <string name="settings_sender_avatars_hint">In der Benachrichtigung das Twitch-Bild dessen zeigen, der geschrieben hat</string>
+    <string name="settings_sender_avatars_hint">In der Benachrichtigung den Avatar des Nutzers, der geschrieben hat, anzeigen</string>
 
     <!-- Chat system messages -->
     <string name="chat_reconnected">Wieder verbunden.</string>
@@ -170,15 +170,15 @@
     <string name="settings_highlight_preview_text">hey @du, schau mal!</string>
     <string name="settings_load_history">Letzte Nachrichten laden</string>
     <string name="settings_load_history_hint">Beim Öffnen eines Channels die letzten Nachrichten anzeigen (über recent-messages.robotty.de)</string>
-    <string name="settings_system_notifications">System-Benachrichtigungseinstellungen</string>
+    <string name="settings_system_notifications">Benachrichtigungseinstellungen</string>
     <string name="settings_logged_in">Mit Twitch angemeldet</string>
-    <string name="settings_logout_hint">Entfernt die Anmeldung von diesem Gerät</string>
+    <string name="settings_logout_hint">Melde dich von Chatter ab</string>
     <string name="settings_version">Version %1$s</string>
     <string name="settings_credits">Credits</string>
     <string name="settings_credits_twitch">Twitch</string>
     <string name="settings_credits_twitch_summary">Chat, Emotes und Badges</string>
     <string name="settings_credits_seventv">7TV</string>
-    <string name="settings_credits_seventv_summary">Emotes und Live-Aktualisierung</string>
+    <string name="settings_credits_seventv_summary">Emotes</string>
     <string name="settings_credits_bttv">BetterTTV</string>
     <string name="settings_credits_bttv_summary">Emotes</string>
     <string name="settings_credits_ffz">FrankerFaceZ</string>
@@ -256,7 +256,7 @@
 
     <string name="settings_group_muted">Stummgeschaltet</string>
     <string name="settings_mute_keywords">Stumme Wörter</string>
-    <string name="settings_mute_keywords_summary">Wörter, die eine Nachricht aus dem Chat halten</string>
+    <string name="settings_mute_keywords_summary">Wörter, die im Chat ausgeblendet werden</string>
     <string name="settings_mute_keywords_hint">Nachrichten mit dem Wort und Nachrichten von Chattern dieses Namens werden ausgeblendet</string>
     <string name="keywords_none">Keine Hervorhebungswörter</string>
     <string name="mute_keywords_none">Keine stummen Wörter</string>
@@ -280,15 +280,15 @@
         <item quantity="other">%d blockierte Chatter</item>
     </plurals>
     <string name="block_user_title">Nutzer blockieren</string>
-    <string name="block_user_name">Twitch-Name</string>
+    <string name="block_user_name">Twitch Username</string>
     <string name="unblock_confirm_title">Entblocken?</string>
-    <string name="unblock_confirm_text">%s taucht wieder im Chat auf, hier und überall sonst auf Twitch.</string>
+    <string name="unblock_confirm_text">%s wird dir wieder auf Twitch angezeigt</string>
     <string name="error_block_failed">Twitch hat das abgelehnt. Bitte noch einmal versuchen</string>
-    <string name="error_user_unknown">Kein Twitch-Nutzer mit diesem Namen</string>
+    <string name="error_user_unknown">Kein Twitch Nutzer mit diesem Namen</string>
 
     <!-- Spitznamen -->
     <string name="nickname_title">Spitzname</string>
-    <string name="nickname_hint">Wird statt des Twitch-Namens angezeigt, in jedem Kanal. Leer lassen, um ihn zurückzusetzen</string>
+    <string name="nickname_hint">Wird statt des Twitch Username angezeigt, in jedem Kanal. Leer lassen, um ihn zurückzusetzen</string>
 
     <!-- Badges -->
     <string name="settings_badge_providers">Badges</string>
@@ -310,7 +310,7 @@
     <!-- Chat-Bubble -->
     <string name="settings_group_bubbles">Chat-Bubble</string>
     <string name="settings_bubbles">Bubbles</string>
-    <string name="settings_bubbles_hint">Erwähnungen lassen sich als schwebender Chat über anderen Apps öffnen. Android fragt beim ersten Mal nach der Erlaubnis</string>
+    <string name="settings_bubbles_hint">Erwähnungen können als Chat Bubble angezeigt werden</string>
     <string name="bubble_unavailable">Chatter öffnen, um diesen Kanal zu lesen</string>
 
     <!-- Erwähnungen -->
@@ -324,9 +324,9 @@
     <string name="inbox_tab_whispers">Flüstern</string>
     <string name="inbox_from">%1$s in %2$s</string>
     <string name="inbox_whispers_empty">Keine Flüsternachrichten</string>
-    <string name="inbox_whispers_empty_hint">Was dir auf Twitch geflüstert wird, landet hier. Dafür braucht Chatter eine Berechtigung, die es erst seit dieser Version anfragt — wenn nie etwas ankommt, melde dich einmal neu an</string>
+    <string name="inbox_whispers_empty_hint">Hier erscheinen Flüsternachrichten. Aktuell ist es hier leer</string>
     <string name="inbox_empty">Keine Erwähnungen</string>
-    <string name="inbox_empty_hint">Alles, was dir jemand schreibt, landet hier — aus jedem Kanal und so lange, bis du es leerst</string>
+    <string name="inbox_empty_hint">Alle Nachrichten mit Erwähnungen oder hervorgehobenen Wörtern erscheinen hier</string>
     <string name="inbox_mark_all_read">Alle als gelesen markieren</string>
     <string name="inbox_clear">Leeren</string>
 
@@ -362,10 +362,10 @@
     <!-- Backup -->
     <string name="settings_group_backup">Backup</string>
     <string name="backup_export">Einstellungen sichern</string>
-    <string name="backup_export_hint">Einstellungen, Regeln, Spitznamen und Kanäle als Datei — für ein neues Handy oder eine Kopie vor dem Herumprobieren</string>
+    <string name="backup_export_hint">Erstelle ein Backup aller Einstellungen. Die Datei wird auf dem System gespeichert</string>
     <string name="backup_save">Sichern</string>
     <string name="backup_import">Einstellungen wiederherstellen</string>
-    <string name="backup_import_hint">Liest eine Datei, die Chatter geschrieben hat. Was darin steht, ersetzt das, was hier eingestellt ist</string>
+    <string name="backup_import_hint">Lade ein Chatter Backup. Alte Einstellungen werden mit denen vom Backup überschrieben</string>
     <string name="backup_exported">Einstellungen gesichert</string>
     <string name="backup_imported">Einstellungen wiederhergestellt</string>
     <string name="backup_invalid">Das ist kein Chatter-Backup</string>
