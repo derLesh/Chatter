@@ -244,7 +244,9 @@ private fun SettingsPageScaffold(title: Int?, onBack: () -> Unit, content: @Comp
         IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Filled.ArrowBack, stringResource(R.string.back)) }
     }
     Scaffold(
-        modifier = Modifier.nestedScroll(scrollBehavior.nestedScrollConnection),
+        // Only the large bar collapses. A page without one (the about page) has nothing for this
+        // connection to move, and it would swallow every scroll rather than pass it on.
+        modifier = if (title != null) Modifier.nestedScroll(scrollBehavior.nestedScrollConnection) else Modifier,
         containerColor = MaterialTheme.colorScheme.surface,
         topBar = {
             // Without a heading a large bar would just be empty space, so it shrinks to a plain one.
