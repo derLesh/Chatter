@@ -8,6 +8,7 @@ import android.content.Intent
 import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
 import androidx.core.app.Person
+import androidx.core.app.RemoteInput
 import androidx.core.content.LocusIdCompat
 import androidx.core.content.pm.ShortcutInfoCompat
 import androidx.core.content.pm.ShortcutManagerCompat
@@ -22,6 +23,7 @@ import dev.chatter.app.MainActivity
 import dev.chatter.app.R
 import dev.chatter.app.channels.ChannelRepository
 import dev.chatter.app.chat.ChatItem
+import dev.chatter.app.chat.MessageKind
 import dev.chatter.app.settings.Settings
 import dev.chatter.app.ui.bubble.BubbleActivity
 import kotlinx.coroutines.flow.StateFlow
@@ -63,6 +65,34 @@ class MentionNotifier(
         post(item, channelIcon(item.channel))
     }
 
+    /** Shows a message the user sent straight from the notification in that same conversation. */
+    suspend fun showSent(channel: String, text: String) {
+        if (!manager.areNotificationsEnabled()) return
+        post(
+            ChatItem(
+                id = "notification-reply-${System.nanoTime()}", channel = channel, kind = MessageKind.Chat,
+                timestamp = System.currentTimeMillis(), text = text, isOwn = true,
+            ),
+            channelIcon(channel),
+        )
+    }
+
+    /**
+     * Says in the conversation itself that a reply did not go out — the keyboard is long gone by
+     * then, so a message in the thread is the only place the user still looks.
+     */
+    suspend fun showSendFailed(channel: String) {
+        if (!manager.areNotificationsEnabled()) return
+        val text = context.getString(R.string.notif_reply_failed)
+        post(
+            ChatItem(
+                id = "notification-failed-${System.nanoTime()}", channel = channel, kind = MessageKind.Notice,
+                timestamp = System.currentTimeMillis(), text = text, displayName = context.getString(R.string.app_name),
+            ),
+            channelIcon(channel),
+        )
+    }
+
     @Synchronized
     private fun post(item: ChatItem, icon: IconCompat) {
         val lines = recent.getOrPut(item.channel) { ArrayDeque() }
@@ -76,7 +106,9 @@ class MentionNotifier(
             .setConversationTitle("#${item.channel}")
             .setGroupConversation(true)
         lines.forEach { m ->
-            style.addMessage(m.text, m.timestamp, Person.Builder().setName(m.displayName ?: m.login ?: "?").build())
+            // A null person is what MessagingStyle reads as "the user themselves".
+            val from = if (m.isOwn) null else Person.Builder().setName(m.displayName ?: m.login ?: "?").build()
+            style.addMessage(m.text, m.timestamp, from)
         }
 
         val notification = NotificationCompat.Builder(context, CHANNEL_MENTIONS)
@@ -88,6 +120,7 @@ class MentionNotifier(
             .setShortcutId(shortcutId)
             .setLocusId(LocusIdCompat(shortcutId))
             .setContentIntent(openChannelIntent(context, item.channel))
+            .addAction(replyAction(item.channel))
             .apply { if (settings.value.bubbles) setBubbleMetadata(bubbleMetadata(item.channel, icon)) }
             .build()
         try {
@@ -143,6 +176,24 @@ class MentionNotifier(
         return id
     }
 
+    /**
+     * Answering without opening the app. The intent has to be mutable — that is where Android
+     * writes what was typed before handing it to [ReplyReceiver].
+     */
+    private fun replyAction(channel: String): NotificationCompat.Action {
+        val intent = Intent(context, ReplyReceiver::class.java).putExtra(EXTRA_CHANNEL, channel)
+        val pending = PendingIntent.getBroadcast(
+            context, channel.hashCode(), intent,
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_MUTABLE,
+        )
+        val label = context.getString(R.string.notif_reply)
+        return NotificationCompat.Action.Builder(R.drawable.ic_notification, label, pending)
+            .addRemoteInput(RemoteInput.Builder(KEY_REPLY).setLabel(label).build())
+            .setSemanticAction(NotificationCompat.Action.SEMANTIC_ACTION_REPLY)
+            .setShowsUserInterface(false)
+            .build()
+    }
+
     private fun bubbleMetadata(channel: String, icon: IconCompat): NotificationCompat.BubbleMetadata {
         // The data uri makes every channel its own document, so two channels bubble side by side.
         val intent = Intent(context, BubbleActivity::class.java)
@@ -168,6 +219,8 @@ class MentionNotifier(
         private const val SHORTCUT_CATEGORY = "android.shortcut.conversation"
         private const val BUBBLE_HEIGHT_DP = 620
         const val EXTRA_CHANNEL = "channel"
+        /** Where Android puts the text typed into the reply action. */
+        const val KEY_REPLY = "reply"
 
         fun openChannelIntent(context: Context, channel: String?): PendingIntent {
             val intent = Intent(context, MainActivity::class.java)

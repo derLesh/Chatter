@@ -18,6 +18,7 @@ import dev.chatter.app.changelog.ChangelogRepository
 import dev.chatter.app.channels.BlockedUsersRepository
 import dev.chatter.app.channels.ChannelRepository
 import dev.chatter.app.chat.ChatRepository
+import dev.chatter.app.chat.SendResult
 import dev.chatter.app.chat.ChatterRegistry
 import dev.chatter.app.chat.NicknameRepository
 import dev.chatter.app.chat.CommandExecutor
@@ -37,7 +38,9 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withTimeoutOrNull
 import okhttp3.OkHttpClient
 import java.util.concurrent.TimeUnit
 
@@ -176,6 +179,20 @@ class AppContainer(private val context: Context) {
         auth.account?.let { irc.connect(it.login, it.token) }
     }
 
+    /**
+     * Sends a reply typed into a notification. The broadcast that brings it may have started the
+     * process, in which case the token is still being restored and nothing is connected yet — so
+     * this waits for the connection for a moment rather than reporting failure right away.
+     */
+    suspend fun sendFromNotification(channel: String, text: String): Boolean {
+        val ready = withTimeoutOrNull(NOTIFICATION_SEND_TIMEOUT_MS) {
+            auth.state.first { it is AuthState.LoggedIn }
+            connect()
+            chat.readyChannels.first { channel in it }
+        } != null
+        return ready && chat.send(channel, text, replyTo = null) == SendResult.Ok
+    }
+
     fun disconnect() = irc.disconnect()
 
     private fun registerNetworkCallback() {
@@ -183,6 +200,11 @@ class AppContainer(private val context: Context) {
         cm.registerDefaultNetworkCallback(object : ConnectivityManager.NetworkCallback() {
             override fun onAvailable(network: Network) = irc.onNetworkAvailable()
         })
+    }
+
+    private companion object {
+        /** How long a notification reply waits for login and join before giving up. */
+        const val NOTIFICATION_SEND_TIMEOUT_MS = 15_000L
     }
 
     private fun imageLoader(animated: Boolean) = ImageLoader.Builder(context)

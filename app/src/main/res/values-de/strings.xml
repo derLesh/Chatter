@@ -10,6 +10,8 @@
         <item quantity="other">Mit %d Channels verbunden</item>
     </plurals>
     <string name="notif_disconnect">Trennen</string>
+    <string name="notif_reply">Antworten</string>
+    <string name="notif_reply_failed">Deine Antwort konnte nicht gesendet werden</string>
 
     <!-- Chat system messages -->
     <string name="chat_reconnected">Wieder verbunden.</string>

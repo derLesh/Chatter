@@ -98,6 +98,13 @@ class ChatRepository(
     /** Active chat modes (slow, followers-only, ...) per channel. */
     val roomStates: StateFlow<Map<String, RoomState>> = _roomStates
 
+    private val _readyChannels = MutableStateFlow<Set<String>>(emptySet())
+    /**
+     * Channels Twitch has confirmed the join for. Its ROOMSTATE is the answer to a JOIN, so it is
+     * the first moment a message sent to that channel is actually accepted.
+     */
+    val readyChannels: StateFlow<Set<String>> = _readyChannels
+
     private val _roles = MutableStateFlow<Map<String, ChatRole>>(emptyMap())
     /** The user's role (VIP, moderator, broadcaster) per channel. */
     val roles: StateFlow<Map<String, ChatRole>> = _roles
@@ -249,6 +256,7 @@ class ChatRepository(
         _modChannels.value = emptySet()
         _roomStates.value = emptyMap()
         _roles.value = emptyMap()
+        _readyChannels.value = emptySet()
         joinedChannels = emptyList()
         flows.values.forEach { it.value = emptyList() }
         _unreadMentions.value = emptyMap()
@@ -279,6 +287,7 @@ class ChatRepository(
             _roomStates.update { it - ch }
             _roles.update { it - ch }
             flowWatchers.remove(ch)?.cancel()
+            _readyChannels.update { it - ch }
             clearUnread(ch)
         }
         added.forEach { ch ->
@@ -383,6 +392,7 @@ class ChatRepository(
             "CLEARMSG" -> if (channel != null) msg.tag("target-msg-id")?.let { id -> markDeleted(channel) { it.id == id } }
             "ROOMSTATE" -> if (channel != null) {
                 _roomStates.update { it + (channel to (it[channel] ?: RoomState()).update(msg.tags)) }
+                _readyChannels.update { it + channel }
                 msg.tag("room-id")?.let { id ->
                     if (roomIds.put(channel, id) == null) scope.launch { loadEmotesAndBadges(id) }
                 }

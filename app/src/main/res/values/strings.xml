@@ -12,6 +12,8 @@
         <item quantity="other">Connected to %d channels</item>
     </plurals>
     <string name="notif_disconnect">Disconnect</string>
+    <string name="notif_reply">Reply</string>
+    <string name="notif_reply_failed">Your reply could not be sent</string>
 
     <!-- Chat system messages -->
     <string name="chat_reconnected">Reconnected.</string>

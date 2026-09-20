@@ -63,6 +63,11 @@
             </intent-filter>
         </activity-alias>
 
+        <!-- Takes the text typed into the reply action of a mention notification. -->
+        <receiver
+            android:name=".service.ReplyReceiver"
+            android:exported="false" />
+
         <service
             android:name=".service.ChatService"
             android:exported="false"
