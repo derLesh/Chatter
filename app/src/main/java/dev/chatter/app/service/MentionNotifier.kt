@@ -139,19 +139,23 @@ class MentionNotifier(
 
     private fun channelName(channel: String): String = channels.info.value[channel]?.displayName ?: channel
 
-    /**
-     * The channel avatar, falling back to the app icon. Android needs a real icon for a bubble,
-     * and an adaptive bitmap is what it crops into the round conversation shape.
-     */
+    /** The channel avatar, falling back to the app icon. */
     private suspend fun channelIcon(channel: String): IconCompat {
         icons[channel]?.let { return it }
-        val fallback = IconCompat.createWithResource(context, R.mipmap.ic_launcher)
-        val url = channels.info.value[channel]?.avatarUrl ?: return fallback
+        val url = channels.info.value[channel]?.avatarUrl
+        val icon = url?.let { loadIcon(it) } ?: return IconCompat.createWithResource(context, R.mipmap.ic_launcher)
+        return icon.also { icons[channel] = it }
+    }
+
+    /**
+     * Downloads a picture as a notification icon. Deliberately not an adaptive icon: Android
+     * crops those to their inner safe zone, which blows an avatar up and cuts its edges off.
+     */
+    private suspend fun loadIcon(url: String): IconCompat? {
         // Hardware bitmaps cannot leave the process, and a notification icon does exactly that.
-        val request = ImageRequest.Builder(context).data(url).allowHardware(false).build()
+        val request = ImageRequest.Builder(context).data(url).size(ICON_SIZE_PX).allowHardware(false).build()
         val image = (runCatching { imageLoader.execute(request) }.getOrNull() as? SuccessResult)?.image
-        val bitmap = (image as? BitmapImage)?.bitmap ?: return fallback
-        return IconCompat.createWithAdaptiveBitmap(bitmap).also { icons[channel] = it }
+        return (image as? BitmapImage)?.bitmap?.let { IconCompat.createWithBitmap(it) }
     }
 
     /**
@@ -214,6 +218,8 @@ class MentionNotifier(
         private const val SHORTCUT_PREFIX = "channel:"
         private const val SHORTCUT_CATEGORY = "android.shortcut.conversation"
         private const val BUBBLE_HEIGHT_DP = 620
+        /** Android shows notification icons small; anything larger is wasted memory. */
+        private const val ICON_SIZE_PX = 192
         const val EXTRA_CHANNEL = "channel"
         /** Where Android puts the text typed into the reply action. */
         const val KEY_REPLY = "reply"

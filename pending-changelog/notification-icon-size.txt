@@ -1,0 +1,1 @@
+patch: Show the channel picture in a notification at its real size instead of zoomed in
