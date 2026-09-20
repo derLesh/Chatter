@@ -16,6 +16,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -58,74 +59,77 @@ fun BubbleScreen(vm: MainViewModel, channel: String?) {
     var emoteCard by remember { mutableStateOf<Segment.EmoteSeg?>(null) }
     var showPicker by remember { mutableStateOf(false) }
 
-    Column(
-        Modifier
-            .fillMaxSize()
-            .background(MaterialTheme.colorScheme.background)
-            .windowInsetsPadding(WindowInsets.ime.union(WindowInsets.navigationBars)),
-    ) {
-        if (channel == null || auth !is AuthState.LoggedIn) {
-            Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                Text(
-                    stringResource(R.string.bubble_unavailable),
-                    textAlign = TextAlign.Center,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.padding(24.dp),
-                )
-            }
-            return@Column
-        }
-
-        Row(
-            verticalAlignment = Alignment.CenterVertically,
-            modifier = Modifier
-                .fillMaxWidth()
-                .background(MaterialTheme.colorScheme.surfaceContainer)
-                .padding(horizontal = 12.dp, vertical = 8.dp),
+    // A Surface, not just a background color: it is what sets the content color for everything
+    // inside. Without it the text keeps Compose's default black and vanishes in a dark theme.
+    Surface(color = MaterialTheme.colorScheme.background, modifier = Modifier.fillMaxSize()) {
+        Column(
+            Modifier
+                .fillMaxSize()
+                .windowInsetsPadding(WindowInsets.ime.union(WindowInsets.navigationBars)),
         ) {
-            ChannelAvatar(info[channel], loader, 28.dp)
-            Spacer(Modifier.width(10.dp))
-            Column(Modifier.weight(1f)) {
-                Text(
-                    info[channel]?.displayName ?: channel,
-                    style = MaterialTheme.typography.titleSmall,
-                    maxLines = 1,
-                )
-                if (connection != ConnectionState.Connected) {
+            if (channel == null || auth !is AuthState.LoggedIn) {
+                Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                     Text(
-                        stringResource(R.string.status_connecting),
-                        style = MaterialTheme.typography.labelSmall,
+                        stringResource(R.string.bubble_unavailable),
+                        textAlign = TextAlign.Center,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.padding(24.dp),
                     )
                 }
+                return@Column
             }
-        }
-        HorizontalDivider()
 
-        ChatList(
-            messages = remember(channel) { vm.chat(channel) },
-            style = style,
-            imageLoader = loader,
-            // No user card in here: a bubble is too small for a sheet, and what one wants from a
-            // message in a bubble is to answer it.
-            onAction = { vm.startReply(it) },
-            modifier = Modifier.weight(1f),
-            smoothScrolling = settings.smoothScrolling,
-            onEmoteClick = { emoteCard = it },
-        )
-        InputBar(
-            value = vm.input,
-            onValueChange = vm::onInputChange,
-            enabled = connection == ConnectionState.Connected,
-            replyTo = vm.replyTo,
-            suggestions = vm.suggestions,
-            imageLoader = loader,
-            onSuggestion = vm::applySuggestion,
-            onCancelReply = vm::cancelReply,
-            onEmotePicker = { showPicker = true },
-            onSend = vm::send,
-            modifier = Modifier.fillMaxWidth(),
-        )
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .background(MaterialTheme.colorScheme.surfaceContainer)
+                    .padding(horizontal = 12.dp, vertical = 8.dp),
+            ) {
+                ChannelAvatar(info[channel], loader, 28.dp)
+                Spacer(Modifier.width(10.dp))
+                Column(Modifier.weight(1f)) {
+                    Text(
+                        info[channel]?.displayName ?: channel,
+                        style = MaterialTheme.typography.titleSmall,
+                        maxLines = 1,
+                    )
+                    if (connection != ConnectionState.Connected) {
+                        Text(
+                            stringResource(R.string.status_connecting),
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                }
+            }
+            HorizontalDivider()
+
+            ChatList(
+                messages = remember(channel) { vm.chat(channel) },
+                style = style,
+                imageLoader = loader,
+                // No user card in here: a bubble is too small for a sheet, and what one wants from a
+                // message in a bubble is to answer it.
+                onAction = { vm.startReply(it) },
+                modifier = Modifier.weight(1f),
+                smoothScrolling = settings.smoothScrolling,
+                onEmoteClick = { emoteCard = it },
+            )
+            InputBar(
+                value = vm.input,
+                onValueChange = vm::onInputChange,
+                enabled = connection == ConnectionState.Connected,
+                replyTo = vm.replyTo,
+                suggestions = vm.suggestions,
+                imageLoader = loader,
+                onSuggestion = vm::applySuggestion,
+                onCancelReply = vm::cancelReply,
+                onEmotePicker = { showPicker = true },
+                onSend = vm::send,
+                modifier = Modifier.fillMaxWidth(),
+            )
+        }
     }
 
     emoteCard?.let { seg ->
