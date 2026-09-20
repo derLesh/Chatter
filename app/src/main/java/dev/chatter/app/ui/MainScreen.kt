@@ -109,7 +109,10 @@ fun MainScreen(vm: MainViewModel, onInbox: () -> Unit, onSettings: () -> Unit) {
     var renameTarget by remember { mutableStateOf<String?>(null) }
     var nicknameTarget by remember { mutableStateOf<ChatItem?>(null) }
 
-    val loader = if (settings.animatedEmotes) vm.imageLoader else vm.staticImageLoader
+    // Animated emotes are the most expensive thing on the screen, and the battery saver is the
+    // phone being asked to do less — so it stills them, the same way the setting does.
+    val powerSave by vm.powerSaveMode.collectAsStateWithLifecycle()
+    val loader = if (settings.animatedEmotes && !powerSave) vm.imageLoader else vm.staticImageLoader
     val style = rememberChatStyle(settings, nicknames)
 
     // Only while the chat is on screen; leaving it (or the settings) lets the screen sleep again.

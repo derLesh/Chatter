@@ -1,8 +1,12 @@
 package dev.chatter.app
 
+import android.content.BroadcastReceiver
 import android.content.Context
+import android.content.Intent
+import android.content.IntentFilter
 import android.net.ConnectivityManager
 import android.net.Network
+import android.os.PowerManager
 import androidx.datastore.preferences.preferencesDataStore
 import coil3.ImageLoader
 import coil3.disk.DiskCache
@@ -47,6 +51,8 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withTimeoutOrNull
@@ -140,6 +146,10 @@ class AppContainer(private val context: Context) {
     val notifier = ChatNotifier(context, channels, helix, settings.settings, channelIcons)
     private val shortcuts = ChannelShortcuts(context, channels.identities, channelIcons, scope)
 
+    private val _powerSaveMode = MutableStateFlow(false)
+    /** True while Android's battery saver is on. */
+    val powerSaveMode: StateFlow<Boolean> = _powerSaveMode
+
     fun start() {
         notifier.createChannels()
         chat.start()
@@ -211,6 +221,7 @@ class AppContainer(private val context: Context) {
             }
         }
         registerNetworkCallback()
+        watchPowerSaveMode()
     }
 
     /** Opens the chat connection if a user is logged in. Safe to call repeatedly. */
@@ -245,6 +256,23 @@ class AppContainer(private val context: Context) {
     }
 
     fun disconnect() = irc.disconnect()
+
+    /**
+     * Android's battery saver. Someone who turned it on has asked the whole phone to do less, so
+     * the chat draws its emotes as stills for as long as it lasts, whatever the setting says.
+     */
+    private fun watchPowerSaveMode() {
+        val power = context.getSystemService(PowerManager::class.java)
+        _powerSaveMode.value = power.isPowerSaveMode
+        context.registerReceiver(
+            object : BroadcastReceiver() {
+                override fun onReceive(context: Context?, intent: Intent?) {
+                    _powerSaveMode.value = power.isPowerSaveMode
+                }
+            },
+            IntentFilter(PowerManager.ACTION_POWER_SAVE_MODE_CHANGED),
+        )
+    }
 
     private fun registerNetworkCallback() {
         val cm = context.getSystemService(ConnectivityManager::class.java)

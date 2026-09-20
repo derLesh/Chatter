@@ -64,6 +64,7 @@ class MainViewModel(private val c: AppContainer) : ViewModel() {
     val connection = c.irc.state
     val activeChannel = c.chat.activeChannel
     val modChannels = c.chat.modChannels
+    val powerSaveMode = c.powerSaveMode
     val roomStates = c.chat.roomStates
     val roles = c.chat.roles
     val emoteVersion = c.emotes.version
