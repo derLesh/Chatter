@@ -66,6 +66,8 @@ class MainViewModel(private val c: AppContainer) : ViewModel() {
     val inboxMentions = c.inbox.mentions
     val inboxUnread = c.inbox.unreadCount
     val releases = c.changelog.releases
+    /** Every mention as it arrives, for the feedback the chat screen gives while it is open. */
+    val mentions = c.chat.allMentions
     /** The releases the user has not read yet, shown once after an update. */
     val unreadReleases = c.changelog.unread
 
@@ -353,6 +355,10 @@ class MainViewModel(private val c: AppContainer) : ViewModel() {
 
     fun setUnreadInTitleBar(v: Boolean) {
         viewModelScope.launch { c.settings.setUnreadInTitleBar(v) }
+    }
+
+    fun setHaptics(v: Boolean) {
+        viewModelScope.launch { c.settings.setHaptics(v) }
     }
 
     fun setKeepScreenOn(v: Boolean) {

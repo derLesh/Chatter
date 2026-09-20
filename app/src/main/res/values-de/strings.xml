@@ -313,6 +313,10 @@
     <string name="bubble_unavailable">Chatter öffnen, um diesen Kanal zu lesen</string>
 
     <!-- Erwähnungen -->
+    <string name="settings_group_haptics">Haptik</string>
+    <string name="settings_haptics">Haptisches Feedback</string>
+    <string name="settings_haptics_hint">Kurzes Vibrieren, wenn eine Erwähnung eintrifft, während du liest, wenn du eine Nachricht gedrückt hältst und wenn etwas nicht durchgeht</string>
+
     <string name="shortcut_inbox">Postfach</string>
     <string name="inbox_title">Erwähnungen</string>
     <string name="inbox_from">%1$s in %2$s</string>

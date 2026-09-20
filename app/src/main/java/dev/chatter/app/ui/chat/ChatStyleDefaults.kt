@@ -17,7 +17,8 @@ fun rememberChatStyle(settings: Settings, nicknames: Map<String, String>): ChatS
     val colors = MaterialTheme.colorScheme
     return remember(
         settings.fontSize, settings.timestamps, settings.highlightColor, settings.alternateBackground,
-        settings.showDeleted, settings.nameColors, settings.highlightFirstMessages, nicknames, dark, colors,
+        settings.showDeleted, settings.nameColors, settings.highlightFirstMessages, settings.haptics,
+        nicknames, dark, colors,
     ) {
         ChatStyle(
             fontSize = settings.fontSize,
@@ -33,6 +34,7 @@ fun rememberChatStyle(settings: Settings, nicknames: Map<String, String>): ChatS
             showDeleted = settings.showDeleted,
             nameColors = settings.nameColors,
             nicknames = nicknames,
+            haptics = settings.haptics,
         )
     }
 }

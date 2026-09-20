@@ -73,6 +73,8 @@ data class ChatStyle(
     val nameColors: NameColorPalette,
     /** Names the user gave chatters, by lowercase login. Usually empty. */
     val nicknames: Map<String, String>,
+    /** Whether holding a message is answered with a short vibration. */
+    val haptics: Boolean,
 )
 
 private const val BADGE_EM = 1.35f
@@ -134,7 +136,11 @@ fun MessageRow(
         Modifier
             .fillMaxWidth()
             .background(background)
-            .combinedClickable(onClick = { onAction(item) }, onLongClick = { onAction(item) })
+            .combinedClickable(
+                onClick = { onAction(item) },
+                onLongClick = { onAction(item) },
+                hapticFeedbackEnabled = style.haptics,
+            )
             .padding(horizontal = 8.dp, vertical = 2.dp)
             .alpha(
                 when {

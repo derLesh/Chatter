@@ -318,6 +318,10 @@
     <string name="settings_bubbles_hint">Mentions can be opened as a floating chat over other apps. Android may ask for permission the first time</string>
     <string name="bubble_unavailable">Open Chatter to read this channel</string>
 
+    <string name="settings_group_haptics">Haptics</string>
+    <string name="settings_haptics">Haptic feedback</string>
+    <string name="settings_haptics_hint">A short buzz when a mention arrives while you are reading, when you hold a message, and when something does not go through</string>
+
     <!-- Launcher shortcuts -->
     <string name="shortcut_inbox">Inbox</string>
 

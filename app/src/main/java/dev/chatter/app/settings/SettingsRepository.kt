@@ -70,6 +70,11 @@ data class Settings(
     val badgeProviders: Set<BadgeProvider> = BadgeProvider.entries.toSet(),
     /** The emote providers whose emotes are shown; the others stay plain text. */
     val emoteProviders: Set<EmoteProvider> = EmoteProvider.entries.toSet(),
+    /**
+     * Short vibrations for the things that happen without the user asking: a mention arriving
+     * under their eyes, a message held, a send that did not go out.
+     */
+    val haptics: Boolean = true,
     /** Keep the screen awake while the chat is on screen. */
     val keepScreenOn: Boolean = false,
     /** Offer mention notifications as a floating chat bubble over other apps. */
@@ -118,6 +123,7 @@ class SettingsRepository(
             userSuggestions = p[USER_SUGGESTIONS] ?: true,
             mentionWithAt = p[MENTION_WITH_AT] ?: true,
             showDeleted = p[SHOW_DELETED] ?: true,
+            haptics = p[HAPTICS] ?: true,
             keepScreenOn = p[KEEP_SCREEN_ON] ?: false,
             bubbles = p[BUBBLES] ?: false,
             senderAvatars = p[SENDER_AVATARS] ?: true,
@@ -155,6 +161,7 @@ class SettingsRepository(
     suspend fun setUserSuggestions(v: Boolean) = store.edit { it[USER_SUGGESTIONS] = v }
     suspend fun setMentionWithAt(v: Boolean) = store.edit { it[MENTION_WITH_AT] = v }
     suspend fun setShowDeleted(v: Boolean) = store.edit { it[SHOW_DELETED] = v }
+    suspend fun setHaptics(v: Boolean) = store.edit { it[HAPTICS] = v }
     suspend fun setKeepScreenOn(v: Boolean) = store.edit { it[KEEP_SCREEN_ON] = v }
     suspend fun setBubbles(v: Boolean) = store.edit { it[BUBBLES] = v }
     suspend fun setSenderAvatars(v: Boolean) = store.edit { it[SENDER_AVATARS] = v }
@@ -198,6 +205,7 @@ class SettingsRepository(
         p[USER_SUGGESTIONS] = s.userSuggestions
         p[MENTION_WITH_AT] = s.mentionWithAt
         p[SHOW_DELETED] = s.showDeleted
+        p[HAPTICS] = s.haptics
         p[KEEP_SCREEN_ON] = s.keepScreenOn
         p[BUBBLES] = s.bubbles
         p[SENDER_AVATARS] = s.senderAvatars
@@ -236,6 +244,7 @@ class SettingsRepository(
         val USER_SUGGESTIONS = booleanPreferencesKey("user_suggestions")
         val MENTION_WITH_AT = booleanPreferencesKey("mention_with_at")
         val SHOW_DELETED = booleanPreferencesKey("show_deleted")
+        val HAPTICS = booleanPreferencesKey("haptics")
         val KEEP_SCREEN_ON = booleanPreferencesKey("keep_screen_on")
         val BUBBLES = booleanPreferencesKey("chat_bubbles")
         val SENDER_AVATARS = booleanPreferencesKey("notification_sender_avatars")

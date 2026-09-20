@@ -37,6 +37,8 @@ import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalResources
@@ -66,6 +68,7 @@ import dev.chatter.app.ui.chat.InputBar
 import dev.chatter.app.ui.chat.NicknameDialog
 import dev.chatter.app.ui.chat.UserCardSheet
 import dev.chatter.app.ui.inbox.MentionInboxScreen
+import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.launch
 
@@ -134,8 +137,24 @@ fun MainScreen(vm: MainViewModel, onInbox: () -> Unit, onSettings: () -> Unit) {
         }
     }
 
-    LaunchedEffect(resources) {
-        vm.messages.collect { snackbar.showSnackbar(resources.getString(it)) }
+    val haptics = LocalHapticFeedback.current
+    LaunchedEffect(resources, settings.haptics) {
+        vm.messages.collect {
+            // Everything that reaches the snackbar is something that did not work out.
+            if (settings.haptics) haptics.performHapticFeedback(HapticFeedbackType.Reject)
+            snackbar.showSnackbar(resources.getString(it))
+        }
+    }
+
+    // Only the mentions that arrive under the user's eyes. The others buzz through their
+    // notification, and both at once would be one buzz too many.
+    LaunchedEffect(lifecycleOwner, settings.haptics) {
+        if (!settings.haptics) return@LaunchedEffect
+        lifecycleOwner.repeatOnLifecycle(Lifecycle.State.STARTED) {
+            vm.mentions.filter { it.seen }.collect {
+                haptics.performHapticFeedback(HapticFeedbackType.Confirm)
+            }
+        }
     }
 
     // Back to the channel the user was reading. The pager cannot do this itself: when the screen

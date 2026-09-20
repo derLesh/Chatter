@@ -352,6 +352,15 @@ private fun AppearancePage(settings: Settings, vm: MainViewModel) {
         }
     }
 
+    SettingsGroup(R.string.settings_group_haptics) {
+        item {
+            SwitchItem(
+                R.string.settings_haptics, settings.haptics,
+                vm::setHaptics, R.string.settings_haptics_hint,
+            )
+        }
+    }
+
     SettingsGroup(R.string.settings_group_emotes) {
         item { SwitchItem(R.string.settings_emotes_enabled, settings.emotesEnabled, vm::setEmotesEnabled, R.string.settings_emotes_new_messages_hint) }
         item { SwitchItem(R.string.settings_animated_emotes, settings.animatedEmotes, vm::setAnimatedEmotes) }
@@ -388,6 +397,7 @@ private fun TextSizeItem(settings: Settings, vm: MainViewModel) {
         showDeleted = true,
         nameColors = settings.nameColors,
         nicknames = emptyMap(),
+        haptics = false,
     )
     ListItem(
         headlineContent = { Text(stringResource(R.string.settings_font_size, size.roundToInt())) },
