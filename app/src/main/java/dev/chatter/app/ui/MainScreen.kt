@@ -82,6 +82,7 @@ fun MainScreen(vm: MainViewModel, onSettings: () -> Unit) {
     val modChannels by vm.modChannels.collectAsStateWithLifecycle()
     val roomStates by vm.roomStates.collectAsStateWithLifecycle()
     val roles by vm.roles.collectAsStateWithLifecycle()
+    val blockedLogins by vm.blockedLogins.collectAsStateWithLifecycle()
 
     val context = LocalContext.current
     val lifecycleOwner = LocalLifecycleOwner.current
@@ -236,6 +237,8 @@ fun MainScreen(vm: MainViewModel, onSettings: () -> Unit) {
             style = style,
             imageLoader = loader,
             load = { vm.loadUserCard(item) },
+            blocked = item.login?.lowercase() in blockedLogins,
+            onBlock = vm::setBlocked,
             onReply = { vm.startReply(item) },
             onMention = { vm.mention(item) },
             onDelete = { vm.deleteMessage(item) },

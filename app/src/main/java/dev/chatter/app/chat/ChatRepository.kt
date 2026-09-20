@@ -5,6 +5,7 @@ import android.util.Log
 import dev.chatter.app.R
 import dev.chatter.app.auth.AuthRepository
 import dev.chatter.app.badges.BadgeRepository
+import dev.chatter.app.channels.BlockedUsersRepository
 import dev.chatter.app.channels.ChannelRepository
 import dev.chatter.app.emotes.EmoteRepository
 import dev.chatter.app.irc.ConnectionState
@@ -56,6 +57,7 @@ class ChatRepository(
     private val auth: AuthRepository,
     private val commands: CommandExecutor,
     private val chatterRegistry: ChatterRegistry,
+    private val blocked: BlockedUsersRepository,
     private val settings: StateFlow<Settings>,
     private val scope: CoroutineScope,
 ) {
@@ -116,11 +118,13 @@ class ChatRepository(
         scope.launch(worker) { irc.messages.collect { handle(it) } }
 
         scope.launch(worker) {
-            combine(auth.state, settings) { _, s -> s }.collect { s ->
-                mentions = MentionMatcher(auth.account?.login.orEmpty(), s.mentionKeywords)
-                muted = MuteFilter(s.muteKeywords)
-                trimAll(s.messageLimit)
-            }
+            combine(auth.state, settings, blocked.logins) { _, s, blockedLogins -> s to blockedLogins }
+                .collect { (s, blockedLogins) ->
+                    mentions = MentionMatcher(auth.account?.login.orEmpty(), s.mentionKeywords)
+                    muted = MuteFilter(s.muteKeywords, blockedLogins)
+                    dropMuted()
+                    trimAll(s.messageLimit)
+                }
         }
 
         scope.launch(worker) {
@@ -219,6 +223,17 @@ class ChatRepository(
     /** Runs a moderation command (e.g. from the message actions) and reports the result in the chat. */
     fun runCommand(channel: String, command: ChatCommand) = scope.launch(worker) {
         system(channel, commands.execute(command, roomIds[channel]))
+    }
+
+    /** Removes everything a newly blocked or muted chatter said from the buffers. */
+    private fun dropMuted() {
+        buffers.forEach { (channel, buffer) ->
+            val ids = bufferIds[channel]
+            val removed = buffer.removeAll { item ->
+                muted.mutes(item).also { if (it) ids?.remove(item.id) }
+            }
+            if (removed) markDirty(channel)
+        }
     }
 
     /** Drops all buffers, e.g. after logout. */

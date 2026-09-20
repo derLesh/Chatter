@@ -262,6 +262,7 @@ class AuthRepository(
         const val REDIRECT_URI = "http://localhost"
         val SCOPES = listOf(
             "chat:read", "chat:edit", "user:read:emotes", "user:read:follows", "user:manage:chat_color",
+            "user:read:blocked_users", "user:manage:blocked_users",
             // Moderation commands (only work where the user is moderator/broadcaster).
             "moderator:manage:banned_users", "moderator:manage:chat_messages", "moderator:manage:chat_settings",
             "moderator:manage:announcements", "moderator:manage:shoutouts",

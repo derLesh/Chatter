@@ -72,6 +72,28 @@ class HelixApi(
     suspend fun channelEmotes(channelId: String): List<HelixEmote> =
         http.getJson<HelixList<HelixEmote>>(url("chat/emotes", "broadcaster_id" to channelId), headers()).data
 
+    /** The users the logged-in user blocked on Twitch. Paginated, a few hundred at most. */
+    suspend fun blockedUsers(userId: String): List<HelixBlockedUser> {
+        val all = ArrayList<HelixBlockedUser>()
+        var cursor: String? = null
+        do {
+            val page = http.getJson<HelixPagedList<HelixBlockedUser>>(
+                url("users/blocks", "broadcaster_id" to userId, "first" to "100", "after" to cursor), headers(),
+            )
+            all += page.data
+            cursor = page.pagination?.cursor
+        } while (!cursor.isNullOrEmpty())
+        return all
+    }
+
+    suspend fun setBlocked(targetUserId: String, blocked: Boolean) {
+        http.send(
+            if (blocked) "PUT" else "DELETE",
+            url("users/blocks", "target_user_id" to targetUserId),
+            headers(),
+        )
+    }
+
     suspend fun isFollowing(userId: String, channelId: String): Boolean =
         http.getJson<HelixList<JsonObject>>(url("channels/followed", "user_id" to userId, "broadcaster_id" to channelId), headers())
             .data.isNotEmpty()
@@ -193,6 +215,13 @@ data class HelixBadgeVersion(
     @SerialName("image_url_1x") val url1x: String = "",
     @SerialName("image_url_2x") val url2x: String = "",
     @SerialName("image_url_4x") val url4x: String = "",
+)
+
+@Serializable
+data class HelixBlockedUser(
+    @SerialName("user_id") val userId: String,
+    @SerialName("user_login") val userLogin: String = "",
+    @SerialName("display_name") val displayName: String = "",
 )
 
 @Serializable

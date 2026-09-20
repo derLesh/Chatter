@@ -20,6 +20,8 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Send
+import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.Clear
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.Person
@@ -56,6 +58,7 @@ import coil3.ImageLoader
 import coil3.compose.AsyncImage
 import dev.chatter.app.R
 import dev.chatter.app.chat.ChatItem
+import dev.chatter.app.net.HelixUser
 import dev.chatter.app.ui.UserCardData
 import dev.chatter.app.ui.theme.readableNameColor
 import java.time.Instant
@@ -75,6 +78,8 @@ fun UserCardSheet(
     style: ChatStyle,
     imageLoader: ImageLoader,
     load: suspend () -> UserCardData,
+    blocked: Boolean,
+    onBlock: (HelixUser, Boolean) -> Unit,
     onReply: () -> Unit,
     onMention: () -> Unit,
     onDelete: () -> Unit,
@@ -131,6 +136,22 @@ fun UserCardSheet(
                     ActionButton(Icons.Default.Share, R.string.action_copy) {
                         clipboard.setText(AnnotatedString(item.text.ifEmpty { item.systemText.orEmpty() }))
                         onDismiss()
+                    }
+                }
+            }
+
+            // Blocking needs the profile (for the Twitch id), so it waits for the card to load.
+            data?.user?.takeIf { isUserMessage && !item.isOwn }?.let { user ->
+                item {
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
+                    ) {
+                        ModButton(
+                            icon = if (blocked) Icons.Default.Check else Icons.Default.Clear,
+                            label = if (blocked) R.string.action_unblock else R.string.action_block,
+                            danger = !blocked,
+                        ) { onBlock(user, !blocked); onDismiss() }
                     }
                 }
             }

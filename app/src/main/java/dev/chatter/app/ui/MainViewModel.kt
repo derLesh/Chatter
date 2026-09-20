@@ -19,6 +19,7 @@ import dev.chatter.app.chat.SendResult
 import dev.chatter.app.emotes.Emote
 import dev.chatter.app.emotes.EmoteProvider
 import dev.chatter.app.net.HelixChannelSearch
+import dev.chatter.app.net.HelixBlockedUser
 import dev.chatter.app.net.HelixUser
 import dev.chatter.app.settings.ThemeMode
 import dev.chatter.app.ui.theme.NameColorPalette
@@ -62,6 +63,8 @@ class MainViewModel(private val c: AppContainer) : ViewModel() {
     val roomStates = c.chat.roomStates
     val roles = c.chat.roles
     val emoteVersion = c.emotes.version
+    val blockedUsers = c.blocked.blocked
+    val blockedLogins = c.blocked.logins
 
     val imageLoader get() = c.imageLoader
     val staticImageLoader get() = c.staticImageLoader
@@ -188,6 +191,23 @@ class MainViewModel(private val c: AppContainer) : ViewModel() {
     /** Twitch badge image for the user's role in a channel (moderator sword etc.). */
     fun roleBadge(channel: String, role: ChatRole): Badge? =
         role.badgeTag?.let { c.badges.resolve(c.chat.roomId(channel), it).firstOrNull() }
+
+    /**
+     * Blocks or unblocks on Twitch. Needs the user card's profile for the Twitch id, so it is
+     * only offered once that has loaded.
+     */
+    fun setBlocked(user: HelixUser, blocked: Boolean) {
+        viewModelScope.launch {
+            val target = HelixBlockedUser(user.id, user.login, user.displayName)
+            if (!c.blocked.setBlocked(target, blocked)) _messages.send(R.string.error_block_failed)
+        }
+    }
+
+    fun unblock(user: HelixBlockedUser) {
+        viewModelScope.launch {
+            if (!c.blocked.setBlocked(user, blocked = false)) _messages.send(R.string.error_block_failed)
+        }
+    }
 
     fun deleteMessage(item: ChatItem) {
         c.chat.runCommand(item.channel, ChatCommand.Delete(item.id))

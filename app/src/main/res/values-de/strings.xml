@@ -255,4 +255,12 @@
     <string name="settings_group_muted">Stummgeschaltet</string>
     <string name="settings_mute_keywords">Stumme Wörter</string>
     <string name="settings_mute_keywords_hint">Mit Komma getrennt. Nachrichten mit einem dieser Wörter und Nachrichten dieser Chatter werden ausgeblendet</string>
+
+    <!-- Blockierte Nutzer -->
+    <string name="action_block">Blockieren</string>
+    <string name="action_unblock">Entblocken</string>
+    <string name="settings_blocked_users">Blockierte Nutzer</string>
+    <string name="settings_blocked_none">Niemand blockiert</string>
+    <string name="settings_blocked_hint">Das Blockieren teilt sich Chatter mit Twitch: Blockierte Chatter sind hier und überall sonst ausgeblendet</string>
+    <string name="error_block_failed">Twitch hat das abgelehnt. Bitte noch einmal versuchen</string>
 </resources>

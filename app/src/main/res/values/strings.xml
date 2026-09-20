@@ -261,4 +261,12 @@
     <string name="settings_group_muted">Muted</string>
     <string name="settings_mute_keywords">Muted words</string>
     <string name="settings_mute_keywords_hint">Comma separated. Messages containing one of them, and messages from those chatters, are hidden</string>
+
+    <!-- Blocked users -->
+    <string name="action_block">Block</string>
+    <string name="action_unblock">Unblock</string>
+    <string name="settings_blocked_users">Blocked users</string>
+    <string name="settings_blocked_none">Nobody blocked</string>
+    <string name="settings_blocked_hint">Blocking is shared with Twitch: blocked chatters are hidden here and everywhere else</string>
+    <string name="error_block_failed">Twitch rejected that. Please try again</string>
 </resources>

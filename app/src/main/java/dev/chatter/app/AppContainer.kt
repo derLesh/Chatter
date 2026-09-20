@@ -14,6 +14,7 @@ import coil3.request.crossfade
 import dev.chatter.app.auth.AuthRepository
 import dev.chatter.app.auth.AuthState
 import dev.chatter.app.badges.BadgeRepository
+import dev.chatter.app.channels.BlockedUsersRepository
 import dev.chatter.app.channels.ChannelRepository
 import dev.chatter.app.chat.ChatRepository
 import dev.chatter.app.chat.ChatterRegistry
@@ -64,13 +65,14 @@ class AppContainer(private val context: Context) {
     val emotes = EmoteRepository(helix, thirdParty)
     val badges = BadgeRepository(helix)
     val channels = ChannelRepository(context.channelStore, helix, scope)
+    val blocked = BlockedUsersRepository(helix, scope)
     val irc = IrcConnection(socketHttp, scope)
     val notifier = MentionNotifier(context)
     private val chatters = ChatterRegistry()
 
     val chat = ChatRepository(
         context, irc, MessageBuilder(emotes, badges, chatters, ::emoteOptions), emotes, badges, channels, thirdParty, auth,
-        CommandExecutor(context, helix, auth), chatters, settings.settings, scope,
+        CommandExecutor(context, helix, auth), chatters, blocked, settings.settings, scope,
     )
 
     // One disk cache shared by both loaders (two caches on the same directory would corrupt it).
@@ -118,6 +120,7 @@ class AppContainer(private val context: Context) {
                             launch { badges.loadGlobal() }
                             launch { emotes.loadTwitchUserEmotes(state.account.userId) }
                             launch { channels.refreshUsers(channels.currentChannels()) }
+                            launch { blocked.load(state.account.userId) }
                         }
                     }
                     AuthState.LoggedOut -> {
@@ -125,6 +128,7 @@ class AppContainer(private val context: Context) {
                         irc.disconnect()
                         chat.reset()
                         emotes.clear()
+                        blocked.clear()
                     }
                     AuthState.Loading -> Unit
                 }

@@ -161,7 +161,7 @@ fun SettingsScreen(vm: MainViewModel, onBack: () -> Unit) {
                 SettingsPage.Chat -> ChatPage(settings, vm)
                 SettingsPage.Notifications -> NotificationsPage(settings, vm)
                 SettingsPage.Channels -> ChannelsPage(vm, settings)
-                SettingsPage.Account -> AccountPage(login) { vm.logout(); onBack() }
+                SettingsPage.Account -> AccountPage(login, vm) { vm.logout(); onBack() }
                 SettingsPage.About -> AboutPage()
             }
         }
@@ -428,7 +428,7 @@ private fun NotificationsPage(settings: Settings, vm: MainViewModel) {
 }
 
 @Composable
-private fun AccountPage(login: String, onLogout: () -> Unit) {
+private fun AccountPage(login: String, vm: MainViewModel, onLogout: () -> Unit) {
     SettingsGroup {
         item {
             ListItem(
@@ -445,6 +445,36 @@ private fun AccountPage(login: String, onLogout: () -> Unit) {
                 trailingContent = { OutlinedButton(onClick = onLogout) { Text(stringResource(R.string.logout)) } },
                 colors = transparentItem(),
             )
+        }
+    }
+    BlockedUsersGroup(vm)
+}
+
+/** The Twitch block list: everyone here is hidden from the chat until they are unblocked. */
+@Composable
+private fun BlockedUsersGroup(vm: MainViewModel) {
+    val blocked by vm.blockedUsers.collectAsStateWithLifecycle()
+    SettingsGroup(R.string.settings_blocked_users) {
+        if (blocked.isEmpty()) {
+            item {
+                ListItem(
+                    headlineContent = { Text(stringResource(R.string.settings_blocked_none)) },
+                    supportingContent = { Text(stringResource(R.string.settings_blocked_hint)) },
+                    colors = transparentItem(),
+                )
+            }
+        }
+        blocked.forEach { user ->
+            item {
+                ListItem(
+                    headlineContent = { Text(user.displayName.ifEmpty { user.userLogin }) },
+                    supportingContent = { Text("@" + user.userLogin) },
+                    trailingContent = {
+                        OutlinedButton(onClick = { vm.unblock(user) }) { Text(stringResource(R.string.action_unblock)) }
+                    },
+                    colors = transparentItem(),
+                )
+            }
         }
     }
 }
