@@ -166,11 +166,7 @@ class MentionNotifier(
             .setIcon(icon)
             .setCategories(setOf(SHORTCUT_CATEGORY))
             .setPerson(Person.Builder().setName(name).setKey(id).setIcon(icon).setImportant(true).build())
-            .setIntent(
-                Intent(context, MainActivity::class.java)
-                    .setAction(Intent.ACTION_VIEW)
-                    .putExtra(EXTRA_CHANNEL, channel)
-            )
+            .setIntent(launchIntent(context, channel))
             .build()
         runCatching { ShortcutManagerCompat.pushDynamicShortcut(context, shortcut) }
         return id
@@ -222,10 +218,21 @@ class MentionNotifier(
         /** Where Android puts the text typed into the reply action. */
         const val KEY_REPLY = "reply"
 
-        fun openChannelIntent(context: Context, channel: String?): PendingIntent {
-            val intent = Intent(context, MainActivity::class.java)
+        /**
+         * Opens the app on [channel]. It goes through the launcher entry rather than straight to
+         * MainActivity: the app icon is an activity-alias (see AppIcon), so a running task has
+         * that alias as its root. An intent naming MainActivity does not match it, and Android
+         * then only raises the task without ever delivering the intent — the tap would do nothing.
+         */
+        /** The intent behind [openChannelIntent] and behind a conversation shortcut. */
+        private fun launchIntent(context: Context, channel: String?): Intent =
+            (context.packageManager.getLaunchIntentForPackage(context.packageName)
+                ?: Intent(context, MainActivity::class.java).setAction(Intent.ACTION_MAIN))
                 .addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP)
                 .putExtra(EXTRA_CHANNEL, channel)
+
+        fun openChannelIntent(context: Context, channel: String?): PendingIntent {
+            val intent = launchIntent(context, channel)
             return PendingIntent.getActivity(
                 context, channel?.hashCode() ?: 0, intent,
                 PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,

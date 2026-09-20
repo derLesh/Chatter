@@ -1,0 +1,1 @@
+patch: Open the right channel when a mention notification is tapped
