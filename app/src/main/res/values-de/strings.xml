@@ -296,4 +296,12 @@
     <string name="settings_bubbles">Bubbles</string>
     <string name="settings_bubbles_hint">Erwähnungen lassen sich als schwebender Chat über anderen Apps öffnen. Android fragt beim ersten Mal nach der Erlaubnis</string>
     <string name="bubble_unavailable">Chatter öffnen, um diesen Kanal zu lesen</string>
+
+    <!-- Erwähnungen -->
+    <string name="inbox_title">Erwähnungen</string>
+    <string name="inbox_from">%1$s in %2$s</string>
+    <string name="inbox_empty">Keine Erwähnungen</string>
+    <string name="inbox_empty_hint">Alles, was dir jemand schreibt, landet hier — aus jedem Kanal und so lange, bis du es leerst</string>
+    <string name="inbox_mark_all_read">Alle als gelesen markieren</string>
+    <string name="inbox_clear">Leeren</string>
 </resources>

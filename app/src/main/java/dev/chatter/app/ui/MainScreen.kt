@@ -65,11 +65,12 @@ import dev.chatter.app.ui.chat.EmotePickerSheet
 import dev.chatter.app.ui.chat.InputBar
 import dev.chatter.app.ui.chat.NicknameDialog
 import dev.chatter.app.ui.chat.UserCardSheet
+import dev.chatter.app.ui.inbox.MentionInboxScreen
 import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.launch
 
 @Composable
-fun MainScreen(vm: MainViewModel, onSettings: () -> Unit) {
+fun MainScreen(vm: MainViewModel, onInbox: () -> Unit, onSettings: () -> Unit) {
     val channels by vm.channels.collectAsStateWithLifecycle()
     val info by vm.channelInfo.collectAsStateWithLifecycle()
     val unread by vm.unreadMentions.collectAsStateWithLifecycle()
@@ -85,6 +86,7 @@ fun MainScreen(vm: MainViewModel, onSettings: () -> Unit) {
     val roles by vm.roles.collectAsStateWithLifecycle()
     val blockedLogins by vm.blockedLogins.collectAsStateWithLifecycle()
     val nicknames by vm.nicknames.collectAsStateWithLifecycle()
+    val inboxUnread by vm.inboxUnread.collectAsStateWithLifecycle()
 
     val context = LocalContext.current
     // Not context.resources: only this one follows a configuration change, so a snackbar shown
@@ -172,6 +174,8 @@ fun MainScreen(vm: MainViewModel, onSettings: () -> Unit) {
                 onRemove = vm::removeChannel,
                 onRename = { renameTarget = it },
                 onMove = vm::moveChannel,
+                onInbox = onInbox,
+                inboxUnread = inboxUnread,
                 onSettings = onSettings,
             )
         },
@@ -309,12 +313,23 @@ private fun EmptyState(onAdd: () -> Unit, modifier: Modifier) {
 fun AppRoot(vm: MainViewModel) {
     val auth by vm.authState.collectAsStateWithLifecycle()
     var showSettings by remember { mutableStateOf(false) }
+    var showInbox by remember { mutableStateOf(false) }
     when (auth) {
         dev.chatter.app.auth.AuthState.Loading -> Box(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background))
         dev.chatter.app.auth.AuthState.LoggedOut -> LoginScreen(vm)
         is dev.chatter.app.auth.AuthState.LoggedIn -> {
-            if (showSettings) SettingsScreen(vm, onBack = { showSettings = false })
-            else MainScreen(vm, onSettings = { showSettings = true })
+            when {
+                showSettings -> SettingsScreen(vm, onBack = { showSettings = false })
+                showInbox -> MentionInboxScreen(
+                    vm,
+                    onOpenChannel = { channel ->
+                        vm.requestedChannel.value = channel
+                        showInbox = false
+                    },
+                    onBack = { showInbox = false },
+                )
+                else -> MainScreen(vm, onInbox = { showInbox = true }, onSettings = { showSettings = true })
+            }
             // Shows itself only right after an update, and only for more than a fix release.
             UpdateNotesSheet(vm)
         }

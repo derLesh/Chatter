@@ -23,9 +23,11 @@ import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.KeyboardArrowUp
+import androidx.compose.material.icons.filled.MailOutline
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.Badge
+import androidx.compose.material3.BadgedBox
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -82,6 +84,8 @@ fun ChannelTopBar(
     onRemove: (String) -> Unit,
     onRename: (String) -> Unit,
     onMove: (String, Int) -> Unit,
+    onInbox: () -> Unit,
+    inboxUnread: Int,
     onSettings: () -> Unit,
 ) {
     var expanded by remember { mutableStateOf(false) }
@@ -142,6 +146,13 @@ fun ChannelTopBar(
                 onSelect = onSelect,
             )
             ChannelModes(roomState, roleBadge, imageLoader)
+            IconButton(onClick = onInbox) {
+                BadgedBox(
+                    badge = { if (inboxUnread > 0) Badge { Text(formatCount(inboxUnread)) } },
+                ) {
+                    Icon(Icons.Default.MailOutline, contentDescription = stringResource(R.string.inbox_title))
+                }
+            }
             IconButton(onClick = onSettings) {
                 Icon(Icons.Default.Settings, contentDescription = stringResource(R.string.settings))
             }

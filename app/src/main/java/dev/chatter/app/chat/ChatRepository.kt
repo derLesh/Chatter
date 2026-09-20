@@ -33,6 +33,9 @@ import kotlinx.coroutines.withContext
 import java.util.UUID
 import java.util.concurrent.ConcurrentHashMap
 
+/** A mention that just arrived, and whether the user had that channel open at the time. */
+data class MentionEvent(val item: ChatItem, val seen: Boolean)
+
 enum class SendResult {
     Ok, Empty, NotConnected, RateLimited,
     /** A command was not executed (unknown / wrong usage); the hint is shown in the chat. */
@@ -89,6 +92,10 @@ class ChatRepository(
     private val _mentionEvents = MutableSharedFlow<ChatItem>(extraBufferCapacity = 32)
     /** Emitted for live (non-history) messages that mention the user in a channel they are not looking at. */
     val mentionEvents: SharedFlow<ChatItem> = _mentionEvents
+
+    private val _allMentions = MutableSharedFlow<MentionEvent>(extraBufferCapacity = 32)
+    /** Every live mention, including the ones the user is watching happen. For the inbox. */
+    val allMentions: SharedFlow<MentionEvent> = _allMentions
 
     private val _modChannels = MutableStateFlow<Set<String>>(emptySet())
     /** Channels where the user is moderator or broadcaster. */
@@ -410,7 +417,10 @@ class ChatRepository(
     }
 
     private fun onMention(item: ChatItem) {
-        if (uiVisible.value && activeChannel.value == item.channel) return
+        val watching = uiVisible.value && activeChannel.value == item.channel
+        // The inbox keeps every mention; one the user saw arrive is simply already read.
+        _allMentions.tryEmit(MentionEvent(item, seen = watching))
+        if (watching) return
         _unreadMentions.update { it + (item.channel to (it[item.channel] ?: 0) + 1) }
         // A muted channel still counts its mentions, it just does not notify about them.
         if (item.channel in channelRepo.mutedChannels.value) return

@@ -20,6 +20,7 @@ import dev.chatter.app.channels.ChannelRepository
 import dev.chatter.app.chat.ChatRepository
 import dev.chatter.app.chat.SendResult
 import dev.chatter.app.chat.ChatterRegistry
+import dev.chatter.app.chat.MentionInboxRepository
 import dev.chatter.app.chat.NicknameRepository
 import dev.chatter.app.chat.CommandExecutor
 import dev.chatter.app.chat.EmoteOptions
@@ -48,6 +49,7 @@ private val Context.authStore by preferencesDataStore("auth")
 private val Context.channelStore by preferencesDataStore("channels")
 private val Context.settingsStore by preferencesDataStore("settings")
 private val Context.nicknameStore by preferencesDataStore("nicknames")
+private val Context.inboxStore by preferencesDataStore("inbox")
 
 /**
  * Creates and wires every long-lived object of the app (manual dependency injection).
@@ -73,6 +75,7 @@ class AppContainer(private val context: Context) {
     val channels = ChannelRepository(context.channelStore, helix, scope)
     val blocked = BlockedUsersRepository(helix, scope)
     val nicknames = NicknameRepository(context.nicknameStore, scope)
+    val inbox = MentionInboxRepository(context.inboxStore, scope)
     val changelog = ChangelogRepository(context, settings, BuildConfig.VERSION_NAME, scope)
     val irc = IrcConnection(socketHttp, scope)
     private val chatters = ChatterRegistry()
@@ -115,6 +118,8 @@ class AppContainer(private val context: Context) {
         // Read on every message, so it is mirrored onto the repository instead of passed around.
         scope.launch { settings.settings.collect { badges.enabled = it.badgeProviders } }
         sevenTvLive.start()
+        // Every mention lands in the inbox, whether or not it was worth a notification.
+        scope.launch { chat.allMentions.collect { inbox.add(it.item, read = it.seen) } }
         scope.launch {
             channels.loadCache()
             auth.restore()

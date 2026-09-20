@@ -15,6 +15,7 @@ import dev.chatter.app.chat.ChatCommand
 import dev.chatter.app.chat.ChatRole
 import dev.chatter.app.chat.ChatItem
 import dev.chatter.app.chat.CommandParser
+import dev.chatter.app.chat.InboxMention
 import dev.chatter.app.chat.SendResult
 import dev.chatter.app.emotes.Emote
 import dev.chatter.app.emotes.EmoteProvider
@@ -59,6 +60,8 @@ class MainViewModel(private val c: AppContainer) : ViewModel() {
     val blockedUsers = c.blocked.blocked
     val blockedLogins = c.blocked.logins
     val nicknames = c.nicknames.nicknames
+    val inboxMentions = c.inbox.mentions
+    val inboxUnread = c.inbox.unreadCount
     val releases = c.changelog.releases
     /** The releases the user has not read yet, shown once after an update. */
     val unreadReleases = c.changelog.unread
@@ -87,7 +90,11 @@ class MainViewModel(private val c: AppContainer) : ViewModel() {
     fun selectChannel(channel: String?) {
         if (c.chat.activeChannel.value == channel) return
         c.chat.activeChannel.value = channel
-        channel?.let { c.notifier.clear(it) }
+        channel?.let {
+            c.notifier.clear(it)
+            // Reading a channel is reading its mentions, so the inbox must not claim otherwise.
+            viewModelScope.launch { c.inbox.markChannelRead(it) }
+        }
         replyTo = null
         suggestions = emptyList()
     }
@@ -221,6 +228,21 @@ class MainViewModel(private val c: AppContainer) : ViewModel() {
             val target = HelixBlockedUser(user.id, user.login, user.displayName)
             if (!c.blocked.setBlocked(target, blocked = true)) _messages.send(R.string.error_block_failed)
         }
+    }
+
+    // ---- Mention inbox -----------------------------------------------------------------------
+
+    fun markInboxRead(mention: InboxMention) {
+        if (mention.read) return
+        viewModelScope.launch { c.inbox.markRead(mention.id) }
+    }
+
+    fun markInboxRead() {
+        viewModelScope.launch { c.inbox.markAllRead() }
+    }
+
+    fun clearInbox() {
+        viewModelScope.launch { c.inbox.clear() }
     }
 
     /** Gives a chatter a nickname, in every channel they show up in. A blank one clears it. */
