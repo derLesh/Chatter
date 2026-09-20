@@ -110,7 +110,7 @@ fun ChannelTopBar(
                         Spacer(Modifier.width(10.dp))
                         Column(Modifier.weight(1f, fill = false)) {
                             Text(i?.displayName ?: active, style = MaterialTheme.typography.titleMedium, maxLines = 1)
-                            ChannelStatus(i, connection)
+                            ChannelStatus(connection, roomState, roleBadge, imageLoader)
                         }
                     } else {
                         Text(stringResource(R.string.no_channels_title), style = MaterialTheme.typography.titleMedium)
@@ -145,7 +145,6 @@ fun ChannelTopBar(
                 imageLoader = imageLoader,
                 onSelect = onSelect,
             )
-            ChannelModes(roomState, roleBadge, imageLoader)
             IconButton(onClick = onInbox) {
                 BadgedBox(
                     badge = { if (inboxUnread > 0) Badge { Text(formatCount(inboxUnread)) } },
@@ -220,11 +219,24 @@ private fun ChannelModes(state: RoomState?, roleBadge: Badge?, imageLoader: Imag
         if (state.emoteOnly) add(stringResource(R.string.mode_emotes))
         if (state.uniqueChat) add(stringResource(R.string.mode_unique))
     }
+    // A normal chatter in an unrestricted channel has nothing to read here, and an empty row
+    // under the name would still take the height of one.
+    if (modes.isEmpty() && roleBadge == null) return
     Row(
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(4.dp),
-        modifier = Modifier.widthIn(max = 150.dp).horizontalScroll(rememberScrollState()),
+        // Bounded by the title it sits under; the modes scroll sideways when there are many.
+        modifier = Modifier.horizontalScroll(rememberScrollState()),
     ) {
+        // Who the user is here comes first, then what the chat is set to.
+        if (roleBadge != null) {
+            AsyncImage(
+                model = roleBadge.url,
+                contentDescription = roleBadge.title,
+                imageLoader = imageLoader,
+                modifier = Modifier.size(18.dp),
+            )
+        }
         modes.forEach { label ->
             Text(
                 text = label,
@@ -234,15 +246,7 @@ private fun ChannelModes(state: RoomState?, roleBadge: Badge?, imageLoader: Imag
                 modifier = Modifier
                     .clip(RoundedCornerShape(6.dp))
                     .background(MaterialTheme.colorScheme.secondaryContainer)
-                    .padding(horizontal = 6.dp, vertical = 3.dp),
-            )
-        }
-        if (roleBadge != null) {
-            AsyncImage(
-                model = roleBadge.url,
-                contentDescription = roleBadge.title,
-                imageLoader = imageLoader,
-                modifier = Modifier.padding(start = 4.dp).size(22.dp),
+                    .padding(horizontal = 6.dp, vertical = 2.dp),
             )
         }
     }
@@ -256,17 +260,24 @@ private fun formatMinutes(minutes: Int): String = when {
 }
 
 @Composable
-private fun ChannelStatus(info: ChannelInfo?, connection: ConnectionState) {
-    // An offline channel says nothing at all; only a live stream or a dropped connection is news.
-    if (connection == ConnectionState.Connected && info?.isLive != true) return
-    val live = connection == ConnectionState.Connected
-    Text(
-        text = if (live) stringResource(R.string.status_live, formatViewers(info!!.viewers))
-        else stringResource(R.string.status_connecting),
-        style = MaterialTheme.typography.labelMedium,
-        color = if (live) LiveRed else MaterialTheme.colorScheme.onSurfaceVariant,
-        maxLines = 1,
-    )
+private fun ChannelStatus(
+    connection: ConnectionState,
+    state: RoomState?,
+    roleBadge: Badge?,
+    imageLoader: ImageLoader,
+) {
+    // A dropped connection is the one thing worth saying in words; it also makes the role and
+    // the modes stale, so it takes the line for itself.
+    if (connection != ConnectionState.Connected) {
+        Text(
+            text = stringResource(R.string.status_connecting),
+            style = MaterialTheme.typography.labelMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            maxLines = 1,
+        )
+        return
+    }
+    ChannelModes(state, roleBadge, imageLoader)
 }
 
 @Composable
@@ -384,18 +395,9 @@ fun ChannelAvatar(info: ChannelInfo?, imageLoader: ImageLoader, size: Dp) {
                 .size(size)
                 .clip(CircleShape)
                 .background(MaterialTheme.colorScheme.surfaceContainerHighest)
+                // The red ring is the whole of "this channel is live", wherever a picture shows up.
                 .then(if (info?.isLive == true) Modifier.border(2.dp, LiveRed, CircleShape) else Modifier),
         )
-        if (info?.isLive == true) {
-            Box(
-                Modifier
-                    .align(Alignment.BottomEnd)
-                    .size(size / 3.5f)
-                    .clip(CircleShape)
-                    .background(LiveRed)
-                    .border(1.5.dp, MaterialTheme.colorScheme.surfaceContainer, CircleShape),
-            )
-        }
     }
 }
 
