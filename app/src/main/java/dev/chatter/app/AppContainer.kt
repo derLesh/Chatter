@@ -22,6 +22,7 @@ import dev.chatter.app.chat.SendResult
 import dev.chatter.app.chat.ChatterRegistry
 import dev.chatter.app.chat.MentionInboxRepository
 import dev.chatter.app.chat.NicknameRepository
+import dev.chatter.app.chat.RuleRepository
 import dev.chatter.app.chat.CommandExecutor
 import dev.chatter.app.chat.EmoteOptions
 import dev.chatter.app.chat.MessageBuilder
@@ -50,6 +51,7 @@ private val Context.channelStore by preferencesDataStore("channels")
 private val Context.settingsStore by preferencesDataStore("settings")
 private val Context.nicknameStore by preferencesDataStore("nicknames")
 private val Context.inboxStore by preferencesDataStore("inbox")
+private val Context.ruleStore by preferencesDataStore("rules")
 
 /**
  * Creates and wires every long-lived object of the app (manual dependency injection).
@@ -76,13 +78,14 @@ class AppContainer(private val context: Context) {
     val blocked = BlockedUsersRepository(helix, scope)
     val nicknames = NicknameRepository(context.nicknameStore, scope)
     val inbox = MentionInboxRepository(context.inboxStore, scope)
+    val rules = RuleRepository(context.ruleStore, scope)
     val changelog = ChangelogRepository(context, settings, BuildConfig.VERSION_NAME, scope)
     val irc = IrcConnection(socketHttp, scope)
     private val chatters = ChatterRegistry()
 
     val chat = ChatRepository(
         context, irc, MessageBuilder(emotes, badges, chatters, ::emoteOptions), emotes, badges, channels, thirdParty, helix, auth,
-        CommandExecutor(context, helix, auth), chatters, blocked, settings.settings, scope,
+        CommandExecutor(context, helix, auth), chatters, blocked, rules.rules, settings.settings, scope,
     )
 
     // One disk cache shared by both loaders (two caches on the same directory would corrupt it).

@@ -63,6 +63,7 @@ class ChatRepository(
     private val commands: CommandExecutor,
     private val chatterRegistry: ChatterRegistry,
     private val blocked: BlockedUsersRepository,
+    private val rules: StateFlow<List<ChatRule>>,
     private val settings: StateFlow<Settings>,
     private val scope: CoroutineScope,
 ) {
@@ -84,6 +85,11 @@ class ChatRepository(
     private var joinedChannels: List<String> = emptyList()
     private var mentions = MentionMatcher("", emptyList())
     private var muted = MuteFilter()
+    /**
+     * The user's highlight rules. They are applied as messages arrive, so changing a rule paints
+     * what comes next — the messages already on screen stay as they were read.
+     */
+    private var ruleEngine = RuleEngine()
 
     private val flows = ConcurrentHashMap<String, MutableStateFlow<List<ChatItem>>>()
     private val flowWatchers = ConcurrentHashMap<String, Job>()
@@ -141,6 +147,10 @@ class ChatRepository(
                     dropMuted()
                     trimAll(s.messageLimit)
                 }
+        }
+
+        scope.launch(worker) {
+            rules.collect { ruleEngine = RuleEngine(it) }
         }
 
         scope.launch(worker) {
@@ -359,7 +369,9 @@ class ChatRepository(
                 val msg = IrcMessage.parse(line) ?: return@mapNotNull null
                 if (msg.command != "PRIVMSG" && msg.command != "USERNOTICE") return@mapNotNull null
                 builder.build(msg, self, roomIds[channel], mentions, historical = true)
-                    ?.takeIf { (since == null || it.timestamp > since) && !muted.mutes(it) && ids.add(it.id) }
+                    ?.takeIf { (since == null || it.timestamp > since) && !muted.mutes(it) }
+                    ?.let { ruleEngine.apply(it) }
+                    ?.takeIf { ids.add(it.id) }
                     ?.also { rememberChatter(channel, it) }
             }
             if (items.isEmpty()) return@withContext
@@ -382,10 +394,12 @@ class ChatRepository(
         when (msg.command) {
             "PRIVMSG", "USERNOTICE" -> {
                 if (channel == null) return
-                val item = builder.build(msg, auth.account?.login.orEmpty(), roomIds[channel], mentions) ?: return
-                lastLiveTimestamp[channel] = item.timestamp
-                // Muted messages still count as "seen", so a reconnect does not fetch them again.
-                if (muted.mutes(item)) return
+                val built = builder.build(msg, auth.account?.login.orEmpty(), roomIds[channel], mentions) ?: return
+                lastLiveTimestamp[channel] = built.timestamp
+                // Muted and hidden messages still count as "seen", so a reconnect does not fetch
+                // them again.
+                if (muted.mutes(built)) return
+                val item = ruleEngine.apply(built) ?: return
                 rememberChatter(channel, item)
                 append(item)
                 if (!item.isOwn && !(uiVisible.value && activeChannel.value == channel)) {

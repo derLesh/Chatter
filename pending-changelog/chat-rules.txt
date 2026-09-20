@@ -1,0 +1,1 @@
+minor: Write rules that highlight, announce or hide messages by word, name or pattern

@@ -304,4 +304,33 @@
     <string name="inbox_empty_hint">Alles, was dir jemand schreibt, landet hier — aus jedem Kanal und so lange, bis du es leerst</string>
     <string name="inbox_mark_all_read">Alle als gelesen markieren</string>
     <string name="inbox_clear">Leeren</string>
+
+    <!-- Regeln -->
+    <string name="settings_rules">Regeln</string>
+    <string name="settings_rules_summary">Hervorheben, melden oder ausblenden, was dir wichtig ist</string>
+    <plurals name="settings_rules_count">
+        <item quantity="one">%d Regel</item>
+        <item quantity="other">%d Regeln</item>
+    </plurals>
+    <string name="rules_empty">Keine Regeln</string>
+    <string name="rules_empty_hint">Eine Regel achtet auf ein Wort, einen Namen oder ein Muster und färbt, meldet oder versteckt, was sie findet</string>
+    <string name="rule_new">Neue Regel</string>
+    <string name="rule_edit">Regel bearbeiten</string>
+    <string name="rule_delete">Regel löschen</string>
+    <string name="rule_pattern">Sucht nach</string>
+    <string name="rule_pattern_hint">Trifft als ganzes Wort, Groß- und Kleinschreibung egal</string>
+    <string name="rule_pattern_regex_hint">Ein regulärer Ausdruck. Ein ungültiger trifft nie</string>
+    <string name="rule_target">Wo</string>
+    <string name="rule_target_message">Nachricht</string>
+    <string name="rule_target_author">Name</string>
+    <string name="rule_target_any">Beides</string>
+    <string name="rule_action">Was passiert</string>
+    <string name="rule_action_highlight">Hervorheben</string>
+    <string name="rule_action_notify">Melden</string>
+    <string name="rule_action_hide">Ausblenden</string>
+    <string name="rule_color">Farbe</string>
+    <string name="rule_channel">Kanal</string>
+    <string name="rule_channel_hint">Leer lassen, damit die Regel in jedem Kanal gilt</string>
+    <string name="rule_regex">Regulärer Ausdruck</string>
+    <string name="rule_regex_hint">Das Muster so verwenden, wie es dasteht, statt ein Wort zu suchen</string>
 </resources>

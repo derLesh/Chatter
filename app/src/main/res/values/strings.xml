@@ -310,4 +310,33 @@
     <string name="inbox_empty_hint">Everything anyone writes to you ends up here, in every channel, and stays until you clear it</string>
     <string name="inbox_mark_all_read">Mark all as read</string>
     <string name="inbox_clear">Clear</string>
+
+    <!-- Highlight rules -->
+    <string name="settings_rules">Rules</string>
+    <string name="settings_rules_summary">Highlight, notify or hide what matters to you</string>
+    <plurals name="settings_rules_count">
+        <item quantity="one">%d rule</item>
+        <item quantity="other">%d rules</item>
+    </plurals>
+    <string name="rules_empty">No rules</string>
+    <string name="rules_empty_hint">A rule watches for a word, a name or a pattern and paints, announces or hides what it finds</string>
+    <string name="rule_new">New rule</string>
+    <string name="rule_edit">Edit rule</string>
+    <string name="rule_delete">Delete rule</string>
+    <string name="rule_pattern">Looks for</string>
+    <string name="rule_pattern_hint">Matched as a whole word, upper and lower case alike</string>
+    <string name="rule_pattern_regex_hint">A regular expression. An invalid one never matches</string>
+    <string name="rule_target">Where</string>
+    <string name="rule_target_message">Message</string>
+    <string name="rule_target_author">Name</string>
+    <string name="rule_target_any">Both</string>
+    <string name="rule_action">What happens</string>
+    <string name="rule_action_highlight">Highlight</string>
+    <string name="rule_action_notify">Notify</string>
+    <string name="rule_action_hide">Hide</string>
+    <string name="rule_color">Color</string>
+    <string name="rule_channel">Channel</string>
+    <string name="rule_channel_hint">Leave empty to use the rule in every channel</string>
+    <string name="rule_regex">Regular expression</string>
+    <string name="rule_regex_hint">Use the pattern as written instead of matching a word</string>
 </resources>

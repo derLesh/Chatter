@@ -38,6 +38,7 @@ import androidx.compose.material.icons.automirrored.filled.List
 import androidx.compose.material.icons.filled.AccountCircle
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Notifications
@@ -93,6 +94,9 @@ import dev.chatter.app.BuildConfig
 import dev.chatter.app.R
 import dev.chatter.app.auth.AuthState
 import dev.chatter.app.chat.ChatItem
+import dev.chatter.app.chat.ChatRule
+import dev.chatter.app.chat.RuleAction
+import dev.chatter.app.chat.RuleTarget
 import dev.chatter.app.chat.MessageKind
 import dev.chatter.app.chat.Segment
 import dev.chatter.app.net.HelixBlockedUser
@@ -106,6 +110,7 @@ import dev.chatter.app.ui.chat.ChatStyle
 import dev.chatter.app.ui.chat.MessageRow
 import dev.chatter.app.ui.settings.BlockUserDialog
 import dev.chatter.app.ui.settings.ConfirmUnblockDialog
+import dev.chatter.app.ui.settings.RuleDialog
 import dev.chatter.app.ui.theme.highlightBackground
 import dev.chatter.app.ui.theme.isAppInDarkTheme
 import dev.chatter.app.util.AppIcon
@@ -136,6 +141,7 @@ private enum class SettingsPage(val title: Int, val summary: Int, val icon: Imag
 /** A page opened from inside a category, one level below [SettingsPage]. */
 private enum class SettingsSubPage(val title: Int) {
     BlockedUsers(R.string.settings_blocked_users),
+    Rules(R.string.settings_rules),
     Changelog(R.string.settings_changelog),
 }
 
@@ -182,6 +188,7 @@ fun SettingsScreen(vm: MainViewModel, onBack: () -> Unit) {
         SettingsPageScaffold(title = title, onBack = goBack) {
             when (currentSub) {
                 SettingsSubPage.BlockedUsers -> BlockedUsersPage(vm)
+                SettingsSubPage.Rules -> RulesPage(vm)
                 SettingsSubPage.Changelog -> {
                     val releases by vm.releases.collectAsStateWithLifecycle()
                     ChangelogPage(releases, BuildConfig.VERSION_NAME)
@@ -189,7 +196,7 @@ fun SettingsScreen(vm: MainViewModel, onBack: () -> Unit) {
                 null -> when (current) {
                     null -> Home(login) { page = it }
                     SettingsPage.Appearance -> AppearancePage(settings, vm)
-                    SettingsPage.Chat -> ChatPage(settings, vm)
+                    SettingsPage.Chat -> ChatPage(settings, vm) { subPage = it }
                     SettingsPage.Notifications -> NotificationsPage(settings, vm)
                     SettingsPage.Channels -> ChannelsPage(vm, settings)
                     SettingsPage.Account -> AccountPage(login, vm, { subPage = it }) { vm.logout(); onBack() }
@@ -386,7 +393,7 @@ private fun TextSizeItem(settings: Settings, vm: MainViewModel) {
 }
 
 @Composable
-private fun ChatPage(settings: Settings, vm: MainViewModel) {
+private fun ChatPage(settings: Settings, vm: MainViewModel, open: (SettingsSubPage) -> Unit) {
     SettingsGroup {
         item {
             var limit by remember(settings.messageLimit) { mutableFloatStateOf(settings.messageLimit.toFloat()) }
@@ -417,6 +424,21 @@ private fun ChatPage(settings: Settings, vm: MainViewModel) {
                 label = R.string.settings_mute_keywords,
                 hint = R.string.settings_mute_keywords_hint,
                 onSave = vm::setMuteKeywords,
+            )
+        }
+        item {
+            val rules by vm.rules.collectAsStateWithLifecycle()
+            ListItem(
+                headlineContent = { Text(stringResource(R.string.settings_rules)) },
+                supportingContent = {
+                    Text(
+                        if (rules.isEmpty()) stringResource(R.string.settings_rules_summary)
+                        else pluralStringResource(R.plurals.settings_rules_count, rules.size, rules.size)
+                    )
+                },
+                trailingContent = { Icon(Icons.AutoMirrored.Filled.ArrowForward, contentDescription = null) },
+                colors = transparentItem(),
+                modifier = Modifier.clickable { open(SettingsSubPage.Rules) },
             )
         }
     }
@@ -571,6 +593,92 @@ private fun BlockedUsersPage(vm: MainViewModel) {
             onDismiss = { showBlock = false },
         )
     }
+}
+
+/**
+ * The user's highlight rules. Order matters — a hide beats everything below it — so they are
+ * listed the way they are applied.
+ */
+@Composable
+private fun RulesPage(vm: MainViewModel) {
+    val rules by vm.rules.collectAsStateWithLifecycle()
+    var editing by remember { mutableStateOf<ChatRule?>(null) }
+    var creating by remember { mutableStateOf(false) }
+    val scheme = MaterialTheme.colorScheme
+
+    SettingsGroup {
+        if (rules.isEmpty()) {
+            item {
+                ListItem(
+                    headlineContent = { Text(stringResource(R.string.rules_empty)) },
+                    supportingContent = { Text(stringResource(R.string.rules_empty_hint)) },
+                    colors = transparentItem(),
+                )
+            }
+        }
+        rules.forEach { rule ->
+            item {
+                ListItem(
+                    headlineContent = { Text(rule.pattern, fontFamily = if (rule.regex) FontFamily.Monospace else null) },
+                    supportingContent = { Text(ruleSummary(rule)) },
+                    leadingContent = {
+                        Box(
+                            Modifier
+                                .size(24.dp)
+                                .clip(CircleShape)
+                                .background(rule.color?.let { Color(it) } ?: scheme.surfaceContainerHighest),
+                        )
+                    },
+                    trailingContent = {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Switch(checked = rule.enabled, onCheckedChange = { vm.setRuleEnabled(rule, it) })
+                            IconButton(onClick = { vm.deleteRule(rule) }) {
+                                Icon(Icons.Default.Delete, contentDescription = stringResource(R.string.rule_delete))
+                            }
+                        }
+                    },
+                    colors = transparentItem(),
+                    modifier = Modifier.clickable { editing = rule },
+                )
+            }
+        }
+        item {
+            ListItem(
+                headlineContent = { Text(stringResource(R.string.rule_new)) },
+                leadingContent = { CategoryIcon(Icons.Default.Add) },
+                colors = transparentItem(),
+                modifier = Modifier.clickable { creating = true },
+            )
+        }
+    }
+
+    if (creating || editing != null) {
+        RuleDialog(
+            rule = editing,
+            onSave = vm::saveRule,
+            onDismiss = { creating = false; editing = null },
+        )
+    }
+}
+
+/** "Message - Highlight - #forsen": what a rule does, in one line. */
+@Composable
+private fun ruleSummary(rule: ChatRule): String {
+    val target = stringResource(
+        when (rule.target) {
+            RuleTarget.Message -> R.string.rule_target_message
+            RuleTarget.Author -> R.string.rule_target_author
+            RuleTarget.Any -> R.string.rule_target_any
+        }
+    )
+    val action = stringResource(
+        when (rule.action) {
+            RuleAction.Highlight -> R.string.rule_action_highlight
+            RuleAction.Notify -> R.string.rule_action_notify
+            RuleAction.Hide -> R.string.rule_action_hide
+        }
+    )
+    return listOfNotNull(target, action, rule.channel?.let { "#$it" }).joinToString(" · ")
 }
 
 @Composable

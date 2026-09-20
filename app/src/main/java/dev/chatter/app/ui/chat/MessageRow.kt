@@ -76,6 +76,8 @@ data class ChatStyle(
 )
 
 private const val BADGE_EM = 1.35f
+/** How strongly a rule's highlight color tints the message background. */
+private const val HIGHLIGHT_ALPHA = 0.2f
 /** Messages loaded from history are clearly dimmed so live chat stands out. */
 private const val HISTORICAL_ALPHA = 0.5f
 private const val EMOTE_EM = 2.1f
@@ -119,6 +121,8 @@ fun MessageRow(
 
     val firstMessage = item.isFirstMessage && style.firstMessageBackground != null
     val background = when {
+        // A rule's own color beats the general mention color: the user picked it for this message.
+        item.highlight != null -> Color(item.highlight).copy(alpha = HIGHLIGHT_ALPHA)
         item.isMention -> style.mentionBackground
         firstMessage -> style.firstMessageBackground!!
         item.kind == MessageKind.UserNotice -> style.noticeBackground

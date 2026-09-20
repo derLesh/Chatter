@@ -13,6 +13,7 @@ import dev.chatter.app.badges.Badge
 import dev.chatter.app.badges.BadgeProvider
 import dev.chatter.app.chat.ChatCommand
 import dev.chatter.app.chat.ChatRole
+import dev.chatter.app.chat.ChatRule
 import dev.chatter.app.chat.ChatItem
 import dev.chatter.app.chat.CommandParser
 import dev.chatter.app.chat.InboxMention
@@ -60,6 +61,7 @@ class MainViewModel(private val c: AppContainer) : ViewModel() {
     val blockedUsers = c.blocked.blocked
     val blockedLogins = c.blocked.logins
     val nicknames = c.nicknames.nicknames
+    val rules = c.rules.rules
     val inboxMentions = c.inbox.mentions
     val inboxUnread = c.inbox.unreadCount
     val releases = c.changelog.releases
@@ -228,6 +230,20 @@ class MainViewModel(private val c: AppContainer) : ViewModel() {
             val target = HelixBlockedUser(user.id, user.login, user.displayName)
             if (!c.blocked.setBlocked(target, blocked = true)) _messages.send(R.string.error_block_failed)
         }
+    }
+
+    // ---- Highlight rules ---------------------------------------------------------------------
+
+    fun saveRule(rule: ChatRule) {
+        viewModelScope.launch { c.rules.save(rule) }
+    }
+
+    fun deleteRule(rule: ChatRule) {
+        viewModelScope.launch { c.rules.delete(rule.id) }
+    }
+
+    fun setRuleEnabled(rule: ChatRule, enabled: Boolean) {
+        viewModelScope.launch { c.rules.setEnabled(rule.id, enabled) }
     }
 
     // ---- Mention inbox -----------------------------------------------------------------------
