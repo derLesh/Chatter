@@ -71,8 +71,9 @@
     <string name="settings_timestamps">Zeitstempel</string>
     <string name="settings_timestamps_off">Keine Zeit</string>
     <string name="settings_animated_emotes">Animierte Emotes</string>
-    <string name="settings_keywords">Zusätzliche Hervorhebungswörter</string>
-    <string name="settings_keywords_hint">Mit Komma getrennt. Dein Nutzername ist immer dabei.</string>
+    <string name="settings_keywords">Hervorhebungswörter</string>
+    <string name="settings_keywords_summary">Wörter, die dich benachrichtigen wie dein eigener Name</string>
+    <string name="settings_keywords_hint">Dein Nutzername zählt immer, egal was auf dieser Liste steht</string>
     <string name="save">Speichern</string>
     <string name="settings_notifications">Benachrichtigungen</string>
     <string name="settings_notifications_hint">Ton, Vibration und mehr in den Systemeinstellungen</string>
@@ -254,7 +255,18 @@
 
     <string name="settings_group_muted">Stummgeschaltet</string>
     <string name="settings_mute_keywords">Stumme Wörter</string>
-    <string name="settings_mute_keywords_hint">Mit Komma getrennt. Nachrichten mit einem dieser Wörter und Nachrichten dieser Chatter werden ausgeblendet</string>
+    <string name="settings_mute_keywords_summary">Wörter, die eine Nachricht aus dem Chat halten</string>
+    <string name="settings_mute_keywords_hint">Nachrichten mit dem Wort und Nachrichten von Chattern dieses Namens werden ausgeblendet</string>
+    <string name="keywords_none">Keine Hervorhebungswörter</string>
+    <string name="mute_keywords_none">Keine stummen Wörter</string>
+    <string name="keyword_add_mention">Hervorhebungswort hinzufügen</string>
+    <string name="keyword_add_mute">Wort stummschalten</string>
+    <string name="keyword_word">Wort</string>
+    <string name="keyword_remove">%s entfernen</string>
+    <plurals name="keywords_count">
+        <item quantity="one">%d Wort</item>
+        <item quantity="other">%d Wörter</item>
+    </plurals>
 
     <!-- Blockierte Nutzer -->
     <string name="action_block">Blockieren</string>

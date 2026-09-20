@@ -1,0 +1,1 @@
+minor: Keep highlight and muted words as a list you add to and remove from, one word at a time

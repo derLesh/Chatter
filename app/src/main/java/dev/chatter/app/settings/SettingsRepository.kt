@@ -136,8 +136,9 @@ class SettingsRepository(
     suspend fun setFontSize(v: Float) = store.edit { it[FONT_SIZE] = v }
     suspend fun setTimestamps(v: TimestampFormat) = store.edit { it[TIMESTAMP_FORMAT] = v.name }
     suspend fun setMessageLimit(v: Int) = store.edit { it[LIMIT] = v }
-    suspend fun setMentionKeywords(v: String) = store.edit { it[KEYWORDS] = v }
-    suspend fun setMuteKeywords(v: String) = store.edit { it[MUTE_KEYWORDS] = v }
+    // Stored as one comma-separated line, the way they always were, so nothing has to migrate.
+    suspend fun setMentionKeywords(v: List<String>) = store.edit { it[KEYWORDS] = v.joinToString(",") }
+    suspend fun setMuteKeywords(v: List<String>) = store.edit { it[MUTE_KEYWORDS] = v.joinToString(",") }
     suspend fun setAnimatedEmotes(v: Boolean) = store.edit { it[ANIMATED] = v }
     suspend fun setThemeMode(v: ThemeMode) = store.edit { it[THEME_MODE] = v.name }
     suspend fun setDynamicColor(v: Boolean) = store.edit { it[DYNAMIC_COLOR] = v }

@@ -111,6 +111,7 @@ import dev.chatter.app.ui.channels.AddChannelDialog
 import dev.chatter.app.ui.changelog.ChangelogPage
 import dev.chatter.app.ui.chat.ChatStyle
 import dev.chatter.app.ui.chat.MessageRow
+import dev.chatter.app.ui.settings.AddKeywordDialog
 import dev.chatter.app.ui.settings.BlockUserDialog
 import dev.chatter.app.ui.settings.ConfirmUnblockDialog
 import dev.chatter.app.ui.settings.RuleDialog
@@ -145,6 +146,8 @@ private enum class SettingsPage(val title: Int, val summary: Int, val icon: Imag
 /** A page opened from inside a category, one level below [SettingsPage]. */
 private enum class SettingsSubPage(val title: Int) {
     BlockedUsers(R.string.settings_blocked_users),
+    MentionKeywords(R.string.settings_keywords),
+    MuteKeywords(R.string.settings_mute_keywords),
     Rules(R.string.settings_rules),
     Changelog(R.string.settings_changelog),
 }
@@ -192,6 +195,22 @@ fun SettingsScreen(vm: MainViewModel, onBack: () -> Unit) {
         SettingsPageScaffold(title = title, onBack = goBack) {
             when (currentSub) {
                 SettingsSubPage.BlockedUsers -> BlockedUsersPage(vm)
+                SettingsSubPage.MentionKeywords -> KeywordsPage(
+                    words = settings.mentionKeywords,
+                    emptyText = R.string.keywords_none,
+                    hint = R.string.settings_keywords_hint,
+                    addTitle = R.string.keyword_add_mention,
+                    onAdd = vm::addMentionKeyword,
+                    onRemove = vm::removeMentionKeyword,
+                )
+                SettingsSubPage.MuteKeywords -> KeywordsPage(
+                    words = settings.muteKeywords,
+                    emptyText = R.string.mute_keywords_none,
+                    hint = R.string.settings_mute_keywords_hint,
+                    addTitle = R.string.keyword_add_mute,
+                    onAdd = vm::addMuteKeyword,
+                    onRemove = vm::removeMuteKeyword,
+                )
                 SettingsSubPage.Rules -> RulesPage(vm)
                 SettingsSubPage.Changelog -> {
                     val releases by vm.releases.collectAsStateWithLifecycle()
@@ -201,7 +220,7 @@ fun SettingsScreen(vm: MainViewModel, onBack: () -> Unit) {
                     null -> Home(login) { page = it }
                     SettingsPage.Appearance -> AppearancePage(settings, vm)
                     SettingsPage.Chat -> ChatPage(settings, vm) { subPage = it }
-                    SettingsPage.Notifications -> NotificationsPage(settings, vm)
+                    SettingsPage.Notifications -> NotificationsPage(settings, vm) { subPage = it }
                     SettingsPage.Channels -> ChannelsPage(vm, settings)
                     SettingsPage.Account -> AccountPage(login, vm, { subPage = it }) { vm.logout(); onBack() }
                     SettingsPage.About -> AboutPage(vm) { subPage = it }
@@ -423,11 +442,11 @@ private fun ChatPage(settings: Settings, vm: MainViewModel, open: (SettingsSubPa
     }
     SettingsGroup(R.string.settings_group_muted) {
         item {
-            KeywordField(
-                keywords = settings.muteKeywords,
-                label = R.string.settings_mute_keywords,
-                hint = R.string.settings_mute_keywords_hint,
-                onSave = vm::setMuteKeywords,
+            KeywordListItem(
+                title = R.string.settings_mute_keywords,
+                summary = R.string.settings_mute_keywords_summary,
+                words = settings.muteKeywords,
+                onClick = { open(SettingsSubPage.MuteKeywords) },
             )
         }
         item {
@@ -466,15 +485,15 @@ private fun ChatPage(settings: Settings, vm: MainViewModel, open: (SettingsSubPa
 }
 
 @Composable
-private fun NotificationsPage(settings: Settings, vm: MainViewModel) {
+private fun NotificationsPage(settings: Settings, vm: MainViewModel, open: (SettingsSubPage) -> Unit) {
     val context = LocalContext.current
     SettingsGroup(R.string.settings_group_mentions) {
         item {
-            KeywordField(
-                keywords = settings.mentionKeywords,
-                label = R.string.settings_keywords,
-                hint = R.string.settings_keywords_hint,
-                onSave = vm::setMentionKeywords,
+            KeywordListItem(
+                title = R.string.settings_keywords,
+                summary = R.string.settings_keywords_summary,
+                words = settings.mentionKeywords,
+                onClick = { open(SettingsSubPage.MentionKeywords) },
             )
         }
         item {
@@ -1054,21 +1073,76 @@ private fun SwitchItem(res: Int, checked: Boolean, onChange: (Boolean) -> Unit, 
     )
 }
 
-/** A comma-separated word list the user edits and saves explicitly. */
+/** The way into a word list: what it is for, and how many words are on it. */
 @Composable
-private fun KeywordField(keywords: List<String>, label: Int, hint: Int, onSave: (String) -> Unit) {
-    var text by remember(keywords) { mutableStateOf(keywords.joinToString(", ")) }
-    OutlinedTextField(
-        value = text,
-        onValueChange = { text = it },
-        label = { Text(stringResource(label)) },
-        supportingText = { Text(stringResource(hint)) },
-        singleLine = true,
-        keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
-        keyboardActions = KeyboardActions(onDone = { onSave(text) }),
-        trailingIcon = { TextButton(onClick = { onSave(text) }) { Text(stringResource(R.string.save)) } },
-        modifier = Modifier.fillMaxWidth().padding(16.dp),
+private fun KeywordListItem(title: Int, summary: Int, words: List<String>, onClick: () -> Unit) {
+    ListItem(
+        headlineContent = { Text(stringResource(title)) },
+        supportingContent = {
+            Text(
+                if (words.isEmpty()) stringResource(summary)
+                else pluralStringResource(R.plurals.keywords_count, words.size, words.size)
+            )
+        },
+        trailingContent = { Icon(Icons.AutoMirrored.Filled.ArrowForward, contentDescription = null) },
+        colors = transparentItem(),
+        modifier = Modifier.clickable(onClick = onClick),
     )
+}
+
+/**
+ * A list of words the user builds up one at a time, like the block list: every word is its own
+ * row with its own way out, instead of one line of comma-separated text to edit by hand.
+ */
+@Composable
+private fun KeywordsPage(
+    words: List<String>,
+    emptyText: Int,
+    hint: Int,
+    addTitle: Int,
+    onAdd: (String) -> Unit,
+    onRemove: (String) -> Unit,
+) {
+    var adding by remember { mutableStateOf(false) }
+
+    SettingsGroup {
+        if (words.isEmpty()) {
+            item {
+                ListItem(
+                    headlineContent = { Text(stringResource(emptyText)) },
+                    supportingContent = { Text(stringResource(hint)) },
+                    colors = transparentItem(),
+                )
+            }
+        }
+        words.forEach { word ->
+            item {
+                ListItem(
+                    headlineContent = { Text(word) },
+                    trailingContent = {
+                        IconButton(onClick = { onRemove(word) }) {
+                            Icon(Icons.Default.Delete, contentDescription = stringResource(R.string.keyword_remove, word))
+                        }
+                    },
+                    colors = transparentItem(),
+                )
+            }
+        }
+    }
+    Button(onClick = { adding = true }, modifier = Modifier.fillMaxWidth()) {
+        Icon(Icons.Default.Add, contentDescription = null)
+        Spacer(Modifier.width(8.dp))
+        Text(stringResource(addTitle))
+    }
+
+    if (adding) {
+        AddKeywordDialog(
+            title = addTitle,
+            hint = hint,
+            onAdd = onAdd,
+            onDismiss = { adding = false },
+        )
+    }
 }
 
 @Composable

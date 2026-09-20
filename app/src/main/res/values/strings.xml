@@ -77,8 +77,9 @@
     <string name="settings_timestamps">Timestamps</string>
     <string name="settings_timestamps_off">No time</string>
     <string name="settings_animated_emotes">Animated emotes</string>
-    <string name="settings_keywords">Extra highlight words</string>
-    <string name="settings_keywords_hint">Comma-separated. Your username is always included.</string>
+    <string name="settings_keywords">Highlight words</string>
+    <string name="settings_keywords_summary">Words that alert you like your own name does</string>
+    <string name="settings_keywords_hint">Your username always counts, whatever is on this list</string>
     <string name="save">Save</string>
     <string name="settings_notifications">Notifications</string>
     <string name="settings_notifications_hint">Sound, vibration and more in the system settings</string>
@@ -260,7 +261,18 @@
 
     <string name="settings_group_muted">Muted</string>
     <string name="settings_mute_keywords">Muted words</string>
-    <string name="settings_mute_keywords_hint">Comma separated. Messages containing one of them, and messages from those chatters, are hidden</string>
+    <string name="settings_mute_keywords_summary">Words that keep a message out of the chat</string>
+    <string name="settings_mute_keywords_hint">Messages containing the word, and messages from chatters called that, are hidden</string>
+    <string name="keywords_none">No highlight words</string>
+    <string name="mute_keywords_none">No muted words</string>
+    <string name="keyword_add_mention">Add highlight word</string>
+    <string name="keyword_add_mute">Mute a word</string>
+    <string name="keyword_word">Word</string>
+    <string name="keyword_remove">Remove %s</string>
+    <plurals name="keywords_count">
+        <item quantity="one">%d word</item>
+        <item quantity="other">%d words</item>
+    </plurals>
 
     <!-- Blocked users -->
     <string name="action_block">Block</string>

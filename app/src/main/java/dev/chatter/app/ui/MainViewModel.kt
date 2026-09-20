@@ -448,12 +448,38 @@ class MainViewModel(private val c: AppContainer) : ViewModel() {
         viewModelScope.launch { c.settings.setMessageLimit(v) }
     }
 
-    fun setMentionKeywords(v: String) {
-        viewModelScope.launch { c.settings.setMentionKeywords(v) }
+    /**
+     * Adds a word to highlight on. A comma still splits, so a list pasted in one go lands as
+     * separate words instead of one unmatchable one.
+     */
+    fun addMentionKeyword(input: String) {
+        val next = withWords(settings.value.mentionKeywords, input) ?: return
+        viewModelScope.launch { c.settings.setMentionKeywords(next) }
     }
 
-    fun setMuteKeywords(v: String) {
-        viewModelScope.launch { c.settings.setMuteKeywords(v) }
+    fun removeMentionKeyword(word: String) {
+        viewModelScope.launch {
+            c.settings.setMentionKeywords(settings.value.mentionKeywords.filterNot { it.equals(word, ignoreCase = true) })
+        }
+    }
+
+    fun addMuteKeyword(input: String) {
+        val next = withWords(settings.value.muteKeywords, input) ?: return
+        viewModelScope.launch { c.settings.setMuteKeywords(next) }
+    }
+
+    fun removeMuteKeyword(word: String) {
+        viewModelScope.launch {
+            c.settings.setMuteKeywords(settings.value.muteKeywords.filterNot { it.equals(word, ignoreCase = true) })
+        }
+    }
+
+    /** The list with [input] added, or null if it holds nothing new. */
+    private fun withWords(current: List<String>, input: String): List<String>? {
+        val added = input.split(',').map { it.trim() }
+            .filter { it.isNotEmpty() && current.none { word -> word.equals(it, ignoreCase = true) } }
+            .distinctBy { it.lowercase() }
+        return if (added.isEmpty()) null else current + added
     }
 
     fun setThemeMode(v: ThemeMode) {
