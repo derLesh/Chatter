@@ -13,12 +13,14 @@ import androidx.compose.runtime.ReadOnlyComposable
 import androidx.compose.runtime.SideEffect
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.luminance
+import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalView
 import androidx.core.view.WindowCompat
 import dev.chatter.app.settings.Settings
 import dev.chatter.app.settings.ThemeMode
 import kotlin.math.abs
+import java.util.concurrent.ConcurrentHashMap
 
 val LiveRed = Color(0xFFEB0400)
 
@@ -159,5 +161,30 @@ fun readableNameColor(
     palette: NameColorPalette = NameColorPalette.HslLuma,
 ): Color {
     val base = argb?.let { Color(it) } ?: DefaultNameColors[abs((login ?: "").hashCode()) % DefaultNameColors.size]
-    return palette.adjust(base, dark)
+    return NameColorCache.get(base, dark, palette)
+}
+
+/**
+ * Remembers what [NameColorPalette.adjust] worked out for a color, because working it out is a
+ * twelve-step search whose every step converts a color space and measures luminance. A message
+ * row rebuilds its text whenever it scrolls back into view, so without this the same handful of
+ * colors is solved again on every screenful.
+ *
+ * The keys are colors, not users: everyone who never picked one shares a palette of fifteen.
+ */
+private object NameColorCache {
+    private val entries = ConcurrentHashMap<Long, Color>()
+
+    fun get(base: Color, dark: Boolean, palette: NameColorPalette): Color {
+        val key = (base.toArgb().toLong() and 0xFFFFFFFFL) or
+            (palette.ordinal.toLong() shl 32) or
+            (if (dark) 1L shl 40 else 0L)
+        entries[key]?.let { return it }
+        // A channel full of custom colors could otherwise grow this without end. Starting over
+        // costs one solve per color still on screen, which nobody can see happen.
+        if (entries.size >= MAX_ENTRIES) entries.clear()
+        return palette.adjust(base, dark).also { entries[key] = it }
+    }
+
+    private const val MAX_ENTRIES = 4096
 }
