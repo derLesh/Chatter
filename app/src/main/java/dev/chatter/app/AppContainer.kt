@@ -18,6 +18,7 @@ import dev.chatter.app.channels.BlockedUsersRepository
 import dev.chatter.app.channels.ChannelRepository
 import dev.chatter.app.chat.ChatRepository
 import dev.chatter.app.chat.ChatterRegistry
+import dev.chatter.app.chat.NicknameRepository
 import dev.chatter.app.chat.CommandExecutor
 import dev.chatter.app.chat.EmoteOptions
 import dev.chatter.app.chat.MessageBuilder
@@ -42,6 +43,7 @@ import java.util.concurrent.TimeUnit
 private val Context.authStore by preferencesDataStore("auth")
 private val Context.channelStore by preferencesDataStore("channels")
 private val Context.settingsStore by preferencesDataStore("settings")
+private val Context.nicknameStore by preferencesDataStore("nicknames")
 
 /**
  * Creates and wires every long-lived object of the app (manual dependency injection).
@@ -66,6 +68,7 @@ class AppContainer(private val context: Context) {
     val badges = BadgeRepository(helix)
     val channels = ChannelRepository(context.channelStore, helix, scope)
     val blocked = BlockedUsersRepository(helix, scope)
+    val nicknames = NicknameRepository(context.nicknameStore, scope)
     val irc = IrcConnection(socketHttp, scope)
     val notifier = MentionNotifier(context)
     private val chatters = ChatterRegistry()

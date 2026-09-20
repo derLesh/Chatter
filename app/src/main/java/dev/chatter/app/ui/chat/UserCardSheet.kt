@@ -23,6 +23,7 @@ import androidx.compose.material.icons.automirrored.filled.Send
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Clear
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Share
@@ -33,6 +34,7 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedButton
@@ -80,6 +82,7 @@ fun UserCardSheet(
     load: suspend () -> UserCardData,
     blocked: Boolean,
     onBlock: (HelixUser, Boolean) -> Unit,
+    onNickname: () -> Unit,
     onReply: () -> Unit,
     onMention: () -> Unit,
     onDelete: () -> Unit,
@@ -98,7 +101,7 @@ fun UserCardSheet(
     ModalBottomSheet(onDismissRequest = onDismiss, containerColor = MaterialTheme.colorScheme.surfaceContainerLow) {
         LazyColumn(Modifier.fillMaxWidth()) {
             if (isUserMessage) {
-                item { Header(item, data, style, imageLoader) }
+                item { Header(item, data, style, imageLoader, onNickname) }
                 data?.user?.description?.takeIf { it.isNotBlank() }?.let { bio ->
                     item {
                         Text(
@@ -204,7 +207,13 @@ fun UserCardSheet(
 }
 
 @Composable
-private fun Header(item: ChatItem, data: UserCardData?, style: ChatStyle, imageLoader: ImageLoader) {
+private fun Header(
+    item: ChatItem,
+    data: UserCardData?,
+    style: ChatStyle,
+    imageLoader: ImageLoader,
+    onNickname: () -> Unit,
+) {
     val user = data?.user
     Row(
         verticalAlignment = Alignment.CenterVertically,
@@ -221,14 +230,20 @@ private fun Header(item: ChatItem, data: UserCardData?, style: ChatStyle, imageL
         )
         Spacer(Modifier.width(16.dp))
         Column(Modifier.weight(1f)) {
-            Text(
-                text = item.displayName ?: item.login.orEmpty(),
-                style = MaterialTheme.typography.headlineSmall,
-                fontWeight = FontWeight.Bold,
-                color = readableNameColor(item.color, item.login, style.dark, style.nameColors),
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-            )
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(
+                    text = style.nameOf(item.login, item.displayName ?: item.login.orEmpty()),
+                    style = MaterialTheme.typography.headlineSmall,
+                    fontWeight = FontWeight.Bold,
+                    color = readableNameColor(item.color, item.login, style.dark, style.nameColors),
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.weight(1f, fill = false),
+                )
+                IconButton(onClick = onNickname) {
+                    Icon(Icons.Default.Edit, contentDescription = stringResource(R.string.nickname_title))
+                }
+            }
             val subtitle = listOfNotNull(
                 item.login?.takeIf { !it.equals(item.displayName, ignoreCase = true) }?.let { "@$it" },
                 when (user?.broadcasterType) {

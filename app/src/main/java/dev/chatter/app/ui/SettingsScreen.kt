@@ -321,6 +321,7 @@ private fun TextSizeItem(settings: Settings, vm: MainViewModel) {
         accent = scheme.primary,
         showDeleted = true,
         nameColors = settings.nameColors,
+        nicknames = emptyMap(),
     )
     ListItem(
         headlineContent = { Text(stringResource(R.string.settings_font_size, size.roundToInt())) },

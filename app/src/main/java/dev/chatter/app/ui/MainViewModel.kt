@@ -65,6 +65,7 @@ class MainViewModel(private val c: AppContainer) : ViewModel() {
     val emoteVersion = c.emotes.version
     val blockedUsers = c.blocked.blocked
     val blockedLogins = c.blocked.logins
+    val nicknames = c.nicknames.nicknames
 
     val imageLoader get() = c.imageLoader
     val staticImageLoader get() = c.staticImageLoader
@@ -207,6 +208,11 @@ class MainViewModel(private val c: AppContainer) : ViewModel() {
         viewModelScope.launch {
             if (!c.blocked.setBlocked(user, blocked = false)) _messages.send(R.string.error_block_failed)
         }
+    }
+
+    /** Gives a chatter a nickname, in every channel they show up in. A blank one clears it. */
+    fun setNickname(login: String, nickname: String) {
+        viewModelScope.launch { c.nicknames.set(login, nickname) }
     }
 
     fun deleteMessage(item: ChatItem) {

@@ -269,4 +269,8 @@
     <string name="settings_blocked_none">Nobody blocked</string>
     <string name="settings_blocked_hint">Blocking is shared with Twitch: blocked chatters are hidden here and everywhere else</string>
     <string name="error_block_failed">Twitch rejected that. Please try again</string>
+
+    <!-- Nicknames -->
+    <string name="nickname_title">Nickname</string>
+    <string name="nickname_hint">Shown instead of their Twitch name, in every channel. Leave empty to undo</string>
 </resources>

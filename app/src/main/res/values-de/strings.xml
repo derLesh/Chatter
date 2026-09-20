@@ -263,4 +263,8 @@
     <string name="settings_blocked_none">Niemand blockiert</string>
     <string name="settings_blocked_hint">Das Blockieren teilt sich Chatter mit Twitch: Blockierte Chatter sind hier und überall sonst ausgeblendet</string>
     <string name="error_block_failed">Twitch hat das abgelehnt. Bitte noch einmal versuchen</string>
+
+    <!-- Spitznamen -->
+    <string name="nickname_title">Spitzname</string>
+    <string name="nickname_hint">Wird statt des Twitch-Namens angezeigt, in jedem Kanal. Leer lassen, um ihn zurückzusetzen</string>
 </resources>

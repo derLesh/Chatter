@@ -61,6 +61,7 @@ import dev.chatter.app.ui.chat.ChatStyle
 import dev.chatter.app.ui.chat.EmoteCardSheet
 import dev.chatter.app.ui.chat.EmotePickerSheet
 import dev.chatter.app.ui.chat.InputBar
+import dev.chatter.app.ui.chat.NicknameDialog
 import dev.chatter.app.ui.chat.UserCardSheet
 import dev.chatter.app.ui.theme.highlightBackground
 import dev.chatter.app.ui.theme.isAppInDarkTheme
@@ -83,6 +84,7 @@ fun MainScreen(vm: MainViewModel, onSettings: () -> Unit) {
     val roomStates by vm.roomStates.collectAsStateWithLifecycle()
     val roles by vm.roles.collectAsStateWithLifecycle()
     val blockedLogins by vm.blockedLogins.collectAsStateWithLifecycle()
+    val nicknames by vm.nicknames.collectAsStateWithLifecycle()
 
     val context = LocalContext.current
     val lifecycleOwner = LocalLifecycleOwner.current
@@ -97,11 +99,12 @@ fun MainScreen(vm: MainViewModel, onSettings: () -> Unit) {
     var showPicker by remember { mutableStateOf(false) }
     var showAdd by remember { mutableStateOf(false) }
     var renameTarget by remember { mutableStateOf<String?>(null) }
+    var nicknameTarget by remember { mutableStateOf<ChatItem?>(null) }
 
     val loader = if (settings.animatedEmotes) vm.imageLoader else vm.staticImageLoader
     val dark = isAppInDarkTheme()
     val colors = MaterialTheme.colorScheme
-    val style = remember(settings.fontSize, settings.timestamps, settings.highlightColor, settings.alternateBackground, settings.showDeleted, settings.nameColors, settings.highlightFirstMessages, dark, colors) {
+    val style = remember(settings.fontSize, settings.timestamps, settings.highlightColor, settings.alternateBackground, settings.showDeleted, settings.nameColors, settings.highlightFirstMessages, nicknames, dark, colors) {
         ChatStyle(
             fontSize = settings.fontSize,
             timestamps = settings.timestamps,
@@ -115,6 +118,7 @@ fun MainScreen(vm: MainViewModel, onSettings: () -> Unit) {
             accent = colors.primary,
             showDeleted = settings.showDeleted,
             nameColors = settings.nameColors,
+            nicknames = nicknames,
         )
     }
 
@@ -239,6 +243,7 @@ fun MainScreen(vm: MainViewModel, onSettings: () -> Unit) {
             load = { vm.loadUserCard(item) },
             blocked = item.login?.lowercase() in blockedLogins,
             onBlock = vm::setBlocked,
+            onNickname = { nicknameTarget = item },
             onReply = { vm.startReply(item) },
             onMention = { vm.mention(item) },
             onDelete = { vm.deleteMessage(item) },
@@ -246,6 +251,18 @@ fun MainScreen(vm: MainViewModel, onSettings: () -> Unit) {
             onBan = { vm.banUser(item) },
             onDismiss = { actionItem = null },
         )
+    }
+    nicknameTarget?.let { target ->
+        val login = target.login
+        if (login == null) nicknameTarget = null else {
+            NicknameDialog(
+                login = login,
+                currentNickname = nicknames[login.lowercase()].orEmpty(),
+                twitchName = target.displayName ?: login,
+                onSave = { vm.setNickname(login, it) },
+                onDismiss = { nicknameTarget = null },
+            )
+        }
     }
     emoteCard?.let { seg ->
         EmoteCardSheet(

@@ -71,6 +71,8 @@ data class ChatStyle(
     val showDeleted: Boolean,
     /** How name colors are adjusted for readability. */
     val nameColors: NameColorPalette,
+    /** Names the user gave chatters, by lowercase login. Usually empty. */
+    val nicknames: Map<String, String>,
 )
 
 private const val BADGE_EM = 1.35f
@@ -148,7 +150,7 @@ fun MessageRow(
         }
         item.reply?.let { reply ->
             Text(
-                text = stringResource(R.string.reply_to, reply.parentDisplayName, reply.parentBody),
+                text = stringResource(R.string.reply_to, style.nameOf(reply.parentLogin, reply.parentDisplayName), reply.parentBody),
                 color = style.secondaryText,
                 fontSize = (style.fontSize - 2).sp,
                 maxLines = 1,
@@ -236,7 +238,7 @@ private fun buildLine(item: ChatItem, style: ChatStyle): BuiltLine {
             append(' ')
         }
         withStyle(SpanStyle(color = nameColor, fontWeight = FontWeight.Bold)) {
-            append(displayName(item))
+            append(displayName(item, style))
         }
         append(if (isAction) " " else ": ")
 
@@ -270,9 +272,17 @@ private fun AnnotatedString.Builder.appendSegments(segments: List<Segment>, inli
     }
 }
 
-/** "Name" or "Name (login)" for localized display names like Japanese or Korean ones. */
-private fun displayName(item: ChatItem): String {
+/** The nickname the user gave [login], or [fallback] when they gave none. */
+fun ChatStyle.nameOf(login: String?, fallback: String): String =
+    login?.let { nicknames[it.lowercase()] } ?: fallback
+
+/**
+ * "Name" or "Name (login)" for localized display names like Japanese or Korean ones. A nickname
+ * the user picked replaces both: they already know who they meant by it.
+ */
+private fun displayName(item: ChatItem, style: ChatStyle): String {
     val display = item.displayName ?: item.login ?: ""
     val login = item.login ?: return display
+    style.nicknames[login.lowercase()]?.let { return it }
     return if (display.equals(login, ignoreCase = true)) display else "$display ($login)"
 }
