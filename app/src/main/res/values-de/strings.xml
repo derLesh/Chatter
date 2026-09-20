@@ -319,6 +319,7 @@
     <string name="settings_haptics_hint">Kurzes Vibrieren, wenn eine Erwähnung eintrifft, während du liest, wenn du eine Nachricht gedrückt hältst und wenn etwas nicht durchgeht</string>
 
     <string name="shortcut_inbox">Postfach</string>
+    <string name="notif_channel_whispers">Flüstern</string>
     <string name="whisper_sent">Flüsternachricht an %1$s gesendet</string>
     <string name="whisper_reply_title">Flüstern an %1$s</string>
     <string name="whisper_reply_hint">Deine Antwort</string>

@@ -354,13 +354,13 @@ fun AppRoot(vm: MainViewModel) {
     var showSettings by remember { mutableStateOf(false) }
     var showInbox by remember { mutableStateOf(false) }
 
-    // The inbox shortcut sets this before the screen exists, so it is consumed rather than observed.
-    val openInbox by vm.requestedInbox.collectAsStateWithLifecycle()
-    LaunchedEffect(openInbox) {
-        if (!openInbox) return@LaunchedEffect
+    // Asked for from outside (the shortcut, a whisper notification). The inbox itself clears it
+    // once it has scrolled to the tab, so it is only opened here.
+    val requestedInbox by vm.requestedInbox.collectAsStateWithLifecycle()
+    LaunchedEffect(requestedInbox) {
+        if (requestedInbox == null) return@LaunchedEffect
         showSettings = false
         showInbox = true
-        vm.requestedInbox.value = false
     }
     when (auth) {
         dev.chatter.app.auth.AuthState.Loading -> Box(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background))

@@ -110,6 +110,10 @@ class ChatRepository(
      */
     val whispers: SharedFlow<InboxWhisper> = _whispers
 
+    private val _whisperEvents = MutableSharedFlow<InboxWhisper>(extraBufferCapacity = 16)
+    /** The whispers that arrived while nobody was looking at them, for the notification. */
+    val whisperEvents: SharedFlow<InboxWhisper> = _whisperEvents
+
     private val _modChannels = MutableStateFlow<Set<String>>(emptySet())
     /** Channels where the user is moderator or broadcaster. */
     val modChannels: StateFlow<Set<String>> = _modChannels
@@ -142,6 +146,9 @@ class ChatRepository(
     /** The channel currently shown on screen, and whether the app UI is visible at all. */
     val activeChannel = MutableStateFlow<String?>(null)
     val uiVisible = MutableStateFlow(false)
+
+    /** True while the whisper tab of the inbox is the thing in front of the user. */
+    val whispersVisible = MutableStateFlow(false)
 
     fun start() {
         scope.launch(worker) { irc.messages.collect { handle(it) } }
@@ -415,9 +422,7 @@ class ChatRepository(
                 }
                 if (item.isMention) onMention(item)
             }
-            "WHISPER" -> InboxWhisper.from(msg)?.let {
-                if (!muted.mutes(it.login, it.displayName, it.text)) _whispers.tryEmit(it)
-            }
+            "WHISPER" -> InboxWhisper.from(msg)?.let(::onWhisper)
             "NOTICE" -> if (channel != null) builder.build(msg, "", null, mentions)?.let(::append)
             "CLEARCHAT" -> if (channel != null) onClearChat(channel, msg)
             "CLEARMSG" -> if (channel != null) msg.tag("target-msg-id")?.let { id -> markDeleted(channel) { it.id == id } }
@@ -449,6 +454,14 @@ class ChatRepository(
         // A muted channel still counts its mentions, it just does not notify about them.
         if (item.channel in channelRepo.mutedChannels.value) return
         _mentionEvents.tryEmit(item)
+    }
+
+    private fun onWhisper(whisper: InboxWhisper) {
+        if (muted.mutes(whisper.login, whisper.displayName, whisper.text)) return
+        // One that arrived under the user's eyes is read already, and needs no notification.
+        val watching = uiVisible.value && whispersVisible.value
+        _whispers.tryEmit(whisper.copy(read = watching))
+        if (!watching) _whisperEvents.tryEmit(whisper)
     }
 
     private fun onClearChat(channel: String, msg: IrcMessage) {

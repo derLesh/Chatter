@@ -18,25 +18,33 @@ import dev.chatter.app.R
 import dev.chatter.app.channels.ChannelIdentity
 import dev.chatter.app.channels.ChannelRepository
 import dev.chatter.app.chat.ChatItem
+import dev.chatter.app.chat.InboxWhisper
 import dev.chatter.app.chat.MessageKind
 import dev.chatter.app.net.HelixApi
 import dev.chatter.app.settings.Settings
 import dev.chatter.app.ui.bubble.BubbleActivity
 import dev.chatter.app.util.ChannelIcons
 import dev.chatter.app.util.EXTRA_CHANNEL
+import dev.chatter.app.util.EXTRA_INBOX_TAB
+import dev.chatter.app.util.EXTRA_WHISPER
+import dev.chatter.app.util.EXTRA_WHISPER_USER_ID
+import dev.chatter.app.util.INBOX_TAB_WHISPERS
 import dev.chatter.app.util.appLaunchIntent
 import dev.chatter.app.util.channelShortcut
 import kotlinx.coroutines.flow.StateFlow
 import java.util.concurrent.ConcurrentHashMap
 
 /**
- * Posts one grouped notification per channel for messages that mention the user.
+ * Everything Chatter tells the user about while they are not looking: one grouped notification
+ * per channel for the messages that mention them, and one per person who whispers them.
  *
- * Every notification is a conversation: it carries a long-lived shortcut for its channel, which
- * is what lets Android show it in the conversation section and — if the user turned bubbles on —
- * float it over other apps as a chat bubble.
+ * A mention notification is a conversation: it carries a long-lived shortcut for its channel,
+ * which is what lets Android show it in the conversation section and — if the user turned
+ * bubbles on — float it over other apps as a chat bubble. A whisper deliberately carries no
+ * such shortcut: there is no whisper screen for a bubble to open, and the senders are strangers
+ * who would otherwise pile up in the people space and push the channels out of it.
  */
-class MentionNotifier(
+class ChatNotifier(
     private val context: Context,
     private val channels: ChannelRepository,
     private val helix: HelixApi,
@@ -48,6 +56,8 @@ class MentionNotifier(
     private val recent = HashMap<String, ArrayDeque<ChatItem>>()
     /** Twitch profile pictures of the chatters in the notifications, by lowercase login. */
     private val senderIcons = ConcurrentHashMap<String, IconCompat>()
+    /** The whisper conversations currently on screen, by lowercase login. */
+    private val whisperThreads = HashMap<String, WhisperThread>()
 
     fun createChannels() {
         nm.createNotificationChannel(
@@ -56,6 +66,10 @@ class MentionNotifier(
         )
         nm.createNotificationChannelGroup(
             NotificationChannelGroup(GROUP_MENTIONS, context.getString(R.string.notif_channel_mentions))
+        )
+        // Whispers come from anyone, so they share one channel rather than getting one each.
+        nm.createNotificationChannel(
+            NotificationChannel(CHANNEL_WHISPERS, context.getString(R.string.notif_channel_whispers), NotificationManager.IMPORTANCE_HIGH)
         )
         // Mentions used to share one notification channel; every Twitch channel has its own now.
         nm.deleteNotificationChannel(LEGACY_CHANNEL_MENTIONS)
@@ -190,6 +204,110 @@ class MentionNotifier(
         }
     }
 
+    // ---- Whispers --------------------------------------------------------------------------
+
+    /** One line of a whisper conversation as the notification shows it. */
+    private class WhisperLine(val text: String, val timestamp: Long, val own: Boolean)
+
+    /** What is known about the person on the other side, kept so an answer can go back to them. */
+    private class WhisperThread(var name: String, var userId: String?) {
+        val lines = ArrayDeque<WhisperLine>()
+    }
+
+    /** Posts, or adds to, the conversation with whoever whispered. */
+    suspend fun notifyWhisper(whisper: InboxWhisper) {
+        if (!manager.areNotificationsEnabled()) return
+        // Fills the cache for this sender; the older lines use what is already in it.
+        loadSenderIcon(whisper.login)
+        addWhisperLine(
+            login = whisper.login,
+            name = whisper.displayName,
+            userId = whisper.userId,
+            line = WhisperLine(whisper.text, whisper.timestamp, own = false),
+        )
+    }
+
+    /** Shows an answer the user sent straight from the notification in that same conversation. */
+    fun showWhisperSent(login: String, text: String) {
+        if (!manager.areNotificationsEnabled()) return
+        addWhisperLine(login, name = null, userId = null, line = WhisperLine(text, System.currentTimeMillis(), own = true))
+    }
+
+    /**
+     * Says in the conversation itself why an answer did not go out. Twitch refuses whispers for
+     * reasons the app cannot see coming, and by then the keyboard the user typed on is long gone.
+     */
+    fun showWhisperFailed(login: String, reason: String) {
+        if (!manager.areNotificationsEnabled()) return
+        addWhisperLine(login, name = null, userId = null, line = WhisperLine(reason, System.currentTimeMillis(), own = true))
+    }
+
+    /** Takes the whisper notifications down once the user opens the tab that holds them. */
+    @Synchronized
+    fun clearWhispers() {
+        whisperThreads.keys.forEach { manager.cancel(it, WHISPER_NOTIFICATION_ID) }
+        whisperThreads.clear()
+    }
+
+    @Synchronized
+    private fun addWhisperLine(login: String, name: String?, userId: String?, line: WhisperLine) {
+        val key = login.lowercase()
+        val thread = whisperThreads.getOrPut(key) { WhisperThread(name ?: login, userId) }
+        name?.let { thread.name = it }
+        userId?.let { thread.userId = it }
+        thread.lines.addLast(line)
+        while (thread.lines.size > 6) thread.lines.removeFirst()
+
+        val me = Person.Builder().setName(context.getString(R.string.notif_me)).build()
+        val sender = Person.Builder().setName(thread.name).setKey(key).setIcon(senderIcons[key]).build()
+        val style = NotificationCompat.MessagingStyle(me)
+        // A null person is what MessagingStyle reads as "the user themselves".
+        thread.lines.forEach { style.addMessage(it.text, it.timestamp, if (it.own) null else sender) }
+
+        val notification = NotificationCompat.Builder(context, CHANNEL_WHISPERS)
+            .setSmallIcon(R.drawable.ic_notification)
+            .setStyle(style)
+            .setCategory(NotificationCompat.CATEGORY_MESSAGE)
+            .setGroup(GROUP_WHISPERS)
+            .setAutoCancel(true)
+            .setContentIntent(openWhispersIntent())
+            .addAction(whisperReplyAction(login, thread.userId))
+            .build()
+        try {
+            // The login is the tag, so one notification per person and none of them collide with
+            // the mentions, which carry no tag at all.
+            manager.notify(key, WHISPER_NOTIFICATION_ID, notification)
+        } catch (e: SecurityException) {
+            // Permission was revoked in the meantime.
+        }
+    }
+
+    private fun openWhispersIntent(): PendingIntent {
+        val intent = appLaunchIntent(context, channel = null).putExtra(EXTRA_INBOX_TAB, INBOX_TAB_WHISPERS)
+        return PendingIntent.getActivity(
+            context, WHISPER_NOTIFICATION_ID, intent,
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
+        )
+    }
+
+    private fun whisperReplyAction(login: String, userId: String?): NotificationCompat.Action {
+        val intent = Intent(context, ReplyReceiver::class.java)
+            .putExtra(EXTRA_WHISPER, login)
+            .putExtra(EXTRA_WHISPER_USER_ID, userId)
+        val pending = PendingIntent.getBroadcast(
+            context, "whisper:$login".hashCode(), intent,
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_MUTABLE,
+        )
+        val label = context.getString(R.string.notif_reply)
+        return NotificationCompat.Action.Builder(R.drawable.ic_notification, label, pending)
+            .addRemoteInput(RemoteInput.Builder(KEY_REPLY).setLabel(label).build())
+            .setSemanticAction(NotificationCompat.Action.SEMANTIC_ACTION_REPLY)
+            .setShowsUserInterface(false)
+            .build()
+    }
+
+    // ------------------------------------------------------------------------------------------
+
     /**
      * The conversation shortcut a notification points at. The channel list publishes the same
      * shortcut (see [dev.chatter.app.util.ChannelShortcuts]), but a notification cannot wait for
@@ -243,6 +361,10 @@ class MentionNotifier(
         /** The one shared mentions channel of older versions, replaced by one per channel. */
         private const val LEGACY_CHANNEL_MENTIONS = "mentions"
         private const val GROUP = "mentions"
+        const val CHANNEL_WHISPERS = "whispers"
+        private const val GROUP_WHISPERS = "whispers"
+        /** Whisper notifications are told apart by the sender's login as their tag, not by id. */
+        private const val WHISPER_NOTIFICATION_ID = 2
 
         /** The notification channel mentions in [channel] are posted to. */
         fun mentionChannelId(channel: String): String = "mentions:$channel"

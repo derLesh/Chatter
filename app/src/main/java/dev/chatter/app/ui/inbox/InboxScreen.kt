@@ -37,6 +37,8 @@ import androidx.compose.material3.Tab
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -61,10 +63,9 @@ import dev.chatter.app.ui.MainViewModel
 import dev.chatter.app.ui.channels.ChannelAvatar
 import dev.chatter.app.ui.theme.isAppInDarkTheme
 import dev.chatter.app.ui.theme.readableNameColor
+import dev.chatter.app.util.INBOX_TAB_MENTIONS
+import dev.chatter.app.util.INBOX_TAB_WHISPERS
 import kotlinx.coroutines.launch
-
-private const val TAB_MENTIONS = 0
-private const val TAB_WHISPERS = 1
 
 /**
  * Everything written to the user personally, in two tabs: mentions out of the channels, and
@@ -89,8 +90,23 @@ fun InboxScreen(vm: MainViewModel, onOpenChannel: (String) -> Unit, onBack: () -
     val snackbar = remember { SnackbarHostState() }
     var replyTo by remember { mutableStateOf<InboxWhisper?>(null) }
     // The actions in the bar belong to whichever tab is in front, not to the inbox as a whole.
-    val onMentions = pager.currentPage == TAB_MENTIONS
+    val onMentions = pager.currentPage == INBOX_TAB_MENTIONS
     val hasItems = if (onMentions) mentions.isNotEmpty() else whispers.isNotEmpty()
+
+    // A whisper notification asks for its tab; the shortcut for the other one.
+    val requestedTab by vm.requestedInbox.collectAsStateWithLifecycle()
+    LaunchedEffect(requestedTab) {
+        val tab = requestedTab ?: return@LaunchedEffect
+        pager.scrollToPage(tab)
+        vm.requestedInbox.value = null
+    }
+
+    // While the whisper tab is the thing being read, a whisper arriving in it needs no
+    // notification, and the ones already posted have been answered by opening this.
+    DisposableEffect(onMentions) {
+        vm.setWhispersVisible(!onMentions)
+        onDispose { vm.setWhispersVisible(false) }
+    }
 
     Scaffold(
         containerColor = MaterialTheme.colorScheme.surface,
@@ -118,16 +134,16 @@ fun InboxScreen(vm: MainViewModel, onOpenChannel: (String) -> Unit, onBack: () -
     ) { padding ->
         Column(Modifier.fillMaxSize().padding(padding)) {
             PrimaryTabRow(selectedTabIndex = pager.currentPage) {
-                InboxTab(R.string.inbox_tab_mentions, mentionUnread, pager.currentPage == TAB_MENTIONS) {
-                    scope.launch { pager.animateScrollToPage(TAB_MENTIONS) }
+                InboxTab(R.string.inbox_tab_mentions, mentionUnread, onMentions) {
+                    scope.launch { pager.animateScrollToPage(INBOX_TAB_MENTIONS) }
                 }
-                InboxTab(R.string.inbox_tab_whispers, whisperUnread, pager.currentPage == TAB_WHISPERS) {
-                    scope.launch { pager.animateScrollToPage(TAB_WHISPERS) }
+                InboxTab(R.string.inbox_tab_whispers, whisperUnread, !onMentions) {
+                    scope.launch { pager.animateScrollToPage(INBOX_TAB_WHISPERS) }
                 }
             }
             HorizontalPager(pager, Modifier.weight(1f)) { page ->
                 when (page) {
-                    TAB_MENTIONS -> MentionList(
+                    INBOX_TAB_MENTIONS -> MentionList(
                         mentions = mentions,
                         info = info,
                         nicknames = nicknames,

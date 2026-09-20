@@ -50,6 +50,9 @@ class ChatService : Service() {
             container.chat.mentionEvents.collect { container.notifier.notify(it) }
         }
         scope.launch {
+            container.chat.whisperEvents.collect { container.notifier.notifyWhisper(it) }
+        }
+        scope.launch {
             combine(container.channels.channels, container.irc.state) { ch, st -> ch.size to st }
                 .distinctUntilChanged()
                 .collect { (count, state) ->
@@ -93,7 +96,7 @@ class ChatService : Service() {
             this, 1, Intent(this, ChatService::class.java).setAction(ACTION_DISCONNECT),
             PendingIntent.FLAG_IMMUTABLE,
         )
-        return NotificationCompat.Builder(this, MentionNotifier.CHANNEL_CONNECTION)
+        return NotificationCompat.Builder(this, ChatNotifier.CHANNEL_CONNECTION)
             .setSmallIcon(R.drawable.ic_notification)
             .setContentTitle(getString(R.string.app_name))
             .setContentText(text)
@@ -102,7 +105,7 @@ class ChatService : Service() {
             .setShowWhen(false)
             .setPriority(NotificationCompat.PRIORITY_MIN)
             .setForegroundServiceBehavior(NotificationCompat.FOREGROUND_SERVICE_IMMEDIATE)
-            .setContentIntent(MentionNotifier.openChannelIntent(this, null))
+            .setContentIntent(ChatNotifier.openChannelIntent(this, null))
             .addAction(0, getString(R.string.notif_disconnect), disconnect)
             .build()
     }

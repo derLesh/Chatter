@@ -103,7 +103,7 @@ import dev.chatter.app.chat.RuleTarget
 import dev.chatter.app.chat.MessageKind
 import dev.chatter.app.chat.Segment
 import dev.chatter.app.net.HelixBlockedUser
-import dev.chatter.app.service.MentionNotifier
+import dev.chatter.app.service.ChatNotifier
 import dev.chatter.app.settings.Settings
 import dev.chatter.app.settings.ThemeMode
 import dev.chatter.app.ui.channels.ManageChannelsPage
@@ -744,7 +744,7 @@ private fun ChannelsPage(vm: MainViewModel, settings: Settings) {
             context.startActivity(
                 Intent(AndroidSettings.ACTION_CHANNEL_NOTIFICATION_SETTINGS)
                     .putExtra(AndroidSettings.EXTRA_APP_PACKAGE, context.packageName)
-                    .putExtra(AndroidSettings.EXTRA_CHANNEL_ID, MentionNotifier.mentionChannelId(login))
+                    .putExtra(AndroidSettings.EXTRA_CHANNEL_ID, ChatNotifier.mentionChannelId(login))
             )
         },
         onUnreadVisible = vm::setChannelUnreadVisible,

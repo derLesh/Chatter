@@ -14,7 +14,7 @@ import dev.chatter.app.ui.AppRoot
 import dev.chatter.app.ui.MainViewModel
 import dev.chatter.app.ui.theme.ChatterTheme
 import dev.chatter.app.util.EXTRA_CHANNEL
-import dev.chatter.app.util.EXTRA_INBOX
+import dev.chatter.app.util.EXTRA_INBOX_TAB
 
 class MainActivity : ComponentActivity() {
     private val vm: MainViewModel by viewModels {
@@ -50,6 +50,6 @@ class MainActivity : ComponentActivity() {
     private fun handleIntent(intent: Intent?) {
         intent ?: return
         intent.getStringExtra(EXTRA_CHANNEL)?.let { vm.requestedChannel.value = it }
-        if (intent.getBooleanExtra(EXTRA_INBOX, false)) vm.requestedInbox.value = true
+        intent.getIntExtra(EXTRA_INBOX_TAB, -1).takeIf { it >= 0 }?.let { vm.requestedInbox.value = it }
     }
 }

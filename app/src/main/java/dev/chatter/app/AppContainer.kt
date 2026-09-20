@@ -24,6 +24,7 @@ import dev.chatter.app.chat.MentionInboxRepository
 import dev.chatter.app.chat.NicknameRepository
 import dev.chatter.app.chat.RuleRepository
 import dev.chatter.app.chat.WhisperInboxRepository
+import dev.chatter.app.chat.WhisperResult
 import dev.chatter.app.chat.WhisperSender
 import dev.chatter.app.chat.CommandExecutor
 import dev.chatter.app.chat.EmoteOptions
@@ -35,7 +36,7 @@ import dev.chatter.app.irc.ConnectionState
 import dev.chatter.app.irc.IrcConnection
 import dev.chatter.app.net.HelixApi
 import dev.chatter.app.net.ThirdPartyApi
-import dev.chatter.app.service.MentionNotifier
+import dev.chatter.app.service.ChatNotifier
 import dev.chatter.app.settings.BackupManager
 import dev.chatter.app.settings.SettingsRepository
 import dev.chatter.app.util.ChannelIcons
@@ -121,7 +122,7 @@ class AppContainer(private val context: Context) {
 
     // After the image loader: mention notifications carry the channel avatar as their icon.
     private val channelIcons = ChannelIcons(context, channels, imageLoader)
-    val notifier = MentionNotifier(context, channels, helix, settings.settings, channelIcons)
+    val notifier = ChatNotifier(context, channels, helix, settings.settings, channelIcons)
     private val shortcuts = ChannelShortcuts(context, channels.identities, channelIcons, scope)
 
     fun start() {
@@ -213,6 +214,18 @@ class AppContainer(private val context: Context) {
             chat.readyChannels.first { channel in it }
         } != null
         return ready && chat.send(channel, text, replyTo = null) == SendResult.Ok
+    }
+
+    /**
+     * Sends a whisper typed into a notification. Like a channel reply, the broadcast may be what
+     * started the process, so this waits for the stored login to come back before giving up.
+     */
+    suspend fun whisperFromNotification(login: String, userId: String?, text: String): WhisperResult {
+        val ready = withTimeoutOrNull(NOTIFICATION_SEND_TIMEOUT_MS) {
+            auth.state.first { it is AuthState.LoggedIn }
+        } != null
+        if (!ready) return WhisperResult(sent = false, message = context.getString(R.string.error_not_connected))
+        return whisperSender.send(login, userId, text)
     }
 
     fun disconnect() = irc.disconnect()

@@ -13,8 +13,15 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.launch
 
-/** Carried by a launch intent that should open the inbox rather than a channel. */
-const val EXTRA_INBOX = "open_inbox"
+/** Carried by a launch intent that should open the inbox rather than a channel, naming its tab. */
+const val EXTRA_INBOX_TAB = "inbox_tab"
+
+const val INBOX_TAB_MENTIONS = 0
+const val INBOX_TAB_WHISPERS = 1
+
+/** Carried by the reply action of a whisper notification: who the answer goes back to. */
+const val EXTRA_WHISPER = "whisper"
+const val EXTRA_WHISPER_USER_ID = "whisper_user_id"
 
 /** Carried by a launch intent that names the channel to open. */
 const val EXTRA_CHANNEL = "channel"
@@ -95,7 +102,7 @@ class ChannelShortcuts(
             .setLongLabel(context.getString(R.string.shortcut_inbox))
             .setRank(channelCount)
             .setIcon(IconCompat.createWithResource(context, R.drawable.ic_shortcut_inbox))
-            .setIntent(appLaunchIntent(context, channel = null).putExtra(EXTRA_INBOX, true))
+            .setIntent(appLaunchIntent(context, channel = null).putExtra(EXTRA_INBOX_TAB, INBOX_TAB_MENTIONS))
             .build()
 
     /**

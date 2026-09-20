@@ -102,8 +102,11 @@ class MainViewModel(private val c: AppContainer) : ViewModel() {
     /** Channel requested from outside (notification tap) that the pager should scroll to. */
     val requestedChannel = MutableStateFlow<String?>(null)
 
-    /** Set when the app was started by the inbox shortcut, so the inbox opens instead of a chat. */
-    val requestedInbox = MutableStateFlow(false)
+    /**
+     * The inbox tab something outside the app asked for (its shortcut, a whisper notification),
+     * or null when nothing did. Cleared by the inbox once it has gone there.
+     */
+    val requestedInbox = MutableStateFlow<Int?>(null)
 
     private val _messages = Channel<Int>(Channel.BUFFERED)
     /** One-off user feedback as string resource ids (shown as snackbar). */
@@ -128,6 +131,15 @@ class MainViewModel(private val c: AppContainer) : ViewModel() {
         }
         replyTo = null
         suggestions = emptyList()
+    }
+
+    /**
+     * Tells the chat that the whisper tab is in front, which is what keeps a whisper arriving
+     * there from also ringing.
+     */
+    fun setWhispersVisible(visible: Boolean) {
+        c.chat.whispersVisible.value = visible
+        if (visible) c.notifier.clearWhispers()
     }
 
     fun setUiVisible(visible: Boolean) {
