@@ -28,6 +28,7 @@ class BubbleActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        vm.inBubble = true
         setContent {
             val settings by vm.settings.collectAsStateWithLifecycle()
             ChatterTheme(themeMode = settings.themeMode, dynamicColor = settings.dynamicColor) {

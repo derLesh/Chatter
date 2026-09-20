@@ -79,6 +79,13 @@ class MainViewModel(private val c: AppContainer) : ViewModel() {
     var suggestions by mutableStateOf<List<Suggestion>>(emptyList())
         private set
 
+    /**
+     * True for the view model behind a chat bubble. A bubble lives inside its notification, so
+     * cancelling that notification would take the bubble down with it — which is why a bubble
+     * never clears one, however much of the channel the user reads in it.
+     */
+    var inBubble = false
+
     /** Channel requested from outside (notification tap) that the pager should scroll to. */
     val requestedChannel = MutableStateFlow<String?>(null)
 
@@ -94,7 +101,7 @@ class MainViewModel(private val c: AppContainer) : ViewModel() {
         if (c.chat.activeChannel.value == channel) return
         c.chat.activeChannel.value = channel
         channel?.let {
-            c.notifier.clear(it)
+            if (!inBubble) c.notifier.clear(it)
             viewModelScope.launch {
                 // Where to come back to after a restart.
                 c.channels.setLastChannel(it)
@@ -110,7 +117,10 @@ class MainViewModel(private val c: AppContainer) : ViewModel() {
         c.chat.uiVisible.value = visible
         if (visible) {
             c.connect()
-            activeChannel.value?.let { c.chat.clearUnread(it); c.notifier.clear(it) }
+            activeChannel.value?.let {
+                c.chat.clearUnread(it)
+                if (!inBubble) c.notifier.clear(it)
+            }
         }
     }
 
