@@ -67,7 +67,7 @@ import dev.chatter.app.ui.chat.EmotePickerSheet
 import dev.chatter.app.ui.chat.InputBar
 import dev.chatter.app.ui.chat.NicknameDialog
 import dev.chatter.app.ui.chat.UserCardSheet
-import dev.chatter.app.ui.inbox.MentionInboxScreen
+import dev.chatter.app.ui.inbox.InboxScreen
 import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.launch
@@ -368,7 +368,7 @@ fun AppRoot(vm: MainViewModel) {
         is dev.chatter.app.auth.AuthState.LoggedIn -> {
             when {
                 showSettings -> SettingsScreen(vm, onBack = { showSettings = false })
-                showInbox -> MentionInboxScreen(
+                showInbox -> InboxScreen(
                     vm,
                     onOpenChannel = { channel ->
                         vm.requestedChannel.value = channel

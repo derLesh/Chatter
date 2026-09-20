@@ -23,6 +23,7 @@ import dev.chatter.app.chat.ChatterRegistry
 import dev.chatter.app.chat.MentionInboxRepository
 import dev.chatter.app.chat.NicknameRepository
 import dev.chatter.app.chat.RuleRepository
+import dev.chatter.app.chat.WhisperInboxRepository
 import dev.chatter.app.chat.CommandExecutor
 import dev.chatter.app.chat.EmoteOptions
 import dev.chatter.app.chat.MessageBuilder
@@ -81,6 +82,7 @@ class AppContainer(private val context: Context) {
     val blocked = BlockedUsersRepository(helix, scope)
     val nicknames = NicknameRepository(context.nicknameStore, scope)
     val inbox = MentionInboxRepository(context.inboxStore, scope)
+    val whisperInbox = WhisperInboxRepository(context.inboxStore, scope)
     val rules = RuleRepository(context.ruleStore, scope)
     val backup = BackupManager(settings, rules, nicknames, channels)
     val changelog = ChangelogRepository(context, settings, BuildConfig.VERSION_NAME, scope)
@@ -132,6 +134,7 @@ class AppContainer(private val context: Context) {
         scope.launch { channels.identities.collect { notifier.syncChannels(it) } }
         // Every mention lands in the inbox, whether or not it was worth a notification.
         scope.launch { chat.allMentions.collect { inbox.add(it.item, read = it.seen) } }
+        scope.launch { chat.whispers.collect { whisperInbox.add(it) } }
         scope.launch {
             channels.loadCache()
             auth.restore()

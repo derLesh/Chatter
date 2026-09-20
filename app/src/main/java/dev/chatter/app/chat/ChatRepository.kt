@@ -103,6 +103,13 @@ class ChatRepository(
     /** Every live mention, including the ones the user is watching happen. For the inbox. */
     val allMentions: SharedFlow<MentionEvent> = _allMentions
 
+    private val _whispers = MutableSharedFlow<InboxWhisper>(extraBufferCapacity = 16)
+    /**
+     * Whispers, which belong to no channel and so have nowhere else to go. Twitch only delivers
+     * them when the token carries the `whispers:read` scope, which older logins do not have.
+     */
+    val whispers: SharedFlow<InboxWhisper> = _whispers
+
     private val _modChannels = MutableStateFlow<Set<String>>(emptySet())
     /** Channels where the user is moderator or broadcaster. */
     val modChannels: StateFlow<Set<String>> = _modChannels
@@ -407,6 +414,9 @@ class ChatRepository(
                     unreadCountsDirty = true
                 }
                 if (item.isMention) onMention(item)
+            }
+            "WHISPER" -> InboxWhisper.from(msg)?.let {
+                if (!muted.mutes(it.login, it.displayName, it.text)) _whispers.tryEmit(it)
             }
             "NOTICE" -> if (channel != null) builder.build(msg, "", null, mentions)?.let(::append)
             "CLEARCHAT" -> if (channel != null) onClearChat(channel, msg)

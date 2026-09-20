@@ -17,6 +17,7 @@ import dev.chatter.app.chat.ChatRule
 import dev.chatter.app.chat.ChatItem
 import dev.chatter.app.chat.CommandParser
 import dev.chatter.app.chat.InboxMention
+import dev.chatter.app.chat.InboxWhisper
 import dev.chatter.app.chat.SendResult
 import dev.chatter.app.emotes.Emote
 import dev.chatter.app.emotes.EmoteProvider
@@ -31,6 +32,10 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.launch
 
@@ -64,7 +69,13 @@ class MainViewModel(private val c: AppContainer) : ViewModel() {
     val nicknames = c.nicknames.nicknames
     val rules = c.rules.rules
     val inboxMentions = c.inbox.mentions
-    val inboxUnread = c.inbox.unreadCount
+    val inboxWhispers = c.whisperInbox.whispers
+    val mentionUnread = c.inbox.unreadCount
+    val whisperUnread = c.whisperInbox.unreadCount
+
+    /** What the badge on the inbox button counts: both of its tabs together. */
+    val inboxUnread: StateFlow<Int> = combine(mentionUnread, whisperUnread) { m, w -> m + w }
+        .stateIn(viewModelScope, SharingStarted.Eagerly, 0)
     val releases = c.changelog.releases
     /** Every mention as it arrives, for the feedback the chat screen gives while it is open. */
     val mentions = c.chat.allMentions
@@ -288,6 +299,19 @@ class MainViewModel(private val c: AppContainer) : ViewModel() {
 
     fun clearInbox() {
         viewModelScope.launch { c.inbox.clear() }
+    }
+
+    fun markWhisperRead(whisper: InboxWhisper) {
+        if (whisper.read) return
+        viewModelScope.launch { c.whisperInbox.markRead(whisper.id) }
+    }
+
+    fun markWhispersRead() {
+        viewModelScope.launch { c.whisperInbox.markAllRead() }
+    }
+
+    fun clearWhispers() {
+        viewModelScope.launch { c.whisperInbox.clear() }
     }
 
     /** Gives a chatter a nickname, in every channel they show up in. A blank one clears it. */

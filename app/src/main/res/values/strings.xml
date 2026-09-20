@@ -326,9 +326,13 @@
     <!-- Launcher shortcuts -->
     <string name="shortcut_inbox">Inbox</string>
 
-    <!-- Mention inbox -->
-    <string name="inbox_title">Mentions</string>
+    <!-- Inbox -->
+    <string name="inbox_title">Inbox</string>
+    <string name="inbox_tab_mentions">Mentions</string>
+    <string name="inbox_tab_whispers">Whispers</string>
     <string name="inbox_from">%1$s in %2$s</string>
+    <string name="inbox_whispers_empty">No whispers</string>
+    <string name="inbox_whispers_empty_hint">Whispers sent to you on Twitch land here. They need a permission Chatter only started asking for in this version, so sign in again if nothing ever shows up</string>
     <string name="inbox_empty">No mentions</string>
     <string name="inbox_empty_hint">Everything anyone writes to you ends up here, in every channel, and stays until you clear it</string>
     <string name="inbox_mark_all_read">Mark all as read</string>

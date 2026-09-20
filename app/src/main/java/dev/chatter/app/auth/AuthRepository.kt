@@ -194,6 +194,8 @@ class AuthRepository(
         const val REDIRECT_URI = "http://localhost"
         val SCOPES = listOf(
             "chat:read", "chat:edit", "user:read:emotes", "user:read:follows", "user:manage:chat_color",
+            // Whispers arrive over the chat connection, but only for a token that asked for them.
+            "whispers:read",
             "user:read:blocked_users", "user:manage:blocked_users",
             // The chatter list; Twitch only answers for channels the user moderates.
             "moderator:read:chatters",

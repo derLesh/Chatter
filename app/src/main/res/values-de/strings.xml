@@ -319,8 +319,12 @@
     <string name="settings_haptics_hint">Kurzes Vibrieren, wenn eine Erwähnung eintrifft, während du liest, wenn du eine Nachricht gedrückt hältst und wenn etwas nicht durchgeht</string>
 
     <string name="shortcut_inbox">Postfach</string>
-    <string name="inbox_title">Erwähnungen</string>
+    <string name="inbox_title">Postfach</string>
+    <string name="inbox_tab_mentions">Erwähnungen</string>
+    <string name="inbox_tab_whispers">Flüstern</string>
     <string name="inbox_from">%1$s in %2$s</string>
+    <string name="inbox_whispers_empty">Keine Flüsternachrichten</string>
+    <string name="inbox_whispers_empty_hint">Was dir auf Twitch geflüstert wird, landet hier. Dafür braucht Chatter eine Berechtigung, die es erst seit dieser Version anfragt — wenn nie etwas ankommt, melde dich einmal neu an</string>
     <string name="inbox_empty">Keine Erwähnungen</string>
     <string name="inbox_empty_hint">Alles, was dir jemand schreibt, landet hier — aus jedem Kanal und so lange, bis du es leerst</string>
     <string name="inbox_mark_all_read">Alle als gelesen markieren</string>

@@ -21,13 +21,16 @@ class MuteFilter(keywords: List<String> = emptyList(), blocked: Set<String> = em
         ?.let { Regex("(?<![\\p{L}\\p{N}_])(?:$it)(?![\\p{L}\\p{N}_])", RegexOption.IGNORE_CASE) }
 
     /** True if the message should be dropped. The user's own messages are never muted. */
-    fun mutes(item: ChatItem): Boolean {
-        if (item.isOwn) return false
-        val login = item.login?.lowercase()
-        if (login != null && login in blocked) return true
+    fun mutes(item: ChatItem): Boolean =
+        if (item.isOwn) false else mutes(item.login, item.displayName, item.text)
+
+    /** The same test for something that never reaches a channel buffer, like a whisper. */
+    fun mutes(login: String?, displayName: String?, text: String): Boolean {
+        val sender = login?.lowercase()
+        if (sender != null && sender in blocked) return true
         val regex = regex ?: return false
-        return regex.containsMatchIn(item.text) ||
-            (login != null && regex.containsMatchIn(login)) ||
-            (item.displayName?.let { regex.containsMatchIn(it) } == true)
+        return regex.containsMatchIn(text) ||
+            (sender != null && regex.containsMatchIn(sender)) ||
+            (displayName?.let { regex.containsMatchIn(it) } == true)
     }
 }
