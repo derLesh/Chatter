@@ -102,6 +102,7 @@ import dev.chatter.app.chat.ChatItem
 import dev.chatter.app.chat.ChatRule
 import dev.chatter.app.chat.RuleAction
 import dev.chatter.app.chat.RuleTarget
+import dev.chatter.app.chat.MessageBody
 import dev.chatter.app.chat.MessageKind
 import dev.chatter.app.chat.Segment
 import dev.chatter.app.net.HelixBlockedUser
@@ -389,7 +390,7 @@ private fun TextSizeItem(settings: Settings, vm: MainViewModel) {
         ChatItem(
             id = "preview", channel = "", kind = MessageKind.Chat, timestamp = System.currentTimeMillis(),
             login = "chatter", displayName = "Chatter", color = 0xFF1E90FF.toInt(),
-            segments = listOf(Segment.Text(sampleText)), text = sampleText,
+            body = MessageBody.of(listOf(Segment.Text(sampleText))), text = sampleText,
         )
     }
     val style = ChatStyle(

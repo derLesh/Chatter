@@ -217,7 +217,8 @@ class ChatRepository(
     fun postNotice(channel: String, text: String, segments: List<Segment> = emptyList()) = scope.launch(worker) {
         append(
             ChatItem(id = UUID.randomUUID().toString(), channel = channel, kind = MessageKind.Notice,
-                timestamp = System.currentTimeMillis(), systemText = text, text = text, segments = segments)
+                timestamp = System.currentTimeMillis(), systemText = text, text = text,
+                body = MessageBody.of(segments))
         )
     }
 
@@ -231,6 +232,8 @@ class ChatRepository(
     /** The latest messages of one user in a channel (oldest first), for the user card. */
     suspend fun messagesFrom(channel: String, login: String, limit: Int = 30): List<ChatItem> = withContext(worker) {
         buffers[channel]?.filter { it.login.equals(login, ignoreCase = true) }?.takeLast(limit).orEmpty()
+            // The card draws these, so they have to be built here — see `snapshot`.
+            .onEach { it.body.prepare() }
     }
 
     /** Display names of recently active chatters, most recent first. */
@@ -549,8 +552,13 @@ class ChatRepository(
      */
     private fun snapshot(channel: String): List<ChatItem> {
         val buffer = buffers[channel] ?: return emptyList()
-        if (settings.value.showDeleted) return buffer.toList()
-        return buffer.filterTo(ArrayList(buffer.size)) { !it.deleted }
+        val out = if (settings.value.showDeleted) buffer.toList()
+        else buffer.filterTo(ArrayList(buffer.size)) { !it.deleted }
+        // Emotes and badges are worked out here rather than while drawing: the tables that takes
+        // reading are this worker's, and the main thread must not touch them. Everything but the
+        // messages that arrived since the last publish is built already, so this costs nothing.
+        out.forEach { it.body.prepare() }
+        return out
     }
 
     private fun markDirty(channel: String) {

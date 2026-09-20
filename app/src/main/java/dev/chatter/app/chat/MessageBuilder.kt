@@ -72,33 +72,60 @@ class MessageBuilder(
             login = selfLogin,
             displayName = userState["display-name"]?.ifEmpty { null } ?: selfLogin,
             color = parseColor(userState["color"]),
-            badges = badges.resolve(channelId, userState["badges"], userState["user-id"]),
-            segments = segments(channel, body, emptyList(), channelId, ownMessage = true),
+            body = deferred(
+                channel, body, emotesTag = null, badgesTag = userState["badges"],
+                userId = userState["user-id"], channelId = channelId, ownMessage = true,
+            ),
             text = body,
             isOwn = true,
             reply = reply,
         )
     }
 
+    /**
+     * The drawing half of a message, left for whoever draws it. Holds on to the few tag values it
+     * needs rather than to the whole [IrcMessage], so a buffered message keeps nothing alive that
+     * it would not have kept anyway.
+     *
+     * [strippedPrefix] is the "@parent " a reply carries: the emote positions Twitch sends count
+     * from the untrimmed text, so they can only be shifted once they are parsed.
+     */
+    private fun deferred(
+        channel: String,
+        rawBody: String,
+        emotesTag: String?,
+        badgesTag: String?,
+        userId: String?,
+        channelId: String?,
+        ownMessage: Boolean,
+        strippedPrefix: Int = 0,
+    ) = MessageBody.lazily(
+        segments = {
+            val text = if (strippedPrefix == 0) rawBody else rawBody.substring(strippedPrefix)
+            var ranges = twitchEmotes(rawBody, emotesTag)
+            if (strippedPrefix > 0) {
+                ranges = ranges.mapNotNull { r ->
+                    if (r.start < strippedPrefix) null
+                    else r.copy(start = r.start - strippedPrefix, end = r.end - strippedPrefix)
+                }
+            }
+            segments(channel, text, ranges, channelId, ownMessage)
+        },
+        badges = { badges.resolve(channelId, badgesTag, userId) },
+    )
+
     private fun buildPrivmsg(
         msg: IrcMessage, channel: String, selfLogin: String, channelId: String?,
         mentions: MentionMatcher, historical: Boolean,
     ): ChatItem {
         val login = msg.nick.orEmpty()
-        var (body, isAction) = splitAction(msg.trailing.orEmpty())
+        val (raw, isAction) = splitAction(msg.trailing.orEmpty())
         val reply = replyInfo(msg)
-        var emoteRanges = twitchEmotes(body, msg.tag("emotes"))
 
         // Twitch prefixes replies with "@parent "; the reply header already shows who is addressed.
-        if (reply != null) {
-            val prefix = "@${reply.parentLogin} "
-            if (body.startsWith(prefix, ignoreCase = true)) {
-                body = body.substring(prefix.length)
-                emoteRanges = emoteRanges.mapNotNull { r ->
-                    if (r.start < prefix.length) null else r.copy(start = r.start - prefix.length, end = r.end - prefix.length)
-                }
-            }
-        }
+        val prefix = reply?.let { "@${it.parentLogin} " }
+        val stripped = if (prefix != null && raw.startsWith(prefix, ignoreCase = true)) prefix.length else 0
+        val body = if (stripped == 0) raw else raw.substring(stripped)
 
         val isOwn = login.equals(selfLogin, ignoreCase = true)
         return ChatItem(
@@ -109,8 +136,11 @@ class MessageBuilder(
             login = login,
             displayName = msg.tag("display-name") ?: login,
             color = parseColor(msg.tag("color")),
-            badges = badges.resolve(channelId ?: msg.tag("room-id"), msg.tag("badges"), msg.tag("user-id")),
-            segments = segments(channel, body, emoteRanges, channelId ?: msg.tag("room-id"), ownMessage = false),
+            body = deferred(
+                channel, raw, emotesTag = msg.tag("emotes"), badgesTag = msg.tag("badges"),
+                userId = msg.tag("user-id"), channelId = channelId ?: msg.tag("room-id"),
+                ownMessage = false, strippedPrefix = stripped,
+            ),
             text = body,
             isMention = !isOwn && (mentions.matches(body) || reply?.parentLogin.equals(selfLogin, ignoreCase = true)),
             isFirstMessage = !isOwn && msg.tag("first-msg") == "1",
@@ -134,9 +164,12 @@ class MessageBuilder(
             login = login,
             displayName = msg.tag("display-name") ?: login,
             color = parseColor(msg.tag("color")),
-            badges = if (body.isEmpty()) emptyList()
-            else badges.resolve(channelId ?: msg.tag("room-id"), msg.tag("badges"), msg.tag("user-id")),
-            segments = segments(channel, body, twitchEmotes(body, msg.tag("emotes")), channelId ?: msg.tag("room-id"), ownMessage = false),
+            // A notice without a message of its own (a plain sub, a raid) shows no badges either.
+            body = if (body.isEmpty()) MessageBody.EMPTY else deferred(
+                channel, body, emotesTag = msg.tag("emotes"), badgesTag = msg.tag("badges"),
+                userId = msg.tag("user-id"), channelId = channelId ?: msg.tag("room-id"),
+                ownMessage = false,
+            ),
             systemText = msg.tag("system-msg"),
             text = body,
             isMention = body.isNotEmpty() && !login.equals(selfLogin, ignoreCase = true) && mentions.matches(body),

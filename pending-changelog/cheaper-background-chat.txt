@@ -1,0 +1,1 @@
+patch: Use far less battery while the chat keeps running in the background
