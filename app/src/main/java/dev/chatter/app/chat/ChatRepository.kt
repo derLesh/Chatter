@@ -564,6 +564,10 @@ class ChatRepository(
     private fun markDirty(channel: String) {
         dirty.add(channel)
         if (publishJob?.isActive == true) return
+        // With the UI gone there is nothing for a publish to do, and a busy channel would
+        // otherwise start a timer every 32 ms just to find that out. Subscribing marks the
+        // channel dirty again (see `messages`), so nothing is lost by not scheduling now.
+        if (flows.values.none { it.subscriptionCount.value > 0 }) return
         publishJob = scope.launch(worker) {
             delay(PUBLISH_INTERVAL_MS)
             val iterator = dirty.iterator()

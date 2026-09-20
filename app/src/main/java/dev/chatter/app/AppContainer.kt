@@ -129,8 +129,11 @@ class AppContainer(private val context: Context) {
     private val sevenTvLive = SevenTvLiveUpdates(context, SevenTvEventClient(socketHttp, scope), emotes, chat, settings.settings, scope)
 
     val imageLoader: ImageLoader = imageLoader(animated = true)
-    /** Used when animated emotes are turned off: decodes only the first frame. */
-    val staticImageLoader: ImageLoader = imageLoader(animated = false)
+    /**
+     * Used when animated emotes are turned off: decodes only the first frame. Built on demand,
+     * because it carries a memory cache of its own and most people never turn them off.
+     */
+    val staticImageLoader: ImageLoader by lazy { imageLoader(animated = false) }
 
     // After the image loader: mention notifications carry the channel avatar as their icon.
     private val channelIcons = ChannelIcons(context, channels, imageLoader)

@@ -25,9 +25,11 @@ import dev.chatter.app.net.HelixChannelSearch
 import dev.chatter.app.net.HelixBlockedUser
 import dev.chatter.app.net.HelixUser
 import dev.chatter.app.settings.ThemeMode
+import dev.chatter.app.stats.Stats
 import dev.chatter.app.ui.theme.NameColorPalette
 import dev.chatter.app.settings.TimestampFormat
 import dev.chatter.app.util.Autocomplete
+import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.delay
@@ -35,6 +37,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.sample
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.launch
@@ -76,7 +79,15 @@ class MainViewModel(private val c: AppContainer) : ViewModel() {
     /** What the badge on the inbox button counts: both of its tabs together. */
     val inboxUnread: StateFlow<Int> = combine(mentionUnread, whisperUnread) { m, w -> m + w }
         .stateIn(viewModelScope, SharingStarted.Eagerly, 0)
-    val stats = c.stats.stats
+    /**
+     * The counters, slowed down on the way to the screen. They tick with every message that
+     * reaches any channel, and the stats page has nothing to gain from thirty updates a second
+     * that nobody can read.
+     */
+    @OptIn(FlowPreview::class)
+    val stats: StateFlow<Stats> = c.stats.stats
+        .sample(STATS_INTERVAL_MS)
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), c.stats.stats.value)
     val releases = c.changelog.releases
     /** Every mention as it arrives, for the feedback the chat screen gives while it is open. */
     val mentions = c.chat.allMentions
@@ -590,4 +601,9 @@ class MainViewModel(private val c: AppContainer) : ViewModel() {
 
     /** The update notes have been seen, so they should not come back. */
     fun markChangelogRead() = c.changelog.markRead()
+
+    private companion object {
+        /** Fast enough to look live, slow enough not to redraw the page on every message. */
+        const val STATS_INTERVAL_MS = 250L
+    }
 }

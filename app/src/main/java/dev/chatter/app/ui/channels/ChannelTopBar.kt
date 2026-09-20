@@ -135,8 +135,11 @@ fun ChannelTopBar(
             }
         },
         actions = {
+            // The unread counts arrive as a fresh map on every publish, so the bar runs again
+            // with every message in a channel off screen; this list must not be rebuilt each time.
+            val withUnread = remember(channels, hiddenUnread) { channels - hiddenUnread }
             if (showUnread) UnreadStrip(
-                channels = channels - hiddenUnread,
+                channels = withUnread,
                 active = active,
                 info = info,
                 unread = unread,
