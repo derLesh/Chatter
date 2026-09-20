@@ -144,6 +144,7 @@
     <string name="reorder_channel">Drag to reorder</string>
     <string name="channel_notify_on">Notifications on</string>
     <string name="channel_notify_off">Notifications off</string>
+    <string name="channel_notification_settings">Sound &amp; vibration</string>
     <string name="channel_in_title_bar">Show unread</string>
     <string name="settings_unread_title_bar">Show unread channels in the title bar</string>
     <string name="settings_unread_title_bar_hint">The avatars of channels with new messages, next to the channel name. Single channels can be left out in their menu.</string>

@@ -1,0 +1,1 @@
+minor: Give every channel its own notification sound and vibration

@@ -103,6 +103,7 @@ import dev.chatter.app.chat.RuleTarget
 import dev.chatter.app.chat.MessageKind
 import dev.chatter.app.chat.Segment
 import dev.chatter.app.net.HelixBlockedUser
+import dev.chatter.app.service.MentionNotifier
 import dev.chatter.app.settings.Settings
 import dev.chatter.app.settings.ThemeMode
 import dev.chatter.app.ui.channels.ManageChannelsPage
@@ -722,6 +723,7 @@ private fun ruleSummary(rule: ChatRule): String {
 
 @Composable
 private fun ChannelsPage(vm: MainViewModel, settings: Settings) {
+    val context = LocalContext.current
     val channels by vm.channels.collectAsStateWithLifecycle()
     val info by vm.channelInfo.collectAsStateWithLifecycle()
     val customNames by vm.customNames.collectAsStateWithLifecycle()
@@ -738,6 +740,13 @@ private fun ChannelsPage(vm: MainViewModel, settings: Settings) {
         imageLoader = vm.imageLoader,
         onMove = vm::moveChannel,
         onNotify = vm::setChannelNotify,
+        onNotificationSettings = { login ->
+            context.startActivity(
+                Intent(AndroidSettings.ACTION_CHANNEL_NOTIFICATION_SETTINGS)
+                    .putExtra(AndroidSettings.EXTRA_APP_PACKAGE, context.packageName)
+                    .putExtra(AndroidSettings.EXTRA_CHANNEL_ID, MentionNotifier.mentionChannelId(login))
+            )
+        },
         onUnreadVisible = vm::setChannelUnreadVisible,
         onRename = { renameTarget = it },
         onRemove = vm::removeChannel,

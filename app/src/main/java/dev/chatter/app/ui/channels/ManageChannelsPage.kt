@@ -67,6 +67,7 @@ fun ManageChannelsPage(
     imageLoader: ImageLoader,
     onMove: (String, Int) -> Unit,
     onNotify: (String, Boolean) -> Unit,
+    onNotificationSettings: (String) -> Unit,
     onUnreadVisible: (String, Boolean) -> Unit,
     onRename: (String) -> Unit,
     onRemove: (String) -> Unit,
@@ -107,6 +108,7 @@ fun ManageChannelsPage(
                     inTitleBar = login !in hiddenUnread,
                     imageLoader = imageLoader,
                     onNotify = { onNotify(login, it) },
+                    onNotificationSettings = { onNotificationSettings(login) },
                     onUnreadVisible = { onUnreadVisible(login, it) },
                     onRename = { onRename(login) },
                     onRemove = { onRemove(login) },
@@ -145,6 +147,7 @@ private fun ChannelRow(
     inTitleBar: Boolean,
     imageLoader: ImageLoader,
     onNotify: (Boolean) -> Unit,
+    onNotificationSettings: () -> Unit,
     onUnreadVisible: (Boolean) -> Unit,
     onRename: () -> Unit,
     onRemove: () -> Unit,
@@ -193,6 +196,11 @@ private fun ChannelRow(
                     text = { Text(stringResource(R.string.rename_channel)) },
                     leadingIcon = { Icon(Icons.Default.Edit, null) },
                     onClick = { menu = false; onRename() },
+                )
+                DropdownMenuItem(
+                    text = { Text(stringResource(R.string.channel_notification_settings)) },
+                    leadingIcon = { Icon(Icons.Default.Notifications, null) },
+                    onClick = { menu = false; onNotificationSettings() },
                 )
                 DropdownMenuItem(
                     text = { Text(stringResource(R.string.channel_in_title_bar)) },

@@ -128,6 +128,8 @@ class AppContainer(private val context: Context) {
         scope.launch { settings.settings.collect { badges.enabled = it.badgeProviders } }
         sevenTvLive.start()
         shortcuts.start()
+        // One notification channel per Twitch channel, so each can be given its own sound.
+        scope.launch { channels.identities.collect { notifier.syncChannels(it) } }
         // Every mention lands in the inbox, whether or not it was worth a notification.
         scope.launch { chat.allMentions.collect { inbox.add(it.item, read = it.seen) } }
         scope.launch {

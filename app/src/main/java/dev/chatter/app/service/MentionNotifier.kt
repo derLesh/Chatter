@@ -1,6 +1,7 @@
 package dev.chatter.app.service
 
 import android.app.NotificationChannel
+import android.app.NotificationChannelGroup
 import android.app.NotificationManager
 import android.app.PendingIntent
 import android.content.Context
@@ -14,6 +15,7 @@ import androidx.core.content.pm.ShortcutManagerCompat
 import androidx.core.graphics.drawable.IconCompat
 import androidx.core.net.toUri
 import dev.chatter.app.R
+import dev.chatter.app.channels.ChannelIdentity
 import dev.chatter.app.channels.ChannelRepository
 import dev.chatter.app.chat.ChatItem
 import dev.chatter.app.chat.MessageKind
@@ -42,19 +44,45 @@ class MentionNotifier(
     private val icons: ChannelIcons,
 ) {
     private val manager = NotificationManagerCompat.from(context)
+    private val nm = context.getSystemService(NotificationManager::class.java)
     private val recent = HashMap<String, ArrayDeque<ChatItem>>()
     /** Twitch profile pictures of the chatters in the notifications, by lowercase login. */
     private val senderIcons = ConcurrentHashMap<String, IconCompat>()
 
     fun createChannels() {
-        val nm = context.getSystemService(NotificationManager::class.java)
         nm.createNotificationChannel(
             NotificationChannel(CHANNEL_CONNECTION, context.getString(R.string.notif_channel_connection), NotificationManager.IMPORTANCE_MIN)
                 .apply { setShowBadge(false) }
         )
+        nm.createNotificationChannelGroup(
+            NotificationChannelGroup(GROUP_MENTIONS, context.getString(R.string.notif_channel_mentions))
+        )
+        // Mentions used to share one notification channel; every Twitch channel has its own now.
+        nm.deleteNotificationChannel(LEGACY_CHANNEL_MENTIONS)
+    }
+
+    /**
+     * Gives every Twitch channel a notification channel of its own, so a sound, a vibration
+     * pattern or plain silence can be picked per streamer in the system settings. Creating one
+     * that already exists only renames it - whatever the user set there is theirs to keep.
+     */
+    fun syncChannels(channels: List<ChannelIdentity>) {
+        channels.forEach { ensureChannel(it.login, it.name) }
+        val wanted = channels.mapTo(HashSet()) { mentionChannelId(it.login) }
+        // A channel the user removed would otherwise keep its row in the system settings forever.
+        // Conversation channels are spared: Android makes those itself, in the same group, when
+        // the user gives one chat its own sound, and they are not ours to throw away.
+        nm.notificationChannels
+            .filter { it.conversationId == null && it.group == GROUP_MENTIONS && it.id !in wanted }
+            .forEach { nm.deleteNotificationChannel(it.id) }
+    }
+
+    private fun ensureChannel(login: String, name: String) {
         nm.createNotificationChannel(
-            NotificationChannel(CHANNEL_MENTIONS, context.getString(R.string.notif_channel_mentions), NotificationManager.IMPORTANCE_HIGH)
-                .apply { setAllowBubbles(true) }
+            NotificationChannel(mentionChannelId(login), name, NotificationManager.IMPORTANCE_HIGH).apply {
+                group = GROUP_MENTIONS
+                setAllowBubbles(true)
+            }
         )
     }
 
@@ -102,6 +130,8 @@ class MentionNotifier(
         while (lines.size > 6) lines.removeFirst()
 
         val name = channelName(item.channel)
+        // A mention can beat the channel list to it, e.g. right after restoring a backup.
+        ensureChannel(item.channel, name)
         val shortcutId = publishShortcut(item.channel, name, icon)
         val me = Person.Builder().setName(context.getString(R.string.notif_me)).build()
         val style = NotificationCompat.MessagingStyle(me)
@@ -117,7 +147,7 @@ class MentionNotifier(
             style.addMessage(m.text, m.timestamp, from)
         }
 
-        val notification = NotificationCompat.Builder(context, CHANNEL_MENTIONS)
+        val notification = NotificationCompat.Builder(context, mentionChannelId(item.channel))
             .setSmallIcon(R.drawable.ic_notification)
             .setStyle(style)
             .setCategory(NotificationCompat.CATEGORY_MESSAGE)
@@ -208,8 +238,14 @@ class MentionNotifier(
 
     companion object {
         const val CHANNEL_CONNECTION = "connection"
-        const val CHANNEL_MENTIONS = "mentions"
+        /** Holds the per-channel mention channels together in the system settings. */
+        private const val GROUP_MENTIONS = "mentions"
+        /** The one shared mentions channel of older versions, replaced by one per channel. */
+        private const val LEGACY_CHANNEL_MENTIONS = "mentions"
         private const val GROUP = "mentions"
+
+        /** The notification channel mentions in [channel] are posted to. */
+        fun mentionChannelId(channel: String): String = "mentions:$channel"
         private const val BUBBLE_HEIGHT_DP = 620
         private const val MAX_SENDER_ICONS = 100
         /** Where Android puts the text typed into the reply action. */
