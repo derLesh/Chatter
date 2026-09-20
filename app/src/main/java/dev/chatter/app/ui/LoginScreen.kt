@@ -14,6 +14,7 @@ import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -23,12 +24,10 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawingPadding
-import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.wrapContentHeight
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
-import androidx.compose.material3.Icon
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
@@ -45,13 +44,13 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.blur
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.rotate
@@ -61,9 +60,9 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
-import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import dev.chatter.app.BuildConfig
@@ -71,9 +70,9 @@ import dev.chatter.app.R
 import dev.chatter.app.auth.AuthRepository
 import dev.chatter.app.ui.theme.isAppInDarkTheme
 import dev.chatter.app.ui.theme.readableNameColor
-import kotlinx.coroutines.launch
 import kotlin.math.cos
 import kotlin.math.sin
+import kotlinx.coroutines.launch
 
 /** Login like DankChat: Twitch's login page in a WebView, the token is taken from the redirect. */
 @Composable
@@ -104,14 +103,7 @@ fun LoginScreen(vm: MainViewModel) {
             ) {
                 Spacer(Modifier.weight(1f))
                 AppMark()
-                Spacer(Modifier.height(28.dp))
-                Text(
-                    stringResource(R.string.app_name),
-                    style = MaterialTheme.typography.displayMedium,
-                    fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.onSurface,
-                )
-                Spacer(Modifier.height(10.dp))
+                Spacer(Modifier.height(18.dp))
                 Text(
                     stringResource(R.string.login_subtitle),
                     style = MaterialTheme.typography.bodyLarge,
@@ -143,30 +135,18 @@ fun LoginScreen(vm: MainViewModel) {
     }
 }
 
-/** The app icon on a tinted squircle, the way the launcher shows it. */
+/**
+ * The wordmark, which says the name itself — so nothing spells "Chatter" out underneath it. Only
+ * the width is given: the drawable keeps its own proportions and works out the height from it.
+ */
 @Composable
 private fun AppMark() {
-    Box(
-        contentAlignment = Alignment.Center,
-        modifier = Modifier
-            .size(112.dp)
-            .clip(RoundedCornerShape(36.dp))
-            .background(
-                Brush.linearGradient(
-                    listOf(
-                        MaterialTheme.colorScheme.primaryContainer,
-                        MaterialTheme.colorScheme.tertiaryContainer,
-                    ),
-                ),
-            ),
-    ) {
-        Icon(
-            painterResource(R.drawable.ic_chatter_monochrome),
-            contentDescription = null,
-            tint = MaterialTheme.colorScheme.onPrimaryContainer,
-            modifier = Modifier.size(104.dp),
-        )
-    }
+    Image(
+        painterResource(R.drawable.ic_chatter_wordmark),
+        contentDescription = stringResource(R.string.app_name),
+        colorFilter = ColorFilter.tint(MaterialTheme.colorScheme.onSurface),
+        modifier = Modifier.width(236.dp),
+    )
 }
 
 /**

@@ -12,6 +12,7 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.togetherWith
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -46,18 +47,19 @@ import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.Person
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Button
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.Button
 import androidx.compose.material3.LargeTopAppBar
 import androidx.compose.material3.ListItem
 import androidx.compose.material3.ListItemDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SegmentedButton
 import androidx.compose.material3.SegmentedButtonDefaults
@@ -83,6 +85,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.nestedscroll.nestedScroll
@@ -98,46 +101,45 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import dev.chatter.app.BuildConfig
 import dev.chatter.app.R
 import dev.chatter.app.auth.AuthState
+import dev.chatter.app.badges.BadgeProvider
 import dev.chatter.app.chat.ChatItem
 import dev.chatter.app.chat.ChatRule
-import dev.chatter.app.chat.RuleAction
-import dev.chatter.app.chat.RuleTarget
 import dev.chatter.app.chat.MessageBody
 import dev.chatter.app.chat.MessageKind
+import dev.chatter.app.chat.RuleAction
+import dev.chatter.app.chat.RuleTarget
 import dev.chatter.app.chat.Segment
+import dev.chatter.app.emotes.EmoteProvider
 import dev.chatter.app.net.HelixBlockedUser
 import dev.chatter.app.service.ChatNotifier
 import dev.chatter.app.settings.Settings
 import dev.chatter.app.settings.ThemeMode
+import dev.chatter.app.settings.TimestampFormat
+import dev.chatter.app.ui.changelog.ChangelogPage
+import dev.chatter.app.ui.channels.AddChannelDialog
 import dev.chatter.app.ui.channels.ManageChannelsPage
 import dev.chatter.app.ui.channels.RenameChannelDialog
-import dev.chatter.app.ui.channels.AddChannelDialog
-import dev.chatter.app.ui.changelog.ChangelogPage
 import dev.chatter.app.ui.chat.ChatStyle
 import dev.chatter.app.ui.chat.MessageRow
 import dev.chatter.app.ui.settings.AddKeywordDialog
 import dev.chatter.app.ui.settings.BlockUserDialog
 import dev.chatter.app.ui.settings.ConfirmUnblockDialog
 import dev.chatter.app.ui.settings.RuleDialog
-import dev.chatter.app.ui.theme.highlightBackground
-import dev.chatter.app.ui.theme.isAppInDarkTheme
-import dev.chatter.app.util.AppIcon
-import dev.chatter.app.ui.theme.highlightColor
 import dev.chatter.app.ui.theme.NameColorPalette
+import dev.chatter.app.ui.theme.highlightBackground
+import dev.chatter.app.ui.theme.highlightColor
+import dev.chatter.app.ui.theme.isAppInDarkTheme
 import dev.chatter.app.ui.theme.readableNameColor
-import androidx.compose.material3.RadioButton
-import dev.chatter.app.settings.TimestampFormat
+import dev.chatter.app.util.AppIcon
 import java.text.DateFormat
 import java.text.NumberFormat
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
-import dev.chatter.app.badges.BadgeProvider
-import dev.chatter.app.emotes.EmoteProvider
+import kotlin.math.roundToInt
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import kotlin.math.roundToInt
 
 /** Top level of the settings, like the Android settings app: categories that open a page. */
 private enum class SettingsPage(val title: Int, val summary: Int, val icon: ImageVector) {
@@ -891,27 +893,18 @@ private fun formatDay(at: Long): String = DateFormat.getDateInstance(DateFormat.
 @Composable
 private fun AboutPage(vm: MainViewModel, open: (SettingsSubPage) -> Unit) {
     var shownLicense by remember { mutableStateOf<Dependency?>(null) }
-    // App icon (monochrome glyph from the icon pack, tinted with the theme like a themed icon).
+    // The wordmark, which already says the name, so no heading repeats it underneath.
     Column(
         horizontalAlignment = Alignment.CenterHorizontally,
-        modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
+        modifier = Modifier.fillMaxWidth().padding(top = 16.dp),
     ) {
-        Box(
-            contentAlignment = Alignment.Center,
-            modifier = Modifier
-                .size(112.dp)
-                .clip(RoundedCornerShape(32.dp))
-                .background(MaterialTheme.colorScheme.primaryContainer),
-        ) {
-            Icon(
-                painterResource(R.drawable.ic_chatter_monochrome),
-                contentDescription = null,
-                tint = MaterialTheme.colorScheme.onPrimaryContainer,
-                modifier = Modifier.size(112.dp),
-            )
-        }
-        Spacer(Modifier.height(16.dp))
-        Text(stringResource(R.string.app_name), style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold)
+        Image(
+            painterResource(R.drawable.ic_chatter_wordmark),
+            contentDescription = stringResource(R.string.app_name),
+            colorFilter = ColorFilter.tint(MaterialTheme.colorScheme.onSurface),
+            modifier = Modifier.width(208.dp),
+        )
+        Spacer(Modifier.height(10.dp))
         Text(
             stringResource(R.string.settings_version, BuildConfig.VERSION_NAME),
             style = MaterialTheme.typography.bodyMedium,
