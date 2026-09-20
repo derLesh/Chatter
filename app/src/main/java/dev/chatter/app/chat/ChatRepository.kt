@@ -76,6 +76,7 @@ class ChatRepository(
     private val lastLiveTimestamp = HashMap<String, Long>()
     private var joinedChannels: List<String> = emptyList()
     private var mentions = MentionMatcher("", emptyList())
+    private var muted = MuteFilter()
 
     private val flows = ConcurrentHashMap<String, MutableStateFlow<List<ChatItem>>>()
     private val flowWatchers = ConcurrentHashMap<String, Job>()
@@ -117,6 +118,7 @@ class ChatRepository(
         scope.launch(worker) {
             combine(auth.state, settings) { _, s -> s }.collect { s ->
                 mentions = MentionMatcher(auth.account?.login.orEmpty(), s.mentionKeywords)
+                muted = MuteFilter(s.muteKeywords)
                 trimAll(s.messageLimit)
             }
         }
@@ -306,7 +308,7 @@ class ChatRepository(
                 val msg = IrcMessage.parse(line) ?: return@mapNotNull null
                 if (msg.command != "PRIVMSG" && msg.command != "USERNOTICE") return@mapNotNull null
                 builder.build(msg, self, roomIds[channel], mentions, historical = true)
-                    ?.takeIf { (since == null || it.timestamp > since) && ids.add(it.id) }
+                    ?.takeIf { (since == null || it.timestamp > since) && !muted.mutes(it) && ids.add(it.id) }
                     ?.also { rememberChatter(channel, it) }
             }
             if (items.isEmpty()) return@withContext
@@ -331,6 +333,8 @@ class ChatRepository(
                 if (channel == null) return
                 val item = builder.build(msg, auth.account?.login.orEmpty(), roomIds[channel], mentions) ?: return
                 lastLiveTimestamp[channel] = item.timestamp
+                // Muted messages still count as "seen", so a reconnect does not fetch them again.
+                if (muted.mutes(item)) return
                 rememberChatter(channel, item)
                 append(item)
                 if (!item.isOwn && !(uiVisible.value && activeChannel.value == channel)) {

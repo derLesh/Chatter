@@ -30,6 +30,8 @@ data class Settings(
     val timestamps: TimestampFormat = TimestampFormat.Short,
     val messageLimit: Int = 500,
     val mentionKeywords: List<String> = emptyList(),
+    /** Messages containing one of these words are never shown. */
+    val muteKeywords: List<String> = emptyList(),
     val animatedEmotes: Boolean = true,
     /** Names of the most recently used emotes, newest first. */
     val recentEmotes: List<String> = emptyList(),
@@ -88,6 +90,7 @@ class SettingsRepository(
                 ?: if (p[TIMESTAMPS] == false) TimestampFormat.Off else TimestampFormat.Short,
             messageLimit = p[LIMIT] ?: 500,
             mentionKeywords = p[KEYWORDS].orEmpty().split(',').map { it.trim() }.filter { it.isNotEmpty() },
+            muteKeywords = p[MUTE_KEYWORDS].orEmpty().split(',').map { it.trim() }.filter { it.isNotEmpty() },
             animatedEmotes = p[ANIMATED] ?: true,
             recentEmotes = p[RECENT_EMOTES].orEmpty().split(' ').filter { it.isNotEmpty() },
             themeMode = p[THEME_MODE]?.let { v -> ThemeMode.entries.firstOrNull { it.name == v } } ?: ThemeMode.System,
@@ -119,6 +122,7 @@ class SettingsRepository(
     suspend fun setTimestamps(v: TimestampFormat) = store.edit { it[TIMESTAMP_FORMAT] = v.name }
     suspend fun setMessageLimit(v: Int) = store.edit { it[LIMIT] = v }
     suspend fun setMentionKeywords(v: String) = store.edit { it[KEYWORDS] = v }
+    suspend fun setMuteKeywords(v: String) = store.edit { it[MUTE_KEYWORDS] = v }
     suspend fun setAnimatedEmotes(v: Boolean) = store.edit { it[ANIMATED] = v }
     suspend fun setThemeMode(v: ThemeMode) = store.edit { it[THEME_MODE] = v.name }
     suspend fun setDynamicColor(v: Boolean) = store.edit { it[DYNAMIC_COLOR] = v }
@@ -151,6 +155,7 @@ class SettingsRepository(
         val TIMESTAMP_FORMAT = stringPreferencesKey("timestamp_format")
         val LIMIT = intPreferencesKey("message_limit")
         val KEYWORDS = stringPreferencesKey("mention_keywords")
+        val MUTE_KEYWORDS = stringPreferencesKey("mute_keywords")
         val ANIMATED = booleanPreferencesKey("animated_emotes")
         val RECENT_EMOTES = stringPreferencesKey("recent_emotes")
         val THEME_MODE = stringPreferencesKey("theme_mode")

@@ -373,6 +373,16 @@ private fun ChatPage(settings: Settings, vm: MainViewModel) {
         }
         item { TimestampPicker(settings.timestamps, vm::setTimestamps) }
     }
+    SettingsGroup(R.string.settings_group_muted) {
+        item {
+            KeywordField(
+                keywords = settings.muteKeywords,
+                label = R.string.settings_mute_keywords,
+                hint = R.string.settings_mute_keywords_hint,
+                onSave = vm::setMuteKeywords,
+            )
+        }
+    }
     SettingsGroup(R.string.settings_emote_providers) {
         PROVIDERS.forEach { (provider, label) ->
             item {
@@ -392,19 +402,11 @@ private fun NotificationsPage(settings: Settings, vm: MainViewModel) {
     val context = LocalContext.current
     SettingsGroup(R.string.settings_group_mentions) {
         item {
-            var keywords by remember(settings.mentionKeywords) { mutableStateOf(settings.mentionKeywords.joinToString(", ")) }
-            OutlinedTextField(
-                value = keywords,
-                onValueChange = { keywords = it },
-                label = { Text(stringResource(R.string.settings_keywords)) },
-                supportingText = { Text(stringResource(R.string.settings_keywords_hint)) },
-                singleLine = true,
-                keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
-                keyboardActions = KeyboardActions(onDone = { vm.setMentionKeywords(keywords) }),
-                trailingIcon = {
-                    TextButton(onClick = { vm.setMentionKeywords(keywords) }) { Text(stringResource(R.string.save)) }
-                },
-                modifier = Modifier.fillMaxWidth().padding(16.dp),
+            KeywordField(
+                keywords = settings.mentionKeywords,
+                label = R.string.settings_keywords,
+                hint = R.string.settings_keywords_hint,
+                onSave = vm::setMentionKeywords,
             )
         }
         item {
@@ -714,6 +716,23 @@ private fun SwitchItem(res: Int, checked: Boolean, onChange: (Boolean) -> Unit, 
         trailingContent = { Switch(checked = checked, onCheckedChange = onChange) },
         colors = transparentItem(),
         modifier = Modifier.clickable { onChange(!checked) },
+    )
+}
+
+/** A comma-separated word list the user edits and saves explicitly. */
+@Composable
+private fun KeywordField(keywords: List<String>, label: Int, hint: Int, onSave: (String) -> Unit) {
+    var text by remember(keywords) { mutableStateOf(keywords.joinToString(", ")) }
+    OutlinedTextField(
+        value = text,
+        onValueChange = { text = it },
+        label = { Text(stringResource(label)) },
+        supportingText = { Text(stringResource(hint)) },
+        singleLine = true,
+        keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
+        keyboardActions = KeyboardActions(onDone = { onSave(text) }),
+        trailingIcon = { TextButton(onClick = { onSave(text) }) { Text(stringResource(R.string.save)) } },
+        modifier = Modifier.fillMaxWidth().padding(16.dp),
     )
 }
 

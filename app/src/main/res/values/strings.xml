@@ -257,4 +257,8 @@
     <string name="first_message">First message in this channel</string>
     <string name="settings_first_messages">Highlight first messages</string>
     <string name="settings_first_messages_hint">Mark it when someone writes in a channel for the first time</string>
+
+    <string name="settings_group_muted">Muted</string>
+    <string name="settings_mute_keywords">Muted words</string>
+    <string name="settings_mute_keywords_hint">Comma separated. Messages containing one of them, and messages from those chatters, are hidden</string>
 </resources>

@@ -251,4 +251,8 @@
     <string name="first_message">Erste Nachricht in diesem Kanal</string>
     <string name="settings_first_messages">Erste Nachrichten hervorheben</string>
     <string name="settings_first_messages_hint">Markieren, wenn jemand zum ersten Mal in einem Kanal schreibt</string>
+
+    <string name="settings_group_muted">Stummgeschaltet</string>
+    <string name="settings_mute_keywords">Stumme Wörter</string>
+    <string name="settings_mute_keywords_hint">Mit Komma getrennt. Nachrichten mit einem dieser Wörter und Nachrichten dieser Chatter werden ausgeblendet</string>
 </resources>

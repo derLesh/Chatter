@@ -363,6 +363,10 @@ class MainViewModel(private val c: AppContainer) : ViewModel() {
         viewModelScope.launch { c.settings.setMentionKeywords(v) }
     }
 
+    fun setMuteKeywords(v: String) {
+        viewModelScope.launch { c.settings.setMuteKeywords(v) }
+    }
+
     fun setThemeMode(v: ThemeMode) {
         viewModelScope.launch { c.settings.setThemeMode(v) }
     }
