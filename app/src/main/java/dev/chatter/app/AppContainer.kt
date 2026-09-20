@@ -34,6 +34,7 @@ import dev.chatter.app.irc.IrcConnection
 import dev.chatter.app.net.HelixApi
 import dev.chatter.app.net.ThirdPartyApi
 import dev.chatter.app.service.MentionNotifier
+import dev.chatter.app.settings.BackupManager
 import dev.chatter.app.settings.SettingsRepository
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -79,6 +80,7 @@ class AppContainer(private val context: Context) {
     val nicknames = NicknameRepository(context.nicknameStore, scope)
     val inbox = MentionInboxRepository(context.inboxStore, scope)
     val rules = RuleRepository(context.ruleStore, scope)
+    val backup = BackupManager(settings, rules, nicknames, channels)
     val changelog = ChangelogRepository(context, settings, BuildConfig.VERSION_NAME, scope)
     val irc = IrcConnection(socketHttp, scope)
     private val chatters = ChatterRegistry()

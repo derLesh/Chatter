@@ -4,6 +4,8 @@ import android.content.Intent
 import android.net.Uri
 import android.provider.Settings as AndroidSettings
 import androidx.activity.compose.BackHandler
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -72,6 +74,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -125,6 +128,7 @@ import java.util.Locale
 import dev.chatter.app.badges.BadgeProvider
 import dev.chatter.app.emotes.EmoteProvider
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import kotlin.math.roundToInt
 
@@ -200,7 +204,7 @@ fun SettingsScreen(vm: MainViewModel, onBack: () -> Unit) {
                     SettingsPage.Notifications -> NotificationsPage(settings, vm)
                     SettingsPage.Channels -> ChannelsPage(vm, settings)
                     SettingsPage.Account -> AccountPage(login, vm, { subPage = it }) { vm.logout(); onBack() }
-                    SettingsPage.About -> AboutPage { subPage = it }
+                    SettingsPage.About -> AboutPage(vm) { subPage = it }
                 }
             }
         }
@@ -734,7 +738,7 @@ private fun ChannelsPage(vm: MainViewModel, settings: Settings) {
 }
 
 @Composable
-private fun AboutPage(open: (SettingsSubPage) -> Unit) {
+private fun AboutPage(vm: MainViewModel, open: (SettingsSubPage) -> Unit) {
     var shownLicense by remember { mutableStateOf<Dependency?>(null) }
     // App icon (monochrome glyph from the icon pack, tinted with the theme like a themed icon).
     Column(
@@ -776,6 +780,7 @@ private fun AboutPage(open: (SettingsSubPage) -> Unit) {
         item { LinkItem(R.string.settings_source_code, R.string.settings_source_code_summary, REPO_URL) }
         item { LinkItem(R.string.settings_report_issue, R.string.settings_report_issue_summary, "$REPO_URL/issues/new") }
     }
+    BackupGroup(vm)
     SettingsGroup(R.string.settings_credits) {
         CREDITS.forEach { (title, summary, url) ->
             item { LinkItem(title, summary, url) }
@@ -798,6 +803,89 @@ private fun AboutPage(open: (SettingsSubPage) -> Unit) {
         LicenseSheet(dependency, onDismiss = { shownLicense = null })
     }
 }
+
+/**
+ * Writing the whole configuration to a file and reading it back. The format is Chatter's own —
+ * it is for moving to a new phone or keeping a copy before experimenting, not for importing
+ * another client's settings.
+ */
+@Composable
+private fun BackupGroup(vm: MainViewModel) {
+    val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+    var status by remember { mutableStateOf<Int?>(null) }
+
+    val export = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument(BACKUP_MIME)) { uri ->
+        if (uri != null) {
+            val text = vm.exportBackup()
+            scope.launch {
+                status = withContext(Dispatchers.IO) {
+                    runCatching {
+                        context.contentResolver.openOutputStream(uri)?.use { it.write(text.toByteArray()) }
+                            ?: error("no output stream")
+                    }.fold({ R.string.backup_exported }, { R.string.backup_failed })
+                }
+            }
+        }
+    }
+    val import = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
+        if (uri != null) {
+            scope.launch {
+                val text = withContext(Dispatchers.IO) {
+                    runCatching {
+                        context.contentResolver.openInputStream(uri)?.bufferedReader()?.use { it.readText() }
+                    }.getOrNull()
+                }
+                status = when {
+                    text == null -> R.string.backup_failed
+                    vm.importBackup(text) -> R.string.backup_imported
+                    else -> R.string.backup_invalid
+                }
+            }
+        }
+    }
+
+    SettingsGroup(R.string.settings_group_backup) {
+        item {
+            ListItem(
+                headlineContent = { Text(stringResource(R.string.backup_export)) },
+                supportingContent = { Text(stringResource(R.string.backup_export_hint)) },
+                trailingContent = {
+                    OutlinedButton(onClick = { export.launch(backupFileName()) }) {
+                        Text(stringResource(R.string.backup_save))
+                    }
+                },
+                colors = transparentItem(),
+            )
+        }
+        item {
+            ListItem(
+                headlineContent = { Text(stringResource(R.string.backup_import)) },
+                supportingContent = { Text(stringResource(R.string.backup_import_hint)) },
+                trailingContent = {
+                    OutlinedButton(onClick = { import.launch(arrayOf(BACKUP_MIME, "text/plain")) }) {
+                        Text(stringResource(R.string.open))
+                    }
+                },
+                colors = transparentItem(),
+            )
+        }
+        status?.let { res ->
+            item {
+                ListItem(
+                    headlineContent = { Text(stringResource(res), color = MaterialTheme.colorScheme.primary) },
+                    colors = transparentItem(),
+                )
+            }
+        }
+    }
+}
+
+private const val BACKUP_MIME = "application/json"
+
+/** "chatter-2026-09-20.json": dated, so several backups sit next to each other. */
+private fun backupFileName(): String =
+    "chatter-" + SimpleDateFormat("yyyy-MM-dd", Locale.US).format(Date()) + ".json"
 
 /** One of the libraries Chatter ships, for the license listing. */
 private data class Dependency(val name: String, val url: String)

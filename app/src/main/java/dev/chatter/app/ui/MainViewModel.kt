@@ -232,6 +232,14 @@ class MainViewModel(private val c: AppContainer) : ViewModel() {
         }
     }
 
+    // ---- Backup ------------------------------------------------------------------------------
+
+    /** The whole configuration as a Chatter backup file. */
+    fun exportBackup(): String = c.backup.export()
+
+    /** Restores a backup. False means the file was not one of ours. */
+    suspend fun importBackup(text: String): Boolean = c.backup.import(text)
+
     // ---- Highlight rules ---------------------------------------------------------------------
 
     fun saveRule(rule: ChatRule) {

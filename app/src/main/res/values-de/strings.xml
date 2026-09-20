@@ -333,4 +333,16 @@
     <string name="rule_channel_hint">Leer lassen, damit die Regel in jedem Kanal gilt</string>
     <string name="rule_regex">Regulärer Ausdruck</string>
     <string name="rule_regex_hint">Das Muster so verwenden, wie es dasteht, statt ein Wort zu suchen</string>
+
+    <!-- Backup -->
+    <string name="settings_group_backup">Backup</string>
+    <string name="backup_export">Einstellungen sichern</string>
+    <string name="backup_export_hint">Einstellungen, Regeln, Spitznamen und Kanäle als Datei — für ein neues Handy oder eine Kopie vor dem Herumprobieren</string>
+    <string name="backup_save">Sichern</string>
+    <string name="backup_import">Einstellungen wiederherstellen</string>
+    <string name="backup_import_hint">Liest eine Datei, die Chatter geschrieben hat. Was darin steht, ersetzt das, was hier eingestellt ist</string>
+    <string name="backup_exported">Einstellungen gesichert</string>
+    <string name="backup_imported">Einstellungen wiederhergestellt</string>
+    <string name="backup_invalid">Das ist kein Chatter-Backup</string>
+    <string name="backup_failed">Die Datei konnte nicht gelesen werden</string>
 </resources>

@@ -1,0 +1,1 @@
+minor: Save your settings, rules, nicknames and channels to a file and restore them

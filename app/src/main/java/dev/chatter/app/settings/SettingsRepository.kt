@@ -16,6 +16,7 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
+import kotlinx.serialization.Serializable
 
 enum class ThemeMode { System, Light, Dark }
 
@@ -27,6 +28,7 @@ enum class TimestampFormat(val pattern: String?) {
     Twelve("h:mm a"),
 }
 
+@Serializable
 data class Settings(
     val fontSize: Float = 14f,
     val timestamps: TimestampFormat = TimestampFormat.Short,
@@ -163,6 +165,41 @@ class SettingsRepository(
     val seenVersion: Flow<String?> = store.data.map { it[SEEN_VERSION] }
 
     suspend fun setSeenVersion(v: String) = store.edit { it[SEEN_VERSION] = v }
+
+    /**
+     * Writes every setting at once, for restoring a backup. New settings have to be added here
+     * too, or a restore would quietly leave them at whatever they were.
+     */
+    suspend fun replaceAll(s: Settings) = store.edit { p ->
+        p[FONT_SIZE] = s.fontSize
+        p[TIMESTAMP_FORMAT] = s.timestamps.name
+        p[LIMIT] = s.messageLimit
+        p[KEYWORDS] = s.mentionKeywords.joinToString(",")
+        p[MUTE_KEYWORDS] = s.muteKeywords.joinToString(",")
+        p[ANIMATED] = s.animatedEmotes
+        p[RECENT_EMOTES] = s.recentEmotes.joinToString(" ")
+        p[THEME_MODE] = s.themeMode.name
+        p[DYNAMIC_COLOR] = s.dynamicColor
+        p[ALTERNATE_BG] = s.alternateBackground
+        p[HIGHLIGHT_COLOR] = s.highlightColor
+        p[LOAD_HISTORY] = s.loadHistory
+        p[SMOOTH_SCROLLING] = s.smoothScrolling
+        p[EMOTES_ENABLED] = s.emotesEnabled
+        p[ZERO_WIDTH] = s.zeroWidthEmotes
+        p[UNLISTED_7TV] = s.showUnlisted7tv
+        p[SEVENTV_EVENTS] = s.sevenTvEvents
+        p[UNREAD_TITLE_BAR] = s.unreadInTitleBar
+        p[EMOTE_SUGGESTIONS] = s.emoteSuggestions
+        p[USER_SUGGESTIONS] = s.userSuggestions
+        p[MENTION_WITH_AT] = s.mentionWithAt
+        p[SHOW_DELETED] = s.showDeleted
+        p[KEEP_SCREEN_ON] = s.keepScreenOn
+        p[BUBBLES] = s.bubbles
+        p[FIRST_MESSAGES] = s.highlightFirstMessages
+        p[NAME_COLORS] = s.nameColors.name
+        p[BADGE_PROVIDERS] = s.badgeProviders.joinToString(",") { it.name }
+        p[EMOTE_PROVIDERS] = s.emoteProviders.joinToString(",") { it.name }
+    }
 
     suspend fun addRecentEmote(name: String) = store.edit { p ->
         val list = p[RECENT_EMOTES].orEmpty().split(' ').filter { it.isNotEmpty() && it != name }

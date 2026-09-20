@@ -31,6 +31,11 @@ class NicknameRepository(private val store: DataStore<Preferences>, scope: Corou
         }
     }
 
+    /** Replaces every nickname, for restoring a backup. */
+    suspend fun replaceAll(all: Map<String, String>) = store.edit { p ->
+        p[NICKNAMES] = AppJson.encodeToString(all.mapKeys { it.key.lowercase() })
+    }
+
     fun nicknameOf(login: String?): String? = login?.let { nicknames.value[it.lowercase()] }
 
     private companion object {

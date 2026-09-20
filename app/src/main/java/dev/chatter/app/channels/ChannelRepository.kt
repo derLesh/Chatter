@@ -137,6 +137,26 @@ class ChannelRepository(
         }
     }
 
+    /**
+     * Replaces the whole channel list and everything the user set on it, for restoring a backup.
+     * Names that are not valid Twitch logins are dropped rather than joined and rejected later.
+     */
+    suspend fun restore(
+        logins: List<String>,
+        names: Map<String, String>,
+        notificationsOff: Set<String>,
+        hiddenUnread: Set<String>,
+    ) {
+        val valid = logins.mapNotNull { normalize(it) }.distinct()
+        store.edit { p ->
+            p[CHANNELS] = valid.joinToString(",")
+            p[CUSTOM_NAMES] = AppJson.encodeToString(names.filterKeys { it in valid })
+            p[MUTED] = notificationsOff.filter { it in valid }.joinToString(",")
+            p[NO_TITLE_BAR] = hiddenUnread.filter { it in valid }.joinToString(",")
+        }
+        refreshUsers(valid)
+    }
+
     /** Fetches id, display name and avatar. Returns the Twitch user id per login. */
     suspend fun refreshUsers(logins: List<String>): Map<String, String> {
         if (logins.isEmpty()) return emptyMap()

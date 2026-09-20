@@ -339,4 +339,16 @@
     <string name="rule_channel_hint">Leave empty to use the rule in every channel</string>
     <string name="rule_regex">Regular expression</string>
     <string name="rule_regex_hint">Use the pattern as written instead of matching a word</string>
+
+    <!-- Backup -->
+    <string name="settings_group_backup">Backup</string>
+    <string name="backup_export">Save settings</string>
+    <string name="backup_export_hint">Settings, rules, nicknames and channels as a file, for a new phone or a copy before experimenting</string>
+    <string name="backup_save">Save</string>
+    <string name="backup_import">Restore settings</string>
+    <string name="backup_import_hint">Reads a file Chatter wrote. What it carries replaces what is set here</string>
+    <string name="backup_exported">Settings saved</string>
+    <string name="backup_imported">Settings restored</string>
+    <string name="backup_invalid">That is not a Chatter backup</string>
+    <string name="backup_failed">The file could not be read</string>
 </resources>
