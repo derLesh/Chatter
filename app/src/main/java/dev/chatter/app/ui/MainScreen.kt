@@ -53,6 +53,7 @@ import dev.chatter.app.chat.ChatItem
 import dev.chatter.app.chat.Segment
 import dev.chatter.app.irc.ConnectionState
 import dev.chatter.app.service.ChatService
+import dev.chatter.app.ui.changelog.UpdateNotesSheet
 import dev.chatter.app.ui.channels.AddChannelDialog
 import dev.chatter.app.ui.channels.RenameChannelDialog
 import dev.chatter.app.ui.channels.ChannelTopBar
@@ -327,8 +328,11 @@ fun AppRoot(vm: MainViewModel) {
     when (auth) {
         dev.chatter.app.auth.AuthState.Loading -> Box(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background))
         dev.chatter.app.auth.AuthState.LoggedOut -> LoginScreen(vm)
-        is dev.chatter.app.auth.AuthState.LoggedIn ->
+        is dev.chatter.app.auth.AuthState.LoggedIn -> {
             if (showSettings) SettingsScreen(vm, onBack = { showSettings = false })
             else MainScreen(vm, onSettings = { showSettings = true })
+            // Shows itself only right after an update, and only for more than a fix release.
+            UpdateNotesSheet(vm)
+        }
     }
 }

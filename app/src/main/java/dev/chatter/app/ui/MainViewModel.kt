@@ -59,6 +59,9 @@ class MainViewModel(private val c: AppContainer) : ViewModel() {
     val blockedUsers = c.blocked.blocked
     val blockedLogins = c.blocked.logins
     val nicknames = c.nicknames.nicknames
+    val releases = c.changelog.releases
+    /** The releases the user has not read yet, shown once after an update. */
+    val unreadReleases = c.changelog.unread
 
     val imageLoader get() = c.imageLoader
     val staticImageLoader get() = c.staticImageLoader
@@ -434,4 +437,7 @@ class MainViewModel(private val c: AppContainer) : ViewModel() {
     fun setAnimatedEmotes(v: Boolean) {
         viewModelScope.launch { c.settings.setAnimatedEmotes(v) }
     }
+
+    /** The update notes have been seen, so they should not come back. */
+    fun markChangelogRead() = c.changelog.markRead()
 }

@@ -101,6 +101,7 @@ import dev.chatter.app.settings.ThemeMode
 import dev.chatter.app.ui.channels.ManageChannelsPage
 import dev.chatter.app.ui.channels.RenameChannelDialog
 import dev.chatter.app.ui.channels.AddChannelDialog
+import dev.chatter.app.ui.changelog.ChangelogPage
 import dev.chatter.app.ui.chat.ChatStyle
 import dev.chatter.app.ui.chat.MessageRow
 import dev.chatter.app.ui.settings.BlockUserDialog
@@ -135,6 +136,7 @@ private enum class SettingsPage(val title: Int, val summary: Int, val icon: Imag
 /** A page opened from inside a category, one level below [SettingsPage]. */
 private enum class SettingsSubPage(val title: Int) {
     BlockedUsers(R.string.settings_blocked_users),
+    Changelog(R.string.settings_changelog),
 }
 
 @Composable
@@ -180,6 +182,10 @@ fun SettingsScreen(vm: MainViewModel, onBack: () -> Unit) {
         SettingsPageScaffold(title = title, onBack = goBack) {
             when (currentSub) {
                 SettingsSubPage.BlockedUsers -> BlockedUsersPage(vm)
+                SettingsSubPage.Changelog -> {
+                    val releases by vm.releases.collectAsStateWithLifecycle()
+                    ChangelogPage(releases, BuildConfig.VERSION_NAME)
+                }
                 null -> when (current) {
                     null -> Home(login) { page = it }
                     SettingsPage.Appearance -> AppearancePage(settings, vm)
@@ -187,7 +193,7 @@ fun SettingsScreen(vm: MainViewModel, onBack: () -> Unit) {
                     SettingsPage.Notifications -> NotificationsPage(settings, vm)
                     SettingsPage.Channels -> ChannelsPage(vm, settings)
                     SettingsPage.Account -> AccountPage(login, vm, { subPage = it }) { vm.logout(); onBack() }
-                    SettingsPage.About -> AboutPage()
+                    SettingsPage.About -> AboutPage { subPage = it }
                 }
             }
         }
@@ -617,7 +623,7 @@ private fun ChannelsPage(vm: MainViewModel, settings: Settings) {
 }
 
 @Composable
-private fun AboutPage() {
+private fun AboutPage(open: (SettingsSubPage) -> Unit) {
     var shownLicense by remember { mutableStateOf<Dependency?>(null) }
     // App icon (monochrome glyph from the icon pack, tinted with the theme like a themed icon).
     Column(
@@ -647,6 +653,15 @@ private fun AboutPage() {
         )
     }
     SettingsGroup {
+        item {
+            ListItem(
+                headlineContent = { Text(stringResource(R.string.settings_changelog)) },
+                supportingContent = { Text(stringResource(R.string.settings_changelog_summary)) },
+                trailingContent = { Icon(Icons.AutoMirrored.Filled.ArrowForward, contentDescription = null) },
+                colors = transparentItem(),
+                modifier = Modifier.clickable { open(SettingsSubPage.Changelog) },
+            )
+        }
         item { LinkItem(R.string.settings_source_code, R.string.settings_source_code_summary, REPO_URL) }
         item { LinkItem(R.string.settings_report_issue, R.string.settings_report_issue_summary, "$REPO_URL/issues/new") }
     }

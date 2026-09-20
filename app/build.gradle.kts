@@ -13,6 +13,12 @@ val localProps = Properties().apply {
 }
 val twitchClientId: String = localProps.getProperty("twitch.clientId", "")
 
+// The version comes from the release tooling in the root build: "./gradlew releaseVersion" works it
+// out from the entries in pending-changelog/, so nobody edits a version by hand.
+val versionProps = Properties().apply {
+    rootProject.file("version.properties").inputStream().use { load(it) }
+}
+
 android {
     namespace = "dev.chatter.app"
     compileSdk = 36
@@ -21,8 +27,8 @@ android {
         applicationId = "dev.chatter.app"
         minSdk = 33
         targetSdk = 36
-        versionCode = 2
-        versionName = "0.2.0"
+        versionCode = versionProps.getProperty("versionCode").toInt()
+        versionName = versionProps.getProperty("version")
         buildConfigField("String", "TWITCH_CLIENT_ID", "\"$twitchClientId\"")
     }
 
@@ -44,6 +50,35 @@ android {
     buildFeatures {
         compose = true
         buildConfig = true
+    }
+}
+
+/**
+ * The changelog the app shows under Settings -> About is the repository's own CHANGELOG.md, so
+ * there is never a second copy to keep in step. It ships as an asset named changelog.md.
+ */
+abstract class CopyChangelog : DefaultTask() {
+    @get:InputFile
+    abstract val changelog: RegularFileProperty
+
+    /** Filled in by the Android variant API, which also wires the build to depend on this task. */
+    @get:OutputDirectory
+    abstract val assets: DirectoryProperty
+
+    @TaskAction
+    fun run() {
+        changelog.get().asFile.copyTo(assets.get().asFile.resolve("changelog.md"), overwrite = true)
+    }
+}
+
+val copyChangelog = tasks.register<CopyChangelog>("copyChangelog") {
+    description = "Ships the repo's CHANGELOG.md as an app asset."
+    changelog.set(rootProject.layout.projectDirectory.file("CHANGELOG.md"))
+}
+
+androidComponents {
+    onVariants { variant ->
+        variant.sources.assets?.addGeneratedSourceDirectory(copyChangelog, CopyChangelog::assets)
     }
 }
 

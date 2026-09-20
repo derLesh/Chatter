@@ -14,6 +14,7 @@ import coil3.request.crossfade
 import dev.chatter.app.auth.AuthRepository
 import dev.chatter.app.auth.AuthState
 import dev.chatter.app.badges.BadgeRepository
+import dev.chatter.app.changelog.ChangelogRepository
 import dev.chatter.app.channels.BlockedUsersRepository
 import dev.chatter.app.channels.ChannelRepository
 import dev.chatter.app.chat.ChatRepository
@@ -69,6 +70,7 @@ class AppContainer(private val context: Context) {
     val channels = ChannelRepository(context.channelStore, helix, scope)
     val blocked = BlockedUsersRepository(helix, scope)
     val nicknames = NicknameRepository(context.nicknameStore, scope)
+    val changelog = ChangelogRepository(context, settings, BuildConfig.VERSION_NAME, scope)
     val irc = IrcConnection(socketHttp, scope)
     val notifier = MentionNotifier(context)
     private val chatters = ChatterRegistry()
@@ -104,6 +106,7 @@ class AppContainer(private val context: Context) {
     fun start() {
         notifier.createChannels()
         chat.start()
+        changelog.start()
         // Read on every message, so it is mirrored onto the repository instead of passed around.
         scope.launch { settings.settings.collect { badges.enabled = it.badgeProviders } }
         sevenTvLive.start()

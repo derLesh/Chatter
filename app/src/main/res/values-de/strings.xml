@@ -277,4 +277,15 @@
     <string name="settings_provider_chatterino">Chatterino</string>
     <string name="settings_provider_chatter">Chatter-Unterstützer</string>
     <string name="badge_supporter">Chatter-Unterstützer</string>
+    <!-- Changelog -->
+    <string name="settings_changelog">Changelog</string>
+    <string name="settings_changelog_summary">Was sich in jeder Version geändert hat</string>
+    <string name="changelog_major">Änderungen</string>
+    <string name="changelog_minor">Neu</string>
+    <string name="changelog_patch">Behoben</string>
+    <string name="changelog_installed">Installiert</string>
+    <string name="changelog_empty">Zu diesem Build gehört kein Changelog</string>
+    <string name="changelog_whats_new">Neu in dieser Version</string>
+    <string name="changelog_updated_to">Chatter wurde auf %1$s aktualisiert</string>
+    <string name="changelog_got_it">Alles klar</string>
 </resources>

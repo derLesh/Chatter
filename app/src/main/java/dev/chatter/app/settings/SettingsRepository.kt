@@ -11,6 +11,7 @@ import androidx.datastore.preferences.core.floatPreferencesKey
 import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.map
@@ -151,6 +152,14 @@ class SettingsRepository(
     suspend fun setBadgeProviders(v: Set<BadgeProvider>) = store.edit { p -> p[BADGE_PROVIDERS] = v.joinToString(",") { it.name } }
     suspend fun setEmoteProviders(v: Set<EmoteProvider>) = store.edit { p -> p[EMOTE_PROVIDERS] = v.joinToString(",") { it.name } }
 
+    /**
+     * The version whose changelog the user has read, which is what the app compares against to
+     * find out whether it has anything new to tell them. Null until they have read one.
+     */
+    val seenVersion: Flow<String?> = store.data.map { it[SEEN_VERSION] }
+
+    suspend fun setSeenVersion(v: String) = store.edit { it[SEEN_VERSION] = v }
+
     suspend fun addRecentEmote(name: String) = store.edit { p ->
         val list = p[RECENT_EMOTES].orEmpty().split(' ').filter { it.isNotEmpty() && it != name }
         p[RECENT_EMOTES] = (listOf(name) + list).take(MAX_RECENT).joinToString(" ")
@@ -185,6 +194,7 @@ class SettingsRepository(
         val BADGE_PROVIDERS = stringPreferencesKey("badge_providers")
         val NAME_COLORS = stringPreferencesKey("name_colors")
         val FIRST_MESSAGES = booleanPreferencesKey("highlight_first_messages")
+        val SEEN_VERSION = stringPreferencesKey("seen_changelog_version")
         const val MAX_RECENT = 40
     }
 }
