@@ -1,0 +1,1 @@
+patch: Keep the title bar on the channel you are reading when a bubble is open

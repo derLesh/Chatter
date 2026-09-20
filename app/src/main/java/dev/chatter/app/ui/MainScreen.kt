@@ -149,6 +149,14 @@ fun MainScreen(vm: MainViewModel, onInbox: () -> Unit, onSettings: () -> Unit) {
         restored = true
     }
 
+    // A bubble reads a channel of its own and says so while it is open. Once the chat screen is
+    // back in front, the page on screen is the channel again — otherwise the title bar would keep
+    // naming whatever the bubble was showing.
+    LifecycleStartEffect(channels, restored) {
+        if (restored) vm.selectChannel(channels.getOrNull(pagerState.currentPage))
+        onStopOrDispose { }
+    }
+
     // The page on screen defines the active channel — once it is the page the user expects.
     LaunchedEffect(pagerState, channels, restored) {
         if (!restored) return@LaunchedEffect

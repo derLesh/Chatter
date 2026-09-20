@@ -103,8 +103,9 @@ class MainViewModel(private val c: AppContainer) : ViewModel() {
         channel?.let {
             if (!inBubble) c.notifier.clear(it)
             viewModelScope.launch {
-                // Where to come back to after a restart.
-                c.channels.setLastChannel(it)
+                // Where to come back to after a restart — the chat screen's channel, not one the
+                // user happens to be reading in a bubble on the side.
+                if (!inBubble) c.channels.setLastChannel(it)
                 // Reading a channel is reading its mentions, so the inbox must not claim otherwise.
                 c.inbox.markChannelRead(it)
             }
