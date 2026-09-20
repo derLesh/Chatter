@@ -11,7 +11,18 @@ val localProps = Properties().apply {
     val file = rootProject.file("local.properties")
     if (file.exists()) file.inputStream().use { load(it) }
 }
-val twitchClientId: String = localProps.getProperty("twitch.clientId", "")
+
+/** An environment variable, empty ones read as if they were not set at all — CI sets those. */
+fun env(name: String): String? = providers.environmentVariable(name).orNull?.takeIf { it.isNotBlank() }
+
+// CI has no local.properties, so there the ID arrives as an environment variable from a secret.
+val twitchClientId: String = localProps.getProperty("twitch.clientId").orEmpty()
+    .ifBlank { env("TWITCH_CLIENT_ID").orEmpty() }
+
+// The upload key the release workflow signs with. It hands the keystore over as a file it decodes
+// from a secret, so nothing about the key is ever committed. Without it — a release build on a dev
+// machine — the debug key below keeps the APK installable, the way it has always been.
+val uploadKeystore: String? = env("CHATTER_KEYSTORE_FILE")
 
 // The version comes from the release tooling in the root build: "./gradlew releaseVersion" works it
 // out from the entries in pending-changelog/, so nobody edits a version by hand.
@@ -32,13 +43,25 @@ android {
         buildConfigField("String", "TWITCH_CLIENT_ID", "\"$twitchClientId\"")
     }
 
+    signingConfigs {
+        if (uploadKeystore != null) {
+            create("upload") {
+                storeFile = file(uploadKeystore)
+                storePassword = env("CHATTER_KEYSTORE_PASSWORD")
+                keyAlias = env("CHATTER_KEY_ALIAS")
+                keyPassword = env("CHATTER_KEY_PASSWORD")
+            }
+        }
+    }
+
     buildTypes {
         release {
             isMinifyEnabled = true
             isShrinkResources = true
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
-            // Signed with the debug key so a release build can be installed directly for testing.
-            signingConfig = signingConfigs.getByName("debug")
+            // The upload key when there is one, otherwise the debug key, so a release build can
+            // still be installed directly for testing.
+            signingConfig = signingConfigs.findByName("upload") ?: signingConfigs.getByName("debug")
         }
     }
 

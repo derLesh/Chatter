@@ -39,6 +39,26 @@ keeps behaviour, a test, a build tweak, a doc. Say so in the commit message when
   this very file as an asset and shows it under Settings → About → Changelog, so its shape matters:
   `## <version> — <date>` opens a release and `- <level>: <text>` is one entry.
 
+## CI does the releasing
+
+`.github/workflows/ci.yml` runs on every push and pull request: `checkChangelog`, the unit tests,
+Android lint and a debug APK it keeps as an artifact. Lint is part of the gate, so a new lint error
+fails the branch.
+
+`.github/workflows/release.yml` is the release itself, started by hand from the Actions tab. Nobody
+picks a version there either — it runs `releaseVersion`, so the pending entries decide it. It then
+builds and signs the APK, pushes the release commit and the `v<version>` tag, and publishes a
+GitHub release carrying that version's changelog section. The build comes before the push, so a
+failed one leaves the repository untouched, and `dry_run` does everything except push and publish.
+
+What it reads from Settings → Secrets and variables → Actions:
+
+| Secret | What it is | Missing |
+| --- | --- | --- |
+| `TWITCH_CLIENT_ID` | what `local.properties` holds on a dev machine | the release stops, rather than ship an APK that cannot log in |
+| `KEYSTORE_BASE64` | the upload keystore, as `base64 -w0 upload.jks` | the APK is signed with the debug key |
+| `KEYSTORE_PASSWORD`, `KEY_ALIAS`, `KEY_PASSWORD` | how to open that keystore | same |
+
 ## Commands
 
 ```sh

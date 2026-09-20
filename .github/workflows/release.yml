@@ -1,0 +1,154 @@
+# Releasing Chatter, start to finish, from the button on the Actions tab. The version is never
+# typed in: the entries in pending-changelog/ decide it, exactly as "./gradlew releaseVersion" does
+# on a dev machine. The workflow folds them into CHANGELOG.md, builds and signs the APK, and only
+# then pushes the release commit and tag — a build that fails leaves the repository untouched.
+name: Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: 'Build everything, but push nothing and publish nothing'
+        type: boolean
+        default: false
+
+# Two releases at once would race over the version and the tag.
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    name: Release
+    runs-on: ubuntu-latest
+    steps:
+      # The whole history, so the release commit and the tag can be pushed.
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      # A published APK that cannot log in is worse than no release at all, so this comes first.
+      - name: Require a Twitch Client ID
+        env:
+          TWITCH_CLIENT_ID: ${{ secrets.TWITCH_CLIENT_ID }}
+        run: |
+          if [ -z "$TWITCH_CLIENT_ID" ]; then
+            echo "::error::The TWITCH_CLIENT_ID secret is not set, so the APK could not log in to Twitch."
+            exit 1
+          fi
+
+      - name: Require something to release
+        run: |
+          pending=$(find pending-changelog -type f ! -name 'README.md' ! -name '.gitkeep' | wc -l)
+          if [ "$pending" -eq 0 ]; then
+            echo "::error::pending-changelog/ is empty, so there is no version to release."
+            exit 1
+          fi
+          echo "Releasing $pending pending entr$([ "$pending" -eq 1 ] && echo y || echo ies)."
+
+      - name: Set up JDK
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v4
+
+      - name: Unit tests
+        run: ./gradlew :app:testDebugUnitTest
+
+      - name: Fold the pending entries into the changelog
+        run: ./gradlew releaseVersion
+
+      - name: Read the released version
+        id: version
+        run: |
+          version=$(sed -n 's/^version=//p' version.properties)
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          if git rev-parse -q --verify "refs/tags/v$version" >/dev/null; then
+            echo "::error::v$version is already tagged. version.properties and the tags disagree."
+            exit 1
+          fi
+          echo "Chatter $version" >> "$GITHUB_STEP_SUMMARY"
+
+      # The keystore is a secret holding the base64 of the .jks file; the build picks the key up
+      # through CHATTER_KEYSTORE_FILE. Without the secret the build falls back to the debug key,
+      # which still installs but is not a key anyone should ship under for long.
+      - name: Unpack the upload keystore
+        env:
+          KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
+        run: |
+          if [ -z "$KEYSTORE_BASE64" ]; then
+            echo "::warning::No KEYSTORE_BASE64 secret, so the APK is signed with the debug key."
+            exit 0
+          fi
+          printf '%s' "$KEYSTORE_BASE64" | base64 -d > "$RUNNER_TEMP/upload.jks"
+          echo "CHATTER_KEYSTORE_FILE=$RUNNER_TEMP/upload.jks" >> "$GITHUB_ENV"
+
+      - name: Build the release APK
+        env:
+          TWITCH_CLIENT_ID: ${{ secrets.TWITCH_CLIENT_ID }}
+          CHATTER_KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+          CHATTER_KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
+          CHATTER_KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
+        run: ./gradlew :app:assembleRelease
+
+      # Named after the version, so a downloaded APK still says which one it is.
+      - name: Name the APK after the version
+        id: apk
+        run: |
+          apk="chatter-${{ steps.version.outputs.version }}.apk"
+          mv app/build/outputs/apk/release/app-release.apk "$apk"
+          echo "path=$apk" >> "$GITHUB_OUTPUT"
+
+      - name: Upload the APK as a build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: chatter-release-apk
+          path: ${{ steps.apk.outputs.path }}
+          if-no-files-found: error
+
+      # The entries this release just folded in: everything from the newest heading down to the one
+      # before it, which is what CHANGELOG.md's shape guarantees.
+      - name: Write the release notes
+        run: awk '/^## /{ heading++ } heading == 1 && !/^## /' CHANGELOG.md > "$RUNNER_TEMP/notes.md"
+
+      - name: Delete the keystore
+        if: always()
+        run: rm -f "$RUNNER_TEMP/upload.jks"
+
+      - name: Push the release commit and tag
+        if: ${{ !inputs.dry_run }}
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add -A version.properties CHANGELOG.md pending-changelog
+          git commit -m "Release $VERSION"
+          git tag -a "v$VERSION" -m "Chatter $VERSION"
+          git push origin HEAD:${{ github.ref_name }} "refs/tags/v$VERSION"
+
+      - name: Publish the GitHub release
+        if: ${{ !inputs.dry_run }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          gh release create "v$VERSION" \
+            --title "Chatter $VERSION" \
+            --notes-file "$RUNNER_TEMP/notes.md" \
+            "${{ steps.apk.outputs.path }}"
+
+      - name: Say what a dry run would have done
+        if: ${{ inputs.dry_run }}
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          echo "Dry run: nothing was pushed or published." >> "$GITHUB_STEP_SUMMARY"
+          echo "A real run would have released v$VERSION with these notes:" >> "$GITHUB_STEP_SUMMARY"
+          cat "$RUNNER_TEMP/notes.md" >> "$GITHUB_STEP_SUMMARY"
