@@ -48,6 +48,7 @@ import androidx.compose.material3.LargeTopAppBar
 import androidx.compose.material3.ListItem
 import androidx.compose.material3.ListItemDefaults
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
@@ -63,6 +64,7 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.material3.rememberTopAppBarState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -79,6 +81,7 @@ import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
@@ -108,6 +111,8 @@ import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 import dev.chatter.app.emotes.EmoteProvider
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import kotlin.math.roundToInt
 
 /** Top level of the settings, like the Android settings app: categories that open a page. */
@@ -489,6 +494,7 @@ private fun ChannelsPage(vm: MainViewModel, settings: Settings) {
 
 @Composable
 private fun AboutPage() {
+    var shownLicense by remember { mutableStateOf<Dependency?>(null) }
     // App icon (monochrome glyph from the icon pack, tinted with the theme like a themed icon).
     Column(
         horizontalAlignment = Alignment.CenterHorizontally,
@@ -526,22 +532,78 @@ private fun AboutPage() {
         }
     }
     SettingsGroup(R.string.settings_licenses) {
-        DEPENDENCIES.forEach { (name, url) ->
-            item { LinkItem(name, stringResource(R.string.license_apache2), url) }
+        DEPENDENCIES.forEach { dependency ->
+            item {
+                ListItem(
+                    headlineContent = { Text(dependency.name) },
+                    supportingContent = { Text(stringResource(R.string.license_apache2)) },
+                    trailingContent = { Icon(Icons.AutoMirrored.Filled.ArrowForward, contentDescription = null) },
+                    colors = transparentItem(),
+                    modifier = Modifier.clickable { shownLicense = dependency },
+                )
+            }
         }
+    }
+    shownLicense?.let { dependency ->
+        LicenseSheet(dependency, onDismiss = { shownLicense = null })
     }
 }
 
-/** The libraries Chatter ships, for the license listing. All of them are Apache 2.0. */
+/** One of the libraries Chatter ships, for the license listing. */
+private data class Dependency(val name: String, val url: String)
+
+/** The libraries Chatter ships. All of them are Apache 2.0, so they share one license text. */
 private val DEPENDENCIES = listOf(
-    "Kotlin" to "https://kotlinlang.org",
-    "Kotlin Coroutines" to "https://github.com/Kotlin/kotlinx.coroutines",
-    "kotlinx.serialization" to "https://github.com/Kotlin/kotlinx.serialization",
-    "AndroidX (Core, Activity, Lifecycle, DataStore)" to "https://developer.android.com/jetpack/androidx",
-    "Jetpack Compose" to "https://developer.android.com/jetpack/compose",
-    "OkHttp" to "https://square.github.io/okhttp/",
-    "Coil" to "https://coil-kt.github.io/coil/",
+    Dependency("Kotlin", "https://kotlinlang.org"),
+    Dependency("Kotlin Coroutines", "https://github.com/Kotlin/kotlinx.coroutines"),
+    Dependency("kotlinx.serialization", "https://github.com/Kotlin/kotlinx.serialization"),
+    Dependency("AndroidX (Core, Activity, Lifecycle, DataStore)", "https://developer.android.com/jetpack/androidx"),
+    Dependency("Jetpack Compose", "https://developer.android.com/jetpack/compose"),
+    Dependency("OkHttp", "https://square.github.io/okhttp/"),
+    Dependency("Coil", "https://coil-kt.github.io/coil/"),
 )
+
+/** The full license text of one dependency, plus a way to its project page. */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun LicenseSheet(dependency: Dependency, onDismiss: () -> Unit) {
+    val context = LocalContext.current
+    // ~11 kB read once per sheet; kept out of the first frame so opening stays instant.
+    var text by remember { mutableStateOf("") }
+    LaunchedEffect(Unit) {
+        text = withContext(Dispatchers.IO) {
+            runCatching {
+                context.resources.openRawResource(R.raw.license_apache_2_0).bufferedReader().use { it.readText() }
+            }.getOrDefault("")
+        }
+    }
+    ModalBottomSheet(onDismissRequest = onDismiss, containerColor = MaterialTheme.colorScheme.surfaceContainerLow) {
+        Column(
+            Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 20.dp)
+                .verticalScroll(rememberScrollState()),
+        ) {
+            Text(dependency.name, style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
+            Text(
+                stringResource(R.string.license_apache2),
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            OutlinedButton(
+                onClick = { context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(dependency.url))) },
+                modifier = Modifier.padding(top = 12.dp),
+            ) { Text(stringResource(R.string.license_open_project)) }
+            // Monospace keeps the license's own indentation and line breaks intact.
+            Text(
+                text = text,
+                style = MaterialTheme.typography.bodySmall,
+                fontFamily = FontFamily.Monospace,
+                modifier = Modifier.padding(vertical = 16.dp),
+            )
+        }
+    }
+}
 
 /** The services Chatter builds on, each linking to where it comes from. */
 private val CREDITS = listOf(

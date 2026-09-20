@@ -184,6 +184,7 @@
     <string name="settings_credits_recent">recent-messages.robotty.de</string>
     <string name="settings_credits_recent_summary">Chatverlauf beim Betreten eines Kanals</string>
     <string name="settings_licenses">Open-Source-Lizenzen</string>
+    <string name="license_open_project">Projektseite</string>
     <string name="license_apache2">Apache-Lizenz 2.0</string>
     <string name="settings_source_code">Quellcode</string>
     <string name="settings_source_code_summary">github.com/derLesh/Chatter</string>
