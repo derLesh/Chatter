@@ -16,3 +16,4 @@ dependencyResolutionManagement {
 
 rootProject.name = "Chatter"
 include(":app")
+include(":baselineprofile")

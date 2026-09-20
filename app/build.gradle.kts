@@ -4,6 +4,7 @@ plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.compose)
     alias(libs.plugins.kotlin.serialization)
+    alias(libs.plugins.androidx.baselineprofile)
 }
 
 // The Twitch Client ID lives in local.properties (not committed): twitch.clientId=...
@@ -130,4 +131,7 @@ dependencies {
     implementation(libs.kotlinx.coroutines.android)
 
     testImplementation(libs.junit)
+
+    // The profile the :baselineprofile module generates, compiled into the release APK.
+    baselineProfile(project(":baselineprofile"))
 }
