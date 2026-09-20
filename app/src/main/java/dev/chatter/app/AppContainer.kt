@@ -114,7 +114,7 @@ class AppContainer(private val context: Context) {
     val staticImageLoader: ImageLoader = imageLoader(animated = false)
 
     // After the image loader: mention notifications carry the channel avatar as their icon.
-    val notifier = MentionNotifier(context, channels, settings.settings, imageLoader)
+    val notifier = MentionNotifier(context, channels, helix, settings.settings, imageLoader)
 
     fun start() {
         notifier.createChannels()

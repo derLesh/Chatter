@@ -13,6 +13,9 @@
     <string name="notif_reply">Antworten</string>
     <string name="notif_reply_failed">Deine Antwort konnte nicht gesendet werden</string>
 
+    <string name="settings_sender_avatars">Profilbilder</string>
+    <string name="settings_sender_avatars_hint">In der Benachrichtigung das Twitch-Bild dessen zeigen, der geschrieben hat</string>
+
     <!-- Chat system messages -->
     <string name="chat_reconnected">Wieder verbunden.</string>
     <string name="chat_disconnected">Verbindung getrennt. Verbinde neu…</string>

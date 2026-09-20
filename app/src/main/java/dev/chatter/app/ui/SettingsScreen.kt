@@ -478,6 +478,12 @@ private fun NotificationsPage(settings: Settings, vm: MainViewModel) {
             )
         }
         item {
+            SwitchItem(
+                R.string.settings_sender_avatars, settings.senderAvatars,
+                vm::setSenderAvatars, R.string.settings_sender_avatars_hint,
+            )
+        }
+        item {
             ListItem(
                 headlineContent = { Text(stringResource(R.string.settings_system_notifications)) },
                 supportingContent = { Text(stringResource(R.string.settings_notifications_hint)) },

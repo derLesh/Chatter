@@ -24,6 +24,7 @@ import dev.chatter.app.R
 import dev.chatter.app.channels.ChannelRepository
 import dev.chatter.app.chat.ChatItem
 import dev.chatter.app.chat.MessageKind
+import dev.chatter.app.net.HelixApi
 import dev.chatter.app.settings.Settings
 import dev.chatter.app.ui.bubble.BubbleActivity
 import kotlinx.coroutines.flow.StateFlow
@@ -39,6 +40,7 @@ import java.util.concurrent.ConcurrentHashMap
 class MentionNotifier(
     private val context: Context,
     private val channels: ChannelRepository,
+    private val helix: HelixApi,
     private val settings: StateFlow<Settings>,
     private val imageLoader: ImageLoader,
 ) {
@@ -46,6 +48,8 @@ class MentionNotifier(
     private val recent = HashMap<String, ArrayDeque<ChatItem>>()
     /** Channel avatars as notification icons, loaded once per channel. */
     private val icons = ConcurrentHashMap<String, IconCompat>()
+    /** Twitch profile pictures of the chatters in the notifications, by lowercase login. */
+    private val senderIcons = ConcurrentHashMap<String, IconCompat>()
 
     fun createChannels() {
         val nm = context.getSystemService(NotificationManager::class.java)
@@ -59,10 +63,13 @@ class MentionNotifier(
         )
     }
 
-    /** Loads the channel avatar (off the main thread) and then posts the notification. */
+    /** Loads the pictures (off the main thread) and then posts the notification. */
     suspend fun notify(item: ChatItem) {
         if (!manager.areNotificationsEnabled()) return
-        post(item, channelIcon(item.channel))
+        val icon = channelIcon(item.channel)
+        // Fills the cache for this chatter; the older lines use what is already in it.
+        loadSenderIcon(item.login)
+        post(item, icon)
     }
 
     /** Shows a message the user sent straight from the notification in that same conversation. */
@@ -107,7 +114,11 @@ class MentionNotifier(
             .setGroupConversation(true)
         lines.forEach { m ->
             // A null person is what MessagingStyle reads as "the user themselves".
-            val from = if (m.isOwn) null else Person.Builder().setName(m.displayName ?: m.login ?: "?").build()
+            val from = if (m.isOwn) null else Person.Builder()
+                .setName(m.displayName ?: m.login ?: "?")
+                .setKey(m.login)
+                .setIcon(m.login?.lowercase()?.let { senderIcons[it] })
+                .build()
             style.addMessage(m.text, m.timestamp, from)
         }
 
@@ -145,6 +156,21 @@ class MentionNotifier(
         val url = channels.info.value[channel]?.avatarUrl
         val icon = url?.let { loadIcon(it) } ?: return IconCompat.createWithResource(context, R.mipmap.ic_launcher)
         return icon.also { icons[channel] = it }
+    }
+
+    /**
+     * The Twitch profile picture of whoever wrote the message, looked up once per chatter. Off
+     * unless the user asked for it: it costs a Twitch request and a download per new name.
+     */
+    private suspend fun loadSenderIcon(login: String?) {
+        val key = login?.lowercase() ?: return
+        if (!settings.value.senderAvatars || senderIcons.containsKey(key)) return
+        val url = runCatching { helix.users(listOf(key)).firstOrNull()?.profileImageUrl }.getOrNull() ?: return
+        loadIcon(url)?.let {
+            // Mentions come from ever new people; the cache must not grow without end.
+            if (senderIcons.size >= MAX_SENDER_ICONS) senderIcons.clear()
+            senderIcons[key] = it
+        }
     }
 
     /**
@@ -220,6 +246,7 @@ class MentionNotifier(
         private const val BUBBLE_HEIGHT_DP = 620
         /** Android shows notification icons small; anything larger is wasted memory. */
         private const val ICON_SIZE_PX = 192
+        private const val MAX_SENDER_ICONS = 100
         const val EXTRA_CHANNEL = "channel"
         /** Where Android puts the text typed into the reply action. */
         const val KEY_REPLY = "reply"

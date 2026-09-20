@@ -15,6 +15,9 @@
     <string name="notif_reply">Reply</string>
     <string name="notif_reply_failed">Your reply could not be sent</string>
 
+    <string name="settings_sender_avatars">Profile pictures</string>
+    <string name="settings_sender_avatars_hint">Show the Twitch picture of whoever wrote the message in the notification</string>
+
     <!-- Chat system messages -->
     <string name="chat_reconnected">Reconnected.</string>
     <string name="chat_disconnected">Disconnected. Reconnecting…</string>

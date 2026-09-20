@@ -74,6 +74,8 @@ data class Settings(
     val keepScreenOn: Boolean = false,
     /** Offer mention notifications as a floating chat bubble over other apps. */
     val bubbles: Boolean = false,
+    /** Show the Twitch profile picture of whoever wrote a message in the notification. */
+    val senderAvatars: Boolean = true,
     /** Mark the first message a chatter ever writes in a channel (Twitch's own flag). */
     val highlightFirstMessages: Boolean = true,
     /** How the name colors users picked are made readable on the chat background. */
@@ -118,6 +120,7 @@ class SettingsRepository(
             showDeleted = p[SHOW_DELETED] ?: true,
             keepScreenOn = p[KEEP_SCREEN_ON] ?: false,
             bubbles = p[BUBBLES] ?: false,
+            senderAvatars = p[SENDER_AVATARS] ?: true,
             highlightFirstMessages = p[FIRST_MESSAGES] ?: true,
             nameColors = p[NAME_COLORS]?.let { v -> NameColorPalette.entries.firstOrNull { it.name == v } }
                 ?: NameColorPalette.HslLuma,
@@ -153,6 +156,7 @@ class SettingsRepository(
     suspend fun setShowDeleted(v: Boolean) = store.edit { it[SHOW_DELETED] = v }
     suspend fun setKeepScreenOn(v: Boolean) = store.edit { it[KEEP_SCREEN_ON] = v }
     suspend fun setBubbles(v: Boolean) = store.edit { it[BUBBLES] = v }
+    suspend fun setSenderAvatars(v: Boolean) = store.edit { it[SENDER_AVATARS] = v }
     suspend fun setHighlightFirstMessages(v: Boolean) = store.edit { it[FIRST_MESSAGES] = v }
     suspend fun setNameColors(v: NameColorPalette) = store.edit { it[NAME_COLORS] = v.name }
     suspend fun setBadgeProviders(v: Set<BadgeProvider>) = store.edit { p -> p[BADGE_PROVIDERS] = v.joinToString(",") { it.name } }
@@ -195,6 +199,7 @@ class SettingsRepository(
         p[SHOW_DELETED] = s.showDeleted
         p[KEEP_SCREEN_ON] = s.keepScreenOn
         p[BUBBLES] = s.bubbles
+        p[SENDER_AVATARS] = s.senderAvatars
         p[FIRST_MESSAGES] = s.highlightFirstMessages
         p[NAME_COLORS] = s.nameColors.name
         p[BADGE_PROVIDERS] = s.badgeProviders.joinToString(",") { it.name }
@@ -232,6 +237,7 @@ class SettingsRepository(
         val SHOW_DELETED = booleanPreferencesKey("show_deleted")
         val KEEP_SCREEN_ON = booleanPreferencesKey("keep_screen_on")
         val BUBBLES = booleanPreferencesKey("chat_bubbles")
+        val SENDER_AVATARS = booleanPreferencesKey("notification_sender_avatars")
         val EMOTE_PROVIDERS = stringPreferencesKey("emote_providers")
         val BADGE_PROVIDERS = stringPreferencesKey("badge_providers")
         val NAME_COLORS = stringPreferencesKey("name_colors")
