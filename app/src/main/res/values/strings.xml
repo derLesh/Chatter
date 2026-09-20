@@ -326,6 +326,15 @@
     <!-- Launcher shortcuts -->
     <string name="shortcut_inbox">Inbox</string>
 
+    <!-- Whispers -->
+    <string name="whisper_sent">Whisper sent to %1$s</string>
+    <string name="whisper_reply_title">Whisper to %1$s</string>
+    <string name="whisper_reply_hint">Your answer</string>
+    <string name="whisper_error_empty">Nothing to whisper</string>
+    <string name="whisper_error_scope">Chatter may not send whispers yet - sign out and in again to allow it</string>
+    <string name="whisper_error_refused">Twitch refused the whisper: %1$s. Whispers need a verified phone number on your Twitch account</string>
+    <string name="whisper_error_rate">Twitch is only letting so many whispers through right now, try again in a moment</string>
+
     <!-- Inbox -->
     <string name="inbox_title">Inbox</string>
     <string name="inbox_tab_mentions">Mentions</string>

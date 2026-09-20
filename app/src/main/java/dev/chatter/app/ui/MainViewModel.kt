@@ -301,6 +301,10 @@ class MainViewModel(private val c: AppContainer) : ViewModel() {
         viewModelScope.launch { c.inbox.clear() }
     }
 
+    /** Answers a whisper. Returns the sentence to show about it, sent or not. */
+    suspend fun sendWhisper(whisper: InboxWhisper, text: String): String =
+        c.whisperSender.send(whisper.login, whisper.userId, text).message
+
     fun markWhisperRead(whisper: InboxWhisper) {
         if (whisper.read) return
         viewModelScope.launch { c.whisperInbox.markRead(whisper.id) }

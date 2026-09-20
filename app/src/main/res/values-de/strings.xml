@@ -141,7 +141,7 @@
     <string name="channel_notification_settings">Ton &amp; Vibration</string>
     <string name="channel_in_title_bar">Ungelesene anzeigen</string>
     <string name="settings_unread_title_bar">Ungelesene Kanäle in der Titelleiste</string>
-    <string name="settings_unread_title_bar_hint">Die Bilder der Kanäle mit neuen Nachrichten, neben dem Kanalnamen. Einzelne Kanäle lassen sich in ihrem Menü ausnehmen.</string>
+    <string name="settings_unread_title_bar_hint">Zeige bei ungelesenene Nachrichten, den Avatar eines Kanals in der Titelleiste an</string>
     <string name="settings_suggestions">Vorschläge</string>
     <string name="settings_group_screen">Bildschirm</string>
     <string name="settings_keep_screen_on">Bildschirm anlassen</string>
@@ -319,6 +319,14 @@
     <string name="settings_haptics_hint">Kurzes Vibrieren, wenn eine Erwähnung eintrifft, während du liest, wenn du eine Nachricht gedrückt hältst und wenn etwas nicht durchgeht</string>
 
     <string name="shortcut_inbox">Postfach</string>
+    <string name="whisper_sent">Flüsternachricht an %1$s gesendet</string>
+    <string name="whisper_reply_title">Flüstern an %1$s</string>
+    <string name="whisper_reply_hint">Deine Antwort</string>
+    <string name="whisper_error_empty">Nichts zu flüstern</string>
+    <string name="whisper_error_scope">Chatter darf noch nicht flüstern — melde dich einmal ab und wieder an</string>
+    <string name="whisper_error_refused">Twitch hat die Flüsternachricht abgelehnt: %1$s. Flüstern geht nur mit einer bestätigten Telefonnummer im Twitch-Konto</string>
+    <string name="whisper_error_rate">Twitch lässt gerade nur so viele Flüsternachrichten durch, versuch es gleich noch einmal</string>
+
     <string name="inbox_title">Postfach</string>
     <string name="inbox_tab_mentions">Erwähnungen</string>
     <string name="inbox_tab_whispers">Flüstern</string>

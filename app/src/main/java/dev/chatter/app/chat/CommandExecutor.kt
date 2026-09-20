@@ -12,12 +12,15 @@ class CommandExecutor(
     private val context: Context,
     private val helix: HelixApi,
     private val auth: AuthRepository,
+    private val whispers: WhisperSender,
 ) {
     suspend fun execute(command: ChatCommand, channelId: String?): String {
         val me = auth.account?.userId ?: return str(R.string.error_not_connected)
-        if (channelId == null) return str(R.string.cmd_error_generic, "unknown channel")
+        // A whisper goes to a person rather than into a channel, so it is the one command that
+        // needs no room to be sent from - every other one is answered here instead of failing.
+        if (channelId == null && command !is ChatCommand.Whisper) return str(R.string.cmd_error_generic, "unknown channel")
         return try {
-            run(command, channelId, me)
+            run(command, channelId.orEmpty(), me)
         } catch (e: HttpException) {
             when {
                 e.code == 401 && e.apiMessage?.contains("scope", ignoreCase = true) == true -> str(R.string.cmd_error_scope)
@@ -80,6 +83,7 @@ class CommandExecutor(
             helix.cancelRaid(channel)
             str(R.string.cmd_unraid)
         }
+        is ChatCommand.Whisper -> whispers.send(command.user, userId = null, message = command.message).message
         is ChatCommand.Color -> {
             helix.setChatColor(me, command.color)
             str(R.string.cmd_color, command.color)

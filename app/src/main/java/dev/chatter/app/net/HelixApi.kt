@@ -172,6 +172,15 @@ class HelixApi(
         http.send("DELETE", url("raids", "broadcaster_id" to channelId), headers())
     }
 
+    /**
+     * Whispers cannot be sent over chat any more, only through here - and only by an account
+     * with a verified phone number, which is what a 403 from this call usually means.
+     */
+    suspend fun sendWhisper(fromUserId: String, toUserId: String, message: String) {
+        val body = buildJsonObject { put("message", message) }
+        http.send("POST", url("whispers", "from_user_id" to fromUserId, "to_user_id" to toUserId), headers(), body.toString())
+    }
+
     /** [color] is a named Twitch color (e.g. "blue_violet") or "#RRGGBB" (Turbo/Prime only). */
     suspend fun setChatColor(userId: String, color: String) {
         http.send("PUT", url("chat/color", "user_id" to userId, "color" to color), headers())

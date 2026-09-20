@@ -18,6 +18,8 @@ import kotlinx.serialization.Serializable
 data class InboxWhisper(
     val id: String,
     val login: String,
+    /** The sender's Twitch id, which is what answering them needs. Null for older whispers. */
+    val userId: String? = null,
     val displayName: String,
     val text: String,
     val timestamp: Long,
@@ -41,6 +43,7 @@ data class InboxWhisper(
             return InboxWhisper(
                 id = "$thread-$number",
                 login = login,
+                userId = msg.tag("user-id"),
                 displayName = msg.tag("display-name") ?: login,
                 text = text,
                 // A whisper carries no send time of its own; it arrives the moment it is written.

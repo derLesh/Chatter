@@ -53,6 +53,14 @@ class CommandParserTest {
     }
 
     @Test
+    fun whispers() {
+        assertEquals(ChatCommand.Whisper("friend", "see you later"), CommandParser.parse("/w friend see you later"))
+        assertEquals(ChatCommand.Whisper("friend", "hi"), CommandParser.parse("/whisper @Friend hi"))
+        // A name on its own is not a whisper yet, so it asks for the rest instead of sending.
+        assertEquals(ChatCommand.Usage("/w <user> <message>"), CommandParser.parse("/w friend"))
+    }
+
+    @Test
     fun durations() {
         assertEquals(30, CommandParser.parseDuration("30"))
         assertEquals(600, CommandParser.parseDuration("10m"))

@@ -195,7 +195,8 @@ class AuthRepository(
         val SCOPES = listOf(
             "chat:read", "chat:edit", "user:read:emotes", "user:read:follows", "user:manage:chat_color",
             // Whispers arrive over the chat connection, but only for a token that asked for them.
-            "whispers:read",
+            // Sending them goes through Helix, which wants the newer scope of the two.
+            "whispers:read", "user:manage:whispers",
             "user:read:blocked_users", "user:manage:blocked_users",
             // The chatter list; Twitch only answers for channels the user moderates.
             "moderator:read:chatters",

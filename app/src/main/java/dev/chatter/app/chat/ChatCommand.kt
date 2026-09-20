@@ -20,6 +20,8 @@ sealed interface ChatCommand {
     data class Raid(val user: String) : ChatCommand
     data object Unraid : ChatCommand
     data class Color(val color: String) : ChatCommand
+    /** A whisper, the one command that goes to a person instead of into a channel. */
+    data class Whisper(val user: String, val message: String) : ChatCommand
 
     /** Known command with wrong arguments; [usage] shows the correct syntax. */
     data class Usage(val usage: String) : ChatCommand
@@ -30,6 +32,8 @@ object CommandParser {
     /** Commands with their syntax, for autocomplete and usage hints. */
     val COMMANDS: Map<String, String> = linkedMapOf(
         "me" to "/me <message>",
+        "w" to "/w <user> <message>",
+        "whisper" to "/whisper <user> <message>",
         "ban" to "/ban <user> [reason]",
         "unban" to "/unban <user>",
         "timeout" to "/timeout <user> [duration] [reason]",
@@ -78,6 +82,10 @@ object CommandParser {
                     args.size >= 2 && seconds == null -> usage()
                     else -> ChatCommand.Timeout(user, (seconds ?: 600).coerceIn(1, 1_209_600), afterFirst(2))
                 }
+            }
+            "w", "whisper" -> {
+                val message = afterFirst(1)
+                if (user == null || message == null) usage() else ChatCommand.Whisper(user, message)
             }
             "clear" -> ChatCommand.Clear
             "slow" -> {

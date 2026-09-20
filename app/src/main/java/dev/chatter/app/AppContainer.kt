@@ -24,6 +24,7 @@ import dev.chatter.app.chat.MentionInboxRepository
 import dev.chatter.app.chat.NicknameRepository
 import dev.chatter.app.chat.RuleRepository
 import dev.chatter.app.chat.WhisperInboxRepository
+import dev.chatter.app.chat.WhisperSender
 import dev.chatter.app.chat.CommandExecutor
 import dev.chatter.app.chat.EmoteOptions
 import dev.chatter.app.chat.MessageBuilder
@@ -87,11 +88,12 @@ class AppContainer(private val context: Context) {
     val backup = BackupManager(settings, rules, nicknames, channels)
     val changelog = ChangelogRepository(context, settings, BuildConfig.VERSION_NAME, scope)
     val irc = IrcConnection(socketHttp, scope)
+    val whisperSender = WhisperSender(context, helix, auth)
     private val chatters = ChatterRegistry()
 
     val chat = ChatRepository(
         context, irc, MessageBuilder(emotes, badges, chatters, ::emoteOptions), emotes, badges, channels, thirdParty, helix, auth,
-        CommandExecutor(context, helix, auth), chatters, blocked, rules.rules, settings.settings, scope,
+        CommandExecutor(context, helix, auth, whisperSender), chatters, blocked, rules.rules, settings.settings, scope,
     )
 
     // One disk cache shared by both loaders (two caches on the same directory would corrupt it).

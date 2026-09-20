@@ -31,11 +31,16 @@ import androidx.compose.material3.ListItemDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.PrimaryTabRow
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Tab
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -81,12 +86,15 @@ fun InboxScreen(vm: MainViewModel, onOpenChannel: (String) -> Unit, onBack: () -
 
     val pager = rememberPagerState { 2 }
     val scope = rememberCoroutineScope()
+    val snackbar = remember { SnackbarHostState() }
+    var replyTo by remember { mutableStateOf<InboxWhisper?>(null) }
     // The actions in the bar belong to whichever tab is in front, not to the inbox as a whole.
     val onMentions = pager.currentPage == TAB_MENTIONS
     val hasItems = if (onMentions) mentions.isNotEmpty() else whispers.isNotEmpty()
 
     Scaffold(
         containerColor = MaterialTheme.colorScheme.surface,
+        snackbarHost = { SnackbarHost(snackbar) },
         topBar = {
             TopAppBar(
                 title = { Text(stringResource(R.string.inbox_title)) },
@@ -132,11 +140,27 @@ fun InboxScreen(vm: MainViewModel, onOpenChannel: (String) -> Unit, onBack: () -
                     else -> WhisperList(
                         whispers = whispers,
                         nicknames = nicknames,
-                        onOpen = vm::markWhisperRead,
+                        onOpen = { whisper ->
+                            vm.markWhisperRead(whisper)
+                            replyTo = whisper
+                        },
                     )
                 }
             }
         }
+    }
+
+    replyTo?.let { whisper ->
+        WhisperReplyDialog(
+            name = nicknames[whisper.login.lowercase()] ?: whisper.displayName,
+            quoted = whisper.text,
+            onSend = { text ->
+                // Twitch may refuse a whisper for reasons only it knows, so the answer is not
+                // over until it says so - which is what lands in the snackbar.
+                scope.launch { snackbar.showSnackbar(vm.sendWhisper(whisper, text)) }
+            },
+            onDismiss = { replyTo = null },
+        )
     }
 }
 
