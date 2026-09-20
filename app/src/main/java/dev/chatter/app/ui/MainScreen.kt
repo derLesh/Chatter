@@ -39,6 +39,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -88,6 +89,9 @@ fun MainScreen(vm: MainViewModel, onSettings: () -> Unit) {
     val nicknames by vm.nicknames.collectAsStateWithLifecycle()
 
     val context = LocalContext.current
+    // Not context.resources: only this one follows a configuration change, so a snackbar shown
+    // after the language was switched is still in the language on screen.
+    val resources = LocalResources.current
     val lifecycleOwner = LocalLifecycleOwner.current
     val scope = rememberCoroutineScope()
     val snackbar = remember { SnackbarHostState() }
@@ -148,8 +152,8 @@ fun MainScreen(vm: MainViewModel, onSettings: () -> Unit) {
         }
     }
 
-    LaunchedEffect(Unit) {
-        vm.messages.collect { snackbar.showSnackbar(context.getString(it)) }
+    LaunchedEffect(resources) {
+        vm.messages.collect { snackbar.showSnackbar(resources.getString(it)) }
     }
 
     // The page on screen defines the active channel.
