@@ -156,12 +156,19 @@ class ChatRepository(
         scope.launch(worker) { irc.messages.collect { handle(it) } }
 
         scope.launch(worker) {
+            var showedDeleted = settings.value.showDeleted
             combine(auth.state, settings, blocked.logins) { _, s, blockedLogins -> s to blockedLogins }
                 .collect { (s, blockedLogins) ->
                     mentions = MentionMatcher(auth.account?.login.orEmpty(), s.mentionKeywords)
                     muted = MuteFilter(s.muteKeywords, blockedLogins)
                     dropMuted()
                     trimAll(s.messageLimit)
+                    // Deleted messages are filtered out when publishing, so turning them back on
+                    // has to republish what is already buffered.
+                    if (s.showDeleted != showedDeleted) {
+                        showedDeleted = s.showDeleted
+                        buffers.keys.forEach { markDirty(it) }
+                    }
                 }
         }
 
@@ -535,6 +542,17 @@ class ChatRepository(
         if (changed) markDirty(channel)
     }
 
+    /**
+     * The list the UI gets. Deleted messages are dropped here rather than in the list itself:
+     * the buffer has to be copied for publishing anyway, and filtering a second copy out of that
+     * one meant two full lists per channel every 32 ms.
+     */
+    private fun snapshot(channel: String): List<ChatItem> {
+        val buffer = buffers[channel] ?: return emptyList()
+        if (settings.value.showDeleted) return buffer.toList()
+        return buffer.filterTo(ArrayList(buffer.size)) { !it.deleted }
+    }
+
     private fun markDirty(channel: String) {
         dirty.add(channel)
         if (publishJob?.isActive == true) return
@@ -546,7 +564,7 @@ class ChatRepository(
                 val flow = flows[ch]
                 // Nobody is looking: keep it dirty and publish once someone subscribes.
                 if (flow == null || flow.subscriptionCount.value == 0) continue
-                flow.value = buffers[ch]?.toList().orEmpty()
+                flow.value = snapshot(ch)
                 iterator.remove()
             }
             if (unreadCountsDirty) {

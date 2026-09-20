@@ -67,8 +67,6 @@ data class ChatStyle(
     /** Background of a chatter's first message, or null when they are not highlighted. */
     val firstMessageBackground: Color?,
     val accent: Color,
-    /** Keep deleted messages visible (struck through) instead of dropping them from the list. */
-    val showDeleted: Boolean,
     /** How name colors are adjusted for readability. */
     val nameColors: NameColorPalette,
     /** Names the user gave chatters, by lowercase login. Usually empty. */

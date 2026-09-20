@@ -403,7 +403,6 @@ private fun TextSizeItem(settings: Settings, vm: MainViewModel) {
         noticeBackground = Color.Transparent,
         firstMessageBackground = null,
         accent = scheme.primary,
-        showDeleted = true,
         nameColors = settings.nameColors,
         nicknames = emptyMap(),
         haptics = false,

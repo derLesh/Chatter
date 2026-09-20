@@ -1,0 +1,1 @@
+patch: Keep the message list smooth while a busy channel keeps sending

@@ -50,10 +50,8 @@ fun ChatList(
     smoothScrolling: Boolean = false,
     onEmoteClick: ((Segment.EmoteSeg) -> Unit)? = null,
 ) {
-    val all by messages.collectAsStateWithLifecycle()
-    val items = remember(all, style.showDeleted) {
-        if (style.showDeleted) all else all.filter { !it.deleted }
-    }
+    // Already filtered for deleted messages by the repository, which had to copy the buffer anyway.
+    val items by messages.collectAsStateWithLifecycle()
     val listState = rememberLazyListState()
     val scope = rememberCoroutineScope()
     var follow by remember { mutableStateOf(true) }
