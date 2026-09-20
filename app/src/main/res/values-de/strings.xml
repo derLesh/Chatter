@@ -288,4 +288,10 @@
     <string name="changelog_whats_new">Neu in dieser Version</string>
     <string name="changelog_updated_to">Chatter wurde auf %1$s aktualisiert</string>
     <string name="changelog_got_it">Alles klar</string>
+
+    <!-- Chat-Bubble -->
+    <string name="settings_group_bubbles">Chat-Bubble</string>
+    <string name="settings_bubbles">Bubbles</string>
+    <string name="settings_bubbles_hint">Erwähnungen lassen sich als schwebender Chat über anderen Apps öffnen. Android fragt beim ersten Mal nach der Erlaubnis</string>
+    <string name="bubble_unavailable">Chatter öffnen, um diesen Kanal zu lesen</string>
 </resources>

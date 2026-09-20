@@ -294,4 +294,10 @@
     <string name="changelog_whats_new">New in this version</string>
     <string name="changelog_updated_to">Chatter was updated to %1$s</string>
     <string name="changelog_got_it">Got it</string>
+
+    <!-- Chat bubble -->
+    <string name="settings_group_bubbles">Chat bubble</string>
+    <string name="settings_bubbles">Bubbles</string>
+    <string name="settings_bubbles_hint">Mentions can be opened as a floating chat over other apps. Android may ask for permission the first time</string>
+    <string name="bubble_unavailable">Open Chatter to read this channel</string>
 </resources>

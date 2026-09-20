@@ -72,7 +72,6 @@ class AppContainer(private val context: Context) {
     val nicknames = NicknameRepository(context.nicknameStore, scope)
     val changelog = ChangelogRepository(context, settings, BuildConfig.VERSION_NAME, scope)
     val irc = IrcConnection(socketHttp, scope)
-    val notifier = MentionNotifier(context)
     private val chatters = ChatterRegistry()
 
     val chat = ChatRepository(
@@ -102,6 +101,9 @@ class AppContainer(private val context: Context) {
     val imageLoader: ImageLoader = imageLoader(animated = true)
     /** Used when animated emotes are turned off: decodes only the first frame. */
     val staticImageLoader: ImageLoader = imageLoader(animated = false)
+
+    // After the image loader: mention notifications carry the channel avatar as their icon.
+    val notifier = MentionNotifier(context, channels, settings.settings, imageLoader)
 
     fun start() {
         notifier.createChannels()

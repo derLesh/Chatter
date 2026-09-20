@@ -70,6 +70,8 @@ data class Settings(
     val emoteProviders: Set<EmoteProvider> = EmoteProvider.entries.toSet(),
     /** Keep the screen awake while the chat is on screen. */
     val keepScreenOn: Boolean = false,
+    /** Offer mention notifications as a floating chat bubble over other apps. */
+    val bubbles: Boolean = false,
     /** Mark the first message a chatter ever writes in a channel (Twitch's own flag). */
     val highlightFirstMessages: Boolean = true,
     /** How the name colors users picked are made readable on the chat background. */
@@ -113,6 +115,7 @@ class SettingsRepository(
             mentionWithAt = p[MENTION_WITH_AT] ?: true,
             showDeleted = p[SHOW_DELETED] ?: true,
             keepScreenOn = p[KEEP_SCREEN_ON] ?: false,
+            bubbles = p[BUBBLES] ?: false,
             highlightFirstMessages = p[FIRST_MESSAGES] ?: true,
             nameColors = p[NAME_COLORS]?.let { v -> NameColorPalette.entries.firstOrNull { it.name == v } }
                 ?: NameColorPalette.HslLuma,
@@ -147,6 +150,7 @@ class SettingsRepository(
     suspend fun setMentionWithAt(v: Boolean) = store.edit { it[MENTION_WITH_AT] = v }
     suspend fun setShowDeleted(v: Boolean) = store.edit { it[SHOW_DELETED] = v }
     suspend fun setKeepScreenOn(v: Boolean) = store.edit { it[KEEP_SCREEN_ON] = v }
+    suspend fun setBubbles(v: Boolean) = store.edit { it[BUBBLES] = v }
     suspend fun setHighlightFirstMessages(v: Boolean) = store.edit { it[FIRST_MESSAGES] = v }
     suspend fun setNameColors(v: NameColorPalette) = store.edit { it[NAME_COLORS] = v.name }
     suspend fun setBadgeProviders(v: Set<BadgeProvider>) = store.edit { p -> p[BADGE_PROVIDERS] = v.joinToString(",") { it.name } }
@@ -190,6 +194,7 @@ class SettingsRepository(
         val MENTION_WITH_AT = booleanPreferencesKey("mention_with_at")
         val SHOW_DELETED = booleanPreferencesKey("show_deleted")
         val KEEP_SCREEN_ON = booleanPreferencesKey("keep_screen_on")
+        val BUBBLES = booleanPreferencesKey("chat_bubbles")
         val EMOTE_PROVIDERS = stringPreferencesKey("emote_providers")
         val BADGE_PROVIDERS = stringPreferencesKey("badge_providers")
         val NAME_COLORS = stringPreferencesKey("name_colors")

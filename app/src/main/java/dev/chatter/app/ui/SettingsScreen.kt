@@ -467,6 +467,9 @@ private fun NotificationsPage(settings: Settings, vm: MainViewModel) {
             )
         }
     }
+    SettingsGroup(R.string.settings_group_bubbles) {
+        item { SwitchItem(R.string.settings_bubbles, settings.bubbles, vm::setBubbles, R.string.settings_bubbles_hint) }
+    }
 }
 
 @Composable

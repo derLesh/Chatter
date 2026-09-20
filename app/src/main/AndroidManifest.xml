@@ -23,6 +23,19 @@
             android:launchMode="singleTask"
             android:windowSoftInputMode="adjustResize" />
 
+        <!--
+            The chat bubble. Android hosts it in its own floating window, which is what the three
+            attributes below are for: embeddable, resizeable, and one document per channel so two
+            channels can bubble next to each other.
+        -->
+        <activity
+            android:name=".ui.bubble.BubbleActivity"
+            android:allowEmbedded="true"
+            android:documentLaunchMode="always"
+            android:exported="false"
+            android:resizeableActivity="true"
+            android:windowSoftInputMode="adjustResize" />
+
         <!-- Launcher entries, one per app icon. Exactly one is enabled (see AppIcon.kt). -->
         <activity-alias
             android:name=".LauncherLight"

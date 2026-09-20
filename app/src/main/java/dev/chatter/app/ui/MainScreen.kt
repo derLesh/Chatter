@@ -59,14 +59,12 @@ import dev.chatter.app.ui.channels.AddChannelDialog
 import dev.chatter.app.ui.channels.RenameChannelDialog
 import dev.chatter.app.ui.channels.ChannelTopBar
 import dev.chatter.app.ui.chat.ChatList
-import dev.chatter.app.ui.chat.ChatStyle
+import dev.chatter.app.ui.chat.rememberChatStyle
 import dev.chatter.app.ui.chat.EmoteCardSheet
 import dev.chatter.app.ui.chat.EmotePickerSheet
 import dev.chatter.app.ui.chat.InputBar
 import dev.chatter.app.ui.chat.NicknameDialog
 import dev.chatter.app.ui.chat.UserCardSheet
-import dev.chatter.app.ui.theme.highlightBackground
-import dev.chatter.app.ui.theme.isAppInDarkTheme
 import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.launch
 
@@ -107,25 +105,7 @@ fun MainScreen(vm: MainViewModel, onSettings: () -> Unit) {
     var nicknameTarget by remember { mutableStateOf<ChatItem?>(null) }
 
     val loader = if (settings.animatedEmotes) vm.imageLoader else vm.staticImageLoader
-    val dark = isAppInDarkTheme()
-    val colors = MaterialTheme.colorScheme
-    val style = remember(settings.fontSize, settings.timestamps, settings.highlightColor, settings.alternateBackground, settings.showDeleted, settings.nameColors, settings.highlightFirstMessages, nicknames, dark, colors) {
-        ChatStyle(
-            fontSize = settings.fontSize,
-            timestamps = settings.timestamps,
-            dark = dark,
-            secondaryText = colors.onSurfaceVariant,
-            linkColor = colors.primary,
-            mentionBackground = highlightBackground(settings.highlightColor, colors),
-            alternateBackground = if (settings.alternateBackground) colors.onSurface.copy(alpha = 0.05f) else null,
-            noticeBackground = colors.primaryContainer.copy(alpha = 0.35f),
-            firstMessageBackground = if (settings.highlightFirstMessages) colors.tertiary.copy(alpha = 0.18f) else null,
-            accent = colors.primary,
-            showDeleted = settings.showDeleted,
-            nameColors = settings.nameColors,
-            nicknames = nicknames,
-        )
-    }
+    val style = rememberChatStyle(settings, nicknames)
 
     // Only while the chat is on screen; leaving it (or the settings) lets the screen sleep again.
     val view = LocalView.current

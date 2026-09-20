@@ -294,6 +294,10 @@ class MainViewModel(private val c: AppContainer) : ViewModel() {
         viewModelScope.launch { c.settings.setKeepScreenOn(v) }
     }
 
+    fun setBubbles(v: Boolean) {
+        viewModelScope.launch { c.settings.setBubbles(v) }
+    }
+
     fun setBadgeProvider(provider: BadgeProvider, enabled: Boolean) {
         val current = settings.value.badgeProviders
         viewModelScope.launch {
