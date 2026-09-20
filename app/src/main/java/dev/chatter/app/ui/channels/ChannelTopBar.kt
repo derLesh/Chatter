@@ -7,7 +7,6 @@ import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -224,29 +223,26 @@ private fun ChannelModes(state: RoomState?, roleBadge: Badge?, imageLoader: Imag
     if (modes.isEmpty() && roleBadge == null) return
     Row(
         verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(4.dp),
-        // Bounded by the title it sits under; the modes scroll sideways when there are many.
-        modifier = Modifier.horizontalScroll(rememberScrollState()),
+        horizontalArrangement = Arrangement.spacedBy(6.dp),
     ) {
-        // Who the user is here comes first, then what the chat is set to.
+        // Who the user is here comes first, then what the chat is set to. Both are background
+        // information under the name the user came for, so they are written the way a subtitle
+        // is rather than as chips that compete with it for attention.
         if (roleBadge != null) {
             AsyncImage(
                 model = roleBadge.url,
                 contentDescription = roleBadge.title,
                 imageLoader = imageLoader,
-                modifier = Modifier.size(18.dp),
+                modifier = Modifier.size(16.dp),
             )
         }
-        modes.forEach { label ->
+        if (modes.isNotEmpty()) {
             Text(
-                text = label,
-                style = MaterialTheme.typography.labelSmall,
-                color = MaterialTheme.colorScheme.onSecondaryContainer,
+                text = modes.joinToString(" · "),
+                style = MaterialTheme.typography.labelMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
                 maxLines = 1,
-                modifier = Modifier
-                    .clip(RoundedCornerShape(6.dp))
-                    .background(MaterialTheme.colorScheme.secondaryContainer)
-                    .padding(horizontal = 6.dp, vertical = 2.dp),
+                overflow = TextOverflow.Ellipsis,
             )
         }
     }
