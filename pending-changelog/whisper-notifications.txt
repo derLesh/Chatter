@@ -1,1 +1,0 @@
-minor: Get a notification for a whisper and answer it straight from there

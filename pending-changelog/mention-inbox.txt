@@ -1,1 +1,0 @@
-minor: Collect every mention from all channels in one inbox that survives restarts

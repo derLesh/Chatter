@@ -1,1 +1,0 @@
-patch: Show your role and the chat modes under the channel name, with live as a red ring only

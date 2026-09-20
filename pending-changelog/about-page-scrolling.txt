@@ -1,1 +1,0 @@
-patch: Scroll the about page instead of being stuck at the top of it

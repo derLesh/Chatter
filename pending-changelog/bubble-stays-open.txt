@@ -1,1 +1,0 @@
-patch: Keep a chat bubble open when you tap it

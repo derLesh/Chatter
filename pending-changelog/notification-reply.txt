@@ -1,1 +1,0 @@
-minor: Answer a mention straight from its notification, without opening the app

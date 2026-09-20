@@ -1,1 +1,0 @@
-minor: Show the Twitch picture of whoever wrote a message in the notification

@@ -1,1 +1,0 @@
-patch: Write the chat modes as a quiet subtitle instead of coloured chips

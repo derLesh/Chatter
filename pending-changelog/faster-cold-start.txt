@@ -1,1 +1,0 @@
-patch: Open the app faster when it was fully closed

@@ -1,1 +1,0 @@
-patch: Let new messages arrive without a jolt, also when many come in at once

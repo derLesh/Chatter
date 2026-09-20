@@ -1,1 +1,0 @@
-minor: Feel a short buzz when a mention arrives, a message is held or a send does not go through

@@ -1,1 +1,0 @@
-patch: Keep snackbar messages in the language the app switched to

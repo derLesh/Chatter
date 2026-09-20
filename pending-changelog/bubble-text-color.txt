@@ -1,1 +1,0 @@
-patch: Make the text in a chat bubble readable in the dark theme

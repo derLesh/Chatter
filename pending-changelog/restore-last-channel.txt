@@ -1,1 +1,0 @@
-patch: Come back to the channel you were reading, even after Android stopped the app

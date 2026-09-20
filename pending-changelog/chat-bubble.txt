@@ -1,1 +1,0 @@
-minor: Open a mention as a floating chat bubble over other apps

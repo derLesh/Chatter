@@ -1,1 +1,0 @@
-patch: Hold animated emotes still while the battery saver is on
