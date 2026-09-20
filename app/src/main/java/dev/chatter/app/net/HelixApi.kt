@@ -72,6 +72,28 @@ class HelixApi(
     suspend fun channelEmotes(channelId: String): List<HelixEmote> =
         http.getJson<HelixList<HelixEmote>>(url("chat/emotes", "broadcaster_id" to channelId), headers()).data
 
+    /**
+     * Who is currently in a channel's chat. Twitch only answers for channels where the user is
+     * moderator or broadcaster, and a big channel has far more chatters than are worth holding
+     * in memory, so this stops after [limit] of them.
+     */
+    suspend fun chatters(channelId: String, moderatorId: String, limit: Int = 1000): List<HelixChatter> {
+        val all = ArrayList<HelixChatter>()
+        var cursor: String? = null
+        do {
+            val page = http.getJson<HelixPagedList<HelixChatter>>(
+                url(
+                    "chat/chatters", "broadcaster_id" to channelId, "moderator_id" to moderatorId,
+                    "first" to "1000", "after" to cursor,
+                ),
+                headers(),
+            )
+            all += page.data
+            cursor = page.pagination?.cursor
+        } while (!cursor.isNullOrEmpty() && all.size < limit)
+        return all
+    }
+
     /** The users the logged-in user blocked on Twitch. Paginated, a few hundred at most. */
     suspend fun blockedUsers(userId: String): List<HelixBlockedUser> {
         val all = ArrayList<HelixBlockedUser>()
@@ -215,6 +237,13 @@ data class HelixBadgeVersion(
     @SerialName("image_url_1x") val url1x: String = "",
     @SerialName("image_url_2x") val url2x: String = "",
     @SerialName("image_url_4x") val url4x: String = "",
+)
+
+@Serializable
+data class HelixChatter(
+    @SerialName("user_id") val userId: String,
+    @SerialName("user_login") val userLogin: String = "",
+    @SerialName("user_name") val userName: String = "",
 )
 
 @Serializable

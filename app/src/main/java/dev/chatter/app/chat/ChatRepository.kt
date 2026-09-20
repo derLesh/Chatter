@@ -11,6 +11,7 @@ import dev.chatter.app.emotes.EmoteRepository
 import dev.chatter.app.irc.ConnectionState
 import dev.chatter.app.irc.IrcConnection
 import dev.chatter.app.irc.IrcMessage
+import dev.chatter.app.net.HelixApi
 import dev.chatter.app.net.ThirdPartyApi
 import dev.chatter.app.settings.Settings
 import dev.chatter.app.util.RateLimiter
@@ -54,6 +55,7 @@ class ChatRepository(
     private val badges: BadgeRepository,
     private val channelRepo: ChannelRepository,
     private val thirdParty: ThirdPartyApi,
+    private val helix: HelixApi,
     private val auth: AuthRepository,
     private val commands: CommandExecutor,
     private val chatterRegistry: ChatterRegistry,
@@ -294,6 +296,7 @@ class ChatRepository(
         if (id != null) {
             roomIds[channel] = id
             loadEmotesAndBadges(id)
+            loadChatters(channel, id)
         }
         loadHistory(channel)
     }
@@ -301,6 +304,23 @@ class ChatRepository(
     private suspend fun loadEmotesAndBadges(channelId: String) = coroutineScope {
         launch { emotes.loadChannel(channelId, auth.account?.userId) }
         launch { badges.loadChannel(channelId) }
+    }
+
+    /**
+     * The chatter list Twitch keeps for the channel. It only answers where the user is moderator
+     * or broadcaster, so a failure here is the normal case and stays quiet.
+     */
+    private suspend fun loadChatters(channel: String, channelId: String) {
+        val userId = auth.account?.userId ?: return
+        val users = try {
+            helix.chatters(channelId, userId)
+        } catch (e: Exception) {
+            Log.d(TAG, "No chatter list for $channel: ${e.message}")
+            return
+        }
+        withContext(worker) {
+            chatterRegistry.setPresent(channel, users.associate { it.userLogin.lowercase() to it.userName.ifEmpty { it.userLogin } })
+        }
     }
 
     /**

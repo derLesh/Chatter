@@ -96,6 +96,23 @@ class MessageBuilderTest {
     }
 
     @Test
+    fun mentionsOfUsersFromTheTwitchChatterList() {
+        val chatters = ChatterRegistry().apply {
+            setPresent("chan", mapOf("lurker" to "Lurker"))
+            remember("chan", "Forsen", "Forsen", 0xFF00FF00.toInt())
+        }
+        val builder = MessageBuilder(emotes, { _, _ -> emptyList() }, chatters)
+        val mentioned = builder.build(privmsg("@Lurker @stranger"), "lukas", "1", mentions)!!
+            .segments.filterIsInstance<Segment.Mention>()
+
+        // Someone Twitch lists but who has not written yet is colored from their login, not skipped.
+        assertEquals(listOf("Lurker", null), mentioned.map { it.login })
+        assertEquals(listOf(null, null), mentioned.map { it.color })
+        // Recently active chatters still come first in the suggestions.
+        assertEquals(listOf("Forsen", "Lurker"), chatters.names("chan"))
+    }
+
+    @Test
     fun actionMessages() {
         val item = build(privmsg("\u0001ACTION waves\u0001"))
         assertEquals(MessageKind.Action, item.kind)

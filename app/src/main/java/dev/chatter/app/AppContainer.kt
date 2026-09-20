@@ -71,7 +71,7 @@ class AppContainer(private val context: Context) {
     private val chatters = ChatterRegistry()
 
     val chat = ChatRepository(
-        context, irc, MessageBuilder(emotes, badges, chatters, ::emoteOptions), emotes, badges, channels, thirdParty, auth,
+        context, irc, MessageBuilder(emotes, badges, chatters, ::emoteOptions), emotes, badges, channels, thirdParty, helix, auth,
         CommandExecutor(context, helix, auth), chatters, blocked, settings.settings, scope,
     )
 
