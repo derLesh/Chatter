@@ -41,6 +41,8 @@ data class ChatItem(
     /** The plain message text (for copy / reply preview). */
     val text: String = "",
     val isMention: Boolean = false,
+    /** Twitch's `first-msg`: the user's very first message in this channel, ever. */
+    val isFirstMessage: Boolean = false,
     val isOwn: Boolean = false,
     val reply: ReplyInfo? = null,
     val deleted: Boolean = false,

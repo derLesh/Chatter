@@ -112,6 +112,7 @@ class MessageBuilder(
             segments = segments(channel, body, emoteRanges, channelId ?: msg.tag("room-id"), ownMessage = false),
             text = body,
             isMention = !isOwn && (mentions.matches(body) || reply?.parentLogin.equals(selfLogin, ignoreCase = true)),
+            isFirstMessage = !isOwn && msg.tag("first-msg") == "1",
             isOwn = isOwn,
             reply = reply,
             historical = historical,

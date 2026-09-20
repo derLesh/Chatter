@@ -247,4 +247,8 @@
     <string name="name_colors_hsl_loop">HSL Loop</string>
     <string name="name_colors_luv_luma">LUV Luma</string>
     <string name="name_colors_rgb_loop">RGB Loop</string>
+
+    <string name="first_message">Erste Nachricht in diesem Kanal</string>
+    <string name="settings_first_messages">Erste Nachrichten hervorheben</string>
+    <string name="settings_first_messages_hint">Markieren, wenn jemand zum ersten Mal in einem Kanal schreibt</string>
 </resources>

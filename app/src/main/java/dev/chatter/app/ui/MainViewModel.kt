@@ -371,6 +371,10 @@ class MainViewModel(private val c: AppContainer) : ViewModel() {
         viewModelScope.launch { c.settings.setDynamicColor(v) }
     }
 
+    fun setHighlightFirstMessages(v: Boolean) {
+        viewModelScope.launch { c.settings.setHighlightFirstMessages(v) }
+    }
+
     fun setNameColors(v: NameColorPalette) {
         viewModelScope.launch { c.settings.setNameColors(v) }
     }

@@ -64,6 +64,8 @@ data class ChatStyle(
     /** Background of every other message, or null when alternating backgrounds are off. */
     val alternateBackground: Color?,
     val noticeBackground: Color,
+    /** Background of a chatter's first message, or null when they are not highlighted. */
+    val firstMessageBackground: Color?,
     val accent: Color,
     /** Keep deleted messages visible (struck through) instead of dropping them from the list. */
     val showDeleted: Boolean,
@@ -113,8 +115,10 @@ fun MessageRow(
         built.inline.mapValues { (_, data) -> inlineFor(data, imageLoader, emoteClick.takeIf { onEmoteClick != null }) }
     }
 
+    val firstMessage = item.isFirstMessage && style.firstMessageBackground != null
     val background = when {
         item.isMention -> style.mentionBackground
+        firstMessage -> style.firstMessageBackground!!
         item.kind == MessageKind.UserNotice -> style.noticeBackground
         item.alternate && style.alternateBackground != null -> style.alternateBackground
         else -> Color.Transparent
@@ -134,6 +138,14 @@ fun MessageRow(
                 },
             ),
     ) {
+        if (firstMessage) {
+            Text(
+                text = stringResource(R.string.first_message),
+                color = style.accent,
+                fontSize = (style.fontSize - 2).sp,
+                fontWeight = FontWeight.Medium,
+            )
+        }
         item.reply?.let { reply ->
             Text(
                 text = stringResource(R.string.reply_to, reply.parentDisplayName, reply.parentBody),

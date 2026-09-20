@@ -64,6 +64,8 @@ data class Settings(
     val emoteProviders: Set<EmoteProvider> = EmoteProvider.entries.toSet(),
     /** Keep the screen awake while the chat is on screen. */
     val keepScreenOn: Boolean = false,
+    /** Mark the first message a chatter ever writes in a channel (Twitch's own flag). */
+    val highlightFirstMessages: Boolean = true,
     /** How the name colors users picked are made readable on the chat background. */
     val nameColors: NameColorPalette = NameColorPalette.HslLuma,
 ) {
@@ -104,6 +106,7 @@ class SettingsRepository(
             mentionWithAt = p[MENTION_WITH_AT] ?: true,
             showDeleted = p[SHOW_DELETED] ?: true,
             keepScreenOn = p[KEEP_SCREEN_ON] ?: false,
+            highlightFirstMessages = p[FIRST_MESSAGES] ?: true,
             nameColors = p[NAME_COLORS]?.let { v -> NameColorPalette.entries.firstOrNull { it.name == v } }
                 ?: NameColorPalette.HslLuma,
             emoteProviders = p[EMOTE_PROVIDERS]
@@ -133,6 +136,7 @@ class SettingsRepository(
     suspend fun setMentionWithAt(v: Boolean) = store.edit { it[MENTION_WITH_AT] = v }
     suspend fun setShowDeleted(v: Boolean) = store.edit { it[SHOW_DELETED] = v }
     suspend fun setKeepScreenOn(v: Boolean) = store.edit { it[KEEP_SCREEN_ON] = v }
+    suspend fun setHighlightFirstMessages(v: Boolean) = store.edit { it[FIRST_MESSAGES] = v }
     suspend fun setNameColors(v: NameColorPalette) = store.edit { it[NAME_COLORS] = v.name }
     suspend fun setEmoteProviders(v: Set<EmoteProvider>) = store.edit { p -> p[EMOTE_PROVIDERS] = v.joinToString(",") { it.name } }
 
@@ -167,6 +171,7 @@ class SettingsRepository(
         val KEEP_SCREEN_ON = booleanPreferencesKey("keep_screen_on")
         val EMOTE_PROVIDERS = stringPreferencesKey("emote_providers")
         val NAME_COLORS = stringPreferencesKey("name_colors")
+        val FIRST_MESSAGES = booleanPreferencesKey("highlight_first_messages")
         const val MAX_RECENT = 40
     }
 }
