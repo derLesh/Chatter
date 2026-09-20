@@ -72,10 +72,13 @@ fun ChatList(
             }
         }
     }
+    // Always a straight jump to the newest message, never an animated one. A new message is
+    // inserted at index 0, which pushes the list's anchor up by a row, and the viewport has to
+    // come back down. Animating that while the rows themselves are animating into their new
+    // places means two motions of the same distance at different speeds - which is the jolt.
+    // With smooth scrolling on, the rows do the visible moving (see animateItem below).
     LaunchedEffect(items) {
-        if (follow && items.isNotEmpty() && !userScrolling) {
-            if (smoothScrolling) listState.animateScrollToItem(0) else listState.scrollToItem(0)
-        }
+        if (follow && items.isNotEmpty() && !userScrolling) listState.scrollToItem(0)
     }
 
     Box(modifier) {
@@ -93,7 +96,17 @@ fun ChatList(
                 contentType = { items[count - 1 - it].kind },
             ) { index ->
                 val rowModifier = if (smoothScrolling) {
-                    Modifier.animateItem(fadeInSpec = tween(180), placementSpec = spring(stiffness = Spring.StiffnessMediumLow), fadeOutSpec = null)
+                    // Quick and without overshoot on purpose. A soft spring never settles while
+                    // a busy chat keeps pushing rows up, and a list permanently in motion is
+                    // exactly what makes it hard to read along.
+                    Modifier.animateItem(
+                        fadeInSpec = tween(120),
+                        placementSpec = spring(
+                            dampingRatio = Spring.DampingRatioNoBouncy,
+                            stiffness = Spring.StiffnessMedium,
+                        ),
+                        fadeOutSpec = null,
+                    )
                 } else Modifier
                 Box(rowModifier) { MessageRow(items[count - 1 - index], style, imageLoader, onAction, onEmoteClick) }
             }
