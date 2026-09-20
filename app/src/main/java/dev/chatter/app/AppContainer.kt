@@ -123,7 +123,7 @@ class AppContainer(private val context: Context) {
                             chat.resync()
                             launch { emotes.loadGlobal() }
                             launch { badges.loadGlobal() }
-                            launch { badges.loadThirdParty() }
+                            launch { badges.loadThirdParty(context.getString(R.string.badge_supporter)) }
                             launch { emotes.loadTwitchUserEmotes(state.account.userId) }
                             launch { channels.refreshUsers(channels.currentChannels()) }
                             launch { blocked.load(state.account.userId) }

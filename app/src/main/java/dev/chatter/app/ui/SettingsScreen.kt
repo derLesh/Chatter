@@ -796,6 +796,7 @@ private val BADGE_PROVIDERS = listOf(
     BadgeProvider.Twitch to R.string.settings_provider_twitch,
     BadgeProvider.SevenTv to R.string.settings_provider_seventv,
     BadgeProvider.Chatterino to R.string.settings_provider_chatterino,
+    BadgeProvider.Chatter to R.string.settings_provider_chatter,
 )
 
 /** The emote providers, in the order their emotes take precedence over each other. */

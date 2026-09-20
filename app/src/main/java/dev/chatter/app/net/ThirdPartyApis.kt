@@ -116,6 +116,10 @@ data class ChatterinoBadge(
     val users: List<String> = emptyList(),
 )
 
+/** Who supports Chatter, by Twitch user id. Kept in the repository, not baked into the app. */
+@Serializable
+data class ChatterSupporters(val users: List<String> = emptyList())
+
 // ---- Recent messages (history) -----------------------------------------------
 
 @Serializable
@@ -139,6 +143,9 @@ class ThirdPartyApi(private val http: OkHttpClient) {
 
     suspend fun chatterinoBadges(): ChatterinoBadges =
         http.getJson("https://api.chatterino.com/badges")
+
+    suspend fun chatterSupporters(): ChatterSupporters =
+        http.getJson("https://raw.githubusercontent.com/derLesh/Chatter/master/supporters.json")
 
     suspend fun recentMessages(channel: String, limit: Int): RecentMessages =
         http.getJson("https://recent-messages.robotty.de/api/v2/recent-messages/$channel?limit=$limit")

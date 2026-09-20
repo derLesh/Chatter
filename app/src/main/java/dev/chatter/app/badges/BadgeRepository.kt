@@ -56,7 +56,7 @@ class BadgeRepository(
      * The badge lists of the other clients. Both are one request for everybody, so they are
      * fetched once per app start and then only looked up by user id.
      */
-    suspend fun loadThirdParty() {
+    suspend fun loadThirdParty(supporterTitle: String) {
         val merged = HashMap<String, MutableList<Badge>>()
 
         runCatching { thirdParty.sevenTvCosmetics() }
@@ -81,6 +81,13 @@ class BadgeRepository(
             }
             .onFailure { Log.w(TAG, "Chatterino badges failed: ${it.message}") }
 
+        runCatching { thirdParty.chatterSupporters() }
+            .onSuccess { supporters ->
+                val badge = Badge(SUPPORTER_BADGE_URL, supporterTitle, BadgeProvider.Chatter)
+                supporters.users.forEach { merged.getOrPut(it) { ArrayList(1) } += badge }
+            }
+            .onFailure { Log.w(TAG, "Supporter list failed: ${it.message}") }
+
         if (merged.isNotEmpty()) thirdPartyBadges = merged
     }
 
@@ -94,5 +101,8 @@ class BadgeRepository(
 
     private companion object {
         const val TAG = "BadgeRepository"
+
+        /** The supporter badge ships with the app, so Coil loads it from the resources. */
+        const val SUPPORTER_BADGE_URL = "android.resource://dev.chatter.app/drawable/ic_badge_supporter"
     }
 }

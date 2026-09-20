@@ -271,4 +271,6 @@
     <!-- Badges -->
     <string name="settings_badge_providers">Badges</string>
     <string name="settings_provider_chatterino">Chatterino</string>
+    <string name="settings_provider_chatter">Chatter-Unterstützer</string>
+    <string name="badge_supporter">Chatter-Unterstützer</string>
 </resources>
