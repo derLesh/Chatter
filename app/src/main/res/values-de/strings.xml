@@ -235,4 +235,15 @@
     <string name="settings_app_icon">App-Icon</string>
     <string name="app_icon_light">Weiß</string>
     <string name="app_icon_dark">Schwarz</string>
+
+    <!-- Namensfarben -->
+    <string name="settings_name_colors">Namensfarben</string>
+    <string name="settings_name_colors_hint">Wie die von Chattern gewählten Farben angepasst werden, damit sie lesbar bleiben</string>
+    <string name="settings_name_colors_sample">Aa</string>
+    <string name="name_colors_none">Keine Farbe</string>
+    <string name="name_colors_twitch">Twitch</string>
+    <string name="name_colors_hsl_luma">HSL Luma</string>
+    <string name="name_colors_hsl_loop">HSL Loop</string>
+    <string name="name_colors_luv_luma">LUV Luma</string>
+    <string name="name_colors_rgb_loop">RGB Loop</string>
 </resources>

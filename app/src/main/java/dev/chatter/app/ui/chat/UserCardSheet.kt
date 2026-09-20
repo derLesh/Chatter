@@ -204,7 +204,7 @@ private fun Header(item: ChatItem, data: UserCardData?, style: ChatStyle, imageL
                 text = item.displayName ?: item.login.orEmpty(),
                 style = MaterialTheme.typography.headlineSmall,
                 fontWeight = FontWeight.Bold,
-                color = readableNameColor(item.color, item.login, style.dark),
+                color = readableNameColor(item.color, item.login, style.dark, style.nameColors),
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
             )

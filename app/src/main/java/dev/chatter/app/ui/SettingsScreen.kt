@@ -24,6 +24,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -99,6 +100,8 @@ import dev.chatter.app.ui.theme.highlightBackground
 import dev.chatter.app.ui.theme.isAppInDarkTheme
 import dev.chatter.app.util.AppIcon
 import dev.chatter.app.ui.theme.highlightColor
+import dev.chatter.app.ui.theme.NameColorPalette
+import dev.chatter.app.ui.theme.readableNameColor
 import androidx.compose.material3.RadioButton
 import dev.chatter.app.settings.TimestampFormat
 import java.text.SimpleDateFormat
@@ -246,6 +249,7 @@ private fun AppearancePage(settings: Settings, vm: MainViewModel) {
         }
         item { SwitchItem(R.string.settings_dynamic_color, settings.dynamicColor, vm::setDynamicColor, R.string.settings_dynamic_color_hint) }
         item { HighlightColorPicker(settings.highlightColor, vm::setHighlightColor) }
+        item { NameColorPicker(settings.nameColors, vm::setNameColors) }
         item { AppIconPicker() }
     }
 
@@ -310,6 +314,7 @@ private fun TextSizeItem(settings: Settings, vm: MainViewModel) {
         noticeBackground = Color.Transparent,
         accent = scheme.primary,
         showDeleted = true,
+        nameColors = settings.nameColors,
     )
     ListItem(
         headlineContent = { Text(stringResource(R.string.settings_font_size, size.roundToInt())) },
@@ -753,6 +758,60 @@ private fun AppIconPicker() {
                                 style = MaterialTheme.typography.labelLarge,
                                 color = if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
                                 fontWeight = if (selected) FontWeight.Bold else FontWeight.Normal,
+                            )
+                        }
+                    }
+                }
+            }
+        },
+        colors = transparentItem(),
+    )
+}
+
+/** The name colors of a handful of sample chatters, so each palette can be compared at a glance. */
+private val NAME_COLOR_LABELS = listOf(
+    NameColorPalette.None to R.string.name_colors_none,
+    NameColorPalette.Twitch to R.string.name_colors_twitch,
+    NameColorPalette.HslLuma to R.string.name_colors_hsl_luma,
+    NameColorPalette.HslLoop to R.string.name_colors_hsl_loop,
+    NameColorPalette.LuvLuma to R.string.name_colors_luv_luma,
+    NameColorPalette.RgbLoop to R.string.name_colors_rgb_loop,
+)
+
+// Deliberately hard cases: very dark blue, dark red and dark green are what needs fixing.
+private val NAME_COLOR_SAMPLES = listOf(
+    0xFF0000FF.toInt(), 0xFF8B0000.toInt(), 0xFF006400.toInt(), 0xFFFF69B4.toInt(), 0xFF00FF7F.toInt(),
+)
+
+/** Picks how name colors are adjusted; every option previews the same names in its own palette. */
+@Composable
+private fun NameColorPicker(selected: NameColorPalette, onSelect: (NameColorPalette) -> Unit) {
+    val dark = isAppInDarkTheme()
+    ListItem(
+        headlineContent = { Text(stringResource(R.string.settings_name_colors)) },
+        supportingContent = {
+            Column(Modifier.padding(top = 4.dp)) {
+                Text(stringResource(R.string.settings_name_colors_hint))
+                NAME_COLOR_LABELS.forEach { (palette, label) ->
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(12.dp))
+                            .clickable { onSelect(palette) }
+                            .padding(vertical = 2.dp),
+                    ) {
+                        RadioButton(selected = palette == selected, onClick = { onSelect(palette) })
+                        Text(stringResource(label), style = MaterialTheme.typography.bodyMedium)
+                        Spacer(Modifier.width(12.dp))
+                        NAME_COLOR_SAMPLES.forEach { argb ->
+                            val color = readableNameColor(argb, null, dark, palette)
+                            Text(
+                                text = stringResource(R.string.settings_name_colors_sample),
+                                style = MaterialTheme.typography.bodyMedium,
+                                fontWeight = FontWeight.Bold,
+                                color = if (color == Color.Unspecified) MaterialTheme.colorScheme.onSurface else color,
+                                modifier = Modifier.padding(end = 4.dp),
                             )
                         }
                     }

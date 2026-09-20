@@ -21,6 +21,7 @@ import dev.chatter.app.emotes.EmoteProvider
 import dev.chatter.app.net.HelixChannelSearch
 import dev.chatter.app.net.HelixUser
 import dev.chatter.app.settings.ThemeMode
+import dev.chatter.app.ui.theme.NameColorPalette
 import dev.chatter.app.settings.TimestampFormat
 import dev.chatter.app.util.Autocomplete
 import kotlinx.coroutines.Job
@@ -368,6 +369,10 @@ class MainViewModel(private val c: AppContainer) : ViewModel() {
 
     fun setDynamicColor(v: Boolean) {
         viewModelScope.launch { c.settings.setDynamicColor(v) }
+    }
+
+    fun setNameColors(v: NameColorPalette) {
+        viewModelScope.launch { c.settings.setNameColors(v) }
     }
 
     fun setAlternateBackground(v: Boolean) {

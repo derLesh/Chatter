@@ -241,4 +241,15 @@
     <string name="settings_app_icon">App icon</string>
     <string name="app_icon_light">White</string>
     <string name="app_icon_dark">Black</string>
+
+    <!-- Name colors -->
+    <string name="settings_name_colors">Name colors</string>
+    <string name="settings_name_colors_hint">How the colors chatters picked are adjusted so they stay readable</string>
+    <string name="settings_name_colors_sample">Aa</string>
+    <string name="name_colors_none">No color</string>
+    <string name="name_colors_twitch">Twitch</string>
+    <string name="name_colors_hsl_luma">HSL Luma</string>
+    <string name="name_colors_hsl_loop">HSL Loop</string>
+    <string name="name_colors_luv_luma">LUV Luma</string>
+    <string name="name_colors_rgb_loop">RGB Loop</string>
 </resources>

@@ -2,6 +2,7 @@ package dev.chatter.app.settings
 
 import androidx.datastore.core.DataStore
 import dev.chatter.app.emotes.EmoteProvider
+import dev.chatter.app.ui.theme.NameColorPalette
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
@@ -63,6 +64,8 @@ data class Settings(
     val emoteProviders: Set<EmoteProvider> = EmoteProvider.entries.toSet(),
     /** Keep the screen awake while the chat is on screen. */
     val keepScreenOn: Boolean = false,
+    /** How the name colors users picked are made readable on the chat background. */
+    val nameColors: NameColorPalette = NameColorPalette.HslLuma,
 ) {
     companion object {
         // Real ARGB colors are always opaque (0xFF......), so these can never clash with one.
@@ -101,6 +104,8 @@ class SettingsRepository(
             mentionWithAt = p[MENTION_WITH_AT] ?: true,
             showDeleted = p[SHOW_DELETED] ?: true,
             keepScreenOn = p[KEEP_SCREEN_ON] ?: false,
+            nameColors = p[NAME_COLORS]?.let { v -> NameColorPalette.entries.firstOrNull { it.name == v } }
+                ?: NameColorPalette.HslLuma,
             emoteProviders = p[EMOTE_PROVIDERS]
                 ?.split(',')?.mapNotNull { v -> EmoteProvider.entries.firstOrNull { it.name == v } }?.toSet()
                 ?: EmoteProvider.entries.toSet(),
@@ -128,6 +133,7 @@ class SettingsRepository(
     suspend fun setMentionWithAt(v: Boolean) = store.edit { it[MENTION_WITH_AT] = v }
     suspend fun setShowDeleted(v: Boolean) = store.edit { it[SHOW_DELETED] = v }
     suspend fun setKeepScreenOn(v: Boolean) = store.edit { it[KEEP_SCREEN_ON] = v }
+    suspend fun setNameColors(v: NameColorPalette) = store.edit { it[NAME_COLORS] = v.name }
     suspend fun setEmoteProviders(v: Set<EmoteProvider>) = store.edit { p -> p[EMOTE_PROVIDERS] = v.joinToString(",") { it.name } }
 
     suspend fun addRecentEmote(name: String) = store.edit { p ->
@@ -160,6 +166,7 @@ class SettingsRepository(
         val SHOW_DELETED = booleanPreferencesKey("show_deleted")
         val KEEP_SCREEN_ON = booleanPreferencesKey("keep_screen_on")
         val EMOTE_PROVIDERS = stringPreferencesKey("emote_providers")
+        val NAME_COLORS = stringPreferencesKey("name_colors")
         const val MAX_RECENT = 40
     }
 }

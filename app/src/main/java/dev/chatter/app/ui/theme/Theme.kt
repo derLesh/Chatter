@@ -12,7 +12,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.ReadOnlyComposable
 import androidx.compose.runtime.SideEffect
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalView
@@ -149,13 +148,16 @@ private val DefaultNameColors = listOf(
     0xFFDAA520, 0xFFD2691E, 0xFF5F9EA0, 0xFF1E90FF, 0xFFFF69B4, 0xFF8A2BE2, 0xFF00FF7F,
 ).map { Color(it) }
 
-/** Makes user-chosen name colors readable on the current background (e.g. dark blue on black). */
-fun readableNameColor(argb: Int?, login: String?, dark: Boolean): Color {
+/**
+ * The name color to paint a user in: the one they picked on Twitch (or one derived from their
+ * login if they never did), run through the [palette] so it stays readable on the background.
+ */
+fun readableNameColor(
+    argb: Int?,
+    login: String?,
+    dark: Boolean,
+    palette: NameColorPalette = NameColorPalette.HslLuma,
+): Color {
     val base = argb?.let { Color(it) } ?: DefaultNameColors[abs((login ?: "").hashCode()) % DefaultNameColors.size]
-    val lum = base.luminance()
-    return when {
-        dark && lum < 0.2f -> lerp(base, Color.White, 0.5f - lum)
-        !dark && lum > 0.5f -> lerp(base, Color.Black, lum - 0.3f)
-        else -> base
-    }
+    return palette.adjust(base, dark)
 }

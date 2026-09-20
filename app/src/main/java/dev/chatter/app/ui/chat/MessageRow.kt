@@ -46,6 +46,7 @@ import dev.chatter.app.chat.ChatItem
 import dev.chatter.app.chat.MessageKind
 import dev.chatter.app.chat.Segment
 import dev.chatter.app.settings.TimestampFormat
+import dev.chatter.app.ui.theme.NameColorPalette
 import dev.chatter.app.ui.theme.readableNameColor
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -66,6 +67,8 @@ data class ChatStyle(
     val accent: Color,
     /** Keep deleted messages visible (struck through) instead of dropping them from the list. */
     val showDeleted: Boolean,
+    /** How name colors are adjusted for readability. */
+    val nameColors: NameColorPalette,
 )
 
 private const val BADGE_EM = 1.35f
@@ -205,7 +208,7 @@ private fun buildLine(item: ChatItem, style: ChatStyle): BuiltLine {
     }
     if (item.kind == MessageKind.UserNotice && item.segments.isEmpty()) return BuiltLine(AnnotatedString(""), inline)
 
-    val nameColor = readableNameColor(item.color, item.login, style.dark)
+    val nameColor = readableNameColor(item.color, item.login, style.dark, style.nameColors)
     val isAction = item.kind == MessageKind.Action
     val text = buildAnnotatedString {
         style.timestamps.pattern?.let { pattern ->
@@ -248,7 +251,7 @@ private fun AnnotatedString.Builder.appendSegments(segments: List<Segment>, inli
                 LinkAnnotation.Url(seg.url, TextLinkStyles(SpanStyle(color = style.linkColor, textDecoration = TextDecoration.Underline))),
             ) { append(seg.text) }
             is Segment.Mention -> {
-                val color = seg.login?.let { readableNameColor(seg.color, it, style.dark) } ?: Color.Unspecified
+                val color = seg.login?.let { readableNameColor(seg.color, it, style.dark, style.nameColors) } ?: Color.Unspecified
                 withStyle(SpanStyle(color = color, fontWeight = FontWeight.Bold)) { append(seg.name) }
             }
         }
