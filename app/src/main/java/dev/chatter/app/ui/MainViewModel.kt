@@ -142,7 +142,9 @@ class MainViewModel(private val c: AppContainer) : ViewModel() {
         val word = Autocomplete.currentWord(input.text, input.selection.start) ?: return
         val value = when (s) {
             is Suggestion.EmoteSuggestion -> s.emote.name.also { rememberEmote(it) }
-            is Suggestion.UserSuggestion -> "@${s.name}"
+            // An "@" the user typed themselves is kept either way: they asked for it.
+            is Suggestion.UserSuggestion ->
+                if (settings.value.mentionWithAt || word.text.startsWith("@")) "@${s.name}" else s.name
             is Suggestion.CommandSuggestion -> "/${s.name}"
         }
         val (text, cursor) = Autocomplete.replace(input.text, word, value)
@@ -269,6 +271,10 @@ class MainViewModel(private val c: AppContainer) : ViewModel() {
 
     fun setEmoteSuggestions(v: Boolean) {
         viewModelScope.launch { c.settings.setEmoteSuggestions(v) }
+    }
+
+    fun setMentionWithAt(v: Boolean) {
+        viewModelScope.launch { c.settings.setMentionWithAt(v) }
     }
 
     fun setUserSuggestions(v: Boolean) {

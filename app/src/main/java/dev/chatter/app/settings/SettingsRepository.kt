@@ -55,6 +55,8 @@ data class Settings(
     val emoteSuggestions: Boolean = true,
     /** Suggest the names of recent chatters after an "@". */
     val userSuggestions: Boolean = true,
+    /** Put an "@" in front of a name picked from the suggestions. */
+    val mentionWithAt: Boolean = true,
     /** Keep deleted messages in the chat, struck through, instead of hiding them. */
     val showDeleted: Boolean = true,
     /** The emote providers whose emotes are shown; the others stay plain text. */
@@ -96,6 +98,7 @@ class SettingsRepository(
             unreadInTitleBar = p[UNREAD_TITLE_BAR] ?: true,
             emoteSuggestions = p[EMOTE_SUGGESTIONS] ?: true,
             userSuggestions = p[USER_SUGGESTIONS] ?: true,
+            mentionWithAt = p[MENTION_WITH_AT] ?: true,
             showDeleted = p[SHOW_DELETED] ?: true,
             keepScreenOn = p[KEEP_SCREEN_ON] ?: false,
             emoteProviders = p[EMOTE_PROVIDERS]
@@ -122,6 +125,7 @@ class SettingsRepository(
     suspend fun setUnreadInTitleBar(v: Boolean) = store.edit { it[UNREAD_TITLE_BAR] = v }
     suspend fun setEmoteSuggestions(v: Boolean) = store.edit { it[EMOTE_SUGGESTIONS] = v }
     suspend fun setUserSuggestions(v: Boolean) = store.edit { it[USER_SUGGESTIONS] = v }
+    suspend fun setMentionWithAt(v: Boolean) = store.edit { it[MENTION_WITH_AT] = v }
     suspend fun setShowDeleted(v: Boolean) = store.edit { it[SHOW_DELETED] = v }
     suspend fun setKeepScreenOn(v: Boolean) = store.edit { it[KEEP_SCREEN_ON] = v }
     suspend fun setEmoteProviders(v: Set<EmoteProvider>) = store.edit { p -> p[EMOTE_PROVIDERS] = v.joinToString(",") { it.name } }
@@ -152,6 +156,7 @@ class SettingsRepository(
         val UNREAD_TITLE_BAR = booleanPreferencesKey("unread_title_bar")
         val EMOTE_SUGGESTIONS = booleanPreferencesKey("emote_suggestions")
         val USER_SUGGESTIONS = booleanPreferencesKey("user_suggestions")
+        val MENTION_WITH_AT = booleanPreferencesKey("mention_with_at")
         val SHOW_DELETED = booleanPreferencesKey("show_deleted")
         val KEEP_SCREEN_ON = booleanPreferencesKey("keep_screen_on")
         val EMOTE_PROVIDERS = stringPreferencesKey("emote_providers")
