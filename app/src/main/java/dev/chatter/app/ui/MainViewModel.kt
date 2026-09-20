@@ -49,6 +49,7 @@ class MainViewModel(private val c: AppContainer) : ViewModel() {
     val customNames = c.channels.customNames
     val mutedChannels = c.channels.mutedChannels
     val hiddenUnread = c.channels.hiddenUnread
+    val lastChannel = c.channels.lastChannel
     val unreadMentions = c.chat.unreadMentions
     val unreadMessages = c.chat.unreadMessages
     val settings = c.settings.settings
@@ -94,8 +95,12 @@ class MainViewModel(private val c: AppContainer) : ViewModel() {
         c.chat.activeChannel.value = channel
         channel?.let {
             c.notifier.clear(it)
-            // Reading a channel is reading its mentions, so the inbox must not claim otherwise.
-            viewModelScope.launch { c.inbox.markChannelRead(it) }
+            viewModelScope.launch {
+                // Where to come back to after a restart.
+                c.channels.setLastChannel(it)
+                // Reading a channel is reading its mentions, so the inbox must not claim otherwise.
+                c.inbox.markChannelRead(it)
+            }
         }
         replyTo = null
         suggestions = emptyList()

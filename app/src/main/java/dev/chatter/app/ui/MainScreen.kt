@@ -138,8 +138,20 @@ fun MainScreen(vm: MainViewModel, onInbox: () -> Unit, onSettings: () -> Unit) {
         vm.messages.collect { snackbar.showSnackbar(resources.getString(it)) }
     }
 
-    // The page on screen defines the active channel.
-    LaunchedEffect(pagerState, channels) {
+    // Back to the channel the user was reading. The pager cannot do this itself: when the screen
+    // is rebuilt after Android stopped the process, the channel list is still empty, and the page
+    // it remembered is clamped to the first channel before the list arrives.
+    var restored by remember { mutableStateOf(false) }
+    LaunchedEffect(channels) {
+        if (restored || channels.isEmpty()) return@LaunchedEffect
+        val index = channels.indexOf(active ?: vm.lastChannel.value)
+        if (index > 0) pagerState.scrollToPage(index)
+        restored = true
+    }
+
+    // The page on screen defines the active channel — once it is the page the user expects.
+    LaunchedEffect(pagerState, channels, restored) {
+        if (!restored) return@LaunchedEffect
         snapshotFlow { pagerState.currentPage }.collect { vm.selectChannel(channels.getOrNull(it)) }
     }
     // Jump to a channel requested by a notification tap or right after adding it.

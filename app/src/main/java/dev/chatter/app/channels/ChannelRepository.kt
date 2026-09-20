@@ -57,6 +57,16 @@ class ChannelRepository(
         else info.mapValues { (login, i) -> names[login]?.let { i.copy(displayName = it) } ?: i }
     }.stateIn(scope, SharingStarted.Eagerly, emptyMap())
 
+    /**
+     * The channel the user was last reading. Kept on disk because the chat screen cannot work it
+     * out on its own after Android has stopped the process.
+     */
+    val lastChannel: StateFlow<String?> = store.data
+        .map { p -> p[LAST_CHANNEL] }
+        .stateIn(scope, SharingStarted.Eagerly, null)
+
+    suspend fun setLastChannel(login: String) = store.edit { it[LAST_CHANNEL] = login }
+
     /** Channels the user switched notifications off for. Absent means notifications are on. */
     val mutedChannels: StateFlow<Set<String>> = store.data
         .map { p -> p[MUTED].orEmpty().split(',').filter { it.isNotEmpty() }.toSet() }
@@ -214,6 +224,7 @@ class ChannelRepository(
         private val CUSTOM_NAMES = stringPreferencesKey("channel_names")
         private val MUTED = stringPreferencesKey("channels_muted")
         private val NO_TITLE_BAR = stringPreferencesKey("channels_no_title_bar")
+        private val LAST_CHANNEL = stringPreferencesKey("last_channel")
 
         private fun decodeNames(raw: String?): Map<String, String> =
             raw?.let { runCatching { AppJson.decodeFromString<Map<String, String>>(it) }.getOrNull() }.orEmpty()
