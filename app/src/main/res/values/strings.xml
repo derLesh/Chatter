@@ -263,7 +263,16 @@
     <string name="settings_blocked_users">Blocked users</string>
     <string name="settings_blocked_none">Nobody blocked</string>
     <string name="settings_blocked_hint">Blocking is shared with Twitch: blocked chatters are hidden here and everywhere else</string>
+    <plurals name="settings_blocked_count">
+        <item quantity="one">%d blocked chatter</item>
+        <item quantity="other">%d blocked chatters</item>
+    </plurals>
+    <string name="block_user_title">Block user</string>
+    <string name="block_user_name">Twitch name</string>
+    <string name="unblock_confirm_title">Unblock?</string>
+    <string name="unblock_confirm_text">%s will show up in the chat again, here and everywhere else on Twitch.</string>
     <string name="error_block_failed">Twitch rejected that. Please try again</string>
+    <string name="error_user_unknown">No Twitch user by that name</string>
 
     <!-- Nicknames -->
     <string name="nickname_title">Nickname</string>

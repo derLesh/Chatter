@@ -203,6 +203,23 @@ class MainViewModel(private val c: AppContainer) : ViewModel() {
         }
     }
 
+    /**
+     * Blocks someone typed by name rather than picked from a chat message, so the login has to be
+     * looked up first: Twitch only takes ids.
+     */
+    fun blockByLogin(login: String) {
+        viewModelScope.launch {
+            val clean = login.trim().removePrefix("@").lowercase()
+            val user = runCatching { c.helix.users(listOf(clean)).firstOrNull() }.getOrNull()
+            if (user == null) {
+                _messages.send(R.string.error_user_unknown)
+                return@launch
+            }
+            val target = HelixBlockedUser(user.id, user.login, user.displayName)
+            if (!c.blocked.setBlocked(target, blocked = true)) _messages.send(R.string.error_block_failed)
+        }
+    }
+
     /** Gives a chatter a nickname, in every channel they show up in. A blank one clears it. */
     fun setNickname(login: String, nickname: String) {
         viewModelScope.launch { c.nicknames.set(login, nickname) }

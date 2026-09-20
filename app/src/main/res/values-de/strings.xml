@@ -257,7 +257,16 @@
     <string name="settings_blocked_users">Blockierte Nutzer</string>
     <string name="settings_blocked_none">Niemand blockiert</string>
     <string name="settings_blocked_hint">Das Blockieren teilt sich Chatter mit Twitch: Blockierte Chatter sind hier und überall sonst ausgeblendet</string>
+    <plurals name="settings_blocked_count">
+        <item quantity="one">%d blockierter Chatter</item>
+        <item quantity="other">%d blockierte Chatter</item>
+    </plurals>
+    <string name="block_user_title">Nutzer blockieren</string>
+    <string name="block_user_name">Twitch-Name</string>
+    <string name="unblock_confirm_title">Entblocken?</string>
+    <string name="unblock_confirm_text">%s taucht wieder im Chat auf, hier und überall sonst auf Twitch.</string>
     <string name="error_block_failed">Twitch hat das abgelehnt. Bitte noch einmal versuchen</string>
+    <string name="error_user_unknown">Kein Twitch-Nutzer mit diesem Namen</string>
 
     <!-- Spitznamen -->
     <string name="nickname_title">Spitzname</string>

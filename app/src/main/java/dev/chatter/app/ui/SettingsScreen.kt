@@ -36,6 +36,7 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.automirrored.filled.List
 import androidx.compose.material.icons.filled.AccountCircle
+import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Info
@@ -44,6 +45,7 @@ import androidx.compose.material.icons.filled.Person
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.Button
 import androidx.compose.material3.LargeTopAppBar
 import androidx.compose.material3.ListItem
 import androidx.compose.material3.ListItemDefaults
@@ -80,6 +82,7 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
@@ -92,6 +95,7 @@ import dev.chatter.app.auth.AuthState
 import dev.chatter.app.chat.ChatItem
 import dev.chatter.app.chat.MessageKind
 import dev.chatter.app.chat.Segment
+import dev.chatter.app.net.HelixBlockedUser
 import dev.chatter.app.settings.Settings
 import dev.chatter.app.settings.ThemeMode
 import dev.chatter.app.ui.channels.ManageChannelsPage
@@ -99,6 +103,8 @@ import dev.chatter.app.ui.channels.RenameChannelDialog
 import dev.chatter.app.ui.channels.AddChannelDialog
 import dev.chatter.app.ui.chat.ChatStyle
 import dev.chatter.app.ui.chat.MessageRow
+import dev.chatter.app.ui.settings.BlockUserDialog
+import dev.chatter.app.ui.settings.ConfirmUnblockDialog
 import dev.chatter.app.ui.theme.highlightBackground
 import dev.chatter.app.ui.theme.isAppInDarkTheme
 import dev.chatter.app.util.AppIcon
@@ -126,10 +132,22 @@ private enum class SettingsPage(val title: Int, val summary: Int, val icon: Imag
     About(R.string.settings_about, R.string.settings_about_summary, Icons.Default.Info),
 }
 
+/** A page opened from inside a category, one level below [SettingsPage]. */
+private enum class SettingsSubPage(val title: Int) {
+    BlockedUsers(R.string.settings_blocked_users),
+}
+
 @Composable
 fun SettingsScreen(vm: MainViewModel, onBack: () -> Unit) {
     var page by rememberSaveable { mutableStateOf<SettingsPage?>(null) }
-    val goBack = { if (page != null) page = null else onBack() }
+    var subPage by rememberSaveable { mutableStateOf<SettingsSubPage?>(null) }
+    val goBack = {
+        when {
+            subPage != null -> subPage = null
+            page != null -> page = null
+            else -> onBack()
+        }
+    }
     BackHandler(onBack = goBack)
 
     val settings by vm.settings.collectAsStateWithLifecycle()
@@ -137,11 +155,11 @@ fun SettingsScreen(vm: MainViewModel, onBack: () -> Unit) {
     val login = (auth as? AuthState.LoggedIn)?.account?.login.orEmpty()
 
     AnimatedContent(
-        targetState = page,
+        targetState = page to subPage,
         transitionSpec = {
             // Like Android: the opened page (title bar included) slides in over the list; going
             // back, it slides out on top. Pages are opaque, so nothing shows through.
-            val forward = targetState != null
+            val forward = targetState.depth > initialState.depth
             val transform = if (forward) {
                 slideInHorizontally { it } togetherWith
                     (slideOutHorizontally { -it / 4 } + fadeOut(targetAlpha = 0.5f))
@@ -152,22 +170,33 @@ fun SettingsScreen(vm: MainViewModel, onBack: () -> Unit) {
             transform.apply { targetContentZIndex = if (forward) 1f else -1f }
         },
         label = "settings-page",
-    ) { current ->
+    ) { (current, currentSub) ->
         // The about page carries its own icon and app name, so it gets no title bar heading.
-        val title = if (current == SettingsPage.About) null else current?.title ?: R.string.settings
+        val title = when {
+            currentSub != null -> currentSub.title
+            current == SettingsPage.About -> null
+            else -> current?.title ?: R.string.settings
+        }
         SettingsPageScaffold(title = title, onBack = goBack) {
-            when (current) {
-                null -> Home(login) { page = it }
-                SettingsPage.Appearance -> AppearancePage(settings, vm)
-                SettingsPage.Chat -> ChatPage(settings, vm)
-                SettingsPage.Notifications -> NotificationsPage(settings, vm)
-                SettingsPage.Channels -> ChannelsPage(vm, settings)
-                SettingsPage.Account -> AccountPage(login, vm) { vm.logout(); onBack() }
-                SettingsPage.About -> AboutPage()
+            when (currentSub) {
+                SettingsSubPage.BlockedUsers -> BlockedUsersPage(vm)
+                null -> when (current) {
+                    null -> Home(login) { page = it }
+                    SettingsPage.Appearance -> AppearancePage(settings, vm)
+                    SettingsPage.Chat -> ChatPage(settings, vm)
+                    SettingsPage.Notifications -> NotificationsPage(settings, vm)
+                    SettingsPage.Channels -> ChannelsPage(vm, settings)
+                    SettingsPage.Account -> AccountPage(login, vm, { subPage = it }) { vm.logout(); onBack() }
+                    SettingsPage.About -> AboutPage()
+                }
             }
         }
     }
 }
+
+/** How deep in the settings a state is, which is what says whether a move is forward or back. */
+private val Pair<SettingsPage?, SettingsSubPage?>.depth: Int
+    get() = (if (first != null) 1 else 0) + (if (second != null) 1 else 0)
 
 /** One settings page: its own collapsing large title bar and scrolling content. */
 @OptIn(ExperimentalMaterial3Api::class)
@@ -435,7 +464,13 @@ private fun NotificationsPage(settings: Settings, vm: MainViewModel) {
 }
 
 @Composable
-private fun AccountPage(login: String, vm: MainViewModel, onLogout: () -> Unit) {
+private fun AccountPage(
+    login: String,
+    vm: MainViewModel,
+    open: (SettingsSubPage) -> Unit,
+    onLogout: () -> Unit,
+) {
+    val blocked by vm.blockedUsers.collectAsStateWithLifecycle()
     SettingsGroup {
         item {
             ListItem(
@@ -453,15 +488,34 @@ private fun AccountPage(login: String, vm: MainViewModel, onLogout: () -> Unit) 
                 colors = transparentItem(),
             )
         }
+        item {
+            ListItem(
+                headlineContent = { Text(stringResource(R.string.settings_blocked_users)) },
+                supportingContent = {
+                    Text(
+                        if (blocked.isEmpty()) stringResource(R.string.settings_blocked_none)
+                        else pluralStringResource(R.plurals.settings_blocked_count, blocked.size, blocked.size)
+                    )
+                },
+                trailingContent = { Icon(Icons.AutoMirrored.Filled.ArrowForward, contentDescription = null) },
+                colors = transparentItem(),
+                modifier = Modifier.clickable { open(SettingsSubPage.BlockedUsers) },
+            )
+        }
     }
-    BlockedUsersGroup(vm)
 }
 
-/** The Twitch block list: everyone here is hidden from the chat until they are unblocked. */
+/**
+ * The Twitch block list: everyone here is hidden from the chat until they are unblocked. Blocking
+ * is a deliberate act, so undoing it asks for confirmation.
+ */
 @Composable
-private fun BlockedUsersGroup(vm: MainViewModel) {
+private fun BlockedUsersPage(vm: MainViewModel) {
     val blocked by vm.blockedUsers.collectAsStateWithLifecycle()
-    SettingsGroup(R.string.settings_blocked_users) {
+    var unblockTarget by remember { mutableStateOf<HelixBlockedUser?>(null) }
+    var showBlock by remember { mutableStateOf(false) }
+
+    SettingsGroup {
         if (blocked.isEmpty()) {
             item {
                 ListItem(
@@ -477,12 +531,36 @@ private fun BlockedUsersGroup(vm: MainViewModel) {
                     headlineContent = { Text(user.displayName.ifEmpty { user.userLogin }) },
                     supportingContent = { Text("@" + user.userLogin) },
                     trailingContent = {
-                        OutlinedButton(onClick = { vm.unblock(user) }) { Text(stringResource(R.string.action_unblock)) }
+                        OutlinedButton(onClick = { unblockTarget = user }) {
+                            Text(stringResource(R.string.action_unblock))
+                        }
                     },
                     colors = transparentItem(),
                 )
             }
         }
+    }
+    Button(onClick = { showBlock = true }, modifier = Modifier.fillMaxWidth()) {
+        Icon(Icons.Default.Add, contentDescription = null)
+        Spacer(Modifier.width(8.dp))
+        Text(stringResource(R.string.block_user_title))
+    }
+
+    unblockTarget?.let { user ->
+        ConfirmUnblockDialog(
+            name = user.displayName.ifEmpty { user.userLogin },
+            onConfirm = { vm.unblock(user) },
+            onDismiss = { unblockTarget = null },
+        )
+    }
+    if (showBlock) {
+        BlockUserDialog(
+            search = vm::searchChannels,
+            alreadyBlocked = blocked.mapTo(HashSet()) { it.userLogin.lowercase() },
+            imageLoader = vm.imageLoader,
+            onBlock = vm::blockByLogin,
+            onDismiss = { showBlock = false },
+        )
     }
 }
 
