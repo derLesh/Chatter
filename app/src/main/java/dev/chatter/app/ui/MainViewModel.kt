@@ -9,7 +9,6 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dev.chatter.app.AppContainer
 import dev.chatter.app.R
-import dev.chatter.app.auth.DeviceLogin
 import dev.chatter.app.badges.Badge
 import dev.chatter.app.badges.BadgeProvider
 import dev.chatter.app.chat.ChatCommand
@@ -32,13 +31,6 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.launch
-
-sealed interface LoginUi {
-    data object Idle : LoginUi
-    data object Starting : LoginUi
-    data class Waiting(val device: DeviceLogin) : LoginUi
-    data class Failed(val message: String) : LoginUi
-}
 
 data class UserCardData(val user: HelixUser?, val recentMessages: List<ChatItem>)
 
@@ -347,36 +339,9 @@ class MainViewModel(private val c: AppContainer) : ViewModel() {
 
     // ---- Login / settings ----------------------------------------------------------------------
 
-    var login by mutableStateOf<LoginUi>(LoginUi.Idle)
-        private set
-    private var loginJob: Job? = null
-
-    /** Gets a code from Twitch and waits (in the ViewModel, so it survives rotation) for confirmation. */
-    fun startLogin() {
-        loginJob?.cancel()
-        login = LoginUi.Starting
-        loginJob = viewModelScope.launch {
-            val device = try {
-                c.auth.startDeviceLogin()
-            } catch (e: Exception) {
-                login = LoginUi.Failed(e.message ?: e.toString())
-                return@launch
-            }
-            login = LoginUi.Waiting(device)
-            c.auth.awaitDeviceLogin(device)
-                .onSuccess { login = LoginUi.Idle }
-                .onFailure { login = LoginUi.Failed(it.message ?: it.toString()) }
-        }
-    }
-
     fun loginUrl(): String = c.auth.authorizeUrl()
 
     suspend fun handleRedirect(url: String): Result<Unit>? = c.auth.handleRedirect(url)
-
-    fun cancelLogin() {
-        loginJob?.cancel()
-        login = LoginUi.Idle
-    }
 
     fun logout() {
         viewModelScope.launch {

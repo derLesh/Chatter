@@ -55,11 +55,6 @@
     <string name="login_subtitle">Ein schneller, schlanker Twitch-Chat.</string>
     <string name="login_missing_client_id">Keine Twitch Client ID eingerichtet. Trage twitch.clientId in local.properties ein und baue die App neu.</string>
     <string name="login_button">Mit Twitch anmelden</string>
-    <string name="login_with_code">Stattdessen mit Code anmelden</string>
-    <string name="login_code_hint">Bestätige diesen Code auf Twitch. Die Seite öffnet sich in deinem Browser.</string>
-    <string name="login_open_twitch">Twitch öffnen</string>
-    <string name="login_copy_code">Code kopieren</string>
-    <string name="login_waiting">Warte auf Bestätigung…</string>
     <string name="login_failed">Anmeldung fehlgeschlagen: %1$s</string>
 
     <!-- Settings -->

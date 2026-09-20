@@ -10,7 +10,6 @@ import dev.chatter.app.BuildConfig
 import dev.chatter.app.net.HelixApi
 import dev.chatter.app.net.HttpException
 import dev.chatter.app.net.postForm
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.first
@@ -36,22 +35,11 @@ sealed interface AuthState {
     data class LoggedIn(val account: Account) : AuthState
 }
 
-/** What the user has to confirm on twitch.tv/activate. */
-data class DeviceLogin(
-    val userCode: String,
-    val verificationUri: String,
-    internal val deviceCode: String,
-    internal val intervalSeconds: Int,
-    internal val expiresAt: Long,
-)
-
 /**
- * Twitch login. The primary way (like DankChat) is the implicit OAuth flow in a WebView:
- * Twitch redirects to `http://localhost#access_token=...`, which the WebView intercepts.
- * Those tokens are long-lived and cannot be refreshed; once Twitch rejects one, the user logs in again.
- *
- * As a fallback there is the Device Code Flow (confirm a code on twitch.tv/activate in the browser).
- * Its tokens expire after a few hours and are renewed with the refresh token.
+ * Twitch login (like DankChat): the implicit OAuth flow in a WebView, where Twitch redirects to
+ * `http://localhost#access_token=...` and the WebView intercepts it. Those tokens are long-lived and
+ * cannot be refreshed; once Twitch rejects one, the user logs in again. Accounts stored by the older
+ * device code login still carry a refresh token, which [refresh] keeps renewing.
  */
 class AuthRepository(
     private val store: DataStore<Preferences>,
@@ -119,53 +107,6 @@ class AuthRepository(
             val expiresAt = if (v.expiresIn > 0) System.currentTimeMillis() + v.expiresIn * 1000L else Long.MAX_VALUE
             saveAccount(Account(v.login, v.userId, token, refreshToken = null, expiresAt = expiresAt))
         }
-    }
-
-    // ---- Device code login (fallback) -------------------------------------------------------
-
-    suspend fun startDeviceLogin(): DeviceLogin {
-        val r = http.postForm<DeviceCodeResponse>(
-            "https://id.twitch.tv/oauth2/device",
-            mapOf("client_id" to BuildConfig.TWITCH_CLIENT_ID, "scopes" to SCOPES.joinToString(" ")),
-        )
-        return DeviceLogin(
-            userCode = r.userCode,
-            verificationUri = r.verificationUri,
-            deviceCode = r.deviceCode,
-            intervalSeconds = r.interval.coerceAtLeast(1),
-            expiresAt = System.currentTimeMillis() + r.expiresIn * 1000L,
-        )
-    }
-
-    /** Polls until the user confirmed the code (success) or it expired / was denied (failure). */
-    suspend fun awaitDeviceLogin(login: DeviceLogin): Result<Unit> {
-        var interval = login.intervalSeconds
-        while (System.currentTimeMillis() < login.expiresAt) {
-            delay(interval * 1000L)
-            try {
-                val t = http.postForm<TokenResponse>(
-                    "https://id.twitch.tv/oauth2/token",
-                    mapOf(
-                        "client_id" to BuildConfig.TWITCH_CLIENT_ID,
-                        "scopes" to SCOPES.joinToString(" "),
-                        "device_code" to login.deviceCode,
-                        "grant_type" to "urn:ietf:params:oauth:grant-type:device_code",
-                    ),
-                )
-                return runCatching { saveTokens(t) }
-            } catch (e: HttpException) {
-                when {
-                    "authorization_pending" in e.body -> Unit
-                    "slow_down" in e.body -> interval += 5
-                    else -> return Result.failure(e)
-                }
-            } catch (e: kotlinx.coroutines.CancellationException) {
-                throw e
-            } catch (e: Exception) {
-                // Network hiccup while polling: keep trying until the code expires.
-            }
-        }
-        return Result.failure(IllegalStateException("expired"))
     }
 
     // ---- Token maintenance ------------------------------------------------------------------
@@ -241,15 +182,6 @@ class AuthRepository(
         }
         _state.value = AuthState.LoggedIn(account)
     }
-
-    @Serializable
-    private data class DeviceCodeResponse(
-        @SerialName("device_code") val deviceCode: String,
-        @SerialName("user_code") val userCode: String,
-        @SerialName("verification_uri") val verificationUri: String,
-        @SerialName("expires_in") val expiresIn: Long = 1800,
-        val interval: Int = 5,
-    )
 
     @Serializable
     private data class TokenResponse(
