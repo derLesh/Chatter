@@ -122,13 +122,24 @@ class MainViewModel(private val c: AppContainer) : ViewModel() {
 
     private var suggestionJob: Job? = null
 
+    /**
+     * The channel this window is showing. Not the same thing as [activeChannel] once a bubble is
+     * open: that one is the chat screen's, this one is whatever window this view model belongs to.
+     */
+    private var shownChannel: String? = null
+
     fun chat(channel: String) = c.chat.messages(channel)
 
     fun selectChannel(channel: String?) {
-        if (c.chat.activeChannel.value == channel) return
-        c.chat.activeChannel.value = channel
+        if (shownChannel == channel) return
+        shownChannel = channel
+        c.chat.setWindowChannel(this, channel)
+        // What the app around the chat follows. A bubble is a window of its own and must not
+        // move it: the chat screen is still wherever the user left it.
+        if (!inBubble) c.chat.activeChannel.value = channel
         channel?.let {
             if (!inBubble) c.notifier.clear(it)
+            c.chat.clearUnread(it)
             viewModelScope.launch {
                 // Where to come back to after a restart — the chat screen's channel, not one the
                 // user happens to be reading in a bubble on the side.
@@ -151,14 +162,20 @@ class MainViewModel(private val c: AppContainer) : ViewModel() {
     }
 
     fun setUiVisible(visible: Boolean) {
-        c.chat.uiVisible.value = visible
+        c.chat.setWindowVisible(this, visible, shownChannel)
         if (visible) {
             c.connect()
-            activeChannel.value?.let {
+            shownChannel?.let {
                 c.chat.clearUnread(it)
                 if (!inBubble) c.notifier.clear(it)
             }
         }
+    }
+
+    /** The window is gone for good; it is not reading anything any more. */
+    override fun onCleared() {
+        c.chat.setWindowVisible(this, visible = false, channel = null)
+        super.onCleared()
     }
 
     // ---- Input & autocomplete --------------------------------------------------------------
@@ -170,7 +187,7 @@ class MainViewModel(private val c: AppContainer) : ViewModel() {
 
     private fun updateSuggestions() {
         suggestionJob?.cancel()
-        val channel = activeChannel.value
+        val channel = shownChannel
         val word = Autocomplete.currentWord(input.text, input.selection.start)
         if (channel == null || word == null) {
             suggestions = emptyList()
@@ -366,7 +383,7 @@ class MainViewModel(private val c: AppContainer) : ViewModel() {
     }
 
     fun send() {
-        val channel = activeChannel.value ?: return
+        val channel = shownChannel ?: return
         val text = input.text
         val reply = replyTo
         viewModelScope.launch {

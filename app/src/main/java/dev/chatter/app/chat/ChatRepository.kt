@@ -147,9 +147,38 @@ class ChatRepository(
     private val _unreadMessages = MutableStateFlow<Map<String, Int>>(emptyMap())
     val unreadMessages: StateFlow<Map<String, Int>> = _unreadMessages
 
-    /** The channel currently shown on screen, and whether the app UI is visible at all. */
+    /** The channel the chat screen is on. A bubble reads its own and leaves this alone. */
     val activeChannel = MutableStateFlow<String?>(null)
-    val uiVisible = MutableStateFlow(false)
+
+    /**
+     * The windows on screen and the channel each one shows.
+     *
+     * A bubble is a second window, floating over a different app entirely, so one flag and one
+     * channel cannot say what is being read: opening a bubble would make the app behind it look
+     * gone, and closing it would leave the app believing the bubble's channel is still in front.
+     * The keys are the view models, one per window.
+     */
+    private val openWindows = ConcurrentHashMap.newKeySet<Any>()
+    private val windowChannels = ConcurrentHashMap<Any, String>()
+
+    private val _uiVisible = MutableStateFlow(false)
+    /** Whether any window of the app is on screen. */
+    val uiVisible: StateFlow<Boolean> = _uiVisible
+
+    /** A window came to the front or left it, showing [channel] while it is there. */
+    fun setWindowVisible(window: Any, visible: Boolean, channel: String?) {
+        if (visible) openWindows.add(window) else openWindows.remove(window)
+        setWindowChannel(window, channel.takeIf { visible })
+        _uiVisible.value = openWindows.isNotEmpty()
+    }
+
+    /** The channel a window has moved to, or null while it shows none. */
+    fun setWindowChannel(window: Any, channel: String?) {
+        if (channel == null) windowChannels.remove(window) else windowChannels[window] = channel
+    }
+
+    /** Whether the user has this channel in front of them, in whichever window. */
+    fun isWatching(channel: String): Boolean = windowChannels.containsValue(channel)
 
     /** True while the whisper tab of the inbox is the thing in front of the user. */
     val whispersVisible = MutableStateFlow(false)
@@ -201,9 +230,7 @@ class ChatRepository(
             }
         }
 
-        scope.launch {
-            activeChannel.collect { ch -> if (ch != null) clearUnread(ch) }
-        }
+
     }
 
     fun messages(channel: String): StateFlow<List<ChatItem>> = flows.computeIfAbsent(channel) { ch ->
@@ -437,7 +464,7 @@ class ChatRepository(
                 append(item)
                 // Only live messages: the history fetched on join was received long ago.
                 if (!item.isOwn) stats.countReceived()
-                if (!item.isOwn && !(uiVisible.value && activeChannel.value == channel)) {
+                if (!item.isOwn && !isWatching(channel)) {
                     unreadCounts[channel] = (unreadCounts[channel] ?: 0) + 1
                     unreadCountsDirty = true
                 }
@@ -468,7 +495,7 @@ class ChatRepository(
 
     private fun onMention(item: ChatItem) {
         stats.countMention()
-        val watching = uiVisible.value && activeChannel.value == item.channel
+        val watching = isWatching(item.channel)
         // The inbox keeps every mention; one the user saw arrive is simply already read.
         _allMentions.tryEmit(MentionEvent(item, seen = watching))
         if (watching) return
@@ -481,7 +508,7 @@ class ChatRepository(
     private fun onWhisper(whisper: InboxWhisper) {
         if (muted.mutes(whisper.login, whisper.displayName, whisper.text)) return
         // One that arrived under the user's eyes is read already, and needs no notification.
-        val watching = uiVisible.value && whispersVisible.value
+        val watching = _uiVisible.value && whispersVisible.value
         _whispers.tryEmit(whisper.copy(read = watching))
         if (!watching) _whisperEvents.tryEmit(whisper)
     }
