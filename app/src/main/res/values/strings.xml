@@ -200,6 +200,11 @@
     <string name="license_apache2">Apache License 2.0</string>
     <string name="settings_sponsor">Support Chatter</string>
     <string name="settings_sponsor_summary">Through GitHub Sponsors, once or every month. Supporters wear a badge in chat.</string>
+    <string name="settings_support">Support</string>
+    <string name="settings_support_summary">Sponsor Chatter, supporter badge</string>
+    <string name="settings_sponsor_claim">I have sponsored</string>
+    <string name="settings_sponsor_claim_summary">Opens GitHub with your Twitch account filled in, so the badge can find you</string>
+    <string name="settings_sponsor_note">GitHub Sponsors does not know which Twitch account belongs to a sponsor, and nothing here guesses. The second row is how you say so: it opens an issue on the repository with your Twitch id already in it, and the badge follows once GitHub has confirmed that the sponsorship is yours.</string>
     <string name="settings_source_code">Source code</string>
     <string name="settings_source_code_summary">github.com/derLesh/Chatter</string>
     <string name="settings_report_issue">Report a problem</string>

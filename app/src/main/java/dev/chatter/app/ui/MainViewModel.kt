@@ -61,6 +61,10 @@ class MainViewModel(private val c: AppContainer) : ViewModel() {
 
     /** Whether the last login ended on its own, so the login screen can say why it is back. */
     val sessionExpired = c.auth.sessionExpired
+
+    /** Who the user is on Twitch, for the one thing GitHub Sponsors cannot know about a sponsor. */
+    val ownTwitchId: String? get() = c.auth.account?.userId
+    val ownLogin: String get() = c.auth.account?.login.orEmpty()
     val channels = c.channels.channels
     val channelInfo = c.channels.info
     val customNames = c.channels.customNames

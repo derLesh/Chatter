@@ -1,0 +1,31 @@
+name: Supporter badge
+description: Say which Twitch account your sponsorship belongs to
+title: "Supporter badge"
+labels: ["supporter"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thank you for supporting Chatter.
+
+        GitHub Sponsors does not tell anybody which Twitch account a sponsor has, so this is how
+        the badge finds you. Chatter fills both fields in for you — open this from **Settings →
+        Support → I have sponsored** and there is nothing to type.
+
+        The sponsorship itself is not taken on trust: it is checked against GitHub, under the
+        account opening this issue.
+  - type: input
+    id: twitch-id
+    attributes:
+      label: Twitch user id
+      description: A number. Chatter knows yours and fills it in.
+      placeholder: "60579280"
+    validations:
+      required: true
+  - type: input
+    id: twitch-name
+    attributes:
+      label: Twitch name
+      description: Only so that a person reading this knows who it is about.
+    validations:
+      required: false

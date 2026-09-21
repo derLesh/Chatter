@@ -1,1 +1,1 @@
-minor: Reach GitHub Sponsors from Settings -> About to support Chatter
+minor: Support Chatter from its own settings category, and claim the badge for your Twitch account

@@ -194,6 +194,11 @@
     <string name="license_apache2">Apache-Lizenz 2.0</string>
     <string name="settings_sponsor">Chatter unterstützen</string>
     <string name="settings_sponsor_summary">Über GitHub Sponsors, einmalig oder monatlich. Unterstützer tragen ein Badge im Chat.</string>
+    <string name="settings_support">Unterstützen</string>
+    <string name="settings_support_summary">Chatter sponsern, Unterstützer-Badge</string>
+    <string name="settings_sponsor_claim">Ich habe gesponsert</string>
+    <string name="settings_sponsor_claim_summary">Öffnet GitHub mit deinem Twitch-Account darin, damit das Badge dich findet</string>
+    <string name="settings_sponsor_note">GitHub Sponsors weiß nicht, welcher Twitch-Account zu einem Sponsor gehört, und hier wird nichts geraten. Die zweite Zeile ist, wie du es sagst: Sie öffnet ein Issue im Repository, in dem deine Twitch-ID schon steht, und das Badge kommt, sobald GitHub bestätigt hat, dass das Sponsoring deins ist.</string>
     <string name="settings_source_code">Quellcode</string>
     <string name="settings_source_code_summary">github.com/derLesh/Chatter</string>
     <string name="settings_report_issue">Problem melden</string>

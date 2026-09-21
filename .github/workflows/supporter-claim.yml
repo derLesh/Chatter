@@ -1,0 +1,59 @@
+# Somebody says which Twitch account their sponsorship belongs to, and the badge follows.
+#
+# The issue comes from Chatter, with the Twitch id already in it. What makes that safe is not the
+# issue: GitHub says who opened it, docs/supporters.json says whether that account sponsors, and
+# the number can only ever land in that account's own entry. Somebody who does not sponsor changes
+# nothing and is told so.
+#
+# Nothing from the issue ever reaches a shell. It goes to the script as an environment variable,
+# because a body is whatever somebody typed.
+name: Supporter badge
+
+on:
+  issues:
+    types: [opened, edited]
+
+permissions:
+  contents: write
+  issues: write
+
+concurrency:
+  group: supporter-claim-${{ github.event.issue.number }}
+  cancel-in-progress: false
+
+jobs:
+  claim:
+    if: contains(github.event.issue.labels.*.name, 'supporter')
+    name: Put the Twitch account on the sponsorship
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Read the issue
+        id: claim
+        env:
+          ISSUE_BODY: ${{ github.event.issue.body }}
+          ISSUE_AUTHOR: ${{ github.event.issue.user.login }}
+          CLAIM_COMMENT: claim-comment.md
+        run: python3 .github/scripts/claim-supporter.py
+
+      - name: Write it down
+        if: steps.claim.outputs.claimed == 'true'
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add docs/supporters.json
+          git commit -m "Give ${{ github.event.issue.user.login }} their supporter badge"
+          git push
+
+      - name: Say what happened
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: gh issue comment "${{ github.event.issue.number }}" --body-file claim-comment.md
+
+      - name: Close it, if there is nothing left to do
+        if: steps.claim.outputs.claimed == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: gh issue close "${{ github.event.issue.number }}"

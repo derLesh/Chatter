@@ -44,6 +44,7 @@ import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.DateRange
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.Person
@@ -150,7 +151,12 @@ private enum class SettingsPage(val title: Int, val summary: Int, val icon: Imag
     Channels(R.string.settings_channels, R.string.settings_channels_summary, Icons.Default.Person),
     Stats(R.string.settings_stats, R.string.settings_stats_summary, Icons.Default.DateRange),
     Account(R.string.settings_account, R.string.settings_account_summary, Icons.Default.AccountCircle),
+    /** Only in the build people install themselves; see SPONSOR_LINK in build.gradle.kts. */
+    Support(R.string.settings_support, R.string.settings_support_summary, Icons.Default.Favorite),
     About(R.string.settings_about, R.string.settings_about_summary, Icons.Default.Info),
+    ;
+
+    val shown: Boolean get() = this != Support || BuildConfig.SPONSOR_LINK
 }
 
 /** A page opened from inside a category, one level below [SettingsPage]. */
@@ -234,6 +240,7 @@ fun SettingsScreen(vm: MainViewModel, onBack: () -> Unit) {
                     SettingsPage.Channels -> ChannelsPage(vm, settings)
                     SettingsPage.Stats -> StatsPage(vm)
                     SettingsPage.Account -> AccountPage(login, vm, { subPage = it }) { vm.logout(); onBack() }
+                    SettingsPage.Support -> SupportPage(vm)
                     SettingsPage.About -> AboutPage(vm) { subPage = it }
                 }
             }
@@ -290,7 +297,7 @@ private fun SettingsPageScaffold(title: Int?, onBack: () -> Unit, content: @Comp
 @Composable
 private fun Home(login: String, open: (SettingsPage) -> Unit) {
     SettingsGroup {
-        SettingsPage.entries.forEach { p ->
+        SettingsPage.entries.filter { it.shown }.forEach { p ->
             item {
                 ListItem(
                     headlineContent = { Text(stringResource(p.title), fontWeight = FontWeight.Medium) },
@@ -305,6 +312,45 @@ private fun Home(login: String, open: (SettingsPage) -> Unit) {
         }
     }
 }
+
+/**
+ * Supporting Chatter, which happens outside the app: GitHub Sponsors takes the money, and there
+ * is no way for it to know which Twitch account a sponsor has — so the second row is how somebody
+ * says so, with their Twitch id already filled in by the app that knows it.
+ */
+@Composable
+private fun SupportPage(vm: MainViewModel) {
+    SettingsGroup {
+        item { LinkItem(R.string.settings_sponsor, R.string.settings_sponsor_summary, SPONSOR_URL) }
+        item {
+            LinkItem(
+                stringResource(R.string.settings_sponsor_claim),
+                stringResource(R.string.settings_sponsor_claim_summary),
+                claimUrl(vm.ownTwitchId, vm.ownLogin),
+            )
+        }
+    }
+    Text(
+        stringResource(R.string.settings_sponsor_note),
+        style = MaterialTheme.typography.bodySmall,
+        color = MaterialTheme.colorScheme.onSurfaceVariant,
+        modifier = Modifier.fillMaxWidth().padding(horizontal = 28.dp, vertical = 16.dp),
+    )
+}
+
+/**
+ * A new issue on the repository with the Twitch account already in it — the one field GitHub
+ * Sponsors cannot tell anybody. Whoever opens it is who GitHub says they are, which is what lets
+ * the badge be handed out without a person in the middle.
+ */
+private fun claimUrl(twitchId: String?, login: String): String =
+    Uri.parse("$REPO_URL/issues/new").buildUpon()
+        .appendQueryParameter("template", "supporter.yml")
+        .appendQueryParameter("title", "Supporter badge for $login")
+        .appendQueryParameter("twitch-id", twitchId.orEmpty())
+        .appendQueryParameter("twitch-name", login)
+        .build()
+        .toString()
 
 @Composable
 private fun AppearancePage(settings: Settings, vm: MainViewModel) {
@@ -929,10 +975,6 @@ private fun AboutPage(vm: MainViewModel, open: (SettingsSubPage) -> Unit) {
                 colors = transparentItem(),
                 modifier = Modifier.clickable { open(SettingsSubPage.Changelog) },
             )
-        }
-        // Only in the build people install themselves; see SPONSOR_LINK in build.gradle.kts.
-        if (BuildConfig.SPONSOR_LINK) {
-            item { LinkItem(R.string.settings_sponsor, R.string.settings_sponsor_summary, SPONSOR_URL) }
         }
         item { LinkItem(R.string.settings_source_code, R.string.settings_source_code_summary, REPO_URL) }
         item { LinkItem(R.string.settings_report_issue, R.string.settings_report_issue_summary, "$REPO_URL/issues/new") }

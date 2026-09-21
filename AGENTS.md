@@ -58,6 +58,13 @@ one-time sponsorship on top of an earlier one counts up, and somebody who stops 
 without the monthly mark. Those rules are the one thing here with tests of their own
 (`.github/scripts/test_sync_sponsors.py`), which CI runs as well.
 
+`.github/workflows/supporter-claim.yml` is how the one field the sync cannot fill gets filled.
+Chatter opens an issue from the supporter form with the Twitch id already in it; the workflow
+checks the **author** against the supporter list and writes the id into that account's own entry,
+then says so and closes the issue. Somebody who does not sponsor changes nothing. Nothing from the
+issue ever reaches a shell — the body goes to the script as an environment variable, because it is
+whatever somebody typed. Its rules are tested in `.github/scripts/test_claim_supporter.py`.
+
 `.github/workflows/release.yml` is the release itself, started by hand from the Actions tab. Nobody
 picks a version there either — it runs `releaseVersion`, so the pending entries decide it. It then
 builds and signs both the APK and the Play bundle, pushes the release commit and the `v<version>`
