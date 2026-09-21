@@ -4,6 +4,7 @@ import kotlinx.serialization.json.decodeFromJsonElement
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import java.io.File
+import java.time.LocalDate
 
 /**
  * The supporter list in this repository, read the way the app reads it.
@@ -14,6 +15,8 @@ import java.io.File
  */
 class SupportersFileTest {
     private val file = File("../docs/supporters.json")
+
+    private fun String.isDate() = runCatching { LocalDate.parse(this) }.isSuccess
 
     @Test
     fun theListIsOneTheAppCanRead() {
@@ -27,12 +30,12 @@ class SupportersFileTest {
                 "a Twitch user id is a number, this is not: ${supporter.twitch}",
                 supporter.twitch.all(Char::isDigit),
             )
-            // The app wears the plain badge for a kind it does not know, which is what makes a
-            // typo here invisible. Here is where it is not.
-            assertTrue(
-                "unknown kind: ${supporter.kind}",
-                supporter.kind in setOf(ChatterSupporter.KIND_ONCE, ChatterSupporter.KIND_MONTHLY),
-            )
+            assertTrue("an entry with nobody behind it: ${supporter.twitch}", supporter.github.isNotEmpty())
+            // The app shrugs off a date it cannot read and shows the plain badge, which is what
+            // would make a slip here invisible. Here is where it is not.
+            supporter.monthlySince?.let { assertTrue("not a date: $it", it.isDate()) }
+            assertTrue("not a date: ${supporter.since}", supporter.since.isDate())
+            assertTrue("a sponsorship cannot have happened less than never", supporter.oneTime >= 0)
         }
     }
 }

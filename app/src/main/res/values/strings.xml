@@ -319,6 +319,10 @@
     <string name="settings_provider_chatter">Chatter supporters</string>
     <string name="badge_supporter">Chatter supporter</string>
     <string name="badge_supporter_monthly">Chatter supporter, every month</string>
+    <plurals name="badge_supporter_months">
+        <item quantity="one">Chatter supporter, %1$d month</item>
+        <item quantity="other">Chatter supporter, %1$d months</item>
+    </plurals>
     <!-- Changelog -->
     <string name="settings_changelog">Changelog</string>
     <string name="settings_changelog_summary">What every version changed</string>

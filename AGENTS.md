@@ -55,6 +55,16 @@ address it knows nothing about fails rather than being skipped. Two of them had 
 before it existed. It is out of CI on purpose: a provider having a bad minute is not a reason to
 fail a branch. Run it yourself with `.github/scripts/check-endpoints.sh`.
 
+`.github/workflows/sponsors.yml` folds what GitHub Sponsors knows into `docs/supporters.json`
+every six hours — GitHub has no trigger for "somebody sponsored", so it asks. It writes every
+field but one: **the Twitch id is filled in by hand**, because GitHub does not know which Twitch
+account a sponsor has and a badge in front of the wrong name is worse than none. New entries
+arrive with an empty `twitch`, the app skips them, and the run's summary says whose is missing.
+Private sponsorships are left out of the public list on purpose. Nothing is ever removed: a
+one-time sponsorship on top of an earlier one counts up, and somebody who stops keeps their entry
+without the monthly mark. Those rules are the one thing here with tests of their own
+(`.github/scripts/test_sync_sponsors.py`), which CI runs as well.
+
 `.github/workflows/release.yml` is the release itself, started by hand from the Actions tab. Nobody
 picks a version there either — it runs `releaseVersion`, so the pending entries decide it. It then
 builds and signs both the APK and the Play bundle, pushes the release commit and the `v<version>`
@@ -80,6 +90,7 @@ What it reads from Settings → Secrets and variables → Actions:
 | `KEYSTORE_BASE64` | the upload keystore, as `base64 -w0 upload.jks` | the release stops; only a `dry_run` falls back to the debug key |
 | `KEYSTORE_PASSWORD`, `KEY_ALIAS`, `KEY_PASSWORD` | how to open that keystore | same |
 | `PLAY_SERVICE_ACCOUNT_JSON` | the service account allowed to release to Play | only needed for a `play_track` other than `none`, which stops without it |
+| `SPONSORS_TOKEN` | a classic token of the sponsored account with `read:user`, for the sponsor sync | only that workflow, which fails without it; nothing else is affected |
 
 ## Commands
 

@@ -108,20 +108,20 @@ data class ChatterSupporters(val supporters: List<ChatterSupporter> = emptyList(
 
 @Serializable
 data class ChatterSupporter(
-    /** The Twitch user id the badge goes in front of. */
-    val twitch: String = "",
     /**
-     * How they support: `once` for a one-time sponsorship, `monthly` for a running one. A kind an
-     * older version of the app does not know simply wears the plain badge, so another one can be
-     * added here without leaving anybody with a broken list.
+     * The Twitch user id the badge goes in front of. Empty until somebody says which Twitch
+     * account belongs to the sponsor — GitHub does not know, and nothing may be guessed here.
      */
-    val kind: String = KIND_ONCE,
-) {
-    companion object {
-        const val KIND_ONCE = "once"
-        const val KIND_MONTHLY = "monthly"
-    }
-}
+    val twitch: String = "",
+    /** Their GitHub account, which is what the sponsorship is under. */
+    val github: String = "",
+    /** The day they first supported Chatter, in any way (ISO, e.g. 2026-09-21). */
+    val since: String = "",
+    /** How many one-time sponsorships they have made. Never goes down. */
+    val oneTime: Int = 0,
+    /** The day their running monthly sponsorship started, or null while none is running. */
+    val monthlySince: String? = null,
+)
 
 // ---- Recent messages (history) -----------------------------------------------
 

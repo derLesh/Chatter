@@ -242,6 +242,9 @@ class AppContainer(private val context: Context) {
     private fun supporterTitles() = SupporterTitles(
         once = context.getString(R.string.badge_supporter),
         monthly = context.getString(R.string.badge_supporter_monthly),
+        monthlyFor = { months ->
+            context.resources.getQuantityString(R.plurals.badge_supporter_months, months, months)
+        },
     )
 
     /** Opens the chat connection if a user is logged in. Safe to call repeatedly. */

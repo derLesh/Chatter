@@ -1,0 +1,51 @@
+# Keeps docs/supporters.json in step with GitHub Sponsors.
+#
+# GitHub cannot start a workflow when somebody sponsors — there is no such trigger — so this asks
+# instead, often enough that a new supporter waits hours rather than for somebody to remember.
+#
+# It writes everything except the Twitch account: GitHub has no idea which Twitch name belongs to
+# a sponsor, and a badge in front of the wrong name is worse than no badge. New entries therefore
+# arrive with an empty "twitch", the app skips them, and the run says whose is still missing.
+name: Sponsors
+
+on:
+  schedule:
+    - cron: "23 */6 * * *"
+  workflow_dispatch:
+
+# Only the supporter list is written, and only by this job.
+permissions:
+  contents: write
+
+concurrency:
+  group: sponsors
+  cancel-in-progress: false
+
+jobs:
+  sync:
+    name: Bring the supporter list up to date
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Check the rules the list is folded together by
+        run: python3 -m unittest discover -s .github/scripts -p 'test_*.py'
+
+      - name: Ask GitHub Sponsors
+        env:
+          # A token of the sponsored account that may read its sponsorships (classic, read:user).
+          GITHUB_TOKEN: ${{ secrets.SPONSORS_TOKEN }}
+        run: python3 .github/scripts/sync-sponsors.py --write | tee -a "$GITHUB_STEP_SUMMARY"
+
+      - name: Push it, if it changed
+        run: |
+          if [ -z "$(git status --porcelain docs/supporters.json)" ]; then
+            echo "The list was already up to date."
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add docs/supporters.json
+          git commit -m "Bring the supporter list up to date"
+          git push

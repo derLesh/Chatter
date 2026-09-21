@@ -40,6 +40,11 @@ jobs:
       - name: Unit tests
         run: ./gradlew :app:testDebugUnitTest
 
+      # Not the app: the rules the supporter list is folded together by, which live in a script
+      # that a scheduled workflow runs where nobody is watching.
+      - name: Check the sponsor sync
+        run: python3 -m unittest discover -s .github/scripts -p 'test_*.py'
+
       # The release variant, because that is the one that ships: it lints the minified build's
       # configuration too, and catches a manifest or resource problem a debug build never sees.
       - name: Lint

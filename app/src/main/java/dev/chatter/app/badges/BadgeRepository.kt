@@ -6,10 +6,23 @@ import dev.chatter.app.net.ChatterSupporter
 import dev.chatter.app.net.HelixBadgeSet
 import dev.chatter.app.net.ThirdPartyBadgeApi
 import dev.chatter.app.net.TwitchBadgeApi
+import java.time.Instant
+import java.time.LocalDate
+import java.time.ZoneId
+import java.time.temporal.ChronoUnit
 import java.util.concurrent.ConcurrentHashMap
 
-/** What the supporter badge is called, which depends on how somebody supports. */
-data class SupporterTitles(val once: String, val monthly: String)
+/**
+ * What the supporter badge is called, which depends on how, and for how long, somebody supports.
+ */
+class SupporterTitles(
+    /** Somebody who has supported Chatter at some point. */
+    val once: String,
+    /** A monthly sponsorship that has not been running for a whole month yet. */
+    val monthly: String,
+    /** One that has: the months are worth saying, the way a subscription badge says them. */
+    val monthlyFor: (months: Int) -> String,
+)
 
 /** Where a badge comes from. Each one can be turned off on its own in the settings. */
 enum class BadgeProvider { Twitch, SevenTv, Chatterino, Chatter }
@@ -157,7 +170,7 @@ class BadgeRepository(
                 .onSuccess { list ->
                     supporterBadges = list.supporters
                         .filter { it.twitch.isNotEmpty() }
-                        .associate { it.twitch to listOf(supporterBadge(it.kind, supporterTitles)) }
+                        .associate { it.twitch to listOf(supporterBadge(it, supporterTitles)) }
                     changed = true
                 }
                 .onFailure { Log.w(TAG, "Supporter list failed: ${it.message}") }
@@ -166,12 +179,28 @@ class BadgeRepository(
         if (changed) thirdPartyBadges = mergeThirdParty()
     }
 
-    /** A kind this version does not know wears the plain badge rather than none at all. */
-    private fun supporterBadge(kind: String, titles: SupporterTitles) = Badge(
-        url = SUPPORTER_BADGE_URL,
-        title = if (kind == ChatterSupporter.KIND_MONTHLY) titles.monthly else titles.once,
-        provider = BadgeProvider.Chatter,
-    )
+    /**
+     * The badge, named after what the list says about this supporter. A monthly sponsorship that
+     * has been running says for how long; everything else — a one-time sponsorship, a date that
+     * cannot be read, a field a later version of the list brings — wears the plain badge rather
+     * than none at all.
+     */
+    private fun supporterBadge(supporter: ChatterSupporter, titles: SupporterTitles): Badge {
+        val since = supporter.monthlySince?.let { runCatching { LocalDate.parse(it) }.getOrNull() }
+        val months = since?.let { ChronoUnit.MONTHS.between(it, today()) }?.toInt() ?: -1
+        return Badge(
+            url = SUPPORTER_BADGE_URL,
+            title = when {
+                since == null -> titles.once
+                months < 1 -> titles.monthly
+                else -> titles.monthlyFor(months)
+            },
+            provider = BadgeProvider.Chatter,
+        )
+    }
+
+    private fun today(): LocalDate =
+        Instant.ofEpochMilli(now()).atZone(ZoneId.systemDefault()).toLocalDate()
 
     private fun mergeThirdParty(): Map<String, List<Badge>> {
         val merged = HashMap<String, MutableList<Badge>>()

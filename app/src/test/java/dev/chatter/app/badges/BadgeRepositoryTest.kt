@@ -21,10 +21,16 @@ import java.io.IOException
 class BadgeRepositoryTest {
     private val twitch = FakeTwitchBadges()
     private val others = FakeOtherClients()
-    private var clock = 1_000_000_000L
+    /** Midday on 2026-09-21, so that the months a badge counts are not a matter of the hour. */
+    private var clock = 1_789_992_000_000L
     private val badges = BadgeRepository(twitch, others) { clock }
 
-    private val titles = SupporterTitles(once = "Supporter", monthly = "Supporter, every month")
+    private val titles = SupporterTitles(
+        once = "Supporter",
+        monthly = "Supporter, every month",
+        monthlyFor = { months -> "Supporter, $months months" },
+    )
+
 
     // ---- the fakes --------------------------------------------------------------------------
 
@@ -173,28 +179,40 @@ class BadgeRepositoryTest {
     // ---- who supports Chatter, and how ------------------------------------------------------------
 
     @Test
-    fun theBadgeSaysWhetherSomebodySupportsOnceOrEveryMonth() = runTest {
-        others.supporters = listOf(
-            ChatterSupporter(twitch = "7", kind = ChatterSupporter.KIND_ONCE),
-            ChatterSupporter(twitch = "8", kind = ChatterSupporter.KIND_MONTHLY),
-        )
+    fun aOneTimeSupporterWearsThePlainBadge() = runTest {
+        others.supporters = listOf(ChatterSupporter(twitch = "7", since = "2026-01-01", oneTime = 3))
         badges.loadThirdParty(titles)
-
         assertEquals(listOf("Supporter"), badges.resolve(null, null, userId = "7").map { it.title })
-        assertEquals(listOf("Supporter, every month"), badges.resolve(null, null, userId = "8").map { it.title })
     }
 
     @Test
-    fun aKindThisVersionDoesNotKnowStillWearsTheBadge() = runTest {
-        // Whatever GitHub Sponsors grows into later must not leave an older app with nothing.
-        others.supporters = listOf(ChatterSupporter(twitch = "7", kind = "yearly-gold-whatever"))
+    fun aMonthlySupporterCarriesHowLongItHasBeenRunning() = runTest {
+        others.supporters = listOf(
+            ChatterSupporter(twitch = "7", monthlySince = "2026-09-10"),
+            ChatterSupporter(twitch = "8", monthlySince = "2026-01-10"),
+        )
+        badges.loadThirdParty(titles)
+
+        assertEquals("not a whole month yet", listOf("Supporter, every month"), badges.resolve(null, null, userId = "7").map { it.title })
+        assertEquals(listOf("Supporter, 8 months"), badges.resolve(null, null, userId = "8").map { it.title })
+    }
+
+    @Test
+    fun aDateThatCannotBeReadStillWearsTheBadge() = runTest {
+        // A later version of the list, or a slip of the hand, must not cost somebody their badge.
+        others.supporters = listOf(ChatterSupporter(twitch = "7", monthlySince = "last winter"))
         badges.loadThirdParty(titles)
         assertEquals(listOf("Supporter"), badges.resolve(null, null, userId = "7").map { it.title })
     }
 
     @Test
     fun anEntryWithoutATwitchAccountIsLeftOut() = runTest {
-        others.supporters = listOf(ChatterSupporter(twitch = "", kind = "once"), ChatterSupporter(twitch = "7"))
+        // GitHub does not know which Twitch account a sponsor has; until somebody says, there is
+        // nobody to put the badge in front of.
+        others.supporters = listOf(
+            ChatterSupporter(twitch = "", github = "someone"),
+            ChatterSupporter(twitch = "7"),
+        )
         badges.loadThirdParty(titles)
         assertEquals(1, badges.resolve(null, null, userId = "7").size)
         assertTrue(badges.resolve(null, null, userId = "").isEmpty())

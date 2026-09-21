@@ -1,1 +1,1 @@
-patch: Show on a supporter badge whether somebody supports Chatter once or every month
+patch: Show on a supporter badge whether somebody supports Chatter once or monthly, and for how long
