@@ -1,0 +1,1 @@
+patch: Pick the same emote as Chatterino and DankChat when BTTV and 7TV share a name

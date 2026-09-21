@@ -24,9 +24,9 @@ class EmoteRepository(
     private val helix: HelixApi,
     private val thirdParty: ThirdPartyApi,
 ) : EmoteSource {
-    @Volatile private var global: Map<String, Emote> = emptyMap()
+    @Volatile private var global: ProviderEmotes = ProviderEmotes()
     @Volatile private var twitchUser: Map<String, Emote> = emptyMap()
-    private val channels = ConcurrentHashMap<String, Map<String, Emote>>()
+    private val channels = ConcurrentHashMap<String, ProviderEmotes>()
     /** Twitch follower emotes the user may use in a channel (keyed by channel id). */
     private val channelTwitch = ConcurrentHashMap<String, Map<String, Emote>>()
 
@@ -42,7 +42,7 @@ class EmoteRepository(
 
     /** Third-party emote (channel first, then global) for a word in someone's message. */
     override fun lookup(channelId: String?, word: String): Emote? =
-        channelId?.let { channels[it]?.get(word) } ?: global[word]
+        channelId?.let { channels[it]?.byName?.get(word) } ?: global.byName[word]
 
     /** Twitch emote the logged-in user owns; used to render our own (locally echoed) messages. */
     override fun lookupOwnTwitch(channelId: String?, word: String): Emote? =
@@ -51,10 +51,10 @@ class EmoteRepository(
     /** Everything the user can type in the given channel, for autocomplete and the picker. */
     fun available(channelId: String?): List<Emote> {
         val result = LinkedHashMap<String, Emote>()
-        global.values.forEach { result[it.name] = it }
+        global.byName.values.forEach { result[it.name] = it }
         twitchUser.values.forEach { result[it.name] = it }
         channelId?.let { channelTwitch[it] }?.values?.forEach { result[it.name] = it }
-        channelId?.let { channels[it] }?.values?.forEach { result[it.name] = it }
+        channelId?.let { channels[it] }?.byName?.values?.forEach { result[it.name] = it }
         return result.values.toList()
     }
 
@@ -64,10 +64,7 @@ class EmoteRepository(
             val ffz = async { safe("FFZ global") { thirdParty.ffzGlobal().let { g -> g.defaultSets.flatMap { g.sets[it.toString()]?.emoticons.orEmpty() } }.map { it.toEmote(false) } } }
             val bttv = async { safe("BTTV global") { thirdParty.bttvGlobal().map { it.toEmote(false) } } }
             val stv = async { safe("7TV global") { thirdParty.sevenTvGlobal().emotes.orEmpty().mapNotNull { it.toEmote(false) } } }
-            // Later providers win on name clashes: FFZ < BTTV < 7TV.
-            val merged = HashMap<String, Emote>()
-            listOf(ffz.await(), bttv.await(), stv.await()).forEach { list -> list?.forEach { merged[it.name] = it } }
-            global = merged
+            global = ProviderEmotes(ffz.await().byName(), bttv.await().byName(), stv.await().byName())
             globalLoaded = ffz.await() != null && bttv.await() != null && stv.await() != null
         }
         _version.update { it + 1 }
@@ -92,9 +89,7 @@ class EmoteRepository(
                 user?.emoteSet?.emotes.orEmpty().mapNotNull { it.toEmote(true) }
             }
         }
-        val merged = HashMap<String, Emote>()
-        listOf(ffz.await(), bttv.await(), stv.await()).forEach { list -> list?.forEach { merged[it.name] = it } }
-        channels[channelId] = merged
+        channels[channelId] = ProviderEmotes(ffz.await().byName(), bttv.await().byName(), stv.await().byName())
         follower.await()
         _version.update { it + 1 }
     }
@@ -119,15 +114,18 @@ class EmoteRepository(
 
     /** Applies a pushed 7TV set change to the channel's emotes. Returns the added emotes (converted). */
     fun applySevenTvUpdate(channelId: String, event: SevenTvEvent.EmoteSetUpdate): List<Emote> {
-        val map = HashMap(channels[channelId].orEmpty())
-        event.removed.forEach { e -> if (map[e.name]?.provider == EmoteProvider.SevenTv) map.remove(e.name) }
+        val current = channels[channelId] ?: ProviderEmotes()
+        // Only the channel's 7TV emotes change; a name another provider also has keeps resolving
+        // to that provider, exactly as it would after a fresh load.
+        val stv = HashMap(current.sevenTv)
+        event.removed.forEach { stv.remove(it.name) }
         event.renamed.forEach { (old, new) ->
-            val existing = map.remove(old.name)
-            (new.toEmote(true) ?: existing?.copy(name = new.name))?.let { map[new.name] = it }
+            val existing = stv.remove(old.name)
+            (new.toEmote(true) ?: existing?.copy(name = new.name))?.let { stv[new.name] = it }
         }
         val added = event.added.mapNotNull { it.toEmote(true) }
-        added.forEach { map[it.name] = it }
-        channels[channelId] = map
+        added.forEach { stv[it.name] = it }
+        channels[channelId] = current.withSevenTv(stv)
         _version.update { it + 1 }
         return added
     }
@@ -139,6 +137,8 @@ class EmoteRepository(
         channelTwitch.clear()
         twitchUser = emptyMap()
     }
+
+    private fun List<Emote>?.byName(): Map<String, Emote> = orEmpty().associateBy { it.name }
 
     private suspend fun <T> safe(what: String, block: suspend () -> T): T? = try {
         block()
@@ -193,4 +193,30 @@ class EmoteRepository(
             "SoSnowy", "IceCold", "SantaHat", "TopHat", "ReinDeer", "CandyCane", "cvMask", "cvHazmat",
         )
     }
+}
+
+/**
+ * The emotes of one scope — global, or one channel — kept one map per provider.
+ *
+ * Providers hand out the same name for different pictures: a channel can have `susge` on BTTV and
+ * a Christmas `susge` on 7TV, and only one of them can be what the word means. Chatterino and
+ * DankChat both settle that the same way, FFZ before BTTV before 7TV, and Chatter follows them so
+ * a message reads the same whichever client it is read in.
+ *
+ * Holding the three apart instead of merging them once is what lets a pushed 7TV change be applied
+ * without it taking over a name another provider owns.
+ */
+internal class ProviderEmotes(
+    val ffz: Map<String, Emote> = emptyMap(),
+    val bttv: Map<String, Emote> = emptyMap(),
+    val sevenTv: Map<String, Emote> = emptyMap(),
+) {
+    /** What each name resolves to: the weaker providers laid down first and overwritten. */
+    val byName: Map<String, Emote> = HashMap<String, Emote>(sevenTv.size + bttv.size + ffz.size).apply {
+        putAll(sevenTv)
+        putAll(bttv)
+        putAll(ffz)
+    }
+
+    fun withSevenTv(emotes: Map<String, Emote>) = ProviderEmotes(ffz, bttv, emotes)
 }
