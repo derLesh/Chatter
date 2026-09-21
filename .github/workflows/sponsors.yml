@@ -1,16 +1,19 @@
 # Keeps docs/supporters.json in step with GitHub Sponsors.
 #
 # GitHub cannot start a workflow when somebody sponsors — there is no such trigger — so this asks
-# instead, often enough that a new supporter waits hours rather than for somebody to remember.
+# instead. It is meant to run every few hours; see the schedule below, which is off until the
+# token it needs exists.
 #
 # It writes everything except the Twitch account: GitHub has no idea which Twitch name belongs to
 # a sponsor, and a badge in front of the wrong name is worse than no badge. New entries therefore
 # arrive with an empty "twitch", the app skips them, and the run says whose is still missing.
 name: Sponsors
 
+# Off for now: it needs SPONSORS_TOKEN, and until somebody starts it by hand from the Actions tab
+# nothing here runs. Put the schedule back once the token is in place.
 on:
-  schedule:
-    - cron: "23 */6 * * *"
+  # schedule:
+  #   - cron: "23 */6 * * *"
   workflow_dispatch:
 
 # Only the supporter list is written, and only by this job.

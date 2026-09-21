@@ -47,8 +47,9 @@ throws away. Lint is part of the gate, so a new lint error fails the branch — 
 bundle, because R8, the resource shrinker and resource linking only ever run there, and a release
 is a bad time to find out one of them is unhappy.
 
-`.github/workflows/sponsors.yml` folds what GitHub Sponsors knows into `docs/supporters.json`
-every six hours — GitHub has no trigger for "somebody sponsored", so it asks. It writes every
+`.github/workflows/sponsors.yml` folds what GitHub Sponsors knows into `docs/supporters.json`.
+Its schedule is commented out for now, so it only runs when started by hand; put it back once
+`SPONSORS_TOKEN` exists. It is meant to run every few hours — GitHub has no trigger for "somebody sponsored", so it asks. It writes every
 field but one: **the Twitch id is filled in by hand**, because GitHub does not know which Twitch
 account a sponsor has and a badge in front of the wrong name is worse than none. New entries
 arrive with an empty `twitch`, the app skips them, and the run's summary says whose is missing.
