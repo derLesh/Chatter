@@ -164,18 +164,25 @@ class IrcConnection(
         }
     }
 
+    /**
+     * Twitch sends a PING roughly every 5 minutes. If nothing arrives for longer, the connection
+     * is dead without us noticing (e.g. after a silent network switch).
+     *
+     * This sleeps exactly until the silence could have become long enough, rather than looking
+     * every minute: a night connected is then a handful of wakeups instead of several hundred,
+     * and a dead socket is noticed sooner, because the check falls on the moment it is due.
+     */
     private fun startWatchdog() {
         watchdogJob?.cancel()
         watchdogJob = scope.launch {
-            // Twitch sends a PING roughly every 5 minutes. If nothing arrives for longer, the
-            // connection is dead without us noticing (e.g. after a silent network switch).
             while (isActive) {
-                delay(60_000)
-                if (System.currentTimeMillis() - lastActivity > 6 * 60_000) {
-                    Log.i(TAG, "No traffic for 6 minutes, reconnecting")
+                val silence = System.currentTimeMillis() - lastActivity
+                if (silence >= SILENCE_LIMIT_MS) {
+                    Log.i(TAG, "No traffic for ${SILENCE_LIMIT_MS / 60_000} minutes, reconnecting")
                     scheduleReconnect(immediate = true)
                     break
                 }
+                delay(SILENCE_LIMIT_MS - silence)
             }
         }
     }
@@ -248,6 +255,9 @@ class IrcConnection(
 
         /** How long Twitch has to answer the login before the socket counts as dead. */
         const val HANDSHAKE_TIMEOUT_MS = 20_000L
+
+        /** How long a connected socket may say nothing at all before it counts as dead. */
+        const val SILENCE_LIMIT_MS = 6 * 60_000L
 
         fun isAuthFailure(text: String?) = text != null &&
             (text.contains("authentication failed", ignoreCase = true) ||
