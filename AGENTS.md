@@ -47,14 +47,6 @@ throws away. Lint is part of the gate, so a new lint error fails the branch — 
 bundle, because R8, the resource shrinker and resource linking only ever run there, and a release
 is a bad time to find out one of them is unhappy.
 
-`.github/workflows/endpoints.yml` runs once a day and asks every service outside Twitch that the
-app reads from — the three emote providers, the badge lists, the supporter list, the history and
-the 7TV event stream — whether it is still there and still answering in the shape the app reads.
-It takes the addresses out of `ThirdPartyApis.kt` rather than keeping a list of its own, and an
-address it knows nothing about fails rather than being skipped. Two of them had died unnoticed
-before it existed. It is out of CI on purpose: a provider having a bad minute is not a reason to
-fail a branch. Run it yourself with `.github/scripts/check-endpoints.sh`.
-
 `.github/workflows/sponsors.yml` folds what GitHub Sponsors knows into `docs/supporters.json`
 every six hours — GitHub has no trigger for "somebody sponsored", so it asks. It writes every
 field but one: **the Twitch id is filled in by hand**, because GitHub does not know which Twitch
