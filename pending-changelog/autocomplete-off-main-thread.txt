@@ -1,0 +1,1 @@
+patch: Keep typing smooth in channels with thousands of emotes

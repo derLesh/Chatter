@@ -29,6 +29,7 @@ import dev.chatter.app.stats.Stats
 import dev.chatter.app.ui.theme.NameColorPalette
 import dev.chatter.app.settings.TimestampFormat
 import dev.chatter.app.util.Autocomplete
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.delay
@@ -39,6 +40,7 @@ import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 data class UserCardData(val user: HelixUser?, val recentMessages: List<ChatItem>)
 
@@ -193,8 +195,15 @@ class MainViewModel(private val c: AppContainer) : ViewModel() {
             suggestions = emptyList()
             return
         }
+        // Off the main thread: ranking runs on every keystroke and reads through every emote the
+        // user has, which with a well subscribed account is a few thousand of them.
         suggestionJob = viewModelScope.launch {
-            suggestions = if (word.start == 0 && word.text.startsWith("/")) {
+            suggestions = withContext(Dispatchers.Default) { rank(channel, word) }
+        }
+    }
+
+    private suspend fun rank(channel: String, word: Autocomplete.Word): List<Suggestion> =
+            if (word.start == 0 && word.text.startsWith("/")) {
                 val typed = word.text.substring(1).lowercase()
                 CommandParser.COMMANDS.filterKeys { it.startsWith(typed) }
                     .map { (name, usage) -> Suggestion.CommandSuggestion(name, usage) }
@@ -214,8 +223,6 @@ class MainViewModel(private val c: AppContainer) : ViewModel() {
                 }
                 emotes + users
             } else emptyList()
-        }
-    }
 
     fun applySuggestion(s: Suggestion) {
         val word = Autocomplete.currentWord(input.text, input.selection.start) ?: return
@@ -247,12 +254,36 @@ class MainViewModel(private val c: AppContainer) : ViewModel() {
         viewModelScope.launch { c.settings.addRecentEmote(name) }
     }
 
-    /** Emotes the user can type in [channel]; unlisted 7TV emotes only if enabled in settings. */
+    /** What [emotesFor] last worked out, and what it was worked out from. */
+    private class EmoteList(
+        val channel: String?,
+        val version: Int,
+        val providers: Set<EmoteProvider>,
+        val unlisted: Boolean,
+        val emotes: List<Emote>,
+    )
+
+    @Volatile private var lastEmoteList: EmoteList? = null
+
+    /**
+     * Emotes the user can type in [channel]; unlisted 7TV emotes only if enabled in settings.
+     *
+     * Kept until something about it changes. Building it walks every global, channel and Twitch
+     * emote the account has, and the autocomplete asks for it on every keystroke.
+     */
     fun emotesFor(channel: String?): List<Emote> {
         val s = settings.value
-        return c.emotes.available(channel?.let { c.chat.roomId(it) })
+        val version = emoteVersion.value
+        lastEmoteList?.let {
+            if (it.channel == channel && it.version == version &&
+                it.providers == s.emoteProviders && it.unlisted == s.showUnlisted7tv
+            ) return it.emotes
+        }
+        val emotes = c.emotes.available(channel?.let { c.chat.roomId(it) })
             .filter { it.provider in s.emoteProviders }
             .filterNot { !s.showUnlisted7tv && it.unlisted }
+        lastEmoteList = EmoteList(channel, version, s.emoteProviders, s.showUnlisted7tv, emotes)
+        return emotes
     }
 
     /** Profile (may be null if Twitch is unreachable) plus the user's recent messages here. */
