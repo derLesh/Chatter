@@ -39,6 +39,8 @@ class BadgeRepository(
     /** Channels whose badges did not load, to be tried again when the app comes back. */
     private val failedChannels = ConcurrentHashMap.newKeySet<String>()
 
+    @Volatile private var lastRetry = 0L
+
     /** Which providers' badges are shown. Set from the settings, read on every message. */
     @Volatile var enabled: Set<BadgeProvider> = BadgeProvider.entries.toSet()
 
@@ -77,6 +79,11 @@ class BadgeRepository(
      * costs nothing on the usual return to the app.
      */
     suspend fun retryMissing(supporterTitle: String) {
+        // A provider that is down stays down for a while, and the app is opened often; asking on
+        // every single return would be the kind of traffic a phone in a pocket should not make.
+        val now = System.currentTimeMillis()
+        if (now - lastRetry < RETRY_AFTER_MS) return
+        lastRetry = now
         loadGlobal()
         loadThirdParty(supporterTitle)
         failedChannels.toList().forEach { loadChannel(it) }
@@ -153,6 +160,9 @@ class BadgeRepository(
 
     private companion object {
         const val TAG = "BadgeRepository"
+
+        /** How long after a failed fetch it is worth asking again. */
+        const val RETRY_AFTER_MS = 5 * 60_000L
 
         /** The supporter badge ships with the app, so Coil loads it from the resources. */
         const val SUPPORTER_BADGE_URL = "android.resource://dev.chatter.app/drawable/ic_badge_supporter"

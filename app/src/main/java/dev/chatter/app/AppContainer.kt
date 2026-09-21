@@ -179,8 +179,7 @@ class AppContainer(private val context: Context) {
                             userId = state.account.userId
                             chat.resync()
                             launch { emotes.loadGlobal() }
-                            launch { badges.loadGlobal() }
-                            launch { badges.loadThirdParty(context.getString(R.string.badge_supporter)) }
+                            launch { badges.retryMissing(context.getString(R.string.badge_supporter)) }
                             launch { emotes.loadTwitchUserEmotes(state.account.userId) }
                             launch { channels.refreshUsers(channels.currentChannels()) }
                             launch { blocked.load(state.account.userId) }
@@ -225,7 +224,8 @@ class AppContainer(private val context: Context) {
         // when to try again; whatever is already there is left alone.
         scope.launch {
             chat.uiVisible.collect { visible ->
-                if (visible) badges.retryMissing(context.getString(R.string.badge_supporter))
+                // The global set comes from Helix, so there is no point before a login is there.
+                if (visible && auth.account != null) badges.retryMissing(context.getString(R.string.badge_supporter))
             }
         }
         registerNetworkCallback()
