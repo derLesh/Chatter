@@ -276,8 +276,12 @@ class AppContainer(private val context: Context) {
 
     private fun registerNetworkCallback() {
         val cm = context.getSystemService(ConnectivityManager::class.java)
+        irc.setNetworkAvailable(cm.activeNetwork != null)
         cm.registerDefaultNetworkCallback(object : ConnectivityManager.NetworkCallback() {
-            override fun onAvailable(network: Network) = irc.onNetworkAvailable()
+            override fun onAvailable(network: Network) = irc.setNetworkAvailable(true)
+            // A switch from Wi-Fi to mobile can report the loss after the arrival, so this asks
+            // what is there now rather than trusting the order the two callbacks come in.
+            override fun onLost(network: Network) = irc.setNetworkAvailable(cm.activeNetwork != null)
         })
     }
 

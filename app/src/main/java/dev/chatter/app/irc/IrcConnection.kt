@@ -47,6 +47,12 @@ class IrcConnection(
     private var reconnectJob: Job? = null
     private var watchdogJob: Job? = null
     @Volatile private var lastActivity = 0L
+    /**
+     * Whether the phone has a network at all. Retrying without one is a DNS lookup that cannot
+     * succeed, and the backoff tops out at half a minute, so a night in flight mode would be a
+     * couple of thousand of them. [setNetworkAvailable] brings the connection back instead.
+     */
+    private var networkUp = true
 
     /**
      * Connects (or keeps the existing connection). A new token for the same user is only stored
@@ -68,9 +74,17 @@ class IrcConnection(
         _state.value = ConnectionState.Disconnected
     }
 
-    /** Called when the network came back: skip the backoff and reconnect right away. */
-    fun onNetworkAvailable(): Unit = synchronized(lock) {
+    /**
+     * What the phone's network is doing. Coming back skips the backoff and reconnects right away;
+     * going away stops the retries until it does, because there is nothing to connect to.
+     */
+    fun setNetworkAvailable(up: Boolean): Unit = synchronized(lock) {
+        networkUp = up
         if (!wanted) return
+        if (!up) {
+            reconnectJob?.cancel()
+            return
+        }
         if (_state.value != ConnectionState.Connected) {
             attempt = 0
             reconnectJob?.cancel()
@@ -113,6 +127,8 @@ class IrcConnection(
         if (!wanted || reconnectJob?.isActive == true) return
         closeSocket()
         _state.value = ConnectionState.Connecting
+        // Without a network there is nothing to retry against; setNetworkAvailable brings us back.
+        if (!networkUp) return
         val delayMs = if (immediate) 0L else {
             val base = (1000L shl attempt.coerceAtMost(5)).coerceAtMost(30_000L)
             base + Random.nextLong(0, 1000)
