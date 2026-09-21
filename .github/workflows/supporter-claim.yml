@@ -9,9 +9,12 @@
 # because a body is whatever somebody typed.
 name: Supporter badge
 
+# Off for now: GitHub Sponsors is not set up, so nobody can be a sponsor and nothing here has
+# anything to check against. Put the two lines back when it is.
 on:
-  issues:
-    types: [opened, edited]
+  # issues:
+  #   types: [opened, edited]
+  workflow_dispatch:
 
 permissions:
   contents: write

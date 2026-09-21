@@ -1,1 +1,0 @@
-minor: Support Chatter from its own settings category, and claim the badge for your Twitch account

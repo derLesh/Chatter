@@ -243,7 +243,8 @@ class AppContainer(private val context: Context) {
         watchPowerSaveMode()
     }
 
-    private fun supporterTitles() = SupporterTitles(
+    /** Null while supporting Chatter is not a thing yet; see `sponsoring` in build.gradle.kts. */
+    private fun supporterTitles() = if (!BuildConfig.SPONSORING) null else SupporterTitles(
         once = context.getString(R.string.badge_supporter),
         monthly = context.getString(R.string.badge_supporter_monthly),
         monthlyFor = { months ->

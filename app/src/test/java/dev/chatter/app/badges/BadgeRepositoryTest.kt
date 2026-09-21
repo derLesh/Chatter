@@ -179,6 +179,16 @@ class BadgeRepositoryTest {
     // ---- who supports Chatter, and how ------------------------------------------------------------
 
     @Test
+    fun withoutSupportTheListIsNotEvenAskedFor() = runTest {
+        // Nothing to support Chatter with yet: asking would be a message on the screen about a
+        // service that is not meant to answer.
+        badges.loadThirdParty(null)
+        assertEquals(0, others.supporterCalls)
+        assertEquals("the other lists are still fetched", 1, others.chatterinoCalls)
+        assertTrue(badges.resolve(null, null, userId = "7").isEmpty())
+    }
+
+    @Test
     fun aOneTimeSupporterWearsThePlainBadge() = runTest {
         others.supporters = listOf(ChatterSupporter(twitch = "7", since = "2026-01-01", oneTime = 3))
         badges.loadThirdParty(titles)

@@ -47,6 +47,12 @@ throws away. Lint is part of the gate, so a new lint error fails the branch — 
 bundle, because R8, the resource shrinker and resource linking only ever run there, and a release
 is a bad time to find out one of them is unhappy.
 
+Supporting Chatter is **switched off** everywhere until GitHub Sponsors is set up: `sponsoring`
+in `app/build.gradle.kts` takes the settings category out of every build and keeps the app from
+asking for a supporter list nobody serves, and the two workflows below have their triggers
+commented out. Everything is built and tested and waiting; turning it on is that one line and
+those two triggers.
+
 `.github/workflows/sponsors.yml` folds what GitHub Sponsors knows into `docs/supporters.json`.
 Its schedule is commented out for now, so it only runs when started by hand; put it back once
 `SPONSORS_TOKEN` exists. It is meant to run every few hours — GitHub has no trigger for "somebody sponsored", so it asks. It writes every

@@ -139,7 +139,7 @@ class BadgeRepository(
      * channels that were unreachable. Everything that is already there is left alone, so this
      * costs nothing on the usual return to the app.
      */
-    suspend fun retryMissing(supporterTitles: SupporterTitles) {
+    suspend fun retryMissing(supporterTitles: SupporterTitles?) {
         // A provider that is down stays down for a while, and the app is opened often; asking on
         // every single return would be the kind of traffic a phone in a pocket should not make.
         val at = now()
@@ -156,7 +156,7 @@ class BadgeRepository(
      * are asked for, so a list that was unreachable at start is picked up later instead of being
      * gone for good. 7TV is not among them; its badges arrive over the EventAPI.
      */
-    suspend fun loadThirdParty(supporterTitles: SupporterTitles) {
+    suspend fun loadThirdParty(supporterTitles: SupporterTitles?) {
         var changed = false
 
         if (chatterinoBadges == null) {
@@ -178,7 +178,9 @@ class BadgeRepository(
                 }
         }
 
-        if (supporterBadges == null) {
+        // Null while there is nothing to support Chatter with: then there is no list to ask for,
+        // and asking would be a message on the screen about a service that is not meant to answer.
+        if (supporterTitles != null && supporterBadges == null) {
             runCatching { thirdParty.chatterSupporters() }
                 .onSuccess { list ->
                     supporterBadges = list.supporters

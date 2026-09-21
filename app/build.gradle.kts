@@ -37,6 +37,15 @@ val versionProps = Properties().apply {
 }
 
 /**
+ * Whether supporting Chatter is a thing yet.
+ *
+ * GitHub Sponsors is not set up, so there is nothing to link to, nothing to claim and no list to
+ * fetch — and an app that asks for a list nobody serves says so on the screen. It is all built and
+ * tested and waiting: turning it on is this one line.
+ */
+val sponsoring = false
+
+/**
  * Whether this build may show the way to GitHub Sponsors.
  *
  * Google Play wants payments that happen in an app to go through its own billing, and a link
@@ -45,7 +54,7 @@ val versionProps = Properties().apply {
  * `-Pdistribution=github` for the sideload APK, and forgetting it can only ever leave the link
  * out, never put it where it must not be.
  */
-val sponsorLink = (project.findProperty("distribution") as String?) == "github"
+val sponsorLink = sponsoring && (project.findProperty("distribution") as String?) == "github"
 
 android {
     namespace = "dev.chatter.app"
@@ -58,6 +67,7 @@ android {
         versionCode = versionProps.getProperty("versionCode").toInt()
         versionName = versionProps.getProperty("version")
         buildConfigField("String", "TWITCH_CLIENT_ID", "\"$twitchClientId\"")
+        buildConfigField("boolean", "SPONSORING", "$sponsoring")
     }
 
     signingConfigs {
@@ -93,7 +103,7 @@ android {
     buildTypes {
         debug {
             // Whoever is building the app themselves is the one who wants to see it.
-            buildConfigField("boolean", "SPONSOR_LINK", "true")
+            buildConfigField("boolean", "SPONSOR_LINK", "$sponsoring")
         }
         release {
             buildConfigField("boolean", "SPONSOR_LINK", "$sponsorLink")
