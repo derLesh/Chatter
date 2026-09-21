@@ -49,7 +49,7 @@ enum class SendResult {
  * Owns the message buffers of all channels.
  *
  * Every mutation runs on one single-threaded dispatcher ([worker]), so no locks are needed.
- * The UI observes one [StateFlow] per channel; updates are coalesced (at most every ~32 ms)
+ * The UI observes one [StateFlow] per channel; updates are coalesced (see [PUBLISH_INTERVAL_MS])
  * and skipped entirely while nobody is watching (app in background).
  */
 @OptIn(ExperimentalCoroutinesApi::class)
@@ -609,7 +609,15 @@ class ChatRepository(
 
     private companion object {
         const val TAG = "ChatRepository"
-        const val PUBLISH_INTERVAL_MS = 32L
+        /**
+         * How often the message list a channel shows is replaced.
+         *
+         * Every publish copies the whole buffer and hands Compose a new list to tell apart, so a
+         * busy channel pays for this a lot. At a frame a go it was thirty times a second, which
+         * is thirty lists of up to five hundred messages — and a chat that moves faster than it
+         * can be read gains nothing from it. Ten times a second still looks continuous.
+         */
+        const val PUBLISH_INTERVAL_MS = 100L
         const val DUPLICATE_BYPASS = " \uDB40\uDC00"
         const val CTCP_ACTION = "\u0001ACTION "
         const val CTCP_END = "\u0001"

@@ -1,0 +1,1 @@
+patch: Spend a third of the work on drawing a fast-moving chat
