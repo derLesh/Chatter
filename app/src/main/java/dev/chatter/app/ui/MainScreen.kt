@@ -274,6 +274,7 @@ fun MainScreen(vm: MainViewModel, onInbox: () -> Unit, onSettings: () -> Unit) {
             load = { vm.loadUserCard(item) },
             blocked = item.login?.lowercase() in blockedLogins,
             onBlock = vm::setBlocked,
+            onBlockLogin = vm::blockByLogin,
             onNickname = { nicknameTarget = item },
             onReply = { vm.startReply(item) },
             onMention = { vm.mention(item) },

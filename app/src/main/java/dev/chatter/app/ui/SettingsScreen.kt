@@ -606,6 +606,14 @@ private fun BlockedUsersPage(vm: MainViewModel) {
                 )
             }
         }
+        item {
+            ListItem(
+                headlineContent = { Text(stringResource(R.string.settings_report_user)) },
+                supportingContent = { Text(stringResource(R.string.settings_report_user_summary)) },
+                leadingContent = { Icon(painterResource(R.drawable.ic_report_flag), contentDescription = null) },
+                colors = transparentItem(),
+            )
+        }
         blocked.forEach { user ->
             item {
                 ListItem(

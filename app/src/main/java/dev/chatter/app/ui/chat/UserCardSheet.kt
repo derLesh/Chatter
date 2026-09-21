@@ -52,6 +52,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.res.vectorResource
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -82,6 +83,7 @@ fun UserCardSheet(
     load: suspend () -> UserCardData,
     blocked: Boolean,
     onBlock: (HelixUser, Boolean) -> Unit,
+    onBlockLogin: (String) -> Unit,
     onNickname: () -> Unit,
     onReply: () -> Unit,
     onMention: () -> Unit,
@@ -91,6 +93,7 @@ fun UserCardSheet(
     onDismiss: () -> Unit,
 ) {
     var data by remember(item.id) { mutableStateOf<UserCardData?>(null) }
+    var reporting by remember(item.id) { mutableStateOf(false) }
     LaunchedEffect(item.id) { data = load() }
 
     @Suppress("DEPRECATION")
@@ -143,18 +146,27 @@ fun UserCardSheet(
                 }
             }
 
-            // Blocking needs the profile (for the Twitch id), so it waits for the card to load.
-            data?.user?.takeIf { isUserMessage && !item.isOwn }?.let { user ->
+            // Doing something about the person rather than with the message. Blocking needs the
+            // profile (for the Twitch id), so it waits for the card to load; reporting does not,
+            // and a card that fails to load is no reason to be unable to report.
+            if (isUserMessage && !item.isOwn) {
                 item {
                     Row(
                         horizontalArrangement = Arrangement.spacedBy(8.dp),
                         modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
                     ) {
+                        data?.user?.let { user ->
+                            ModButton(
+                                icon = if (blocked) Icons.Default.Check else Icons.Default.Clear,
+                                label = if (blocked) R.string.action_unblock else R.string.action_block,
+                                danger = !blocked,
+                            ) { onBlock(user, !blocked); onDismiss() }
+                        }
                         ModButton(
-                            icon = if (blocked) Icons.Default.Check else Icons.Default.Clear,
-                            label = if (blocked) R.string.action_unblock else R.string.action_block,
-                            danger = !blocked,
-                        ) { onBlock(user, !blocked); onDismiss() }
+                            icon = ImageVector.vectorResource(R.drawable.ic_report_flag),
+                            label = R.string.action_report,
+                            danger = false,
+                        ) { reporting = true }
                     }
                 }
             }
@@ -203,6 +215,18 @@ fun UserCardSheet(
             }
             item { Spacer(Modifier.height(24.dp)) }
         }
+    }
+
+    if (reporting) {
+        val login = item.login.orEmpty()
+        ReportDialog(
+            displayName = item.displayName ?: login,
+            login = login,
+            message = item.text.ifEmpty { item.systemText.orEmpty() },
+            alreadyBlocked = blocked,
+            onBlock = { onBlockLogin(login) },
+            onDismiss = { reporting = false; onDismiss() },
+        )
     }
 }
 

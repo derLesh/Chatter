@@ -270,6 +270,16 @@
     </plurals>
 
     <!-- Blockierte Nutzer -->
+    <!-- Reporting -->
+    <string name="action_report">Melden</string>
+    <string name="report_title">%1$s melden</string>
+    <string name="report_body">Chatter zeigt nur den Chat von Twitch, Meldungen bearbeitet deshalb Twitch. Das hier öffnet den Kanal von %1$s, wo das Meldeformular hinter dem …-Menü sitzt, und legt die Nachricht in die Zwischenablage, zum Einfügen.</string>
+    <string name="report_also_block">Hier gleich blockieren</string>
+    <string name="report_open_twitch">Auf Twitch melden</string>
+    <string name="report_help">Wie das Melden auf Twitch funktioniert</string>
+    <string name="settings_report_user">Chatter melden</string>
+    <string name="settings_report_user_summary">Lange auf eine Nachricht tippen, um sie zu melden oder zu blockieren</string>
+
     <string name="action_block">Blockieren</string>
     <string name="action_unblock">Entblocken</string>
     <string name="settings_blocked_users">Blockierte Nutzer</string>

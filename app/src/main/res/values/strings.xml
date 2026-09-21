@@ -275,6 +275,16 @@
         <item quantity="other">%d words</item>
     </plurals>
 
+    <!-- Reporting -->
+    <string name="action_report">Report</string>
+    <string name="report_title">Report %1$s</string>
+    <string name="report_body">Chatter only shows the chat from Twitch, so Twitch handles reports. This opens the channel of %1$s, where the Twitch report form sits behind the … menu, and puts the message on the clipboard so it can be pasted in there.</string>
+    <string name="report_also_block">Block them here right away</string>
+    <string name="report_open_twitch">Report on Twitch</string>
+    <string name="report_help">How reporting on Twitch works</string>
+    <string name="settings_report_user">Report a chatter</string>
+    <string name="settings_report_user_summary">Long-press any message to report or block whoever wrote it</string>
+
     <!-- Blocked users -->
     <string name="action_block">Block</string>
     <string name="action_unblock">Unblock</string>
