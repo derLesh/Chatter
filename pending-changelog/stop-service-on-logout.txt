@@ -1,0 +1,1 @@
+patch: Stop the background connection from running on after logging out

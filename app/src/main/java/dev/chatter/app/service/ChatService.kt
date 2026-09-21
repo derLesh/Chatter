@@ -13,6 +13,7 @@ import androidx.core.app.NotificationManagerCompat
 import androidx.core.content.ContextCompat
 import dev.chatter.app.ChatterApp
 import dev.chatter.app.R
+import dev.chatter.app.auth.AuthState
 import dev.chatter.app.irc.ConnectionState
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -52,11 +53,18 @@ class ChatService : Service() {
         scope.launch {
             container.chat.whisperEvents.collect { container.notifier.notifyWhisper(it) }
         }
+        // What the service is for, and therefore what ends it: somebody logged in with at least one
+        // channel joined. Logging out leaves the channels in place, so without watching the login
+        // as well the service would sit there for ever, saying "connecting" about nothing.
         scope.launch {
-            combine(container.channels.channels, container.irc.state) { ch, st -> ch.size to st }
+            combine(
+                container.channels.channels,
+                container.irc.state,
+                container.auth.state,
+            ) { ch, st, auth -> Triple(ch.size, st, auth) }
                 .distinctUntilChanged()
-                .collect { (count, state) ->
-                    if (count == 0 || state == ConnectionState.AuthFailed) {
+                .collect { (count, state, auth) ->
+                    if (count == 0 || state == ConnectionState.AuthFailed || auth is AuthState.LoggedOut) {
                         stopSelf()
                     } else {
                         updateNotification(buildNotification(count, state))
