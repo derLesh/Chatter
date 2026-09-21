@@ -39,6 +39,39 @@ class SevenTvEventTest {
     }
 
     @Test
+    fun badgeIsDescribedByACosmetic() {
+        val event = parse(
+            """
+            {"type":"cosmetic.create","body":{"id":"C1","kind":"BADGE","object":{"id":"C1","kind":"BADGE",
+              "data":{"id":"01GXP5DNHR000CV9HPMT8GM9JZ","name":"Subscriber","tooltip":"7TV Subscriber (1 Year)"}}}}
+            """
+        )
+        assertEquals(SevenTvEvent.BadgeCreated("01GXP5DNHR000CV9HPMT8GM9JZ", "Subscriber", "7TV Subscriber (1 Year)"), event)
+    }
+
+    @Test
+    fun entitlementNamesTheWearerByTheirTwitchId() {
+        val event = parse(
+            """
+            {"type":"entitlement.create","body":{"id":"E1","object":{"id":"E1","kind":"BADGE","ref_id":"BADGE1",
+              "user":{"id":"7TV1","connections":[{"platform":"DISCORD","id":"999"},{"platform":"TWITCH","id":"12345","username":"lukas"}]}}}}
+            """
+        )
+        assertEquals(SevenTvEvent.EntitlementChanged("12345", "BADGE1", worn = true), event)
+    }
+
+    @Test
+    fun paintsAndUsersWithoutTwitchAreIgnored() {
+        assertNull(parse("""{"type":"cosmetic.create","body":{"object":{"kind":"PAINT","data":{"id":"P1"}}}}"""))
+        assertNull(
+            parse(
+                """{"type":"entitlement.create","body":{"object":{"kind":"BADGE","ref_id":"B1",
+                  "user":{"connections":[{"platform":"KICK","id":"7"}]}}}}"""
+            )
+        )
+    }
+
+    @Test
     fun unrelatedDispatchIsIgnored() {
         assertNull(parse("""{"type":"user.update","body":{"id":"U","updated":[{"key":"username","value":"x"}]}}"""))
         assertNull(parse("""{"type":"emote_set.update","body":{"id":"S","updated":[{"key":"name","value":"x"}]}}"""))

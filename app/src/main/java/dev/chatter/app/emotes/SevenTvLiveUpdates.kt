@@ -2,6 +2,7 @@ package dev.chatter.app.emotes
 
 import android.content.Context
 import dev.chatter.app.R
+import dev.chatter.app.badges.BadgeRepository
 import dev.chatter.app.chat.ChatRepository
 import dev.chatter.app.chat.Segment
 import dev.chatter.app.settings.Settings
@@ -11,7 +12,8 @@ import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
 
 /**
- * Keeps the channels' 7TV emotes up to date via the 7TV EventAPI and reports changes in the chat.
+ * Keeps the channels' 7TV emotes and badges up to date via the 7TV EventAPI, and reports the emote
+ * changes in the chat.
  *
  * This runs for every joined channel, not just the one on screen. Whether the changes are also
  * announced in the chat is a display choice and does not affect keeping the emotes current.
@@ -23,6 +25,7 @@ class SevenTvLiveUpdates(
     private val context: Context,
     private val client: SevenTvEventClient,
     private val emotes: EmoteRepository,
+    private val badges: BadgeRepository,
     private val chat: ChatRepository,
     private val settings: StateFlow<Settings>,
     private val scope: CoroutineScope,
@@ -30,7 +33,7 @@ class SevenTvLiveUpdates(
     fun start() {
         // Subscribe to whatever sets/users the loaded channels have.
         scope.launch {
-            emotes.version.collect { client.setSubscriptions(emotes.sevenTvSubscriptions()) }
+            emotes.version.collect { client.setSubscriptions(subscriptions()) }
         }
         scope.launch {
             chat.uiVisible.collectLatest { active ->
@@ -48,6 +51,22 @@ class SevenTvLiveUpdates(
             client.events.collect { handle(it) }
         }
     }
+
+    /**
+     * The emote sets of every channel, plus its cosmetics.
+     *
+     * Badges are the one thing 7TV no longer hands out as a list: since the cosmetics endpoint
+     * was retired they are pushed per channel, a description of the badge and the people wearing
+     * it arriving separately. Chatterino listens the same way.
+     */
+    private fun subscriptions(): Set<SevenTvSubscription> =
+        emotes.sevenTvSubscriptions() + chat.knownRoomIds().flatMap { roomId ->
+            listOf(
+                SevenTvSubscription.ofChannel("cosmetic.create", roomId),
+                SevenTvSubscription.ofChannel("entitlement.create", roomId),
+                SevenTvSubscription.ofChannel("entitlement.delete", roomId),
+            )
+        }
 
     private suspend fun reloadAll() {
         // The global emotes are loaded once at login and stay for the session, so a load that
@@ -78,6 +97,9 @@ class SevenTvLiveUpdates(
                     chat.postNotice(channel, context.getString(R.string.seventv_renamed, actor, old.name), listOf(Segment.Text(new.name)))
                 }
             }
+            is SevenTvEvent.BadgeCreated -> badges.sevenTvBadge(event.id, event.name, event.tooltip)
+            is SevenTvEvent.EntitlementChanged ->
+                badges.sevenTvWearer(event.twitchUserId, event.refId, event.worn)
             is SevenTvEvent.ActiveSetChanged -> {
                 val channelId = emotes.channelForSevenTvUser(event.userId) ?: return
                 emotes.loadChannel(channelId, null) // new set id -> new subscriptions via version

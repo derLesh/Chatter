@@ -132,7 +132,7 @@ class AppContainer(private val context: Context) {
         )
     }
 
-    private val sevenTvLive = SevenTvLiveUpdates(context, SevenTvEventClient(socketHttp, scope), emotes, chat, settings.settings, scope)
+    private val sevenTvLive = SevenTvLiveUpdates(context, SevenTvEventClient(socketHttp, scope), emotes, badges, chat, settings.settings, scope)
 
     val imageLoader: ImageLoader = imageLoader(animated = true)
     /**

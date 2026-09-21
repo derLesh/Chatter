@@ -43,6 +43,36 @@ sealed interface SevenTvEvent {
 
     /** The user (channel) switched to a different emote set. */
     data class ActiveSetChanged(val userId: String, override val actor: String?, val newSetId: String?) : SevenTvEvent
+
+    /**
+     * A badge 7TV has just described, for somebody in one of the channels we listen to. It says
+     * what the badge is; an [EntitlementChanged] says who wears it.
+     */
+    data class BadgeCreated(val id: String, val name: String, val tooltip: String) : SevenTvEvent {
+        override val actor: String? get() = null
+    }
+
+    /** Somebody started or stopped wearing the cosmetic [refId]. */
+    data class EntitlementChanged(val twitchUserId: String, val refId: String, val worn: Boolean) : SevenTvEvent {
+        override val actor: String? get() = null
+    }
+}
+
+/**
+ * One thing to listen to at the EventAPI: an event type and the condition that narrows it down.
+ *
+ * Emote sets and users are named by their 7TV id; cosmetics are asked for per Twitch channel,
+ * which is how 7TV hands out the badges of the people in it (the same way Chatterino does it).
+ */
+data class SevenTvSubscription(val type: String, val condition: Map<String, String>) {
+    companion object {
+        fun ofObject(type: String, id: String) = SevenTvSubscription(type, mapOf("object_id" to id))
+
+        fun ofChannel(type: String, twitchChannelId: String) = SevenTvSubscription(
+            type,
+            mapOf("ctx" to "channel", "platform" to "TWITCH", "id" to twitchChannelId),
+        )
+    }
 }
 
 /**
@@ -59,8 +89,7 @@ class SevenTvEventClient(
     private var ready = false
     private var attempt = 0
     private var reconnectJob: Job? = null
-    /** (type, object id), e.g. ("emote_set.update", "01FE9...") */
-    private var subscriptions: Set<Pair<String, String>> = emptySet()
+    private var subscriptions: Set<SevenTvSubscription> = emptySet()
 
     private val _events = MutableSharedFlow<SevenTvEvent>(extraBufferCapacity = 32)
     val events: SharedFlow<SevenTvEvent> = _events
@@ -79,13 +108,13 @@ class SevenTvEventClient(
     }
 
     /** Replaces the subscription set; only the difference is sent to the server. */
-    fun setSubscriptions(new: Set<Pair<String, String>>) = synchronized(lock) {
+    fun setSubscriptions(new: Set<SevenTvSubscription>) = synchronized(lock) {
         val old = subscriptions
         subscriptions = new
         val ws = socket
         if (ws != null && ready) {
-            (old - new).forEach { (type, id) -> ws.send(subscriptionMessage(36, type, id)) }
-            (new - old).forEach { (type, id) -> ws.send(subscriptionMessage(35, type, id)) }
+            (old - new).forEach { ws.send(subscriptionMessage(36, it)) }
+            (new - old).forEach { ws.send(subscriptionMessage(35, it)) }
         } else if (wanted && socket == null && new.isNotEmpty()) {
             open()
         }
@@ -118,7 +147,7 @@ class SevenTvEventClient(
                 1 -> synchronized(lock) { // hello: (re)send all subscriptions
                     ready = true
                     attempt = 0
-                    subscriptions.forEach { (type, id) -> webSocket.send(subscriptionMessage(35, type, id)) }
+                    subscriptions.forEach { webSocket.send(subscriptionMessage(35, it)) }
                 }
                 0 -> msg["d"]?.jsonObject?.let { parseDispatch(it) }?.let { _events.tryEmit(it) }
                 4, 7 -> { // reconnect requested / end of stream
@@ -141,20 +170,30 @@ class SevenTvEventClient(
     companion object {
         private const val TAG = "SevenTvEvents"
 
-        private fun subscriptionMessage(op: Int, type: String, id: String) = buildJsonObject {
+        /** The one kind of cosmetic Chatter shows; 7TV also hands out paints. */
+        private const val BADGE = "BADGE"
+
+        private fun subscriptionMessage(op: Int, subscription: SevenTvSubscription) = buildJsonObject {
             put("op", op)
             putJsonObject("d") {
-                put("type", type)
-                putJsonObject("condition") { put("object_id", id) }
+                put("type", subscription.type)
+                putJsonObject("condition") { subscription.condition.forEach { (k, v) -> put(k, v) } }
             }
         }.toString()
 
         /** Parses the `d` object of a dispatch (op 0). Internal for tests. */
         internal fun parseDispatch(d: JsonObject): SevenTvEvent? {
             val body = d["body"]?.jsonObject ?: return null
+            val type = d["type"]?.jsonPrimitive?.contentOrNull
+            // Cosmetics are about a person, not about an emote set, and carry no id of their own.
+            when (type) {
+                "cosmetic.create" -> return badge(body)
+                "entitlement.create" -> return entitlement(body, worn = true)
+                "entitlement.delete" -> return entitlement(body, worn = false)
+            }
             val id = body["id"]?.jsonPrimitive?.contentOrNull ?: return null
             val actor = body["actor"]?.let { it as? JsonObject }?.get("display_name")?.jsonPrimitive?.contentOrNull
-            return when (d["type"]?.jsonPrimitive?.contentOrNull) {
+            return when (type) {
                 "emote_set.update" -> {
                     fun changes(key: String) = body[key]?.let { it as? JsonArray }.orEmpty()
                         .map { it.jsonObject }
@@ -183,6 +222,33 @@ class SevenTvEventClient(
                 }
                 else -> null
             }
+        }
+
+        /** `cosmetic.create` for a badge: what it looks like and what it is called. */
+        private fun badge(body: JsonObject): SevenTvEvent? {
+            val obj = body["object"]?.let { it as? JsonObject } ?: return null
+            if (obj["kind"]?.jsonPrimitive?.contentOrNull != BADGE) return null
+            val data = obj["data"]?.let { it as? JsonObject } ?: return null
+            val id = data["id"]?.jsonPrimitive?.contentOrNull ?: return null
+            val name = data["name"]?.jsonPrimitive?.contentOrNull.orEmpty()
+            val tooltip = data["tooltip"]?.jsonPrimitive?.contentOrNull?.ifEmpty { null } ?: name
+            return SevenTvEvent.BadgeCreated(id, name, tooltip)
+        }
+
+        /**
+         * `entitlement.create` / `.delete`: who wears a cosmetic. 7TV names the wearer by their
+         * accounts on every platform, of which only the Twitch one says anything about a chatter.
+         */
+        private fun entitlement(body: JsonObject, worn: Boolean): SevenTvEvent? {
+            val obj = body["object"]?.let { it as? JsonObject } ?: return null
+            if (obj["kind"]?.jsonPrimitive?.contentOrNull != BADGE) return null
+            val refId = obj["ref_id"]?.jsonPrimitive?.contentOrNull ?: return null
+            val twitchId = obj["user"]?.let { it as? JsonObject }
+                ?.get("connections")?.let { it as? JsonArray }.orEmpty()
+                .map { it.jsonObject }
+                .firstOrNull { it["platform"]?.jsonPrimitive?.contentOrNull == "TWITCH" }
+                ?.get("id")?.jsonPrimitive?.contentOrNull ?: return null
+            return SevenTvEvent.EntitlementChanged(twitchId, refId, worn)
         }
 
         private fun emote(e: JsonElement?): SevenTvActiveEmote? =

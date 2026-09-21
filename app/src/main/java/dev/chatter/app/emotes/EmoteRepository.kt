@@ -147,8 +147,9 @@ class EmoteRepository(
     }
 
     /** What to subscribe to at the 7TV EventAPI: set changes and set switches of every channel. */
-    fun sevenTvSubscriptions(): Set<Pair<String, String>> =
-        sevenTvSets.values.map { "emote_set.update" to it }.toSet() + sevenTvUsers.values.map { "user.update" to it }
+    fun sevenTvSubscriptions(): Set<SevenTvSubscription> =
+        sevenTvSets.values.mapTo(HashSet()) { SevenTvSubscription.ofObject("emote_set.update", it) } +
+            sevenTvUsers.values.map { SevenTvSubscription.ofObject("user.update", it) }
 
     fun channelForSevenTvSet(setId: String): String? = sevenTvSets.entries.firstOrNull { it.value == setId }?.key
     fun channelForSevenTvUser(userId: String): String? = sevenTvUsers.entries.firstOrNull { it.value == userId }?.key

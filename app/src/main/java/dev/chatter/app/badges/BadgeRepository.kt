@@ -27,14 +27,23 @@ class BadgeRepository(
     @Volatile private var thirdPartyBadges: Map<String, List<Badge>> = emptyMap()
 
     /**
-     * The three lists behind [thirdPartyBadges], each null until it has been fetched once.
+     * The two fetched lists behind [thirdPartyBadges], each null until it has been fetched once.
      *
      * Kept apart so a provider that was unreachable can be fetched on its own later, without the
-     * two that did answer being thrown away and asked for again.
+     * one that did answer being thrown away and asked for again.
      */
-    @Volatile private var sevenTvBadges: Map<String, List<Badge>>? = null
     @Volatile private var chatterinoBadges: Map<String, List<Badge>>? = null
     @Volatile private var supporterBadges: Map<String, List<Badge>>? = null
+
+    /**
+     * 7TV badges, which are not a list one can fetch: since the cosmetics endpoint was retired
+     * they only arrive over the EventAPI, as a description of the badge ([sevenTvBadge]) and,
+     * separately, the people wearing it ([sevenTvWearer]). Chatterino does the same.
+     */
+    private val sevenTvCosmetics = ConcurrentHashMap<String, Badge>()
+
+    /** Twitch user id to the cosmetic id they wear; 7TV shows one badge per person. */
+    private val sevenTvWearers = ConcurrentHashMap<String, String>()
 
     /** Channels whose badges did not load, to be tried again when the app comes back. */
     private val failedChannels = ConcurrentHashMap.newKeySet<String>()
@@ -51,7 +60,30 @@ class BadgeRepository(
             badgesTag.split(',').mapNotNull { key -> channel?.get(key) ?: global[key] }
         }
         val extra = userId?.let { thirdPartyBadges[it] }?.filter { it.provider in providers }.orEmpty()
-        return if (extra.isEmpty()) twitch else twitch + extra
+        val sevenTv = if (BadgeProvider.SevenTv in providers) userId?.let(::sevenTvBadgeOf) else null
+        return when {
+            extra.isEmpty() && sevenTv == null -> twitch
+            sevenTv == null -> twitch + extra
+            else -> twitch + extra + sevenTv
+        }
+    }
+
+    private fun sevenTvBadgeOf(userId: String): Badge? =
+        sevenTvWearers[userId]?.let { sevenTvCosmetics[it] }
+
+    /** A badge 7TV described over the EventAPI. */
+    fun sevenTvBadge(id: String, name: String, tooltip: String) {
+        sevenTvCosmetics[id] = Badge(
+            url = "https://cdn.7tv.app/badge/$id/2x.webp",
+            title = tooltip.ifEmpty { name },
+            provider = BadgeProvider.SevenTv,
+        )
+    }
+
+    /** Somebody started or stopped wearing one, by Twitch user id. */
+    fun sevenTvWearer(userId: String, cosmeticId: String, worn: Boolean) {
+        if (worn) sevenTvWearers[userId] = cosmeticId
+        else sevenTvWearers.remove(userId, cosmeticId)
     }
 
     suspend fun loadGlobal() {
@@ -90,28 +122,13 @@ class BadgeRepository(
     }
 
     /**
-     * The badge lists of the other clients. Each is one request for everybody, so each is fetched
-     * once and then only looked up by user id — and only the ones still missing are asked for, so
-     * a list that was unreachable at start is picked up later instead of being gone for good.
+     * Chatterino's badge list and Chatter's own supporters. Each is one request for everybody, so
+     * each is fetched once and then only looked up by user id — and only the ones still missing
+     * are asked for, so a list that was unreachable at start is picked up later instead of being
+     * gone for good. 7TV is not among them; its badges arrive over the EventAPI.
      */
     suspend fun loadThirdParty(supporterTitle: String) {
         var changed = false
-
-        if (sevenTvBadges == null) {
-            runCatching { thirdParty.sevenTvCosmetics() }
-                .onSuccess { cosmetics ->
-                    val byUser = HashMap<String, MutableList<Badge>>()
-                    for (badge in cosmetics.badges) {
-                        val host = badge.host ?: continue
-                        val base = if (host.url.startsWith("//")) "https:${host.url}" else host.url
-                        val image = Badge("$base/2x", badge.tooltip.ifEmpty { badge.name }, BadgeProvider.SevenTv)
-                        badge.users.forEach { byUser.getOrPut(it) { ArrayList(1) } += image }
-                    }
-                    sevenTvBadges = byUser
-                    changed = true
-                }
-                .onFailure { Log.w(TAG, "7TV badges failed: ${it.message}") }
-        }
 
         if (chatterinoBadges == null) {
             runCatching { thirdParty.chatterinoBadges() }
@@ -144,7 +161,7 @@ class BadgeRepository(
 
     private fun mergeThirdParty(): Map<String, List<Badge>> {
         val merged = HashMap<String, MutableList<Badge>>()
-        listOfNotNull(sevenTvBadges, chatterinoBadges, supporterBadges).forEach { source ->
+        listOfNotNull(chatterinoBadges, supporterBadges).forEach { source ->
             source.forEach { (user, badges) -> merged.getOrPut(user) { ArrayList(badges.size) } += badges }
         }
         return merged
