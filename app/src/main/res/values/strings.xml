@@ -366,6 +366,10 @@
 
     <!-- Whispers -->
     <string name="notif_channel_whispers">Whispers</string>
+    <string name="notif_channel_problems">Problems</string>
+    <string name="notif_not_listening">Chatter is no longer listening</string>
+    <string name="notif_not_listening_service">The background connection could not be started. Open Chatter to have it listen again.</string>
+    <string name="notif_not_listening_login">Your Twitch login has run out. Open Chatter and log in again to keep getting mentions.</string>
     <string name="whisper_sent">Whisper sent to %1$s</string>
     <string name="whisper_reply_title">Whisper to %1$s</string>
     <string name="whisper_reply_hint">Your answer</string>

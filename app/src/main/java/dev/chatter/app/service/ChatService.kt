@@ -40,11 +40,15 @@ class ChatService : Service() {
             startForeground(NOTIFICATION_ID, buildNotification(0, ConnectionState.Connecting), ServiceInfo.FOREGROUND_SERVICE_TYPE_SPECIAL_USE)
         } catch (e: Exception) {
             // Starting from the background is not allowed in some situations (e.g. sticky restart).
+            // Nothing else would ever say so: the app is not on screen, and the only sign would be
+            // mentions that stop arriving.
             Log.w(TAG, "startForeground failed: ${e.message}")
+            container.notifier.notifyNotListening(R.string.notif_not_listening_service)
             stopSelf()
             return
         }
 
+        container.notifier.clearNotListening()
         container.connect()
 
         scope.launch {

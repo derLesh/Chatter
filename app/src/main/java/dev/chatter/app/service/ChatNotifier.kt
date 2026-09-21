@@ -71,6 +71,9 @@ class ChatNotifier(
         nm.createNotificationChannel(
             NotificationChannel(CHANNEL_WHISPERS, context.getString(R.string.notif_channel_whispers), NotificationManager.IMPORTANCE_HIGH)
         )
+        nm.createNotificationChannel(
+            NotificationChannel(CHANNEL_PROBLEMS, context.getString(R.string.notif_channel_problems), NotificationManager.IMPORTANCE_DEFAULT)
+        )
         // Mentions used to share one notification channel; every Twitch channel has its own now.
         nm.deleteNotificationChannel(LEGACY_CHANNEL_MENTIONS)
     }
@@ -99,6 +102,35 @@ class ChatNotifier(
             }
         )
     }
+
+    /**
+     * Says that Chatter has stopped listening, and why.
+     *
+     * The silence it explains is the whole point of the app: when the background connection
+     * cannot be started, or the Twitch login has run out, nothing else would ever say so — the
+     * app is not on screen, and everything simply stays quiet until somebody opens it and
+     * wonders where the mentions went.
+     */
+    fun notifyNotListening(reason: Int) {
+        if (!manager.areNotificationsEnabled()) return
+        val notification = NotificationCompat.Builder(context, CHANNEL_PROBLEMS)
+            .setSmallIcon(R.drawable.ic_notification)
+            .setContentTitle(context.getString(R.string.notif_not_listening))
+            .setContentText(context.getString(reason))
+            .setStyle(NotificationCompat.BigTextStyle().bigText(context.getString(reason)))
+            .setCategory(NotificationCompat.CATEGORY_ERROR)
+            .setAutoCancel(true)
+            .setContentIntent(openChannelIntent(context, null))
+            .build()
+        try {
+            manager.notify(NOT_LISTENING_ID, notification)
+        } catch (e: SecurityException) {
+            // Permission was revoked in the meantime.
+        }
+    }
+
+    /** Takes that notice down again, for when the connection is back. */
+    fun clearNotListening() = manager.cancel(NOT_LISTENING_ID)
 
     /** Loads the pictures (off the main thread) and then posts the notification. */
     suspend fun notify(item: ChatItem) {
@@ -365,6 +397,8 @@ class ChatNotifier(
         private const val GROUP_WHISPERS = "whispers"
         /** Whisper notifications are told apart by the sender's login as their tag, not by id. */
         private const val WHISPER_NOTIFICATION_ID = 2
+        const val CHANNEL_PROBLEMS = "problems"
+        private const val NOT_LISTENING_ID = 3
 
         /** The notification channel mentions in [channel] are posted to. */
         fun mentionChannelId(channel: String): String = "mentions:$channel"

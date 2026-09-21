@@ -216,6 +216,10 @@ class AppContainer(private val context: Context) {
                         delay(5_000)
                         if (irc.state.value == ConnectionState.AuthFailed) auth.logout()
                     }
+                    // Being logged out here is not something the user asked for: the token ran
+                    // out or was revoked. Without a word about it the app would simply go quiet
+                    // until somebody opens it and finds the login screen.
+                    if (auth.account == null) notifier.notifyNotListening(R.string.notif_not_listening_login)
                 }
             }
         }

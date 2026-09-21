@@ -336,6 +336,10 @@
 
     <string name="shortcut_inbox">Postfach</string>
     <string name="notif_channel_whispers">Flüstern</string>
+    <string name="notif_channel_problems">Probleme</string>
+    <string name="notif_not_listening">Chatter hört nicht mehr mit</string>
+    <string name="notif_not_listening_service">Die Verbindung im Hintergrund konnte nicht gestartet werden. Öffne Chatter, damit es wieder mithört.</string>
+    <string name="notif_not_listening_login">Deine Twitch-Anmeldung ist abgelaufen. Öffne Chatter und melde dich neu an, um weiter Erwähnungen zu bekommen.</string>
     <!-- Statistik -->
     <string name="settings_stats">Statistik</string>
     <string name="settings_stats_summary">Nachrichten, Kanäle, aktive Tage</string>
