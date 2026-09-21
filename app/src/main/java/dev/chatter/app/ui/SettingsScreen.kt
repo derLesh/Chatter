@@ -930,6 +930,10 @@ private fun AboutPage(vm: MainViewModel, open: (SettingsSubPage) -> Unit) {
                 modifier = Modifier.clickable { open(SettingsSubPage.Changelog) },
             )
         }
+        // Only in the build people install themselves; see SPONSOR_LINK in build.gradle.kts.
+        if (BuildConfig.SPONSOR_LINK) {
+            item { LinkItem(R.string.settings_sponsor, R.string.settings_sponsor_summary, SPONSOR_URL) }
+        }
         item { LinkItem(R.string.settings_source_code, R.string.settings_source_code_summary, REPO_URL) }
         item { LinkItem(R.string.settings_report_issue, R.string.settings_report_issue_summary, "$REPO_URL/issues/new") }
         item { LinkItem(R.string.settings_privacy, R.string.settings_privacy_summary, PRIVACY_URL) }
@@ -1115,6 +1119,7 @@ private val CREDITS = listOf(
 )
 
 private const val REPO_URL = "https://github.com/derLesh/Chatter"
+private const val SPONSOR_URL = "https://github.com/sponsors/derLesh"
 private const val PRIVACY_URL = "https://derlesh.github.io/Chatter/privacy-policy.html"
 
 @Composable

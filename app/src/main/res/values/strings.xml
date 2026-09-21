@@ -197,6 +197,8 @@
     <string name="settings_licenses">Open source licenses</string>
     <string name="license_open_project">Project page</string>
     <string name="license_apache2">Apache License 2.0</string>
+    <string name="settings_sponsor">Support Chatter</string>
+    <string name="settings_sponsor_summary">Through GitHub Sponsors, once or every month. Supporters wear a badge in chat.</string>
     <string name="settings_source_code">Source code</string>
     <string name="settings_source_code_summary">github.com/derLesh/Chatter</string>
     <string name="settings_report_issue">Report a problem</string>

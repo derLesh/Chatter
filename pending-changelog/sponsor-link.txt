@@ -1,0 +1,1 @@
+minor: Reach GitHub Sponsors from Settings -> About to support Chatter

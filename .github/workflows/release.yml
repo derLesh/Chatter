@@ -142,15 +142,25 @@ jobs:
           fi
           echo "Chatter $version (versionCode $code)" >> "$GITHUB_STEP_SUMMARY"
 
-      # One invocation for both, so R8 and the resource shrinker run once and the APK and the
-      # bundle are built from the very same inputs.
-      - name: Build the release APK and the Play bundle
+      # Two invocations, because the two builds are not the same app: only the APK people install
+      # themselves carries the link to GitHub Sponsors (see SPONSOR_LINK in build.gradle.kts), and
+      # the bundle Play is handed must not. The bundle is built second and without the flag, so
+      # what goes to Play is what a plain build produces.
+      - name: Build the sideload APK
         env:
           TWITCH_CLIENT_ID: ${{ secrets.TWITCH_CLIENT_ID }}
           CHATTER_KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
           CHATTER_KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
           CHATTER_KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
-        run: ./gradlew :app:assembleRelease :app:bundleRelease
+        run: ./gradlew :app:assembleRelease -Pdistribution=github
+
+      - name: Build the Play bundle
+        env:
+          TWITCH_CLIENT_ID: ${{ secrets.TWITCH_CLIENT_ID }}
+          CHATTER_KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+          CHATTER_KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
+          CHATTER_KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
+        run: ./gradlew :app:bundleRelease
 
       # Named after the version, so a downloaded APK still says which one it is.
       - name: Name the artifacts after the version

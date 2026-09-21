@@ -36,6 +36,17 @@ val versionProps = Properties().apply {
     rootProject.file("version.properties").inputStream().use { load(it) }
 }
 
+/**
+ * Whether this build may show the way to GitHub Sponsors.
+ *
+ * Google Play wants payments that happen in an app to go through its own billing, and a link
+ * straight past it is the kind of thing a review takes issue with — so the Play build does not
+ * carry one, and the APK people install themselves does. The default is the careful one: pass
+ * `-Pdistribution=github` for the sideload APK, and forgetting it can only ever leave the link
+ * out, never put it where it must not be.
+ */
+val sponsorLink = (project.findProperty("distribution") as String?) == "github"
+
 android {
     namespace = "dev.chatter.app"
     compileSdk = 36
@@ -80,7 +91,12 @@ android {
     }
 
     buildTypes {
+        debug {
+            // Whoever is building the app themselves is the one who wants to see it.
+            buildConfigField("boolean", "SPONSOR_LINK", "true")
+        }
         release {
+            buildConfigField("boolean", "SPONSOR_LINK", "$sponsorLink")
             isMinifyEnabled = true
             isShrinkResources = true
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")

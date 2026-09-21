@@ -191,6 +191,8 @@
     <string name="settings_licenses">Open-Source-Lizenzen</string>
     <string name="license_open_project">Projektseite</string>
     <string name="license_apache2">Apache-Lizenz 2.0</string>
+    <string name="settings_sponsor">Chatter unterstützen</string>
+    <string name="settings_sponsor_summary">Über GitHub Sponsors, einmalig oder monatlich. Unterstützer tragen ein Badge im Chat.</string>
     <string name="settings_source_code">Quellcode</string>
     <string name="settings_source_code_summary">github.com/derLesh/Chatter</string>
     <string name="settings_report_issue">Problem melden</string>
