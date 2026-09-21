@@ -4,6 +4,7 @@ import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.stringPreferencesKey
+import dev.chatter.app.chat.ChatStats
 import dev.chatter.app.net.AppJson
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.channels.Channel
@@ -66,7 +67,7 @@ data class Stats(
  * nobody asked to have counted. So a count is a number in memory, and the whole thing goes to
  * disk on a slow heartbeat that does nothing at all when nothing happened.
  */
-class StatsRepository(private val store: DataStore<Preferences>, private val scope: CoroutineScope) {
+class StatsRepository(private val store: DataStore<Preferences>, private val scope: CoroutineScope) : ChatStats {
     private val _stats = MutableStateFlow(Stats())
     val stats: StateFlow<Stats> = _stats
 
@@ -106,7 +107,7 @@ class StatsRepository(private val store: DataStore<Preferences>, private val sco
     }
 
     /** Counts a message the user sent, and marks today as a day they were around. */
-    fun countSent(channel: String) {
+    override fun countSent(channel: String) {
         val today = LocalDate.now().toString()
         _stats.update {
             it.copy(
@@ -119,12 +120,12 @@ class StatsRepository(private val store: DataStore<Preferences>, private val sco
     }
 
     /** Counts a message that arrived live. History loaded on join is not new and does not count. */
-    fun countReceived() {
+    override fun countReceived() {
         receivedDelta.incrementAndGet()
         counted.trySend(Unit)
     }
 
-    fun countMention() {
+    override fun countMention() {
         mentionDelta.incrementAndGet()
         counted.trySend(Unit)
     }

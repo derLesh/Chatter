@@ -36,4 +36,10 @@ class ChatWindows {
 
     /** Whether this channel is in front of the user, in whichever window. */
     fun isWatching(channel: String): Boolean = shown.containsValue(channel)
+
+    /** True while the whisper tab of the inbox is the thing in front of the user. */
+    val whispersVisible = MutableStateFlow(false)
+
+    /** Whether a whisper arriving now would land under the user's eyes. */
+    fun isWatchingWhispers(): Boolean = _anyVisible.value && whispersVisible.value
 }

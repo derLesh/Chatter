@@ -11,12 +11,10 @@ import dev.chatter.app.emotes.EmoteLoadFailure
 import dev.chatter.app.emotes.EmoteRepository
 import dev.chatter.app.emotes.label
 import dev.chatter.app.irc.ConnectionState
-import dev.chatter.app.irc.IrcConnection
 import dev.chatter.app.irc.IrcMessage
 import dev.chatter.app.net.HelixApi
 import dev.chatter.app.net.ThirdPartyApi
 import dev.chatter.app.settings.Settings
-import dev.chatter.app.stats.StatsRepository
 import dev.chatter.app.util.RateLimiter
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -51,7 +49,7 @@ enum class SendResult {
 @OptIn(ExperimentalCoroutinesApi::class)
 class ChatRepository(
     private val context: Context,
-    private val irc: IrcConnection,
+    private val irc: ChatConnection,
     private val builder: MessageBuilder,
     private val emotes: EmoteRepository,
     private val badges: BadgeRepository,
@@ -60,9 +58,10 @@ class ChatRepository(
     private val helix: HelixApi,
     private val auth: AuthRepository,
     private val commands: CommandExecutor,
+    private val notices: ChatNotices,
     private val chatterRegistry: ChatterRegistry,
     private val blocked: BlockedUsersRepository,
-    private val stats: StatsRepository,
+    private val stats: ChatStats,
     private val rules: StateFlow<List<ChatRule>>,
     private val settings: StateFlow<Settings>,
     private val scope: CoroutineScope,
@@ -75,20 +74,36 @@ class ChatRepository(
     /** What Twitch says about the channels and the user's place in them; see [Rooms]. */
     val rooms = Rooms()
 
+    /** Which windows are on screen and what each of them shows; see [ChatWindows]. */
+    val windows = ChatWindows()
+
     // --- state touched only on `worker` ---
     private val lastSent = HashMap<String, Pair<String, Long>>()
     private val rateLimiter = RateLimiter(30_000)
     private val loadedChannels = HashSet<String>()
-    /** Server timestamp of the newest live message per channel, to fill gaps after a reconnect. */
-    private val lastLiveTimestamp = HashMap<String, Long>()
     private var joinedChannels: List<String> = emptyList()
-    private var mentions = MentionMatcher("", emptyList())
-    private var muted = MuteFilter()
+
     /**
-     * The user's highlight rules. They are applied as messages arrive, so changing a rule paints
-     * what comes next — the messages already on screen stay as they were read.
+     * What the settings make of a message as it arrives. The rules are applied on arrival, so
+     * changing one paints what comes next — the messages already on screen stay as they were read.
      */
-    private var ruleEngine = RuleEngine()
+    @Volatile private var filters = ChatFilters()
+
+    /** What Twitch says, and what the app makes of it; see [IncomingMessages]. */
+    private val incoming = IncomingMessages(
+        builder = builder,
+        buffers = buffers,
+        rooms = rooms,
+        windows = windows,
+        chatters = chatterRegistry,
+        notices = notices,
+        stats = stats,
+        filters = { filters },
+        selfLogin = { auth.account?.login.orEmpty() },
+        onMention = ::onMention,
+        onWhisper = ::onWhisper,
+        onRoomFound = { channelId -> scope.launch { loadEmotesAndBadges(channelId) } },
+    )
 
     private val _mentionEvents = MutableSharedFlow<ChatItem>(extraBufferCapacity = 32)
     /** Emitted for live (non-history) messages that mention the user in a channel they are not looking at. */
@@ -118,21 +133,18 @@ class ChatRepository(
     /** The channel the chat screen is on. A bubble reads its own and leaves this alone. */
     val activeChannel = MutableStateFlow<String?>(null)
 
-    /** Which windows are on screen and what each of them shows; see [ChatWindows]. */
-    val windows = ChatWindows()
-
-    /** True while the whisper tab of the inbox is the thing in front of the user. */
-    val whispersVisible = MutableStateFlow(false)
-
     fun start() {
-        scope.launch(worker) { irc.messages.collect { handle(it) } }
+        scope.launch(worker) { irc.messages.collect { incoming.handle(it) } }
 
         scope.launch(worker) {
             var showedDeleted = settings.value.showDeleted
             combine(auth.state, settings, blocked.logins) { _, s, blockedLogins -> s to blockedLogins }
                 .collect { (s, blockedLogins) ->
-                    mentions = MentionMatcher(auth.account?.login.orEmpty(), s.mentionKeywords)
-                    muted = MuteFilter(s.muteKeywords, blockedLogins)
+                    val muted = MuteFilter(s.muteKeywords, blockedLogins)
+                    filters = filters.copy(
+                        mentions = MentionMatcher(auth.account?.login.orEmpty(), s.mentionKeywords),
+                        muted = muted,
+                    )
                     buffers.dropMuted(muted)
                     buffers.trimAll(s.messageLimit)
                     // Deleted messages are filtered out when publishing, so turning them back on
@@ -145,7 +157,7 @@ class ChatRepository(
         }
 
         scope.launch(worker) {
-            rules.collect { ruleEngine = RuleEngine(it) }
+            rules.collect { filters = filters.copy(rules = RuleEngine(it)) }
         }
 
         scope.launch(worker) {
@@ -163,7 +175,7 @@ class ChatRepository(
                     ConnectionState.Connected -> if (wasConnected) {
                         systemAll(R.string.chat_reconnected)
                         // Fetch what was said while we were offline.
-                        buffers.channels().forEach { ch -> scope.launch { loadHistory(ch, since = lastLiveTimestamp[ch] ?: 0L) } }
+                        buffers.channels().forEach { ch -> scope.launch { loadHistory(ch, since = incoming.lastLive(ch)) } }
                     } else wasConnected = true
                     ConnectionState.Connecting -> if (wasConnected) systemAll(R.string.chat_disconnected)
                     else -> Unit
@@ -240,8 +252,8 @@ class ChatRepository(
         buffers.clearAll()
         chatterRegistry.clear()
         rooms.clear()
+        incoming.clear()
         loadedChannels.clear()
-        lastLiveTimestamp.clear()
         joinedChannels = emptyList()
         _unreadMentions.value = emptyMap()
     }
@@ -323,88 +335,34 @@ class ChatRepository(
         }
         withContext(worker) {
             val self = auth.account?.login.orEmpty()
+            val (mentions, muted, rules) = filters
             val items = lines.mapNotNull { line ->
                 val msg = IrcMessage.parse(line) ?: return@mapNotNull null
                 if (msg.command != "PRIVMSG" && msg.command != "USERNOTICE") return@mapNotNull null
                 builder.build(msg, self, rooms.id(channel), mentions, historical = true)
                     ?.takeIf { (since == null || it.timestamp > since) && !muted.mutes(it) }
-                    ?.let { ruleEngine.apply(it) }
-                    ?.also { rememberChatter(channel, it) }
+                    ?.let { rules.apply(it) }
+                    ?.also { incoming.rememberChatter(channel, it) }
             }
             buffers.merge(channel, items)
         }
     }
 
-    private fun handle(msg: IrcMessage) {
-        val channel = msg.channel
-        when (msg.command) {
-            "PRIVMSG", "USERNOTICE" -> {
-                if (channel == null) return
-                val built = builder.build(msg, auth.account?.login.orEmpty(), rooms.id(channel), mentions) ?: return
-                lastLiveTimestamp[channel] = built.timestamp
-                // Muted and hidden messages still count as "seen", so a reconnect does not fetch
-                // them again.
-                if (muted.mutes(built)) return
-                val item = ruleEngine.apply(built) ?: return
-                rememberChatter(channel, item)
-                buffers.add(item)
-                // Only live messages: the history fetched on join was received long ago.
-                if (!item.isOwn) stats.countReceived()
-                if (!item.isOwn && !windows.isWatching(channel)) buffers.countUnread(channel)
-                if (item.isMention) onMention(item)
-            }
-            "WHISPER" -> InboxWhisper.from(msg)?.let(::onWhisper)
-            "NOTICE" -> if (channel != null) builder.build(msg, "", null, mentions)?.let(buffers::add)
-            "CLEARCHAT" -> if (channel != null) onClearChat(channel, msg)
-            "CLEARMSG" -> if (channel != null) msg.tag("target-msg-id")?.let { id -> buffers.markDeleted(channel) { it.id == id } }
-            "ROOMSTATE" -> if (channel != null) {
-                // The first time a channel names its id is when its emotes can be fetched.
-                val isNew = rooms.onRoomState(channel, msg.tags)
-                if (isNew) rooms.id(channel)?.let { id -> scope.launch { loadEmotesAndBadges(id) } }
-            }
-            "USERSTATE" -> if (channel != null) rooms.onUserState(channel, msg.tags)
-            "GLOBALUSERSTATE" -> rooms.onGlobalUserState(msg.tags)
-        }
-    }
-
-    private fun onMention(item: ChatItem) {
-        stats.countMention()
-        val watching = windows.isWatching(item.channel)
+    /** A mention, once [IncomingMessages] has built it: the inbox, the badge and the ringing. */
+    private fun onMention(item: ChatItem, watched: Boolean) {
         // The inbox keeps every mention; one the user saw arrive is simply already read.
-        _allMentions.tryEmit(MentionEvent(item, seen = watching))
-        if (watching) return
+        _allMentions.tryEmit(MentionEvent(item, seen = watched))
+        if (watched) return
         _unreadMentions.update { it + (item.channel to (it[item.channel] ?: 0) + 1) }
         // A muted channel still counts its mentions, it just does not notify about them.
         if (item.channel in channelRepo.mutedChannels.value) return
         _mentionEvents.tryEmit(item)
     }
 
-    private fun onWhisper(whisper: InboxWhisper) {
-        if (muted.mutes(whisper.login, whisper.displayName, whisper.text)) return
+    private fun onWhisper(whisper: InboxWhisper, watched: Boolean) {
         // One that arrived under the user's eyes is read already, and needs no notification.
-        val watching = windows.anyVisible.value && whispersVisible.value
-        _whispers.tryEmit(whisper.copy(read = watching))
-        if (!watching) _whisperEvents.tryEmit(whisper)
-    }
-
-    private fun onClearChat(channel: String, msg: IrcMessage) {
-        val target = msg.trailing
-        if (target == null) {
-            system(channel, context.getString(R.string.chat_cleared))
-            return
-        }
-        buffers.markDeleted(channel) { it.login == target }
-        val duration = msg.tag("ban-duration")
-        system(
-            channel,
-            if (duration != null) context.getString(R.string.chat_timeout, target, duration.toIntOrNull() ?: 0)
-            else context.getString(R.string.chat_ban, target),
-        )
-    }
-
-    private fun rememberChatter(channel: String, item: ChatItem) {
-        val login = item.login ?: return
-        chatterRegistry.remember(channel, login, item.displayName, item.color)
+        _whispers.tryEmit(whisper.copy(read = watched))
+        if (!watched) _whisperEvents.tryEmit(whisper)
     }
 
     private fun system(channel: String, text: String) = buffers.add(

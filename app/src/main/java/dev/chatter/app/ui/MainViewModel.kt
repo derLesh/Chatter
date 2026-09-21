@@ -160,7 +160,7 @@ class MainViewModel(private val c: AppContainer) : ViewModel() {
      * there from also ringing.
      */
     fun setWhispersVisible(visible: Boolean) {
-        c.chat.whispersVisible.value = visible
+        c.chat.windows.whispersVisible.value = visible
         if (visible) c.notifier.clearWhispers()
     }
 

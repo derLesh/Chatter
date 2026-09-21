@@ -21,6 +21,7 @@ import dev.chatter.app.badges.BadgeRepository
 import dev.chatter.app.changelog.ChangelogRepository
 import dev.chatter.app.channels.BlockedUsersRepository
 import dev.chatter.app.channels.ChannelRepository
+import dev.chatter.app.chat.AppChatNotices
 import dev.chatter.app.chat.ChatRepository
 import dev.chatter.app.chat.SendResult
 import dev.chatter.app.chat.ChatterRegistry
@@ -112,7 +113,8 @@ class AppContainer(private val context: Context) {
 
     val chat = ChatRepository(
         context, irc, MessageBuilder(emotes, badges, chatters, ::emoteOptions), emotes, badges, channels, thirdParty, helix, auth,
-        CommandExecutor(context, helix, auth, whisperSender), chatters, blocked, stats, rules.rules, settings.settings, scope,
+        CommandExecutor(context, helix, auth, whisperSender), AppChatNotices(context), chatters, blocked, stats,
+        rules.rules, settings.settings, scope,
     )
 
     // One disk cache shared by both loaders (two caches on the same directory would corrupt it).

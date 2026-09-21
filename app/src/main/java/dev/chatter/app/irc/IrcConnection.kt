@@ -1,6 +1,7 @@
 package dev.chatter.app.irc
 
 import android.util.Log
+import dev.chatter.app.chat.ChatConnection
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.channels.Channel
@@ -29,15 +30,15 @@ enum class ConnectionState { Disconnected, Connecting, Connected, AuthFailed }
 class IrcConnection(
     private val http: OkHttpClient,
     private val scope: CoroutineScope,
-) {
+) : ChatConnection {
     private val lock = Any()
 
     private val _state = MutableStateFlow(ConnectionState.Disconnected)
-    val state: StateFlow<ConnectionState> = _state
+    override val state: StateFlow<ConnectionState> = _state
 
     // Unlimited so the socket thread never blocks; there is exactly one consumer (ChatRepository).
     private val incoming = Channel<IrcMessage>(Channel.UNLIMITED)
-    val messages: Flow<IrcMessage> = incoming.receiveAsFlow()
+    override val messages: Flow<IrcMessage> = incoming.receiveAsFlow()
 
     private var socket: WebSocket? = null
     private var credentials: Pair<String, String>? = null // login to token
@@ -96,16 +97,15 @@ class IrcConnection(
     }
 
     // While connecting, the JOINs are sent after the welcome message (see onWelcome).
-    fun join(channel: String): Unit = synchronized(lock) {
+    override fun join(channel: String): Unit = synchronized(lock) {
         if (joined.add(channel) && _state.value == ConnectionState.Connected) socket?.send("JOIN #$channel")
     }
 
-    fun part(channel: String): Unit = synchronized(lock) {
+    override fun part(channel: String): Unit = synchronized(lock) {
         if (joined.remove(channel) && _state.value == ConnectionState.Connected) socket?.send("PART #$channel")
     }
 
-    /** Returns false if the message could not be handed to the socket. */
-    fun sendMessage(channel: String, text: String, replyParentId: String? = null): Boolean {
+    override fun sendMessage(channel: String, text: String, replyParentId: String?): Boolean {
         val tags = replyParentId?.let { "@reply-parent-msg-id=${IrcMessage.escapeTagValue(it)} " } ?: ""
         val clean = text.replace('\n', ' ').replace('\r', ' ')
         return synchronized(lock) {
