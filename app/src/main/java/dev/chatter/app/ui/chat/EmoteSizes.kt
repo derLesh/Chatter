@@ -4,22 +4,30 @@ import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.mutableStateOf
 import coil3.compose.AsyncImagePainter
 import dev.chatter.app.emotes.Emote
-import java.util.concurrent.ConcurrentHashMap
 
 /**
  * Aspect ratios measured from loaded images, for emotes whose provider does not report a size
  * (BTTV). Compose state, so rows showing such an emote re-layout once the real width is known.
  */
 object EmoteSizes {
+    /** Beyond this many emotes the least recently drawn one is dropped and measured again later. */
+    private const val KEEP = 512
+
     /**
      * One piece of state per emote, rather than one map holding all of them. A snapshot state map
      * is a single piece of state however many keys it has, so measuring one emote would redraw
      * every row on screen that is still waiting on any other.
+     *
+     * Access ordered and bounded: someone who reads chat all day walks past far more emotes than
+     * are ever on screen, and none of them would otherwise be let go of again.
      */
-    private val measured = ConcurrentHashMap<String, MutableState<Float?>>()
+    private val measured = object : LinkedHashMap<String, MutableState<Float?>>(64, 0.75f, true) {
+        override fun removeEldestEntry(eldest: Map.Entry<String, MutableState<Float?>>) = size > KEEP
+    }
 
+    /** Both reads and writes reorder the map, so every access is behind the same lock. */
     private fun slot(url: String): MutableState<Float?> =
-        measured.computeIfAbsent(url) { mutableStateOf(null) }
+        synchronized(measured) { measured.getOrPut(url) { mutableStateOf(null) } }
 
     fun aspectRatio(emote: Emote): Float =
         if (emote.sizeKnown) emote.aspectRatio else slot(emote.url).value ?: emote.aspectRatio
