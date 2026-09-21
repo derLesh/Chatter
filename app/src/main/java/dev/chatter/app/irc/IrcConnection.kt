@@ -46,6 +46,7 @@ class IrcConnection(
     private var attempt = 0
     private var reconnectJob: Job? = null
     private var watchdogJob: Job? = null
+    private var handshakeJob: Job? = null
     @Volatile private var lastActivity = 0L
     /**
      * Whether the phone has a network at all. Retrying without one is a DNS lookup that cannot
@@ -70,6 +71,7 @@ class IrcConnection(
         wanted = false
         reconnectJob?.cancel()
         watchdogJob?.cancel()
+        handshakeJob?.cancel()
         closeSocket()
         _state.value = ConnectionState.Disconnected
     }
@@ -116,9 +118,31 @@ class IrcConnection(
         _state.value = ConnectionState.Connecting
         val request = Request.Builder().url("wss://irc-ws.chat.twitch.tv:443").build()
         socket = http.newWebSocket(request, Listener(login, token))
+        startHandshakeTimeout()
+    }
+
+    /**
+     * Gives Twitch a moment to answer the login with its welcome, and reconnects if it does not.
+     *
+     * The socket has no read timeout — a quiet chat is normal — and OkHttp sends no pings of its
+     * own, because a ping every half minute all day is exactly the kind of traffic this app tries
+     * not to make. Once the connection stands, [startWatchdog] notices silence. Until then this
+     * is the only thing that would: a network that dies between the socket opening and the
+     * welcome leaves a socket that is never reported as failed and never answers either.
+     */
+    private fun startHandshakeTimeout() {
+        handshakeJob?.cancel()
+        handshakeJob = scope.launch {
+            delay(HANDSHAKE_TIMEOUT_MS)
+            if (_state.value != ConnectionState.Connected) {
+                Log.i(TAG, "No welcome within ${HANDSHAKE_TIMEOUT_MS / 1000}s, reconnecting")
+                scheduleReconnect()
+            }
+        }
     }
 
     private fun closeSocket() {
+        handshakeJob?.cancel()
         socket?.cancel()
         socket = null
     }
@@ -194,6 +218,7 @@ class IrcConnection(
 
         private fun onWelcome(webSocket: WebSocket) {
             synchronized(lock) {
+                handshakeJob?.cancel()
                 attempt = 0
                 _state.value = ConnectionState.Connected
                 // Twitch allows joining many channels in one command.
@@ -220,6 +245,9 @@ class IrcConnection(
 
     private companion object {
         const val TAG = "IrcConnection"
+
+        /** How long Twitch has to answer the login before the socket counts as dead. */
+        const val HANDSHAKE_TIMEOUT_MS = 20_000L
 
         fun isAuthFailure(text: String?) = text != null &&
             (text.contains("authentication failed", ignoreCase = true) ||

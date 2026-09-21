@@ -1,0 +1,1 @@
+patch: Notice a chat connection that dies while logging in instead of waiting for it forever
