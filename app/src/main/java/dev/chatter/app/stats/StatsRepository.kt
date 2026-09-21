@@ -6,6 +6,7 @@ import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.stringPreferencesKey
 import dev.chatter.app.net.AppJson
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -66,11 +67,20 @@ class StatsRepository(private val store: DataStore<Preferences>, private val sco
     private val _stats = MutableStateFlow(Stats())
     val stats: StateFlow<Stats> = _stats
 
+    /**
+     * Counting something rings this; nothing else does. A heartbeat that wakes up every half
+     * minute to find that nobody has written anything is a wakeup an idle phone should not have
+     * to pay for, and the app spends most of its life exactly like that.
+     */
+    private val counted = Channel<Unit>(Channel.CONFLATED)
+
     fun start() {
         scope.launch {
             var saved = load()
             _stats.value = saved
             while (isActive) {
+                // Wait for something to count, then let the next half minute of it pile up.
+                counted.receive()
                 delay(SAVE_INTERVAL_MS)
                 val current = _stats.value
                 if (current != saved) {
@@ -91,12 +101,19 @@ class StatsRepository(private val store: DataStore<Preferences>, private val sco
                 activeDays = if (today in it.activeDays) it.activeDays else it.activeDays + today,
             )
         }
+        counted.trySend(Unit)
     }
 
     /** Counts a message that arrived live. History loaded on join is not new and does not count. */
-    fun countReceived() = _stats.update { it.copy(received = it.received + 1) }
+    fun countReceived() {
+        _stats.update { it.copy(received = it.received + 1) }
+        counted.trySend(Unit)
+    }
 
-    fun countMention() = _stats.update { it.copy(mentions = it.mentions + 1) }
+    fun countMention() {
+        _stats.update { it.copy(mentions = it.mentions + 1) }
+        counted.trySend(Unit)
+    }
 
     /** Throws everything counted so far away and starts over from now. */
     suspend fun reset() {
@@ -122,6 +139,7 @@ class StatsRepository(private val store: DataStore<Preferences>, private val sco
         val STATS = stringPreferencesKey("stats")
         /** How much counting a sudden death of the process may cost. */
         const val SAVE_INTERVAL_MS = 30_000L
+
 
         fun decode(raw: String?): Stats? =
             raw?.let { runCatching { AppJson.decodeFromString<Stats>(it) }.getOrNull() }
