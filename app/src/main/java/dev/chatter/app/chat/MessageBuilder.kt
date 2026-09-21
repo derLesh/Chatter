@@ -122,9 +122,15 @@ class MessageBuilder(
         val (raw, isAction) = splitAction(msg.trailing.orEmpty())
         val reply = replyInfo(msg)
 
-        // Twitch prefixes replies with "@parent "; the reply header already shows who is addressed.
-        val prefix = reply?.let { "@${it.parentLogin} " }
-        val stripped = if (prefix != null && raw.startsWith(prefix, ignoreCase = true)) prefix.length else 0
+        // Twitch prefixes replies with "@<display name> ", not with the login, and the reply header
+        // already shows who is addressed. A display name that is the login in other letters
+        // (Japanese, Cyrillic) would otherwise never match and stay in the text. The login is only
+        // the fallback for a message that carries no display name for the parent.
+        val stripped = reply?.let { r ->
+            listOf(r.parentDisplayName, r.parentLogin)
+                .firstOrNull { it.isNotEmpty() && raw.startsWith("@$it ", ignoreCase = true) }
+                ?.let { it.length + 2 }
+        } ?: 0
         val body = if (stripped == 0) raw else raw.substring(stripped)
 
         val isOwn = login.equals(selfLogin, ignoreCase = true)

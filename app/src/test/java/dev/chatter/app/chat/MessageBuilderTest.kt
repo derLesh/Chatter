@@ -147,6 +147,16 @@ class MessageBuilderTest {
     }
 
     @Test
+    fun repliesStripTheMentionByDisplayName() {
+        // Twitch writes the display name into the message, which need not resemble the login.
+        val tags = "reply-parent-msg-id=p;reply-parent-user-login=lukas;reply-parent-display-name=ルカス;" +
+            "reply-parent-msg-body=hi;emotes=25:5-9"
+        val item = build(privmsg("@ルカス Kappa yes", tags))
+        assertEquals("Kappa yes", item.text)
+        assertEquals("Kappa", (item.segments[0] as Segment.EmoteSeg).emote.name)
+    }
+
+    @Test
     fun ownEchoUsesUserEmotes() {
         val item = builder.buildOwn("chan", "Kappa OMEGALUL", mapOf("display-name" to "Lukas", "color" to "#00FF00"), "lukas", "1", null)
         assertEquals(listOf("Kappa", "OMEGALUL"), item.segments.filterIsInstance<Segment.EmoteSeg>().map { it.emote.name })
