@@ -250,7 +250,7 @@ class AppContainer(private val context: Context) {
         val ready = withTimeoutOrNull(NOTIFICATION_SEND_TIMEOUT_MS) {
             auth.state.first { it is AuthState.LoggedIn }
             connect()
-            chat.readyChannels.first { channel in it }
+            chat.rooms.ready.first { channel in it }
         } != null
         return ready && chat.send(channel, text, replyTo = null) == SendResult.Ok
     }

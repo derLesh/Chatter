@@ -31,7 +31,6 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.util.UUID
-import java.util.concurrent.ConcurrentHashMap
 
 /** A mention that just arrived, and whether the user had that channel open at the time. */
 data class MentionEvent(val item: ChatItem, val seen: Boolean)
@@ -73,9 +72,10 @@ class ChatRepository(
     /** The messages themselves, and how they reach the screen. */
     private val buffers = MessageBuffers(scope, worker, settings)
 
+    /** What Twitch says about the channels and the user's place in them; see [Rooms]. */
+    val rooms = Rooms()
+
     // --- state touched only on `worker` ---
-    private val userStates = HashMap<String, Map<String, String>>()
-    private var globalUserState: Map<String, String> = emptyMap()
     private val lastSent = HashMap<String, Pair<String, Long>>()
     private val rateLimiter = RateLimiter(30_000)
     private val loadedChannels = HashSet<String>()
@@ -89,8 +89,6 @@ class ChatRepository(
      * what comes next — the messages already on screen stay as they were read.
      */
     private var ruleEngine = RuleEngine()
-
-    private val roomIds = ConcurrentHashMap<String, String>()
 
     private val _mentionEvents = MutableSharedFlow<ChatItem>(extraBufferCapacity = 32)
     /** Emitted for live (non-history) messages that mention the user in a channel they are not looking at. */
@@ -110,25 +108,6 @@ class ChatRepository(
     private val _whisperEvents = MutableSharedFlow<InboxWhisper>(extraBufferCapacity = 16)
     /** The whispers that arrived while nobody was looking at them, for the notification. */
     val whisperEvents: SharedFlow<InboxWhisper> = _whisperEvents
-
-    private val _modChannels = MutableStateFlow<Set<String>>(emptySet())
-    /** Channels where the user is moderator or broadcaster. */
-    val modChannels: StateFlow<Set<String>> = _modChannels
-
-    private val _roomStates = MutableStateFlow<Map<String, RoomState>>(emptyMap())
-    /** Active chat modes (slow, followers-only, ...) per channel. */
-    val roomStates: StateFlow<Map<String, RoomState>> = _roomStates
-
-    private val _readyChannels = MutableStateFlow<Set<String>>(emptySet())
-    /**
-     * Channels Twitch has confirmed the join for. Its ROOMSTATE is the answer to a JOIN, so it is
-     * the first moment a message sent to that channel is actually accepted.
-     */
-    val readyChannels: StateFlow<Set<String>> = _readyChannels
-
-    private val _roles = MutableStateFlow<Map<String, ChatRole>>(emptyMap())
-    /** The user's role (VIP, moderator, broadcaster) per channel. */
-    val roles: StateFlow<Map<String, ChatRole>> = _roles
 
     private val _unreadMentions = MutableStateFlow<Map<String, Int>>(emptyMap())
     val unreadMentions: StateFlow<Map<String, Int>> = _unreadMentions
@@ -197,12 +176,6 @@ class ChatRepository(
 
     fun messages(channel: String): StateFlow<List<ChatItem>> = buffers.messages(channel)
 
-    fun roomId(channel: String): String? = roomIds[channel]
-
-    fun channelForRoomId(id: String): String? = roomIds.entries.firstOrNull { it.value == id }?.key
-
-    fun knownRoomIds(): List<String> = roomIds.values.toList()
-
     /** Adds an informational line (e.g. 7TV activity), optionally followed by emotes/text segments. */
     fun postNotice(channel: String, text: String, segments: List<Segment> = emptyList()) = scope.launch(worker) {
         buffers.add(
@@ -230,7 +203,7 @@ class ChatRepository(
         var text = input.trim()
         if (text.isEmpty()) return@withContext SendResult.Empty
         CommandParser.parse(text)?.let { command ->
-            system(channel, commands.execute(command, roomIds[channel]))
+            system(channel, commands.execute(command, rooms.id(channel)))
             val invalid = command is ChatCommand.Usage || command is ChatCommand.Unknown
             return@withContext if (invalid) SendResult.CommandError else SendResult.Ok
         }
@@ -239,11 +212,10 @@ class ChatRepository(
         // Twitch drops identical consecutive messages; an invisible tag character avoids that.
         lastSent[channel]?.let { (prev, at) -> if (prev == text && now - at < 30_000) text += DUPLICATE_BYPASS }
 
-        val state = userStates[channel] ?: globalUserState
-        val privileged = state["badges"].orEmpty().split(',').any {
-            it.startsWith("moderator/") || it.startsWith("broadcaster/") || it.startsWith("vip/")
+        val state = rooms.userState(channel)
+        if (!rateLimiter.tryAcquire(now, if (rooms.isPrivileged(channel)) 100 else 20)) {
+            return@withContext SendResult.RateLimited
         }
-        if (!rateLimiter.tryAcquire(now, if (privileged) 100 else 20)) return@withContext SendResult.RateLimited
 
         val wire = if (text.startsWith("/me ")) "$CTCP_ACTION${text.substring(4)}$CTCP_END" else text
         val replyParent = replyTo?.takeIf { it.canReply && !it.id.startsWith("local-") }
@@ -253,28 +225,23 @@ class ChatRepository(
         val reply = replyParent?.let {
             ReplyInfo(it.id, it.login.orEmpty(), it.displayName.orEmpty(), it.text)
         }
-        buffers.add(builder.buildOwn(channel, wire, state, auth.account?.login.orEmpty(), roomIds[channel], reply))
+        buffers.add(builder.buildOwn(channel, wire, state, auth.account?.login.orEmpty(), rooms.id(channel), reply))
         stats.countSent(channel)
         SendResult.Ok
     }
 
     /** Runs a moderation command (e.g. from the message actions) and reports the result in the chat. */
     fun runCommand(channel: String, command: ChatCommand) = scope.launch(worker) {
-        system(channel, commands.execute(command, roomIds[channel]))
+        system(channel, commands.execute(command, rooms.id(channel)))
     }
 
-    /** Removes everything a newly blocked or muted chatter said from the buffers. */
     /** Drops all buffers, e.g. after logout. */
     fun reset() = scope.launch(worker) {
         buffers.clearAll()
         chatterRegistry.clear()
-        userStates.clear()
+        rooms.clear()
         loadedChannels.clear()
         lastLiveTimestamp.clear()
-        _modChannels.value = emptySet()
-        _roomStates.value = emptyMap()
-        _roles.value = emptyMap()
-        _readyChannels.value = emptySet()
         joinedChannels = emptyList()
         _unreadMentions.value = emptyMap()
     }
@@ -296,10 +263,8 @@ class ChatRepository(
             irc.part(ch)
             buffers.close(ch)
             chatterRegistry.remove(ch)
+            rooms.forget(ch)
             loadedChannels.remove(ch)
-            _roomStates.update { it - ch }
-            _roles.update { it - ch }
-            _readyChannels.update { it - ch }
             _unreadMentions.update { it - ch }
         }
         added.forEach { ch ->
@@ -311,11 +276,11 @@ class ChatRepository(
 
     /** Emotes and badges first, then history, so old messages already render with emotes. */
     private suspend fun loadChannelData(channel: String) {
-        val id = roomIds[channel]
+        val id = rooms.id(channel)
             ?: channelRepo.info.value[channel]?.id
             ?: channelRepo.refreshUsers(listOf(channel))[channel]
         if (id != null) {
-            roomIds[channel] = id
+            rooms.setId(channel, id)
             loadEmotesAndBadges(id)
             loadChatters(channel, id)
         }
@@ -361,7 +326,7 @@ class ChatRepository(
             val items = lines.mapNotNull { line ->
                 val msg = IrcMessage.parse(line) ?: return@mapNotNull null
                 if (msg.command != "PRIVMSG" && msg.command != "USERNOTICE") return@mapNotNull null
-                builder.build(msg, self, roomIds[channel], mentions, historical = true)
+                builder.build(msg, self, rooms.id(channel), mentions, historical = true)
                     ?.takeIf { (since == null || it.timestamp > since) && !muted.mutes(it) }
                     ?.let { ruleEngine.apply(it) }
                     ?.also { rememberChatter(channel, it) }
@@ -375,7 +340,7 @@ class ChatRepository(
         when (msg.command) {
             "PRIVMSG", "USERNOTICE" -> {
                 if (channel == null) return
-                val built = builder.build(msg, auth.account?.login.orEmpty(), roomIds[channel], mentions) ?: return
+                val built = builder.build(msg, auth.account?.login.orEmpty(), rooms.id(channel), mentions) ?: return
                 lastLiveTimestamp[channel] = built.timestamp
                 // Muted and hidden messages still count as "seen", so a reconnect does not fetch
                 // them again.
@@ -393,21 +358,12 @@ class ChatRepository(
             "CLEARCHAT" -> if (channel != null) onClearChat(channel, msg)
             "CLEARMSG" -> if (channel != null) msg.tag("target-msg-id")?.let { id -> buffers.markDeleted(channel) { it.id == id } }
             "ROOMSTATE" -> if (channel != null) {
-                _roomStates.update { it + (channel to (it[channel] ?: RoomState()).update(msg.tags)) }
-                _readyChannels.update { it + channel }
-                msg.tag("room-id")?.let { id ->
-                    if (roomIds.put(channel, id) == null) scope.launch { loadEmotesAndBadges(id) }
-                }
+                // The first time a channel names its id is when its emotes can be fetched.
+                val isNew = rooms.onRoomState(channel, msg.tags)
+                if (isNew) rooms.id(channel)?.let { id -> scope.launch { loadEmotesAndBadges(id) } }
             }
-            "USERSTATE" -> if (channel != null) {
-                userStates[channel] = msg.tags
-                val badges = msg.tag("badges").orEmpty()
-                val role = ChatRole.fromBadges(badges)
-                val isMod = role == ChatRole.Moderator || role == ChatRole.Broadcaster
-                _modChannels.update { if (isMod) it + channel else it - channel }
-                _roles.update { if (it[channel] == role) it else it + (channel to role) }
-            }
-            "GLOBALUSERSTATE" -> globalUserState = msg.tags
+            "USERSTATE" -> if (channel != null) rooms.onUserState(channel, msg.tags)
+            "GLOBALUSERSTATE" -> rooms.onGlobalUserState(msg.tags)
         }
     }
 
@@ -466,7 +422,7 @@ class ChatRepository(
             val text = context.getString(R.string.chat_emotes_failed_global, providers)
             buffers.channels().forEach { system(it, text) }
         } else {
-            val channel = channelForRoomId(failure.channelId) ?: return
+            val channel = rooms.channelOf(failure.channelId) ?: return
             system(channel, context.getString(R.string.chat_emotes_failed, providers))
         }
     }

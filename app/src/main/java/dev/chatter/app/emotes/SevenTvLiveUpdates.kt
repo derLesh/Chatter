@@ -60,7 +60,7 @@ class SevenTvLiveUpdates(
      * it arriving separately. Chatterino listens the same way.
      */
     private fun subscriptions(): Set<SevenTvSubscription> =
-        emotes.sevenTvSubscriptions() + chat.knownRoomIds().flatMap { roomId ->
+        emotes.sevenTvSubscriptions() + chat.rooms.knownIds().flatMap { roomId ->
             listOf(
                 SevenTvSubscription.ofChannel("cosmetic.create", roomId),
                 SevenTvSubscription.ofChannel("entitlement.create", roomId),
@@ -73,7 +73,7 @@ class SevenTvLiveUpdates(
         // failed back then would never be tried again; this is the one place that comes back to
         // it. It returns right away once they are there.
         emotes.loadGlobal()
-        chat.knownRoomIds().forEach { id -> emotes.refreshChannel(id) }
+        chat.rooms.knownIds().forEach { id -> emotes.refreshChannel(id) }
     }
 
     private suspend fun handle(event: SevenTvEvent) {
@@ -84,7 +84,7 @@ class SevenTvLiveUpdates(
                 // Take the emotes over first: they must land even when no channel name can be
                 // resolved to write a notice into, which would otherwise drop the change entirely.
                 val added = emotes.applySevenTvUpdate(channelId, event)
-                val channel = chat.channelForRoomId(channelId)?.takeIf { settings.value.sevenTvEvents } ?: return
+                val channel = chat.rooms.channelOf(channelId)?.takeIf { settings.value.sevenTvEvents } ?: return
                 if (added.isNotEmpty()) {
                     chat.postNotice(
                         channel,
@@ -103,7 +103,7 @@ class SevenTvLiveUpdates(
             is SevenTvEvent.ActiveSetChanged -> {
                 val channelId = emotes.channelForSevenTvUser(event.userId) ?: return
                 emotes.loadChannel(channelId, null) // new set id -> new subscriptions via version
-                val channel = chat.channelForRoomId(channelId)?.takeIf { settings.value.sevenTvEvents } ?: return
+                val channel = chat.rooms.channelOf(channelId)?.takeIf { settings.value.sevenTvEvents } ?: return
                 chat.postNotice(channel, context.getString(R.string.seventv_set_changed, actor))
             }
         }

@@ -66,10 +66,10 @@ class MainViewModel(private val c: AppContainer) : ViewModel() {
     val settings = c.settings.settings
     val connection = c.irc.state
     val activeChannel = c.chat.activeChannel
-    val modChannels = c.chat.modChannels
+    val modChannels = c.chat.rooms.moderated
     val powerSaveMode = c.powerSaveMode
-    val roomStates = c.chat.roomStates
-    val roles = c.chat.roles
+    val roomStates = c.chat.rooms.states
+    val roles = c.chat.rooms.roles
     val emoteVersion = c.emotes.version
     val blockedUsers = c.blocked.blocked
     val blockedLogins = c.blocked.logins
@@ -306,7 +306,7 @@ class MainViewModel(private val c: AppContainer) : ViewModel() {
                 it.providers == s.emoteProviders && it.unlisted == s.showUnlisted7tv
             ) return it.emotes
         }
-        val emotes = c.emotes.available(channel?.let { c.chat.roomId(it) })
+        val emotes = c.emotes.available(channel?.let { c.chat.rooms.id(it) })
             .filter { it.provider in s.emoteProviders }
             .filterNot { !s.showUnlisted7tv && it.unlisted }
         lastEmoteList = EmoteList(channel, version, s.emoteProviders, s.showUnlisted7tv, emotes)
@@ -323,7 +323,7 @@ class MainViewModel(private val c: AppContainer) : ViewModel() {
 
     /** Twitch badge image for the user's role in a channel (moderator sword etc.). */
     fun roleBadge(channel: String, role: ChatRole): Badge? =
-        role.badgeTag?.let { c.badges.resolve(c.chat.roomId(channel), it, userId = null).firstOrNull() }
+        role.badgeTag?.let { c.badges.resolve(c.chat.rooms.id(channel), it, userId = null).firstOrNull() }
 
     /**
      * Blocks or unblocks on Twitch. Needs the user card's profile for the Twitch id, so it is
