@@ -42,22 +42,36 @@ keeps behaviour, a test, a build tweak, a doc. Say so in the commit message when
 ## CI does the releasing
 
 `.github/workflows/ci.yml` runs on every push and pull request: `checkChangelog`, the unit tests,
-Android lint and a debug APK it keeps as an artifact. Lint is part of the gate, so a new lint error
-fails the branch.
+Android lint on the release variant, a debug APK it keeps as an artifact, and a release bundle it
+throws away. Lint is part of the gate, so a new lint error fails the branch — and so is the release
+bundle, because R8, the resource shrinker and resource linking only ever run there, and a release
+is a bad time to find out one of them is unhappy.
 
 `.github/workflows/release.yml` is the release itself, started by hand from the Actions tab. Nobody
 picks a version there either — it runs `releaseVersion`, so the pending entries decide it. It then
-builds and signs the APK, pushes the release commit and the `v<version>` tag, and publishes a
-GitHub release carrying that version's changelog section. The build comes before the push, so a
-failed one leaves the repository untouched, and `dry_run` does everything except push and publish.
+builds and signs both the APK and the Play bundle, pushes the release commit and the `v<version>`
+tag, and publishes a GitHub release carrying that version's changelog section and the APK. The
+build comes before the push, so a failed one leaves the repository untouched, and `dry_run` does
+everything except push and publish.
+
+Everything that could be wrong is checked before anything is built: the Client ID, that the
+keystore opens and holds the alias, that there is something to release, that the tag is free and
+that the versionCode is above the one the last tag released. The `play_track` input uploads the
+bundle to that Play track; `none`, the default, uploads nowhere.
+
+`docs/play-store/` holds what the Play Console needs — the data safety answers, the foreground
+service justification and the listing text. When the app's network or storage behaviour changes,
+`docs/privacy-policy.html` and `docs/play-store/data-safety.md` change with it: they are
+declarations, and a stale one is a policy violation.
 
 What it reads from Settings → Secrets and variables → Actions:
 
 | Secret | What it is | Missing |
 | --- | --- | --- |
 | `TWITCH_CLIENT_ID` | what `local.properties` holds on a dev machine | the release stops, rather than ship an APK that cannot log in |
-| `KEYSTORE_BASE64` | the upload keystore, as `base64 -w0 upload.jks` | the APK is signed with the debug key |
+| `KEYSTORE_BASE64` | the upload keystore, as `base64 -w0 upload.jks` | the release stops; only a `dry_run` falls back to the debug key |
 | `KEYSTORE_PASSWORD`, `KEY_ALIAS`, `KEY_PASSWORD` | how to open that keystore | same |
+| `PLAY_SERVICE_ACCOUNT_JSON` | the service account allowed to release to Play | only needed for a `play_track` other than `none`, which stops without it |
 
 ## Commands
 

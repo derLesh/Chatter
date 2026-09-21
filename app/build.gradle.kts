@@ -25,6 +25,11 @@ val twitchClientId: String = localProps.getProperty("twitch.clientId").orEmpty()
 // machine — the debug key below keeps the APK installable, the way it has always been.
 val uploadKeystore: String? = env("CHATTER_KEYSTORE_FILE")
 
+// Play rejects anything signed with the debug key, and the first upload decides which key the app
+// is allowed to be updated with for good. So a build meant for Play sets this and stops outright
+// rather than quietly falling back to the debug key the way a build on a dev machine may.
+val requireUploadKey: Boolean = env("CHATTER_REQUIRE_UPLOAD_KEY") != null
+
 // The version comes from the release tooling in the root build: "./gradlew releaseVersion" works it
 // out from the entries in pending-changelog/, so nobody edits a version by hand.
 val versionProps = Properties().apply {
@@ -46,12 +51,31 @@ android {
 
     signingConfigs {
         if (uploadKeystore != null) {
+            // All four or none: a keystore with a missing password fails deep inside the signing
+            // task, where the message says nothing about which secret was left unset.
+            val missing = listOf(
+                "CHATTER_KEYSTORE_PASSWORD" to env("CHATTER_KEYSTORE_PASSWORD"),
+                "CHATTER_KEY_ALIAS" to env("CHATTER_KEY_ALIAS"),
+                "CHATTER_KEY_PASSWORD" to env("CHATTER_KEY_PASSWORD"),
+            ).filter { it.second == null }.map { it.first }
+            if (missing.isNotEmpty()) {
+                throw GradleException(
+                    "CHATTER_KEYSTORE_FILE is set, but $missing ${if (missing.size == 1) "is" else "are"} not. " +
+                        "The upload key needs the keystore, its password, the alias and the key password.",
+                )
+            }
             create("upload") {
                 storeFile = file(uploadKeystore)
                 storePassword = env("CHATTER_KEYSTORE_PASSWORD")
                 keyAlias = env("CHATTER_KEY_ALIAS")
                 keyPassword = env("CHATTER_KEY_PASSWORD")
             }
+        } else if (requireUploadKey) {
+            throw GradleException(
+                "CHATTER_REQUIRE_UPLOAD_KEY is set, so this build is meant for Play, but there is no " +
+                    "upload keystore in CHATTER_KEYSTORE_FILE. Signing it with the debug key would " +
+                    "produce an artifact Play refuses.",
+            )
         }
     }
 

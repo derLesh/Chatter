@@ -1,7 +1,13 @@
 # Releasing Chatter, start to finish, from the button on the Actions tab. The version is never
 # typed in: the entries in pending-changelog/ decide it, exactly as "./gradlew releaseVersion" does
-# on a dev machine. The workflow folds them into CHANGELOG.md, builds and signs the APK, and only
-# then pushes the release commit and tag — a build that fails leaves the repository untouched.
+# on a dev machine. The workflow folds them into CHANGELOG.md, builds and signs the APK and the
+# Play bundle, and only then pushes the release commit and tag — a build that fails leaves the
+# repository untouched.
+#
+# Everything that can be wrong about a release is checked before anything is built: the Client ID,
+# the keystore and its password, the alias inside it, that there is something to release, and that
+# the version has not been released already. A release that gets as far as signing is one that
+# Play will accept.
 name: Release
 
 on:
@@ -11,6 +17,11 @@ on:
         description: 'Build everything, but push nothing and publish nothing'
         type: boolean
         default: false
+      play_track:
+        description: 'Play track to upload the bundle to'
+        type: choice
+        default: none
+        options: [none, internal, alpha, beta, production]
 
 # Two releases at once would race over the version and the tag.
 concurrency:
@@ -24,8 +35,10 @@ jobs:
   release:
     name: Release
     runs-on: ubuntu-latest
+    timeout-minutes: 45
     steps:
-      # The whole history, so the release commit and the tag can be pushed.
+      # The whole history, so the release commit and the tag can be pushed, and so the version
+      # before this one can be read back out of the previous tag.
       - uses: actions/checkout@v5
         with:
           fetch-depth: 0
@@ -37,6 +50,14 @@ jobs:
         run: |
           if [ -z "$TWITCH_CLIENT_ID" ]; then
             echo "::error::The TWITCH_CLIENT_ID secret is not set, so the APK could not log in to Twitch."
+            exit 1
+          fi
+
+      - name: Require a Play service account for the chosen track
+        if: ${{ inputs.play_track != 'none' }}
+        run: |
+          if [ -z "${{ secrets.PLAY_SERVICE_ACCOUNT_JSON }}" ]; then
+            echo "::error::Track '${{ inputs.play_track }}' was picked, but the PLAY_SERVICE_ACCOUNT_JSON secret is not set."
             exit 1
           fi
 
@@ -55,11 +76,45 @@ jobs:
           distribution: temurin
           java-version: '21'
 
+      # Play refuses a bundle signed with the debug key, and the key the first upload arrives with
+      # is the only one that may ever update the app. So the keystore is not optional any more: a
+      # dry run may go without, a real release may not.
+      - name: Unpack and check the upload keystore
+        env:
+          KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
+          KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
+        run: |
+          if [ -z "$KEYSTORE_BASE64" ]; then
+            if [ "${{ inputs.dry_run }}" = "true" ]; then
+              echo "::warning::No KEYSTORE_BASE64 secret. This dry run signs with the debug key."
+              exit 0
+            fi
+            echo "::error::No KEYSTORE_BASE64 secret, so the release could only be signed with the debug key."
+            exit 1
+          fi
+          if [ -z "$KEYSTORE_PASSWORD" ] || [ -z "$KEY_ALIAS" ] || [ -z "${{ secrets.KEY_PASSWORD }}" ]; then
+            echo "::error::KEYSTORE_BASE64 is set, but KEYSTORE_PASSWORD, KEY_ALIAS or KEY_PASSWORD is missing."
+            exit 1
+          fi
+          printf '%s' "$KEYSTORE_BASE64" | base64 -d > "$RUNNER_TEMP/upload.jks"
+          # Opening it here turns "wrong password" and "no such alias" into a failure that says so,
+          # instead of one buried in a signing task half an hour later.
+          if ! keytool -list -keystore "$RUNNER_TEMP/upload.jks" -storepass "$KEYSTORE_PASSWORD" -alias "$KEY_ALIAS" > /dev/null 2>&1; then
+            echo "::error::The keystore did not open with KEYSTORE_PASSWORD, or it holds no key called '$KEY_ALIAS'."
+            exit 1
+          fi
+          echo "CHATTER_KEYSTORE_FILE=$RUNNER_TEMP/upload.jks" >> "$GITHUB_ENV"
+          echo "CHATTER_REQUIRE_UPLOAD_KEY=1" >> "$GITHUB_ENV"
+
       - name: Set up Gradle
         uses: gradle/actions/setup-gradle@v4
 
       - name: Unit tests
         run: ./gradlew :app:testDebugUnitTest
+
+      - name: Lint
+        run: ./gradlew :app:lintRelease
 
       - name: Fold the pending entries into the changelog
         run: ./gradlew releaseVersion
@@ -68,64 +123,73 @@ jobs:
         id: version
         run: |
           version=$(sed -n 's/^version=//p' version.properties)
+          code=$(sed -n 's/^versionCode=//p' version.properties)
           echo "version=$version" >> "$GITHUB_OUTPUT"
+          echo "code=$code" >> "$GITHUB_OUTPUT"
           if git rev-parse -q --verify "refs/tags/v$version" >/dev/null; then
             echo "::error::v$version is already tagged. version.properties and the tags disagree."
             exit 1
           fi
-          echo "Chatter $version" >> "$GITHUB_STEP_SUMMARY"
-
-      # The keystore is a secret holding the base64 of the .jks file; the build picks the key up
-      # through CHATTER_KEYSTORE_FILE. Without the secret the build falls back to the debug key,
-      # which still installs but is not a key anyone should ship under for long.
-      - name: Unpack the upload keystore
-        env:
-          KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
-        run: |
-          if [ -z "$KEYSTORE_BASE64" ]; then
-            echo "::warning::No KEYSTORE_BASE64 secret, so the APK is signed with the debug key."
-            exit 0
+          # Play refuses a bundle whose versionCode it has seen before, and the tags are the only
+          # record of what went out. Anything but a step up from the last one is a mistake.
+          previous=$(git describe --tags --abbrev=0 2>/dev/null || true)
+          if [ -n "$previous" ]; then
+            was=$(git show "$previous:version.properties" 2>/dev/null | sed -n 's/^versionCode=//p')
+            if [ -n "$was" ] && [ "$code" -le "$was" ]; then
+              echo "::error::versionCode $code is not above $was, which $previous released."
+              exit 1
+            fi
           fi
-          printf '%s' "$KEYSTORE_BASE64" | base64 -d > "$RUNNER_TEMP/upload.jks"
-          echo "CHATTER_KEYSTORE_FILE=$RUNNER_TEMP/upload.jks" >> "$GITHUB_ENV"
+          echo "Chatter $version (versionCode $code)" >> "$GITHUB_STEP_SUMMARY"
 
-      - name: Build the release APK
+      # One invocation for both, so R8 and the resource shrinker run once and the APK and the
+      # bundle are built from the very same inputs.
+      - name: Build the release APK and the Play bundle
         env:
           TWITCH_CLIENT_ID: ${{ secrets.TWITCH_CLIENT_ID }}
           CHATTER_KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
           CHATTER_KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
           CHATTER_KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
-        run: ./gradlew :app:assembleRelease
+        run: ./gradlew :app:assembleRelease :app:bundleRelease
 
       # Named after the version, so a downloaded APK still says which one it is.
-      - name: Name the APK after the version
-        id: apk
+      - name: Name the artifacts after the version
+        id: artifacts
         run: |
-          apk="chatter-${{ steps.version.outputs.version }}.apk"
+          version="${{ steps.version.outputs.version }}"
+          apk="chatter-$version.apk"
+          aab="chatter-$version.aab"
           mv app/build/outputs/apk/release/app-release.apk "$apk"
-          echo "path=$apk" >> "$GITHUB_OUTPUT"
+          mv app/build/outputs/bundle/release/app-release.aab "$aab"
+          echo "apk=$apk" >> "$GITHUB_OUTPUT"
+          echo "aab=$aab" >> "$GITHUB_OUTPUT"
 
-      # Only a dry run needs this: a real release carries the APK as a release asset, which is
-      # stored separately and does not touch the Actions artifact quota. And nothing here is
-      # allowed to fail the release — the APK is built and signed by this point, and losing a
-      # spare copy of it is no reason to throw that away.
-      - name: Upload the APK as a build artifact
-        if: ${{ inputs.dry_run }}
-        continue-on-error: true
-        uses: actions/upload-artifact@v4
-        with:
-          name: chatter-release-apk
-          path: ${{ steps.apk.outputs.path }}
-          if-no-files-found: error
+      # Which key actually signed it. Play ties the app to the first certificate it sees, so this
+      # fingerprint is worth reading once and comparing with the one the Play Console shows.
+      - name: Show what signed the release
+        run: |
+          {
+            echo '### Signed by'
+            echo '```'
+            keytool -printcert -jarfile "${{ steps.artifacts.outputs.aab }}" | grep -E 'Owner|SHA256' || true
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
 
       # The entries this release just folded in: everything from the newest heading down to the one
       # before it, which is what CHANGELOG.md's shape guarantees.
       - name: Write the release notes
         run: awk '/^## /{ heading++ } heading == 1 && !/^## /' CHANGELOG.md > "$RUNNER_TEMP/notes.md"
 
-      - name: Delete the keystore
-        if: always()
-        run: rm -f "$RUNNER_TEMP/upload.jks"
+      - name: Upload the artifacts to the run
+        if: always() && steps.artifacts.outcome == 'success'
+        continue-on-error: true
+        uses: actions/upload-artifact@v4
+        with:
+          name: chatter-release
+          path: |
+            ${{ steps.artifacts.outputs.apk }}
+            ${{ steps.artifacts.outputs.aab }}
+          if-no-files-found: error
 
       - name: Push the release commit and tag
         if: ${{ !inputs.dry_run }}
@@ -148,7 +212,33 @@ jobs:
           gh release create "v$VERSION" \
             --title "Chatter $VERSION" \
             --notes-file "$RUNNER_TEMP/notes.md" \
-            "${{ steps.apk.outputs.path }}"
+            "${{ steps.artifacts.outputs.apk }}"
+
+      # Play shows these under "What's new" and cuts anything past 500 characters, so the changelog
+      # entries are trimmed to whole lines that fit.
+      - name: Write the Play release notes
+        if: ${{ inputs.play_track != 'none' }}
+        run: |
+          mkdir -p "$RUNNER_TEMP/whatsnew"
+          sed 's/^- [a-z]*: /• /' "$RUNNER_TEMP/notes.md" | grep -v '^$' | awk '
+            { if (length(out) + length($0) + 1 > 500) exit; out = out $0 "\n"; print }
+          ' > "$RUNNER_TEMP/whatsnew/whatsnew-en-US"
+          cp "$RUNNER_TEMP/whatsnew/whatsnew-en-US" "$RUNNER_TEMP/whatsnew/whatsnew-de-DE"
+
+      - name: Upload the bundle to Play
+        if: ${{ !inputs.dry_run && inputs.play_track != 'none' }}
+        uses: r0adkll/upload-google-play@v1
+        with:
+          serviceAccountJsonPlainText: ${{ secrets.PLAY_SERVICE_ACCOUNT_JSON }}
+          packageName: dev.chatter.app
+          releaseFiles: ${{ steps.artifacts.outputs.aab }}
+          track: ${{ inputs.play_track }}
+          status: completed
+          whatsNewDirectory: ${{ runner.temp }}/whatsnew
+
+      - name: Delete the keystore
+        if: always()
+        run: rm -f "$RUNNER_TEMP/upload.jks"
 
       - name: Say what a dry run would have done
         if: ${{ inputs.dry_run }}

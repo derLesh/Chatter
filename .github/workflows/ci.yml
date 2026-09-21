@@ -21,6 +21,7 @@ jobs:
   build:
     name: Build and test
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v5
 
@@ -39,12 +40,21 @@ jobs:
       - name: Unit tests
         run: ./gradlew :app:testDebugUnitTest
 
+      # The release variant, because that is the one that ships: it lints the minified build's
+      # configuration too, and catches a manifest or resource problem a debug build never sees.
       - name: Lint
-        run: ./gradlew :app:lintDebug
+        run: ./gradlew :app:lintRelease
 
       # No Twitch Client ID here: CI only proves the app builds, and the login is not exercised.
       - name: Assemble the debug APK
         run: ./gradlew :app:assembleDebug
+
+      # The release build is the one that can break on its own: R8 strips and rewrites, the
+      # resource shrinker removes what nothing appears to reference, and the bundle is what Play
+      # is handed. None of that is exercised by a debug build, and finding out during a release is
+      # finding out too late. It signs with the debug key here, which is all CI needs.
+      - name: Assemble the release bundle
+        run: ./gradlew :app:bundleRelease
 
       - name: Upload the debug APK
         uses: actions/upload-artifact@v4
@@ -62,4 +72,5 @@ jobs:
           path: |
             app/build/reports/tests/
             app/build/reports/lint-results-*.html
+            app/build/outputs/mapping/release/
           if-no-files-found: ignore
