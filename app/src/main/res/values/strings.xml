@@ -285,6 +285,10 @@
     <string name="settings_report_user">Report a chatter</string>
     <string name="settings_report_user_summary">Long-press any message to report or block whoever wrote it</string>
 
+    <string name="settings_privacy">Privacy policy</string>
+    <string name="settings_privacy_summary">What Chatter stores and who it talks to</string>
+    <string name="settings_twitch_disclaimer">Chatter is an independent app and is not affiliated with, endorsed by or sponsored by Twitch Interactive, Inc.</string>
+
     <!-- Blocked users -->
     <string name="action_block">Block</string>
     <string name="action_unblock">Unblock</string>

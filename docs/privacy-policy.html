@@ -1,0 +1,257 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Chatter — Privacy Policy</title>
+<style>
+  :root {
+    color-scheme: light dark;
+    --bg: #ffffff;
+    --fg: #16161a;
+    --muted: #5b5b66;
+    --rule: #e3e3e8;
+    --accent: #6741d9;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root { --bg: #131316; --fg: #ecedf0; --muted: #a0a0ad; --rule: #2a2a31; --accent: #b197fc; }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0 auto;
+    padding: 48px 16px 96px;
+    max-width: 44rem;
+    background: var(--bg);
+    color: var(--fg);
+    font: 16px/1.65 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  }
+  h1 { font-size: 2rem; margin: 0 0 4px; letter-spacing: -0.02em; }
+  h2 { font-size: 1.25rem; margin: 40px 0 8px; letter-spacing: -0.01em; }
+  h3 { font-size: 1rem; margin: 24px 0 4px; }
+  p, li { color: var(--fg); }
+  .sub { color: var(--muted); margin: 0 0 8px; }
+  a { color: var(--accent); }
+  hr { border: 0; border-top: 1px solid var(--rule); margin: 56px 0; }
+  table { border-collapse: collapse; width: 100%; margin: 12px 0; font-size: 0.95rem; }
+  th, td { border-bottom: 1px solid var(--rule); text-align: left; padding: 8px 10px 8px 0; vertical-align: top; }
+  th { color: var(--muted); font-weight: 600; }
+  code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 0.9em; }
+  .lang { margin-bottom: 32px; font-size: 0.95rem; }
+</style>
+</head>
+<body>
+
+<p class="lang"><a href="#deutsch">Auf Deutsch lesen →</a></p>
+
+<h1>Chatter — Privacy Policy</h1>
+<p class="sub">Last updated: 21 September 2026</p>
+
+<p>Chatter is an independent, open-source Twitch chat client for Android. It has no backend of its
+own: there is no Chatter server, no account with Chatter, and no analytics, crash reporting or
+advertising in the app. This policy describes what stays on your phone and what leaves it.</p>
+
+<h2>What Chatter stores on your device</h2>
+<p>All of the following is kept in Chatter's private app storage and never sent anywhere by the
+developer:</p>
+<ul>
+  <li><strong>Your Twitch login.</strong> The OAuth access token Twitch issues, your Twitch username
+      and user id. The token is encrypted with a key held in the Android Keystore, which never
+      leaves the device.</li>
+  <li><strong>Your channels</strong>, their custom names, and which of them are muted.</li>
+  <li><strong>Your settings</strong>, including appearance, notification and highlight preferences.</li>
+  <li><strong>Nicknames</strong> you have given other chatters, your <strong>blocked users</strong>,
+      and your <strong>highlight and filter rules</strong>.</li>
+  <li><strong>Mentions and whispers</strong> collected in the inbox, so they survive a restart.</li>
+  <li><strong>Usage counters</strong> shown under Settings, such as how many messages you have sent.
+      These are local numbers and are not reported anywhere.</li>
+</ul>
+
+<h2>Who Chatter talks to</h2>
+<p>Chatter connects directly from your phone to the services below. It sends no data to the
+developer, and no third party receives your Twitch access token except Twitch itself.</p>
+
+<table>
+  <tr><th>Service</th><th>Hosts</th><th>What is sent</th></tr>
+  <tr>
+    <td>Twitch</td>
+    <td><code>id.twitch.tv</code>, <code>api.twitch.tv</code>, <code>irc-ws.chat.twitch.tv</code>, <code>static-cdn.jtvnw.net</code></td>
+    <td>Your access token, the messages you write, and the channels you join. This is the chat
+        service itself.</td>
+  </tr>
+  <tr>
+    <td>7TV</td>
+    <td><code>7tv.io</code>, <code>events.7tv.io</code></td>
+    <td>The Twitch id of a channel you open, to fetch and live-update its emotes.</td>
+  </tr>
+  <tr>
+    <td>BetterTTV</td>
+    <td><code>api.betterttv.net</code>, <code>cdn.betterttv.net</code></td>
+    <td>The Twitch id of a channel you open, to fetch its emotes.</td>
+  </tr>
+  <tr>
+    <td>FrankerFaceZ</td>
+    <td><code>api.frankerfacez.com</code></td>
+    <td>The Twitch id of a channel you open, to fetch its emotes.</td>
+  </tr>
+  <tr>
+    <td>Chatterino</td>
+    <td><code>api.chatterino.com</code></td>
+    <td>Nothing about you: a public badge list is downloaded.</td>
+  </tr>
+  <tr>
+    <td>recent-messages</td>
+    <td><code>recent-messages.robotty.de</code></td>
+    <td>The name of a channel you open, to load the messages sent before you joined.</td>
+  </tr>
+  <tr>
+    <td>GitHub</td>
+    <td><code>raw.githubusercontent.com</code></td>
+    <td>Nothing about you: the public list of Chatter supporters is downloaded.</td>
+  </tr>
+</table>
+
+<p>Each of these services receives your device's IP address simply because your phone contacts
+them, and each handles it under its own privacy policy. Emote and avatar images are fetched from
+the same providers' content servers and cached on your device.</p>
+
+<h2>Notifications and the background connection</h2>
+<p>To notify you about mentions and whispers while the app is closed, Chatter keeps a chat
+connection open in a foreground service, which Android shows as an ongoing notification. Twitch
+offers no push channel for chat, so the connection is the only way to see a mention as it arrives.
+Messages are matched against your keywords <em>on your device</em>; nothing is uploaded to do it, and
+no push service is involved.</p>
+
+<h2>User-generated content</h2>
+<p>Chat messages shown in Chatter are written by Twitch users and are not moderated by Chatter.
+Long-press any message to block its author, which hides them everywhere Twitch honours a block, or
+to report them — reports are handled by Twitch, since Twitch hosts the content.</p>
+
+<h2>Children</h2>
+<p>Chatter is not directed at children. It requires a Twitch account, and Twitch's own Terms of
+Service set the minimum age for that.</p>
+
+<h2>Deleting your data</h2>
+<p>Logging out removes the stored token and your login from the device. Uninstalling Chatter, or
+clearing its storage under Android's app settings, removes everything listed above. Because Chatter
+stores nothing on a server, there is no data for the developer to delete on request. To delete your
+Twitch account or the data Twitch holds, use Twitch.</p>
+
+<h2>Changes</h2>
+<p>If this policy changes, the updated version appears at this address with a new date above.</p>
+
+<h2>Contact</h2>
+<p>Questions about this policy: open an issue at
+<a href="https://github.com/derLesh/Chatter/issues">github.com/derLesh/Chatter</a>.</p>
+
+<p class="sub">Chatter is an independent app and is not affiliated with, endorsed by or sponsored by
+Twitch Interactive, Inc.</p>
+
+<hr>
+
+<h1 id="deutsch">Chatter — Datenschutzerklärung</h1>
+<p class="sub">Zuletzt aktualisiert: 21. September 2026</p>
+
+<p>Chatter ist ein unabhängiger, quelloffener Twitch-Chat-Client für Android. Die App hat kein
+eigenes Backend: Es gibt keinen Chatter-Server, kein Konto bei Chatter und in der App weder
+Analyse- noch Absturzberichte oder Werbung. Diese Erklärung beschreibt, was auf dem Telefon bleibt
+und was es verlässt.</p>
+
+<h2>Was Chatter auf dem Gerät speichert</h2>
+<p>Alles Folgende liegt im privaten App-Speicher von Chatter und wird von der Entwicklung nirgendwohin
+übertragen:</p>
+<ul>
+  <li><strong>Der Twitch-Login.</strong> Das von Twitch ausgestellte OAuth-Token, der Twitch-Benutzername
+      und die Benutzer-ID. Das Token ist mit einem Schlüssel verschlüsselt, der den Android Keystore
+      nie verlässt.</li>
+  <li><strong>Die Kanäle</strong>, ihre eigenen Namen und welche davon stummgeschaltet sind.</li>
+  <li><strong>Die Einstellungen</strong>, einschließlich Darstellung, Benachrichtigungen und Highlights.</li>
+  <li><strong>Spitznamen</strong> für andere Chatter, <strong>blockierte Nutzer</strong> sowie
+      <strong>Highlight- und Filterregeln</strong>.</li>
+  <li><strong>Erwähnungen und Whispers</strong> im Posteingang, damit sie einen Neustart überstehen.</li>
+  <li><strong>Zähler</strong> aus den Einstellungen, etwa die Anzahl gesendeter Nachrichten. Diese
+      Zahlen bleiben lokal und werden nirgends gemeldet.</li>
+</ul>
+
+<h2>Mit wem Chatter spricht</h2>
+<p>Chatter verbindet sich direkt vom Telefon aus mit den unten genannten Diensten. An die Entwicklung
+gehen keine Daten, und außer Twitch selbst erhält kein Dritter das Twitch-Token.</p>
+
+<table>
+  <tr><th>Dienst</th><th>Hosts</th><th>Was gesendet wird</th></tr>
+  <tr>
+    <td>Twitch</td>
+    <td><code>id.twitch.tv</code>, <code>api.twitch.tv</code>, <code>irc-ws.chat.twitch.tv</code>, <code>static-cdn.jtvnw.net</code></td>
+    <td>Das Token, die geschriebenen Nachrichten und die betretenen Kanäle — der Chat-Dienst selbst.</td>
+  </tr>
+  <tr>
+    <td>7TV</td>
+    <td><code>7tv.io</code>, <code>events.7tv.io</code></td>
+    <td>Die Twitch-ID eines geöffneten Kanals, um dessen Emotes zu laden und aktuell zu halten.</td>
+  </tr>
+  <tr>
+    <td>BetterTTV</td>
+    <td><code>api.betterttv.net</code>, <code>cdn.betterttv.net</code></td>
+    <td>Die Twitch-ID eines geöffneten Kanals, um dessen Emotes zu laden.</td>
+  </tr>
+  <tr>
+    <td>FrankerFaceZ</td>
+    <td><code>api.frankerfacez.com</code></td>
+    <td>Die Twitch-ID eines geöffneten Kanals, um dessen Emotes zu laden.</td>
+  </tr>
+  <tr>
+    <td>Chatterino</td>
+    <td><code>api.chatterino.com</code></td>
+    <td>Nichts Persönliches: Eine öffentliche Badge-Liste wird geladen.</td>
+  </tr>
+  <tr>
+    <td>recent-messages</td>
+    <td><code>recent-messages.robotty.de</code></td>
+    <td>Der Name eines geöffneten Kanals, um die Nachrichten vor dem Betreten zu laden.</td>
+  </tr>
+  <tr>
+    <td>GitHub</td>
+    <td><code>raw.githubusercontent.com</code></td>
+    <td>Nichts Persönliches: Die öffentliche Liste der Chatter-Unterstützer wird geladen.</td>
+  </tr>
+</table>
+
+<p>Jeder dieser Dienste erhält allein durch die Verbindung die IP-Adresse des Geräts und behandelt
+sie nach seiner eigenen Datenschutzerklärung. Emote- und Avatarbilder kommen von den
+Content-Servern derselben Anbieter und werden auf dem Gerät zwischengespeichert.</p>
+
+<h2>Benachrichtigungen und die Hintergrundverbindung</h2>
+<p>Damit Erwähnungen und Whispers auch bei geschlossener App ankommen, hält Chatter die
+Chat-Verbindung in einem Vordergrunddienst offen, den Android als dauerhafte Benachrichtigung
+anzeigt. Twitch bietet für den Chat keinen Push-Kanal an, deshalb ist diese Verbindung der einzige
+Weg, eine Erwähnung sofort zu sehen. Der Abgleich mit den eigenen Stichwörtern passiert
+<em>auf dem Gerät</em>; dafür wird nichts hochgeladen, und es ist kein Push-Dienst beteiligt.</p>
+
+<h2>Von Nutzern erstellte Inhalte</h2>
+<p>Die in Chatter angezeigten Chat-Nachrichten stammen von Twitch-Nutzern und werden nicht von
+Chatter moderiert. Ein langer Druck auf eine Nachricht blockiert ihre Verfasserin oder ihren
+Verfasser — wirksam überall dort, wo Twitch eine Blockierung berücksichtigt — oder meldet sie.
+Meldungen bearbeitet Twitch, da Twitch die Inhalte bereitstellt.</p>
+
+<h2>Kinder</h2>
+<p>Chatter richtet sich nicht an Kinder. Die App setzt ein Twitch-Konto voraus; das Mindestalter
+dafür regeln die Nutzungsbedingungen von Twitch.</p>
+
+<h2>Daten löschen</h2>
+<p>Das Abmelden entfernt das gespeicherte Token und den Login vom Gerät. Das Deinstallieren von
+Chatter oder das Löschen seines Speichers in den Android-Einstellungen entfernt alles oben
+Genannte. Da Chatter nichts auf einem Server speichert, gibt es keine Daten, die die Entwicklung
+auf Anfrage löschen könnte. Für das Twitch-Konto und die dort gespeicherten Daten ist Twitch
+zuständig.</p>
+
+<h2>Änderungen</h2>
+<p>Ändert sich diese Erklärung, erscheint die neue Fassung unter dieser Adresse mit neuem Datum.</p>
+
+<h2>Kontakt</h2>
+<p>Fragen zu dieser Erklärung: ein Issue unter
+<a href="https://github.com/derLesh/Chatter/issues">github.com/derLesh/Chatter</a>.</p>
+
+<p class="sub">Chatter ist eine unabhängige App und steht in keiner Verbindung zu
+Twitch Interactive, Inc.</p>
+
+</body>
+</html>

@@ -96,6 +96,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import dev.chatter.app.BuildConfig
@@ -931,6 +932,7 @@ private fun AboutPage(vm: MainViewModel, open: (SettingsSubPage) -> Unit) {
         }
         item { LinkItem(R.string.settings_source_code, R.string.settings_source_code_summary, REPO_URL) }
         item { LinkItem(R.string.settings_report_issue, R.string.settings_report_issue_summary, "$REPO_URL/issues/new") }
+        item { LinkItem(R.string.settings_privacy, R.string.settings_privacy_summary, PRIVACY_URL) }
     }
     BackupGroup(vm)
     SettingsGroup(R.string.settings_credits) {
@@ -951,6 +953,14 @@ private fun AboutPage(vm: MainViewModel, open: (SettingsSubPage) -> Unit) {
             }
         }
     }
+    // Twitch's branding rules ask every third-party client to say it is not one of theirs.
+    Text(
+        stringResource(R.string.settings_twitch_disclaimer),
+        style = MaterialTheme.typography.bodySmall,
+        color = MaterialTheme.colorScheme.onSurfaceVariant,
+        textAlign = TextAlign.Center,
+        modifier = Modifier.fillMaxWidth().padding(horizontal = 32.dp, vertical = 20.dp),
+    )
     shownLicense?.let { dependency ->
         LicenseSheet(dependency, onDismiss = { shownLicense = null })
     }
@@ -1105,6 +1115,7 @@ private val CREDITS = listOf(
 )
 
 private const val REPO_URL = "https://github.com/derLesh/Chatter"
+private const val PRIVACY_URL = "https://derlesh.github.io/Chatter/privacy-policy.html"
 
 @Composable
 private fun LinkItem(title: Int, summary: Int, url: String) =

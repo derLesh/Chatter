@@ -280,6 +280,10 @@
     <string name="settings_report_user">Chatter melden</string>
     <string name="settings_report_user_summary">Lange auf eine Nachricht tippen, um sie zu melden oder zu blockieren</string>
 
+    <string name="settings_privacy">Datenschutzerklärung</string>
+    <string name="settings_privacy_summary">Was Chatter speichert und mit wem es spricht</string>
+    <string name="settings_twitch_disclaimer">Chatter ist eine unabhängige App und steht in keiner Verbindung zu Twitch Interactive, Inc.</string>
+
     <string name="action_block">Blockieren</string>
     <string name="action_unblock">Entblocken</string>
     <string name="settings_blocked_users">Blockierte Nutzer</string>
