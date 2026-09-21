@@ -38,6 +38,9 @@ class EmoteRepository(
     /** Twitch follower emotes the user may use in a channel (keyed by channel id). */
     private val channelTwitch = ConcurrentHashMap<String, Map<String, Emote>>()
 
+    /** When a channel's emotes last came back from all three providers, for [refreshChannel]. */
+    private val lastFullLoad = ConcurrentHashMap<String, Long>()
+
     /** 7TV ids per Twitch channel id, for live updates via the 7TV EventAPI. */
     private val sevenTvSets = ConcurrentHashMap<String, String>()
     private val sevenTvUsers = ConcurrentHashMap<String, String>()
@@ -111,9 +114,25 @@ class EmoteRepository(
         }
         val loaded = (channels[channelId] ?: ProviderEmotes()).merge(ffz.await(), bttv.await(), stv.await())
         channels[channelId] = loaded.emotes
+        if (loaded.failed.isEmpty()) lastFullLoad[channelId] = System.currentTimeMillis() else lastFullLoad.remove(channelId)
         if (loaded.failed.isNotEmpty()) _failures.tryEmit(EmoteLoadFailure(channelId, loaded.failed))
         follower.await()
         _version.update { it + 1 }
+    }
+
+    /**
+     * Brings a channel's emotes up to date after the app was away, and does nothing if they were
+     * fully loaded a short while ago.
+     *
+     * Coming back to the app asks every provider of every joined channel again, which for a few
+     * channels is a few dozen requests each time the app is glanced at — and emote sets hardly
+     * ever change, 7TV pushes its changes over the EventAPI anyway, and the answer is nearly
+     * always "nothing new". A load that failed leaves no mark, so that one is retried at once.
+     */
+    suspend fun refreshChannel(channelId: String) {
+        val last = lastFullLoad[channelId]
+        if (last != null && System.currentTimeMillis() - last < RELOAD_AFTER_MS) return
+        loadChannel(channelId, null)
     }
 
     private suspend fun loadFollowerEmotes(channelId: String, userId: String) {
@@ -154,6 +173,7 @@ class EmoteRepository(
 
     fun clear() {
         channels.clear()
+        lastFullLoad.clear()
         sevenTvSets.clear()
         sevenTvUsers.clear()
         channelTwitch.clear()
@@ -209,6 +229,9 @@ class EmoteRepository(
     }
 
     private companion object {
+        /** How long a full load of a channel's emotes is taken to be current. */
+        const val RELOAD_AFTER_MS = 15 * 60_000L
+
         val BTTV_ZERO_WIDTH = setOf(
             "SoSnowy", "IceCold", "SantaHat", "TopHat", "ReinDeer", "CandyCane", "cvMask", "cvHazmat",
         )

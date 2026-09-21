@@ -1,0 +1,1 @@
+patch: Ask the emote providers again only when the lists may have changed, not on every app switch

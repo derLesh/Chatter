@@ -54,7 +54,7 @@ class SevenTvLiveUpdates(
         // failed back then would never be tried again; this is the one place that comes back to
         // it. It returns right away once they are there.
         emotes.loadGlobal()
-        chat.knownRoomIds().forEach { id -> emotes.loadChannel(id, null) }
+        chat.knownRoomIds().forEach { id -> emotes.refreshChannel(id) }
     }
 
     private suspend fun handle(event: SevenTvEvent) {
