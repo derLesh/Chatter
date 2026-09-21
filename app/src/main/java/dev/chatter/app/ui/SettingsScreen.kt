@@ -21,6 +21,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -74,6 +75,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
+import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.material3.rememberTopAppBarState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -366,19 +368,16 @@ private fun AppearancePage(settings: Settings, vm: MainViewModel) {
     SettingsGroup(R.string.settings_group_colors) {
         item {
             ListItem(
-                headlineContent = { Text(stringResource(R.string.settings_theme)) },
-                supportingContent = {
-                    val modes = listOf(
-                        ThemeMode.System to R.string.theme_system,
-                        ThemeMode.Light to R.string.theme_light,
-                        ThemeMode.Dark to R.string.theme_dark,
-                    )
-                    SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth().padding(top = 8.dp)) {
-                        modes.forEachIndexed { i, (mode, label) ->
+                // The buttons are the row. Three options of one word each say at a glance what a
+                // sheet would only say once it is open, and "System / Light / Dark" under the
+                // "Colors" heading needs no second word above it saying that it is the theme.
+                headlineContent = {
+                    SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth()) {
+                        THEME_MODES.forEachIndexed { i, (mode, label) ->
                             SegmentedButton(
                                 selected = settings.themeMode == mode,
                                 onClick = { vm.setThemeMode(mode) },
-                                shape = SegmentedButtonDefaults.itemShape(i, modes.size),
+                                shape = SegmentedButtonDefaults.itemShape(i, THEME_MODES.size),
                             ) { Text(stringResource(label)) }
                         }
                     }
@@ -1299,6 +1298,103 @@ private fun CategoryIcon(icon: ImageVector) {
 @Composable
 private fun transparentItem() = ListItemDefaults.colors(containerColor = Color.Transparent)
 
+private val THEME_MODES = listOf(
+    ThemeMode.System to R.string.theme_system,
+    ThemeMode.Light to R.string.theme_light,
+    ThemeMode.Dark to R.string.theme_dark,
+)
+
+/**
+ * A choice that lives on one row: what it is, the value it has now, and the options in a sheet
+ * behind it. Spelled out as radio buttons, a choice costs a row per option even when the answer
+ * is one word — the name colors alone were six rows with a preview each. A choice of two or
+ * three short options is better off spelled out, and stays that way.
+ *
+ * [preview] draws whatever a name cannot say next to an option — and next to the value on the
+ * row itself, the way the name colors have to show themselves to be told apart.
+ */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun <T> ChoiceItem(
+    title: Int,
+    value: T,
+    options: List<T>,
+    label: @Composable (T) -> String,
+    onPick: (T) -> Unit,
+    hint: Int? = null,
+    preview: (@Composable RowScope.(T) -> Unit)? = null,
+) {
+    var open by remember { mutableStateOf(false) }
+    val sheet = rememberModalBottomSheetState()
+    val scope = rememberCoroutineScope()
+
+    ListItem(
+        headlineContent = { Text(stringResource(title)) },
+        // The row carries the same preview as the options do: what a palette does to a name is
+        // the thing being chosen, so the closed row has to show it too, not just name it.
+        supportingContent = {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(label(value))
+                preview?.let {
+                    Spacer(Modifier.width(12.dp))
+                    it(value)
+                }
+            }
+        },
+        trailingContent = { Icon(Icons.AutoMirrored.Filled.ArrowForward, contentDescription = null) },
+        colors = transparentItem(),
+        modifier = Modifier.clickable { open = true },
+    )
+    if (!open) return
+
+    // Picked is done: the sheet slides away by itself rather than waiting to be dismissed.
+    val pick = { option: T ->
+        onPick(option)
+        scope.launch { sheet.hide() }.invokeOnCompletion { if (!sheet.isVisible) open = false }
+        Unit
+    }
+    ModalBottomSheet(
+        onDismissRequest = { open = false },
+        sheetState = sheet,
+        containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
+    ) {
+        Column(
+            Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 20.dp)
+                .padding(bottom = 32.dp)
+                .verticalScroll(rememberScrollState()),
+        ) {
+            Text(stringResource(title), style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
+            hint?.let {
+                Text(
+                    stringResource(it),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(top = 4.dp, bottom = 4.dp),
+                )
+            }
+            options.forEach { option ->
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(12.dp))
+                        .clickable { pick(option) }
+                        .padding(vertical = 4.dp),
+                ) {
+                    RadioButton(selected = option == value, onClick = { pick(option) })
+                    Text(label(option), style = MaterialTheme.typography.bodyLarge)
+                    preview?.let {
+                        Spacer(Modifier.width(12.dp))
+                        it(option)
+                    }
+                }
+            }
+        }
+    }
+}
+
 @Composable
 private fun SwitchItem(res: Int, checked: Boolean, onChange: (Boolean) -> Unit, hint: Int? = null) {
     ListItem(
@@ -1497,33 +1593,20 @@ private val PROVIDERS = listOf(
 @Composable
 private fun TimestampPicker(selected: TimestampFormat, onSelect: (TimestampFormat) -> Unit) {
     val now = remember { System.currentTimeMillis() }
-    ListItem(
-        headlineContent = { Text(stringResource(R.string.settings_timestamps)) },
-        supportingContent = {
-            Column(Modifier.padding(top = 4.dp)) {
-                TimestampFormat.entries.forEach { format ->
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clip(RoundedCornerShape(12.dp))
-                            .clickable { onSelect(format) }
-                            .padding(vertical = 2.dp),
-                    ) {
-                        RadioButton(selected = format == selected, onClick = { onSelect(format) })
-                        Text(
-                            text = format.pattern?.let { p ->
-                                SimpleDateFormat(p, Locale.getDefault()).format(Date(now))
-                            } ?: stringResource(R.string.settings_timestamps_off),
-                            style = MaterialTheme.typography.bodyMedium,
-                        )
-                    }
-                }
-            }
+    ChoiceItem(
+        title = R.string.settings_timestamps,
+        value = selected,
+        options = TimestampFormat.entries,
+        // Every option writes the current time the way it would write it, which says more than
+        // "HH:mm" ever could.
+        label = { format ->
+            format.pattern?.let { SimpleDateFormat(it, Locale.getDefault()).format(Date(now)) }
+                ?: stringResource(R.string.settings_timestamps_off)
         },
-        colors = transparentItem(),
+        onPick = onSelect,
     )
 }
+
 
 /** Choice of launcher icon: black C on white or white C on black. */
 @Composable
@@ -1606,40 +1689,30 @@ private val NAME_COLOR_SAMPLES = listOf(
 @Composable
 private fun NameColorPicker(selected: NameColorPalette, onSelect: (NameColorPalette) -> Unit) {
     val dark = isAppInDarkTheme()
-    ListItem(
-        headlineContent = { Text(stringResource(R.string.settings_name_colors)) },
-        supportingContent = {
-            Column(Modifier.padding(top = 4.dp)) {
-                Text(stringResource(R.string.settings_name_colors_hint))
-                NAME_COLOR_LABELS.forEach { (palette, label) ->
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clip(RoundedCornerShape(12.dp))
-                            .clickable { onSelect(palette) }
-                            .padding(vertical = 2.dp),
-                    ) {
-                        RadioButton(selected = palette == selected, onClick = { onSelect(palette) })
-                        Text(stringResource(label), style = MaterialTheme.typography.bodyMedium)
-                        Spacer(Modifier.width(12.dp))
-                        NAME_COLOR_SAMPLES.forEach { argb ->
-                            val color = readableNameColor(argb, null, dark, palette)
-                            Text(
-                                text = stringResource(R.string.settings_name_colors_sample),
-                                style = MaterialTheme.typography.bodyMedium,
-                                fontWeight = FontWeight.Bold,
-                                color = if (color == Color.Unspecified) MaterialTheme.colorScheme.onSurface else color,
-                                modifier = Modifier.padding(end = 4.dp),
-                            )
-                        }
-                    }
-                }
+    ChoiceItem(
+        title = R.string.settings_name_colors,
+        value = selected,
+        options = NAME_COLOR_LABELS.map { it.first },
+        label = { palette -> stringResource(NAME_COLOR_LABELS.first { it.first == palette }.second) },
+        onPick = onSelect,
+        hint = R.string.settings_name_colors_hint,
+        // The same five names in every palette: the difference between them is the whole point,
+        // and it is not something a name can describe.
+        preview = { palette ->
+            NAME_COLOR_SAMPLES.forEach { argb ->
+                val color = readableNameColor(argb, null, dark, palette)
+                Text(
+                    text = stringResource(R.string.settings_name_colors_sample),
+                    style = MaterialTheme.typography.bodyMedium,
+                    fontWeight = FontWeight.Bold,
+                    color = if (color == Color.Unspecified) MaterialTheme.colorScheme.onSurface else color,
+                    modifier = Modifier.padding(end = 4.dp),
+                )
             }
         },
-        colors = transparentItem(),
     )
 }
+
 
 /** Swatches for the mention highlight, plus a preview of a highlighted message. */
 @Composable

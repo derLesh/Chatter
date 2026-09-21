@@ -96,7 +96,6 @@
     <string name="action_timeout">Timeout</string>
     <string name="action_ban">Bannen</string>
     <string name="settings_appearance">Darstellung</string>
-    <string name="settings_theme">Design</string>
     <string name="theme_system">System</string>
     <string name="theme_light">Hell</string>
     <string name="theme_dark">Dunkel</string>

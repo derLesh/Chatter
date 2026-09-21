@@ -1,0 +1,1 @@
+patch: Pick the name colors and the timestamp from a sheet instead of a long list
