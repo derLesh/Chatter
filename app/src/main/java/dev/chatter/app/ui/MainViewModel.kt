@@ -16,6 +16,7 @@ import dev.chatter.app.chat.ChatRole
 import dev.chatter.app.chat.ChatRule
 import dev.chatter.app.chat.ChatItem
 import dev.chatter.app.chat.CommandParser
+import dev.chatter.app.chat.ImageLinks
 import dev.chatter.app.chat.InboxMention
 import dev.chatter.app.chat.InboxWhisper
 import dev.chatter.app.chat.SendResult
@@ -657,6 +658,40 @@ class MainViewModel(private val c: AppContainer) : ViewModel() {
 
     fun setSmoothScrolling(v: Boolean) {
         viewModelScope.launch { c.settings.setSmoothScrolling(v) }
+    }
+
+    fun setInlineImages(v: Boolean) {
+        viewModelScope.launch { c.settings.setInlineImages(v) }
+    }
+
+    /** Whatever they pasted, turned into the bare host it names. */
+    fun addImageHost(input: String) {
+        val current = settings.value.imageHosts
+        val added = input.split(',').map { ImageLinks.cleanHost(it) }
+            .filter { it.isNotEmpty() && it !in current }
+            .distinct()
+        if (added.isEmpty()) return
+        viewModelScope.launch { c.settings.setImageHosts(current + added) }
+    }
+
+    fun removeImageHost(host: String) {
+        viewModelScope.launch { c.settings.setImageHosts(settings.value.imageHosts - host) }
+    }
+
+    /** [old] changed in place, so the list keeps the order the user put it in. */
+    fun editImageHost(old: String, input: String) {
+        val host = ImageLinks.cleanHost(input)
+        val current = settings.value.imageHosts
+        val at = current.indexOf(old)
+        if (host.isEmpty() || host == old || at < 0) return
+        // Already further down the list: changing this one into it would only say it twice.
+        val next = if (host in current) current - old else current.toMutableList().also { it[at] = host }
+        viewModelScope.launch { c.settings.setImageHosts(next) }
+    }
+
+    /** Back to the hosts a fresh install trusts, for a list that was pruned too far. */
+    fun resetImageHosts() {
+        viewModelScope.launch { c.settings.setImageHosts(ImageLinks.DEFAULT_HOSTS) }
     }
 
     fun setEmotesEnabled(v: Boolean) {

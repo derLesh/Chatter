@@ -157,6 +157,19 @@
     <string name="settings_provider_ffz">FrankerFaceZ</string>
     <string name="settings_show_deleted">Entfernte Nachrichten anzeigen</string>
     <string name="settings_show_deleted_hint">Durchgestrichen stehen lassen, statt sie auszublenden.</string>
+    <string name="settings_group_images">Bilder im Chat</string>
+    <string name="settings_inline_images">Verlinkte Bilder anzeigen</string>
+    <string name="settings_inline_images_hint">Ein Link auf eine Bilddatei wird durch das Bild ersetzt, geladen von den Seiten unten. Im Akkusparmodus pausiert.</string>
+    <string name="settings_image_hosts">Seiten zum Laden</string>
+    <string name="settings_image_hosts_none">Keine Seiten</string>
+    <string name="settings_image_hosts_hint">Die Adresse einer Seite, z. B. imgur.com. Subdomains gehören dazu.</string>
+    <string name="settings_image_hosts_add">Seite hinzufügen</string>
+    <string name="settings_image_hosts_edit">Seite bearbeiten</string>
+    <string name="settings_image_hosts_edit_one">%s bearbeiten</string>
+    <string name="settings_image_hosts_site">Seite</string>
+    <string name="settings_image_hosts_reset">Zurück zu den voreingestellten Seiten</string>
+    <string name="settings_image_hosts_note">Nur diese Seiten werden je nach einem Bild gefragt. Jeder andere Link bleibt ein Link – so kann dich niemand eine Adresse laden lassen, die du nicht erlaubt hast.</string>
+    <string name="linked_image">Verlinktes Bild</string>
     <string name="settings_emote_suggestions">Emote-Vorschläge</string>
     <string name="settings_emote_suggestions_hint">Emotes beim Tippen vorschlagen.</string>
     <string name="settings_user_suggestions">Namensvorschläge</string>
@@ -275,6 +288,10 @@
     <string name="keyword_add_mute">Wort stummschalten</string>
     <string name="keyword_word">Wort</string>
     <string name="keyword_remove">%s entfernen</string>
+    <plurals name="settings_image_hosts_count">
+        <item quantity="one">%1$d Seite</item>
+        <item quantity="other">%1$d Seiten</item>
+    </plurals>
     <plurals name="keywords_count">
         <item quantity="one">%d Wort</item>
         <item quantity="other">%d Wörter</item>

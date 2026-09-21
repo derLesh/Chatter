@@ -10,15 +10,23 @@ import dev.chatter.app.ui.theme.isAppInDarkTheme
 /**
  * The look of a chat message as the settings describe it. Shared by the chat screen and the
  * bubble, so both render a message exactly the same way.
+ *
+ * [powerSave] is Android's battery saver: the phone being asked to do less. Fetching a picture
+ * for every link somebody posts is the opposite of that, so it stops for as long as the saver is
+ * on — the same rule animated emotes already follow.
  */
 @Composable
-fun rememberChatStyle(settings: Settings, nicknames: Map<String, String>): ChatStyle {
+fun rememberChatStyle(
+    settings: Settings,
+    nicknames: Map<String, String>,
+    powerSave: Boolean = false,
+): ChatStyle {
     val dark = isAppInDarkTheme()
     val colors = MaterialTheme.colorScheme
     return remember(
         settings.fontSize, settings.timestamps, settings.highlightColor, settings.alternateBackground,
         settings.nameColors, settings.highlightFirstMessages, settings.haptics,
-        nicknames, dark, colors,
+        settings.inlineImages, settings.imageHosts, powerSave, nicknames, dark, colors,
     ) {
         ChatStyle(
             fontSize = settings.fontSize,
@@ -34,6 +42,9 @@ fun rememberChatStyle(settings: Settings, nicknames: Map<String, String>): ChatS
             nameColors = settings.nameColors,
             nicknames = nicknames,
             haptics = settings.haptics,
+            // Off, or the battery saver, is the same as allowing nobody, so the row only ever
+            // reads one thing to decide whether a picture is fetched.
+            imageHosts = if (settings.inlineImages && !powerSave) settings.imageHosts else emptyList(),
         )
     }
 }

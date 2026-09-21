@@ -54,9 +54,9 @@ fun BubbleScreen(vm: MainViewModel, channel: String?) {
     val info by vm.channelInfo.collectAsStateWithLifecycle()
     val emoteVersion by vm.emoteVersion.collectAsStateWithLifecycle()
 
-    val style = rememberChatStyle(settings, nicknames)
-    // Same rule as the chat screen: the battery saver stills the emotes.
+    // Same rule as the chat screen: the battery saver stills the emotes and stops linked images.
     val powerSave by vm.powerSaveMode.collectAsStateWithLifecycle()
+    val style = rememberChatStyle(settings, nicknames, powerSave)
     val loader = if (settings.animatedEmotes && !powerSave) vm.imageLoader else vm.staticImageLoader
     var emoteCard by remember { mutableStateOf<Segment.EmoteSeg?>(null) }
     var showPicker by remember { mutableStateOf(false) }

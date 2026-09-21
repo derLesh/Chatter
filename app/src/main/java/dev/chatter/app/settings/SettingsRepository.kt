@@ -2,6 +2,7 @@ package dev.chatter.app.settings
 
 import androidx.datastore.core.DataStore
 import dev.chatter.app.badges.BadgeProvider
+import dev.chatter.app.chat.ImageLinks
 import dev.chatter.app.emotes.EmoteProvider
 import dev.chatter.app.ui.theme.NameColorPalette
 import androidx.datastore.preferences.core.Preferences
@@ -66,6 +67,10 @@ data class Settings(
     val mentionWithAt: Boolean = true,
     /** Keep deleted messages in the chat, struck through, instead of hiding them. */
     val showDeleted: Boolean = true,
+    /** Show a linked image in place of its url, fetched from the host it sits on. */
+    val inlineImages: Boolean = true,
+    /** The only hosts whose images are ever fetched. The user adds to it and takes from it. */
+    val imageHosts: List<String> = ImageLinks.DEFAULT_HOSTS,
     /** The badge providers whose badges are shown in front of a name. */
     val badgeProviders: Set<BadgeProvider> = BadgeProvider.entries.toSet(),
     /** The emote providers whose emotes are shown; the others stay plain text. */
@@ -123,6 +128,10 @@ class SettingsRepository(
             userSuggestions = p[USER_SUGGESTIONS] ?: true,
             mentionWithAt = p[MENTION_WITH_AT] ?: true,
             showDeleted = p[SHOW_DELETED] ?: true,
+            inlineImages = p[INLINE_IMAGES] ?: true,
+            // Only an absent key falls back to the defaults: a list the user emptied stays empty.
+            imageHosts = p[IMAGE_HOSTS]?.split(',')?.map { it.trim() }?.filter { it.isNotEmpty() }
+                ?: ImageLinks.DEFAULT_HOSTS,
             haptics = p[HAPTICS] ?: true,
             keepScreenOn = p[KEEP_SCREEN_ON] ?: false,
             bubbles = p[BUBBLES] ?: false,
@@ -161,6 +170,8 @@ class SettingsRepository(
     suspend fun setUserSuggestions(v: Boolean) = store.edit { it[USER_SUGGESTIONS] = v }
     suspend fun setMentionWithAt(v: Boolean) = store.edit { it[MENTION_WITH_AT] = v }
     suspend fun setShowDeleted(v: Boolean) = store.edit { it[SHOW_DELETED] = v }
+    suspend fun setInlineImages(v: Boolean) = store.edit { it[INLINE_IMAGES] = v }
+    suspend fun setImageHosts(v: List<String>) = store.edit { p -> p[IMAGE_HOSTS] = v.joinToString(",") }
     suspend fun setHaptics(v: Boolean) = store.edit { it[HAPTICS] = v }
     suspend fun setKeepScreenOn(v: Boolean) = store.edit { it[KEEP_SCREEN_ON] = v }
     suspend fun setBubbles(v: Boolean) = store.edit { it[BUBBLES] = v }
@@ -205,6 +216,8 @@ class SettingsRepository(
         p[USER_SUGGESTIONS] = s.userSuggestions
         p[MENTION_WITH_AT] = s.mentionWithAt
         p[SHOW_DELETED] = s.showDeleted
+        p[INLINE_IMAGES] = s.inlineImages
+        p[IMAGE_HOSTS] = s.imageHosts.joinToString(",")
         p[HAPTICS] = s.haptics
         p[KEEP_SCREEN_ON] = s.keepScreenOn
         p[BUBBLES] = s.bubbles
@@ -244,6 +257,8 @@ class SettingsRepository(
         val USER_SUGGESTIONS = booleanPreferencesKey("user_suggestions")
         val MENTION_WITH_AT = booleanPreferencesKey("mention_with_at")
         val SHOW_DELETED = booleanPreferencesKey("show_deleted")
+        val INLINE_IMAGES = booleanPreferencesKey("inline_images")
+        val IMAGE_HOSTS = stringPreferencesKey("image_hosts")
         val HAPTICS = booleanPreferencesKey("haptics")
         val KEEP_SCREEN_ON = booleanPreferencesKey("keep_screen_on")
         val BUBBLES = booleanPreferencesKey("chat_bubbles")

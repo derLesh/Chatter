@@ -163,6 +163,19 @@
     <string name="settings_provider_ffz">FrankerFaceZ</string>
     <string name="settings_show_deleted">Show deleted messages</string>
     <string name="settings_show_deleted_hint">Keep them struck through instead of hiding them.</string>
+    <string name="settings_group_images">Images in chat</string>
+    <string name="settings_inline_images">Show linked images</string>
+    <string name="settings_inline_images_hint">A link to an image file is replaced by the image, loaded from the sites below. Paused while the battery saver is on.</string>
+    <string name="settings_image_hosts">Sites to load from</string>
+    <string name="settings_image_hosts_none">No sites</string>
+    <string name="settings_image_hosts_hint">The address of a site, e.g. imgur.com. Subdomains are included.</string>
+    <string name="settings_image_hosts_add">Add a site</string>
+    <string name="settings_image_hosts_edit">Edit the site</string>
+    <string name="settings_image_hosts_edit_one">Edit %s</string>
+    <string name="settings_image_hosts_site">Site</string>
+    <string name="settings_image_hosts_reset">Back to the default sites</string>
+    <string name="settings_image_hosts_note">Only these sites are ever asked for a picture. Any other link stays a link, so nobody can have you load an address you have not allowed.</string>
+    <string name="linked_image">Linked image</string>
     <string name="settings_emote_suggestions">Emote suggestions</string>
     <string name="settings_emote_suggestions_hint">Suggest emotes while typing.</string>
     <string name="settings_user_suggestions">Name suggestions</string>
@@ -281,6 +294,10 @@
     <string name="keyword_add_mute">Mute a word</string>
     <string name="keyword_word">Word</string>
     <string name="keyword_remove">Remove %s</string>
+    <plurals name="settings_image_hosts_count">
+        <item quantity="one">%1$d site</item>
+        <item quantity="other">%1$d sites</item>
+    </plurals>
     <plurals name="keywords_count">
         <item quantity="one">%d word</item>
         <item quantity="other">%d words</item>

@@ -4,22 +4,31 @@ import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.sizeIn
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.InlineTextContent
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.LinkAnnotation
@@ -43,6 +52,7 @@ import coil3.compose.AsyncImage
 import dev.chatter.app.R
 import dev.chatter.app.badges.Badge
 import dev.chatter.app.chat.ChatItem
+import dev.chatter.app.chat.ImageLinks
 import dev.chatter.app.chat.MessageKind
 import dev.chatter.app.chat.Segment
 import dev.chatter.app.settings.TimestampFormat
@@ -73,6 +83,11 @@ data class ChatStyle(
     val nicknames: Map<String, String>,
     /** Whether holding a message is answered with a short vibration. */
     val haptics: Boolean,
+    /**
+     * The hosts whose image links are shown as the image itself. Empty when the user turned
+     * linked images off, which is the same thing as allowing nobody.
+     */
+    val imageHosts: List<String>,
 )
 
 private const val BADGE_EM = 1.35f
@@ -81,8 +96,24 @@ private const val HIGHLIGHT_ALPHA = 0.2f
 /** Messages loaded from history are clearly dimmed so live chat stands out. */
 private const val HISTORICAL_ALPHA = 0.5f
 private const val EMOTE_EM = 2.1f
+/** Big enough to see what was linked, small enough that one picture is not the whole screen. */
+private val IMAGE_MAX_WIDTH = 220.dp
+private val IMAGE_MAX_HEIGHT = 180.dp
+/**
+ * What a picture may take up when it is not the only one in the line. Small enough that two of
+ * them fit beside each other on the narrowest phone, which is what makes the row wrap only when
+ * the pictures really do not fit.
+ */
+private val IMAGE_SHARED_MAX_WIDTH = 150.dp
+private val IMAGE_SHARED_MAX_HEIGHT = 130.dp
+private val IMAGE_GAP = 4.dp
 
-private class BuiltLine(val text: AnnotatedString, val inline: Map<String, InlineData>)
+private class BuiltLine(
+    val text: AnnotatedString,
+    val inline: Map<String, InlineData>,
+    /** Urls of the images that were taken out of the line and are drawn under it. */
+    val images: List<String> = emptyList(),
+)
 
 private sealed interface InlineData {
     data class BadgeData(val badge: Badge) : InlineData
@@ -181,6 +212,58 @@ fun MessageRow(
                 lineHeight = (style.fontSize * 1.45f).sp,
             )
         }
+        if (built.images.isNotEmpty()) {
+            // Beside each other while they fit, and only then onto a line of their own: two
+            // pictures in one message are usually meant to be looked at together.
+            FlowRow(
+                horizontalArrangement = Arrangement.spacedBy(IMAGE_GAP),
+                verticalArrangement = Arrangement.spacedBy(IMAGE_GAP),
+                modifier = Modifier.padding(top = 4.dp, bottom = 2.dp),
+            ) {
+                val alone = built.images.size == 1
+                built.images.forEach { url -> LinkedImage(url, style, imageLoader, alone) }
+            }
+        }
+    }
+}
+
+/**
+ * An image somebody linked, in place of its url. Tapping it opens the link — which is also all
+ * that is left when the picture cannot be fetched: a url the app cannot show is still one the
+ * browser might. [alone] is the only picture in its message, and may take the width for it.
+ */
+@Composable
+private fun LinkedImage(url: String, style: ChatStyle, loader: ImageLoader, alone: Boolean) {
+    var failed by remember(url) { mutableStateOf(false) }
+    if (failed) {
+        Text(
+            text = remember(url, style.linkColor) { linkText(url, style) },
+            fontSize = style.fontSize.sp,
+            lineHeight = (style.fontSize * 1.45f).sp,
+        )
+        return
+    }
+    val uriHandler = LocalUriHandler.current
+    AsyncImage(
+        model = url,
+        contentDescription = stringResource(R.string.linked_image),
+        imageLoader = loader,
+        contentScale = ContentScale.Fit,
+        alignment = Alignment.TopStart,
+        onError = { failed = true },
+        modifier = Modifier
+            .sizeIn(
+                maxWidth = if (alone) IMAGE_MAX_WIDTH else IMAGE_SHARED_MAX_WIDTH,
+                maxHeight = if (alone) IMAGE_MAX_HEIGHT else IMAGE_SHARED_MAX_HEIGHT,
+            )
+            .clip(RoundedCornerShape(8.dp))
+            .clickable { uriHandler.openUri(url) },
+    )
+}
+
+private fun linkText(url: String, style: ChatStyle) = buildAnnotatedString {
+    withLink(LinkAnnotation.Url(url, TextLinkStyles(SpanStyle(color = style.linkColor, textDecoration = TextDecoration.Underline)))) {
+        append(url)
     }
 }
 
@@ -215,18 +298,19 @@ private fun inlineFor(data: InlineData, loader: ImageLoader, onEmoteClick: ((Seg
 
 private fun buildLine(item: ChatItem, style: ChatStyle): BuiltLine {
     val inline = HashMap<String, InlineData>()
+    val (segments, images) = ImageLinks.split(item.segments, style.imageHosts)
     if (item.kind == MessageKind.Notice) {
         val text = buildAnnotatedString {
             withStyle(SpanStyle(color = style.secondaryText, fontStyle = FontStyle.Italic)) {
                 style.timestamps.pattern?.let { append(formatTime(it, item.timestamp) + " ") }
                 append(item.systemText ?: item.text)
-                if (item.segments.isNotEmpty()) {
+                if (segments.isNotEmpty()) {
                     append(' ')
-                    appendSegments(item.segments, inline, style)
+                    appendSegments(segments, inline, style)
                 }
             }
         }
-        return BuiltLine(text, inline)
+        return BuiltLine(text, inline, images)
     }
     if (item.kind == MessageKind.UserNotice && item.segments.isEmpty()) return BuiltLine(AnnotatedString(""), inline)
 
@@ -255,9 +339,9 @@ private fun buildLine(item: ChatItem, style: ChatStyle): BuiltLine {
             fontStyle = if (isAction) FontStyle.Italic else FontStyle.Normal,
             textDecoration = if (item.deleted) TextDecoration.LineThrough else null,
         )
-        withStyle(body) { appendSegments(item.segments, inline, style) }
+        withStyle(body) { appendSegments(segments, inline, style) }
     }
-    return BuiltLine(text, inline)
+    return BuiltLine(text, inline, images)
 }
 
 private fun AnnotatedString.Builder.appendSegments(segments: List<Segment>, inline: MutableMap<String, InlineData>, style: ChatStyle) {

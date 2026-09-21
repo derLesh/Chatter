@@ -106,6 +106,7 @@ import dev.chatter.app.auth.AuthState
 import dev.chatter.app.badges.BadgeProvider
 import dev.chatter.app.chat.ChatItem
 import dev.chatter.app.chat.ChatRule
+import dev.chatter.app.chat.ImageLinks
 import dev.chatter.app.chat.MessageBody
 import dev.chatter.app.chat.MessageKind
 import dev.chatter.app.chat.RuleAction
@@ -164,6 +165,7 @@ private enum class SettingsSubPage(val title: Int) {
     BlockedUsers(R.string.settings_blocked_users),
     MentionKeywords(R.string.settings_keywords),
     MuteKeywords(R.string.settings_mute_keywords),
+    ImageHosts(R.string.settings_image_hosts),
     Rules(R.string.settings_rules),
     Changelog(R.string.settings_changelog),
 }
@@ -227,6 +229,7 @@ fun SettingsScreen(vm: MainViewModel, onBack: () -> Unit) {
                     onAdd = vm::addMuteKeyword,
                     onRemove = vm::removeMuteKeyword,
                 )
+                SettingsSubPage.ImageHosts -> ImageHostsPage(settings.imageHosts, vm)
                 SettingsSubPage.Rules -> RulesPage(vm)
                 SettingsSubPage.Changelog -> {
                     val releases by vm.releases.collectAsStateWithLifecycle()
@@ -456,6 +459,7 @@ private fun TextSizeItem(settings: Settings, vm: MainViewModel) {
         nameColors = settings.nameColors,
         nicknames = emptyMap(),
         haptics = false,
+        imageHosts = emptyList(),
     )
     ListItem(
         headlineContent = { Text(stringResource(R.string.settings_font_size, size.roundToInt())) },
@@ -507,6 +511,32 @@ private fun ChatPage(settings: Settings, vm: MainViewModel, open: (SettingsSubPa
             )
         }
         item { TimestampPicker(settings.timestamps, vm::setTimestamps) }
+    }
+    SettingsGroup(R.string.settings_group_images) {
+        item {
+            SwitchItem(
+                R.string.settings_inline_images, settings.inlineImages,
+                vm::setInlineImages, R.string.settings_inline_images_hint,
+            )
+        }
+        item {
+            ListItem(
+                headlineContent = { Text(stringResource(R.string.settings_image_hosts)) },
+                supportingContent = {
+                    Text(
+                        if (settings.imageHosts.isEmpty()) stringResource(R.string.settings_image_hosts_none)
+                        else pluralStringResource(
+                            R.plurals.settings_image_hosts_count,
+                            settings.imageHosts.size,
+                            settings.imageHosts.size,
+                        )
+                    )
+                },
+                trailingContent = { Icon(Icons.AutoMirrored.Filled.ArrowForward, contentDescription = null) },
+                colors = transparentItem(),
+                modifier = Modifier.clickable { open(SettingsSubPage.ImageHosts) },
+            )
+        }
     }
     SettingsGroup(R.string.settings_group_muted) {
         item {
@@ -1326,6 +1356,83 @@ private fun KeywordsPage(
             hint = hint,
             onAdd = onAdd,
             onDismiss = { adding = false },
+        )
+    }
+}
+
+/**
+ * The sites whose pictures the app will fetch. Nothing outside this list is ever requested, so
+ * the page says what the list is for before it says what is in it.
+ */
+@Composable
+private fun ImageHostsPage(hosts: List<String>, vm: MainViewModel) {
+    var adding by remember { mutableStateOf(false) }
+    var editing by remember { mutableStateOf<String?>(null) }
+
+    Text(
+        stringResource(R.string.settings_image_hosts_note),
+        style = MaterialTheme.typography.bodyMedium,
+        color = MaterialTheme.colorScheme.onSurfaceVariant,
+        modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp),
+    )
+    SettingsGroup {
+        if (hosts.isEmpty()) {
+            item {
+                ListItem(
+                    headlineContent = { Text(stringResource(R.string.settings_image_hosts_none)) },
+                    supportingContent = { Text(stringResource(R.string.settings_image_hosts_hint)) },
+                    colors = transparentItem(),
+                )
+            }
+        }
+        hosts.forEach { host ->
+            item {
+                ListItem(
+                    headlineContent = { Text(host) },
+                    trailingContent = {
+                        Row {
+                            IconButton(onClick = { editing = host }) {
+                                Icon(Icons.Default.Edit, contentDescription = stringResource(R.string.settings_image_hosts_edit_one, host))
+                            }
+                            IconButton(onClick = { vm.removeImageHost(host) }) {
+                                Icon(Icons.Default.Delete, contentDescription = stringResource(R.string.keyword_remove, host))
+                            }
+                        }
+                    },
+                    colors = transparentItem(),
+                )
+            }
+        }
+    }
+    Button(onClick = { adding = true }, modifier = Modifier.fillMaxWidth()) {
+        Icon(Icons.Default.Add, contentDescription = null)
+        Spacer(Modifier.width(8.dp))
+        Text(stringResource(R.string.settings_image_hosts_add))
+    }
+    if (hosts != ImageLinks.DEFAULT_HOSTS) {
+        OutlinedButton(onClick = vm::resetImageHosts, modifier = Modifier.fillMaxWidth()) {
+            Text(stringResource(R.string.settings_image_hosts_reset))
+        }
+    }
+
+    if (adding) {
+        AddKeywordDialog(
+            title = R.string.settings_image_hosts_add,
+            hint = R.string.settings_image_hosts_hint,
+            onAdd = vm::addImageHost,
+            onDismiss = { adding = false },
+            label = R.string.settings_image_hosts_site,
+        )
+    }
+    editing?.let { host ->
+        AddKeywordDialog(
+            title = R.string.settings_image_hosts_edit,
+            hint = R.string.settings_image_hosts_hint,
+            onAdd = { vm.editImageHost(host, it) },
+            onDismiss = { editing = null },
+            initial = host,
+            label = R.string.settings_image_hosts_site,
+            confirmLabel = R.string.save,
         )
     }
 }
