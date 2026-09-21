@@ -142,13 +142,11 @@ class MainViewModel(private val c: AppContainer) : ViewModel() {
         channel?.let {
             if (!inBubble) c.notifier.clear(it)
             c.chat.clearUnread(it)
-            viewModelScope.launch {
-                // Where to come back to after a restart — the chat screen's channel, not one the
-                // user happens to be reading in a bubble on the side.
-                if (!inBubble) c.channels.setLastChannel(it)
-                // Reading a channel is reading its mentions, so the inbox must not claim otherwise.
-                c.inbox.markChannelRead(it)
-            }
+            // Where to come back to after a restart — the chat screen's channel, not one the user
+            // happens to be reading in a bubble on the side.
+            if (!inBubble) rememberLastChannel(it)
+            // Reading a channel is reading its mentions, so the inbox must not claim otherwise.
+            viewModelScope.launch { c.inbox.markChannelRead(it) }
         }
         replyTo = null
         suggestions = emptyList()
@@ -163,8 +161,34 @@ class MainViewModel(private val c: AppContainer) : ViewModel() {
         if (visible) c.notifier.clearWhispers()
     }
 
+    /**
+     * Writing down where to come back to, once the swiping has settled. Every write is a file
+     * rewritten and every flow on that store parsed again, which is a lot of ceremony for a
+     * channel the user is only passing through on the way to the next one.
+     */
+    private var pendingLastChannel: String? = null
+    private var lastChannelJob: Job? = null
+
+    private fun rememberLastChannel(channel: String) {
+        pendingLastChannel = channel
+        lastChannelJob?.cancel()
+        lastChannelJob = viewModelScope.launch {
+            delay(LAST_CHANNEL_DELAY_MS)
+            writeLastChannel()
+        }
+    }
+
+    private fun writeLastChannel() {
+        val channel = pendingLastChannel ?: return
+        pendingLastChannel = null
+        lastChannelJob?.cancel()
+        viewModelScope.launch { c.channels.setLastChannel(channel) }
+    }
+
     fun setUiVisible(visible: Boolean) {
         c.chat.setWindowVisible(this, visible, shownChannel)
+        // Leaving may come before the delay is up, and then it is the last chance to write it.
+        if (!visible) writeLastChannel()
         if (visible) {
             c.connect()
             shownChannel?.let {
@@ -645,4 +669,9 @@ class MainViewModel(private val c: AppContainer) : ViewModel() {
 
     /** The update notes have been seen, so they should not come back. */
     fun markChangelogRead() = c.changelog.markRead()
+
+    private companion object {
+        /** How long a channel has to stay on screen before it is remembered as the last one. */
+        const val LAST_CHANNEL_DELAY_MS = 1_500L
+    }
 }
