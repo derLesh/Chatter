@@ -2,9 +2,9 @@ package dev.chatter.app.badges
 
 import android.util.Log
 import dev.chatter.app.chat.BadgeSource
-import dev.chatter.app.net.HelixApi
 import dev.chatter.app.net.HelixBadgeSet
-import dev.chatter.app.net.ThirdPartyApi
+import dev.chatter.app.net.ThirdPartyBadgeApi
+import dev.chatter.app.net.TwitchBadgeApi
 import java.util.concurrent.ConcurrentHashMap
 
 /** Where a badge comes from. Each one can be turned off on its own in the settings. */
@@ -17,8 +17,10 @@ data class Badge(val url: String, val title: String, val provider: BadgeProvider
  * badges other clients hand out, which are tied to the Twitch user id rather than to a tag.
  */
 class BadgeRepository(
-    private val helix: HelixApi,
-    private val thirdParty: ThirdPartyApi,
+    private val helix: TwitchBadgeApi,
+    private val thirdParty: ThirdPartyBadgeApi,
+    /** Only ever [System.currentTimeMillis]; a test hands in one it can move. */
+    private val now: () -> Long = System::currentTimeMillis,
 ) : BadgeSource {
     @Volatile private var global: Map<String, Badge> = emptyMap()
     private val channels = ConcurrentHashMap<String, Map<String, Badge>>()
@@ -113,9 +115,9 @@ class BadgeRepository(
     suspend fun retryMissing(supporterTitle: String) {
         // A provider that is down stays down for a while, and the app is opened often; asking on
         // every single return would be the kind of traffic a phone in a pocket should not make.
-        val now = System.currentTimeMillis()
-        if (now - lastRetry < RETRY_AFTER_MS) return
-        lastRetry = now
+        val at = now()
+        if (at - lastRetry < RETRY_AFTER_MS) return
+        lastRetry = at
         loadGlobal()
         loadThirdParty(supporterTitle)
         failedChannels.toList().forEach { loadChannel(it) }

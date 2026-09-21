@@ -99,6 +99,15 @@ android {
         compose = true
         buildConfig = true
     }
+
+    testOptions {
+        unitTests {
+            // The repositories write a line to the log when a provider does not answer, and that
+            // is exactly the path the tests walk. android.util.Log is not there in a plain JVM
+            // test and throws unless its methods are stubbed out to do nothing.
+            isReturnDefaultValues = true
+        }
+    }
 }
 
 /**

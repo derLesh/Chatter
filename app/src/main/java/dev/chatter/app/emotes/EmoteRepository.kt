@@ -4,9 +4,9 @@ import android.util.Log
 import dev.chatter.app.chat.EmoteSource
 import dev.chatter.app.net.BttvEmote
 import dev.chatter.app.net.FfzEmote
-import dev.chatter.app.net.HelixApi
 import dev.chatter.app.net.SevenTvActiveEmote
-import dev.chatter.app.net.ThirdPartyApi
+import dev.chatter.app.net.ThirdPartyEmoteApi
+import dev.chatter.app.net.TwitchEmoteApi
 import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.MutableSharedFlow
@@ -29,8 +29,10 @@ data class EmoteLoadFailure(val channelId: String?, val providers: List<EmotePro
  * Lookups are plain HashMap gets so parsing a message stays O(words).
  */
 class EmoteRepository(
-    private val helix: HelixApi,
-    private val thirdParty: ThirdPartyApi,
+    private val helix: TwitchEmoteApi,
+    private val thirdParty: ThirdPartyEmoteApi,
+    /** Only ever [System.currentTimeMillis]; a test hands in one it can move. */
+    private val now: () -> Long = System::currentTimeMillis,
 ) : EmoteSource {
     @Volatile private var global: ProviderEmotes = ProviderEmotes()
     @Volatile private var twitchUser: Map<String, Emote> = emptyMap()
@@ -114,7 +116,7 @@ class EmoteRepository(
         }
         val loaded = (channels[channelId] ?: ProviderEmotes()).merge(ffz.await(), bttv.await(), stv.await())
         channels[channelId] = loaded.emotes
-        if (loaded.failed.isEmpty()) lastFullLoad[channelId] = System.currentTimeMillis() else lastFullLoad.remove(channelId)
+        if (loaded.failed.isEmpty()) lastFullLoad[channelId] = now() else lastFullLoad.remove(channelId)
         if (loaded.failed.isNotEmpty()) _failures.tryEmit(EmoteLoadFailure(channelId, loaded.failed))
         follower.await()
         _version.update { it + 1 }
@@ -131,7 +133,7 @@ class EmoteRepository(
      */
     suspend fun refreshChannel(channelId: String) {
         val last = lastFullLoad[channelId]
-        if (last != null && System.currentTimeMillis() - last < RELOAD_AFTER_MS) return
+        if (last != null && now() - last < RELOAD_AFTER_MS) return
         loadChannel(channelId, null)
     }
 

@@ -111,20 +111,42 @@ data class ChatterSupporters(val users: List<String> = emptyList())
 @Serializable
 data class RecentMessages(val messages: List<String> = emptyList(), val error: JsonElement? = null)
 
-class ThirdPartyApi(private val http: OkHttpClient) {
-    suspend fun bttvGlobal(): List<BttvEmote> = http.getJson("https://api.betterttv.net/3/cached/emotes/global")
-    suspend fun bttvChannel(channelId: String): BttvChannel? =
+/**
+ * What the emote repository asks the three emote providers for.
+ *
+ * An interface rather than the class itself, so that everything the repository does with the
+ * answers — which provider wins a name, what happens when one does not answer, when it is worth
+ * asking again — can be tried out without a network. [ThirdPartyApi] is the one real answer to it.
+ */
+interface ThirdPartyEmoteApi {
+    suspend fun bttvGlobal(): List<BttvEmote>
+    suspend fun bttvChannel(channelId: String): BttvChannel?
+    suspend fun ffzGlobal(): FfzGlobal
+    suspend fun ffzChannel(channelId: String): FfzRoom?
+    suspend fun sevenTvGlobal(): SevenTvEmoteSet
+    suspend fun sevenTvChannel(channelId: String): SevenTvUser?
+}
+
+/** The badge lists other clients hand out, as the badge repository asks for them. */
+interface ThirdPartyBadgeApi {
+    suspend fun chatterinoBadges(): ChatterinoBadges
+    suspend fun chatterSupporters(): ChatterSupporters
+}
+
+class ThirdPartyApi(private val http: OkHttpClient) : ThirdPartyEmoteApi, ThirdPartyBadgeApi {
+    override suspend fun bttvGlobal(): List<BttvEmote> = http.getJson("https://api.betterttv.net/3/cached/emotes/global")
+    override suspend fun bttvChannel(channelId: String): BttvChannel? =
         http.getJsonOrNull("https://api.betterttv.net/3/cached/users/twitch/$channelId")
 
-    suspend fun ffzGlobal(): FfzGlobal = http.getJson("https://api.frankerfacez.com/v1/set/global")
-    suspend fun ffzChannel(channelId: String): FfzRoom? =
+    override suspend fun ffzGlobal(): FfzGlobal = http.getJson("https://api.frankerfacez.com/v1/set/global")
+    override suspend fun ffzChannel(channelId: String): FfzRoom? =
         http.getJsonOrNull("https://api.frankerfacez.com/v1/room/id/$channelId")
 
-    suspend fun sevenTvGlobal(): SevenTvEmoteSet = http.getJson("https://7tv.io/v3/emote-sets/global")
-    suspend fun sevenTvChannel(channelId: String): SevenTvUser? =
+    override suspend fun sevenTvGlobal(): SevenTvEmoteSet = http.getJson("https://7tv.io/v3/emote-sets/global")
+    override suspend fun sevenTvChannel(channelId: String): SevenTvUser? =
         http.getJsonOrNull("https://7tv.io/v3/users/twitch/$channelId")
 
-    suspend fun chatterinoBadges(): ChatterinoBadges =
+    override suspend fun chatterinoBadges(): ChatterinoBadges =
         http.getJson("https://api.chatterino.com/badges")
 
     /**
@@ -132,7 +154,7 @@ class ThirdPartyApi(private val http: OkHttpClient) {
      * raw.githubusercontent answers 404 for a private repo, so the list never loaded. It is
      * fetched, never shipped — a new supporter must not need a new release.
      */
-    suspend fun chatterSupporters(): ChatterSupporters =
+    override suspend fun chatterSupporters(): ChatterSupporters =
         http.getJson("https://derlesh.github.io/Chatter/supporters.json")
 
     suspend fun recentMessages(channel: String, limit: Int): RecentMessages =

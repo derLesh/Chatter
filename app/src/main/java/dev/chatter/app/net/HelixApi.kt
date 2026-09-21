@@ -10,12 +10,25 @@ import kotlinx.serialization.json.putJsonObject
 import okhttp3.HttpUrl.Companion.toHttpUrl
 import okhttp3.OkHttpClient
 
+/** The emotes Twitch itself lets the user type, as the emote repository asks for them. */
+interface TwitchEmoteApi {
+    suspend fun userEmotes(userId: String): List<HelixEmote>
+    suspend fun channelEmotes(channelId: String): List<HelixEmote>
+    suspend fun isFollowing(userId: String, channelId: String): Boolean
+}
+
+/** The badges Twitch itself hands out, as the badge repository asks for them. */
+interface TwitchBadgeApi {
+    suspend fun globalBadges(): List<HelixBadgeSet>
+    suspend fun channelBadges(channelId: String): List<HelixBadgeSet>
+}
+
 /** Minimal client for the parts of the Twitch Helix API the app needs. */
 class HelixApi(
     private val http: OkHttpClient,
     /** Returns a currently valid access token (refreshing it if needed). */
     private val token: suspend () -> String?,
-) {
+) : TwitchEmoteApi, TwitchBadgeApi {
     private suspend fun headers() = mapOf(
         "Client-Id" to BuildConfig.TWITCH_CLIENT_ID,
         "Authorization" to "Bearer ${token().orEmpty()}",
@@ -45,14 +58,14 @@ class HelixApi(
     suspend fun searchChannels(query: String): List<HelixChannelSearch> =
         http.getJson<HelixList<HelixChannelSearch>>(url("search/channels", "query" to query, "first" to "10"), headers()).data
 
-    suspend fun globalBadges(): List<HelixBadgeSet> =
+    override suspend fun globalBadges(): List<HelixBadgeSet> =
         http.getJson<HelixList<HelixBadgeSet>>(url("chat/badges/global"), headers()).data
 
-    suspend fun channelBadges(channelId: String): List<HelixBadgeSet> =
+    override suspend fun channelBadges(channelId: String): List<HelixBadgeSet> =
         http.getJson<HelixList<HelixBadgeSet>>(url("chat/badges", "broadcaster_id" to channelId), headers()).data
 
     /** All emotes the user may use anywhere (subs, follower, globals, ...). Paginated. */
-    suspend fun userEmotes(userId: String): List<HelixEmote> {
+    override suspend fun userEmotes(userId: String): List<HelixEmote> {
         val all = ArrayList<HelixEmote>()
         var cursor: String? = null
         do {
@@ -69,7 +82,7 @@ class HelixApi(
         http.getJson<HelixList<HelixEmote>>(url("chat/emotes/global"), headers()).data
 
     /** All Twitch emotes of a channel (subscriber tiers, bits, follower). */
-    suspend fun channelEmotes(channelId: String): List<HelixEmote> =
+    override suspend fun channelEmotes(channelId: String): List<HelixEmote> =
         http.getJson<HelixList<HelixEmote>>(url("chat/emotes", "broadcaster_id" to channelId), headers()).data
 
     /**
@@ -116,7 +129,7 @@ class HelixApi(
         )
     }
 
-    suspend fun isFollowing(userId: String, channelId: String): Boolean =
+    override suspend fun isFollowing(userId: String, channelId: String): Boolean =
         http.getJson<HelixList<JsonObject>>(url("channels/followed", "user_id" to userId, "broadcaster_id" to channelId), headers())
             .data.isNotEmpty()
 
