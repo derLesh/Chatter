@@ -1,4 +1,11 @@
 {
-  "_comment": "Twitch user ids of people supporting Chatter. They wear the Chatter badge in the app.",
-  "users": []
+  "_comment": "Who supports Chatter through GitHub Sponsors, by Twitch user id — the app reads this to put the supporter badge in front of their name. It is fetched from GitHub Pages and never shipped in the app, so a new supporter needs no release. 'kind' is 'once' for a one-time sponsorship and 'monthly' for a running one; a kind an older version does not know shows the plain badge, so new ones can be added without breaking anybody. 'github' and 'since' are for whoever keeps this file, the app ignores them.",
+  "supporters": [
+    {
+      "twitch": "60579280",
+      "github": "derLesh",
+      "kind": "once",
+      "since": "2026-09-21"
+    }
+  ]
 }

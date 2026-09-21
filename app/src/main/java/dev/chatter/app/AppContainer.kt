@@ -18,6 +18,7 @@ import coil3.request.crossfade
 import dev.chatter.app.auth.AuthRepository
 import dev.chatter.app.auth.AuthState
 import dev.chatter.app.badges.BadgeRepository
+import dev.chatter.app.badges.SupporterTitles
 import dev.chatter.app.changelog.ChangelogRepository
 import dev.chatter.app.channels.BlockedUsersRepository
 import dev.chatter.app.channels.ChannelRepository
@@ -181,7 +182,7 @@ class AppContainer(private val context: Context) {
                             userId = state.account.userId
                             chat.resync()
                             launch { emotes.loadGlobal() }
-                            launch { badges.retryMissing(context.getString(R.string.badge_supporter)) }
+                            launch { badges.retryMissing(supporterTitles()) }
                             launch { emotes.loadTwitchUserEmotes(state.account.userId) }
                             launch { channels.refreshUsers(channels.currentChannels()) }
                             launch { blocked.load(state.account.userId) }
@@ -231,12 +232,17 @@ class AppContainer(private val context: Context) {
         scope.launch {
             chat.windows.anyVisible.collect { visible ->
                 // The global set comes from Helix, so there is no point before a login is there.
-                if (visible && auth.account != null) badges.retryMissing(context.getString(R.string.badge_supporter))
+                if (visible && auth.account != null) badges.retryMissing(supporterTitles())
             }
         }
         registerNetworkCallback()
         watchPowerSaveMode()
     }
+
+    private fun supporterTitles() = SupporterTitles(
+        once = context.getString(R.string.badge_supporter),
+        monthly = context.getString(R.string.badge_supporter_monthly),
+    )
 
     /** Opens the chat connection if a user is logged in. Safe to call repeatedly. */
     fun connect() {

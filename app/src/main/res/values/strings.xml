@@ -318,6 +318,7 @@
     <string name="settings_provider_chatterino">Chatterino</string>
     <string name="settings_provider_chatter">Chatter supporters</string>
     <string name="badge_supporter">Chatter supporter</string>
+    <string name="badge_supporter_monthly">Chatter supporter, every month</string>
     <!-- Changelog -->
     <string name="settings_changelog">Changelog</string>
     <string name="settings_changelog_summary">What every version changed</string>

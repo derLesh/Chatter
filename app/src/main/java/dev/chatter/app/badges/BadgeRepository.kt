@@ -2,10 +2,14 @@ package dev.chatter.app.badges
 
 import android.util.Log
 import dev.chatter.app.chat.BadgeSource
+import dev.chatter.app.net.ChatterSupporter
 import dev.chatter.app.net.HelixBadgeSet
 import dev.chatter.app.net.ThirdPartyBadgeApi
 import dev.chatter.app.net.TwitchBadgeApi
 import java.util.concurrent.ConcurrentHashMap
+
+/** What the supporter badge is called, which depends on how somebody supports. */
+data class SupporterTitles(val once: String, val monthly: String)
 
 /** Where a badge comes from. Each one can be turned off on its own in the settings. */
 enum class BadgeProvider { Twitch, SevenTv, Chatterino, Chatter }
@@ -112,14 +116,14 @@ class BadgeRepository(
      * channels that were unreachable. Everything that is already there is left alone, so this
      * costs nothing on the usual return to the app.
      */
-    suspend fun retryMissing(supporterTitle: String) {
+    suspend fun retryMissing(supporterTitles: SupporterTitles) {
         // A provider that is down stays down for a while, and the app is opened often; asking on
         // every single return would be the kind of traffic a phone in a pocket should not make.
         val at = now()
         if (at - lastRetry < RETRY_AFTER_MS) return
         lastRetry = at
         loadGlobal()
-        loadThirdParty(supporterTitle)
+        loadThirdParty(supporterTitles)
         failedChannels.toList().forEach { loadChannel(it) }
     }
 
@@ -129,7 +133,7 @@ class BadgeRepository(
      * are asked for, so a list that was unreachable at start is picked up later instead of being
      * gone for good. 7TV is not among them; its badges arrive over the EventAPI.
      */
-    suspend fun loadThirdParty(supporterTitle: String) {
+    suspend fun loadThirdParty(supporterTitles: SupporterTitles) {
         var changed = false
 
         if (chatterinoBadges == null) {
@@ -150,9 +154,10 @@ class BadgeRepository(
 
         if (supporterBadges == null) {
             runCatching { thirdParty.chatterSupporters() }
-                .onSuccess { supporters ->
-                    val badge = Badge(SUPPORTER_BADGE_URL, supporterTitle, BadgeProvider.Chatter)
-                    supporterBadges = supporters.users.associateWith { listOf(badge) }
+                .onSuccess { list ->
+                    supporterBadges = list.supporters
+                        .filter { it.twitch.isNotEmpty() }
+                        .associate { it.twitch to listOf(supporterBadge(it.kind, supporterTitles)) }
                     changed = true
                 }
                 .onFailure { Log.w(TAG, "Supporter list failed: ${it.message}") }
@@ -160,6 +165,13 @@ class BadgeRepository(
 
         if (changed) thirdPartyBadges = mergeThirdParty()
     }
+
+    /** A kind this version does not know wears the plain badge rather than none at all. */
+    private fun supporterBadge(kind: String, titles: SupporterTitles) = Badge(
+        url = SUPPORTER_BADGE_URL,
+        title = if (kind == ChatterSupporter.KIND_MONTHLY) titles.monthly else titles.once,
+        provider = BadgeProvider.Chatter,
+    )
 
     private fun mergeThirdParty(): Map<String, List<Badge>> {
         val merged = HashMap<String, MutableList<Badge>>()

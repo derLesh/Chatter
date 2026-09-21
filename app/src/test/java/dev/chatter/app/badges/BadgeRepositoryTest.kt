@@ -1,5 +1,6 @@
 package dev.chatter.app.badges
 
+import dev.chatter.app.net.ChatterSupporter
 import dev.chatter.app.net.ChatterSupporters
 import dev.chatter.app.net.ChatterinoBadge
 import dev.chatter.app.net.ChatterinoBadges
@@ -23,7 +24,7 @@ class BadgeRepositoryTest {
     private var clock = 1_000_000_000L
     private val badges = BadgeRepository(twitch, others) { clock }
 
-    private val supporterTitle = "Supporter"
+    private val titles = SupporterTitles(once = "Supporter", monthly = "Supporter, every month")
 
     // ---- the fakes --------------------------------------------------------------------------
 
@@ -53,7 +54,7 @@ class BadgeRepositoryTest {
 
     private class FakeOtherClients : ThirdPartyBadgeApi {
         var chatterino: List<String>? = listOf("42")
-        var supporters: List<String>? = listOf("7")
+        var supporters: List<ChatterSupporter>? = listOf(ChatterSupporter(twitch = "7"))
         var chatterinoCalls = 0
         var supporterCalls = 0
 
@@ -92,7 +93,7 @@ class BadgeRepositoryTest {
     @Test
     fun aProviderTheUserTurnedOffIsLeftOut() = runTest {
         badges.loadGlobal()
-        badges.loadThirdParty(supporterTitle)
+        badges.loadThirdParty(titles)
         assertEquals(2, badges.resolve(null, "subscriber/0", userId = "42").size)
 
         badges.enabled = setOf(BadgeProvider.Twitch)
@@ -109,24 +110,24 @@ class BadgeRepositoryTest {
 
         twitch.global = listOf(FakeTwitchBadges.badgeSet("subscriber", "0", "Subscriber"))
         clock += 6 * 60_000L
-        badges.retryMissing(supporterTitle)
+        badges.retryMissing(titles)
         assertEquals(listOf("Subscriber"), badges.resolve(null, "subscriber/0", userId = null).map { it.title })
 
         val calls = twitch.globalCalls
         clock += 6 * 60_000L
-        badges.retryMissing(supporterTitle)
+        badges.retryMissing(titles)
         assertEquals("once they are in, they are not asked for again", calls, twitch.globalCalls)
     }
 
     @Test
     fun aListThatAnsweredIsNotThrownAwayWhenAnotherIsRetried() = runTest {
         others.chatterino = null
-        badges.loadThirdParty(supporterTitle)
+        badges.loadThirdParty(titles)
         assertEquals(listOf("Supporter"), badges.resolve(null, null, userId = "7").map { it.title })
 
         others.chatterino = listOf("42")
         clock += 6 * 60_000L
-        badges.retryMissing(supporterTitle)
+        badges.retryMissing(titles)
 
         assertEquals("the one that answered is still here", listOf("Supporter"), badges.resolve(null, null, userId = "7").map { it.title })
         assertEquals(listOf("Chatterino Fan"), badges.resolve(null, null, userId = "42").map { it.title })
@@ -141,7 +142,7 @@ class BadgeRepositoryTest {
 
         twitch.channel = listOf(FakeTwitchBadges.badgeSet("subscriber", "0", "Subscriber of this channel"))
         clock += 6 * 60_000L
-        badges.retryMissing(supporterTitle)
+        badges.retryMissing(titles)
         assertTrue(twitch.channelCalls > afterFirst)
         assertEquals(
             listOf("Subscriber of this channel"),
@@ -150,23 +151,53 @@ class BadgeRepositoryTest {
 
         val calls = twitch.channelCalls
         clock += 6 * 60_000L
-        badges.retryMissing(supporterTitle)
+        badges.retryMissing(titles)
         assertEquals("a channel that answered is left alone", calls, twitch.channelCalls)
     }
 
     @Test
     fun aProviderThatIsDownIsNotAskedAgainStraightAway() = runTest {
         twitch.global = null
-        badges.retryMissing(supporterTitle)
+        badges.retryMissing(titles)
         val calls = twitch.globalCalls
 
         clock += 60_000L
-        badges.retryMissing(supporterTitle)
+        badges.retryMissing(titles)
         assertEquals("coming back to the app every minute must not mean asking every minute", calls, twitch.globalCalls)
 
         clock += 5 * 60_000L
-        badges.retryMissing(supporterTitle)
+        badges.retryMissing(titles)
         assertTrue(twitch.globalCalls > calls)
+    }
+
+    // ---- who supports Chatter, and how ------------------------------------------------------------
+
+    @Test
+    fun theBadgeSaysWhetherSomebodySupportsOnceOrEveryMonth() = runTest {
+        others.supporters = listOf(
+            ChatterSupporter(twitch = "7", kind = ChatterSupporter.KIND_ONCE),
+            ChatterSupporter(twitch = "8", kind = ChatterSupporter.KIND_MONTHLY),
+        )
+        badges.loadThirdParty(titles)
+
+        assertEquals(listOf("Supporter"), badges.resolve(null, null, userId = "7").map { it.title })
+        assertEquals(listOf("Supporter, every month"), badges.resolve(null, null, userId = "8").map { it.title })
+    }
+
+    @Test
+    fun aKindThisVersionDoesNotKnowStillWearsTheBadge() = runTest {
+        // Whatever GitHub Sponsors grows into later must not leave an older app with nothing.
+        others.supporters = listOf(ChatterSupporter(twitch = "7", kind = "yearly-gold-whatever"))
+        badges.loadThirdParty(titles)
+        assertEquals(listOf("Supporter"), badges.resolve(null, null, userId = "7").map { it.title })
+    }
+
+    @Test
+    fun anEntryWithoutATwitchAccountIsLeftOut() = runTest {
+        others.supporters = listOf(ChatterSupporter(twitch = "", kind = "once"), ChatterSupporter(twitch = "7"))
+        badges.loadThirdParty(titles)
+        assertEquals(1, badges.resolve(null, null, userId = "7").size)
+        assertTrue(badges.resolve(null, null, userId = "").isEmpty())
     }
 
     // ---- what 7TV pushes over the socket ---------------------------------------------------------

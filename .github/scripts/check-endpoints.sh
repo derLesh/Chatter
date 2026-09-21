@@ -46,7 +46,7 @@ expected_in() {
     *7tv.io/v3/emote-sets/global*) echo '"emotes"' ;;
     *7tv.io/v3/users/twitch/*) echo '"emote_set"' ;;
     *api.chatterino.com/badges*) echo '"badges"' ;;
-    *supporters.json*) echo '"users"' ;;
+    *supporters.json*) echo '"supporters"' ;;
     *recent-messages*) echo '"messages"' ;;
     *) echo "" ;;
   esac

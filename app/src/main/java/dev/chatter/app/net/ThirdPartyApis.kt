@@ -102,9 +102,26 @@ data class ChatterinoBadge(
     val users: List<String> = emptyList(),
 )
 
-/** Who supports Chatter, by Twitch user id. Kept in the repository, not baked into the app. */
+/** Who supports Chatter, fetched rather than baked in, so a new supporter needs no release. */
 @Serializable
-data class ChatterSupporters(val users: List<String> = emptyList())
+data class ChatterSupporters(val supporters: List<ChatterSupporter> = emptyList())
+
+@Serializable
+data class ChatterSupporter(
+    /** The Twitch user id the badge goes in front of. */
+    val twitch: String = "",
+    /**
+     * How they support: `once` for a one-time sponsorship, `monthly` for a running one. A kind an
+     * older version of the app does not know simply wears the plain badge, so another one can be
+     * added here without leaving anybody with a broken list.
+     */
+    val kind: String = KIND_ONCE,
+) {
+    companion object {
+        const val KIND_ONCE = "once"
+        const val KIND_MONTHLY = "monthly"
+    }
+}
 
 // ---- Recent messages (history) -----------------------------------------------
 
