@@ -1,0 +1,1 @@
+patch: Open a channel without waiting on an emote provider that has gone quiet

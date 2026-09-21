@@ -27,6 +27,7 @@ import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.withTimeoutOrNull
 import java.util.UUID
 
 /** A mention that just arrived, and whether the user had that channel open at the time. */
@@ -288,15 +289,24 @@ class ChatRepository(
         }
     }
 
-    /** Emotes and badges first, then history, so old messages already render with emotes. */
+    /**
+     * Emotes and badges first, then history, so old messages already render with emotes — but
+     * only for as long as that is worth waiting for.
+     *
+     * A provider that has gone away does not refuse, it says nothing, and the request sits there
+     * until it times out. Waiting all of that out meant an empty channel for twenty seconds
+     * because one of five services was down. So the history goes ahead after a moment either way;
+     * the emotes keep loading, and whatever they still bring is put into the messages afterwards.
+     */
     private suspend fun loadChannelData(channel: String) {
         val id = rooms.id(channel)
             ?: channelRepo.info.value[channel]?.id
             ?: channelRepo.refreshUsers(listOf(channel))[channel]
         if (id != null) {
             rooms.setId(channel, id)
-            loadEmotesAndBadges(id)
+            val emoteLoad = scope.launch { loadEmotesAndBadges(id) }
             loadChatters(channel, id)
+            withTimeoutOrNull(EMOTES_BEFORE_HISTORY_MS) { emoteLoad.join() }
         }
         loadHistory(channel)
     }
@@ -380,6 +390,10 @@ class ChatRepository(
 
     private companion object {
         const val TAG = "ChatRepository"
+
+        /** How long the history waits for the channel's emotes before it goes ahead without them. */
+        const val EMOTES_BEFORE_HISTORY_MS = 3_000L
+
         const val DUPLICATE_BYPASS = " \uDB40\uDC00"
         const val CTCP_ACTION = "\u0001ACTION "
         const val CTCP_END = "\u0001"
