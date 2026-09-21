@@ -13,6 +13,7 @@ import dev.chatter.app.emotes.label
 import dev.chatter.app.irc.ConnectionState
 import dev.chatter.app.irc.IrcMessage
 import dev.chatter.app.net.HelixApi
+import dev.chatter.app.net.ServiceTrouble
 import dev.chatter.app.net.ThirdPartyApi
 import dev.chatter.app.settings.Settings
 import dev.chatter.app.util.RateLimiter
@@ -59,6 +60,7 @@ class ChatRepository(
     private val auth: AuthRepository,
     private val commands: CommandExecutor,
     private val notices: ChatNotices,
+    private val trouble: ServiceTrouble,
     private val chatterRegistry: ChatterRegistry,
     private val blocked: BlockedUsersRepository,
     private val stats: ChatStats,
@@ -328,8 +330,9 @@ class ChatRepository(
     private suspend fun loadHistory(channel: String, since: Long? = null) {
         if (!settings.value.loadHistory) return
         val lines = try {
-            thirdParty.recentMessages(channel, 100).messages
+            thirdParty.recentMessages(channel, 100).messages.also { trouble.reachable(ServiceTrouble.HISTORY) }
         } catch (e: Exception) {
+            trouble.report(ServiceTrouble.HISTORY)
             Log.w(TAG, "History for $channel failed: ${e.message}")
             return
         }

@@ -44,6 +44,12 @@ import kotlinx.coroutines.withContext
 
 data class UserCardData(val user: HelixUser?, val recentMessages: List<ChatItem>)
 
+/**
+ * A one-off line for the snackbar: the text, and what it has to have filled in. The filling in
+ * happens on the screen and not here, so that a message already up follows a change of language.
+ */
+data class UiMessage(val text: Int, val fill: String? = null)
+
 sealed interface Suggestion {
     data class EmoteSuggestion(val emote: Emote) : Suggestion
     data class UserSuggestion(val name: String) : Suggestion
@@ -121,11 +127,18 @@ class MainViewModel(private val c: AppContainer) : ViewModel() {
      */
     val requestedInbox = MutableStateFlow<Int?>(null)
 
-    private val _messages = Channel<Int>(Channel.BUFFERED)
-    /** One-off user feedback as string resource ids (shown as snackbar). */
+    private val _messages = Channel<UiMessage>(Channel.BUFFERED)
+    /** One-off user feedback, shown as a snackbar. */
     val messages = _messages.receiveAsFlow()
 
     private var suggestionJob: Job? = null
+
+    init {
+        // Something outside the app did not answer. Said once, and then not again.
+        viewModelScope.launch {
+            c.trouble.unreachable.collect { _messages.send(UiMessage(R.string.error_service_down, it)) }
+        }
+    }
 
     /**
      * The channel this window is showing. Not the same thing as [activeChannel] once a bubble is
@@ -332,13 +345,13 @@ class MainViewModel(private val c: AppContainer) : ViewModel() {
     fun setBlocked(user: HelixUser, blocked: Boolean) {
         viewModelScope.launch {
             val target = HelixBlockedUser(user.id, user.login, user.displayName)
-            if (!c.blocked.setBlocked(target, blocked)) _messages.send(R.string.error_block_failed)
+            if (!c.blocked.setBlocked(target, blocked)) _messages.send(UiMessage(R.string.error_block_failed))
         }
     }
 
     fun unblock(user: HelixBlockedUser) {
         viewModelScope.launch {
-            if (!c.blocked.setBlocked(user, blocked = false)) _messages.send(R.string.error_block_failed)
+            if (!c.blocked.setBlocked(user, blocked = false)) _messages.send(UiMessage(R.string.error_block_failed))
         }
     }
 
@@ -351,11 +364,11 @@ class MainViewModel(private val c: AppContainer) : ViewModel() {
             val clean = login.trim().removePrefix("@").lowercase()
             val user = runCatching { c.helix.users(listOf(clean)).firstOrNull() }.getOrNull()
             if (user == null) {
-                _messages.send(R.string.error_user_unknown)
+                _messages.send(UiMessage(R.string.error_user_unknown))
                 return@launch
             }
             val target = HelixBlockedUser(user.id, user.login, user.displayName)
-            if (!c.blocked.setBlocked(target, blocked = true)) _messages.send(R.string.error_block_failed)
+            if (!c.blocked.setBlocked(target, blocked = true)) _messages.send(UiMessage(R.string.error_block_failed))
         }
     }
 
@@ -452,8 +465,8 @@ class MainViewModel(private val c: AppContainer) : ViewModel() {
                     suggestions = emptyList()
                 }
                 SendResult.Empty -> Unit
-                SendResult.NotConnected -> _messages.send(R.string.error_not_connected)
-                SendResult.RateLimited -> _messages.send(R.string.error_rate_limited)
+                SendResult.NotConnected -> _messages.send(UiMessage(R.string.error_not_connected))
+                SendResult.RateLimited -> _messages.send(UiMessage(R.string.error_rate_limited))
                 SendResult.CommandError -> Unit // the hint is shown in the chat
             }
         }
@@ -464,7 +477,7 @@ class MainViewModel(private val c: AppContainer) : ViewModel() {
     fun addChannel(name: String) {
         viewModelScope.launch {
             val login = c.channels.add(name)
-            if (login == null) _messages.send(R.string.error_invalid_channel)
+            if (login == null) _messages.send(UiMessage(R.string.error_invalid_channel))
             else {
                 requestedChannel.value = login
                 c.channels.refreshLive()

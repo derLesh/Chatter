@@ -142,10 +142,13 @@ fun MainScreen(vm: MainViewModel, onInbox: () -> Unit, onSettings: () -> Unit) {
 
     val haptics = LocalHapticFeedback.current
     LaunchedEffect(resources, settings.haptics) {
-        vm.messages.collect {
+        vm.messages.collect { message ->
             // Everything that reaches the snackbar is something that did not work out.
             if (settings.haptics) haptics.performHapticFeedback(HapticFeedbackType.Reject)
-            snackbar.showSnackbar(resources.getString(it))
+            val text = message.fill
+                ?.let { resources.getString(message.text, it) }
+                ?: resources.getString(message.text)
+            snackbar.showSnackbar(text)
         }
     }
 

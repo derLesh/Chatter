@@ -92,6 +92,7 @@
 
     <!-- Errors -->
     <string name="error_not_connected">Not connected to chat.</string>
+    <string name="error_service_down">%1$s cannot be reached right now — what comes from there is missing for now.</string>
     <string name="error_rate_limited">You are sending messages too quickly.</string>
     <string name="error_unsupported_command">Unknown command: /%1$s</string>
     <string name="error_invalid_channel">That is not a valid channel name.</string>

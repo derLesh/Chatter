@@ -41,6 +41,7 @@ import dev.chatter.app.emotes.SevenTvLiveUpdates
 import dev.chatter.app.irc.ConnectionState
 import dev.chatter.app.irc.IrcConnection
 import dev.chatter.app.net.HelixApi
+import dev.chatter.app.net.ServiceTrouble
 import dev.chatter.app.net.ThirdPartyApi
 import dev.chatter.app.service.ChatNotifier
 import dev.chatter.app.settings.BackupManager
@@ -93,12 +94,15 @@ class AppContainer(private val context: Context) {
     // second time — and a few busy channels of images would crowd out the very lists it is for.
     private val imageHttp: OkHttpClient = http.newBuilder().cache(null).build()
 
+    /** Where a service outside the app says it could not be reached; the screen shows it once. */
+    val trouble = ServiceTrouble()
+
     val settings = SettingsRepository(context.settingsStore, scope)
     val auth = AuthRepository(context.authStore, http)
     val helix = HelixApi(http) { auth.freshToken() }.also { auth.helix = it }
     val thirdParty = ThirdPartyApi(http)
     val emotes = EmoteRepository(helix, thirdParty)
-    val badges = BadgeRepository(helix, thirdParty)
+    val badges = BadgeRepository(helix, thirdParty, trouble)
     val channels = ChannelRepository(context.channelStore, helix, scope)
     val blocked = BlockedUsersRepository(helix, scope)
     val nicknames = NicknameRepository(context.nicknameStore, scope)
@@ -114,7 +118,7 @@ class AppContainer(private val context: Context) {
 
     val chat = ChatRepository(
         context, irc, MessageBuilder(emotes, badges, chatters, ::emoteOptions), emotes, badges, channels, thirdParty, helix, auth,
-        CommandExecutor(context, helix, auth, whisperSender), AppChatNotices(context), chatters, blocked, stats,
+        CommandExecutor(context, helix, auth, whisperSender), AppChatNotices(context), trouble, chatters, blocked, stats,
         rules.rules, settings.settings, scope,
     )
 

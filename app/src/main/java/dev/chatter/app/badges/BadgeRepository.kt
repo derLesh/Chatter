@@ -4,6 +4,7 @@ import android.util.Log
 import dev.chatter.app.chat.BadgeSource
 import dev.chatter.app.net.ChatterSupporter
 import dev.chatter.app.net.HelixBadgeSet
+import dev.chatter.app.net.ServiceTrouble
 import dev.chatter.app.net.ThirdPartyBadgeApi
 import dev.chatter.app.net.TwitchBadgeApi
 import java.time.Instant
@@ -36,6 +37,8 @@ data class Badge(val url: String, val title: String, val provider: BadgeProvider
 class BadgeRepository(
     private val helix: TwitchBadgeApi,
     private val thirdParty: ThirdPartyBadgeApi,
+    /** Where a list that did not answer is said out loud; a test does not care. */
+    private val trouble: ServiceTrouble = ServiceTrouble(),
     /** Only ever [System.currentTimeMillis]; a test hands in one it can move. */
     private val now: () -> Long = System::currentTimeMillis,
 ) : BadgeSource {
@@ -108,8 +111,14 @@ class BadgeRepository(
     suspend fun loadGlobal() {
         if (global.isNotEmpty()) return
         runCatching { helix.globalBadges() }
-            .onSuccess { global = it.toMap() }
-            .onFailure { Log.w(TAG, "Global badges failed: ${it.message}") }
+            .onSuccess {
+                global = it.toMap()
+                trouble.reachable(ServiceTrouble.TWITCH)
+            }
+            .onFailure {
+                trouble.report(ServiceTrouble.TWITCH)
+                Log.w(TAG, "Global badges failed: ${it.message}")
+            }
     }
 
     suspend fun loadChannel(channelId: String) {
@@ -120,6 +129,7 @@ class BadgeRepository(
             }
             .onFailure {
                 failedChannels.add(channelId)
+                trouble.report(ServiceTrouble.TWITCH)
                 Log.w(TAG, "Channel badges failed: ${it.message}")
             }
     }
@@ -162,7 +172,10 @@ class BadgeRepository(
                     chatterinoBadges = byUser
                     changed = true
                 }
-                .onFailure { Log.w(TAG, "Chatterino badges failed: ${it.message}") }
+                .onFailure {
+                    trouble.report(ServiceTrouble.CHATTERINO)
+                    Log.w(TAG, "Chatterino badges failed: ${it.message}")
+                }
         }
 
         if (supporterBadges == null) {
@@ -173,7 +186,10 @@ class BadgeRepository(
                         .associate { it.twitch to listOf(supporterBadge(it, supporterTitles)) }
                     changed = true
                 }
-                .onFailure { Log.w(TAG, "Supporter list failed: ${it.message}") }
+                .onFailure {
+                    trouble.report(ServiceTrouble.SUPPORTERS)
+                    Log.w(TAG, "Supporter list failed: ${it.message}")
+                }
         }
 
         if (changed) thirdPartyBadges = mergeThirdParty()
