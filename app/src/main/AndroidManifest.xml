@@ -72,9 +72,14 @@
             android:name=".service.ChatService"
             android:exported="false"
             android:foregroundServiceType="specialUse">
+            <!--
+                Google reads this value when it reviews the specialUse declaration, so it says why
+                no other type fits: there is no push to fall back on. docs/play-store/ holds the
+                longer version of the same argument, for the form in the Play Console.
+            -->
             <property
                 android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
-                android:value="Keeps a persistent Twitch chat connection open so the user is notified about mentions in real time." />
+                android:value="Holds the user's own Twitch chat session open (IRC over WebSocket) so that mentions and whispers addressed to them can be delivered as notifications the moment they arrive. Twitch publishes no push API for chat messages, so there is no FCM path to this data and the connection is the only source. The service is started by the user joining a channel, runs only while they have channels joined, and stops when they leave or log out. No other foregroundServiceType describes an interactive chat session: it is not media, location, data transfer, or device sync." />
         </service>
     </application>
 </manifest>
