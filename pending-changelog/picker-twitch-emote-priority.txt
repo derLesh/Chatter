@@ -1,0 +1,1 @@
+patch: Show the picture the chat will show when a Twitch emote and a channel emote share a name

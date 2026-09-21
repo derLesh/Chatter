@@ -60,13 +60,19 @@ class EmoteRepository(
     override fun lookupOwnTwitch(channelId: String?, word: String): Emote? =
         twitchUser[word] ?: channelId?.let { channelTwitch[it]?.get(word) }
 
-    /** Everything the user can type in the given channel, for autocomplete and the picker. */
+    /**
+     * Everything the user can type in the given channel, for autocomplete and the picker.
+     *
+     * A name only ever means one emote, so the weaker sources go in first and are overwritten:
+     * global before channel, third party before Twitch. That is the order a message is rendered
+     * in, so the picker shows the picture the chat will show.
+     */
     fun available(channelId: String?): List<Emote> {
         val result = LinkedHashMap<String, Emote>()
         global.byName.values.forEach { result[it.name] = it }
+        channelId?.let { channels[it] }?.byName?.values?.forEach { result[it.name] = it }
         twitchUser.values.forEach { result[it.name] = it }
         channelId?.let { channelTwitch[it] }?.values?.forEach { result[it.name] = it }
-        channelId?.let { channels[it] }?.byName?.values?.forEach { result[it.name] = it }
         return result.values.toList()
     }
 
