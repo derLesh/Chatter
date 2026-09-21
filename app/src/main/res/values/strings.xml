@@ -137,10 +137,14 @@
     <string name="user_created">Account created %1$s</string>
 
     <!-- Settings pages -->
-    <string name="settings_appearance_summary">Theme, colors, font size</string>
-    <string name="settings_chat_summary">Message history, stored messages</string>
+    <string name="settings_appearance_summary">Theme, colors, how a message looks</string>
+    <string name="settings_chat_summary">History, images, typing</string>
+    <string name="settings_emotes">Emotes &amp; badges</string>
+    <string name="settings_emotes_summary">Providers, animation, zero-width</string>
+    <string name="settings_filters">Filters</string>
+    <string name="settings_filters_summary">Muted words, rules, blocked users</string>
     <string name="settings_notifications_summary">Mentions, highlight words</string>
-    <string name="settings_account_summary">Login</string>
+    <string name="settings_account_summary">Login, backup</string>
     <string name="settings_about">About</string>
     <string name="settings_about_summary">Version, credits</string>
     <string name="settings_channels">Channels</string>
@@ -152,8 +156,7 @@
     <string name="channel_in_title_bar">Show unread</string>
     <string name="settings_unread_title_bar">Show unread channels in the title bar</string>
     <string name="settings_unread_title_bar_hint">The avatars of channels with new messages, next to the channel name. Single channels can be left out in their menu.</string>
-    <string name="settings_suggestions">Suggestions</string>
-    <string name="settings_group_screen">Screen</string>
+    <string name="settings_group_device">On this phone</string>
     <string name="settings_keep_screen_on">Keep the screen on</string>
     <string name="settings_keep_screen_on_hint">Stops the display from sleeping while the chat is open.</string>
     <string name="settings_emote_providers">Emote providers</string>
@@ -176,7 +179,7 @@
     <string name="settings_image_hosts_reset">Back to the default sites</string>
     <string name="settings_image_hosts_note">Only these sites are ever asked for a picture. Any other link stays a link, so nobody can have you load an address you have not allowed.</string>
     <string name="linked_image">Linked image</string>
-    <string name="settings_group_swiping">Swiping</string>
+    <string name="settings_group_history">History</string>
     <string name="settings_carousel">Swipe in a circle</string>
     <string name="settings_carousel_hint">Past the last channel comes the first one again, and the other way round.</string>
     <string name="settings_emote_suggestions">Emote suggestions</string>
@@ -287,7 +290,6 @@
     <string name="settings_first_messages">Highlight first messages</string>
     <string name="settings_first_messages_hint">Mark it when someone writes in a channel for the first time</string>
 
-    <string name="settings_group_muted">Muted</string>
     <string name="settings_mute_keywords">Muted words</string>
     <string name="settings_mute_keywords_summary">Words that are hidden in the chat</string>
     <string name="settings_mute_keywords_hint">Messages containing the word, and messages from chatters called that, are hidden</string>
@@ -369,7 +371,7 @@
     <string name="settings_bubbles_hint">Mentions can be shown as a chat bubble</string>
     <string name="bubble_unavailable">Open Chatter to read this channel</string>
 
-    <string name="settings_group_haptics">Haptics</string>
+    <string name="settings_group_input">Typing and swiping</string>
     <string name="settings_haptics">Haptic feedback</string>
     <string name="settings_haptics_hint">A short buzz when a mention arrives while you are reading, when you hold a message, and when something does not go through</string>
 

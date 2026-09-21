@@ -131,10 +131,14 @@
     <string name="user_created">Account erstellt am %1$s</string>
 
     <!-- Settings pages -->
-    <string name="settings_appearance_summary">Design, Farben, Schriftgröße</string>
-    <string name="settings_chat_summary">Chatverlauf, gespeicherte Nachrichten</string>
+    <string name="settings_appearance_summary">Design, Farben, Aussehen der Nachrichten</string>
+    <string name="settings_chat_summary">Verlauf, Bilder, Schreiben</string>
+    <string name="settings_emotes">Emotes &amp; Badges</string>
+    <string name="settings_emotes_summary">Anbieter, Animation, Zero-Width</string>
+    <string name="settings_filters">Filter</string>
+    <string name="settings_filters_summary">Stumme Wörter, Regeln, Blockierte</string>
     <string name="settings_notifications_summary">Erwähnungen, Hervorhebungswörter</string>
-    <string name="settings_account_summary">Anmeldung</string>
+    <string name="settings_account_summary">Anmeldung, Backup</string>
     <string name="settings_about">Über</string>
     <string name="settings_about_summary">Version, Credits</string>
     <string name="settings_channels">Kanäle</string>
@@ -146,8 +150,7 @@
     <string name="channel_in_title_bar">Ungelesene anzeigen</string>
     <string name="settings_unread_title_bar">Ungelesene Kanäle in der Titelleiste</string>
     <string name="settings_unread_title_bar_hint">Zeige bei ungelesenene Nachrichten, den Avatar eines Kanals in der Titelleiste an</string>
-    <string name="settings_suggestions">Vorschläge</string>
-    <string name="settings_group_screen">Bildschirm</string>
+    <string name="settings_group_device">Auf diesem Handy</string>
     <string name="settings_keep_screen_on">Bildschirm anlassen</string>
     <string name="settings_keep_screen_on_hint">Verhindert, dass sich das Display beim Lesen ausschaltet.</string>
     <string name="settings_emote_providers">Emote-Anbieter</string>
@@ -170,7 +173,7 @@
     <string name="settings_image_hosts_reset">Zurück zu den voreingestellten Seiten</string>
     <string name="settings_image_hosts_note">Nur diese Seiten werden je nach einem Bild gefragt. Jeder andere Link bleibt ein Link – so kann dich niemand eine Adresse laden lassen, die du nicht erlaubt hast.</string>
     <string name="linked_image">Verlinktes Bild</string>
-    <string name="settings_group_swiping">Wischen</string>
+    <string name="settings_group_history">Verlauf</string>
     <string name="settings_carousel">Im Kreis wischen</string>
     <string name="settings_carousel_hint">Nach dem letzten Channel kommt wieder der erste – und andersherum.</string>
     <string name="settings_emote_suggestions">Emote-Vorschläge</string>
@@ -281,7 +284,6 @@
     <string name="settings_first_messages">Erste Nachrichten hervorheben</string>
     <string name="settings_first_messages_hint">Markieren, wenn jemand zum ersten Mal in einem Kanal schreibt</string>
 
-    <string name="settings_group_muted">Stummgeschaltet</string>
     <string name="settings_mute_keywords">Stumme Wörter</string>
     <string name="settings_mute_keywords_summary">Wörter, die im Chat ausgeblendet werden</string>
     <string name="settings_mute_keywords_hint">Nachrichten mit dem Wort und Nachrichten von Chattern dieses Namens werden ausgeblendet</string>
@@ -364,7 +366,7 @@
     <string name="bubble_unavailable">Chatter öffnen, um diesen Kanal zu lesen</string>
 
     <!-- Erwähnungen -->
-    <string name="settings_group_haptics">Haptik</string>
+    <string name="settings_group_input">Schreiben und Wischen</string>
     <string name="settings_haptics">Haptisches Feedback</string>
     <string name="settings_haptics_hint">Kurzes Vibrieren, wenn eine Erwähnung eintrifft, während du liest, wenn du eine Nachricht gedrückt hältst und wenn etwas nicht durchgeht</string>
 

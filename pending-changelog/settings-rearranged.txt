@@ -1,0 +1,1 @@
+patch: Find a setting faster: emotes, filters and blocked users each have a place of their own

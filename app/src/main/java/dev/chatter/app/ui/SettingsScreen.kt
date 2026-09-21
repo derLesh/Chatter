@@ -44,8 +44,10 @@ import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.DateRange
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.Face
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.Info
+import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material3.AlertDialog
@@ -148,6 +150,8 @@ import kotlinx.coroutines.withContext
 private enum class SettingsPage(val title: Int, val summary: Int, val icon: ImageVector) {
     Appearance(R.string.settings_appearance, R.string.settings_appearance_summary, Icons.Default.Edit),
     Chat(R.string.settings_chat, R.string.settings_chat_summary, Icons.AutoMirrored.Filled.List),
+    Emotes(R.string.settings_emotes, R.string.settings_emotes_summary, Icons.Default.Face),
+    Filters(R.string.settings_filters, R.string.settings_filters_summary, Icons.Default.Lock),
     Notifications(R.string.settings_notifications, R.string.settings_notifications_summary, Icons.Default.Notifications),
     Channels(R.string.settings_channels, R.string.settings_channels_summary, Icons.Default.Person),
     Stats(R.string.settings_stats, R.string.settings_stats_summary, Icons.Default.DateRange),
@@ -239,10 +243,12 @@ fun SettingsScreen(vm: MainViewModel, onBack: () -> Unit) {
                     null -> Home(login) { page = it }
                     SettingsPage.Appearance -> AppearancePage(settings, vm)
                     SettingsPage.Chat -> ChatPage(settings, vm) { subPage = it }
+                    SettingsPage.Emotes -> EmotesPage(settings, vm)
+                    SettingsPage.Filters -> FiltersPage(settings, vm) { subPage = it }
                     SettingsPage.Notifications -> NotificationsPage(settings, vm) { subPage = it }
                     SettingsPage.Channels -> ChannelsPage(vm, settings)
                     SettingsPage.Stats -> StatsPage(vm)
-                    SettingsPage.Account -> AccountPage(login, vm, { subPage = it }) { vm.logout(); onBack() }
+                    SettingsPage.Account -> AccountPage(login, vm) { vm.logout(); onBack() }
                     SettingsPage.Support -> SupportPage(vm)
                     SettingsPage.About -> AboutPage(vm) { subPage = it }
                 }
@@ -388,8 +394,11 @@ private fun AppearancePage(settings: Settings, vm: MainViewModel) {
 
     SettingsGroup(R.string.settings_group_text) {
         item { TextSizeItem(settings, vm) }
+        item { TimestampPicker(settings.timestamps, vm::setTimestamps) }
     }
 
+    // How a message itself is drawn, which is what somebody looking for "the chat looks wrong"
+    // comes here for — the emotes in it have a category of their own.
     SettingsGroup(R.string.settings_group_messages) {
         item {
             SwitchItem(
@@ -403,18 +412,23 @@ private fun AppearancePage(settings: Settings, vm: MainViewModel) {
                 vm::setSmoothScrolling, R.string.settings_smooth_scrolling_hint,
             )
         }
+        item { SwitchItem(R.string.settings_show_deleted, settings.showDeleted, vm::setShowDeleted, R.string.settings_show_deleted_hint) }
+        item {
+            SwitchItem(
+                R.string.settings_first_messages, settings.highlightFirstMessages,
+                vm::setHighlightFirstMessages, R.string.settings_first_messages_hint,
+            )
+        }
     }
 
-    SettingsGroup(R.string.settings_group_screen) {
+    // The two that are about the phone rather than the chat, together instead of one group each.
+    SettingsGroup(R.string.settings_group_device) {
         item {
             SwitchItem(
                 R.string.settings_keep_screen_on, settings.keepScreenOn,
                 vm::setKeepScreenOn, R.string.settings_keep_screen_on_hint,
             )
         }
-    }
-
-    SettingsGroup(R.string.settings_group_haptics) {
         item {
             SwitchItem(
                 R.string.settings_haptics, settings.haptics,
@@ -422,12 +436,79 @@ private fun AppearancePage(settings: Settings, vm: MainViewModel) {
             )
         }
     }
+}
 
+/**
+ * Everything about emotes and badges in one place. They used to be split down the middle — the
+ * emotes under the appearance, the providers they come from under the chat — which meant
+ * turning one provider off was never where anybody looked for it.
+ */
+@Composable
+private fun EmotesPage(settings: Settings, vm: MainViewModel) {
     SettingsGroup(R.string.settings_group_emotes) {
         item { SwitchItem(R.string.settings_emotes_enabled, settings.emotesEnabled, vm::setEmotesEnabled, R.string.settings_emotes_new_messages_hint) }
         item { SwitchItem(R.string.settings_animated_emotes, settings.animatedEmotes, vm::setAnimatedEmotes) }
         item { SwitchItem(R.string.settings_zero_width, settings.zeroWidthEmotes, vm::setZeroWidthEmotes, R.string.settings_zero_width_hint) }
         item { SwitchItem(R.string.settings_unlisted_7tv, settings.showUnlisted7tv, vm::setShowUnlisted7tv, R.string.settings_unlisted_7tv_hint) }
+        item { SwitchItem(R.string.settings_seventv_events, settings.sevenTvEvents, vm::setSevenTvEvents, R.string.settings_seventv_events_hint) }
+    }
+    SettingsGroup(R.string.settings_emote_providers) {
+        PROVIDERS.forEach { (provider, label) ->
+            item { SwitchItem(label, provider in settings.emoteProviders, { vm.setEmoteProvider(provider, it) }) }
+        }
+    }
+    SettingsGroup(R.string.settings_badge_providers) {
+        BADGE_PROVIDERS.forEach { (provider, label) ->
+            item { SwitchItem(label, provider in settings.badgeProviders, { vm.setBadgeProvider(provider, it) }) }
+        }
+    }
+}
+
+/**
+ * Everything that keeps something out of the chat, including the Twitch block list — which sat
+ * under the account, where nobody hiding a chatter would have gone looking.
+ */
+@Composable
+private fun FiltersPage(settings: Settings, vm: MainViewModel, open: (SettingsSubPage) -> Unit) {
+    val blocked by vm.blockedUsers.collectAsStateWithLifecycle()
+    SettingsGroup {
+        item {
+            KeywordListItem(
+                title = R.string.settings_mute_keywords,
+                summary = R.string.settings_mute_keywords_summary,
+                words = settings.muteKeywords,
+                onClick = { open(SettingsSubPage.MuteKeywords) },
+            )
+        }
+        item {
+            val rules by vm.rules.collectAsStateWithLifecycle()
+            ListItem(
+                headlineContent = { Text(stringResource(R.string.settings_rules)) },
+                supportingContent = {
+                    Text(
+                        if (rules.isEmpty()) stringResource(R.string.settings_rules_summary)
+                        else pluralStringResource(R.plurals.settings_rules_count, rules.size, rules.size)
+                    )
+                },
+                trailingContent = { Icon(Icons.AutoMirrored.Filled.ArrowForward, contentDescription = null) },
+                colors = transparentItem(),
+                modifier = Modifier.clickable { open(SettingsSubPage.Rules) },
+            )
+        }
+        item {
+            ListItem(
+                headlineContent = { Text(stringResource(R.string.settings_blocked_users)) },
+                supportingContent = {
+                    Text(
+                        if (blocked.isEmpty()) stringResource(R.string.settings_blocked_none)
+                        else pluralStringResource(R.plurals.settings_blocked_count, blocked.size, blocked.size)
+                    )
+                },
+                trailingContent = { Icon(Icons.AutoMirrored.Filled.ArrowForward, contentDescription = null) },
+                colors = transparentItem(),
+                modifier = Modifier.clickable { open(SettingsSubPage.BlockedUsers) },
+            )
+        }
     }
 }
 
@@ -489,7 +570,7 @@ private fun TextSizeItem(settings: Settings, vm: MainViewModel) {
 
 @Composable
 private fun ChatPage(settings: Settings, vm: MainViewModel, open: (SettingsSubPage) -> Unit) {
-    SettingsGroup {
+    SettingsGroup(R.string.settings_group_history) {
         item {
             var limit by remember(settings.messageLimit) { mutableFloatStateOf(settings.messageLimit.toFloat()) }
             SliderItem(
@@ -502,15 +583,6 @@ private fun ChatPage(settings: Settings, vm: MainViewModel, open: (SettingsSubPa
             )
         }
         item { SwitchItem(R.string.settings_load_history, settings.loadHistory, vm::setLoadHistory, R.string.settings_load_history_hint) }
-        item { SwitchItem(R.string.settings_seventv_events, settings.sevenTvEvents, vm::setSevenTvEvents, R.string.settings_seventv_events_hint) }
-        item { SwitchItem(R.string.settings_show_deleted, settings.showDeleted, vm::setShowDeleted, R.string.settings_show_deleted_hint) }
-        item {
-            SwitchItem(
-                R.string.settings_first_messages, settings.highlightFirstMessages,
-                vm::setHighlightFirstMessages, R.string.settings_first_messages_hint,
-            )
-        }
-        item { TimestampPicker(settings.timestamps, vm::setTimestamps) }
     }
     SettingsGroup(R.string.settings_group_images) {
         item {
@@ -538,55 +610,17 @@ private fun ChatPage(settings: Settings, vm: MainViewModel, open: (SettingsSubPa
             )
         }
     }
-    SettingsGroup(R.string.settings_group_swiping) {
+    // What the hands do: what the app offers while typing, and what a swipe does.
+    SettingsGroup(R.string.settings_group_input) {
+        item { SwitchItem(R.string.settings_emote_suggestions, settings.emoteSuggestions, vm::setEmoteSuggestions, R.string.settings_emote_suggestions_hint) }
+        item { SwitchItem(R.string.settings_user_suggestions, settings.userSuggestions, vm::setUserSuggestions, R.string.settings_user_suggestions_hint) }
+        item { SwitchItem(R.string.settings_mention_with_at, settings.mentionWithAt, vm::setMentionWithAt, R.string.settings_mention_with_at_hint) }
         item {
             SwitchItem(
                 R.string.settings_carousel, settings.carouselChannels,
                 vm::setCarouselChannels, R.string.settings_carousel_hint,
             )
         }
-    }
-    SettingsGroup(R.string.settings_group_muted) {
-        item {
-            KeywordListItem(
-                title = R.string.settings_mute_keywords,
-                summary = R.string.settings_mute_keywords_summary,
-                words = settings.muteKeywords,
-                onClick = { open(SettingsSubPage.MuteKeywords) },
-            )
-        }
-        item {
-            val rules by vm.rules.collectAsStateWithLifecycle()
-            ListItem(
-                headlineContent = { Text(stringResource(R.string.settings_rules)) },
-                supportingContent = {
-                    Text(
-                        if (rules.isEmpty()) stringResource(R.string.settings_rules_summary)
-                        else pluralStringResource(R.plurals.settings_rules_count, rules.size, rules.size)
-                    )
-                },
-                trailingContent = { Icon(Icons.AutoMirrored.Filled.ArrowForward, contentDescription = null) },
-                colors = transparentItem(),
-                modifier = Modifier.clickable { open(SettingsSubPage.Rules) },
-            )
-        }
-    }
-    SettingsGroup(R.string.settings_badge_providers) {
-        BADGE_PROVIDERS.forEach { (provider, label) ->
-            item { SwitchItem(label, provider in settings.badgeProviders, { vm.setBadgeProvider(provider, it) }) }
-        }
-    }
-    SettingsGroup(R.string.settings_emote_providers) {
-        PROVIDERS.forEach { (provider, label) ->
-            item {
-                SwitchItem(label, provider in settings.emoteProviders, { vm.setEmoteProvider(provider, it) })
-            }
-        }
-    }
-    SettingsGroup(R.string.settings_suggestions) {
-        item { SwitchItem(R.string.settings_emote_suggestions, settings.emoteSuggestions, vm::setEmoteSuggestions, R.string.settings_emote_suggestions_hint) }
-        item { SwitchItem(R.string.settings_user_suggestions, settings.userSuggestions, vm::setUserSuggestions, R.string.settings_user_suggestions_hint) }
-        item { SwitchItem(R.string.settings_mention_with_at, settings.mentionWithAt, vm::setMentionWithAt, R.string.settings_mention_with_at_hint) }
     }
 }
 
@@ -630,13 +664,7 @@ private fun NotificationsPage(settings: Settings, vm: MainViewModel, open: (Sett
 }
 
 @Composable
-private fun AccountPage(
-    login: String,
-    vm: MainViewModel,
-    open: (SettingsSubPage) -> Unit,
-    onLogout: () -> Unit,
-) {
-    val blocked by vm.blockedUsers.collectAsStateWithLifecycle()
+private fun AccountPage(login: String, vm: MainViewModel, onLogout: () -> Unit) {
     SettingsGroup {
         item {
             ListItem(
@@ -652,20 +680,6 @@ private fun AccountPage(
                 supportingContent = { Text(stringResource(R.string.settings_logout_hint)) },
                 trailingContent = { OutlinedButton(onClick = onLogout) { Text(stringResource(R.string.logout)) } },
                 colors = transparentItem(),
-            )
-        }
-        item {
-            ListItem(
-                headlineContent = { Text(stringResource(R.string.settings_blocked_users)) },
-                supportingContent = {
-                    Text(
-                        if (blocked.isEmpty()) stringResource(R.string.settings_blocked_none)
-                        else pluralStringResource(R.plurals.settings_blocked_count, blocked.size, blocked.size)
-                    )
-                },
-                trailingContent = { Icon(Icons.AutoMirrored.Filled.ArrowForward, contentDescription = null) },
-                colors = transparentItem(),
-                modifier = Modifier.clickable { open(SettingsSubPage.BlockedUsers) },
             )
         }
     }
