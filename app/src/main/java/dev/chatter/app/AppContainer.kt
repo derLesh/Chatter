@@ -227,7 +227,7 @@ class AppContainer(private val context: Context) {
         // session — there are no badges at all without the global set. Coming back to the app is
         // when to try again; whatever is already there is left alone.
         scope.launch {
-            chat.uiVisible.collect { visible ->
+            chat.windows.anyVisible.collect { visible ->
                 // The global set comes from Helix, so there is no point before a login is there.
                 if (visible && auth.account != null) badges.retryMissing(context.getString(R.string.badge_supporter))
             }

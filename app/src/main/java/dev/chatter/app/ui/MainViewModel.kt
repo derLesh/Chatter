@@ -138,7 +138,7 @@ class MainViewModel(private val c: AppContainer) : ViewModel() {
     fun selectChannel(channel: String?) {
         if (shownChannel == channel) return
         shownChannel = channel
-        c.chat.setWindowChannel(this, channel)
+        c.chat.windows.setChannel(this, channel)
         // What the app around the chat follows. A bubble is a window of its own and must not
         // move it: the chat screen is still wherever the user left it.
         if (!inBubble) c.chat.activeChannel.value = channel
@@ -189,7 +189,7 @@ class MainViewModel(private val c: AppContainer) : ViewModel() {
     }
 
     fun setUiVisible(visible: Boolean) {
-        c.chat.setWindowVisible(this, visible, shownChannel)
+        c.chat.windows.setVisible(this, visible, shownChannel)
         // Leaving may come before the delay is up, and then it is the last chance to write it.
         if (!visible) writeLastChannel()
         if (visible) {
@@ -203,7 +203,7 @@ class MainViewModel(private val c: AppContainer) : ViewModel() {
 
     /** The window is gone for good; it is not reading anything any more. */
     override fun onCleared() {
-        c.chat.setWindowVisible(this, visible = false, channel = null)
+        c.chat.windows.setVisible(this, visible = false, channel = null)
         super.onCleared()
     }
 

@@ -36,7 +36,7 @@ class SevenTvLiveUpdates(
             emotes.version.collect { client.setSubscriptions(subscriptions()) }
         }
         scope.launch {
-            chat.uiVisible.collectLatest { active ->
+            chat.windows.anyVisible.collectLatest { active ->
                 if (active) {
                     client.start()
                     // Catch up on anything missed while the socket was down, and on channels whose
