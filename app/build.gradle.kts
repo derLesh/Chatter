@@ -155,6 +155,8 @@ dependencies {
     implementation(libs.kotlinx.coroutines.android)
 
     testImplementation(libs.junit)
+    // Lets the tests drive the coroutines and the clock of anything built around a dispatcher.
+    testImplementation(libs.kotlinx.coroutines.test)
 
     // The profile the :baselineprofile module generates, compiled into the release APK.
     baselineProfile(project(":baselineprofile"))

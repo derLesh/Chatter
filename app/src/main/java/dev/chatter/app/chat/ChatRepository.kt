@@ -21,15 +21,12 @@ import dev.chatter.app.util.RateLimiter
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
-import kotlinx.coroutines.Job
 import kotlinx.coroutines.coroutineScope
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
-import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -49,8 +46,8 @@ enum class SendResult {
  * Owns the message buffers of all channels.
  *
  * Every mutation runs on one single-threaded dispatcher ([worker]), so no locks are needed.
- * The UI observes one [StateFlow] per channel; updates are coalesced (see [PUBLISH_INTERVAL_MS])
- * and skipped entirely while nobody is watching (app in background).
+ * The messages themselves live in [MessageBuffers], which is also what hands them to the
+ * screen; this class is about what Twitch says and what the app makes of it.
  */
 @OptIn(ExperimentalCoroutinesApi::class)
 class ChatRepository(
@@ -73,12 +70,10 @@ class ChatRepository(
 ) {
     private val worker = Dispatchers.Default.limitedParallelism(1)
 
+    /** The messages themselves, and how they reach the screen. */
+    private val buffers = MessageBuffers(scope, worker, settings)
+
     // --- state touched only on `worker` ---
-    private val buffers = HashMap<String, ArrayDeque<ChatItem>>()
-    /** Ids per channel buffer; the UI list uses ids as keys, which must be unique. */
-    private val bufferIds = HashMap<String, HashSet<String>>()
-    private val dirty = HashSet<String>()
-    private var publishJob: Job? = null
     private val userStates = HashMap<String, Map<String, String>>()
     private var globalUserState: Map<String, String> = emptyMap()
     private val lastSent = HashMap<String, Pair<String, Long>>()
@@ -95,8 +90,6 @@ class ChatRepository(
      */
     private var ruleEngine = RuleEngine()
 
-    private val flows = ConcurrentHashMap<String, MutableStateFlow<List<ChatItem>>>()
-    private val flowWatchers = ConcurrentHashMap<String, Job>()
     private val roomIds = ConcurrentHashMap<String, String>()
 
     private val _mentionEvents = MutableSharedFlow<ChatItem>(extraBufferCapacity = 32)
@@ -140,12 +133,8 @@ class ChatRepository(
     private val _unreadMentions = MutableStateFlow<Map<String, Int>>(emptyMap())
     val unreadMentions: StateFlow<Map<String, Int>> = _unreadMentions
 
-    // New messages per channel since the user last looked at it. Counted on `worker`,
-    // published together with the message lists (not on every single message).
-    private val unreadCounts = HashMap<String, Int>()
-    private var unreadCountsDirty = false
-    private val _unreadMessages = MutableStateFlow<Map<String, Int>>(emptyMap())
-    val unreadMessages: StateFlow<Map<String, Int>> = _unreadMessages
+    /** New messages per channel since the user last looked at it. */
+    val unreadMessages: StateFlow<Map<String, Int>> get() = buffers.unreadMessages
 
     /** The channel the chat screen is on. A bubble reads its own and leaves this alone. */
     val activeChannel = MutableStateFlow<String?>(null)
@@ -165,13 +154,13 @@ class ChatRepository(
                 .collect { (s, blockedLogins) ->
                     mentions = MentionMatcher(auth.account?.login.orEmpty(), s.mentionKeywords)
                     muted = MuteFilter(s.muteKeywords, blockedLogins)
-                    dropMuted()
-                    trimAll(s.messageLimit)
+                    buffers.dropMuted(muted)
+                    buffers.trimAll(s.messageLimit)
                     // Deleted messages are filtered out when publishing, so turning them back on
                     // has to republish what is already buffered.
                     if (s.showDeleted != showedDeleted) {
                         showedDeleted = s.showDeleted
-                        buffers.keys.forEach { markDirty(it) }
+                        buffers.republishAll()
                     }
                 }
         }
@@ -195,7 +184,7 @@ class ChatRepository(
                     ConnectionState.Connected -> if (wasConnected) {
                         systemAll(R.string.chat_reconnected)
                         // Fetch what was said while we were offline.
-                        buffers.keys.forEach { ch -> scope.launch { loadHistory(ch, since = lastLiveTimestamp[ch] ?: 0L) } }
+                        buffers.channels().forEach { ch -> scope.launch { loadHistory(ch, since = lastLiveTimestamp[ch] ?: 0L) } }
                     } else wasConnected = true
                     ConnectionState.Connecting -> if (wasConnected) systemAll(R.string.chat_disconnected)
                     else -> Unit
@@ -206,12 +195,7 @@ class ChatRepository(
 
     }
 
-    fun messages(channel: String): StateFlow<List<ChatItem>> = flows.computeIfAbsent(channel) { ch ->
-        MutableStateFlow<List<ChatItem>>(emptyList()).also { flow ->
-            // When the UI starts watching again, push the latest buffer immediately.
-            flowWatchers[ch] = scope.launch(worker) { flow.subscriptionCount.filter { it > 0 }.collect { markDirty(ch) } }
-        }
-    }
+    fun messages(channel: String): StateFlow<List<ChatItem>> = buffers.messages(channel)
 
     fun roomId(channel: String): String? = roomIds[channel]
 
@@ -221,7 +205,7 @@ class ChatRepository(
 
     /** Adds an informational line (e.g. 7TV activity), optionally followed by emotes/text segments. */
     fun postNotice(channel: String, text: String, segments: List<Segment> = emptyList()) = scope.launch(worker) {
-        append(
+        buffers.add(
             ChatItem(id = UUID.randomUUID().toString(), channel = channel, kind = MessageKind.Notice,
                 timestamp = System.currentTimeMillis(), systemText = text, text = text,
                 body = MessageBody.of(segments))
@@ -230,17 +214,12 @@ class ChatRepository(
 
     fun clearUnread(channel: String) {
         _unreadMentions.update { it - channel }
-        scope.launch(worker) {
-            if (unreadCounts.remove(channel) != null) _unreadMessages.value = HashMap(unreadCounts)
-        }
+        scope.launch(worker) { buffers.clearUnread(channel) }
     }
 
     /** The latest messages of one user in a channel (oldest first), for the user card. */
-    suspend fun messagesFrom(channel: String, login: String, limit: Int = 30): List<ChatItem> = withContext(worker) {
-        buffers[channel]?.filter { it.login.equals(login, ignoreCase = true) }?.takeLast(limit).orEmpty()
-            // The card draws these, so they have to be built here — see `snapshot`.
-            .onEach { it.body.prepare() }
-    }
+    suspend fun messagesFrom(channel: String, login: String, limit: Int = 30): List<ChatItem> =
+        buffers.from(channel, login, limit)
 
     /** Display names of recently active chatters, most recent first. */
     suspend fun chatters(channel: String): List<String> = withContext(worker) {
@@ -274,7 +253,7 @@ class ChatRepository(
         val reply = replyParent?.let {
             ReplyInfo(it.id, it.login.orEmpty(), it.displayName.orEmpty(), it.text)
         }
-        append(builder.buildOwn(channel, wire, state, auth.account?.login.orEmpty(), roomIds[channel], reply))
+        buffers.add(builder.buildOwn(channel, wire, state, auth.account?.login.orEmpty(), roomIds[channel], reply))
         stats.countSent(channel)
         SendResult.Ok
     }
@@ -285,20 +264,9 @@ class ChatRepository(
     }
 
     /** Removes everything a newly blocked or muted chatter said from the buffers. */
-    private fun dropMuted() {
-        buffers.forEach { (channel, buffer) ->
-            val ids = bufferIds[channel]
-            val removed = buffer.removeAll { item ->
-                muted.mutes(item).also { if (it) ids?.remove(item.id) }
-            }
-            if (removed) markDirty(channel)
-        }
-    }
-
     /** Drops all buffers, e.g. after logout. */
     fun reset() = scope.launch(worker) {
-        buffers.clear()
-        bufferIds.clear()
+        buffers.clearAll()
         chatterRegistry.clear()
         userStates.clear()
         loadedChannels.clear()
@@ -308,10 +276,7 @@ class ChatRepository(
         _roles.value = emptyMap()
         _readyChannels.value = emptySet()
         joinedChannels = emptyList()
-        flows.values.forEach { it.value = emptyList() }
         _unreadMentions.value = emptyMap()
-        unreadCounts.clear()
-        _unreadMessages.value = emptyMap()
     }
 
     /** Joins all channels of the list again. Called after login. */
@@ -329,20 +294,17 @@ class ChatRepository(
         joinedChannels = list
         removed.forEach { ch ->
             irc.part(ch)
-            buffers.remove(ch)
-            bufferIds.remove(ch)
+            buffers.close(ch)
             chatterRegistry.remove(ch)
             loadedChannels.remove(ch)
-            flows.remove(ch)
             _roomStates.update { it - ch }
             _roles.update { it - ch }
-            flowWatchers.remove(ch)?.cancel()
             _readyChannels.update { it - ch }
-            clearUnread(ch)
+            _unreadMentions.update { it - ch }
         }
         added.forEach { ch ->
             irc.join(ch)
-            buffers.getOrPut(ch) { ArrayDeque() }
+            buffers.open(ch)
             if (loadedChannels.add(ch)) scope.launch { loadChannelData(ch) }
         }
     }
@@ -395,30 +357,16 @@ class ChatRepository(
             return
         }
         withContext(worker) {
-            val buffer = buffers[channel] ?: return@withContext
             val self = auth.account?.login.orEmpty()
-            val ids = bufferIds.getOrPut(channel) { HashSet() }
             val items = lines.mapNotNull { line ->
                 val msg = IrcMessage.parse(line) ?: return@mapNotNull null
                 if (msg.command != "PRIVMSG" && msg.command != "USERNOTICE") return@mapNotNull null
                 builder.build(msg, self, roomIds[channel], mentions, historical = true)
                     ?.takeIf { (since == null || it.timestamp > since) && !muted.mutes(it) }
                     ?.let { ruleEngine.apply(it) }
-                    ?.takeIf { ids.add(it.id) }
                     ?.also { rememberChatter(channel, it) }
             }
-            if (items.isEmpty()) return@withContext
-            // Stable sort: live messages and history end up in chronological order.
-            val merged = ArrayList<ChatItem>(buffer.size + items.size).apply {
-                addAll(buffer)
-                addAll(items)
-                sortBy { it.timestamp }
-            }
-            buffer.clear()
-            // Re-number the alternating backgrounds (only happens on join / reconnect).
-            merged.forEachIndexed { i, m -> buffer.addLast(if (m.alternate == (i % 2 == 1)) m else m.copy(alternate = i % 2 == 1)) }
-            trim(channel, buffer)
-            markDirty(channel)
+            buffers.merge(channel, items)
         }
     }
 
@@ -434,19 +382,16 @@ class ChatRepository(
                 if (muted.mutes(built)) return
                 val item = ruleEngine.apply(built) ?: return
                 rememberChatter(channel, item)
-                append(item)
+                buffers.add(item)
                 // Only live messages: the history fetched on join was received long ago.
                 if (!item.isOwn) stats.countReceived()
-                if (!item.isOwn && !windows.isWatching(channel)) {
-                    unreadCounts[channel] = (unreadCounts[channel] ?: 0) + 1
-                    unreadCountsDirty = true
-                }
+                if (!item.isOwn && !windows.isWatching(channel)) buffers.countUnread(channel)
                 if (item.isMention) onMention(item)
             }
             "WHISPER" -> InboxWhisper.from(msg)?.let(::onWhisper)
-            "NOTICE" -> if (channel != null) builder.build(msg, "", null, mentions)?.let(::append)
+            "NOTICE" -> if (channel != null) builder.build(msg, "", null, mentions)?.let(buffers::add)
             "CLEARCHAT" -> if (channel != null) onClearChat(channel, msg)
-            "CLEARMSG" -> if (channel != null) msg.tag("target-msg-id")?.let { id -> markDeleted(channel) { it.id == id } }
+            "CLEARMSG" -> if (channel != null) msg.tag("target-msg-id")?.let { id -> buffers.markDeleted(channel) { it.id == id } }
             "ROOMSTATE" -> if (channel != null) {
                 _roomStates.update { it + (channel to (it[channel] ?: RoomState()).update(msg.tags)) }
                 _readyChannels.update { it + channel }
@@ -492,7 +437,7 @@ class ChatRepository(
             system(channel, context.getString(R.string.chat_cleared))
             return
         }
-        markDeleted(channel) { it.login == target }
+        buffers.markDeleted(channel) { it.login == target }
         val duration = msg.tag("ban-duration")
         system(
             channel,
@@ -506,7 +451,7 @@ class ChatRepository(
         chatterRegistry.remember(channel, login, item.displayName, item.color)
     }
 
-    private fun system(channel: String, text: String) = append(
+    private fun system(channel: String, text: String) = buffers.add(
         ChatItem(id = UUID.randomUUID().toString(), channel = channel, kind = MessageKind.Notice,
             timestamp = System.currentTimeMillis(), systemText = text, text = text)
     )
@@ -519,7 +464,7 @@ class ChatRepository(
         val providers = failure.providers.joinToString(", ") { it.label }
         if (failure.channelId == null) {
             val text = context.getString(R.string.chat_emotes_failed_global, providers)
-            buffers.keys.forEach { system(it, text) }
+            buffers.channels().forEach { system(it, text) }
         } else {
             val channel = channelForRoomId(failure.channelId) ?: return
             system(channel, context.getString(R.string.chat_emotes_failed, providers))
@@ -528,96 +473,11 @@ class ChatRepository(
 
     private fun systemAll(res: Int) {
         val text = context.getString(res)
-        buffers.keys.forEach { system(it, text) }
-    }
-
-    private fun append(item: ChatItem) {
-        val buffer = buffers[item.channel] ?: return
-        if (!bufferIds.getOrPut(item.channel) { HashSet() }.add(item.id)) return
-        buffer.addLast(item.copy(alternate = !(buffer.lastOrNull()?.alternate ?: true)))
-        trim(item.channel, buffer)
-        markDirty(item.channel)
-    }
-
-    private fun trim(channel: String, buffer: ArrayDeque<ChatItem>, limit: Int = settings.value.messageLimit) {
-        val ids = bufferIds[channel]
-        while (buffer.size > limit) ids?.remove(buffer.removeFirst().id)
-    }
-
-    private fun trimAll(limit: Int) {
-        buffers.forEach { (ch, buf) ->
-            if (buf.size > limit) {
-                trim(ch, buf, limit)
-                markDirty(ch)
-            }
-        }
-    }
-
-    private inline fun markDeleted(channel: String, predicate: (ChatItem) -> Boolean) {
-        val buffer = buffers[channel] ?: return
-        var changed = false
-        for (i in buffer.indices) {
-            val item = buffer[i]
-            if (!item.deleted && predicate(item)) {
-                buffer[i] = item.copy(deleted = true)
-                changed = true
-            }
-        }
-        if (changed) markDirty(channel)
-    }
-
-    /**
-     * The list the UI gets. Deleted messages are dropped here rather than in the list itself:
-     * the buffer has to be copied for publishing anyway, and filtering a second copy out of that
-     * one meant two full lists per channel every 32 ms.
-     */
-    private fun snapshot(channel: String): List<ChatItem> {
-        val buffer = buffers[channel] ?: return emptyList()
-        val out = if (settings.value.showDeleted) buffer.toList()
-        else buffer.filterTo(ArrayList(buffer.size)) { !it.deleted }
-        // Emotes and badges are worked out here rather than while drawing: the tables that takes
-        // reading are this worker's, and the main thread must not touch them. Everything but the
-        // messages that arrived since the last publish is built already, so this costs nothing.
-        out.forEach { it.body.prepare() }
-        return out
-    }
-
-    private fun markDirty(channel: String) {
-        dirty.add(channel)
-        if (publishJob?.isActive == true) return
-        // With the UI gone there is nothing for a publish to do, and a busy channel would
-        // otherwise start a timer every 32 ms just to find that out. Subscribing marks the
-        // channel dirty again (see `messages`), so nothing is lost by not scheduling now.
-        if (flows.values.none { it.subscriptionCount.value > 0 }) return
-        publishJob = scope.launch(worker) {
-            delay(PUBLISH_INTERVAL_MS)
-            val iterator = dirty.iterator()
-            while (iterator.hasNext()) {
-                val ch = iterator.next()
-                val flow = flows[ch]
-                // Nobody is looking: keep it dirty and publish once someone subscribes.
-                if (flow == null || flow.subscriptionCount.value == 0) continue
-                flow.value = snapshot(ch)
-                iterator.remove()
-            }
-            if (unreadCountsDirty) {
-                unreadCountsDirty = false
-                _unreadMessages.value = HashMap(unreadCounts)
-            }
-        }
+        buffers.channels().forEach { system(it, text) }
     }
 
     private companion object {
         const val TAG = "ChatRepository"
-        /**
-         * How often the message list a channel shows is replaced.
-         *
-         * Every publish copies the whole buffer and hands Compose a new list to tell apart, so a
-         * busy channel pays for this a lot. At a frame a go it was thirty times a second, which
-         * is thirty lists of up to five hundred messages — and a chat that moves faster than it
-         * can be read gains nothing from it. Ten times a second still looks continuous.
-         */
-        const val PUBLISH_INTERVAL_MS = 100L
         const val DUPLICATE_BYPASS = " \uDB40\uDC00"
         const val CTCP_ACTION = "\u0001ACTION "
         const val CTCP_END = "\u0001"
