@@ -9,12 +9,20 @@ import dev.chatter.app.net.SevenTvActiveEmote
 import dev.chatter.app.net.ThirdPartyApi
 import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import java.util.concurrent.ConcurrentHashMap
+
+/**
+ * A load that did not answer, so the chat can say which emotes are missing instead of quietly
+ * showing their names as text. [channelId] is null for the global emotes.
+ */
+data class EmoteLoadFailure(val channelId: String?, val providers: List<EmoteProvider>)
 
 /**
  * Holds every emote known to the app, keyed by the exact word that triggers it.
@@ -40,6 +48,10 @@ class EmoteRepository(
     private val _version = MutableStateFlow(0)
     val version: StateFlow<Int> = _version
 
+    /** Loads that came back empty because the provider was unreachable, for the chat to report. */
+    private val _failures = MutableSharedFlow<EmoteLoadFailure>(extraBufferCapacity = 16)
+    val failures: SharedFlow<EmoteLoadFailure> = _failures
+
     /** Third-party emote (channel first, then global) for a word in someone's message. */
     override fun lookup(channelId: String?, word: String): Emote? =
         channelId?.let { channels[it]?.byName?.get(word) } ?: global.byName[word]
@@ -64,8 +76,10 @@ class EmoteRepository(
             val ffz = async { safe("FFZ global") { thirdParty.ffzGlobal().let { g -> g.defaultSets.flatMap { g.sets[it.toString()]?.emoticons.orEmpty() } }.map { it.toEmote(false) } } }
             val bttv = async { safe("BTTV global") { thirdParty.bttvGlobal().map { it.toEmote(false) } } }
             val stv = async { safe("7TV global") { thirdParty.sevenTvGlobal().emotes.orEmpty().mapNotNull { it.toEmote(false) } } }
-            global = ProviderEmotes(ffz.await().byName(), bttv.await().byName(), stv.await().byName())
-            globalLoaded = ffz.await() != null && bttv.await() != null && stv.await() != null
+            val loaded = global.merge(ffz.await(), bttv.await(), stv.await())
+            global = loaded.emotes
+            globalLoaded = loaded.failed.isEmpty()
+            if (loaded.failed.isNotEmpty()) _failures.tryEmit(EmoteLoadFailure(null, loaded.failed))
         }
         _version.update { it + 1 }
     }
@@ -89,7 +103,9 @@ class EmoteRepository(
                 user?.emoteSet?.emotes.orEmpty().mapNotNull { it.toEmote(true) }
             }
         }
-        channels[channelId] = ProviderEmotes(ffz.await().byName(), bttv.await().byName(), stv.await().byName())
+        val loaded = (channels[channelId] ?: ProviderEmotes()).merge(ffz.await(), bttv.await(), stv.await())
+        channels[channelId] = loaded.emotes
+        if (loaded.failed.isNotEmpty()) _failures.tryEmit(EmoteLoadFailure(channelId, loaded.failed))
         follower.await()
         _version.update { it + 1 }
     }
@@ -137,8 +153,6 @@ class EmoteRepository(
         channelTwitch.clear()
         twitchUser = emptyMap()
     }
-
-    private fun List<Emote>?.byName(): Map<String, Emote> = orEmpty().associateBy { it.name }
 
     private suspend fun <T> safe(what: String, block: suspend () -> T): T? = try {
         block()
@@ -219,4 +233,28 @@ internal class ProviderEmotes(
     }
 
     fun withSevenTv(emotes: Map<String, Emote>) = ProviderEmotes(ffz, bttv, emotes)
+
+    /**
+     * Takes over what a load brought back. A provider that did not answer at all (null, as
+     * opposed to an empty list, which means it has nothing here) keeps the emotes it already had:
+     * one provider being unreachable must not turn its emotes into plain text, which is what the
+     * reload on every return to the app would otherwise do.
+     */
+    fun merge(ffz: List<Emote>?, bttv: List<Emote>?, sevenTv: List<Emote>?) = Merged(
+        emotes = ProviderEmotes(
+            ffz = ffz?.byName() ?: this.ffz,
+            bttv = bttv?.byName() ?: this.bttv,
+            sevenTv = sevenTv?.byName() ?: this.sevenTv,
+        ),
+        failed = listOfNotNull(
+            EmoteProvider.Ffz.takeIf { ffz == null },
+            EmoteProvider.Bttv.takeIf { bttv == null },
+            EmoteProvider.SevenTv.takeIf { sevenTv == null },
+        ),
+    )
+
+    /** What a load leaves behind: the emotes to keep, and whoever did not answer. */
+    class Merged(val emotes: ProviderEmotes, val failed: List<EmoteProvider>)
+
+    private fun List<Emote>.byName(): Map<String, Emote> = associateBy { it.name }
 }

@@ -45,6 +45,23 @@ class ProviderEmotesTest {
     }
 
     @Test
+    fun aProviderThatDidNotAnswerKeepsItsEmotes() {
+        val before = scope(emote("catJAM", EmoteProvider.SevenTv), emote("susge", EmoteProvider.Bttv))
+        val merged = before.merge(ffz = emptyList(), bttv = null, sevenTv = null)
+        assertEquals(EmoteProvider.SevenTv, merged.emotes.byName["catJAM"]?.provider)
+        assertEquals(EmoteProvider.Bttv, merged.emotes.byName["susge"]?.provider)
+        assertEquals(listOf(EmoteProvider.Bttv, EmoteProvider.SevenTv), merged.failed)
+    }
+
+    @Test
+    fun aProviderThatAnswersWithNothingLosesItsEmotes() {
+        val before = scope(emote("catJAM", EmoteProvider.SevenTv))
+        val merged = before.merge(ffz = emptyList(), bttv = emptyList(), sevenTv = emptyList())
+        assertEquals(emptyMap<String, Emote>(), merged.emotes.byName)
+        assertEquals(emptyList<EmoteProvider>(), merged.failed)
+    }
+
+    @Test
     fun aSevenTvRemovalLeavesTheBttvEmote() {
         val before = scope(emote("susge", EmoteProvider.Bttv), emote("susge", EmoteProvider.SevenTv))
         val after = before.withSevenTv(emptyMap())

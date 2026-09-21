@@ -2,6 +2,15 @@ package dev.chatter.app.emotes
 
 enum class EmoteProvider { Twitch, SevenTv, Bttv, Ffz }
 
+/** What the provider is called where a message or a card names it. Product names, so untranslated. */
+val EmoteProvider.label: String
+    get() = when (this) {
+        EmoteProvider.Twitch -> "Twitch"
+        EmoteProvider.SevenTv -> "7TV"
+        EmoteProvider.Bttv -> "BetterTTV"
+        EmoteProvider.Ffz -> "FrankerFaceZ"
+    }
+
 data class Emote(
     val name: String,
     val id: String,

@@ -45,7 +45,7 @@ import coil3.ImageLoader
 import coil3.compose.AsyncImage
 import dev.chatter.app.R
 import dev.chatter.app.emotes.Emote
-import dev.chatter.app.emotes.EmoteProvider
+import dev.chatter.app.emotes.label
 
 /**
  * Details of a tapped emote: big image, name, provider, channel/global, author and flags, with
@@ -93,7 +93,7 @@ fun EmoteCardSheet(
             Spacer(Modifier.height(16.dp))
             Text(emote.name, style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold, maxLines = 1, overflow = TextOverflow.Ellipsis)
             val details = listOfNotNull(
-                providerName(emote.provider),
+                emote.provider.label,
                 stringResource(if (emote.isChannel) R.string.emote_channel else R.string.emote_global),
                 emote.author?.let { stringResource(R.string.emote_by, it) },
             ).joinToString(" \u00B7 ")
@@ -171,9 +171,3 @@ fun EmoteCardSheet(
     }
 }
 
-private fun providerName(provider: EmoteProvider) = when (provider) {
-    EmoteProvider.Twitch -> "Twitch"
-    EmoteProvider.SevenTv -> "7TV"
-    EmoteProvider.Bttv -> "BetterTTV"
-    EmoteProvider.Ffz -> "FrankerFaceZ"
-}

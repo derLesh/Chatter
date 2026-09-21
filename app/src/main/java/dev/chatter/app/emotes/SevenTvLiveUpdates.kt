@@ -17,7 +17,7 @@ import kotlinx.coroutines.launch
  * announced in the chat is a display choice and does not affect keeping the emotes current.
  *
  * To save battery the connection only runs while the app is on screen; coming back reloads the
- * 7TV emotes once to catch up on what was missed.
+ * emotes once to catch up on what was missed and on whatever failed to load earlier.
  */
 class SevenTvLiveUpdates(
     private val context: Context,
@@ -50,6 +50,10 @@ class SevenTvLiveUpdates(
     }
 
     private suspend fun reloadAll() {
+        // The global emotes are loaded once at login and stay for the session, so a load that
+        // failed back then would never be tried again; this is the one place that comes back to
+        // it. It returns right away once they are there.
+        emotes.loadGlobal()
         chat.knownRoomIds().forEach { id -> emotes.loadChannel(id, null) }
     }
 
