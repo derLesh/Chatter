@@ -538,6 +538,14 @@ private fun ChatPage(settings: Settings, vm: MainViewModel, open: (SettingsSubPa
             )
         }
     }
+    SettingsGroup(R.string.settings_group_swiping) {
+        item {
+            SwitchItem(
+                R.string.settings_carousel, settings.carouselChannels,
+                vm::setCarouselChannels, R.string.settings_carousel_hint,
+            )
+        }
+    }
     SettingsGroup(R.string.settings_group_muted) {
         item {
             KeywordListItem(

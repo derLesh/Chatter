@@ -59,6 +59,7 @@ import dev.chatter.app.service.ChatService
 import dev.chatter.app.ui.changelog.UpdateNotesSheet
 import dev.chatter.app.ui.channels.AddChannelDialog
 import dev.chatter.app.ui.channels.RenameChannelDialog
+import dev.chatter.app.ui.channels.ChannelPages
 import dev.chatter.app.ui.channels.ChannelTopBar
 import dev.chatter.app.ui.chat.ChatList
 import dev.chatter.app.ui.chat.rememberChatStyle
@@ -98,9 +99,14 @@ fun MainScreen(vm: MainViewModel, onInbox: () -> Unit, onSettings: () -> Unit) {
     val lifecycleOwner = LocalLifecycleOwner.current
     val scope = rememberCoroutineScope()
     val snackbar = remember { SnackbarHostState() }
+    // Where the pages are: one per channel, or a great many of them with the channels repeating,
+    // which is what lets a swipe carry on past the last one. Only the settings screen can turn
+    // that on, and opening it takes this screen out of the composition, so the pager is always
+    // built knowing which of the two it is.
+    val pages = ChannelPages(channels.size, settings.carouselChannels)
     // Opening the settings takes this screen out of the composition, so the pager starts over.
     // Anchoring it to the channel the user was last on keeps them there when they come back.
-    val pagerState = rememberPagerState(initialPage = channels.indexOf(active).coerceAtLeast(0)) { channels.size }
+    val pagerState = rememberPagerState(initialPage = pages.pageOf(channels.indexOf(active).coerceAtLeast(0))) { pages.count }
 
     var actionItem by remember { mutableStateOf<ChatItem?>(null) }
     var emoteCard by remember { mutableStateOf<Segment.EmoteSeg?>(null) }
@@ -170,30 +176,43 @@ fun MainScreen(vm: MainViewModel, onInbox: () -> Unit, onSettings: () -> Unit) {
     var restored by remember { mutableStateOf(false) }
     LaunchedEffect(channels) {
         if (restored || channels.isEmpty()) return@LaunchedEffect
-        val index = channels.indexOf(active ?: vm.lastChannel.value)
-        if (index > 0) pagerState.scrollToPage(index)
+        val index = channels.indexOf(active ?: vm.lastChannel.value).coerceAtLeast(0)
+        // From the origin, not from wherever the pager clamped itself to while the list was
+        // still empty: a carousel has to start in the middle to have room to wrap both ways.
+        val page = pages.pageOf(index)
+        if (page != pagerState.currentPage) pagerState.scrollToPage(page)
         restored = true
+    }
+
+    // Which channel a page shows is its distance from the origin modulo the number of channels,
+    // so adding or removing one would slide a different channel under the user. Anchoring the
+    // pager back on the one they were reading keeps it in front of them.
+    LaunchedEffect(channels.size) {
+        if (!restored || !pages.wrapping) return@LaunchedEffect
+        val index = channels.indexOf(active)
+        if (index >= 0) pagerState.scrollToPage(pages.pageOf(index, pagerState.currentPage))
     }
 
     // A bubble reads a channel of its own and says so while it is open. Once the chat screen is
     // back in front, the page on screen is the channel again — otherwise the title bar would keep
     // naming whatever the bubble was showing.
-    LifecycleStartEffect(channels, restored) {
-        if (restored) vm.selectChannel(channels.getOrNull(pagerState.currentPage))
+    LifecycleStartEffect(channels, restored, pages) {
+        if (restored) vm.selectChannel(pages.channelAt(pagerState.currentPage)?.let(channels::getOrNull))
         onStopOrDispose { }
     }
 
     // The page on screen defines the active channel — once it is the page the user expects.
-    LaunchedEffect(pagerState, channels, restored) {
+    LaunchedEffect(pagerState, channels, restored, pages) {
         if (!restored) return@LaunchedEffect
-        snapshotFlow { pagerState.currentPage }.collect { vm.selectChannel(channels.getOrNull(it)) }
+        snapshotFlow { pages.channelAt(pagerState.currentPage) }
+            .collect { vm.selectChannel(it?.let(channels::getOrNull)) }
     }
     // Jump to a channel requested by a notification tap or right after adding it.
-    LaunchedEffect(channels) {
+    LaunchedEffect(channels, pages) {
         vm.requestedChannel.filterNotNull().collect { ch ->
             val index = channels.indexOf(ch)
             if (index >= 0) {
-                pagerState.scrollToPage(index)
+                pagerState.scrollToPage(pages.pageOf(index, pagerState.currentPage))
                 vm.requestedChannel.value = null
             }
         }
@@ -215,7 +234,11 @@ fun MainScreen(vm: MainViewModel, onInbox: () -> Unit, onSettings: () -> Unit) {
                 showUnread = settings.unreadInTitleBar,
                 hiddenUnread = hiddenUnread,
                 imageLoader = vm.imageLoader,
-                onSelect = { ch -> scope.launch { pagerState.scrollToPage(channels.indexOf(ch).coerceAtLeast(0)) } },
+                onSelect = { ch ->
+                    scope.launch {
+                        pagerState.scrollToPage(pages.pageOf(channels.indexOf(ch).coerceAtLeast(0), pagerState.currentPage))
+                    }
+                },
                 onAdd = { showAdd = true },
                 onRemove = vm::removeChannel,
                 onRename = { renameTarget = it },
@@ -238,10 +261,13 @@ fun MainScreen(vm: MainViewModel, onInbox: () -> Unit, onSettings: () -> Unit) {
             } else {
                 HorizontalPager(
                     state = pagerState,
-                    key = { channels.getOrElse(it) { "" } },
+                    // A wrapping pager shows the same channel on many pages, so only the page
+                    // itself tells them apart. Without one, keying on the channel is what keeps
+                    // a channel's place in the list with it when the channels are reordered.
+                    key = { if (pages.wrapping) it else channels.getOrElse(it) { "" } },
                     modifier = Modifier.weight(1f),
                 ) { page ->
-                    val channel = channels.getOrNull(page) ?: return@HorizontalPager
+                    val channel = pages.channelAt(page)?.let(channels::getOrNull) ?: return@HorizontalPager
                     ChatList(
                         messages = remember(channel) { vm.chat(channel) },
                         style = style,

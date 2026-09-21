@@ -694,6 +694,10 @@ class MainViewModel(private val c: AppContainer) : ViewModel() {
         viewModelScope.launch { c.settings.setImageHosts(ImageLinks.DEFAULT_HOSTS) }
     }
 
+    fun setCarouselChannels(v: Boolean) {
+        viewModelScope.launch { c.settings.setCarouselChannels(v) }
+    }
+
     fun setEmotesEnabled(v: Boolean) {
         viewModelScope.launch { c.settings.setEmotesEnabled(v) }
     }

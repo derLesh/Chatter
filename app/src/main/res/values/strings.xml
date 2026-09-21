@@ -176,6 +176,9 @@
     <string name="settings_image_hosts_reset">Back to the default sites</string>
     <string name="settings_image_hosts_note">Only these sites are ever asked for a picture. Any other link stays a link, so nobody can have you load an address you have not allowed.</string>
     <string name="linked_image">Linked image</string>
+    <string name="settings_group_swiping">Swiping</string>
+    <string name="settings_carousel">Swipe in a circle</string>
+    <string name="settings_carousel_hint">Past the last channel comes the first one again, and the other way round.</string>
     <string name="settings_emote_suggestions">Emote suggestions</string>
     <string name="settings_emote_suggestions_hint">Suggest emotes while typing.</string>
     <string name="settings_user_suggestions">Name suggestions</string>

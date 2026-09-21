@@ -71,6 +71,8 @@ data class Settings(
     val inlineImages: Boolean = true,
     /** The only hosts whose images are ever fetched. The user adds to it and takes from it. */
     val imageHosts: List<String> = ImageLinks.DEFAULT_HOSTS,
+    /** Swiping off the last channel goes to the first one, and the other way round. */
+    val carouselChannels: Boolean = false,
     /** The badge providers whose badges are shown in front of a name. */
     val badgeProviders: Set<BadgeProvider> = BadgeProvider.entries.toSet(),
     /** The emote providers whose emotes are shown; the others stay plain text. */
@@ -132,6 +134,7 @@ class SettingsRepository(
             // Only an absent key falls back to the defaults: a list the user emptied stays empty.
             imageHosts = p[IMAGE_HOSTS]?.split(',')?.map { it.trim() }?.filter { it.isNotEmpty() }
                 ?: ImageLinks.DEFAULT_HOSTS,
+            carouselChannels = p[CAROUSEL_CHANNELS] ?: false,
             haptics = p[HAPTICS] ?: true,
             keepScreenOn = p[KEEP_SCREEN_ON] ?: false,
             bubbles = p[BUBBLES] ?: false,
@@ -172,6 +175,7 @@ class SettingsRepository(
     suspend fun setShowDeleted(v: Boolean) = store.edit { it[SHOW_DELETED] = v }
     suspend fun setInlineImages(v: Boolean) = store.edit { it[INLINE_IMAGES] = v }
     suspend fun setImageHosts(v: List<String>) = store.edit { p -> p[IMAGE_HOSTS] = v.joinToString(",") }
+    suspend fun setCarouselChannels(v: Boolean) = store.edit { it[CAROUSEL_CHANNELS] = v }
     suspend fun setHaptics(v: Boolean) = store.edit { it[HAPTICS] = v }
     suspend fun setKeepScreenOn(v: Boolean) = store.edit { it[KEEP_SCREEN_ON] = v }
     suspend fun setBubbles(v: Boolean) = store.edit { it[BUBBLES] = v }
@@ -218,6 +222,7 @@ class SettingsRepository(
         p[SHOW_DELETED] = s.showDeleted
         p[INLINE_IMAGES] = s.inlineImages
         p[IMAGE_HOSTS] = s.imageHosts.joinToString(",")
+        p[CAROUSEL_CHANNELS] = s.carouselChannels
         p[HAPTICS] = s.haptics
         p[KEEP_SCREEN_ON] = s.keepScreenOn
         p[BUBBLES] = s.bubbles
@@ -259,6 +264,7 @@ class SettingsRepository(
         val SHOW_DELETED = booleanPreferencesKey("show_deleted")
         val INLINE_IMAGES = booleanPreferencesKey("inline_images")
         val IMAGE_HOSTS = stringPreferencesKey("image_hosts")
+        val CAROUSEL_CHANNELS = booleanPreferencesKey("carousel_channels")
         val HAPTICS = booleanPreferencesKey("haptics")
         val KEEP_SCREEN_ON = booleanPreferencesKey("keep_screen_on")
         val BUBBLES = booleanPreferencesKey("chat_bubbles")
