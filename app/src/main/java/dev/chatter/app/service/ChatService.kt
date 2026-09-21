@@ -65,6 +65,10 @@ class ChatService : Service() {
                 .distinctUntilChanged()
                 .collect { (count, state, auth) ->
                     if (count == 0 || state == ConnectionState.AuthFailed || auth is AuthState.LoggedOut) {
+                        // Logging out and a rejected login close the socket themselves; running
+                        // out of channels did not, and left it reconnecting in a process that has
+                        // nothing left to listen for.
+                        if (count == 0) container.disconnect()
                         stopSelf()
                     } else {
                         updateNotification(buildNotification(count, state))
