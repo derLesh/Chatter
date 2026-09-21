@@ -68,6 +68,7 @@
     <string name="login_subtitle">A fast, lightweight Twitch chat.</string>
     <string name="login_missing_client_id">No Twitch Client ID configured. Add twitch.clientId to local.properties and rebuild the app.</string>
     <string name="login_button">Log in with Twitch</string>
+    <string name="login_session_expired">Your Twitch login has run out — please log in again.</string>
     <string name="login_failed">Login failed: %1$s</string>
 
     <!-- Settings -->

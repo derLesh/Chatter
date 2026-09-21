@@ -52,6 +52,9 @@ sealed interface Suggestion {
 
 class MainViewModel(private val c: AppContainer) : ViewModel() {
     val authState = c.auth.state
+
+    /** Whether the last login ended on its own, so the login screen can say why it is back. */
+    val sessionExpired = c.auth.sessionExpired
     val channels = c.channels.channels
     val channelInfo = c.channels.info
     val customNames = c.channels.customNames

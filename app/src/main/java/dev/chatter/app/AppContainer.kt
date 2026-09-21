@@ -214,7 +214,7 @@ class AppContainer(private val context: Context) {
                     if (acc != null && auth.refresh(acc)) {
                         auth.account?.let { irc.connect(it.login, it.token) }
                         delay(5_000)
-                        if (irc.state.value == ConnectionState.AuthFailed) auth.logout()
+                        if (irc.state.value == ConnectionState.AuthFailed) auth.logout(expired = true)
                     }
                     // Being logged out here is not something the user asked for: the token ran
                     // out or was revoked. Without a word about it the app would simply go quiet

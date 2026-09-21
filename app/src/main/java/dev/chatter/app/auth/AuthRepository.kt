@@ -48,6 +48,14 @@ class AuthRepository(
     private val _state = MutableStateFlow<AuthState>(AuthState.Loading)
     val state: StateFlow<AuthState> = _state
 
+    private val _sessionExpired = MutableStateFlow(false)
+    /**
+     * True when the login ended on its own — the token ran out or was revoked — as opposed to the
+     * user asking to be logged out. The difference is invisible from the login screen otherwise,
+     * and being asked to log in again out of nowhere is worth an explanation.
+     */
+    val sessionExpired: StateFlow<Boolean> = _sessionExpired
+
     /** Set by the AppContainer to break the Helix <-> Auth construction cycle. */
     lateinit var helix: HelixApi
 
@@ -127,7 +135,7 @@ class AuthRepository(
         val acc = account ?: return false
         // Another caller refreshed while we waited for the lock.
         if (expected != null && acc.token != expected.token) return true
-        val refreshToken = acc.refreshToken ?: run { logout(); return false }
+        val refreshToken = acc.refreshToken ?: run { logout(expired = true); return false }
         try {
             val t = http.postForm<TokenResponse>(
                 "https://id.twitch.tv/oauth2/token",
@@ -141,7 +149,7 @@ class AuthRepository(
             true
         } catch (e: HttpException) {
             if (e.code == 400 || e.code == 401) {
-                logout()
+                logout(expired = true)
                 false
             } else true
         } catch (e: kotlinx.coroutines.CancellationException) {
@@ -151,8 +159,10 @@ class AuthRepository(
         }
     }
 
-    suspend fun logout() {
+    /** [expired] when Twitch ended the session, not the user; see [sessionExpired]. */
+    suspend fun logout(expired: Boolean = false) {
         store.edit { it.clear() }
+        _sessionExpired.value = expired
         _state.value = AuthState.LoggedOut
     }
 
@@ -180,6 +190,7 @@ class AuthRepository(
             it[LOGIN_KEY] = account.login
             it[USER_ID_KEY] = account.userId
         }
+        _sessionExpired.value = false
         _state.value = AuthState.LoggedIn(account)
     }
 
