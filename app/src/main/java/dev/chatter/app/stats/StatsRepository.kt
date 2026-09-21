@@ -8,7 +8,9 @@ import dev.chatter.app.net.AppJson
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.update
@@ -16,6 +18,7 @@ import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.serialization.Serializable
 import java.time.LocalDate
+import java.util.concurrent.atomic.AtomicLong
 
 /**
  * What the user has done in chat so far. Everything in here is counted on this device and stays
@@ -68,6 +71,16 @@ class StatsRepository(private val store: DataStore<Preferences>, private val sco
     val stats: StateFlow<Stats> = _stats
 
     /**
+     * Messages and mentions counted but not yet in [stats].
+     *
+     * Two numbers instead of a new [Stats] for every message that reaches any channel: this runs
+     * all day, in every joined channel, whether or not anybody is looking, and nothing reads the
+     * total until a screen shows it or it is written to disk. [fold] is where they meet.
+     */
+    private val receivedDelta = AtomicLong()
+    private val mentionDelta = AtomicLong()
+
+    /**
      * Counting something rings this; nothing else does. A heartbeat that wakes up every half
      * minute to find that nobody has written anything is a wakeup an idle phone should not have
      * to pay for, and the app spends most of its life exactly like that.
@@ -82,6 +95,7 @@ class StatsRepository(private val store: DataStore<Preferences>, private val sco
                 // Wait for something to count, then let the next half minute of it pile up.
                 counted.receive()
                 delay(SAVE_INTERVAL_MS)
+                fold()
                 val current = _stats.value
                 if (current != saved) {
                     save(current)
@@ -106,18 +120,40 @@ class StatsRepository(private val store: DataStore<Preferences>, private val sco
 
     /** Counts a message that arrived live. History loaded on join is not new and does not count. */
     fun countReceived() {
-        _stats.update { it.copy(received = it.received + 1) }
+        receivedDelta.incrementAndGet()
         counted.trySend(Unit)
     }
 
     fun countMention() {
-        _stats.update { it.copy(mentions = it.mentions + 1) }
+        mentionDelta.incrementAndGet()
         counted.trySend(Unit)
+    }
+
+    /** Adds what was counted since the last time into [stats]. */
+    private fun fold() {
+        val received = receivedDelta.getAndSet(0)
+        val mentions = mentionDelta.getAndSet(0)
+        if (received == 0L && mentions == 0L) return
+        _stats.update { it.copy(received = it.received + received, mentions = it.mentions + mentions) }
+    }
+
+    /**
+     * The stats for a screen that shows them: brought up to date as they are read, and only for
+     * as long as somebody is reading.
+     */
+    fun live(intervalMs: Long = LIVE_INTERVAL_MS): Flow<Stats> = flow {
+        while (true) {
+            fold()
+            emit(_stats.value)
+            delay(intervalMs)
+        }
     }
 
     /** Throws everything counted so far away and starts over from now. */
     suspend fun reset() {
         val fresh = Stats(since = System.currentTimeMillis())
+        receivedDelta.set(0)
+        mentionDelta.set(0)
         _stats.value = fresh
         save(fresh)
     }
@@ -139,6 +175,9 @@ class StatsRepository(private val store: DataStore<Preferences>, private val sco
         val STATS = stringPreferencesKey("stats")
         /** How much counting a sudden death of the process may cost. */
         const val SAVE_INTERVAL_MS = 30_000L
+
+        /** How often a screen showing the stats sees them move. */
+        const val LIVE_INTERVAL_MS = 250L
 
 
         fun decode(raw: String?): Stats? =
