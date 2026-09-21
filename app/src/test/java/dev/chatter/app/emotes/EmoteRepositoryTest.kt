@@ -13,12 +13,14 @@ import dev.chatter.app.net.SevenTvEmoteSet
 import dev.chatter.app.net.SevenTvHost
 import dev.chatter.app.net.SevenTvUser
 import dev.chatter.app.net.SevenTvUserRef
+import dev.chatter.app.net.ServiceTrouble
 import dev.chatter.app.net.ThirdPartyEmoteApi
 import dev.chatter.app.net.TwitchEmoteApi
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -31,8 +33,9 @@ import java.io.IOException
 class EmoteRepositoryTest {
     private val providers = FakeProviders()
     private val twitch = FakeTwitch()
+    private val trouble = ServiceTrouble()
     private var clock = 0L
-    private val emotes = EmoteRepository(twitch, providers) { clock }
+    private val emotes = EmoteRepository(twitch, providers, trouble) { clock }
 
     private val channel = "22484632"
 
@@ -146,18 +149,89 @@ class EmoteRepositoryTest {
     }
 
     @Test
-    fun theChatIsToldWhichProviderWasUnreachable() = runTest {
-        val failures = mutableListOf<EmoteLoadFailure>()
-        val watching = launch { emotes.failures.collect { failures += it } }
+    fun aProviderThatIsUnreachableIsNamedOnce() = runTest {
+        val said = mutableListOf<String>()
+        val watching = launch { trouble.unreachable.collect { said += it } }
         runCurrent()
 
         providers.ffz = null
         providers.sevenTv = null
         emotes.loadChannel(channel, userId = null)
+        emotes.loadChannel("other", userId = null)
         runCurrent()
 
-        assertEquals(listOf(EmoteLoadFailure(channel, listOf(EmoteProvider.Ffz, EmoteProvider.SevenTv))), failures)
+        assertEquals("a second channel runs into the same outage and says nothing about it",
+            setOf(EmoteProvider.Ffz.label, EmoteProvider.SevenTv.label), said.toSet())
         watching.cancel()
+    }
+
+    // ---- coming back to a provider that was away -----------------------------------------------
+
+    @Test
+    fun onlyTheProviderThatWasSilentIsAskedAgain() = runTest {
+        providers.ffz = null
+        providers.bttv = listOf("susge")
+        emotes.loadChannel(channel, userId = null)
+        val afterFirst = providers.calls
+
+        providers.ffz = listOf("pepeD")
+        assertTrue(emotes.retryMissing(userId = null))
+        assertEquals("BTTV and 7TV answered and are left alone", afterFirst + 1, providers.calls)
+        assertEquals(EmoteProvider.Ffz, emotes.lookup(channel, "pepeD")?.provider)
+        assertEquals("what was already there stays", EmoteProvider.Bttv, emotes.lookup(channel, "susge")?.provider)
+    }
+
+    @Test
+    fun nothingIsAskedAgainWhileEveryProviderHasAnswered() = runTest {
+        emotes.loadGlobal()
+        emotes.loadChannel(channel, userId = null)
+        val afterFirst = providers.calls
+
+        assertFalse(emotes.waitingForProvider.value)
+        assertFalse(emotes.retryMissing(userId = null))
+        assertEquals(afterFirst, providers.calls)
+    }
+
+    @Test
+    fun theAppStopsAskingOnceTheProviderIsBack() = runTest {
+        providers.sevenTv = null
+        emotes.loadChannel(channel, userId = null)
+        assertTrue(emotes.waitingForProvider.value)
+
+        providers.sevenTv = listOf("catJAM")
+        emotes.retryMissing(userId = null)
+        assertFalse(emotes.waitingForProvider.value)
+    }
+
+    @Test
+    fun theChatIsToldToBuildItsMessagesAgainWhenEmotesArriveLate() = runTest {
+        val rebuilds = mutableListOf<Unit>()
+        val watching = launch { emotes.recovered.collect { rebuilds += it } }
+        runCurrent()
+
+        providers.ffz = null
+        emotes.loadChannel(channel, userId = null)
+        runCurrent()
+        assertEquals("nothing to build again while it is still missing", 0, rebuilds.size)
+
+        providers.ffz = listOf("pepeD")
+        emotes.retryMissing(userId = null)
+        runCurrent()
+        assertEquals(1, rebuilds.size)
+        watching.cancel()
+    }
+
+    @Test
+    fun aMessageIsOnlyKeptRebuildableWhileAProviderOwesEmotes() = runTest {
+        providers.ffz = null
+        emotes.loadChannel(channel, userId = null)
+        assertFalse(emotes.complete(channel))
+        assertFalse("nor have the global emotes been asked for yet", emotes.complete(null))
+
+        providers.ffz = emptyList()
+        emotes.retryMissing(userId = null)
+        emotes.loadGlobal()
+        assertTrue(emotes.complete(channel))
     }
 
     // ---- when it is worth asking again --------------------------------------------------------

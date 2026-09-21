@@ -49,6 +49,41 @@ class MessageBuffersTest {
         }
 
     @Test
+    fun emotesThatArriveLateAreDrawnIntoTheMessagesAlreadyOnScreen() = watching("forsen") { shown ->
+        // Stands in for the emote tables: empty until the provider that was down answers.
+        var known = emptySet<String>()
+        fun body() = MessageBody.lazily(
+            segments = { listOf(if ("catJAM" in known) Segment.Text("<emote>") else Segment.Text("catJAM")) },
+            badges = { emptyList() },
+            worthKeeping = { known.isEmpty() },
+        )
+        buffers.add(message("forsen", "1").copy(body = body()))
+        advanceUntilIdle()
+        assertEquals(listOf(Segment.Text("catJAM")), shown("forsen").single().segments)
+
+        known = setOf("catJAM")
+        buffers.rebuildAll()
+        advanceUntilIdle()
+        assertEquals(listOf(Segment.Text("<emote>")), shown("forsen").single().segments)
+    }
+
+    @Test
+    fun aMessageIsNotBuiltAgainOnceEveryProviderHasAnswered() = watching("forsen") { shown ->
+        var builds = 0
+        val body = MessageBody.lazily(
+            segments = { builds++; emptyList() },
+            badges = { emptyList() },
+            worthKeeping = { false },
+        )
+        buffers.add(message("forsen", "1").copy(body = body))
+        advanceUntilIdle()
+        buffers.rebuildAll()
+        advanceUntilIdle()
+        assertEquals(1, builds)
+        assertTrue(shown("forsen").single().segments.isEmpty())
+    }
+
+    @Test
     fun aMessageReachesTheScreen() = watching("forsen") { shown ->
         buffers.add(message("forsen", "1"))
         advanceUntilIdle()

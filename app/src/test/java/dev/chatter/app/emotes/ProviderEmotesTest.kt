@@ -47,18 +47,34 @@ class ProviderEmotesTest {
     @Test
     fun aProviderThatDidNotAnswerKeepsItsEmotes() {
         val before = scope(emote("catJAM", EmoteProvider.SevenTv), emote("susge", EmoteProvider.Bttv))
-        val merged = before.merge(ffz = emptyList(), bttv = null, sevenTv = null)
+        val merged = before.merge(
+            mapOf(
+                EmoteProvider.Ffz to emptyList(),
+                EmoteProvider.Bttv to null,
+                EmoteProvider.SevenTv to null,
+            )
+        )
         assertEquals(EmoteProvider.SevenTv, merged.emotes.byName["catJAM"]?.provider)
         assertEquals(EmoteProvider.Bttv, merged.emotes.byName["susge"]?.provider)
-        assertEquals(listOf(EmoteProvider.Bttv, EmoteProvider.SevenTv), merged.failed)
+        assertEquals(setOf(EmoteProvider.Bttv, EmoteProvider.SevenTv), merged.failed)
     }
 
     @Test
     fun aProviderThatAnswersWithNothingLosesItsEmotes() {
         val before = scope(emote("catJAM", EmoteProvider.SevenTv))
-        val merged = before.merge(ffz = emptyList(), bttv = emptyList(), sevenTv = emptyList())
+        val merged = before.merge(EmoteProvider.entries.associateWith { emptyList() })
         assertEquals(emptyMap<String, Emote>(), merged.emotes.byName)
-        assertEquals(emptyList<EmoteProvider>(), merged.failed)
+        assertEquals(emptySet<EmoteProvider>(), merged.failed)
+    }
+
+    @Test
+    fun aProviderThatWasNotAskedKeepsItsEmotesAndIsNotCalledAFailure() {
+        val before = scope(emote("catJAM", EmoteProvider.SevenTv), emote("susge", EmoteProvider.Bttv))
+        val merged = before.merge(mapOf(EmoteProvider.Ffz to listOf(emote("pepeD", EmoteProvider.Ffz))))
+        assertEquals(EmoteProvider.SevenTv, merged.emotes.byName["catJAM"]?.provider)
+        assertEquals(EmoteProvider.Bttv, merged.emotes.byName["susge"]?.provider)
+        assertEquals(EmoteProvider.Ffz, merged.emotes.byName["pepeD"]?.provider)
+        assertEquals(emptySet<EmoteProvider>(), merged.failed)
     }
 
     @Test

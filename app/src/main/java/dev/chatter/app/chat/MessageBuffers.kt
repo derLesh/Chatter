@@ -108,6 +108,28 @@ class MessageBuffers(
         markDirty(channel)
     }
 
+    /**
+     * Works every message out again, for emotes that arrived after they were drawn.
+     *
+     * The bodies are replaced rather than emptied, because the list on screen is compared with
+     * the one before it: a message whose body is the same object is the same message, and nothing
+     * would be redrawn. What cannot be built again (a line the app wrote itself) stays as it is.
+     */
+    fun rebuildAll() {
+        buffers.forEach { (channel, buffer) ->
+            var changed = false
+            for (i in buffer.indices) {
+                val item = buffer[i]
+                val body = item.body.rebuilt()
+                if (body !== item.body) {
+                    buffer[i] = item.copy(body = body)
+                    changed = true
+                }
+            }
+            if (changed) markDirty(channel)
+        }
+    }
+
     /** Strikes through whatever a moderator has taken back. */
     fun markDeleted(channel: String, predicate: (ChatItem) -> Boolean) {
         val buffer = buffers[channel] ?: return

@@ -7,9 +7,7 @@ import dev.chatter.app.auth.AuthRepository
 import dev.chatter.app.badges.BadgeRepository
 import dev.chatter.app.channels.BlockedUsersRepository
 import dev.chatter.app.channels.ChannelRepository
-import dev.chatter.app.emotes.EmoteLoadFailure
 import dev.chatter.app.emotes.EmoteRepository
-import dev.chatter.app.emotes.label
 import dev.chatter.app.irc.ConnectionState
 import dev.chatter.app.irc.IrcMessage
 import dev.chatter.app.net.HelixApi
@@ -166,8 +164,10 @@ class ChatRepository(
             channelRepo.channels.collect { syncChannels(it) }
         }
 
+        // A provider that was unreachable has come back: the messages on screen were built
+        // without its emotes, and are built again now that they are there.
         scope.launch(worker) {
-            emotes.failures.collect { reportEmoteFailure(it) }
+            emotes.recovered.collect { buffers.rebuildAll() }
         }
 
         scope.launch(worker) {
@@ -372,21 +372,6 @@ class ChatRepository(
         ChatItem(id = UUID.randomUUID().toString(), channel = channel, kind = MessageKind.Notice,
             timestamp = System.currentTimeMillis(), systemText = text, text = text)
     )
-
-    /**
-     * Says which emotes are missing after a provider did not answer, so words that suddenly stay
-     * plain text are not a mystery. A global failure hits every channel, a channel one only its own.
-     */
-    private fun reportEmoteFailure(failure: EmoteLoadFailure) {
-        val providers = failure.providers.joinToString(", ") { it.label }
-        if (failure.channelId == null) {
-            val text = context.getString(R.string.chat_emotes_failed_global, providers)
-            buffers.channels().forEach { system(it, text) }
-        } else {
-            val channel = rooms.channelOf(failure.channelId) ?: return
-            system(channel, context.getString(R.string.chat_emotes_failed, providers))
-        }
-    }
 
     private fun systemAll(res: Int) {
         val text = context.getString(res)

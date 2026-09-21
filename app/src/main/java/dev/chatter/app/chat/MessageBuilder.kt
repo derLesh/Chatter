@@ -12,6 +12,12 @@ interface EmoteSource {
     fun lookup(channelId: String?, word: String): Emote?
     /** Twitch emotes the user may use (their emote sets plus follower emotes of the channel). */
     fun lookupOwnTwitch(channelId: String?, word: String): Emote?
+
+    /**
+     * False while a provider still owes emotes here: a message built now may read differently
+     * once they arrive, so it is kept ready to be built again. See [MessageBody].
+     */
+    fun complete(channelId: String?): Boolean = true
 }
 
 /** User preferences that change how emotes are recognized in new messages. */
@@ -112,6 +118,9 @@ class MessageBuilder(
             segments(channel, text, ranges, channelId, ownMessage)
         },
         badges = { badges.resolve(channelId, badgesTag, userId) },
+        // Asked after the message has been built: a provider that was unreachable may still turn
+        // up, and then this message is built once more with its emotes in it.
+        worthKeeping = { !emotes.complete(channelId) },
     )
 
     private fun buildPrivmsg(

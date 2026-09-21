@@ -101,7 +101,7 @@ class AppContainer(private val context: Context) {
     val auth = AuthRepository(context.authStore, http)
     val helix = HelixApi(http) { auth.freshToken() }.also { auth.helix = it }
     val thirdParty = ThirdPartyApi(http)
-    val emotes = EmoteRepository(helix, thirdParty)
+    val emotes = EmoteRepository(helix, thirdParty, trouble)
     val badges = BadgeRepository(helix, thirdParty, trouble)
     val channels = ChannelRepository(context.channelStore, helix, scope)
     val blocked = BlockedUsersRepository(helix, scope)
@@ -236,7 +236,25 @@ class AppContainer(private val context: Context) {
         scope.launch {
             chat.windows.anyVisible.collect { visible ->
                 // The global set comes from Helix, so there is no point before a login is there.
-                if (visible && auth.account != null) badges.retryMissing(supporterTitles())
+                if (visible && auth.account != null) {
+                    badges.retryMissing(supporterTitles())
+                    emotes.retryMissing(auth.account?.userId)
+                }
+            }
+        }
+        // And the same for emotes, without waiting for the app to be picked up again: a provider
+        // that is down usually comes back within the hour, and the chat is being read the whole
+        // time. Asking stops the moment nobody is missing any more, so an app whose providers all
+        // answered makes no request at all.
+        scope.launch {
+            emotes.waitingForProvider.collectLatest { waiting ->
+                if (!waiting) return@collectLatest
+                var wait = EMOTE_RETRY_FIRST_MS
+                while (true) {
+                    delay(wait)
+                    emotes.retryMissing(auth.account?.userId)
+                    wait = (wait * 2).coerceAtMost(EMOTE_RETRY_MAX_MS)
+                }
             }
         }
         registerNetworkCallback()
@@ -314,6 +332,13 @@ class AppContainer(private val context: Context) {
     }
 
     private companion object {
+        /**
+         * How long after a provider was found unreachable it is asked again, and the ceiling the
+         * wait doubles up to.
+         */
+        const val EMOTE_RETRY_FIRST_MS = 30_000L
+        const val EMOTE_RETRY_MAX_MS = 5 * 60_000L
+
         /** How long a notification reply waits for login and join before giving up. */
         const val NOTIFICATION_SEND_TIMEOUT_MS = 15_000L
 

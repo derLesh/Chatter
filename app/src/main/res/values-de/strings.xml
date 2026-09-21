@@ -22,8 +22,6 @@
     <string name="chat_cleared">Der Chat wurde von einem Moderator geleert.</string>
     <string name="chat_timeout">%1$s wurde für %2$d Sekunden stummgeschaltet.</string>
     <string name="chat_ban">%1$s wurde gebannt.</string>
-    <string name="chat_emotes_failed">%1$s nicht erreichbar; die Emotes für diesen Kanal fehlen.</string>
-    <string name="chat_emotes_failed_global">%1$s nicht erreichbar; die globalen Emotes fehlen.</string>
 
     <!-- Chat -->
     <string name="reply_to">↪ Antwort an @%1$s: %2$s</string>
@@ -86,7 +84,7 @@
 
     <!-- Errors -->
     <string name="error_not_connected">Nicht mit dem Chat verbunden.</string>
-    <string name="error_service_down">%1$s ist gerade nicht erreichbar — was von dort kommt, fehlt vorerst.</string>
+    <string name="error_service_down">%1$s ist nicht erreichbar.</string>
     <string name="error_rate_limited">Du sendest Nachrichten zu schnell.</string>
     <string name="error_unsupported_command">Unbekannter Befehl: /%1$s</string>
     <string name="error_invalid_channel">Das ist kein gültiger Channel-Name.</string>

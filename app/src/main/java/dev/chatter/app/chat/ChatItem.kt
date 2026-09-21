@@ -34,6 +34,7 @@ enum class MessageKind { Chat, Action, UserNotice, Notice }
 class MessageBody private constructor(
     private var build: (() -> Parts)?,
     @Volatile private var parts: Parts?,
+    private val worthKeeping: () -> Boolean = { false },
 ) {
     private class Parts(val segments: List<Segment>, val badges: List<Badge>)
 
@@ -45,11 +46,22 @@ class MessageBody private constructor(
         parts()
     }
 
+    /**
+     * The same message, to be worked out again — for when emotes turned up after it was drawn.
+     *
+     * A body nobody has drawn yet is itself already: it will be built with whatever is there when
+     * something first asks for it. So is one that has let go of how it was built.
+     */
+    fun rebuilt(): MessageBody =
+        if (parts == null) this else build?.let { MessageBody(it, null, worthKeeping) } ?: this
+
     private fun parts(): Parts = parts ?: synchronized(this) {
         parts ?: build!!().also {
             parts = it
-            // Lets go of whatever the lambda was holding on to.
-            build = null
+            // Lets go of whatever the lambda was holding on to — unless the message could still
+            // come out differently, which it can while a provider owes the app its emotes. Then
+            // the lambda is what [rebuilt] uses to put them in once they arrive.
+            if (!worthKeeping()) build = null
         }
     }
 
@@ -60,8 +72,12 @@ class MessageBody private constructor(
         fun of(segments: List<Segment>, badges: List<Badge> = emptyList()) =
             MessageBody(null, Parts(segments, badges))
 
-        fun lazily(segments: () -> List<Segment>, badges: () -> List<Badge>) =
-            MessageBody({ Parts(segments(), badges()) }, null)
+        /**
+         * [worthKeeping] is asked once the parts are built: true holds on to how they were built,
+         * so [rebuilt] can do it over.
+         */
+        fun lazily(segments: () -> List<Segment>, badges: () -> List<Badge>, worthKeeping: () -> Boolean = { false }) =
+            MessageBody({ Parts(segments(), badges()) }, null, worthKeeping)
     }
 }
 
