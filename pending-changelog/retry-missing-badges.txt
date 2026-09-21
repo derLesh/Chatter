@@ -1,0 +1,1 @@
+patch: Fetch badges that were unreachable at start instead of leaving them out until a restart

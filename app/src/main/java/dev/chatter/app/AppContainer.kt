@@ -220,6 +220,14 @@ class AppContainer(private val context: Context) {
                 }
             }
         }
+        // Badge lists that were unreachable at start would otherwise stay missing for the whole
+        // session — there are no badges at all without the global set. Coming back to the app is
+        // when to try again; whatever is already there is left alone.
+        scope.launch {
+            chat.uiVisible.collect { visible ->
+                if (visible) badges.retryMissing(context.getString(R.string.badge_supporter))
+            }
+        }
         registerNetworkCallback()
         watchPowerSaveMode()
     }

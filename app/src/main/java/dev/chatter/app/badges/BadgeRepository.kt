@@ -26,6 +26,19 @@ class BadgeRepository(
     /** Third-party badges by Twitch user id; a user can wear more than one. */
     @Volatile private var thirdPartyBadges: Map<String, List<Badge>> = emptyMap()
 
+    /**
+     * The three lists behind [thirdPartyBadges], each null until it has been fetched once.
+     *
+     * Kept apart so a provider that was unreachable can be fetched on its own later, without the
+     * two that did answer being thrown away and asked for again.
+     */
+    @Volatile private var sevenTvBadges: Map<String, List<Badge>>? = null
+    @Volatile private var chatterinoBadges: Map<String, List<Badge>>? = null
+    @Volatile private var supporterBadges: Map<String, List<Badge>>? = null
+
+    /** Channels whose badges did not load, to be tried again when the app comes back. */
+    private val failedChannels = ConcurrentHashMap.newKeySet<String>()
+
     /** Which providers' badges are shown. Set from the settings, read on every message. */
     @Volatile var enabled: Set<BadgeProvider> = BadgeProvider.entries.toSet()
 
@@ -48,47 +61,86 @@ class BadgeRepository(
 
     suspend fun loadChannel(channelId: String) {
         runCatching { helix.channelBadges(channelId) }
-            .onSuccess { channels[channelId] = it.toMap() }
-            .onFailure { Log.w(TAG, "Channel badges failed: ${it.message}") }
+            .onSuccess {
+                channels[channelId] = it.toMap()
+                failedChannels.remove(channelId)
+            }
+            .onFailure {
+                failedChannels.add(channelId)
+                Log.w(TAG, "Channel badges failed: ${it.message}")
+            }
     }
 
     /**
-     * The badge lists of the other clients. Both are one request for everybody, so they are
-     * fetched once per app start and then only looked up by user id.
+     * Fetches whatever did not load earlier: the global set, the other clients' lists, and the
+     * channels that were unreachable. Everything that is already there is left alone, so this
+     * costs nothing on the usual return to the app.
+     */
+    suspend fun retryMissing(supporterTitle: String) {
+        loadGlobal()
+        loadThirdParty(supporterTitle)
+        failedChannels.toList().forEach { loadChannel(it) }
+    }
+
+    /**
+     * The badge lists of the other clients. Each is one request for everybody, so each is fetched
+     * once and then only looked up by user id — and only the ones still missing are asked for, so
+     * a list that was unreachable at start is picked up later instead of being gone for good.
      */
     suspend fun loadThirdParty(supporterTitle: String) {
+        var changed = false
+
+        if (sevenTvBadges == null) {
+            runCatching { thirdParty.sevenTvCosmetics() }
+                .onSuccess { cosmetics ->
+                    val byUser = HashMap<String, MutableList<Badge>>()
+                    for (badge in cosmetics.badges) {
+                        val host = badge.host ?: continue
+                        val base = if (host.url.startsWith("//")) "https:${host.url}" else host.url
+                        val image = Badge("$base/2x", badge.tooltip.ifEmpty { badge.name }, BadgeProvider.SevenTv)
+                        badge.users.forEach { byUser.getOrPut(it) { ArrayList(1) } += image }
+                    }
+                    sevenTvBadges = byUser
+                    changed = true
+                }
+                .onFailure { Log.w(TAG, "7TV badges failed: ${it.message}") }
+        }
+
+        if (chatterinoBadges == null) {
+            runCatching { thirdParty.chatterinoBadges() }
+                .onSuccess { list ->
+                    val byUser = HashMap<String, MutableList<Badge>>()
+                    for (badge in list.badges) {
+                        val url = badge.image2.ifEmpty { badge.image1 }.ifEmpty { badge.image3 }
+                        if (url.isEmpty()) continue
+                        val image = Badge(url, badge.tooltip, BadgeProvider.Chatterino)
+                        badge.users.forEach { byUser.getOrPut(it) { ArrayList(1) } += image }
+                    }
+                    chatterinoBadges = byUser
+                    changed = true
+                }
+                .onFailure { Log.w(TAG, "Chatterino badges failed: ${it.message}") }
+        }
+
+        if (supporterBadges == null) {
+            runCatching { thirdParty.chatterSupporters() }
+                .onSuccess { supporters ->
+                    val badge = Badge(SUPPORTER_BADGE_URL, supporterTitle, BadgeProvider.Chatter)
+                    supporterBadges = supporters.users.associateWith { listOf(badge) }
+                    changed = true
+                }
+                .onFailure { Log.w(TAG, "Supporter list failed: ${it.message}") }
+        }
+
+        if (changed) thirdPartyBadges = mergeThirdParty()
+    }
+
+    private fun mergeThirdParty(): Map<String, List<Badge>> {
         val merged = HashMap<String, MutableList<Badge>>()
-
-        runCatching { thirdParty.sevenTvCosmetics() }
-            .onSuccess { cosmetics ->
-                for (badge in cosmetics.badges) {
-                    val host = badge.host ?: continue
-                    val base = if (host.url.startsWith("//")) "https:${host.url}" else host.url
-                    val image = Badge("$base/2x", badge.tooltip.ifEmpty { badge.name }, BadgeProvider.SevenTv)
-                    badge.users.forEach { merged.getOrPut(it) { ArrayList(1) } += image }
-                }
-            }
-            .onFailure { Log.w(TAG, "7TV badges failed: ${it.message}") }
-
-        runCatching { thirdParty.chatterinoBadges() }
-            .onSuccess { list ->
-                for (badge in list.badges) {
-                    val url = badge.image2.ifEmpty { badge.image1 }.ifEmpty { badge.image3 }
-                    if (url.isEmpty()) continue
-                    val image = Badge(url, badge.tooltip, BadgeProvider.Chatterino)
-                    badge.users.forEach { merged.getOrPut(it) { ArrayList(1) } += image }
-                }
-            }
-            .onFailure { Log.w(TAG, "Chatterino badges failed: ${it.message}") }
-
-        runCatching { thirdParty.chatterSupporters() }
-            .onSuccess { supporters ->
-                val badge = Badge(SUPPORTER_BADGE_URL, supporterTitle, BadgeProvider.Chatter)
-                supporters.users.forEach { merged.getOrPut(it) { ArrayList(1) } += badge }
-            }
-            .onFailure { Log.w(TAG, "Supporter list failed: ${it.message}") }
-
-        if (merged.isNotEmpty()) thirdPartyBadges = merged
+        listOfNotNull(sevenTvBadges, chatterinoBadges, supporterBadges).forEach { source ->
+            source.forEach { (user, badges) -> merged.getOrPut(user) { ArrayList(badges.size) } += badges }
+        }
+        return merged
     }
 
     private fun List<HelixBadgeSet>.toMap(): Map<String, Badge> {
