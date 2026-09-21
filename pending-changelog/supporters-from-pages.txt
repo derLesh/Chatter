@@ -1,0 +1,1 @@
+patch: Load the supporter list again, from a place that can actually serve it

@@ -144,8 +144,13 @@ class ThirdPartyApi(private val http: OkHttpClient) {
     suspend fun chatterinoBadges(): ChatterinoBadges =
         http.getJson("https://api.chatterino.com/badges")
 
+    /**
+     * Served from the project's GitHub Pages (`docs/` on master), not from the repository itself:
+     * raw.githubusercontent answers 404 for a private repo, so the list never loaded. It is
+     * fetched, never shipped — a new supporter must not need a new release.
+     */
     suspend fun chatterSupporters(): ChatterSupporters =
-        http.getJson("https://raw.githubusercontent.com/derLesh/Chatter/master/supporters.json")
+        http.getJson("https://derlesh.github.io/Chatter/supporters.json")
 
     suspend fun recentMessages(channel: String, limit: Int): RecentMessages =
         http.getJson("https://recent-messages.robotty.de/api/v2/recent-messages/$channel?limit=$limit")
