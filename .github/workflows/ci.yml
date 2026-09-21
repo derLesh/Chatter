@@ -56,19 +56,26 @@ jobs:
       - name: Assemble the release bundle
         run: ./gradlew :app:bundleRelease
 
+      # A spare copy of the APK, and nothing more. The gate is the build, the tests and lint above
+      # it, so a full artifact store - which is an account-wide quota, not this repository's doing -
+      # is no reason to call the branch broken. The release workflow made the same call.
       - name: Upload the debug APK
+        continue-on-error: true
         uses: actions/upload-artifact@v4
         with:
           name: chatter-debug-apk
           path: app/build/outputs/apk/debug/*.apk
           if-no-files-found: error
+          retention-days: 7
 
       # The reports say what failed, which the log alone often does not.
       - name: Upload the test and lint reports
         if: failure()
+        continue-on-error: true
         uses: actions/upload-artifact@v4
         with:
           name: reports
+          retention-days: 7
           path: |
             app/build/reports/tests/
             app/build/reports/lint-results-*.html
