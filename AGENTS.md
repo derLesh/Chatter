@@ -47,6 +47,14 @@ throws away. Lint is part of the gate, so a new lint error fails the branch — 
 bundle, because R8, the resource shrinker and resource linking only ever run there, and a release
 is a bad time to find out one of them is unhappy.
 
+`.github/workflows/endpoints.yml` runs once a day and asks every service outside Twitch that the
+app reads from — the three emote providers, the badge lists, the supporter list, the history and
+the 7TV event stream — whether it is still there and still answering in the shape the app reads.
+It takes the addresses out of `ThirdPartyApis.kt` rather than keeping a list of its own, and an
+address it knows nothing about fails rather than being skipped. Two of them had died unnoticed
+before it existed. It is out of CI on purpose: a provider having a bad minute is not a reason to
+fail a branch. Run it yourself with `.github/scripts/check-endpoints.sh`.
+
 `.github/workflows/release.yml` is the release itself, started by hand from the Actions tab. Nobody
 picks a version there either — it runs `releaseVersion`, so the pending entries decide it. It then
 builds and signs both the APK and the Play bundle, pushes the release commit and the `v<version>`
