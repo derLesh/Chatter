@@ -24,6 +24,8 @@
     <string name="chat_cleared">Chat has been cleared by a moderator.</string>
     <string name="chat_timeout">%1$s has been timed out for %2$d seconds.</string>
     <string name="chat_ban">%1$s has been banned.</string>
+    <string name="chat_history_loading">Loading the recent messages…</string>
+    <string name="chat_history_failed">The recent messages could not be loaded.</string>
 
     <!-- Chat -->
     <string name="reply_to">↪ Replying to @%1$s: %2$s</string>

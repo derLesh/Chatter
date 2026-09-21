@@ -34,6 +34,5 @@ class ServiceTrouble {
         const val TWITCH = "Twitch"
         const val CHATTERINO = "Chatterino"
         const val SUPPORTERS = "GitHub"
-        const val HISTORY = "recent-messages"
     }
 }

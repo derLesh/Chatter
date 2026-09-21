@@ -84,6 +84,21 @@ class MessageBuffersTest {
     }
 
     @Test
+    fun aMessageCanBeTakenBackOutByItsId() = watching("forsen") { shown ->
+        buffers.add(message("forsen", "1"))
+        buffers.add(message("forsen", "2"))
+        advanceUntilIdle()
+        buffers.remove("forsen", "1")
+        advanceUntilIdle()
+        assertEquals(listOf("2"), shown("forsen").map { it.id })
+
+        buffers.add(message("forsen", "1"))
+        advanceUntilIdle()
+        assertEquals("the id is free again, so the same line can be shown once more",
+            listOf("2", "1"), shown("forsen").map { it.id })
+    }
+
+    @Test
     fun aMessageReachesTheScreen() = watching("forsen") { shown ->
         buffers.add(message("forsen", "1"))
         advanceUntilIdle()

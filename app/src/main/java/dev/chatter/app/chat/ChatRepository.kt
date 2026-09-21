@@ -11,7 +11,6 @@ import dev.chatter.app.emotes.EmoteRepository
 import dev.chatter.app.irc.ConnectionState
 import dev.chatter.app.irc.IrcMessage
 import dev.chatter.app.net.HelixApi
-import dev.chatter.app.net.ServiceTrouble
 import dev.chatter.app.net.ThirdPartyApi
 import dev.chatter.app.settings.Settings
 import dev.chatter.app.util.RateLimiter
@@ -59,7 +58,6 @@ class ChatRepository(
     private val auth: AuthRepository,
     private val commands: CommandExecutor,
     private val notices: ChatNotices,
-    private val trouble: ServiceTrouble,
     private val chatterRegistry: ChatterRegistry,
     private val blocked: BlockedUsersRepository,
     private val stats: ChatStats,
@@ -299,6 +297,9 @@ class ChatRepository(
      * the emotes keep loading, and whatever they still bring is put into the messages afterwards.
      */
     private suspend fun loadChannelData(channel: String) {
+        // Before anything is asked of anybody: finding the channel id and waiting on the emotes
+        // takes seconds the user spends looking at an empty black screen otherwise.
+        announceHistory(channel)
         val id = rooms.id(channel)
             ?: channelRepo.info.value[channel]?.id
             ?: channelRepo.refreshUsers(listOf(channel))[channel]
@@ -336,14 +337,23 @@ class ChatRepository(
     /**
      * Loads recent messages from the recent-messages service and merges them into the buffer by
      * time. With [since], only messages newer than that timestamp are added (gap after reconnect).
+     *
+     * The service is somebody else's side project and is away often enough that its silence needs
+     * explaining: a channel that opens empty and stays that way looks like a broken app. So the
+     * line [announceHistory] put up is taken away again here, or turned into one saying that the
+     * history never came.
      */
     private suspend fun loadHistory(channel: String, since: Long? = null) {
         if (!settings.value.loadHistory) return
+        val announce = since == null
         val lines = try {
-            thirdParty.recentMessages(channel, 100).messages.also { trouble.reachable(ServiceTrouble.HISTORY) }
+            thirdParty.recentMessages(channel, 100).messages
         } catch (e: Exception) {
-            trouble.report(ServiceTrouble.HISTORY)
             Log.w(TAG, "History for $channel failed: ${e.message}")
+            if (announce) withContext(worker) {
+                buffers.remove(channel, historyId(channel))
+                system(channel, context.getString(R.string.chat_history_failed), id = historyFailedId(channel))
+            }
             return
         }
         withContext(worker) {
@@ -358,6 +368,7 @@ class ChatRepository(
                     ?.also { incoming.rememberChatter(channel, it) }
             }
             buffers.merge(channel, items)
+            if (announce) buffers.remove(channel, historyId(channel))
         }
     }
 
@@ -378,10 +389,27 @@ class ChatRepository(
         if (!watched) _whisperEvents.tryEmit(whisper)
     }
 
-    private fun system(channel: String, text: String) = buffers.add(
-        ChatItem(id = UUID.randomUUID().toString(), channel = channel, kind = MessageKind.Notice,
+    /** [id] is given where the line is to be taken away again, as the history status lines are. */
+    private fun system(channel: String, text: String, id: String = UUID.randomUUID().toString()) = buffers.add(
+        ChatItem(id = id, channel = channel, kind = MessageKind.Notice,
             timestamp = System.currentTimeMillis(), systemText = text, text = text)
     )
+
+    /**
+     * Puts up the line that says the history is on its way, and takes away an older failure.
+     * Only [loadChannelData] does this: the load that fills the gap after a reconnect happens
+     * under a chat that is already there, and announcing that one would be noise.
+     */
+    private suspend fun announceHistory(channel: String) {
+        if (!settings.value.loadHistory) return
+        withContext(worker) {
+            buffers.remove(channel, historyFailedId(channel))
+            system(channel, context.getString(R.string.chat_history_loading), id = historyId(channel))
+        }
+    }
+
+    private fun historyId(channel: String) = "history-" + channel
+    private fun historyFailedId(channel: String) = "history-failed-" + channel
 
     private fun systemAll(res: Int) {
         val text = context.getString(res)

@@ -22,6 +22,8 @@
     <string name="chat_cleared">Der Chat wurde von einem Moderator geleert.</string>
     <string name="chat_timeout">%1$s wurde für %2$d Sekunden stummgeschaltet.</string>
     <string name="chat_ban">%1$s wurde gebannt.</string>
+    <string name="chat_history_loading">Chatverlauf wird geladen…</string>
+    <string name="chat_history_failed">Der Chatverlauf konnte nicht geladen werden.</string>
 
     <!-- Chat -->
     <string name="reply_to">↪ Antwort an @%1$s: %2$s</string>

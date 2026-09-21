@@ -108,6 +108,14 @@ class MessageBuffers(
         markDirty(channel)
     }
 
+    /** Takes one message out again, by the id it went in under. */
+    fun remove(channel: String, id: String) {
+        val buffer = buffers[channel] ?: return
+        if (ids[channel]?.remove(id) != true) return
+        buffer.removeAll { it.id == id }
+        markDirty(channel)
+    }
+
     /**
      * Works every message out again, for emotes that arrived after they were drawn.
      *

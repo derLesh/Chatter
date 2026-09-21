@@ -118,7 +118,7 @@ class AppContainer(private val context: Context) {
 
     val chat = ChatRepository(
         context, irc, MessageBuilder(emotes, badges, chatters, ::emoteOptions), emotes, badges, channels, thirdParty, helix, auth,
-        CommandExecutor(context, helix, auth, whisperSender), AppChatNotices(context), trouble, chatters, blocked, stats,
+        CommandExecutor(context, helix, auth, whisperSender), AppChatNotices(context), chatters, blocked, stats,
         rules.rules, settings.settings, scope,
     )
 
