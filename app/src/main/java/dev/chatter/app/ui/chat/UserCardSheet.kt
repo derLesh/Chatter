@@ -29,7 +29,6 @@ import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Share
 import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.HorizontalDivider
@@ -62,7 +61,6 @@ import coil3.compose.AsyncImage
 import dev.chatter.app.R
 import dev.chatter.app.chat.ChatItem
 import dev.chatter.app.net.HelixUser
-import dev.chatter.app.ui.UserCardData
 import dev.chatter.app.ui.theme.readableNameColor
 import java.time.Instant
 import java.time.ZoneId
@@ -80,7 +78,8 @@ fun UserCardSheet(
     canModerate: Boolean,
     style: ChatStyle,
     imageLoader: ImageLoader,
-    load: suspend () -> UserCardData,
+    recentMessages: suspend () -> List<ChatItem>,
+    profile: suspend () -> HelixUser?,
     blocked: Boolean,
     onBlock: (HelixUser, Boolean) -> Unit,
     onBlockLogin: (String) -> Unit,
@@ -92,20 +91,27 @@ fun UserCardSheet(
     onBan: () -> Unit,
     onDismiss: () -> Unit,
 ) {
-    var data by remember(item.id) { mutableStateOf<UserCardData?>(null) }
+    var recent by remember(item.id) { mutableStateOf<List<ChatItem>?>(null) }
+    var user by remember(item.id) { mutableStateOf<HelixUser?>(null) }
     var reporting by remember(item.id) { mutableStateOf(false) }
-    LaunchedEffect(item.id) { data = load() }
+    LaunchedEffect(item.id) { recent = recentMessages() }
+    LaunchedEffect(item.id) { user = profile() }
 
     @Suppress("DEPRECATION")
     val clipboard = LocalClipboardManager.current
     val isUserMessage = item.login != null
     val canReply = item.canReply && !item.id.startsWith("local-")
 
+    // The sheet waits for the recent messages, which come from memory and take no time. Opened
+    // before them it would find itself short and open all the way, and a sheet that is open all
+    // the way stays so when the messages then make it tall. Opened with them, a long card opens
+    // half-way like a short one does, and the rest is a swipe up.
+    val messages = recent ?: return
     ModalBottomSheet(onDismissRequest = onDismiss, containerColor = MaterialTheme.colorScheme.surfaceContainerLow) {
         LazyColumn(Modifier.fillMaxWidth()) {
             if (isUserMessage) {
-                item { Header(item, data, style, imageLoader, onNickname) }
-                data?.user?.description?.takeIf { it.isNotBlank() }?.let { bio ->
+                item { Header(item, user, style, imageLoader, onNickname) }
+                user?.description?.takeIf { it.isNotBlank() }?.let { bio ->
                     item {
                         Text(
                             text = bio,
@@ -155,7 +161,7 @@ fun UserCardSheet(
                         horizontalArrangement = Arrangement.spacedBy(8.dp),
                         modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
                     ) {
-                        data?.user?.let { user ->
+                        user?.let { user ->
                             ModButton(
                                 icon = if (blocked) Icons.Default.Check else Icons.Default.Clear,
                                 label = if (blocked) R.string.action_unblock else R.string.action_block,
@@ -196,19 +202,15 @@ fun UserCardSheet(
                         modifier = Modifier.padding(start = 20.dp, top = 16.dp, bottom = 4.dp),
                     )
                 }
-                val recent = data?.recentMessages
                 when {
-                    recent == null -> item {
-                        CircularProgressIndicator(Modifier.padding(20.dp).size(24.dp), strokeWidth = 2.dp)
-                    }
-                    recent.isEmpty() -> item {
+                    messages.isEmpty() -> item {
                         Text(
                             stringResource(R.string.user_no_messages),
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                             modifier = Modifier.padding(horizontal = 20.dp, vertical = 8.dp),
                         )
                     }
-                    else -> items(recent.asReversed(), key = { "r" + it.id }) { m ->
+                    else -> items(messages.asReversed(), key = { "r" + it.id }) { m ->
                         MessageRow(m, style, imageLoader, onAction = {})
                     }
                 }
@@ -233,12 +235,11 @@ fun UserCardSheet(
 @Composable
 private fun Header(
     item: ChatItem,
-    data: UserCardData?,
+    user: HelixUser?,
     style: ChatStyle,
     imageLoader: ImageLoader,
     onNickname: () -> Unit,
 ) {
-    val user = data?.user
     Row(
         verticalAlignment = Alignment.CenterVertically,
         modifier = Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 8.dp),

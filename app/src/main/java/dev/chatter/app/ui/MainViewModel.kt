@@ -43,8 +43,6 @@ import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
-data class UserCardData(val user: HelixUser?, val recentMessages: List<ChatItem>)
-
 /**
  * A one-off line for the snackbar: the text, and what it has to have filled in. The filling in
  * happens on the screen and not here, so that a message already up follows a change of language.
@@ -331,12 +329,16 @@ class MainViewModel(private val c: AppContainer) : ViewModel() {
         return emotes
     }
 
-    /** Profile (may be null if Twitch is unreachable) plus the user's recent messages here. */
-    suspend fun loadUserCard(item: ChatItem): UserCardData {
-        val login = item.login ?: return UserCardData(null, emptyList())
-        val recent = c.chat.messagesFrom(item.channel, login)
-        val user = runCatching { c.helix.users(listOf(login)).firstOrNull() }.getOrNull()
-        return UserCardData(user, recent)
+    /** What the writer of [item] said in its channel lately, oldest first. Read from memory. */
+    suspend fun recentMessagesOf(item: ChatItem): List<ChatItem> {
+        val login = item.login ?: return emptyList()
+        return c.chat.messagesFrom(item.channel, login)
+    }
+
+    /** The Twitch profile of whoever wrote [item]; null if Twitch is unreachable. */
+    suspend fun profileOf(item: ChatItem): HelixUser? {
+        val login = item.login ?: return null
+        return runCatching { c.helix.users(listOf(login)).firstOrNull() }.getOrNull()
     }
 
     /** Twitch badge image for the user's role in a channel (moderator sword etc.). */
