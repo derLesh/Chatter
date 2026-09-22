@@ -113,7 +113,7 @@ fun BubbleScreen(vm: MainViewModel, channel: String?) {
                 imageLoader = loader,
                 // No user card in here: a bubble is too small for a sheet, and what one wants from a
                 // message in a bubble is to answer it.
-                onAction = { vm.startReply(it) },
+                onGesture = { item, _ -> vm.startReply(item) },
                 modifier = Modifier.weight(1f),
                 smoothScrolling = settings.smoothScrolling,
                 onEmoteClick = { emoteCard = it },

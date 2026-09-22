@@ -28,9 +28,13 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextField
 import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.ImeAction
@@ -58,6 +62,10 @@ fun InputBar(
     onSend: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    val focus = remember { FocusRequester() }
+    // Picking a message to answer is only half of answering it: the keyboard comes up with it,
+    // so that one tap on a message is all it takes to start typing.
+    LaunchedEffect(replyTo?.id) { if (replyTo != null && enabled) focus.requestFocus() }
     // No bar of its own: the input sits straight on the chat background, so only the rounded
     // field, the chips and the reply strip stand out.
     Column(modifier) {
@@ -94,7 +102,7 @@ fun InputBar(
                     unfocusedIndicatorColor = Color.Transparent,
                     disabledIndicatorColor = Color.Transparent,
                 ),
-                modifier = Modifier.weight(1f),
+                modifier = Modifier.weight(1f).focusRequester(focus),
             )
             IconButton(onClick = onSend, enabled = enabled && value.text.isNotBlank()) {
                 Icon(Icons.AutoMirrored.Filled.Send, contentDescription = stringResource(R.string.send))

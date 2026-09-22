@@ -29,6 +29,9 @@ enum class TimestampFormat(val pattern: String?) {
     Twelve("h:mm a"),
 }
 
+/** What tapping a message, or the name in front of it, does. Holding always opens the user card. */
+enum class TapAction { Reply, UserCard, Mention, Nothing }
+
 @Serializable
 data class Settings(
     val fontSize: Float = 14f,
@@ -92,6 +95,10 @@ data class Settings(
     val highlightFirstMessages: Boolean = true,
     /** How the name colors users picked are made readable on the chat background. */
     val nameColors: NameColorPalette = NameColorPalette.HslLuma,
+    /** What a tap on a message does. Answering is the one thing done to messages all the time. */
+    val messageTap: TapAction = TapAction.Reply,
+    /** What a tap on the name in front of a message does: whoever wrote it, like elsewhere on Twitch. */
+    val nameTap: TapAction = TapAction.UserCard,
 ) {
     companion object {
         // Real ARGB colors are always opaque (0xFF......), so these can never clash with one.
@@ -142,6 +149,8 @@ class SettingsRepository(
             highlightFirstMessages = p[FIRST_MESSAGES] ?: true,
             nameColors = p[NAME_COLORS]?.let { v -> NameColorPalette.entries.firstOrNull { it.name == v } }
                 ?: NameColorPalette.HslLuma,
+            messageTap = p[MESSAGE_TAP]?.let { v -> TapAction.entries.firstOrNull { it.name == v } } ?: TapAction.Reply,
+            nameTap = p[NAME_TAP]?.let { v -> TapAction.entries.firstOrNull { it.name == v } } ?: TapAction.UserCard,
             badgeProviders = p[BADGE_PROVIDERS]
                 ?.split(',')?.mapNotNull { v -> BadgeProvider.entries.firstOrNull { it.name == v } }?.toSet()
                 ?: BadgeProvider.entries.toSet(),
@@ -153,6 +162,8 @@ class SettingsRepository(
 
     suspend fun setFontSize(v: Float) = store.edit { it[FONT_SIZE] = v }
     suspend fun setTimestamps(v: TimestampFormat) = store.edit { it[TIMESTAMP_FORMAT] = v.name }
+    suspend fun setMessageTap(v: TapAction) = store.edit { it[MESSAGE_TAP] = v.name }
+    suspend fun setNameTap(v: TapAction) = store.edit { it[NAME_TAP] = v.name }
     suspend fun setMessageLimit(v: Int) = store.edit { it[LIMIT] = v }
     // Stored as one comma-separated line, the way they always were, so nothing has to migrate.
     suspend fun setMentionKeywords(v: List<String>) = store.edit { it[KEYWORDS] = v.joinToString(",") }
@@ -229,6 +240,8 @@ class SettingsRepository(
         p[SENDER_AVATARS] = s.senderAvatars
         p[FIRST_MESSAGES] = s.highlightFirstMessages
         p[NAME_COLORS] = s.nameColors.name
+        p[MESSAGE_TAP] = s.messageTap.name
+        p[NAME_TAP] = s.nameTap.name
         p[BADGE_PROVIDERS] = s.badgeProviders.joinToString(",") { it.name }
         p[EMOTE_PROVIDERS] = s.emoteProviders.joinToString(",") { it.name }
     }
@@ -273,6 +286,8 @@ class SettingsRepository(
         val BADGE_PROVIDERS = stringPreferencesKey("badge_providers")
         val NAME_COLORS = stringPreferencesKey("name_colors")
         val FIRST_MESSAGES = booleanPreferencesKey("highlight_first_messages")
+        val MESSAGE_TAP = stringPreferencesKey("message_tap")
+        val NAME_TAP = stringPreferencesKey("name_tap")
         val SEEN_VERSION = stringPreferencesKey("seen_changelog_version")
         const val MAX_RECENT = 40
     }

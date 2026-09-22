@@ -52,6 +52,7 @@ import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.repeatOnLifecycle
 import dev.chatter.app.R
+import dev.chatter.app.settings.TapAction
 import dev.chatter.app.chat.ChatItem
 import dev.chatter.app.chat.Segment
 import dev.chatter.app.irc.ConnectionState
@@ -62,6 +63,7 @@ import dev.chatter.app.ui.channels.RenameChannelDialog
 import dev.chatter.app.ui.channels.ChannelPages
 import dev.chatter.app.ui.channels.ChannelTopBar
 import dev.chatter.app.ui.chat.ChatList
+import dev.chatter.app.ui.chat.MessageGesture
 import dev.chatter.app.ui.chat.rememberChatStyle
 import dev.chatter.app.ui.chat.EmoteCardSheet
 import dev.chatter.app.ui.chat.EmotePickerSheet
@@ -272,7 +274,23 @@ fun MainScreen(vm: MainViewModel, onInbox: () -> Unit, onSettings: () -> Unit) {
                         messages = remember(channel) { vm.chat(channel) },
                         style = style,
                         imageLoader = loader,
-                        onAction = { actionItem = it },
+                        onGesture = { item, gesture ->
+                            // Holding is not up to the settings: it is the one way to the user
+                            // card that stays whatever the taps were given to.
+                            val action = when (gesture) {
+                                MessageGesture.Tap -> settings.messageTap
+                                MessageGesture.NameTap -> settings.nameTap
+                                MessageGesture.Hold -> TapAction.UserCard
+                            }
+                            // What cannot be answered or named (a notice, a message Twitch has
+                            // not confirmed yet) opens the card instead, as every tap used to.
+                            when (action) {
+                                TapAction.Reply -> if (!vm.startReply(item)) actionItem = item
+                                TapAction.Mention -> if (item.login != null) vm.mention(item) else actionItem = item
+                                TapAction.UserCard -> actionItem = item
+                                TapAction.Nothing -> Unit
+                            }
+                        },
                         modifier = Modifier.fillMaxSize(),
                         smoothScrolling = settings.smoothScrolling,
                         onEmoteClick = { emoteCard = it },

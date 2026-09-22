@@ -133,7 +133,7 @@ fun UserCardSheet(
                     modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 12.dp),
                 ) {
                     Column(Modifier.padding(vertical = 6.dp)) {
-                        MessageRow(item.copy(historical = false), style, imageLoader, onAction = {})
+                        MessageRow(item.copy(historical = false), style, imageLoader, onGesture = null)
                     }
                 }
             }
@@ -211,7 +211,7 @@ fun UserCardSheet(
                         )
                     }
                     else -> items(messages.asReversed(), key = { "r" + it.id }) { m ->
-                        MessageRow(m, style, imageLoader, onAction = {})
+                        MessageRow(m, style, imageLoader, onGesture = null)
                     }
                 }
             }

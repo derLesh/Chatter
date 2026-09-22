@@ -28,6 +28,7 @@ import dev.chatter.app.net.HelixUser
 import dev.chatter.app.settings.ThemeMode
 import dev.chatter.app.stats.Stats
 import dev.chatter.app.ui.theme.NameColorPalette
+import dev.chatter.app.settings.TapAction
 import dev.chatter.app.settings.TimestampFormat
 import dev.chatter.app.util.Autocomplete
 import kotlinx.coroutines.Dispatchers
@@ -452,8 +453,14 @@ class MainViewModel(private val c: AppContainer) : ViewModel() {
         c.chat.runCommand(item.channel, ChatCommand.Ban(login, null))
     }
 
-    fun startReply(item: ChatItem) {
+    /**
+     * Answers [item] with the next message sent. False for one that cannot be answered: a notice,
+     * or the user's own message before Twitch has said what it is called.
+     */
+    fun startReply(item: ChatItem): Boolean {
+        if (!item.canReply || item.id.startsWith("local-")) return false
         replyTo = item
+        return true
     }
 
     fun cancelReply() {
@@ -532,6 +539,14 @@ class MainViewModel(private val c: AppContainer) : ViewModel() {
 
     fun setTimestamps(v: TimestampFormat) {
         viewModelScope.launch { c.settings.setTimestamps(v) }
+    }
+
+    fun setMessageTap(v: TapAction) {
+        viewModelScope.launch { c.settings.setMessageTap(v) }
+    }
+
+    fun setNameTap(v: TapAction) {
+        viewModelScope.launch { c.settings.setNameTap(v) }
     }
 
     fun setShowDeleted(v: Boolean) {

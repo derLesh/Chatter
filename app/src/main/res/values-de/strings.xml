@@ -183,6 +183,13 @@
     <string name="settings_mention_with_at_hint">Aus fügt den bloßen Namen ein. Ein selbst getipptes @ bleibt erhalten.</string>
     <string name="settings_group_colors">Farben</string>
     <string name="settings_group_messages">Nachrichten</string>
+    <string name="settings_message_tap">Tippen auf eine Nachricht</string>
+    <string name="settings_name_tap">Tippen auf einen Namen</string>
+    <string name="settings_tap_hint">Halten einer Nachricht öffnet immer die Nutzerkarte</string>
+    <string name="tap_action_reply">Antworten</string>
+    <string name="tap_action_user_card">Nutzerkarte öffnen</string>
+    <string name="tap_action_mention">Erwähnen</string>
+    <string name="tap_action_nothing">Nichts</string>
     <string name="settings_group_mentions">Erwähnungen</string>
     <string name="settings_alternate_background">Abwechselnder Hintergrund</string>
     <string name="settings_alternate_background_hint">Jede zweite Nachricht leicht hinterlegen, für bessere Lesbarkeit</string>

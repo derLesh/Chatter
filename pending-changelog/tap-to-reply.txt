@@ -1,0 +1,1 @@
+minor: Tap a message to reply to it and tap a name for the user card, or pick your own in the settings

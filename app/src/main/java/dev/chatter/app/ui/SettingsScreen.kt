@@ -121,6 +121,7 @@ import dev.chatter.app.net.HelixBlockedUser
 import dev.chatter.app.service.ChatNotifier
 import dev.chatter.app.settings.Settings
 import dev.chatter.app.settings.ThemeMode
+import dev.chatter.app.settings.TapAction
 import dev.chatter.app.settings.TimestampFormat
 import dev.chatter.app.ui.changelog.ChangelogPage
 import dev.chatter.app.ui.channels.AddChannelDialog
@@ -401,6 +402,8 @@ private fun AppearancePage(settings: Settings, vm: MainViewModel) {
     // How a message itself is drawn, which is what somebody looking for "the chat looks wrong"
     // comes here for — the emotes in it have a category of their own.
     SettingsGroup(R.string.settings_group_messages) {
+        item { TapActionPicker(R.string.settings_message_tap, settings.messageTap, vm::setMessageTap) }
+        item { TapActionPicker(R.string.settings_name_tap, settings.nameTap, vm::setNameTap) }
         item {
             SwitchItem(
                 R.string.settings_alternate_background, settings.alternateBackground,
@@ -560,7 +563,7 @@ private fun TextSizeItem(settings: Settings, vm: MainViewModel) {
                     modifier = Modifier.fillMaxWidth().padding(top = 4.dp),
                 ) {
                     Box(Modifier.padding(vertical = 8.dp)) {
-                        MessageRow(sample, style, vm.imageLoader, onAction = {})
+                        MessageRow(sample, style, vm.imageLoader, onGesture = null)
                     }
                 }
             }
@@ -1613,6 +1616,31 @@ private val PROVIDERS = listOf(
     EmoteProvider.Bttv to R.string.settings_provider_bttv,
     EmoteProvider.Ffz to R.string.settings_provider_ffz,
 )
+
+/**
+ * What a tap does, on a message or on its name. The hint says what no choice here can change:
+ * holding keeps the user card in reach, and with it blocking, reporting and moderating.
+ */
+@Composable
+private fun TapActionPicker(title: Int, selected: TapAction, onSelect: (TapAction) -> Unit) {
+    ChoiceItem(
+        title = title,
+        value = selected,
+        options = TapAction.entries,
+        label = { action ->
+            stringResource(
+                when (action) {
+                    TapAction.Reply -> R.string.tap_action_reply
+                    TapAction.UserCard -> R.string.tap_action_user_card
+                    TapAction.Mention -> R.string.tap_action_mention
+                    TapAction.Nothing -> R.string.tap_action_nothing
+                },
+            )
+        },
+        onPick = onSelect,
+        hint = R.string.settings_tap_hint,
+    )
+}
 
 /** How the time in front of a message is written, each option showing the current time in it. */
 @Composable

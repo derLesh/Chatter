@@ -45,7 +45,7 @@ fun ChatList(
     messages: StateFlow<List<ChatItem>>,
     style: ChatStyle,
     imageLoader: ImageLoader,
-    onAction: (ChatItem) -> Unit,
+    onGesture: (ChatItem, MessageGesture) -> Unit,
     modifier: Modifier = Modifier,
     smoothScrolling: Boolean = false,
     onEmoteClick: ((Segment.EmoteSeg) -> Unit)? = null,
@@ -106,7 +106,7 @@ fun ChatList(
                         fadeOutSpec = null,
                     )
                 } else Modifier
-                Box(rowModifier) { MessageRow(items[count - 1 - index], style, imageLoader, onAction, onEmoteClick) }
+                Box(rowModifier) { MessageRow(items[count - 1 - index], style, imageLoader, onGesture, onEmoteClick) }
             }
         }
         if (!follow) {

@@ -189,6 +189,13 @@
     <string name="settings_mention_with_at_hint">Off inserts the bare name. A typed @ is always kept.</string>
     <string name="settings_group_colors">Colors</string>
     <string name="settings_group_messages">Messages</string>
+    <string name="settings_message_tap">Tapping a message</string>
+    <string name="settings_name_tap">Tapping a name</string>
+    <string name="settings_tap_hint">Holding a message always opens the user card</string>
+    <string name="tap_action_reply">Reply</string>
+    <string name="tap_action_user_card">Open user card</string>
+    <string name="tap_action_mention">Mention</string>
+    <string name="tap_action_nothing">Nothing</string>
     <string name="settings_group_mentions">Mentions</string>
     <string name="settings_alternate_background">Alternating background</string>
     <string name="settings_alternate_background_hint">Shade every other message for easier reading</string>

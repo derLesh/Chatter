@@ -32,6 +32,7 @@ import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.LinkAnnotation
+import androidx.compose.ui.text.LinkInteractionListener
 import androidx.compose.ui.text.Placeholder
 import androidx.compose.ui.text.PlaceholderVerticalAlign
 import androidx.compose.ui.text.SpanStyle
@@ -128,16 +129,29 @@ private val timeFormats = object : ThreadLocal<MutableMap<String, SimpleDateForm
 private fun formatTime(pattern: String, at: Long): String =
     timeFormats.get()!!.getOrPut(pattern) { SimpleDateFormat(pattern, Locale.getDefault()) }.format(Date(at))
 
+/** How a message was touched. What each of them does is the screen's to decide. */
+enum class MessageGesture { Tap, NameTap, Hold }
+
+/**
+ * One message. [onGesture] hears about taps and holds, and about a tap on the name as a gesture
+ * of its own; without it the row is only something to look at, as in the user card.
+ */
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun MessageRow(
     item: ChatItem,
     style: ChatStyle,
     imageLoader: ImageLoader,
-    onAction: (ChatItem) -> Unit,
+    onGesture: ((ChatItem, MessageGesture) -> Unit)?,
     onEmoteClick: ((Segment.EmoteSeg) -> Unit)? = null,
 ) {
-    val built = remember(item, style) { buildLine(item, style) }
+    val currentItem by rememberUpdatedState(item)
+    val currentGesture by rememberUpdatedState(onGesture)
+    // The name is a link inside the text, so that a tap on it is told apart from one on the words.
+    // Kept the same object for good: a new one would build the line again on every recomposition.
+    val nameTap = remember { LinkInteractionListener { currentGesture?.invoke(currentItem, MessageGesture.NameTap) } }
+    val nameClickable = onGesture != null && item.login != null
+    val built = remember(item, style, nameClickable) { buildLine(item, style, nameTap.takeIf { nameClickable }) }
     // Stable wrapper, so a new callback instance doesn't rebuild the inline content.
     val currentEmoteClick by rememberUpdatedState(onEmoteClick)
     val emoteClick = remember { { seg: Segment.EmoteSeg -> currentEmoteClick?.invoke(seg); Unit } }
@@ -165,10 +179,12 @@ fun MessageRow(
         Modifier
             .fillMaxWidth()
             .background(background)
-            .combinedClickable(
-                onClick = { onAction(item) },
-                onLongClick = { onAction(item) },
-                hapticFeedbackEnabled = style.haptics,
+            .then(
+                if (onGesture == null) Modifier else Modifier.combinedClickable(
+                    onClick = { onGesture(item, MessageGesture.Tap) },
+                    onLongClick = { onGesture(item, MessageGesture.Hold) },
+                    hapticFeedbackEnabled = style.haptics,
+                ),
             )
             .padding(horizontal = 8.dp, vertical = 2.dp)
             .alpha(
@@ -296,7 +312,7 @@ private fun inlineFor(data: InlineData, loader: ImageLoader, onEmoteClick: ((Seg
     }
 }
 
-private fun buildLine(item: ChatItem, style: ChatStyle): BuiltLine {
+private fun buildLine(item: ChatItem, style: ChatStyle, onName: LinkInteractionListener?): BuiltLine {
     val inline = HashMap<String, InlineData>()
     val (segments, images) = ImageLinks.split(item.segments, style.imageHosts)
     if (item.kind == MessageKind.Notice) {
@@ -330,7 +346,12 @@ private fun buildLine(item: ChatItem, style: ChatStyle): BuiltLine {
             append(' ')
         }
         withStyle(SpanStyle(color = nameColor, fontWeight = FontWeight.Bold)) {
-            append(displayName(item, style))
+            if (onName == null) append(displayName(item, style))
+            // Looks no different from a name that cannot be tapped: every name can be, so marking
+            // them would only be noise.
+            else withLink(LinkAnnotation.Clickable("name", TextLinkStyles(SpanStyle()), onName)) {
+                append(displayName(item, style))
+            }
         }
         append(if (isAction) " " else ": ")
 
