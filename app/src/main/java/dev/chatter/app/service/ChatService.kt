@@ -51,11 +51,20 @@ class ChatService : Service() {
         container.notifier.clearNotListening()
         container.connect()
 
+        // With the app in front, on another channel or another screen, a notification would only
+        // cover what the user is reading; they get a buzz and the unread counts instead.
+        val appInFront = container.chat.windows.anyVisible
         scope.launch {
-            container.chat.mentionEvents.collect { container.notifier.notify(it) }
+            container.chat.mentionEvents.collect {
+                if (appInFront.value) container.notifier.buzz(ChatNotifier.mentionChannelId(it.channel))
+                else container.notifier.notify(it)
+            }
         }
         scope.launch {
-            container.chat.whisperEvents.collect { container.notifier.notifyWhisper(it) }
+            container.chat.whisperEvents.collect {
+                if (appInFront.value) container.notifier.buzz(ChatNotifier.CHANNEL_WHISPERS)
+                else container.notifier.notifyWhisper(it)
+            }
         }
         // What the service is for, and therefore what ends it: somebody logged in with at least one
         // channel joined. Logging out leaves the channels in place, so without watching the login

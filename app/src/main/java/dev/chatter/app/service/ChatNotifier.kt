@@ -6,6 +6,10 @@ import android.app.NotificationManager
 import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
+import android.media.AudioManager
+import android.os.VibrationAttributes
+import android.os.VibrationEffect
+import android.os.VibratorManager
 import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
 import androidx.core.app.Person
@@ -139,6 +143,29 @@ class ChatNotifier(
         // Fills the cache for this chatter; the older lines use what is already in it.
         loadSenderIcon(item.login)
         post(item, icon)
+    }
+
+    /**
+     * What a mention or a whisper gets instead of a notification while Chatter is on screen: a
+     * short buzz and nothing more. The user is already in the app, and the unread counts show
+     * where it happened; a banner sliding over the chat they are reading would only be in the way.
+     *
+     * It keeps to what the user chose for a notification of that kind — no buzz for a channel
+     * they silenced in the system settings, on a silent phone or under Do Not Disturb — and goes
+     * out as a notification vibration, so the system's own vibration switch for those applies too.
+     */
+    fun buzz(channelId: String) {
+        if (!manager.areNotificationsEnabled()) return
+        val importance = nm.getNotificationChannel(channelId)?.importance ?: NotificationManager.IMPORTANCE_HIGH
+        if (importance < NotificationManager.IMPORTANCE_DEFAULT) return
+        if (nm.currentInterruptionFilter != NotificationManager.INTERRUPTION_FILTER_ALL) return
+        if (context.getSystemService(AudioManager::class.java).ringerMode == AudioManager.RINGER_MODE_SILENT) return
+        val vibrator = context.getSystemService(VibratorManager::class.java).defaultVibrator
+        if (!vibrator.hasVibrator()) return
+        vibrator.vibrate(
+            VibrationEffect.createPredefined(VibrationEffect.EFFECT_DOUBLE_CLICK),
+            VibrationAttributes.createForUsage(VibrationAttributes.USAGE_NOTIFICATION),
+        )
     }
 
     /** Shows a message the user sent straight from the notification in that same conversation. */
