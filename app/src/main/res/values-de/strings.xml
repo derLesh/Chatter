@@ -131,7 +131,7 @@
 
     <!-- Settings pages -->
     <string name="settings_appearance_summary">Design, Farben, Aussehen der Nachrichten</string>
-    <string name="settings_chat_summary">Verlauf, Bilder, Schreiben</string>
+    <string name="settings_chat_summary">Verlauf, Bilder, Schreiben, Tippen</string>
     <string name="settings_emotes">Emotes &amp; Badges</string>
     <string name="settings_emotes_summary">Anbieter, Animation, Zero-Width</string>
     <string name="settings_filters">Filter</string>
@@ -377,6 +377,7 @@
 
     <!-- Erwähnungen -->
     <string name="settings_group_input">Schreiben und Wischen</string>
+    <string name="settings_group_touch">Tippen und Halten</string>
     <string name="settings_haptics">Haptisches Feedback</string>
     <string name="settings_haptics_hint">Kurzes Vibrieren, wenn eine Erwähnung eintrifft, während du liest, wenn du eine Nachricht gedrückt hältst und wenn etwas nicht durchgeht</string>
 

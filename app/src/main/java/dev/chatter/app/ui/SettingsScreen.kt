@@ -402,9 +402,6 @@ private fun AppearancePage(settings: Settings, vm: MainViewModel) {
     // How a message itself is drawn, which is what somebody looking for "the chat looks wrong"
     // comes here for — the emotes in it have a category of their own.
     SettingsGroup(R.string.settings_group_messages) {
-        item { TapActionPicker(R.string.settings_message_tap, settings.messageTap, vm::setMessageTap) }
-        item { TapActionPicker(R.string.settings_name_tap, settings.nameTap, vm::setNameTap) }
-        item { SwitchItem(R.string.settings_copy_first, settings.copyFirst, vm::setCopyFirst, R.string.settings_copy_first_hint) }
         item {
             SwitchItem(
                 R.string.settings_alternate_background, settings.alternateBackground,
@@ -626,6 +623,12 @@ private fun ChatPage(settings: Settings, vm: MainViewModel, open: (SettingsSubPa
                 vm::setCarouselChannels, R.string.settings_carousel_hint,
             )
         }
+    }
+    // What a message does when it is touched, and the card that holding it brings up.
+    SettingsGroup(R.string.settings_group_touch) {
+        item { TapActionPicker(R.string.settings_message_tap, settings.messageTap, vm::setMessageTap) }
+        item { TapActionPicker(R.string.settings_name_tap, settings.nameTap, vm::setNameTap) }
+        item { SwitchItem(R.string.settings_copy_first, settings.copyFirst, vm::setCopyFirst, R.string.settings_copy_first_hint) }
     }
 }
 

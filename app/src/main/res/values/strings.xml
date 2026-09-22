@@ -137,7 +137,7 @@
 
     <!-- Settings pages -->
     <string name="settings_appearance_summary">Theme, colors, how a message looks</string>
-    <string name="settings_chat_summary">History, images, typing</string>
+    <string name="settings_chat_summary">History, images, typing, tapping</string>
     <string name="settings_emotes">Emotes &amp; badges</string>
     <string name="settings_emotes_summary">Providers, animation, zero-width</string>
     <string name="settings_filters">Filters</string>
@@ -382,6 +382,7 @@
     <string name="bubble_unavailable">Open Chatter to read this channel</string>
 
     <string name="settings_group_input">Typing and swiping</string>
+    <string name="settings_group_touch">Tapping and holding</string>
     <string name="settings_haptics">Haptic feedback</string>
     <string name="settings_haptics_hint">A short buzz when a mention arrives while you are reading, when you hold a message, and when something does not go through</string>
 
