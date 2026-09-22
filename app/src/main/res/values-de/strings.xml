@@ -128,7 +128,7 @@
     <string name="user_no_messages">Noch keine Nachrichten</string>
     <string name="user_partner">Partner</string>
     <string name="user_affiliate">Affiliate</string>
-    <string name="user_created">Account erstellt am %1$s</string>
+    <string name="user_created">Konto erstellt am %1$s</string>
 
     <!-- Settings pages -->
     <string name="settings_appearance_summary">Design, Farben, Aussehen der Nachrichten</string>
@@ -203,14 +203,14 @@
     <string name="settings_load_history">Letzte Nachrichten laden</string>
     <string name="settings_load_history_hint">Beim Öffnen eines Channels die letzten Nachrichten anzeigen (über recent-messages.robotty.de)</string>
     <string name="settings_system_notifications">Benachrichtigungseinstellungen</string>
-    <string name="settings_group_account_details">Twitch-Profil</string>
     <string name="settings_group_accounts">Konten</string>
-    <string name="account_id">Twitch-ID</string>
-    <string name="account_created">Konto erstellt</string>
-    <string name="account_following">Folgt</string>
+    <string name="account_id">Twitch-ID %1$s</string>
+    <string name="account_copy_id">Twitch-ID kopieren</string>
     <string name="account_on_twitch">Auf Twitch öffnen</string>
     <string name="account_active">Chattet mit diesem Konto</string>
+    <string name="account_switch_to">Als %1$s chatten</string>
     <string name="account_add">Konto hinzufügen</string>
+    <string name="account_add_short">Hinzufügen</string>
     <string name="account_add_hint">Mit einem weiteren Twitch-Konto anmelden und jederzeit wechseln</string>
     <string name="account_logout_title">%1$s abmelden?</string>
     <string name="account_logout_text">Chatter macht mit deinem anderen Konto weiter.</string>
@@ -347,9 +347,9 @@
         <item quantity="one">%d blockierter Chatter</item>
         <item quantity="other">%d blockierte Chatter</item>
     </plurals>
-    <plurals name="account_following_count">
-        <item quantity="one">%1$d Kanal</item>
-        <item quantity="other">%1$d Kanäle</item>
+    <plurals name="account_following_summary">
+        <item quantity="one">Folgt %1$d Kanal</item>
+        <item quantity="other">Folgt %1$d Kanälen</item>
     </plurals>
     <string name="block_user_title">Nutzer blockieren</string>
     <string name="block_user_name">Twitch Username</string>

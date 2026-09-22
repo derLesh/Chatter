@@ -209,14 +209,14 @@
     <string name="settings_load_history">Load recent messages</string>
     <string name="settings_load_history_hint">Show the last messages when opening a channel (via recent-messages.robotty.de)</string>
     <string name="settings_system_notifications">Notification settings</string>
-    <string name="settings_group_account_details">Twitch profile</string>
     <string name="settings_group_accounts">Accounts</string>
-    <string name="account_id">Twitch ID</string>
-    <string name="account_created">Account created</string>
-    <string name="account_following">Following</string>
+    <string name="account_id">Twitch ID %1$s</string>
+    <string name="account_copy_id">Copy Twitch ID</string>
     <string name="account_on_twitch">Open on Twitch</string>
     <string name="account_active">Chatting as this account</string>
+    <string name="account_switch_to">Chat as %1$s</string>
     <string name="account_add">Add account</string>
+    <string name="account_add_short">Add</string>
     <string name="account_add_hint">Log in with another Twitch account and switch whenever you like</string>
     <string name="account_logout_title">Log %1$s out?</string>
     <string name="account_logout_text">Chatter carries on with your other account.</string>
@@ -353,9 +353,9 @@
         <item quantity="one">%d blocked chatter</item>
         <item quantity="other">%d blocked chatters</item>
     </plurals>
-    <plurals name="account_following_count">
-        <item quantity="one">%1$d channel</item>
-        <item quantity="other">%1$d channels</item>
+    <plurals name="account_following_summary">
+        <item quantity="one">Follows %1$d channel</item>
+        <item quantity="other">Follows %1$d channels</item>
     </plurals>
     <string name="block_user_title">Block user</string>
     <string name="block_user_name">Twitch username</string>
