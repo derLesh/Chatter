@@ -99,6 +99,11 @@ data class Settings(
     val messageTap: TapAction = TapAction.Reply,
     /** What a tap on the name in front of a message does: whoever wrote it, like elsewhere on Twitch. */
     val nameTap: TapAction = TapAction.UserCard,
+    /**
+     * Put Copy where Reply is on the user card, first in the row. For those who reply with a tap
+     * on the message and open the card mostly to copy it.
+     */
+    val copyFirst: Boolean = false,
 ) {
     companion object {
         // Real ARGB colors are always opaque (0xFF......), so these can never clash with one.
@@ -150,6 +155,7 @@ class SettingsRepository(
             nameColors = p[NAME_COLORS]?.let { v -> NameColorPalette.entries.firstOrNull { it.name == v } }
                 ?: NameColorPalette.HslLuma,
             messageTap = p[MESSAGE_TAP]?.let { v -> TapAction.entries.firstOrNull { it.name == v } } ?: TapAction.Reply,
+            copyFirst = p[COPY_FIRST] ?: false,
             nameTap = p[NAME_TAP]?.let { v -> TapAction.entries.firstOrNull { it.name == v } } ?: TapAction.UserCard,
             badgeProviders = p[BADGE_PROVIDERS]
                 ?.split(',')?.mapNotNull { v -> BadgeProvider.entries.firstOrNull { it.name == v } }?.toSet()
@@ -164,6 +170,7 @@ class SettingsRepository(
     suspend fun setTimestamps(v: TimestampFormat) = store.edit { it[TIMESTAMP_FORMAT] = v.name }
     suspend fun setMessageTap(v: TapAction) = store.edit { it[MESSAGE_TAP] = v.name }
     suspend fun setNameTap(v: TapAction) = store.edit { it[NAME_TAP] = v.name }
+    suspend fun setCopyFirst(v: Boolean) = store.edit { it[COPY_FIRST] = v }
     suspend fun setMessageLimit(v: Int) = store.edit { it[LIMIT] = v }
     // Stored as one comma-separated line, the way they always were, so nothing has to migrate.
     suspend fun setMentionKeywords(v: List<String>) = store.edit { it[KEYWORDS] = v.joinToString(",") }
@@ -242,6 +249,7 @@ class SettingsRepository(
         p[NAME_COLORS] = s.nameColors.name
         p[MESSAGE_TAP] = s.messageTap.name
         p[NAME_TAP] = s.nameTap.name
+        p[COPY_FIRST] = s.copyFirst
         p[BADGE_PROVIDERS] = s.badgeProviders.joinToString(",") { it.name }
         p[EMOTE_PROVIDERS] = s.emoteProviders.joinToString(",") { it.name }
     }
@@ -288,6 +296,7 @@ class SettingsRepository(
         val FIRST_MESSAGES = booleanPreferencesKey("highlight_first_messages")
         val MESSAGE_TAP = stringPreferencesKey("message_tap")
         val NAME_TAP = stringPreferencesKey("name_tap")
+        val COPY_FIRST = booleanPreferencesKey("copy_first")
         val SEEN_VERSION = stringPreferencesKey("seen_changelog_version")
         const val MAX_RECENT = 40
     }

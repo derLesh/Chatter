@@ -549,6 +549,10 @@ class MainViewModel(private val c: AppContainer) : ViewModel() {
         viewModelScope.launch { c.settings.setNameTap(v) }
     }
 
+    fun setCopyFirst(v: Boolean) {
+        viewModelScope.launch { c.settings.setCopyFirst(v) }
+    }
+
     fun setShowDeleted(v: Boolean) {
         viewModelScope.launch { c.settings.setShowDeleted(v) }
     }

@@ -190,6 +190,8 @@
     <string name="tap_action_user_card">Nutzerkarte öffnen</string>
     <string name="tap_action_mention">Erwähnen</string>
     <string name="tap_action_nothing">Nichts</string>
+    <string name="settings_copy_first">Kopieren zuerst in der Nutzerkarte</string>
+    <string name="settings_copy_first_hint">Tauscht Kopieren und Antworten, damit Kopieren der erste Knopf ist</string>
     <string name="settings_group_mentions">Erwähnungen</string>
     <string name="settings_alternate_background">Abwechselnder Hintergrund</string>
     <string name="settings_alternate_background_hint">Jede zweite Nachricht leicht hinterlegen, für bessere Lesbarkeit</string>

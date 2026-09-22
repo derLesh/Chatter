@@ -196,6 +196,8 @@
     <string name="tap_action_user_card">Open user card</string>
     <string name="tap_action_mention">Mention</string>
     <string name="tap_action_nothing">Nothing</string>
+    <string name="settings_copy_first">Copy first on the user card</string>
+    <string name="settings_copy_first_hint">Swaps Copy and Reply, so Copy is the first button</string>
     <string name="settings_group_mentions">Mentions</string>
     <string name="settings_alternate_background">Alternating background</string>
     <string name="settings_alternate_background_hint">Shade every other message for easier reading</string>

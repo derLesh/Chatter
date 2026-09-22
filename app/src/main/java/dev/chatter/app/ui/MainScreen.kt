@@ -322,6 +322,7 @@ fun MainScreen(vm: MainViewModel, onInbox: () -> Unit, onSettings: () -> Unit) {
             recentMessages = { vm.recentMessagesOf(item) },
             profile = { vm.profileOf(item) },
             blocked = item.login?.lowercase() in blockedLogins,
+            copyFirst = settings.copyFirst,
             onBlock = vm::setBlocked,
             onBlockLogin = vm::blockByLogin,
             onNickname = { nicknameTarget = item },

@@ -404,6 +404,7 @@ private fun AppearancePage(settings: Settings, vm: MainViewModel) {
     SettingsGroup(R.string.settings_group_messages) {
         item { TapActionPicker(R.string.settings_message_tap, settings.messageTap, vm::setMessageTap) }
         item { TapActionPicker(R.string.settings_name_tap, settings.nameTap, vm::setNameTap) }
+        item { SwitchItem(R.string.settings_copy_first, settings.copyFirst, vm::setCopyFirst, R.string.settings_copy_first_hint) }
         item {
             SwitchItem(
                 R.string.settings_alternate_background, settings.alternateBackground,

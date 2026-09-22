@@ -81,6 +81,8 @@ fun UserCardSheet(
     recentMessages: suspend () -> List<ChatItem>,
     profile: suspend () -> HelixUser?,
     blocked: Boolean,
+    /** Copy in front and Reply at the end of the row, instead of the other way round. */
+    copyFirst: Boolean,
     onBlock: (HelixUser, Boolean) -> Unit,
     onBlockLogin: (String) -> Unit,
     onNickname: () -> Unit,
@@ -143,12 +145,20 @@ fun UserCardSheet(
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
                     modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp),
                 ) {
-                    if (canReply) ActionButton(Icons.AutoMirrored.Filled.Send, R.string.action_reply) { onReply(); onDismiss() }
-                    if (isUserMessage) ActionButton(Icons.Default.Person, R.string.action_mention) { onMention(); onDismiss() }
-                    ActionButton(Icons.Default.Share, R.string.action_copy) {
-                        clipboard.setText(AnnotatedString(item.text.ifEmpty { item.systemText.orEmpty() }))
-                        onDismiss()
+                    val reply: @Composable RowScope.() -> Unit = {
+                        if (canReply) ActionButton(Icons.AutoMirrored.Filled.Send, R.string.action_reply) { onReply(); onDismiss() }
                     }
+                    val copy: @Composable RowScope.() -> Unit = {
+                        ActionButton(Icons.Default.Share, R.string.action_copy) {
+                            clipboard.setText(AnnotatedString(item.text.ifEmpty { item.systemText.orEmpty() }))
+                            onDismiss()
+                        }
+                    }
+                    // The two swap places and Mention stays in the middle, so the one the user
+                    // reaches for most is always the first button.
+                    if (copyFirst) copy() else reply()
+                    if (isUserMessage) ActionButton(Icons.Default.Person, R.string.action_mention) { onMention(); onDismiss() }
+                    if (copyFirst) reply() else copy()
                 }
             }
 
