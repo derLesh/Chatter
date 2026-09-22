@@ -16,7 +16,7 @@
     <string name="notif_reply_failed">Your reply could not be sent</string>
 
     <string name="settings_sender_avatars">Profile pictures</string>
-    <string name="settings_sender_avatars_hint">Show the avatar of the user who wrote the message in the notification</string>
+    <string name="settings_sender_avatars_hint">Show the user\'s avatar in the notification</string>
 
     <!-- Chat system messages -->
     <string name="chat_reconnected">Reconnected.</string>
@@ -49,7 +49,7 @@
 
     <!-- Channels -->
     <string name="no_channels_title">No channels</string>
-    <string name="no_channels_text">Add a Twitch channel to start chatting.</string>
+    <string name="no_channels_text">Add a channel</string>
     <string name="channels">Channels</string>
     <string name="status_connecting">Connecting…</string>
     <string name="status_live">Live · %1$s</string>
@@ -59,7 +59,7 @@
     <string name="move_down">Move down</string>
     <string name="remove_channel">Remove</string>
     <string name="rename_channel">Rename</string>
-    <string name="rename_channel_hint">Leave empty to use the Twitch name again.</string>
+    <string name="rename_channel_hint">Give the channel a nickname</string>
     <string name="add_channel">Add channel</string>
     <string name="channel_name">Channel name</string>
     <string name="live">LIVE</string>
@@ -67,7 +67,7 @@
     <string name="combine_channels">Combine channels</string>
     <string name="combined_chat_edit">Edit combined chat</string>
     <string name="combined_chat_name">Name</string>
-    <string name="combined_chat_name_hint">Leave empty to name it after its channels.</string>
+    <string name="combined_chat_name_hint">A nickname for the combined channels</string>
     <string name="combined_chat_pick">Pick at least two channels to read in one chat.</string>
     <string name="combined_chat_create">Combine</string>
     <string name="edit">Edit</string>
@@ -79,10 +79,10 @@
     </plurals>
 
     <!-- Login -->
-    <string name="login_subtitle">A fast, lightweight Twitch chat.</string>
+    <string name="login_subtitle">Chat in several channels at once</string>
     <string name="login_missing_client_id">No Twitch Client ID configured. Add twitch.clientId to local.properties and rebuild the app.</string>
     <string name="login_button">Log in with Twitch</string>
-    <string name="login_session_expired">Your Twitch login has run out — please log in again.</string>
+    <string name="login_session_expired">Your Twitch login has run out. Please log in again.</string>
     <string name="login_failed">Login failed: %1$s</string>
 
     <!-- Settings -->
@@ -94,9 +94,9 @@
     <string name="settings_timestamps">Timestamps</string>
     <string name="settings_timestamps_off">No time</string>
     <string name="settings_animated_emotes">Animated emotes</string>
-    <string name="settings_keywords">Highlight words</string>
+    <string name="settings_keywords">Highlighted words</string>
     <string name="settings_keywords_summary">Words that alert you like your own name does</string>
-    <string name="settings_keywords_hint">Your username always counts, whatever is on this list</string>
+    <string name="settings_keywords_hint">Your username is always highlighted</string>
     <string name="save">Save</string>
     <string name="settings_notifications">Notifications</string>
     <string name="settings_notifications_hint">Sound, vibration and more in the system settings</string>
@@ -109,7 +109,7 @@
     <string name="error_service_down">%1$s cannot be reached.</string>
     <string name="error_rate_limited">You are sending messages too quickly.</string>
     <string name="error_unsupported_command">Unknown command: /%1$s</string>
-    <string name="error_invalid_channel">That is not a valid channel name.</string>
+    <string name="error_invalid_channel">That is not a valid channel.</string>
 
     <!-- Commands & moderation -->
     <string name="action_delete">Delete</string>
@@ -120,7 +120,7 @@
     <string name="theme_light">Light</string>
     <string name="theme_dark">Dark</string>
     <string name="settings_dynamic_color">Material You colors</string>
-    <string name="settings_dynamic_color_hint">Use colors from your wallpaper instead of Twitch purple</string>
+    <string name="settings_dynamic_color_hint">Use your system\'s colors</string>
     <string name="cmd_usage">Usage: %1$s</string>
     <string name="cmd_banned">%1$s has been banned.</string>
     <string name="cmd_timed_out">%1$s has been timed out for %2$s.</string>
@@ -155,8 +155,8 @@
     <string name="settings_emotes">Emotes &amp; badges</string>
     <string name="settings_emotes_summary">Providers, animation, zero-width</string>
     <string name="settings_filters">Filters</string>
-    <string name="settings_filters_summary">Muted words, rules, blocked users</string>
-    <string name="settings_notifications_summary">Mentions, highlight words</string>
+    <string name="settings_filters_summary">Hidden words, rules, blocked users</string>
+    <string name="settings_notifications_summary">Mentions, highlighted words</string>
     <string name="settings_account_summary">Accounts, backup</string>
     <string name="settings_about">About</string>
     <string name="settings_about_summary">Version, credits</string>
@@ -171,7 +171,7 @@
     <string name="settings_unread_title_bar_hint">The avatars of channels with new messages, next to the channel name. Single channels can be left out in their menu.</string>
     <string name="settings_group_device">On this phone</string>
     <string name="settings_keep_screen_on">Keep the screen on</string>
-    <string name="settings_keep_screen_on_hint">Stops the display from sleeping while the chat is open.</string>
+    <string name="settings_keep_screen_on_hint">Stops the display from sleeping in the chat</string>
     <string name="settings_emote_providers">Emote providers</string>
     <string name="settings_provider_twitch">Twitch</string>
     <string name="settings_provider_seventv">7TV</string>
@@ -181,7 +181,7 @@
     <string name="settings_show_deleted_hint">Keep them struck through instead of hiding them.</string>
     <string name="settings_group_images">Images in chat</string>
     <string name="settings_inline_images">Show linked images</string>
-    <string name="settings_inline_images_hint">A link to an image file is replaced by the image, loaded from the sites below. Paused while the battery saver is on.</string>
+    <string name="settings_inline_images_hint">Links to an image are replaced by the image. Off while the battery saver is on.</string>
     <string name="settings_image_hosts">Sites to load from</string>
     <string name="settings_image_hosts_none">No sites</string>
     <string name="settings_image_hosts_hint">The address of a site, e.g. imgur.com. Subdomains are included.</string>
@@ -190,21 +190,21 @@
     <string name="settings_image_hosts_edit_one">Edit %s</string>
     <string name="settings_image_hosts_site">Site</string>
     <string name="settings_image_hosts_reset">Back to the default sites</string>
-    <string name="settings_image_hosts_note">Only these sites are ever asked for a picture. Any other link stays a link, so nobody can have you load an address you have not allowed.</string>
+    <string name="settings_image_hosts_note">Only images from these sites are shown in the chat. Links to other sites stay a link</string>
     <string name="linked_image">Linked image</string>
     <string name="settings_group_history">History</string>
     <string name="settings_carousel">Swipe in a circle</string>
-    <string name="settings_carousel_hint">Past the last channel comes the first one again, and the other way round.</string>
+    <string name="settings_carousel_hint">Swipe through the channels endlessly</string>
     <string name="settings_emote_suggestions">Emote suggestions</string>
-    <string name="settings_emote_suggestions_hint">Suggest emotes while typing.</string>
+    <string name="settings_emote_suggestions_hint">Suggest emotes while typing</string>
     <string name="settings_user_suggestions">Name suggestions</string>
-    <string name="settings_user_suggestions_hint">Suggest names of recent chatters, with or without an @.</string>
+    <string name="settings_user_suggestions_hint">Suggest names from the chat</string>
     <string name="settings_mention_with_at">Insert names with @</string>
-    <string name="settings_mention_with_at_hint">Off inserts the bare name. A typed @ is always kept.</string>
+    <string name="settings_mention_with_at_hint">Insert the username with an @</string>
     <string name="settings_group_colors">Colors</string>
     <string name="settings_group_messages">Messages</string>
-    <string name="settings_message_tap">Tapping a message</string>
-    <string name="settings_name_tap">Tapping a name</string>
+    <string name="settings_message_tap">Tap a message</string>
+    <string name="settings_name_tap">Tap a name</string>
     <string name="settings_tap_hint">Holding a message always opens the user card</string>
     <string name="tap_action_reply">Reply</string>
     <string name="tap_action_user_card">Open user card</string>
@@ -220,12 +220,12 @@
     <string name="settings_highlight_preview_name">viewer</string>
     <string name="settings_highlight_preview_text">hey @you, look at this!</string>
     <string name="settings_load_history">Load recent messages</string>
-    <string name="settings_load_history_hint">Show the last messages when opening a channel (via recent-messages.robotty.de)</string>
+    <string name="settings_load_history_hint">Load the chat history via recent-messages.robotty.de</string>
     <string name="settings_system_notifications">Notification settings</string>
     <string name="settings_group_accounts">Accounts</string>
     <string name="account_id">%1$s</string>
     <string name="account_copy_id">Copy Twitch ID</string>
-    <string name="account_active">Chatting as this account</string>
+    <string name="account_active">Chatting with this account</string>
     <string name="account_switch_to">Chat as %1$s</string>
     <string name="account_add">Add account</string>
     <string name="account_add_short">Add</string>
@@ -235,7 +235,7 @@
     <string name="account_logout_last_text">It is your last account, so Chatter goes back to the login screen.</string>
     <string name="settings_version">Version %1$s</string>
     <string name="settings_credits">Credits &amp; licenses</string>
-    <string name="settings_credits_summary">The services and the open source Chatter is built on</string>
+    <string name="settings_credits_summary">Services and open source software used</string>
     <string name="settings_credits_services">Services</string>
     <string name="settings_credits_twitch">Twitch</string>
     <string name="settings_credits_twitch_summary">Chat, emotes and badges</string>
@@ -246,17 +246,17 @@
     <string name="settings_credits_ffz">FrankerFaceZ</string>
     <string name="settings_credits_ffz_summary">Emotes</string>
     <string name="settings_credits_recent">recent-messages.robotty.de</string>
-    <string name="settings_credits_recent_summary">Chat history when joining a channel</string>
+    <string name="settings_credits_recent_summary">Chat history</string>
     <string name="settings_licenses">Open source licenses</string>
     <string name="license_open_project">Project page</string>
     <string name="license_apache2">Apache License 2.0</string>
     <string name="settings_sponsor">Support Chatter</string>
-    <string name="settings_sponsor_summary">Through GitHub Sponsors, once or every month. Supporters wear a badge in chat.</string>
+    <string name="settings_sponsor_summary">Through GitHub Sponsors, once or every month. Supporters get a badge in chat.</string>
     <string name="settings_support">Support</string>
     <string name="settings_support_summary">Sponsor Chatter, supporter badge</string>
     <string name="settings_sponsor_claim">I have sponsored</string>
     <string name="settings_sponsor_claim_summary">Opens GitHub with your Twitch account filled in, so the badge can find you</string>
-    <string name="settings_sponsor_note">GitHub Sponsors does not know which Twitch account belongs to a sponsor, and nothing here guesses. The second row is how you say so: it opens an issue on the repository with your Twitch id already in it, and the badge follows once GitHub has confirmed that the sponsorship is yours.</string>
+    <string name="settings_sponsor_note">GitHub Sponsors does not know your Twitch id. Open an issue with your Twitch id</string>
     <string name="settings_source_code">Source code</string>
     <string name="settings_source_code_summary">github.com/derLesh/Chatter</string>
     <string name="settings_report_issue">Report a problem</string>
@@ -277,9 +277,9 @@
     <!-- Emote settings -->
     <string name="settings_group_emotes">Emotes</string>
     <string name="settings_emotes_enabled">Show emotes</string>
-    <string name="settings_emotes_new_messages_hint">Off: emote names are shown as text. Applies to new messages</string>
+    <string name="settings_emotes_new_messages_hint">Emote names are replaced by images</string>
     <string name="settings_zero_width">Zero-width emotes</string>
-    <string name="settings_zero_width_hint">Overlay emotes (e.g. hats) are drawn on top of the previous emote</string>
+    <string name="settings_zero_width_hint">Overlay emotes are drawn on top of the previous emote</string>
     <string name="settings_unlisted_7tv">Unlisted 7TV emotes</string>
     <string name="settings_unlisted_7tv_hint">Show 7TV emotes that are not publicly listed</string>
 
@@ -296,7 +296,7 @@
 
     <!-- 7TV activity -->
     <string name="settings_seventv_events">7TV activity</string>
-    <string name="settings_seventv_events_hint">Show in the chat when 7TV emotes are added, removed or renamed (while the app is open)</string>
+    <string name="settings_seventv_events_hint">Show in the chat when 7TV emotes are added, removed or renamed</string>
     <string name="seventv_added">7TV: %1$s added</string>
     <string name="seventv_removed">7TV: %1$s removed %2$s</string>
     <string name="seventv_renamed">7TV: %1$s renamed %2$s to</string>
@@ -310,7 +310,7 @@
 
     <!-- Name colors -->
     <string name="settings_name_colors">Name colors</string>
-    <string name="settings_name_colors_hint">How the colors chatters picked are adjusted so they stay readable</string>
+    <string name="settings_name_colors_hint">Adjust username colors so they are easier to read</string>
     <string name="settings_name_colors_sample">Aa</string>
     <string name="name_colors_none">No color</string>
     <string name="name_colors_twitch">Twitch</string>
@@ -323,13 +323,13 @@
     <string name="settings_first_messages">Highlight first messages</string>
     <string name="settings_first_messages_hint">Mark it when someone writes in a channel for the first time</string>
 
-    <string name="settings_mute_keywords">Muted words</string>
+    <string name="settings_mute_keywords">Hidden words</string>
     <string name="settings_mute_keywords_summary">Words that are hidden in the chat</string>
     <string name="settings_mute_keywords_hint">Messages containing the word, and messages from chatters called that, are hidden</string>
-    <string name="keywords_none">No highlight words</string>
-    <string name="mute_keywords_none">No muted words</string>
-    <string name="keyword_add_mention">Add highlight word</string>
-    <string name="keyword_add_mute">Mute a word</string>
+    <string name="keywords_none">No highlighted words</string>
+    <string name="mute_keywords_none">No hidden words</string>
+    <string name="keyword_add_mention">Add highlighted word</string>
+    <string name="keyword_add_mute">Hide a word</string>
     <string name="keyword_word">Word</string>
     <string name="keyword_remove">Remove %s</string>
     <plurals name="settings_image_hosts_count">
@@ -344,15 +344,15 @@
     <!-- Reporting -->
     <string name="action_report">Report</string>
     <string name="report_title">Report %1$s</string>
-    <string name="report_body">Chatter only shows the chat from Twitch, so Twitch handles reports. This opens the channel of %1$s, where the Twitch report form sits behind the … menu, and puts the message on the clipboard so it can be pasted in there.</string>
-    <string name="report_also_block">Block them here right away</string>
+    <string name="report_body">Chatter only shows the chat from Twitch. Reports are handled by Twitch. Reporting opens the channel of %1$s, where the report form sits behind the … menu, and puts the message on the clipboard so it can be pasted there.</string>
+    <string name="report_also_block">Block them here too</string>
     <string name="report_open_twitch">Report on Twitch</string>
     <string name="report_help">How reporting on Twitch works</string>
     <string name="settings_report_user">Report a chatter</string>
     <string name="settings_report_user_summary">Long-press any message to report or block whoever wrote it</string>
 
     <string name="settings_privacy">Privacy policy</string>
-    <string name="settings_privacy_summary">What Chatter stores and who it talks to</string>
+    <string name="settings_privacy_summary">What Chatter stores and which data is shared with others</string>
     <string name="settings_twitch_disclaimer">Chatter is an independent app and is not affiliated with, endorsed by or sponsored by Twitch Interactive, Inc.</string>
 
     <!-- Blocked users -->
@@ -360,7 +360,7 @@
     <string name="action_unblock">Unblock</string>
     <string name="settings_blocked_users">Blocked users</string>
     <string name="settings_blocked_none">Nobody blocked</string>
-    <string name="settings_blocked_hint">Blocking is shared with Twitch: blocked chatters are hidden here and everywhere else</string>
+    <string name="settings_blocked_hint">Blocked chatters are blocked in Chatter and on Twitch</string>
     <plurals name="settings_blocked_count">
         <item quantity="one">%d blocked chatter</item>
         <item quantity="other">%d blocked chatters</item>
@@ -372,13 +372,13 @@
     <string name="block_user_title">Block user</string>
     <string name="block_user_name">Twitch username</string>
     <string name="unblock_confirm_title">Unblock?</string>
-    <string name="unblock_confirm_text">%s will be shown to you on Twitch again</string>
+    <string name="unblock_confirm_text">%s will be shown to you in the chat again</string>
     <string name="error_block_failed">Twitch rejected that. Please try again</string>
     <string name="error_user_unknown">No Twitch user with this name</string>
 
     <!-- Nicknames -->
     <string name="nickname_title">Nickname</string>
-    <string name="nickname_hint">Shown instead of the Twitch username, in every channel. Leave empty to reset it</string>
+    <string name="nickname_hint">Shown instead of the Twitch username. Leave empty to reset it</string>
 
     <!-- Badges -->
     <string name="settings_badge_providers">Badges</string>
@@ -392,7 +392,7 @@
     </plurals>
     <!-- Changelog -->
     <string name="settings_changelog">Changelog</string>
-    <string name="settings_changelog_summary">What every version changed</string>
+    <string name="settings_changelog_summary">Changes in each Chatter version</string>
     <string name="changelog_major">Breaking</string>
     <string name="changelog_minor">New</string>
     <string name="changelog_patch">Fixed</string>
@@ -412,7 +412,7 @@
     <string name="settings_group_controls">Controls</string>
     <string name="settings_group_user_card">User card</string>
     <string name="settings_haptics">Haptic feedback</string>
-    <string name="settings_haptics_hint">A short buzz when a mention arrives while you are reading, when you hold a message, and when something does not go through</string>
+    <string name="settings_haptics_hint">A short buzz when you are mentioned</string>
 
     <!-- Launcher shortcuts -->
     <string name="shortcut_inbox">Inbox</string>
@@ -428,12 +428,12 @@
     <string name="settings_stats_active_days">Days you wrote something</string>
     <string name="settings_stats_streak">Current streak</string>
     <string name="settings_stats_since">Counting since</string>
-    <string name="settings_stats_group_channels">Where you write the most</string>
+    <string name="settings_stats_group_channels">Your activity in chats</string>
     <string name="settings_stats_no_channels">Nothing sent yet</string>
     <string name="settings_stats_reset">Reset stats</string>
-    <string name="settings_stats_reset_hint">Everything here was counted on this device and never leaves it</string>
+    <string name="settings_stats_reset_hint">All statistics stay on this device</string>
     <string name="settings_stats_reset_action">Reset</string>
-    <string name="settings_stats_reset_confirm">Every count starts at zero again. This cannot be undone</string>
+    <string name="settings_stats_reset_confirm">All counts are reset. This cannot be undone</string>
     <plurals name="stats_days">
         <item quantity="one">%d day</item>
         <item quantity="other">%d days</item>
@@ -451,7 +451,7 @@
     <string name="whisper_error_empty">Nothing to whisper</string>
     <string name="whisper_error_scope">Chatter may not send whispers yet - sign out and in again to allow it</string>
     <string name="whisper_error_refused">Twitch refused the whisper: %1$s. Whispers need a verified phone number on your Twitch account</string>
-    <string name="whisper_error_rate">Twitch is only letting so many whispers through right now, try again in a moment</string>
+    <string name="whisper_error_rate">Too many whispers. Try again in a moment</string>
 
     <!-- Inbox -->
     <string name="inbox_title">Inbox</string>
@@ -467,7 +467,7 @@
 
     <!-- Highlight rules -->
     <string name="settings_rules">Rules</string>
-    <string name="settings_rules_summary">Highlight, notify or hide what matters to you</string>
+    <string name="settings_rules_summary">Highlight or hide what matters to you</string>
     <plurals name="settings_rules_count">
         <item quantity="one">%d rule</item>
         <item quantity="other">%d rules</item>
