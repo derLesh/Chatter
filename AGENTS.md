@@ -74,14 +74,16 @@ whatever somebody typed. Its rules are tested in `.github/scripts/test_claim_sup
 `.github/workflows/release.yml` is the release itself, started by hand from the Actions tab. Nobody
 picks a version there either — it runs `releaseVersion`, so the pending entries decide it. It then
 builds and signs both the APK and the Play bundle, pushes the release commit and the `v<version>`
-tag, and publishes a GitHub release carrying that version's changelog section and the APK. The
-build comes before the push, so a failed one leaves the repository untouched, and `dry_run` does
-everything except push and publish.
+tag, and publishes a GitHub release carrying that version's changelog section, the APK and its
+SHA-256. The build comes before the push, so a failed one leaves the repository untouched, and
+`dry_run` does everything except push and publish — and is the only run allowed off `master`.
 
-Everything that could be wrong is checked before anything is built: the Client ID, that the
-keystore opens and holds the alias, that there is something to release, that the tag is free and
-that the versionCode is above the one the last tag released. The `play_track` input uploads the
-bundle to that Play track; `none`, the default, uploads nowhere.
+It is three jobs: `preflight` and `verify` side by side, then `release`. Everything that could be
+wrong is checked before anything is built: every missing secret at once, that the keystore opens,
+holds the alias and that `KEY_PASSWORD` unlocks the key, that there is something to release, that
+the tag is free and that the versionCode is above the one the last tag released. The signing
+secrets reach exactly one step, the one that builds; tests and lint never see them. The
+`play_track` input uploads the bundle to that Play track; `none`, the default, uploads nowhere.
 
 `docs/play-store/` holds what the Play Console needs — the data safety answers, the foreground
 service justification and the listing text. When the app's network or storage behaviour changes,
