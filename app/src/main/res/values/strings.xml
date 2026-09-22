@@ -197,7 +197,7 @@
     <string name="tap_action_mention">Mention</string>
     <string name="tap_action_nothing">Nothing</string>
     <string name="settings_copy_first">Copy first</string>
-    <string name="settings_copy_first_hint">Swap Copy and Reply on the user card</string>
+    <string name="settings_copy_first_hint">Swap Copy and Reply</string>
     <string name="settings_group_mentions">Mentions</string>
     <string name="settings_alternate_background">Alternating background</string>
     <string name="settings_alternate_background_hint">Shade every other message for easier reading</string>
@@ -381,8 +381,9 @@
     <string name="settings_bubbles_hint">Mentions can be shown as a chat bubble</string>
     <string name="bubble_unavailable">Open Chatter to read this channel</string>
 
-    <string name="settings_group_input">Typing and swiping</string>
-    <string name="settings_group_touch">Tapping and holding</string>
+    <string name="settings_group_input">Input</string>
+    <string name="settings_group_controls">Controls</string>
+    <string name="settings_group_user_card">User card</string>
     <string name="settings_haptics">Haptic feedback</string>
     <string name="settings_haptics_hint">A short buzz when a mention arrives while you are reading, when you hold a message, and when something does not go through</string>
 

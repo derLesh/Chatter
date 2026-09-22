@@ -612,11 +612,16 @@ private fun ChatPage(settings: Settings, vm: MainViewModel, open: (SettingsSubPa
             )
         }
     }
-    // What the hands do: what the app offers while typing, and what a swipe does.
+    // What the app offers while typing.
     SettingsGroup(R.string.settings_group_input) {
         item { SwitchItem(R.string.settings_emote_suggestions, settings.emoteSuggestions, vm::setEmoteSuggestions, R.string.settings_emote_suggestions_hint) }
         item { SwitchItem(R.string.settings_user_suggestions, settings.userSuggestions, vm::setUserSuggestions, R.string.settings_user_suggestions_hint) }
         item { SwitchItem(R.string.settings_mention_with_at, settings.mentionWithAt, vm::setMentionWithAt, R.string.settings_mention_with_at_hint) }
+    }
+    // What a tap or a swipe on the chat does.
+    SettingsGroup(R.string.settings_group_controls) {
+        item { TapActionPicker(R.string.settings_message_tap, settings.messageTap, vm::setMessageTap) }
+        item { TapActionPicker(R.string.settings_name_tap, settings.nameTap, vm::setNameTap) }
         item {
             SwitchItem(
                 R.string.settings_carousel, settings.carouselChannels,
@@ -624,10 +629,7 @@ private fun ChatPage(settings: Settings, vm: MainViewModel, open: (SettingsSubPa
             )
         }
     }
-    // What a message does when it is touched, and the card that holding it brings up.
-    SettingsGroup(R.string.settings_group_touch) {
-        item { TapActionPicker(R.string.settings_message_tap, settings.messageTap, vm::setMessageTap) }
-        item { TapActionPicker(R.string.settings_name_tap, settings.nameTap, vm::setNameTap) }
+    SettingsGroup(R.string.settings_group_user_card) {
         item { SwitchItem(R.string.settings_copy_first, settings.copyFirst, vm::setCopyFirst, R.string.settings_copy_first_hint) }
     }
 }

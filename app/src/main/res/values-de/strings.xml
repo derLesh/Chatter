@@ -191,7 +191,7 @@
     <string name="tap_action_mention">Erwähnen</string>
     <string name="tap_action_nothing">Nichts</string>
     <string name="settings_copy_first">Kopieren zuerst</string>
-    <string name="settings_copy_first_hint">Kopieren und Antworten in der Nutzerkarte tauschen</string>
+    <string name="settings_copy_first_hint">Kopieren und Antworten tauschen</string>
     <string name="settings_group_mentions">Erwähnungen</string>
     <string name="settings_alternate_background">Abwechselnder Hintergrund</string>
     <string name="settings_alternate_background_hint">Jede zweite Nachricht leicht hinterlegen, für bessere Lesbarkeit</string>
@@ -376,8 +376,9 @@
     <string name="bubble_unavailable">Chatter öffnen, um diesen Kanal zu lesen</string>
 
     <!-- Erwähnungen -->
-    <string name="settings_group_input">Schreiben und Wischen</string>
-    <string name="settings_group_touch">Tippen und Halten</string>
+    <string name="settings_group_input">Eingabe</string>
+    <string name="settings_group_controls">Bedienung</string>
+    <string name="settings_group_user_card">Nutzerkarte</string>
     <string name="settings_haptics">Haptisches Feedback</string>
     <string name="settings_haptics_hint">Kurzes Vibrieren, wenn eine Erwähnung eintrifft, während du liest, wenn du eine Nachricht gedrückt hältst und wenn etwas nicht durchgeht</string>
 
