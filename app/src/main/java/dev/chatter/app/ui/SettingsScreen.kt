@@ -128,6 +128,7 @@ import dev.chatter.app.settings.TapAction
 import dev.chatter.app.settings.TimestampFormat
 import dev.chatter.app.ui.changelog.ChangelogPage
 import dev.chatter.app.ui.channels.AddChannelDialog
+import dev.chatter.app.ui.channels.CombineChannelsDialog
 import dev.chatter.app.ui.channels.ManageChannelsPage
 import dev.chatter.app.ui.channels.RenameChannelDialog
 import dev.chatter.app.ui.chat.ChatStyle
@@ -872,15 +873,20 @@ private fun ruleSummary(rule: ChatRule): String {
 private fun ChannelsPage(vm: MainViewModel, settings: Settings) {
     val context = LocalContext.current
     val channels by vm.channels.collectAsStateWithLifecycle()
+    val pages by vm.pages.collectAsStateWithLifecycle()
+    val groups by vm.groups.collectAsStateWithLifecycle()
     val info by vm.channelInfo.collectAsStateWithLifecycle()
     val customNames by vm.customNames.collectAsStateWithLifecycle()
     val muted by vm.mutedChannels.collectAsStateWithLifecycle()
     val hiddenUnread by vm.hiddenUnread.collectAsStateWithLifecycle()
     var renameTarget by remember { mutableStateOf<String?>(null) }
     var showAdd by remember { mutableStateOf(false) }
+    // Null while no dialog is open; the key of the combined chat being changed, or "" for a new one.
+    var combineTarget by remember { mutableStateOf<String?>(null) }
 
     ManageChannelsPage(
-        channels = channels,
+        pages = pages,
+        groups = groups,
         info = info,
         muted = muted,
         hiddenUnread = hiddenUnread,
@@ -898,6 +904,8 @@ private fun ChannelsPage(vm: MainViewModel, settings: Settings) {
         onRename = { renameTarget = it },
         onRemove = vm::removeChannel,
         onAdd = { showAdd = true },
+        onCombine = { combineTarget = "" },
+        onEditGroup = { combineTarget = it },
     )
     SettingsGroup {
         item {
@@ -924,6 +932,17 @@ private fun ChannelsPage(vm: MainViewModel, settings: Settings) {
             imageLoader = vm.imageLoader,
             onAdd = { vm.addChannel(it); showAdd = false },
             onDismiss = { showAdd = false },
+        )
+    }
+    combineTarget?.let { key ->
+        val group = groups[key]
+        CombineChannelsDialog(
+            channels = channels,
+            info = info,
+            group = group,
+            imageLoader = vm.imageLoader,
+            onSave = { name, members -> vm.saveGroup(group?.key, name, members) },
+            onDismiss = { combineTarget = null },
         )
     }
 }

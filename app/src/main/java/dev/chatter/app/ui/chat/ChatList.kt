@@ -37,8 +37,11 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
 
 /**
- * The message list of one channel. Newest message at the bottom (reverseLayout), follows new
- * messages automatically unless the user scrolled up to read.
+ * The message list of one channel, or of a combined chat. Newest message at the bottom
+ * (reverseLayout), follows new messages automatically unless the user scrolled up to read.
+ *
+ * [channels] marks every message with the channel it came from, by login; only a combined chat
+ * passes it, where that is not obvious from the page.
  */
 @Composable
 fun ChatList(
@@ -49,6 +52,7 @@ fun ChatList(
     modifier: Modifier = Modifier,
     smoothScrolling: Boolean = false,
     onEmoteClick: ((Segment.EmoteSeg) -> Unit)? = null,
+    channels: Map<String, ChannelMark>? = null,
 ) {
     // Already filtered for deleted messages by the repository, which had to copy the buffer anyway.
     val items by messages.collectAsStateWithLifecycle()
@@ -106,7 +110,8 @@ fun ChatList(
                         fadeOutSpec = null,
                     )
                 } else Modifier
-                Box(rowModifier) { MessageRow(items[count - 1 - index], style, imageLoader, onGesture, onEmoteClick) }
+                val item = items[count - 1 - index]
+                Box(rowModifier) { MessageRow(item, style, imageLoader, onGesture, onEmoteClick, channels?.get(item.channel)) }
             }
         }
         if (!follow) {

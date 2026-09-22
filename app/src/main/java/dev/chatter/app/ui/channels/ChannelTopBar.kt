@@ -51,6 +51,8 @@ import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.DpOffset
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
@@ -59,15 +61,24 @@ import coil3.ImageLoader
 import coil3.compose.AsyncImage
 import dev.chatter.app.R
 import dev.chatter.app.badges.Badge
+import dev.chatter.app.channels.ChannelGroup
 import dev.chatter.app.channels.ChannelInfo
+import dev.chatter.app.channels.displayName
 import dev.chatter.app.chat.RoomState
 import dev.chatter.app.irc.ConnectionState
 import dev.chatter.app.ui.theme.LiveRed
 
+/**
+ * The bar above the chat: the page on screen with the menu of all of them behind it, the other
+ * channels that have something new, and the way to the inbox and the settings.
+ *
+ * [pages] are channels and combined chats in the user's order; [active] is one of them.
+ */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ChannelTopBar(
-    channels: List<String>,
+    pages: List<String>,
+    groups: Map<String, ChannelGroup>,
     active: String?,
     info: Map<String, ChannelInfo>,
     unread: Map<String, Int>,
@@ -80,6 +91,8 @@ fun ChannelTopBar(
     imageLoader: ImageLoader,
     onSelect: (String) -> Unit,
     onAdd: () -> Unit,
+    onCombine: () -> Unit,
+    onEditGroup: (String) -> Unit,
     onRemove: (String) -> Unit,
     onRename: (String) -> Unit,
     onMove: (String, Int) -> Unit,
@@ -88,6 +101,7 @@ fun ChannelTopBar(
     onSettings: () -> Unit,
 ) {
     var expanded by remember { mutableStateOf(false) }
+    val activeGroup = active?.let { groups[it] }
     // Where the title sits, so the full-width menu below it can be centered on the screen.
     var anchorX by remember { mutableStateOf(0.dp) }
     val density = LocalDensity.current
@@ -103,7 +117,19 @@ fun ChannelTopBar(
                         .clickable { expanded = true }
                         .padding(horizontal = 4.dp, vertical = 4.dp),
                 ) {
-                    if (active != null) {
+                    if (activeGroup != null) {
+                        GroupAvatar(activeGroup.channels, info, imageLoader, 34.dp)
+                        Spacer(Modifier.width(10.dp))
+                        Column(Modifier.weight(1f, fill = false)) {
+                            Text(
+                                activeGroup.displayName(info),
+                                style = MaterialTheme.typography.titleMedium,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
+                            )
+                            GroupStatus(connection, activeGroup, info)
+                        }
+                    } else if (active != null) {
                         val i = info[active]
                         ChannelAvatar(i, imageLoader, 34.dp)
                         Spacer(Modifier.width(10.dp))
@@ -118,7 +144,8 @@ fun ChannelTopBar(
                 }
                 ChannelDropdown(
                     expanded = expanded,
-                    channels = channels,
+                    pages = pages,
+                    groups = groups,
                     active = active,
                     info = info,
                     unread = unread,
@@ -128,6 +155,8 @@ fun ChannelTopBar(
                     onDismiss = { expanded = false },
                     onSelect = { expanded = false; onSelect(it) },
                     onAdd = { expanded = false; onAdd() },
+                    onCombine = { expanded = false; onCombine() },
+                    onEditGroup = { expanded = false; onEditGroup(it) },
                     onRemove = onRemove,
                     onRename = { expanded = false; onRename(it) },
                     onMove = onMove,
@@ -137,10 +166,10 @@ fun ChannelTopBar(
         actions = {
             // The unread counts arrive as a fresh map on every publish, so the bar runs again
             // with every message in a channel off screen; this list must not be rebuilt each time.
-            val withUnread = remember(channels, hiddenUnread) { channels - hiddenUnread }
+            val withUnread = remember(pages, hiddenUnread) { pages.filterNot(ChannelGroup::isKey) - hiddenUnread }
             if (showUnread) UnreadStrip(
                 channels = withUnread,
-                active = active,
+                shown = activeGroup?.channels ?: listOfNotNull(active),
                 info = info,
                 unread = unread,
                 unreadMessages = unreadMessages,
@@ -168,14 +197,14 @@ fun ChannelTopBar(
 @Composable
 private fun UnreadStrip(
     channels: List<String>,
-    active: String?,
+    shown: List<String>,
     info: Map<String, ChannelInfo>,
     unread: Map<String, Int>,
     unreadMessages: Map<String, Int>,
     imageLoader: ImageLoader,
     onSelect: (String) -> Unit,
 ) {
-    val pending = channels.filter { it != active && ((unread[it] ?: 0) > 0 || (unreadMessages[it] ?: 0) > 0) }
+    val pending = channels.filter { it !in shown && ((unread[it] ?: 0) > 0 || (unreadMessages[it] ?: 0) > 0) }
     if (pending.isEmpty()) return
     Row(
         verticalAlignment = Alignment.CenterVertically,
@@ -279,10 +308,31 @@ private fun ChannelStatus(
     ChannelModes(state, roleBadge, imageLoader)
 }
 
+/**
+ * What is under a combined chat's name: that the connection is down, or — when the user gave it a
+ * name of its own, which hides them — the channels it reads.
+ */
+@Composable
+private fun GroupStatus(connection: ConnectionState, group: ChannelGroup, info: Map<String, ChannelInfo>) {
+    val text = when {
+        connection != ConnectionState.Connected -> stringResource(R.string.status_connecting)
+        group.name.isNotBlank() -> group.channels.joinToString(" \u00B7 ") { info[it]?.displayName ?: it }
+        else -> return
+    }
+    Text(
+        text = text,
+        style = MaterialTheme.typography.labelMedium,
+        color = MaterialTheme.colorScheme.onSurfaceVariant,
+        maxLines = 1,
+        overflow = TextOverflow.Ellipsis,
+    )
+}
+
 @Composable
 private fun ChannelDropdown(
     expanded: Boolean,
-    channels: List<String>,
+    pages: List<String>,
+    groups: Map<String, ChannelGroup>,
     active: String?,
     info: Map<String, ChannelInfo>,
     unread: Map<String, Int>,
@@ -292,6 +342,8 @@ private fun ChannelDropdown(
     onDismiss: () -> Unit,
     onSelect: (String) -> Unit,
     onAdd: () -> Unit,
+    onCombine: () -> Unit,
+    onEditGroup: (String) -> Unit,
     onRemove: (String) -> Unit,
     onRename: (String) -> Unit,
     onMove: (String, Int) -> Unit,
@@ -305,20 +357,40 @@ private fun ChannelDropdown(
         offset = DpOffset(DROPDOWN_MARGIN - anchorX, 0.dp),
         modifier = Modifier.width(width),
     ) {
-        channels.forEachIndexed { index, login ->
-            val i = info[login]
+        pages.forEachIndexed { index, page ->
+            val group = groups[page]
+            // A combined chat's channels are not known for a moment after start; until they are,
+            // there is nothing to show for it.
+            if (ChannelGroup.isKey(page) && group == null) return@forEachIndexed
+            val i = info[page]
+            // What a combined chat has new is what its channels have new, added up.
+            val members = group?.channels ?: listOf(page)
+            val messages = members.sumOf { unreadMessages[it] ?: 0 }
+            val mentions = members.sumOf { unread[it] ?: 0 }
             var menu by remember { mutableStateOf(false) }
             DropdownMenuItem(
-                leadingIcon = { ChannelAvatar(i, imageLoader, 36.dp) },
+                leadingIcon = {
+                    if (group != null) GroupAvatar(group.channels, info, imageLoader, 36.dp)
+                    else ChannelAvatar(i, imageLoader, 36.dp)
+                },
                 text = {
                     Column {
                         Text(
-                            text = i?.displayName ?: login,
+                            text = group?.displayName(info) ?: i?.displayName ?: page,
                             style = MaterialTheme.typography.bodyLarge,
-                            color = if (login == active) MaterialTheme.colorScheme.primary else Color.Unspecified,
+                            color = if (page == active) MaterialTheme.colorScheme.primary else Color.Unspecified,
                             maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
                         )
-                        if (i?.isLive == true) Text(
+                        if (group != null) {
+                            val live = group.channels.count { info[it]?.isLive == true }
+                            if (live > 0) Text(
+                                text = pluralStringResource(R.plurals.combined_chat_live, live, live),
+                                style = MaterialTheme.typography.labelSmall,
+                                color = LiveRed,
+                                maxLines = 1,
+                            )
+                        } else if (i?.isLive == true) Text(
                             text = listOf(stringResource(R.string.status_live, formatViewers(i.viewers)), i.game)
                                 .filter { it.isNotEmpty() }.joinToString(" \u00B7 "),
                             style = MaterialTheme.typography.labelSmall,
@@ -330,16 +402,16 @@ private fun ChannelDropdown(
                 },
                 trailingIcon = {
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        // New messages (neutral) and mentions (red) since the channel was last viewed.
-                        unreadMessages[login]?.takeIf { login != active }?.let { count ->
+                        // New messages (neutral) and mentions (red) since the page was last viewed.
+                        if (messages > 0 && page != active) {
                             Badge(
                                 containerColor = MaterialTheme.colorScheme.secondaryContainer,
                                 contentColor = MaterialTheme.colorScheme.onSecondaryContainer,
-                            ) { Text(formatCount(count)) }
+                            ) { Text(formatCount(messages)) }
                         }
-                        unread[login]?.let {
+                        if (mentions > 0) {
                             Spacer(Modifier.width(4.dp))
-                            Badge { Text("@" + formatCount(it)) }
+                            Badge { Text("@" + formatCount(mentions)) }
                         }
                         Box {
                             IconButton(onClick = { menu = true }) {
@@ -349,35 +421,45 @@ private fun ChannelDropdown(
                                 if (index > 0) DropdownMenuItem(
                                     text = { Text(stringResource(R.string.move_up)) },
                                     leadingIcon = { Icon(Icons.Default.KeyboardArrowUp, null) },
-                                    onClick = { menu = false; onMove(login, -1) },
+                                    onClick = { menu = false; onMove(page, -1) },
                                 )
-                                if (index < channels.lastIndex) DropdownMenuItem(
+                                if (index < pages.lastIndex) DropdownMenuItem(
                                     text = { Text(stringResource(R.string.move_down)) },
                                     leadingIcon = { Icon(Icons.Default.KeyboardArrowDown, null) },
-                                    onClick = { menu = false; onMove(login, 1) },
+                                    onClick = { menu = false; onMove(page, 1) },
                                 )
-                                DropdownMenuItem(
+                                if (group != null) DropdownMenuItem(
+                                    text = { Text(stringResource(R.string.edit)) },
+                                    leadingIcon = { Icon(Icons.Default.Edit, null) },
+                                    onClick = { menu = false; onEditGroup(page) },
+                                ) else DropdownMenuItem(
                                     text = { Text(stringResource(R.string.rename_channel)) },
                                     leadingIcon = { Icon(Icons.Default.Edit, null) },
-                                    onClick = { menu = false; onRename(login) },
+                                    onClick = { menu = false; onRename(page) },
                                 )
                                 DropdownMenuItem(
                                     text = { Text(stringResource(R.string.remove_channel)) },
                                     leadingIcon = { Icon(Icons.Default.Delete, null) },
-                                    onClick = { menu = false; onRemove(login) },
+                                    onClick = { menu = false; onRemove(page) },
                                 )
                             }
                         }
                     }
                 },
-                onClick = { onSelect(login) },
+                onClick = { onSelect(page) },
             )
         }
-        if (channels.isNotEmpty()) HorizontalDivider()
+        if (pages.isNotEmpty()) HorizontalDivider()
         DropdownMenuItem(
             leadingIcon = { Icon(Icons.Default.Add, contentDescription = null) },
             text = { Text(stringResource(R.string.add_channel)) },
             onClick = onAdd,
+        )
+        // Combining takes two channels; with fewer there would be nothing to pick in the dialog.
+        if (pages.count { !ChannelGroup.isKey(it) } >= 2) DropdownMenuItem(
+            leadingIcon = { Icon(painterResource(R.drawable.ic_combine_chats), contentDescription = null) },
+            text = { Text(stringResource(R.string.combine_channels)) },
+            onClick = onCombine,
         )
     }
 }
@@ -397,6 +479,28 @@ fun ChannelAvatar(info: ChannelInfo?, imageLoader: ImageLoader, size: Dp) {
                 // The red ring is the whole of "this channel is live", wherever a picture shows up.
                 .then(if (info?.isLive == true) Modifier.border(2.dp, LiveRed, CircleShape) else Modifier),
         )
+    }
+}
+
+/**
+ * The pictures of a combined chat's first two channels, the second one overlapping the first. Two
+ * is as many as stay recognizable at the size of a title bar; the name says the rest.
+ */
+@Composable
+fun GroupAvatar(channels: List<String>, info: Map<String, ChannelInfo>, imageLoader: ImageLoader, size: Dp) {
+    val part = size * 0.68f
+    Box(Modifier.size(size)) {
+        channels.getOrNull(0)?.let { first ->
+            Box(Modifier.align(Alignment.TopStart)) { ChannelAvatar(info[first], imageLoader, part) }
+        }
+        channels.getOrNull(1)?.let { second ->
+            Box(
+                Modifier
+                    .align(Alignment.BottomEnd)
+                    // A ring in the colour behind it sets it off from the picture it lies on.
+                    .border(2.dp, MaterialTheme.colorScheme.surfaceContainer, CircleShape),
+            ) { ChannelAvatar(info[second], imageLoader, part) }
+        }
     }
 }
 

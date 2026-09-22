@@ -26,6 +26,7 @@ import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -42,13 +43,17 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.zIndex
 import coil3.ImageLoader
 import dev.chatter.app.R
+import dev.chatter.app.channels.ChannelGroup
 import dev.chatter.app.channels.ChannelInfo
+import dev.chatter.app.channels.displayName
 import kotlin.math.roundToInt
 
 /** Fixed row height, which is what turns a drag distance into a number of positions moved. */
@@ -56,11 +61,13 @@ private val ROW_HEIGHT = 64.dp
 
 /**
  * Manages the channel list in one place: reorder by dragging the handle, rename, remove, and
- * add a new one.
+ * add a new one. Combined chats are in the same list, where they can be moved between the
+ * channels, changed and taken apart again.
  */
 @Composable
 fun ManageChannelsPage(
-    channels: List<String>,
+    pages: List<String>,
+    groups: Map<String, ChannelGroup>,
     info: Map<String, ChannelInfo>,
     muted: Set<String>,
     hiddenUnread: Set<String>,
@@ -72,11 +79,40 @@ fun ManageChannelsPage(
     onRename: (String) -> Unit,
     onRemove: (String) -> Unit,
     onAdd: () -> Unit,
+    onCombine: () -> Unit,
+    onEditGroup: (String) -> Unit,
 ) {
+    // A combined chat whose channels are not loaded yet has nothing to show; it is left out
+    // rather than drawn as an empty row.
+    val channels = pages.filter { !ChannelGroup.isKey(it) || it in groups }
     val density = LocalDensity.current
     val rowHeightPx = with(density) { ROW_HEIGHT.toPx() }
     var dragging by remember { mutableStateOf<String?>(null) }
     var dragOffset by remember { mutableFloatStateOf(0f) }
+    // Moving counts places in the stored list, where a combined chat that is not shown yet still
+    // takes one. Converting here keeps a drag landing where the rows said it would.
+    val move = { page: String, moved: Int ->
+        val to = channels[(channels.indexOf(page) + moved).coerceIn(0, channels.lastIndex)]
+        onMove(page, pages.indexOf(to) - pages.indexOf(page))
+    }
+    val dragHandle = { page: String ->
+        Modifier.pointerInput(page, channels) {
+            detectDragGestures(
+                onDragStart = { dragging = page; dragOffset = 0f },
+                onDragEnd = {
+                    val moved = (dragOffset / rowHeightPx).roundToInt()
+                    if (moved != 0) move(page, moved)
+                    dragging = null
+                    dragOffset = 0f
+                },
+                onDragCancel = { dragging = null; dragOffset = 0f },
+                onDrag = { change, amount ->
+                    change.consume()
+                    dragOffset += amount.y
+                },
+            )
+        }
+    }
 
     Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
         channels.forEachIndexed { index, login ->
@@ -101,7 +137,15 @@ fun ManageChannelsPage(
                     .zIndex(if (held) 1f else 0f)
                     .graphicsLayer { translationY = if (held) dragOffset else shift },
             ) {
-                ChannelRow(
+                val group = groups[login]
+                if (group != null) GroupRow(
+                    group = group,
+                    info = info,
+                    imageLoader = imageLoader,
+                    onEdit = { onEditGroup(login) },
+                    onRemove = { onRemove(login) },
+                    dragHandle = dragHandle(login),
+                ) else ChannelRow(
                     login = login,
                     info = info[login],
                     notify = login !in muted,
@@ -112,22 +156,7 @@ fun ManageChannelsPage(
                     onUnreadVisible = { onUnreadVisible(login, it) },
                     onRename = { onRename(login) },
                     onRemove = { onRemove(login) },
-                    dragHandle = Modifier.pointerInput(login, channels) {
-                        detectDragGestures(
-                            onDragStart = { dragging = login; dragOffset = 0f },
-                            onDragEnd = {
-                                val moved = (dragOffset / rowHeightPx).roundToInt()
-                                if (moved != 0) onMove(login, moved)
-                                dragging = null
-                                dragOffset = 0f
-                            },
-                            onDragCancel = { dragging = null; dragOffset = 0f },
-                            onDrag = { change, amount ->
-                                change.consume()
-                                dragOffset += amount.y
-                            },
-                        )
-                    },
+                    dragHandle = dragHandle(login),
                 )
             }
         }
@@ -136,6 +165,73 @@ fun ManageChannelsPage(
         Icon(Icons.Default.Add, contentDescription = null)
         Spacer(Modifier.width(8.dp))
         Text(stringResource(R.string.add_channel))
+    }
+    if (pages.count { !ChannelGroup.isKey(it) } >= 2) {
+        OutlinedButton(onClick = onCombine, modifier = Modifier.fillMaxWidth()) {
+            Icon(painterResource(R.drawable.ic_combine_chats), contentDescription = null)
+            Spacer(Modifier.width(8.dp))
+            Text(stringResource(R.string.combine_channels))
+        }
+    }
+}
+
+/** A combined chat in the list: the pictures and names of its channels, and a menu to change it. */
+@Composable
+private fun GroupRow(
+    group: ChannelGroup,
+    info: Map<String, ChannelInfo>,
+    imageLoader: ImageLoader,
+    onEdit: () -> Unit,
+    onRemove: () -> Unit,
+    dragHandle: Modifier,
+) {
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        modifier = Modifier.fillMaxWidth().padding(end = 4.dp),
+    ) {
+        Icon(
+            Icons.Default.Menu,
+            contentDescription = stringResource(R.string.reorder_channel),
+            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = dragHandle.padding(horizontal = 12.dp),
+        )
+        GroupAvatar(group.channels, info, imageLoader, 36.dp)
+        Spacer(Modifier.width(12.dp))
+        Column(Modifier.weight(1f)) {
+            Text(
+                group.displayName(info),
+                style = MaterialTheme.typography.bodyLarge,
+                fontWeight = FontWeight.Medium,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+            // With a name of its own the channels are no longer in it, so they are spelled out.
+            if (group.name.isNotBlank()) {
+                Text(
+                    group.channels.joinToString(" \u00B7 ") { info[it]?.displayName ?: it },
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+            }
+        }
+        var menu by remember { mutableStateOf(false) }
+        Box {
+            RowAction(Icons.Default.MoreVert, R.string.channel_options, { menu = true })
+            DropdownMenu(expanded = menu, onDismissRequest = { menu = false }) {
+                DropdownMenuItem(
+                    text = { Text(stringResource(R.string.edit)) },
+                    leadingIcon = { Icon(Icons.Default.Edit, null) },
+                    onClick = { menu = false; onEdit() },
+                )
+                DropdownMenuItem(
+                    text = { Text(stringResource(R.string.remove_channel)) },
+                    leadingIcon = { Icon(Icons.Default.Delete, null) },
+                    onClick = { menu = false; onRemove() },
+                )
+            }
+        }
     }
 }
 

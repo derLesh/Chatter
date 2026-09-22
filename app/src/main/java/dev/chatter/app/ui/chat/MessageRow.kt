@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.sizeIn
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.InlineTextContent
 import androidx.compose.material3.Text
@@ -93,6 +94,13 @@ data class ChatStyle(
     val imageHosts: List<String>,
 )
 
+/**
+ * Which channel a message was written in, for a list that mixes several: the picture in front of
+ * the line, and the name that stands in for it where a picture cannot be seen.
+ */
+@Immutable
+data class ChannelMark(val avatarUrl: String?, val name: String)
+
 private const val BADGE_EM = 1.35f
 /** How strongly a rule's highlight color tints the message background. */
 private const val HIGHLIGHT_ALPHA = 0.2f
@@ -120,6 +128,7 @@ private class BuiltLine(
 )
 
 private sealed interface InlineData {
+    data class ChannelData(val mark: ChannelMark) : InlineData
     data class BadgeData(val badge: Badge) : InlineData
     data class EmoteData(val seg: Segment.EmoteSeg) : InlineData
 }
@@ -137,7 +146,8 @@ enum class MessageGesture { Tap, NameTap, Hold }
 
 /**
  * One message. [onGesture] hears about taps and holds, and about a tap on the name as a gesture
- * of its own; without it the row is only something to look at, as in the user card.
+ * of its own; without it the row is only something to look at, as in the user card. [channel]
+ * puts the picture of the channel in front, for a list that mixes several.
  */
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
@@ -147,6 +157,7 @@ fun MessageRow(
     imageLoader: ImageLoader,
     onGesture: ((ChatItem, MessageGesture) -> Unit)?,
     onEmoteClick: ((Segment.EmoteSeg) -> Unit)? = null,
+    channel: ChannelMark? = null,
 ) {
     val currentItem by rememberUpdatedState(item)
     val currentGesture by rememberUpdatedState(onGesture)
@@ -154,7 +165,7 @@ fun MessageRow(
     // Kept the same object for good: a new one would build the line again on every recomposition.
     val nameTap = remember { LinkInteractionListener { currentGesture?.invoke(currentItem, MessageGesture.NameTap) } }
     val nameClickable = onGesture != null && item.login != null
-    val built = remember(item, style, nameClickable) { buildLine(item, style, nameTap.takeIf { nameClickable }) }
+    val built = remember(item, style, nameClickable, channel) { buildLine(item, style, nameTap.takeIf { nameClickable }, channel) }
     // Stable wrapper, so a new callback instance doesn't rebuild the inline content.
     val currentEmoteClick by rememberUpdatedState(onEmoteClick)
     val emoteClick = remember { { seg: Segment.EmoteSeg -> currentEmoteClick?.invoke(seg); Unit } }
@@ -220,8 +231,18 @@ fun MessageRow(
             )
         }
         if (item.kind == MessageKind.UserNotice && item.systemText != null) {
+            // The channel goes in front of the header here: a sub or a raid often comes without a
+            // message of its own, and then the header is all there is to the line.
             Text(
-                text = item.systemText,
+                text = remember(item.systemText, channel) {
+                    buildAnnotatedString {
+                        if (channel != null) appendChannel(channel)
+                        append(item.systemText)
+                    }
+                },
+                inlineContent = if (channel == null) emptyMap() else remember(channel, imageLoader) {
+                    mapOf(CHANNEL_ID to inlineFor(InlineData.ChannelData(channel), imageLoader, null))
+                },
                 color = style.accent,
                 fontSize = style.fontSize.sp,
                 fontWeight = FontWeight.Medium,
@@ -291,6 +312,16 @@ private fun linkText(url: String, style: ChatStyle) = buildAnnotatedString {
 }
 
 private fun inlineFor(data: InlineData, loader: ImageLoader, onEmoteClick: ((Segment.EmoteSeg) -> Unit)?): InlineTextContent = when (data) {
+    is InlineData.ChannelData -> InlineTextContent(
+        Placeholder(BADGE_EM.em, BADGE_EM.em, PlaceholderVerticalAlign.Center),
+    ) {
+        AsyncImage(
+            model = data.mark.avatarUrl,
+            contentDescription = data.mark.name,
+            imageLoader = loader,
+            modifier = Modifier.fillMaxSize().clip(CircleShape),
+        )
+    }
     is InlineData.BadgeData -> InlineTextContent(
         Placeholder(BADGE_EM.em, BADGE_EM.em, PlaceholderVerticalAlign.Center),
     ) {
@@ -318,11 +349,24 @@ private fun inlineFor(data: InlineData, loader: ImageLoader, onEmoteClick: ((Seg
     }
 }
 
-private fun buildLine(item: ChatItem, style: ChatStyle, onName: LinkInteractionListener?): BuiltLine {
+/** Where the channel's picture goes in a line; see [appendChannel]. */
+private const val CHANNEL_ID = "c"
+
+/** The picture of the channel a message was written in, in front of everything else in its line. */
+private fun AnnotatedString.Builder.appendChannel(channel: ChannelMark) {
+    appendInlineContent(CHANNEL_ID, channel.name)
+    append(' ')
+}
+
+private fun buildLine(item: ChatItem, style: ChatStyle, onName: LinkInteractionListener?, channel: ChannelMark?): BuiltLine {
     val inline = HashMap<String, InlineData>()
+    // A sub or a raid has the channel in front of its header instead, the line under it included.
+    val lineChannel = channel.takeIf { item.kind != MessageKind.UserNotice }
+    lineChannel?.let { inline[CHANNEL_ID] = InlineData.ChannelData(it) }
     val (segments, images) = ImageLinks.split(item.segments, style.imageHosts)
     if (item.kind == MessageKind.Notice) {
         val text = buildAnnotatedString {
+            lineChannel?.let { appendChannel(it) }
             withStyle(SpanStyle(color = style.secondaryText, fontStyle = FontStyle.Italic)) {
                 style.timestamps.pattern?.let { append(formatTime(it, item.timestamp) + " ") }
                 append(item.systemText ?: item.text)
@@ -339,6 +383,7 @@ private fun buildLine(item: ChatItem, style: ChatStyle, onName: LinkInteractionL
     val nameColor = readableNameColor(item.color, item.login, style.dark, style.nameColors)
     val isAction = item.kind == MessageKind.Action
     val text = buildAnnotatedString {
+        lineChannel?.let { appendChannel(it) }
         style.timestamps.pattern?.let { pattern ->
             withStyle(SpanStyle(color = style.secondaryText, fontSize = (style.fontSize - 2).sp)) {
                 append(formatTime(pattern, item.timestamp))

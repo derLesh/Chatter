@@ -18,6 +18,10 @@ import java.util.concurrent.ConcurrentHashMap
  * One buffer per channel, trimmed to the limit from the settings, and the ids in it beside them so
  * that the same message arriving twice — once from the history, once live — is only kept once.
  *
+ * A combined chat has no buffer of its own. It is a list like a channel's, published the same way
+ * and under its own key, but put together from its channels' buffers whenever one of them changes
+ * — see [setGroups].
+ *
  * Everything here is touched on [worker], a single thread, so none of it needs a lock. The two
  * exceptions are [messages] and [unreadMessages], which the screen reads from wherever it likes.
  */
@@ -35,6 +39,13 @@ class MessageBuffers(
     private val flows = ConcurrentHashMap<String, MutableStateFlow<List<ChatItem>>>()
     private val watchers = ConcurrentHashMap<String, Job>()
 
+    /** The channels of each combined chat, by the key it is published under. */
+    private var groups: Map<String, List<String>> = emptyMap()
+    /** The other way round: the combined chats a channel is in, which a change to it concerns too. */
+    private var groupsOf: Map<String, List<String>> = emptyMap()
+    /** The rows each combined chat showed last time, by message id; see [snapshotGroup]. */
+    private val groupRows = HashMap<String, HashMap<String, GroupRow>>()
+
     // New messages per channel since the user last looked at it. Counted here and published
     // together with the message lists, rather than on every single message.
     private val unreadCounts = HashMap<String, Int>()
@@ -42,7 +53,7 @@ class MessageBuffers(
     private val _unreadMessages = MutableStateFlow<Map<String, Int>>(emptyMap())
     val unreadMessages: StateFlow<Map<String, Int>> = _unreadMessages
 
-    /** The list one channel is drawn from. */
+    /** The list one channel — or one combined chat, by its key — is drawn from. */
     fun messages(channel: String): StateFlow<List<ChatItem>> = flows.computeIfAbsent(channel) { ch ->
         MutableStateFlow<List<ChatItem>>(emptyList()).also { flow ->
             // When the UI starts watching again, push the latest buffer immediately.
@@ -66,11 +77,30 @@ class MessageBuffers(
         clearUnread(channel)
     }
 
+    /**
+     * Which combined chats there are and which channels each one reads from. A combined chat whose
+     * channels changed is put together again; one that is gone is let go of.
+     */
+    fun setGroups(next: Map<String, List<String>>) {
+        (groups.keys - next.keys).forEach { key ->
+            flows.remove(key)
+            watchers.remove(key)?.cancel()
+            dirty.remove(key)
+            groupRows.remove(key)
+        }
+        val changed = next.filter { (key, channels) -> groups[key] != channels }.keys
+        groups = next
+        groupsOf = next.flatMap { (key, channels) -> channels.map { it to key } }
+            .groupBy({ it.first }, { it.second })
+        changed.forEach { markDirty(it) }
+    }
+
     /** Drops everything, e.g. after logout. */
     fun clearAll() {
         buffers.clear()
         ids.clear()
         dirty.clear()
+        groupRows.clear()
         flows.values.forEach { it.value = emptyList() }
         unreadCounts.clear()
         unreadDirty = false
@@ -212,6 +242,7 @@ class MessageBuffers(
     }
 
     private fun snapshot(channel: String): List<ChatItem> {
+        groups[channel]?.let { return snapshotGroup(channel, it) }
         val buffer = buffers[channel] ?: return emptyList()
         val out = if (settings.value.showDeleted) buffer.toList()
         else buffer.filterTo(ArrayList(buffer.size)) { !it.deleted }
@@ -222,8 +253,65 @@ class MessageBuffers(
         return out
     }
 
+    /**
+     * The messages of several channels as one list, in the order they were written.
+     *
+     * Each channel's own order is left as it is — merging only ever decides which channel comes
+     * next — so a line the app put somewhere on purpose stays there. The list is held to the same
+     * limit a channel is: a combined chat of five would otherwise be five channels long to draw.
+     *
+     * Every other row is shaded by the combined chat itself. Each channel counts its own rows,
+     * and mixed together those would come out in clumps. A row keeps the shade it was given for
+     * as long as it is on screen, just as a channel's does, so nothing flickers when the list
+     * moves on; and it keeps the copy it was given, so an unchanged message is the same object.
+     */
+    private fun snapshotGroup(key: String, channels: List<String>): List<ChatItem> {
+        val lists = channels.mapNotNull { buffers[it] }
+        val showDeleted = settings.value.showDeleted
+        val merged = ArrayList<ChatItem>(lists.sumOf { it.size })
+        val at = IntArray(lists.size)
+        while (true) {
+            var next = -1
+            for (i in lists.indices) {
+                if (at[i] == lists[i].size) continue
+                if (next < 0 || lists[i][at[i]].timestamp < lists[next][at[next]].timestamp) next = i
+            }
+            if (next < 0) break
+            val item = lists[next][at[next]++]
+            if (showDeleted || !item.deleted) merged.add(item)
+        }
+
+        // The list keys its rows by id. Twitch's ids are unique across channels, but one message
+        // shown in two of them (a shared chat) would be the same row twice.
+        val seen = HashSet<String>(merged.size)
+        val unique = merged.asReversed().filter { seen.add(it.id) }.take(settings.value.messageLimit).asReversed()
+
+        val before = groupRows[key].orEmpty()
+        val rows = HashMap<String, GroupRow>(unique.size)
+        var alternate = true
+        val out = unique.map { item ->
+            val old = before[item.id]
+            alternate = old?.shown?.alternate ?: !alternate
+            val shown = when {
+                item.alternate == alternate -> item
+                old?.source === item -> old.shown
+                else -> item.copy(alternate = alternate)
+            }
+            rows[item.id] = GroupRow(item, shown)
+            shown
+        }
+        groupRows[key] = rows
+        // Built here for the same reason as a channel's — see [snapshot].
+        out.forEach { it.body.prepare() }
+        return out
+    }
+
+    /** A message as a combined chat shows it, and the message in its channel it was made from. */
+    private class GroupRow(val source: ChatItem, val shown: ChatItem)
+
     private fun markDirty(channel: String) {
         dirty.add(channel)
+        groupsOf[channel]?.let { dirty.addAll(it) }
         if (publishJob?.isActive == true) return
         // With the UI gone there is nothing for a publish to do, and a busy channel would
         // otherwise start a timer every interval just to find that out. Subscribing marks the

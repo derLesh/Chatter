@@ -192,7 +192,7 @@ class IncomingMessagesTest {
     @Test
     fun aMentionInTheChannelOnScreenIsNotSomethingToRingAbout() = runTest(dispatcher) {
         buffers.open("forsen")
-        windows.setVisible(window, visible = true, channel = "forsen")
+        windows.setVisible(window, visible = true, channels = setOf("forsen"))
         incoming.handle(privmsg("someone", "hey lukas"))
 
         assertEquals(1, mentioned.size)
@@ -203,7 +203,7 @@ class IncomingMessagesTest {
     @Test
     fun aMentionInAChannelNobodyIsLookingAtIsUnreadAndWorthRinging() = runTest(dispatcher) {
         buffers.open("forsen")
-        windows.setVisible(window, visible = true, channel = "xqc")
+        windows.setVisible(window, visible = true, channels = setOf("xqc"))
         incoming.handle(privmsg("someone", "hey lukas"))
 
         assertFalse(mentioned.single().second)
@@ -306,7 +306,7 @@ class IncomingMessagesTest {
 
     @Test
     fun aWhisperIsReadAlreadyWhenItsTabIsInFront() = runTest(dispatcher) {
-        windows.setVisible(window, visible = true, channel = null)
+        windows.setVisible(window, visible = true, channels = emptySet())
         windows.whispersVisible.value = true
         incoming.handle(line("@display-name=Someone;user-id=7 :someone!someone@someone.tmi.twitch.tv WHISPER lukas :hello"))
         assertTrue(whispered.single().second)

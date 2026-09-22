@@ -59,9 +59,11 @@ import dev.chatter.app.irc.ConnectionState
 import dev.chatter.app.service.ChatService
 import dev.chatter.app.ui.changelog.UpdateNotesSheet
 import dev.chatter.app.ui.channels.AddChannelDialog
+import dev.chatter.app.ui.channels.CombineChannelsDialog
 import dev.chatter.app.ui.channels.RenameChannelDialog
 import dev.chatter.app.ui.channels.ChannelPages
 import dev.chatter.app.ui.channels.ChannelTopBar
+import dev.chatter.app.ui.chat.ChannelMark
 import dev.chatter.app.ui.chat.ChatList
 import dev.chatter.app.ui.chat.MessageGesture
 import dev.chatter.app.ui.chat.rememberChatStyle
@@ -78,12 +80,19 @@ import kotlinx.coroutines.launch
 @Composable
 fun MainScreen(vm: MainViewModel, onInbox: () -> Unit, onSettings: () -> Unit) {
     val channels by vm.channels.collectAsStateWithLifecycle()
+    // What the pager swipes through: the channels, and the combined chats wherever the user put them.
+    val pageKeys by vm.pages.collectAsStateWithLifecycle()
+    val groups by vm.groups.collectAsStateWithLifecycle()
     val info by vm.channelInfo.collectAsStateWithLifecycle()
     val unread by vm.unreadMentions.collectAsStateWithLifecycle()
     val unreadMessages by vm.unreadMessages.collectAsStateWithLifecycle()
     val connection by vm.connection.collectAsStateWithLifecycle()
     val settings by vm.settings.collectAsStateWithLifecycle()
-    val active by vm.activeChannel.collectAsStateWithLifecycle()
+    val active by vm.activePage.collectAsStateWithLifecycle()
+    val activeGroup = active?.let { groups[it] }
+    // The channel the chat modes and the user's role in the title bar are about. A combined chat
+    // is several, and one line of modes cannot say which of them it describes.
+    val activeChannel = active?.takeIf { activeGroup == null }
     val customNames by vm.customNames.collectAsStateWithLifecycle()
     val hiddenUnread by vm.hiddenUnread.collectAsStateWithLifecycle()
     val emoteVersion by vm.emoteVersion.collectAsStateWithLifecycle()
@@ -105,16 +114,18 @@ fun MainScreen(vm: MainViewModel, onInbox: () -> Unit, onSettings: () -> Unit) {
     // which is what lets a swipe carry on past the last one. Only the settings screen can turn
     // that on, and opening it takes this screen out of the composition, so the pager is always
     // built knowing which of the two it is.
-    val pages = ChannelPages(channels.size, settings.carouselChannels)
+    val pages = ChannelPages(pageKeys.size, settings.carouselChannels)
     // Opening the settings takes this screen out of the composition, so the pager starts over.
     // Anchoring it to the channel the user was last on keeps them there when they come back.
-    val pagerState = rememberPagerState(initialPage = pages.pageOf(channels.indexOf(active).coerceAtLeast(0))) { pages.count }
+    val pagerState = rememberPagerState(initialPage = pages.pageOf(pageKeys.indexOf(active).coerceAtLeast(0))) { pages.count }
 
     var actionItem by remember { mutableStateOf<ChatItem?>(null) }
     var emoteCard by remember { mutableStateOf<Segment.EmoteSeg?>(null) }
     var showPicker by remember { mutableStateOf(false) }
     var showAdd by remember { mutableStateOf(false) }
     var renameTarget by remember { mutableStateOf<String?>(null) }
+    // Null while no dialog is open; the key of the combined chat being changed, or "" for a new one.
+    var combineTarget by remember { mutableStateOf<String?>(null) }
     var nicknameTarget by remember { mutableStateOf<ChatItem?>(null) }
 
     // Animated emotes are the most expensive thing on the screen, and the battery saver is the
@@ -176,9 +187,9 @@ fun MainScreen(vm: MainViewModel, onInbox: () -> Unit, onSettings: () -> Unit) {
     // is rebuilt after Android stopped the process, the channel list is still empty, and the page
     // it remembered is clamped to the first channel before the list arrives.
     var restored by remember { mutableStateOf(false) }
-    LaunchedEffect(channels) {
-        if (restored || channels.isEmpty()) return@LaunchedEffect
-        val index = channels.indexOf(active ?: vm.lastChannel.value).coerceAtLeast(0)
+    LaunchedEffect(pageKeys) {
+        if (restored || pageKeys.isEmpty()) return@LaunchedEffect
+        val index = pageKeys.indexOf(active ?: vm.lastChannel.value).coerceAtLeast(0)
         // From the origin, not from wherever the pager clamped itself to while the list was
         // still empty: a carousel has to start in the middle to have room to wrap both ways.
         val page = pages.pageOf(index)
@@ -189,30 +200,31 @@ fun MainScreen(vm: MainViewModel, onInbox: () -> Unit, onSettings: () -> Unit) {
     // Which channel a page shows is its distance from the origin modulo the number of channels,
     // so adding or removing one would slide a different channel under the user. Anchoring the
     // pager back on the one they were reading keeps it in front of them.
-    LaunchedEffect(channels.size) {
+    LaunchedEffect(pageKeys.size) {
         if (!restored || !pages.wrapping) return@LaunchedEffect
-        val index = channels.indexOf(active)
+        val index = pageKeys.indexOf(active)
         if (index >= 0) pagerState.scrollToPage(pages.pageOf(index, pagerState.currentPage))
     }
 
     // A bubble reads a channel of its own and says so while it is open. Once the chat screen is
     // back in front, the page on screen is the channel again — otherwise the title bar would keep
     // naming whatever the bubble was showing.
-    LifecycleStartEffect(channels, restored, pages) {
-        if (restored) vm.selectChannel(pages.channelAt(pagerState.currentPage)?.let(channels::getOrNull))
+    LifecycleStartEffect(pageKeys, restored, pages) {
+        if (restored) vm.selectChannel(pages.channelAt(pagerState.currentPage)?.let(pageKeys::getOrNull))
         onStopOrDispose { }
     }
 
-    // The page on screen defines the active channel — once it is the page the user expects.
-    LaunchedEffect(pagerState, channels, restored, pages) {
+    // The page on screen defines the active channel — once it is the page the user expects. The
+    // combined chats are a key as well: the one on screen may have been given other channels.
+    LaunchedEffect(pagerState, pageKeys, groups, restored, pages) {
         if (!restored) return@LaunchedEffect
         snapshotFlow { pages.channelAt(pagerState.currentPage) }
-            .collect { vm.selectChannel(it?.let(channels::getOrNull)) }
+            .collect { vm.selectChannel(it?.let(pageKeys::getOrNull)) }
     }
-    // Jump to a channel requested by a notification tap or right after adding it.
-    LaunchedEffect(channels, pages) {
+    // Jump to a page requested by a notification tap or right after adding or combining it.
+    LaunchedEffect(pageKeys, pages) {
         vm.requestedChannel.filterNotNull().collect { ch ->
-            val index = channels.indexOf(ch)
+            val index = pageKeys.indexOf(ch)
             if (index >= 0) {
                 pagerState.scrollToPage(pages.pageOf(index, pagerState.currentPage))
                 vm.requestedChannel.value = null
@@ -225,23 +237,26 @@ fun MainScreen(vm: MainViewModel, onInbox: () -> Unit, onSettings: () -> Unit) {
         snackbarHost = { SnackbarHost(snackbar) },
         topBar = {
             ChannelTopBar(
-                channels = channels,
+                pages = pageKeys,
+                groups = groups,
                 active = active,
                 info = info,
                 unread = unread,
                 unreadMessages = unreadMessages,
-                roomState = active?.let { roomStates[it] },
-                roleBadge = active?.let { ch -> roles[ch]?.let { vm.roleBadge(ch, it) } },
+                roomState = activeChannel?.let { roomStates[it] },
+                roleBadge = activeChannel?.let { ch -> roles[ch]?.let { vm.roleBadge(ch, it) } },
                 connection = connection,
                 showUnread = settings.unreadInTitleBar,
                 hiddenUnread = hiddenUnread,
                 imageLoader = vm.imageLoader,
                 onSelect = { ch ->
                     scope.launch {
-                        pagerState.scrollToPage(pages.pageOf(channels.indexOf(ch).coerceAtLeast(0), pagerState.currentPage))
+                        pagerState.scrollToPage(pages.pageOf(pageKeys.indexOf(ch).coerceAtLeast(0), pagerState.currentPage))
                     }
                 },
                 onAdd = { showAdd = true },
+                onCombine = { combineTarget = "" },
+                onEditGroup = { combineTarget = it },
                 onRemove = vm::removeChannel,
                 onRename = { renameTarget = it },
                 onMove = vm::moveChannel,
@@ -258,7 +273,7 @@ fun MainScreen(vm: MainViewModel, onInbox: () -> Unit, onSettings: () -> Unit) {
                 .windowInsetsPadding(WindowInsets.ime.union(WindowInsets.navigationBars))
                 .background(MaterialTheme.colorScheme.background),
         ) {
-            if (channels.isEmpty()) {
+            if (pageKeys.isEmpty()) {
                 EmptyState(onAdd = { showAdd = true }, modifier = Modifier.weight(1f))
             } else {
                 HorizontalPager(
@@ -266,12 +281,18 @@ fun MainScreen(vm: MainViewModel, onInbox: () -> Unit, onSettings: () -> Unit) {
                     // A wrapping pager shows the same channel on many pages, so only the page
                     // itself tells them apart. Without one, keying on the channel is what keeps
                     // a channel's place in the list with it when the channels are reordered.
-                    key = { if (pages.wrapping) it else channels.getOrElse(it) { "" } },
+                    key = { if (pages.wrapping) it else pageKeys.getOrElse(it) { "" } },
                     modifier = Modifier.weight(1f),
                 ) { page ->
-                    val channel = pages.channelAt(page)?.let(channels::getOrNull) ?: return@HorizontalPager
+                    val channel = pages.channelAt(page)?.let(pageKeys::getOrNull) ?: return@HorizontalPager
+                    // Which channel each message is from is only worth showing where they mix.
+                    val members = groups[channel]?.channels
+                    val marks = remember(members, info) {
+                        members?.associateWith { ChannelMark(info[it]?.avatarUrl, info[it]?.displayName ?: it) }
+                    }
                     ChatList(
                         messages = remember(channel) { vm.chat(channel) },
+                        channels = marks,
                         style = style,
                         imageLoader = loader,
                         onGesture = { item, gesture ->
@@ -300,7 +321,7 @@ fun MainScreen(vm: MainViewModel, onInbox: () -> Unit, onSettings: () -> Unit) {
             InputBar(
                 value = vm.input,
                 onValueChange = vm::onInputChange,
-                enabled = active != null && connection == ConnectionState.Connected,
+                enabled = vm.sendChannel != null && connection == ConnectionState.Connected,
                 replyTo = vm.replyTo,
                 suggestions = vm.suggestions,
                 imageLoader = loader,
@@ -309,6 +330,10 @@ fun MainScreen(vm: MainViewModel, onInbox: () -> Unit, onSettings: () -> Unit) {
                 onEmotePicker = { showPicker = true },
                 onSend = vm::send,
                 modifier = Modifier.fillMaxWidth(),
+                sendChannels = activeGroup?.channels.orEmpty(),
+                sendChannel = vm.sendChannel,
+                channelInfo = info,
+                onSendChannel = vm::selectSendChannel,
             )
         }
     }
@@ -355,7 +380,7 @@ fun MainScreen(vm: MainViewModel, onInbox: () -> Unit, onSettings: () -> Unit) {
         )
     }
     if (showPicker) {
-        val emotes = remember(active, emoteVersion) { vm.emotesFor(active) }
+        val emotes = remember(vm.sendChannel, emoteVersion) { vm.emotesFor(vm.sendChannel) }
         EmotePickerSheet(
             emotes = emotes,
             recent = settings.recentEmotes,
@@ -370,6 +395,17 @@ fun MainScreen(vm: MainViewModel, onInbox: () -> Unit, onSettings: () -> Unit) {
             imageLoader = vm.imageLoader,
             onAdd = { vm.addChannel(it); showAdd = false },
             onDismiss = { showAdd = false },
+        )
+    }
+    combineTarget?.let { key ->
+        val group = groups[key]
+        CombineChannelsDialog(
+            channels = channels,
+            info = info,
+            group = group,
+            imageLoader = vm.imageLoader,
+            onSave = { name, members -> vm.saveGroup(group?.key, name, members) },
+            onDismiss = { combineTarget = null },
         )
     }
     renameTarget?.let { login ->

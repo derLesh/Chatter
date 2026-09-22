@@ -129,8 +129,11 @@ class ChatRepository(
     /** New messages per channel since the user last looked at it. */
     val unreadMessages: StateFlow<Map<String, Int>> get() = buffers.unreadMessages
 
-    /** The channel the chat screen is on. A bubble reads its own and leaves this alone. */
-    val activeChannel = MutableStateFlow<String?>(null)
+    /**
+     * The page the chat screen is on: a channel, or the key of a combined chat. A bubble reads a
+     * channel of its own and leaves this alone.
+     */
+    val activePage = MutableStateFlow<String?>(null)
 
     fun start() {
         scope.launch(worker) { irc.messages.collect { incoming.handle(it) } }
@@ -163,6 +166,10 @@ class ChatRepository(
             channelRepo.channels.collect { syncChannels(it) }
         }
 
+        scope.launch(worker) {
+            channelRepo.groups.collect { groups -> buffers.setGroups(groups.mapValues { it.value.channels }) }
+        }
+
         // A provider that was unreachable has come back: the messages on screen were built
         // without its emotes, and are built again now that they are there.
         scope.launch(worker) {
@@ -187,7 +194,8 @@ class ChatRepository(
 
     }
 
-    fun messages(channel: String): StateFlow<List<ChatItem>> = buffers.messages(channel)
+    /** The messages of a channel, or of a combined chat by its key. */
+    fun messages(page: String): StateFlow<List<ChatItem>> = buffers.messages(page)
 
     /** Adds an informational line (e.g. 7TV activity), optionally followed by emotes/text segments. */
     fun postNotice(channel: String, text: String, segments: List<Segment> = emptyList()) = scope.launch(worker) {

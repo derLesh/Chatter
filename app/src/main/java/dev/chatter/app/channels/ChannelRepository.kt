@@ -19,6 +19,7 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.serialization.Serializable
+import java.util.UUID
 
 @Serializable
 data class ChannelInfo(
@@ -38,15 +39,35 @@ data class ChannelInfo(
  */
 data class ChannelIdentity(val login: String, val name: String, val avatarUrl: String?)
 
-/** The user's channel list (persisted, ordered) plus profile info and live status. */
+/**
+ * The user's channel list (persisted, ordered) plus profile info and live status, and the
+ * combined chats made of those channels.
+ */
 class ChannelRepository(
     private val store: DataStore<Preferences>,
     private val helix: HelixApi,
     scope: CoroutineScope,
 ) {
-    val channels: StateFlow<List<String>> = store.data
-        .map { p -> p[CHANNELS].orEmpty().split(',').filter { it.isNotEmpty() } }
+    /**
+     * Every page of the chat in the order the user put them: channel logins, and the keys of
+     * combined chats wherever the user moved those to. Kept in one list so that a combined chat
+     * can sit between two channels, and is moved about the same way they are.
+     */
+    val pages: StateFlow<List<String>> = store.data
+        .map { p -> split(p[CHANNELS]) }
         .stateIn(scope, SharingStarted.Eagerly, emptyList())
+
+    /** The channels alone: what is joined, notified about and given a shortcut. */
+    val channels: StateFlow<List<String>> = store.data
+        .map { p -> split(p[CHANNELS]).filterNot(ChannelGroup::isKey) }
+        .distinctUntilChanged()
+        .stateIn(scope, SharingStarted.Eagerly, emptyList())
+
+    /** The combined chats, by the key they are listed under in [pages]. */
+    val groups: StateFlow<Map<String, ChannelGroup>> = store.data
+        .map { p -> decodeGroups(p[GROUPS]).associateBy { it.key } }
+        .distinctUntilChanged()
+        .stateIn(scope, SharingStarted.Eagerly, emptyMap())
 
     private val _info = MutableStateFlow<Map<String, ChannelInfo>>(emptyMap())
 
@@ -119,7 +140,7 @@ class ChannelRepository(
             .onSuccess { list -> _info.update { current -> list.associateBy { it.login } + current } }
     }
 
-    suspend fun currentChannels(): List<String> = store.data.first()[CHANNELS].orEmpty().split(',').filter { it.isNotEmpty() }
+    suspend fun currentChannels(): List<String> = split(store.data.first()[CHANNELS]).filterNot(ChannelGroup::isKey)
 
     /** Returns the normalized login, or null if the input is not a valid channel name. */
     suspend fun add(input: String): String? {
@@ -132,13 +153,48 @@ class ChannelRepository(
         return login
     }
 
-    suspend fun remove(login: String) {
+    /** Takes a channel or a combined chat off the list, whichever [page] names. */
+    suspend fun remove(page: String) {
+        if (ChannelGroup.isKey(page)) return removeGroup(page)
+        val login = page
         store.edit { p ->
-            p[CHANNELS] = p[CHANNELS].orEmpty().split(',').filter { it.isNotEmpty() && it != login }.joinToString(",")
+            // A combined chat without the channel reads from the ones it has left, and goes
+            // when there are none.
+            val groups = decodeGroups(p[GROUPS]).map { g -> g.copy(channels = g.channels - login) }
+            val emptied = groups.filter { it.channels.isEmpty() }.map { it.key }.toSet()
+            p[GROUPS] = AppJson.encodeToString(groups.filter { it.key !in emptied })
+            p[CHANNELS] = split(p[CHANNELS]).filter { it != login && it !in emptied }.joinToString(",")
             val names = decodeNames(p[CUSTOM_NAMES])
             if (login in names) p[CUSTOM_NAMES] = AppJson.encodeToString(names - login)
             p[MUTED] = p[MUTED].orEmpty().split(',').filter { it.isNotEmpty() && it != login }.joinToString(",")
             p[NO_TITLE_BAR] = p[NO_TITLE_BAR].orEmpty().split(',').filter { it.isNotEmpty() && it != login }.joinToString(",")
+        }
+    }
+
+    /**
+     * Creates a combined chat of [channels], or changes the one [key] names. Returns the key it is
+     * listed under. The channels are kept in the order of the channel list rather than the order
+     * they were ticked, so the chat lists them the way the user sorted them everywhere else.
+     */
+    suspend fun saveGroup(key: String?, name: String, channels: Collection<String>): String {
+        val id = key?.let(ChannelGroup::idOf) ?: UUID.randomUUID().toString().take(8)
+        val group = ChannelGroup(id, name.trim())
+        store.edit { p ->
+            val list = split(p[CHANNELS])
+            val chosen = group.copy(channels = list.filter { it in channels && !ChannelGroup.isKey(it) })
+            val groups = decodeGroups(p[GROUPS])
+            p[GROUPS] = AppJson.encodeToString(
+                if (groups.any { it.id == id }) groups.map { if (it.id == id) chosen else it } else groups + chosen
+            )
+            if (group.key !in list) p[CHANNELS] = (list + group.key).joinToString(",")
+        }
+        return group.key
+    }
+
+    private suspend fun removeGroup(key: String) {
+        store.edit { p ->
+            p[GROUPS] = AppJson.encodeToString(decodeGroups(p[GROUPS]).filter { it.key != key })
+            p[CHANNELS] = split(p[CHANNELS]).filter { it != key }.joinToString(",")
         }
     }
 
@@ -154,10 +210,11 @@ class ChannelRepository(
     /** The name Twitch reports, ignoring any renaming, for showing what a reset would restore. */
     fun twitchName(login: String): String = _info.value[login]?.displayName ?: login
 
-    suspend fun move(login: String, delta: Int) {
+    /** Moves a channel or a combined chat [delta] places along the list of pages. */
+    suspend fun move(page: String, delta: Int) {
         store.edit { p ->
-            val list = p[CHANNELS].orEmpty().split(',').filter { it.isNotEmpty() }.toMutableList()
-            val from = list.indexOf(login)
+            val list = split(p[CHANNELS]).toMutableList()
+            val from = list.indexOf(page)
             val to = (from + delta).coerceIn(0, list.lastIndex)
             if (from >= 0 && from != to) {
                 list.add(to, list.removeAt(from))
@@ -169,16 +226,27 @@ class ChannelRepository(
     /**
      * Replaces the whole channel list and everything the user set on it, for restoring a backup.
      * Names that are not valid Twitch logins are dropped rather than joined and rejected later.
+     *
+     * [logins] may name combined chats by their key, which is where in the list they go; one the
+     * list does not mention goes at the end. Channels a combined chat names that are not on the
+     * list are left out of it, and a combined chat left with none is not restored at all.
      */
     suspend fun restore(
         logins: List<String>,
         names: Map<String, String>,
         notificationsOff: Set<String>,
         hiddenUnread: Set<String>,
+        groups: List<ChannelGroup> = emptyList(),
     ) {
-        val valid = logins.mapNotNull { normalize(it) }.distinct()
+        val valid = logins.filterNot(ChannelGroup::isKey).mapNotNull { normalize(it) }.distinct()
+        val kept = groups.distinctBy { it.id }
+            .map { g -> g.copy(channels = g.channels.mapNotNull { normalize(it) }.filter { it in valid }.distinct()) }
+            .filter { it.channels.isNotEmpty() }
+        val keys = kept.map { it.key }.toSet()
+        val order = logins.mapNotNull { if (ChannelGroup.isKey(it)) it.takeIf { k -> k in keys } else normalize(it) }.distinct()
         store.edit { p ->
-            p[CHANNELS] = valid.joinToString(",")
+            p[CHANNELS] = (order + kept.map { it.key }.filter { it !in order }).joinToString(",")
+            p[GROUPS] = AppJson.encodeToString(kept)
             p[CUSTOM_NAMES] = AppJson.encodeToString(names.filterKeys { it in valid })
             p[MUTED] = notificationsOff.filter { it in valid }.joinToString(",")
             p[NO_TITLE_BAR] = hiddenUnread.filter { it in valid }.joinToString(",")
@@ -244,6 +312,12 @@ class ChannelRepository(
         private val MUTED = stringPreferencesKey("channels_muted")
         private val NO_TITLE_BAR = stringPreferencesKey("channels_no_title_bar")
         private val LAST_CHANNEL = stringPreferencesKey("last_channel")
+        private val GROUPS = stringPreferencesKey("channel_groups")
+
+        private fun split(raw: String?): List<String> = raw.orEmpty().split(',').filter { it.isNotEmpty() }
+
+        private fun decodeGroups(raw: String?): List<ChannelGroup> =
+            raw?.let { runCatching { AppJson.decodeFromString<List<ChannelGroup>>(it) }.getOrNull() }.orEmpty()
 
         private fun decodeNames(raw: String?): Map<String, String> =
             raw?.let { runCatching { AppJson.decodeFromString<Map<String, String>>(it) }.getOrNull() }.orEmpty()

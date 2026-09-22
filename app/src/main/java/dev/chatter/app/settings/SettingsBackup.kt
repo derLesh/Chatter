@@ -1,5 +1,6 @@
 package dev.chatter.app.settings
 
+import dev.chatter.app.channels.ChannelGroup
 import dev.chatter.app.channels.ChannelRepository
 import dev.chatter.app.chat.ChatRule
 import dev.chatter.app.chat.NicknameRepository
@@ -41,11 +42,17 @@ data class SettingsBackup(
 
 @Serializable
 data class ChannelBackup(
+    /**
+     * The channels in the user's order, with the key of each combined chat ("+" and its id) where
+     * it sits among them. A version of Chatter that knows no combined chats drops those keys as
+     * the invalid logins they are to it, and restores the channels alone.
+     */
     val logins: List<String> = emptyList(),
     /** Names the user gave channels, by login. */
     val names: Map<String, String> = emptyMap(),
     val notificationsOff: List<String> = emptyList(),
     val hiddenUnread: List<String> = emptyList(),
+    val groups: List<ChannelGroup> = emptyList(),
 )
 
 /** Writes and reads [SettingsBackup] files. */
@@ -62,10 +69,11 @@ class BackupManager(
             rules = rules.rules.value,
             nicknames = nicknames.nicknames.value,
             channels = ChannelBackup(
-                logins = channels.channels.value,
+                logins = channels.pages.value,
                 names = channels.customNames.value,
                 notificationsOff = channels.mutedChannels.value.toList(),
                 hiddenUnread = channels.hiddenUnread.value.toList(),
+                groups = channels.groups.value.values.toList(),
             ),
         )
     )
@@ -78,7 +86,7 @@ class BackupManager(
         backup.rules?.let { rules.replaceAll(it) }
         backup.nicknames?.let { nicknames.replaceAll(it) }
         backup.channels?.let {
-            channels.restore(it.logins, it.names, it.notificationsOff.toSet(), it.hiddenUnread.toSet())
+            channels.restore(it.logins, it.names, it.notificationsOff.toSet(), it.hiddenUnread.toSet(), it.groups)
         }
         return true
     }

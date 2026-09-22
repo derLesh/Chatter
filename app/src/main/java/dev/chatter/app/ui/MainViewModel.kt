@@ -11,6 +11,7 @@ import dev.chatter.app.AppContainer
 import dev.chatter.app.R
 import dev.chatter.app.badges.Badge
 import dev.chatter.app.badges.BadgeProvider
+import dev.chatter.app.channels.ChannelGroup
 import dev.chatter.app.chat.ChatCommand
 import dev.chatter.app.chat.ChatRole
 import dev.chatter.app.chat.ChatRule
@@ -69,6 +70,10 @@ class MainViewModel(private val c: AppContainer) : ViewModel() {
     /** Every logged-in account, for the switcher on the account page. */
     val accounts = c.auth.accounts
     val channels = c.channels.channels
+    /** Channels and combined chats, in the order the pager shows them. */
+    val pages = c.channels.pages
+    /** The combined chats, by the key they are listed under in [pages]. */
+    val groups = c.channels.groups
     val channelInfo = c.channels.info
     val customNames = c.channels.customNames
     val mutedChannels = c.channels.mutedChannels
@@ -78,7 +83,7 @@ class MainViewModel(private val c: AppContainer) : ViewModel() {
     val unreadMessages = c.chat.unreadMessages
     val settings = c.settings.settings
     val connection = c.irc.state
-    val activeChannel = c.chat.activeChannel
+    val activePage = c.chat.activePage
     val modChannels = c.chat.rooms.moderated
     val powerSaveMode = c.powerSaveMode
     val roomStates = c.chat.rooms.states
@@ -125,7 +130,10 @@ class MainViewModel(private val c: AppContainer) : ViewModel() {
      */
     var inBubble = false
 
-    /** Channel requested from outside (notification tap) that the pager should scroll to. */
+    /**
+     * The page the pager should scroll to: a channel asked for from outside (a notification tap),
+     * or one the user has just added or combined.
+     */
     val requestedChannel = MutableStateFlow<String?>(null)
 
     /**
@@ -148,31 +156,69 @@ class MainViewModel(private val c: AppContainer) : ViewModel() {
     }
 
     /**
-     * The channel this window is showing. Not the same thing as [activeChannel] once a bubble is
-     * open: that one is the chat screen's, this one is whatever window this view model belongs to.
+     * The page this window is showing: a channel, or the key of a combined chat. Not the same
+     * thing as [activePage] once a bubble is open: that one is the chat screen's, this one is
+     * whatever window this view model belongs to.
      */
-    private var shownChannel: String? = null
+    private var shownPage: String? = null
 
-    fun chat(channel: String) = c.chat.messages(channel)
+    /** The channels on [shownPage]: the one channel, or every channel of the combined chat. */
+    private var shownChannels: List<String> = emptyList()
 
-    fun selectChannel(channel: String?) {
-        if (shownChannel == channel) return
-        shownChannel = channel
-        c.chat.windows.setChannel(this, channel)
+    /**
+     * The channel whatever is typed goes to. On a channel's own page that is the channel; on a
+     * combined chat it is whichever of its channels the user picked, or the one of the message
+     * they are answering.
+     */
+    var sendChannel by mutableStateOf<String?>(null)
+        private set
+
+    /** The channel last written in on each combined chat, so coming back to one writes there again. */
+    private val sendChannels = HashMap<String, String>()
+
+    /** The messages of a channel, or of a combined chat by its key. */
+    fun chat(page: String) = c.chat.messages(page)
+
+    /** The channels a page reads from. */
+    private fun channelsOf(page: String): List<String> =
+        if (ChannelGroup.isKey(page)) groups.value[page]?.channels.orEmpty() else listOf(page)
+
+    /**
+     * Moves this window to a page. Asking again for the page already shown is how a combined chat
+     * whose channels were changed is read afresh.
+     */
+    fun selectChannel(page: String?) {
+        val channels = page?.let(::channelsOf).orEmpty()
+        if (shownPage == page && shownChannels == channels) return
+        val samePage = shownPage == page
+        shownPage = page
+        shownChannels = channels
+        c.chat.windows.setChannels(this, channels.toSet())
         // What the app around the chat follows. A bubble is a window of its own and must not
         // move it: the chat screen is still wherever the user left it.
-        if (!inBubble) c.chat.activeChannel.value = channel
-        channel?.let {
+        if (!inBubble) c.chat.activePage.value = page
+        channels.forEach {
             if (!inBubble) c.notifier.clear(it)
             c.chat.clearUnread(it)
-            // Where to come back to after a restart — the chat screen's channel, not one the user
-            // happens to be reading in a bubble on the side.
-            if (!inBubble) rememberLastChannel(it)
             // Reading a channel is reading its mentions, so the inbox must not claim otherwise.
             viewModelScope.launch { c.inbox.markChannelRead(it) }
         }
-        replyTo = null
+        // Where to come back to after a restart — the chat screen's page, not a channel the user
+        // happens to be reading in a bubble on the side.
+        if (page != null && !inBubble) rememberLastChannel(page)
+        sendChannel = page?.let { sendChannels[it] }?.takeIf { it in channels } ?: channels.firstOrNull()
+        if (!samePage || replyTo?.channel !in channels) replyTo = null
         suggestions = emptyList()
+    }
+
+    /** Writes in [channel] from now on, which has to be one of the channels on the page. */
+    fun selectSendChannel(channel: String) {
+        if (channel !in shownChannels || channel == sendChannel) return
+        sendChannel = channel
+        shownPage?.let { sendChannels[it] = channel }
+        // An answer goes to the channel of the message it answers; it cannot follow to another.
+        if (replyTo?.channel != channel) replyTo = null
+        updateSuggestions()
     }
 
     /**
@@ -209,12 +255,12 @@ class MainViewModel(private val c: AppContainer) : ViewModel() {
     }
 
     fun setUiVisible(visible: Boolean) {
-        c.chat.windows.setVisible(this, visible, shownChannel)
+        c.chat.windows.setVisible(this, visible, shownChannels.toSet())
         // Leaving may come before the delay is up, and then it is the last chance to write it.
         if (!visible) writeLastChannel()
         if (visible) {
             c.connect()
-            shownChannel?.let {
+            shownChannels.forEach {
                 c.chat.clearUnread(it)
                 if (!inBubble) c.notifier.clear(it)
             }
@@ -223,7 +269,7 @@ class MainViewModel(private val c: AppContainer) : ViewModel() {
 
     /** The window is gone for good; it is not reading anything any more. */
     override fun onCleared() {
-        c.chat.windows.setVisible(this, visible = false, channel = null)
+        c.chat.windows.setVisible(this, visible = false, channels = emptySet())
         super.onCleared()
     }
 
@@ -236,7 +282,7 @@ class MainViewModel(private val c: AppContainer) : ViewModel() {
 
     private fun updateSuggestions() {
         suggestionJob?.cancel()
-        val channel = shownChannel
+        val channel = sendChannel
         val word = Autocomplete.currentWord(input.text, input.selection.start)
         if (channel == null || word == null) {
             suggestions = emptyList()
@@ -291,8 +337,10 @@ class MainViewModel(private val c: AppContainer) : ViewModel() {
         rememberEmote(emote.name)
     }
 
+    /** Mentions whoever wrote [item] — in the channel they wrote it in, on a combined chat. */
     fun mention(item: ChatItem) {
         val name = item.displayName ?: item.login ?: return
+        selectSendChannel(item.channel)
         val (text, cursor) = Autocomplete.insert(input.text, input.selection.start, "@$name")
         input = TextFieldValue(text, TextRange(cursor))
     }
@@ -462,6 +510,7 @@ class MainViewModel(private val c: AppContainer) : ViewModel() {
      */
     fun startReply(item: ChatItem): Boolean {
         if (!item.canReply || item.id.startsWith("local-")) return false
+        selectSendChannel(item.channel)
         replyTo = item
         return true
     }
@@ -471,7 +520,7 @@ class MainViewModel(private val c: AppContainer) : ViewModel() {
     }
 
     fun send() {
-        val channel = shownChannel ?: return
+        val channel = sendChannel ?: return
         val text = input.text
         val reply = replyTo
         viewModelScope.launch {
@@ -502,8 +551,20 @@ class MainViewModel(private val c: AppContainer) : ViewModel() {
         }
     }
 
-    fun removeChannel(login: String) {
-        viewModelScope.launch { c.channels.remove(login) }
+    /** Removes a channel, or a combined chat by its key. */
+    fun removeChannel(page: String) {
+        viewModelScope.launch { c.channels.remove(page) }
+    }
+
+    /**
+     * Creates a combined chat of [channels], or changes the one [key] names. A new one is opened
+     * right away, the same way a channel that was just added is.
+     */
+    fun saveGroup(key: String?, name: String, channels: Collection<String>) {
+        viewModelScope.launch {
+            val saved = c.channels.saveGroup(key, name, channels)
+            if (key == null) requestedChannel.value = saved
+        }
     }
 
     fun setUnreadInTitleBar(v: Boolean) {
@@ -587,8 +648,9 @@ class MainViewModel(private val c: AppContainer) : ViewModel() {
     /** The name Twitch reports, for showing what clearing a custom name restores. */
     fun twitchName(login: String): String = c.channels.twitchName(login)
 
-    fun moveChannel(login: String, delta: Int) {
-        viewModelScope.launch { c.channels.move(login, delta) }
+    /** Moves a channel, or a combined chat by its key. */
+    fun moveChannel(page: String, delta: Int) {
+        viewModelScope.launch { c.channels.move(page, delta) }
     }
 
     suspend fun searchChannels(query: String): List<HelixChannelSearch> = c.channels.search(query)

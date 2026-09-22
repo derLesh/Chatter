@@ -3,6 +3,7 @@ package dev.chatter.app.ui.chat
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -19,8 +20,11 @@ import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Send
+import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Face
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -29,7 +33,10 @@ import androidx.compose.material3.TextField
 import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -37,6 +44,8 @@ import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.input.TextFieldValue
@@ -45,9 +54,18 @@ import androidx.compose.ui.unit.dp
 import coil3.ImageLoader
 import coil3.compose.AsyncImage
 import dev.chatter.app.R
+import dev.chatter.app.channels.ChannelInfo
 import dev.chatter.app.chat.ChatItem
 import dev.chatter.app.ui.Suggestion
+import dev.chatter.app.ui.channels.ChannelAvatar
 
+/**
+ * The field a message is written in, with the emote picker, the suggestions and the reply strip.
+ *
+ * On a combined chat [sendChannels] are its channels, and a picture in front of the field says
+ * which of them [sendChannel] the message goes to; tapping it picks another. With a single channel
+ * there is nothing to pick, and the field looks as it always did.
+ */
 @Composable
 fun InputBar(
     value: TextFieldValue,
@@ -61,7 +79,12 @@ fun InputBar(
     onEmotePicker: () -> Unit,
     onSend: () -> Unit,
     modifier: Modifier = Modifier,
+    sendChannels: List<String> = emptyList(),
+    sendChannel: String? = null,
+    channelInfo: Map<String, ChannelInfo> = emptyMap(),
+    onSendChannel: (String) -> Unit = {},
 ) {
+    val choosing = sendChannels.size > 1 && sendChannel != null
     val focus = remember { FocusRequester() }
     // Picking a message to answer is only half of answering it: the keyboard comes up with it,
     // so that one tap on a message is all it takes to start typing.
@@ -79,6 +102,9 @@ fun InputBar(
             verticalAlignment = Alignment.CenterVertically,
             modifier = Modifier.padding(horizontal = 4.dp, vertical = 4.dp),
         ) {
+            if (choosing) {
+                SendChannelPicker(sendChannels, sendChannel!!, channelInfo, imageLoader, enabled, onSendChannel)
+            }
             IconButton(onClick = onEmotePicker, enabled = enabled) {
                 Icon(Icons.Default.Face, contentDescription = stringResource(R.string.emotes))
             }
@@ -86,7 +112,17 @@ fun InputBar(
                 value = value,
                 onValueChange = onValueChange,
                 enabled = enabled,
-                placeholder = { Text(stringResource(if (enabled) R.string.input_hint else R.string.input_hint_disabled)) },
+                placeholder = {
+                    Text(
+                        when {
+                            !enabled -> stringResource(R.string.input_hint_disabled)
+                            choosing -> stringResource(R.string.input_hint_in, channelInfo[sendChannel]?.displayName ?: sendChannel!!)
+                            else -> stringResource(R.string.input_hint)
+                        },
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                },
                 maxLines = 4,
                 keyboardOptions = KeyboardOptions(
                     capitalization = KeyboardCapitalization.Sentences,
@@ -106,6 +142,48 @@ fun InputBar(
             )
             IconButton(onClick = onSend, enabled = enabled && value.text.isNotBlank()) {
                 Icon(Icons.AutoMirrored.Filled.Send, contentDescription = stringResource(R.string.send))
+            }
+        }
+    }
+}
+
+/** The channel a combined chat's message goes to, as its picture, with the others a tap away. */
+@Composable
+private fun SendChannelPicker(
+    channels: List<String>,
+    selected: String,
+    info: Map<String, ChannelInfo>,
+    imageLoader: ImageLoader,
+    enabled: Boolean,
+    onSelect: (String) -> Unit,
+) {
+    var open by remember { mutableStateOf(false) }
+    Box {
+        IconButton(onClick = { open = true }, enabled = enabled) {
+            Box(Modifier.semantics { contentDescription = info[selected]?.displayName ?: selected }) {
+                ChannelAvatar(info[selected], imageLoader, 28.dp)
+            }
+        }
+        DropdownMenu(expanded = open, onDismissRequest = { open = false }) {
+            Text(
+                stringResource(R.string.send_in_channel),
+                style = MaterialTheme.typography.labelMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
+            )
+            channels.forEach { login ->
+                DropdownMenuItem(
+                    leadingIcon = { ChannelAvatar(info[login], imageLoader, 28.dp) },
+                    text = {
+                        Text(
+                            info[login]?.displayName ?: login,
+                            color = if (login == selected) MaterialTheme.colorScheme.primary else Color.Unspecified,
+                            maxLines = 1,
+                        )
+                    },
+                    trailingIcon = { if (login == selected) Icon(Icons.Default.Check, contentDescription = null) },
+                    onClick = { open = false; onSelect(login) },
+                )
             }
         }
     }

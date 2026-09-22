@@ -58,6 +58,19 @@
     <string name="channel_name">Channel-Name</string>
     <string name="live">LIVE</string>
     <string name="add">Hinzufügen</string>
+    <string name="combine_channels">Channels kombinieren</string>
+    <string name="combined_chat_edit">Kombinierten Chat bearbeiten</string>
+    <string name="combined_chat_name">Name</string>
+    <string name="combined_chat_name_hint">Leer lassen, um ihn nach seinen Channels zu benennen.</string>
+    <string name="combined_chat_pick">Wähle mindestens zwei Channels, die du in einem Chat lesen willst.</string>
+    <string name="combined_chat_create">Kombinieren</string>
+    <string name="edit">Bearbeiten</string>
+    <string name="input_hint_in">Nachricht in %1$s</string>
+    <string name="send_in_channel">Channel, in den du schreibst</string>
+    <plurals name="combined_chat_live">
+        <item quantity="one">%d Channel live</item>
+        <item quantity="other">%d Channels live</item>
+    </plurals>
 
     <!-- Login -->
     <string name="login_subtitle">Ein schneller, schlanker Twitch-Chat.</string>

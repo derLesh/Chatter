@@ -64,6 +64,19 @@
     <string name="channel_name">Channel name</string>
     <string name="live">LIVE</string>
     <string name="add">Add</string>
+    <string name="combine_channels">Combine channels</string>
+    <string name="combined_chat_edit">Edit combined chat</string>
+    <string name="combined_chat_name">Name</string>
+    <string name="combined_chat_name_hint">Leave empty to name it after its channels.</string>
+    <string name="combined_chat_pick">Pick at least two channels to read in one chat.</string>
+    <string name="combined_chat_create">Combine</string>
+    <string name="edit">Edit</string>
+    <string name="input_hint_in">Message in %1$s</string>
+    <string name="send_in_channel">Channel to write in</string>
+    <plurals name="combined_chat_live">
+        <item quantity="one">%d channel live</item>
+        <item quantity="other">%d channels live</item>
+    </plurals>
 
     <!-- Login -->
     <string name="login_subtitle">A fast, lightweight Twitch chat.</string>
