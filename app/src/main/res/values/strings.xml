@@ -210,7 +210,7 @@
     <string name="settings_load_history_hint">Show the last messages when opening a channel (via recent-messages.robotty.de)</string>
     <string name="settings_system_notifications">Notification settings</string>
     <string name="settings_group_accounts">Accounts</string>
-    <string name="account_id">Twitch ID %1$s</string>
+    <string name="account_id">%1$s</string>
     <string name="account_copy_id">Copy Twitch ID</string>
     <string name="account_on_twitch">Open on Twitch</string>
     <string name="account_active">Chatting as this account</string>

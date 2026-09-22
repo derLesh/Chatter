@@ -204,14 +204,14 @@
     <string name="settings_load_history_hint">Beim Öffnen eines Channels die letzten Nachrichten anzeigen (über recent-messages.robotty.de)</string>
     <string name="settings_system_notifications">Benachrichtigungseinstellungen</string>
     <string name="settings_group_accounts">Konten</string>
-    <string name="account_id">Twitch-ID %1$s</string>
+    <string name="account_id">%1$s</string>
     <string name="account_copy_id">Twitch-ID kopieren</string>
     <string name="account_on_twitch">Auf Twitch öffnen</string>
     <string name="account_active">Chattet mit diesem Konto</string>
     <string name="account_switch_to">Als %1$s chatten</string>
     <string name="account_add">Konto hinzufügen</string>
     <string name="account_add_short">Hinzufügen</string>
-    <string name="account_add_hint">Mit einem weiteren Twitch-Konto anmelden und jederzeit wechseln</string>
+    <string name="account_add_hint">Mit einem weiteren Twitch Konto anmelden und jederzeit wechseln</string>
     <string name="account_logout_title">%1$s abmelden?</string>
     <string name="account_logout_text">Chatter macht mit deinem anderen Konto weiter.</string>
     <string name="account_logout_last_text">Es ist dein letztes Konto — Chatter zeigt danach wieder den Anmeldebildschirm.</string>
