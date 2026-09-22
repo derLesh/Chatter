@@ -6,7 +6,10 @@
 </p>
 
 <p align="center">
-  A fast, native Twitch chat client for Android — for reading and writing chat, not watching.
+  A fast, native Twitch chat client for Android - based on Material 3, with full emote support for a rich chatting experience. 
+</p>
+<p align="center">
+  For reading and writing chat, not watching.
 </p>
 
 <p align="center">
@@ -29,12 +32,12 @@
 
 **Read chat the way you like it**
 
-- Several channels at once — renamed, reordered, or combined into one chat that marks where each
-  message came from
+- Open several chats and switch seamlessly between them
+- Combine multiple chats into one
 - 7TV, BetterTTV and FrankerFaceZ emotes, animated, with a picker and autocomplete
-- Recent messages loaded as you join, so you never walk into an empty room
-- Text size, density, timestamps and name colours under your control; light and dark themes,
-  Material You, and a second app icon to match
+- [Recent messages](https://recent-messages.robotty.de/) loaded as you join, so you never walk into an empty room
+- Text size, density, timestamps and name colours under your control
+- Choose between light and dark themes, Material You, and different app icons
 
 **Never miss being mentioned**
 
@@ -47,14 +50,14 @@
 **Stay in the conversation**
 
 - Chat bubbles keep a channel floating over whatever else you are doing
-- Reply threads, whispers, and the moderator actions you already have on Twitch
-- Several Twitch accounts, switched from the account page
+- Dedicated whisper and mention inbox
+- Switch between several Twitch accounts
 - Nicknames for chatters, mute filters, blocking and reporting
 
 **Yours, and nobody else's**
 
 - No account beyond your Twitch login, and no Chatter server behind it
-- No ads, no tracking, no analytics — the app talks to Twitch and the emote providers, not to us
+- No ads, no tracking, no analytics - the app only talks to Twitch and the emote providers 
   ([privacy policy](https://derlesh.github.io/Chatter/privacy-policy.html))
 
 ## Install
@@ -63,28 +66,6 @@ Download the APK from the [latest release](https://github.com/derLesh/Chatter/re
 compare it with the SHA-256 published next to it. Chatter needs Android 13 or newer and a Twitch
 account.
 
-## Build it yourself
-
-Register an application in the [Twitch developer console](https://dev.twitch.tv/console/apps) with
-`http://localhost` as its OAuth redirect URL, then put its client ID into `local.properties`:
-
-```properties
-twitch.clientId=your-client-id
-```
-
-```sh
-./gradlew :app:installDebug          # build and install on the connected phone
-./gradlew :app:testDebugUnitTest     # unit tests
-```
-
-## Contributing
-
-Every change someone using the app can notice comes with a one-line entry in
-[`pending-changelog/`](pending-changelog/README.md); releases fold those into
-[`CHANGELOG.md`](CHANGELOG.md) and pick the version from them. [`AGENTS.md`](AGENTS.md) describes
-how the project is put together and the conventions worth matching.
-
 ---
 
-<sub>Chatter is an independent app and is not affiliated with, endorsed by or sponsored by Twitch
-Interactive, Inc.</sub>
+<sub>Chatter is an independent app and is not affiliated with, endorsed by or sponsored by Twitch Interactive, Inc.</sub>
