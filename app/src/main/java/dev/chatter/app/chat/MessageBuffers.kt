@@ -117,6 +117,21 @@ class MessageBuffers(
     }
 
     /**
+     * Gives a message the id Twitch knows it by, in place of the one it went in under. Only the
+     * user's own messages need this: they are shown before Twitch has named them.
+     */
+    fun rename(channel: String, from: String, to: String) {
+        val buffer = buffers[channel] ?: return
+        val known = ids[channel] ?: return
+        val index = buffer.indexOfFirst { it.id == from }
+        if (index < 0) return
+        known.remove(from)
+        // Already there under its real id, e.g. from a history that was quicker: one is enough.
+        if (!known.add(to)) buffer.removeAt(index) else buffer[index] = buffer[index].copy(id = to)
+        markDirty(channel)
+    }
+
+    /**
      * Works every message out again, for emotes that arrived after they were drawn.
      *
      * The bodies are replaced rather than emptied, because the list on screen is compared with

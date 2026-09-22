@@ -130,6 +130,63 @@ class IncomingMessagesTest {
         watcher.cancel()
     }
 
+    // ---- own messages ---------------------------------------------------------------------------
+
+    private fun own(id: String, text: String = id, sentAt: Long = System.currentTimeMillis()) = ChatItem(
+        id = id, channel = "forsen", kind = MessageKind.Chat, timestamp = sentAt,
+        login = "lukas", text = text, isOwn = true,
+    )
+
+    private fun ids() = buffers.messages("forsen").value.map { it.id }
+
+    @Test
+    fun aSentMessageTakesTheIdTwitchAnswersWith() = runTest(dispatcher) {
+        buffers.open("forsen")
+        val watcher = launch { buffers.messages("forsen").collect {} }
+        incoming.sent(own("local-1"))
+        incoming.handle(line("@badges=;id=real-1 :tmi.twitch.tv USERSTATE #forsen"))
+        advanceUntilIdle()
+        assertEquals(listOf("real-1"), ids())
+        watcher.cancel()
+    }
+
+    @Test
+    fun aJoinsUserstateNamesNoMessage() = runTest(dispatcher) {
+        buffers.open("forsen")
+        val watcher = launch { buffers.messages("forsen").collect {} }
+        incoming.sent(own("local-1"))
+        incoming.handle(line("@badges= :tmi.twitch.tv USERSTATE #forsen"))
+        incoming.handle(line("@badges=;id=real-1 :tmi.twitch.tv USERSTATE #forsen"))
+        advanceUntilIdle()
+        assertEquals(listOf("real-1"), ids())
+        watcher.cancel()
+    }
+
+    @Test
+    fun aRefusedMessageLeavesTheNextOneItsOwnId() = runTest(dispatcher) {
+        buffers.open("forsen")
+        val watcher = launch { buffers.messages("forsen").collect {} }
+        incoming.sent(own("local-1"))
+        incoming.sent(own("local-2"))
+        incoming.handle(line("@msg-id=msg_duplicate :tmi.twitch.tv NOTICE #forsen :Your message is identical."))
+        incoming.handle(line("@badges=;id=real-2 :tmi.twitch.tv USERSTATE #forsen"))
+        advanceUntilIdle()
+        assertEquals(listOf("local-1", "real-2"), ids().filter { it.startsWith("local-") || it.startsWith("real-") })
+        watcher.cancel()
+    }
+
+    @Test
+    fun aMessageWhoseAnswerWasLostIsNotGivenTheNextOnesId() = runTest(dispatcher) {
+        buffers.open("forsen")
+        val watcher = launch { buffers.messages("forsen").collect {} }
+        incoming.sent(own("local-1", sentAt = System.currentTimeMillis() - 60_000))
+        incoming.sent(own("local-2"))
+        incoming.handle(line("@badges=;id=real-2 :tmi.twitch.tv USERSTATE #forsen"))
+        advanceUntilIdle()
+        assertEquals(listOf("local-1", "real-2"), ids())
+        watcher.cancel()
+    }
+
     // ---- mentions -------------------------------------------------------------------------------
 
     @Test

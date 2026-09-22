@@ -43,14 +43,51 @@ class IncomingMessages(
 
     fun lastLive(channel: String): Long = lastLive[channel] ?: 0L
 
-    fun clear() = lastLive.clear()
+    /**
+     * The user's own messages that are on screen but not yet named by Twitch, oldest first, per
+     * channel. Twitch never sends them back; the only word of their real id is the USERSTATE that
+     * answers each PRIVMSG it accepted, or a NOTICE for one it refused. Both come in the order the
+     * messages were sent, so the oldest one waiting is always the one being answered.
+     */
+    private val unconfirmed = HashMap<String, ArrayDeque<ChatItem>>()
+
+    /** A message the user just sent, shown under a stand-in id until Twitch names it. */
+    fun sent(item: ChatItem) {
+        buffers.add(item)
+        unconfirmed.getOrPut(item.channel) { ArrayDeque() }.addLast(item)
+    }
+
+    /**
+     * The sent message an answer that arrives now is about. Twitch answers within a second; one
+     * still waiting after [ECHO_TIMEOUT_MS] lost its answer to a dropped connection, and handing
+     * it the id of a later message would put a reply under the wrong words.
+     */
+    private fun answered(channel: String): ChatItem? {
+        val waiting = unconfirmed[channel] ?: return null
+        val now = System.currentTimeMillis()
+        while (waiting.isNotEmpty()) {
+            val oldest = waiting.removeFirst()
+            if (now - oldest.timestamp <= ECHO_TIMEOUT_MS) return oldest
+        }
+        return null
+    }
+
+    fun clear() {
+        lastLive.clear()
+        // An answer from the connection before is not coming any more.
+        unconfirmed.clear()
+    }
 
     fun handle(msg: IrcMessage) {
         val channel = msg.channel
         when (msg.command) {
             "PRIVMSG", "USERNOTICE" -> if (channel != null) onChatMessage(channel, msg)
             "WHISPER" -> InboxWhisper.from(msg)?.let(::onWhisper)
-            "NOTICE" -> if (channel != null) builder.build(msg, "", null, filters().mentions)?.let(buffers::add)
+            "NOTICE" -> if (channel != null) {
+                // Every refusal of a sent message has an id of this shape; its message stays unnamed.
+                if (msg.tag("msg-id")?.startsWith("msg_") == true) answered(channel)
+                builder.build(msg, "", null, filters().mentions)?.let(buffers::add)
+            }
             "CLEARCHAT" -> if (channel != null) onClearChat(channel, msg)
             "CLEARMSG" -> if (channel != null) {
                 msg.tag("target-msg-id")?.let { id -> buffers.markDeleted(channel) { it.id == id } }
@@ -59,7 +96,13 @@ class IncomingMessages(
                 // The first time a channel names its id is when its emotes can be fetched.
                 if (rooms.onRoomState(channel, msg.tags)) rooms.id(channel)?.let(onRoomFound)
             }
-            "USERSTATE" -> if (channel != null) rooms.onUserState(channel, msg.tags)
+            "USERSTATE" -> if (channel != null) {
+                rooms.onUserState(channel, msg.tags)
+                // Only the USERSTATE that answers a PRIVMSG carries an id: that of the message.
+                msg.tag("id")?.let { id ->
+                    answered(channel)?.let { buffers.rename(channel, it.id, id) }
+                }
+            }
             "GLOBALUSERSTATE" -> rooms.onGlobalUserState(msg.tags)
         }
     }
@@ -115,4 +158,9 @@ class IncomingMessages(
             timestamp = System.currentTimeMillis(), systemText = text, text = text,
         )
     )
+
+    private companion object {
+        /** How long a sent message waits for Twitch to name it before it is given up on. */
+        const val ECHO_TIMEOUT_MS = 10_000L
+    }
 }

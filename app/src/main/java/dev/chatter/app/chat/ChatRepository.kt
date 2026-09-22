@@ -238,7 +238,7 @@ class ChatRepository(
         val reply = replyParent?.let {
             ReplyInfo(it.id, it.login.orEmpty(), it.displayName.orEmpty(), it.text)
         }
-        buffers.add(builder.buildOwn(channel, wire, state, auth.account?.login.orEmpty(), rooms.id(channel), reply))
+        incoming.sent(builder.buildOwn(channel, wire, state, auth.account?.login.orEmpty(), rooms.id(channel), reply))
         stats.countSent(channel)
         SendResult.Ok
     }
