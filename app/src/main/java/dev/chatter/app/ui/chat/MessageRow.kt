@@ -24,9 +24,10 @@ import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.CompositingStrategy
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.res.stringResource
@@ -187,13 +188,17 @@ fun MessageRow(
                 ),
             )
             .padding(horizontal = 8.dp, vertical = 2.dp)
-            .alpha(
-                when {
+            // Modulating every draw instead of Modifier.alpha, which composites each dimmed row in
+            // an offscreen layer of its own: with the history dimmed that was tens of thousands of
+            // saveLayers while scrolling. Text and emotes never overlap, so both look the same.
+            .graphicsLayer {
+                alpha = when {
                     item.deleted -> 0.4f
                     item.historical -> HISTORICAL_ALPHA
                     else -> 1f
-                },
-            ),
+                }
+                compositingStrategy = CompositingStrategy.ModulateAlpha
+            },
     ) {
         if (firstMessage) {
             Text(
