@@ -1,1 +1,0 @@
-patch: Stop retrying the chat connection every half minute while the phone has no network

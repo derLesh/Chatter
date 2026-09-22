@@ -1,1 +1,0 @@
-patch: Open the user card half-way even when the chatter wrote a lot, and swipe up for the rest

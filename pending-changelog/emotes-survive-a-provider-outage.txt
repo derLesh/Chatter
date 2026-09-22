@@ -1,1 +1,0 @@
-patch: Keep a provider's emotes when it is briefly unreachable, and say in the chat what is missing

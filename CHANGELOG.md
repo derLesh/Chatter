@@ -3,6 +3,48 @@
 Every release of Chatter, newest first. Written from the entries in `pending-changelog/` by
 `./gradlew releaseVersion`, and shown in the app under Settings → About → Changelog.
 
+## 0.5.0 — 2026-09-22
+- minor: Bring 7TV badges back, the way Chatterino gets them now
+- minor: Log in with several Twitch accounts and switch between them on the account page
+- minor: Put Copy first on the user card instead of Reply, if you like
+- minor: Put emotes into the chat as soon as a provider that was down comes back
+- minor: Reach the privacy policy from Settings -> About
+- minor: Read several channels in one combined chat, each message marked with its channel, and pick where to write
+- minor: Report a chatter from the message sheet, blocking them in the same step
+- minor: Say in the chat whether the recent messages are loading or could not be fetched
+- minor: Say it in a notification when Chatter stops listening in the background
+- minor: See images linked in chat as pictures, from the sites you allow
+- minor: See your Twitch picture, name, ID, account age and followed channels under Account
+- minor: Show the Chatter wordmark on the onboarding and About screens
+- minor: Swipe on past the last channel to come back to the first one
+- minor: Tap a message to reply to it and tap a name for the user card, or pick your own in the settings
+- patch: Ask the emote providers again only when the lists may have changed, not on every app switch
+- patch: Buzz instead of showing a notification for a mention or whisper while Chatter is open
+- patch: Fetch badges that were unreachable at start instead of leaving them out until a restart
+- patch: Find a setting faster: emotes, filters and blocked users each have a place of their own
+- patch: Hide the leading mention of a reply when the chatter's display name is not their login
+- patch: Keep a provider's emotes when it is briefly unreachable, and say in the chat what is missing
+- patch: Keep typing smooth in channels with thousands of emotes
+- patch: Let copies of the same animated emote move in step and load it only once
+- patch: Let your own messages be replied to from the user card
+- patch: Notice a chat connection that dies while logging in instead of waiting for it forever
+- patch: Open a channel without waiting on an emote provider that has gone quiet
+- patch: Open the user card half-way even when the chatter wrote a lot, and swipe up for the rest
+- patch: Pick the name colors and the timestamp from a sheet instead of a long list
+- patch: Pick the same emote as Chatterino and DankChat when BTTV and 7TV share a name
+- patch: Reach the credits and the open source licenses from a page of their own
+- patch: Say in a popup when a service outside Chatter cannot be reached
+- patch: Say on the login screen when the Twitch login ran out instead of just asking again
+- patch: Say once that a service cannot be reached, instead of twice per channel
+- patch: Scroll more smoothly through the dimmed messages from the chat history
+- patch: Shorten and clarify the texts in settings, dialogs and the login screen
+- patch: Show a copy icon on the Copy button of the user card
+- patch: Show the picture the chat will show when a Twitch emote and a channel emote share a name
+- patch: Spend a third of the work on drawing a fast-moving chat
+- patch: Stop notifying about a channel that is open in a bubble, and keep reading the right one after
+- patch: Stop retrying the chat connection every half minute while the phone has no network
+- patch: Stop the background connection from running on after logging out
+
 ## 0.4.0 — 2026-09-20
 - minor: Answer a mention straight from its notification, without opening the app
 - minor: Answer a whisper from the inbox, or send one with /w

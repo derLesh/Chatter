@@ -1,1 +1,0 @@
-minor: Put Copy first on the user card instead of Reply, if you like

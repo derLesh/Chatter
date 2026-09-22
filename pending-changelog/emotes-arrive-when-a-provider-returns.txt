@@ -1,1 +1,0 @@
-minor: Put emotes into the chat as soon as a provider that was down comes back

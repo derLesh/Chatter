@@ -1,1 +1,0 @@
-patch: Stop notifying about a channel that is open in a bubble, and keep reading the right one after

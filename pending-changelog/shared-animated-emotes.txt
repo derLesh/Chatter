@@ -1,1 +1,0 @@
-patch: Let copies of the same animated emote move in step and load it only once

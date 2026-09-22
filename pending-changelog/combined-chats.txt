@@ -1,1 +1,0 @@
-minor: Read several channels in one combined chat, each message marked with its channel, and pick where to write

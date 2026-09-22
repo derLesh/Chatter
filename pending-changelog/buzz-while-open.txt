@@ -1,1 +1,0 @@
-patch: Buzz instead of showing a notification for a mention or whisper while Chatter is open

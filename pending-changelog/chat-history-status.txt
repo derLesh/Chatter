@@ -1,1 +1,0 @@
-minor: Say in the chat whether the recent messages are loading or could not be fetched

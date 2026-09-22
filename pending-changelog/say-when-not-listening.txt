@@ -1,1 +1,0 @@
-minor: Say it in a notification when Chatter stops listening in the background

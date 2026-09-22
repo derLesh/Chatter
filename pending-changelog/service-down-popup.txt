@@ -1,1 +1,0 @@
-patch: Say in a popup when a service outside Chatter cannot be reached

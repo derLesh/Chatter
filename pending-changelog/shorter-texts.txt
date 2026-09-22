@@ -1,1 +1,0 @@
-patch: Shorten and clarify the texts in settings, dialogs and the login screen

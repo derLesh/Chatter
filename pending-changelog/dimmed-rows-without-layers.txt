@@ -1,1 +1,0 @@
-patch: Scroll more smoothly through the dimmed messages from the chat history

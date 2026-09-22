@@ -1,1 +1,0 @@
-patch: Hide the leading mention of a reply when the chatter's display name is not their login
