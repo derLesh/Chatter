@@ -1,0 +1,1 @@
+minor: See your Twitch picture, name, ID, account age and followed channels under Account

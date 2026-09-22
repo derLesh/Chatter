@@ -183,6 +183,10 @@ class AppContainer(private val context: Context) {
                         // Also runs after every token refresh: hands the new token to the connection.
                         connect()
                         if (state.account.userId != userId) {
+                            // Switching accounts, not the first login: what is loaded belongs to
+                            // the account before it, and a block list that stays would go on
+                            // hiding people this account never blocked.
+                            if (userId != null) blocked.clear()
                             userId = state.account.userId
                             chat.resync()
                             launch { emotes.loadGlobal() }

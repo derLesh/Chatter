@@ -416,6 +416,14 @@ fun AppRoot(vm: MainViewModel) {
         showSettings = false
         showInbox = true
     }
+    // Logging the last account out leaves the settings underneath the login screen, and whoever
+    // logs in next would land on the page they were last on rather than in the chat.
+    LaunchedEffect(auth) {
+        if (auth is dev.chatter.app.auth.AuthState.LoggedOut) {
+            showSettings = false
+            showInbox = false
+        }
+    }
     when (auth) {
         dev.chatter.app.auth.AuthState.Loading -> Box(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background))
         dev.chatter.app.auth.AuthState.LoggedOut -> LoginScreen(vm)

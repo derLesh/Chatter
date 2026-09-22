@@ -37,6 +37,7 @@
     <string name="send">Senden</string>
     <string name="replying_to">Antwort an @%1$s: %2$s</string>
     <string name="cancel">Abbrechen</string>
+    <string name="ok">OK</string>
     <string name="emotes_recent">Zuletzt</string>
     <string name="emotes_empty">Hier gibt es noch keine Emotes</string>
 
@@ -137,7 +138,7 @@
     <string name="settings_filters">Filter</string>
     <string name="settings_filters_summary">Stumme Wörter, Regeln, Blockierte</string>
     <string name="settings_notifications_summary">Erwähnungen, Hervorhebungswörter</string>
-    <string name="settings_account_summary">Anmeldung, Backup</string>
+    <string name="settings_account_summary">Konten, Backup</string>
     <string name="settings_about">Über</string>
     <string name="settings_about_summary">Version, Credits</string>
     <string name="settings_channels">Kanäle</string>
@@ -202,8 +203,18 @@
     <string name="settings_load_history">Letzte Nachrichten laden</string>
     <string name="settings_load_history_hint">Beim Öffnen eines Channels die letzten Nachrichten anzeigen (über recent-messages.robotty.de)</string>
     <string name="settings_system_notifications">Benachrichtigungseinstellungen</string>
-    <string name="settings_logged_in">Mit Twitch angemeldet</string>
-    <string name="settings_logout_hint">Melde dich von Chatter ab</string>
+    <string name="settings_group_account_details">Twitch-Profil</string>
+    <string name="settings_group_accounts">Konten</string>
+    <string name="account_id">Twitch-ID</string>
+    <string name="account_created">Konto erstellt</string>
+    <string name="account_following">Folgt</string>
+    <string name="account_on_twitch">Auf Twitch öffnen</string>
+    <string name="account_active">Chattet mit diesem Konto</string>
+    <string name="account_add">Konto hinzufügen</string>
+    <string name="account_add_hint">Mit einem weiteren Twitch-Konto anmelden und jederzeit wechseln</string>
+    <string name="account_logout_title">%1$s abmelden?</string>
+    <string name="account_logout_text">Chatter macht mit deinem anderen Konto weiter.</string>
+    <string name="account_logout_last_text">Es ist dein letztes Konto — Chatter zeigt danach wieder den Anmeldebildschirm.</string>
     <string name="settings_version">Version %1$s</string>
     <string name="settings_credits">Credits &amp; Lizenzen</string>
     <string name="settings_credits_summary">Die Dienste und die Open-Source-Software hinter Chatter</string>
@@ -335,6 +346,10 @@
     <plurals name="settings_blocked_count">
         <item quantity="one">%d blockierter Chatter</item>
         <item quantity="other">%d blockierte Chatter</item>
+    </plurals>
+    <plurals name="account_following_count">
+        <item quantity="one">%1$d Kanal</item>
+        <item quantity="other">%1$d Kanäle</item>
     </plurals>
     <string name="block_user_title">Nutzer blockieren</string>
     <string name="block_user_name">Twitch Username</string>

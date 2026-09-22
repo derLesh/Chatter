@@ -1,12 +1,6 @@
 package dev.chatter.app.ui
 
-import android.annotation.SuppressLint
-import android.graphics.Bitmap
 import android.net.Uri
-import android.view.ViewGroup
-import android.webkit.WebResourceRequest
-import android.webkit.WebView
-import android.webkit.WebViewClient
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.animateFloat
@@ -34,7 +28,6 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Info
 import androidx.compose.material3.Button
 import androidx.compose.material3.Icon
-import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -72,10 +65,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.viewinterop.AndroidView
 import dev.chatter.app.BuildConfig
 import dev.chatter.app.R
-import dev.chatter.app.auth.AuthRepository
 import dev.chatter.app.ui.theme.isAppInDarkTheme
 import dev.chatter.app.ui.theme.readableNameColor
 import kotlin.math.cos
@@ -339,44 +330,5 @@ private fun ScrollingChat(modifier: Modifier) {
                 }
             }
         }
-    }
-}
-
-/** Twitch's login page. Hands the redirect to `http://localhost#access_token=...` to [onRedirect]. */
-@SuppressLint("SetJavaScriptEnabled")
-@Composable
-private fun LoginWebView(url: String, modifier: Modifier, onRedirect: (String) -> Unit) {
-    var loading by remember { mutableStateOf(true) }
-    Box(modifier) {
-        AndroidView(
-            modifier = Modifier.fillMaxSize(),
-            factory = { ctx ->
-                WebView(ctx).apply {
-                    layoutParams = ViewGroup.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT)
-                    settings.javaScriptEnabled = true
-                    settings.setSupportZoom(true)
-                    clearCache(true)
-                    clearFormData()
-                    webViewClient = object : WebViewClient() {
-                        override fun shouldOverrideUrlLoading(view: WebView, request: WebResourceRequest): Boolean {
-                            val target = request.url.toString()
-                            if (!target.startsWith(AuthRepository.REDIRECT_URI)) return false
-                            onRedirect(target)
-                            return true
-                        }
-
-                        override fun onPageStarted(view: WebView, url: String?, favicon: Bitmap?) {
-                            loading = true
-                        }
-
-                        override fun onPageFinished(view: WebView, url: String?) {
-                            loading = false
-                        }
-                    }
-                    loadUrl(url)
-                }
-            },
-        )
-        if (loading) LinearProgressIndicator(Modifier.fillMaxWidth())
     }
 }

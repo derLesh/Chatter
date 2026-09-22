@@ -1,0 +1,1 @@
+minor: Log in with several Twitch accounts and switch between them on the account page

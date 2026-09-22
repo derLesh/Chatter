@@ -129,6 +129,10 @@ class HelixApi(
         )
     }
 
+    /** How many channels [userId] follows. Twitch counts them on the first page of the list. */
+    suspend fun followedCount(userId: String): Int =
+        http.getJson<HelixTotal>(url("channels/followed", "user_id" to userId, "first" to "1"), headers()).total
+
     override suspend fun isFollowing(userId: String, channelId: String): Boolean =
         http.getJson<HelixList<JsonObject>>(url("channels/followed", "user_id" to userId, "broadcaster_id" to channelId), headers())
             .data.isNotEmpty()
@@ -213,6 +217,10 @@ data class HelixList<T>(val data: List<T> = emptyList())
 
 @Serializable
 data class HelixPagedList<T>(val data: List<T> = emptyList(), val pagination: Pagination? = null)
+
+/** A list where only how long it is matters, so none of its entries are parsed. */
+@Serializable
+data class HelixTotal(val total: Int = 0)
 
 @Serializable
 data class Pagination(val cursor: String? = null)

@@ -39,6 +39,7 @@
     <string name="send">Send</string>
     <string name="replying_to">Replying to @%1$s: %2$s</string>
     <string name="cancel">Cancel</string>
+    <string name="ok">OK</string>
     <string name="emotes_recent">Recent</string>
     <string name="emotes_twitch" translatable="false">Twitch</string>
     <string name="emotes_7tv" translatable="false">7TV</string>
@@ -143,7 +144,7 @@
     <string name="settings_filters">Filters</string>
     <string name="settings_filters_summary">Muted words, rules, blocked users</string>
     <string name="settings_notifications_summary">Mentions, highlight words</string>
-    <string name="settings_account_summary">Login, backup</string>
+    <string name="settings_account_summary">Accounts, backup</string>
     <string name="settings_about">About</string>
     <string name="settings_about_summary">Version, credits</string>
     <string name="settings_channels">Channels</string>
@@ -208,8 +209,18 @@
     <string name="settings_load_history">Load recent messages</string>
     <string name="settings_load_history_hint">Show the last messages when opening a channel (via recent-messages.robotty.de)</string>
     <string name="settings_system_notifications">Notification settings</string>
-    <string name="settings_logged_in">Logged in with Twitch</string>
-    <string name="settings_logout_hint">Sign out of Chatter</string>
+    <string name="settings_group_account_details">Twitch profile</string>
+    <string name="settings_group_accounts">Accounts</string>
+    <string name="account_id">Twitch ID</string>
+    <string name="account_created">Account created</string>
+    <string name="account_following">Following</string>
+    <string name="account_on_twitch">Open on Twitch</string>
+    <string name="account_active">Chatting as this account</string>
+    <string name="account_add">Add account</string>
+    <string name="account_add_hint">Log in with another Twitch account and switch whenever you like</string>
+    <string name="account_logout_title">Log %1$s out?</string>
+    <string name="account_logout_text">Chatter carries on with your other account.</string>
+    <string name="account_logout_last_text">It is your last account, so Chatter goes back to the login screen.</string>
     <string name="settings_version">Version %1$s</string>
     <string name="settings_credits">Credits &amp; licenses</string>
     <string name="settings_credits_summary">The services and the open source Chatter is built on</string>
@@ -341,6 +352,10 @@
     <plurals name="settings_blocked_count">
         <item quantity="one">%d blocked chatter</item>
         <item quantity="other">%d blocked chatters</item>
+    </plurals>
+    <plurals name="account_following_count">
+        <item quantity="one">%1$d channel</item>
+        <item quantity="other">%1$d channels</item>
     </plurals>
     <string name="block_user_title">Block user</string>
     <string name="block_user_name">Twitch username</string>

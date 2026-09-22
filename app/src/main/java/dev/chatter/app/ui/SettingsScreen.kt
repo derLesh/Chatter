@@ -25,6 +25,7 @@ import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.safeDrawingPadding
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -104,8 +105,10 @@ import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import coil3.ImageLoader
 import dev.chatter.app.BuildConfig
 import dev.chatter.app.R
+import dev.chatter.app.auth.Account
 import dev.chatter.app.auth.AuthState
 import dev.chatter.app.badges.BadgeProvider
 import dev.chatter.app.chat.ChatItem
@@ -129,10 +132,16 @@ import dev.chatter.app.ui.channels.ManageChannelsPage
 import dev.chatter.app.ui.channels.RenameChannelDialog
 import dev.chatter.app.ui.chat.ChatStyle
 import dev.chatter.app.ui.chat.MessageRow
+import dev.chatter.app.ui.settings.AccountPage
+import dev.chatter.app.ui.settings.AccountRowIcon
 import dev.chatter.app.ui.settings.AddKeywordDialog
 import dev.chatter.app.ui.settings.BlockUserDialog
+import dev.chatter.app.ui.settings.CategoryIcon
 import dev.chatter.app.ui.settings.ConfirmUnblockDialog
+import dev.chatter.app.ui.settings.LinkItem
 import dev.chatter.app.ui.settings.RuleDialog
+import dev.chatter.app.ui.settings.SettingsGroup
+import dev.chatter.app.ui.settings.transparentItem
 import dev.chatter.app.ui.theme.NameColorPalette
 import dev.chatter.app.ui.theme.highlightBackground
 import dev.chatter.app.ui.theme.highlightColor
@@ -182,8 +191,12 @@ private enum class SettingsSubPage(val title: Int) {
 fun SettingsScreen(vm: MainViewModel, onBack: () -> Unit) {
     var page by rememberSaveable { mutableStateOf<SettingsPage?>(null) }
     var subPage by rememberSaveable { mutableStateOf<SettingsSubPage?>(null) }
+    // Twitch's login page, shown over the settings while another account is being added.
+    var addAccount by remember { mutableStateOf<String?>(null) }
+    var addFailed by remember { mutableStateOf<String?>(null) }
     val goBack = {
         when {
+            addAccount != null -> addAccount = null
             subPage != null -> subPage = null
             page != null -> page = null
             else -> onBack()
@@ -193,7 +206,28 @@ fun SettingsScreen(vm: MainViewModel, onBack: () -> Unit) {
 
     val settings by vm.settings.collectAsStateWithLifecycle()
     val auth by vm.authState.collectAsStateWithLifecycle()
-    val login = (auth as? AuthState.LoggedIn)?.account?.login.orEmpty()
+    val account = (auth as? AuthState.LoggedIn)?.account
+    val scope = rememberCoroutineScope()
+
+    addFailed?.let { error ->
+        AlertDialog(
+            onDismissRequest = { addFailed = null },
+            title = { Text(stringResource(R.string.account_add)) },
+            text = { Text(stringResource(R.string.login_failed, error)) },
+            confirmButton = { TextButton(onClick = { addFailed = null }) { Text(stringResource(R.string.ok)) } },
+        )
+    }
+
+    addAccount?.let { url ->
+        LoginWebView(url, Modifier.fillMaxSize().safeDrawingPadding(), signedOut = true) { redirect ->
+            scope.launch {
+                val result = vm.handleRedirect(redirect) ?: return@launch
+                addAccount = null
+                addFailed = result.exceptionOrNull()?.let { it.message ?: it.toString() }
+            }
+        }
+        return
+    }
 
     AnimatedContent(
         targetState = page to subPage,
@@ -245,7 +279,7 @@ fun SettingsScreen(vm: MainViewModel, onBack: () -> Unit) {
                     ChangelogPage(releases, BuildConfig.VERSION_NAME)
                 }
                 null -> when (current) {
-                    null -> Home(login) { page = it }
+                    null -> Home(account, vm.imageLoader) { page = it }
                     SettingsPage.Appearance -> AppearancePage(settings, vm)
                     SettingsPage.Chat -> ChatPage(settings, vm) { subPage = it }
                     SettingsPage.Emotes -> EmotesPage(settings, vm)
@@ -253,7 +287,10 @@ fun SettingsScreen(vm: MainViewModel, onBack: () -> Unit) {
                     SettingsPage.Notifications -> NotificationsPage(settings, vm) { subPage = it }
                     SettingsPage.Channels -> ChannelsPage(vm, settings)
                     SettingsPage.Stats -> StatsPage(vm)
-                    SettingsPage.Account -> AccountPage(login, vm) { vm.logout(); onBack() }
+                    SettingsPage.Account -> {
+                        AccountPage(vm, onAddAccount = { addAccount = vm.addAccountUrl() })
+                        BackupGroup(vm)
+                    }
                     SettingsPage.Support -> SupportPage(vm)
                     SettingsPage.About -> AboutPage { subPage = it }
                 }
@@ -309,16 +346,21 @@ private fun SettingsPageScaffold(title: Int?, onBack: () -> Unit, content: @Comp
 // ---- Pages ------------------------------------------------------------------------------------
 
 @Composable
-private fun Home(login: String, open: (SettingsPage) -> Unit) {
+private fun Home(account: Account?, imageLoader: ImageLoader, open: (SettingsPage) -> Unit) {
     SettingsGroup {
         SettingsPage.entries.filter { it.shown }.forEach { p ->
+            val isAccount = p == SettingsPage.Account && account != null
             item {
                 ListItem(
                     headlineContent = { Text(stringResource(p.title), fontWeight = FontWeight.Medium) },
                     supportingContent = {
-                        Text(if (p == SettingsPage.Account && login.isNotEmpty()) login else stringResource(p.summary))
+                        Text(if (isAccount) account.name else stringResource(p.summary))
                     },
-                    leadingContent = { CategoryIcon(p.icon) },
+                    // The account the app is chatting as says more with its own face on it than
+                    // any icon could, and it is the one row here that is about a person.
+                    leadingContent = {
+                        if (isAccount) AccountRowIcon(account, imageLoader) else CategoryIcon(p.icon)
+                    },
                     colors = transparentItem(),
                     modifier = Modifier.clickable { open(p) },
                 )
@@ -670,34 +712,6 @@ private fun NotificationsPage(settings: Settings, vm: MainViewModel, open: (Sett
     }
     SettingsGroup(R.string.settings_group_bubbles) {
         item { SwitchItem(R.string.settings_bubbles, settings.bubbles, vm::setBubbles, R.string.settings_bubbles_hint) }
-    }
-}
-
-@Composable
-private fun AccountPage(login: String, vm: MainViewModel, onLogout: () -> Unit) {
-    AccountGroup(login, onLogout)
-    BackupGroup(vm)
-}
-
-@Composable
-private fun AccountGroup(login: String, onLogout: () -> Unit) {
-    SettingsGroup {
-        item {
-            ListItem(
-                headlineContent = { Text(login, fontWeight = FontWeight.Medium) },
-                supportingContent = { Text(stringResource(R.string.settings_logged_in)) },
-                leadingContent = { CategoryIcon(Icons.Default.AccountCircle) },
-                colors = transparentItem(),
-            )
-        }
-        item {
-            ListItem(
-                headlineContent = { Text(stringResource(R.string.logout)) },
-                supportingContent = { Text(stringResource(R.string.settings_logout_hint)) },
-                trailingContent = { OutlinedButton(onClick = onLogout) { Text(stringResource(R.string.logout)) } },
-                colors = transparentItem(),
-            )
-        }
     }
 }
 
@@ -1248,89 +1262,6 @@ private val CREDITS = listOf(
 private const val REPO_URL = "https://github.com/derLesh/Chatter"
 private const val SPONSOR_URL = "https://github.com/sponsors/derLesh"
 private const val PRIVACY_URL = "https://derlesh.github.io/Chatter/privacy-policy.html"
-
-@Composable
-private fun LinkItem(title: Int, summary: Int, url: String) =
-    LinkItem(stringResource(title), stringResource(summary), url)
-
-/** A settings row that hands the link to the browser. */
-@Composable
-private fun LinkItem(title: String, summary: String, url: String) {
-    val context = LocalContext.current
-    ListItem(
-        headlineContent = { Text(title) },
-        supportingContent = { Text(summary) },
-        trailingContent = { Icon(Icons.AutoMirrored.Filled.ArrowForward, contentDescription = null) },
-        colors = transparentItem(),
-        modifier = Modifier.clickable { context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url))) },
-    )
-}
-
-// ---- Building blocks ----------------------------------------------------------------------
-
-private class GroupScope {
-    val items = mutableListOf<@Composable () -> Unit>()
-    fun item(content: @Composable () -> Unit) {
-        items += content
-    }
-}
-
-/**
- * Related settings as separate tiles with a small gap (Android 16 style): the outer corners
- * of the group are strongly rounded, the corners between tiles only slightly.
- */
-@Composable
-private fun SettingsGroup(title: Int? = null, build: GroupScope.() -> Unit) {
-    val items = GroupScope().apply(build).items
-    Column {
-        if (title != null) {
-            Text(
-                stringResource(title),
-                style = MaterialTheme.typography.titleSmall,
-                color = MaterialTheme.colorScheme.primary,
-                modifier = Modifier.padding(start = 16.dp, bottom = 8.dp),
-            )
-        }
-        Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
-            items.forEachIndexed { i, content ->
-                Surface(
-                    color = MaterialTheme.colorScheme.surfaceContainer,
-                    shape = tileShape(i, items.size),
-                    modifier = Modifier.fillMaxWidth(),
-                ) {
-                    Box(Modifier.padding(vertical = 2.dp)) { content() }
-                }
-            }
-        }
-    }
-}
-
-private fun tileShape(index: Int, count: Int): RoundedCornerShape {
-    val outer = 24.dp
-    val inner = 4.dp
-    return RoundedCornerShape(
-        topStart = if (index == 0) outer else inner,
-        topEnd = if (index == 0) outer else inner,
-        bottomStart = if (index == count - 1) outer else inner,
-        bottomEnd = if (index == count - 1) outer else inner,
-    )
-}
-
-@Composable
-private fun CategoryIcon(icon: ImageVector) {
-    Box(
-        contentAlignment = Alignment.Center,
-        modifier = Modifier
-            .size(40.dp)
-            .clip(CircleShape)
-            .background(MaterialTheme.colorScheme.primaryContainer),
-    ) {
-        Icon(icon, contentDescription = null, tint = MaterialTheme.colorScheme.onPrimaryContainer)
-    }
-}
-
-@Composable
-private fun transparentItem() = ListItemDefaults.colors(containerColor = Color.Transparent)
 
 private val THEME_MODES = listOf(
     ThemeMode.System to R.string.theme_system,
