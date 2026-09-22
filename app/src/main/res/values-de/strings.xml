@@ -206,7 +206,6 @@
     <string name="settings_group_accounts">Konten</string>
     <string name="account_id">%1$s</string>
     <string name="account_copy_id">Twitch-ID kopieren</string>
-    <string name="account_on_twitch">Auf Twitch öffnen</string>
     <string name="account_active">Chattet mit diesem Konto</string>
     <string name="account_switch_to">Als %1$s chatten</string>
     <string name="account_add">Konto hinzufügen</string>

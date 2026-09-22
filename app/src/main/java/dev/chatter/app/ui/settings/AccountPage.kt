@@ -1,11 +1,10 @@
 package dev.chatter.app.ui.settings
 
-import android.content.Intent
-import android.net.Uri
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -22,7 +21,6 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.automirrored.filled.ExitToApp
 import androidx.compose.material.icons.filled.AccountCircle
 import androidx.compose.material.icons.filled.Add
@@ -42,10 +40,12 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalClipboardManager
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.onLongClick
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -125,14 +125,15 @@ fun AccountPage(vm: MainViewModel, onAddAccount: () -> Unit) {
 /**
  * The account in one card: its picture, its name with the Twitch id beside it, and the two
  * things Twitch knows that a chatter cannot see anywhere else — how old the account is and
- * whether it is an affiliate or a partner. Tapping it opens the profile on Twitch; holding it
- * copies the id, which is what a bug report or a supporter claim asks for.
+ * whether it is an affiliate or a partner. Holding it copies the id, which is what a bug report
+ * or a supporter claim asks for.
  */
 @Composable
 private fun ProfileCard(account: Account, profile: HelixUser?, following: Int?, imageLoader: ImageLoader) {
-    val context = LocalContext.current
     @Suppress("DEPRECATION")
     val clipboard = LocalClipboardManager.current
+    val copyLabel = stringResource(R.string.account_copy_id)
+    val copyId = { clipboard.setText(AnnotatedString(account.userId)) }
     val subtitle = listOfNotNull(
         broadcasterType(profile),
         following?.let { pluralStringResource(R.plurals.account_following_summary, it, it) },
@@ -147,15 +148,10 @@ private fun ProfileCard(account: Account, profile: HelixUser?, following: Int?, 
             verticalAlignment = Alignment.CenterVertically,
             modifier = Modifier
                 .fillMaxWidth()
-                .combinedClickable(
-                    onClick = {
-                        val url = "https://twitch.tv/${account.login}"
-                        context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url)))
-                    },
-                    onLongClick = { clipboard.setText(AnnotatedString(account.userId)) },
-                    onClickLabel = stringResource(R.string.account_on_twitch),
-                    onLongClickLabel = stringResource(R.string.account_copy_id),
-                )
+                // Held, not tapped: the id is worth copying and nothing else on the card is
+                // worth opening, and a card that ripples under every tap promises otherwise.
+                .pointerInput(account.userId) { detectTapGestures(onLongPress = { copyId() }) }
+                .semantics { onLongClick(copyLabel) { copyId(); true } }
                 .padding(horizontal = 20.dp, vertical = 18.dp),
         ) {
             Avatar(account, imageLoader, 72.dp)
@@ -193,11 +189,6 @@ private fun ProfileCard(account: Account, profile: HelixUser?, following: Int?, 
                     )
                 }
             }
-            Icon(
-                Icons.AutoMirrored.Filled.ArrowForward,
-                contentDescription = null,
-                tint = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
         }
     }
 }

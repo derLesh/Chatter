@@ -212,7 +212,6 @@
     <string name="settings_group_accounts">Accounts</string>
     <string name="account_id">%1$s</string>
     <string name="account_copy_id">Copy Twitch ID</string>
-    <string name="account_on_twitch">Open on Twitch</string>
     <string name="account_active">Chatting as this account</string>
     <string name="account_switch_to">Chat as %1$s</string>
     <string name="account_add">Add account</string>
