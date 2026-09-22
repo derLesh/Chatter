@@ -1,0 +1,1 @@
+patch: Show a copy icon on the Copy button of the user card

@@ -26,7 +26,6 @@ import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.Person
-import androidx.compose.material.icons.filled.Share
 import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -149,7 +148,7 @@ fun UserCardSheet(
                         if (canReply) ActionButton(Icons.AutoMirrored.Filled.Send, R.string.action_reply) { onReply(); onDismiss() }
                     }
                     val copy: @Composable RowScope.() -> Unit = {
-                        ActionButton(Icons.Default.Share, R.string.action_copy) {
+                        ActionButton(ImageVector.vectorResource(R.drawable.ic_content_copy), R.string.action_copy) {
                             clipboard.setText(AnnotatedString(item.text.ifEmpty { item.systemText.orEmpty() }))
                             onDismiss()
                         }
