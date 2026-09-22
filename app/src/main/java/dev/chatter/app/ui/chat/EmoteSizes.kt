@@ -33,13 +33,16 @@ object EmoteSizes {
         if (emote.sizeKnown) emote.aspectRatio else slot(emote.url).value ?: emote.aspectRatio
 
     /** Pass as `onSuccess` of the emote's AsyncImage. */
-    fun onLoaded(emote: Emote): ((AsyncImagePainter.State.Success) -> Unit)? {
+    fun onLoaded(emote: Emote): ((AsyncImagePainter.State.Success) -> Unit)? =
+        onSize(emote)?.let { measure -> { state -> measure(state.result.image.width, state.result.image.height) } }
+
+    /** Pass as `onLoaded` of the emote's [SharedEmoteImage]. */
+    fun onSize(emote: Emote): ((width: Int, height: Int) -> Unit)? {
         if (emote.sizeKnown) return null
         val slot = slot(emote.url)
         if (slot.value != null) return null
-        return { state ->
-            val image = state.result.image
-            if (image.width > 0 && image.height > 0) slot.value = image.width.toFloat() / image.height
+        return { width, height ->
+            if (width > 0 && height > 0) slot.value = width.toFloat() / height
         }
     }
 }

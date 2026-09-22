@@ -24,6 +24,7 @@ import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.preferredFrameRate
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.CompositingStrategy
@@ -98,6 +99,7 @@ private const val HIGHLIGHT_ALPHA = 0.2f
 /** Messages loaded from history are clearly dimmed so live chat stands out. */
 private const val HISTORICAL_ALPHA = 0.5f
 private const val EMOTE_EM = 2.1f
+private const val EMOTE_FRAME_RATE = 30f
 /** Big enough to see what was linked, small enough that one picture is not the whole screen. */
 private val IMAGE_MAX_WIDTH = 220.dp
 private val IMAGE_MAX_HEIGHT = 180.dp
@@ -301,14 +303,13 @@ private fun inlineFor(data: InlineData, loader: ImageLoader, onEmoteClick: ((Seg
         InlineTextContent(
             Placeholder((EMOTE_EM * aspect).em, EMOTE_EM.em, PlaceholderVerticalAlign.Center),
         ) {
-            Box(Modifier.fillMaxSize().then(if (onEmoteClick != null) Modifier.clickable { onEmoteClick(data.seg) } else Modifier)) {
+            Box(Modifier.fillMaxSize().preferredFrameRate(EMOTE_FRAME_RATE).then(if (onEmoteClick != null) Modifier.clickable { onEmoteClick(data.seg) } else Modifier)) {
                 (listOf(base) + data.seg.overlays).forEach { e ->
-                    AsyncImage(
-                        model = e.url,
+                    SharedEmoteImage(
+                        url = e.url,
                         contentDescription = e.name,
-                        imageLoader = loader,
-                        contentScale = ContentScale.Fit,
-                        onSuccess = EmoteSizes.onLoaded(e),
+                        loader = loader,
+                        onLoaded = EmoteSizes.onSize(e),
                         modifier = Modifier.fillMaxSize(),
                     )
                 }
