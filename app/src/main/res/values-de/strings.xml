@@ -196,7 +196,9 @@
     <string name="settings_logged_in">Mit Twitch angemeldet</string>
     <string name="settings_logout_hint">Melde dich von Chatter ab</string>
     <string name="settings_version">Version %1$s</string>
-    <string name="settings_credits">Credits</string>
+    <string name="settings_credits">Credits &amp; Lizenzen</string>
+    <string name="settings_credits_summary">Die Dienste und die Open-Source-Software hinter Chatter</string>
+    <string name="settings_credits_services">Dienste</string>
     <string name="settings_credits_twitch">Twitch</string>
     <string name="settings_credits_twitch_summary">Chat, Emotes und Badges</string>
     <string name="settings_credits_seventv">7TV</string>

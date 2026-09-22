@@ -174,6 +174,7 @@ private enum class SettingsSubPage(val title: Int) {
     ImageHosts(R.string.settings_image_hosts),
     Rules(R.string.settings_rules),
     Changelog(R.string.settings_changelog),
+    Credits(R.string.settings_credits),
 }
 
 @Composable
@@ -237,6 +238,7 @@ fun SettingsScreen(vm: MainViewModel, onBack: () -> Unit) {
                 )
                 SettingsSubPage.ImageHosts -> ImageHostsPage(settings.imageHosts, vm)
                 SettingsSubPage.Rules -> RulesPage(vm)
+                SettingsSubPage.Credits -> CreditsPage()
                 SettingsSubPage.Changelog -> {
                     val releases by vm.releases.collectAsStateWithLifecycle()
                     ChangelogPage(releases, BuildConfig.VERSION_NAME)
@@ -252,7 +254,7 @@ fun SettingsScreen(vm: MainViewModel, onBack: () -> Unit) {
                     SettingsPage.Stats -> StatsPage(vm)
                     SettingsPage.Account -> AccountPage(login, vm) { vm.logout(); onBack() }
                     SettingsPage.Support -> SupportPage(vm)
-                    SettingsPage.About -> AboutPage(vm) { subPage = it }
+                    SettingsPage.About -> AboutPage { subPage = it }
                 }
             }
         }
@@ -664,6 +666,12 @@ private fun NotificationsPage(settings: Settings, vm: MainViewModel, open: (Sett
 
 @Composable
 private fun AccountPage(login: String, vm: MainViewModel, onLogout: () -> Unit) {
+    AccountGroup(login, onLogout)
+    BackupGroup(vm)
+}
+
+@Composable
+private fun AccountGroup(login: String, onLogout: () -> Unit) {
     SettingsGroup {
         item {
             ListItem(
@@ -997,8 +1005,7 @@ private fun formatNumber(n: Long): String = NumberFormat.getIntegerInstance().fo
 private fun formatDay(at: Long): String = DateFormat.getDateInstance(DateFormat.MEDIUM).format(Date(at))
 
 @Composable
-private fun AboutPage(vm: MainViewModel, open: (SettingsSubPage) -> Unit) {
-    var shownLicense by remember { mutableStateOf<Dependency?>(null) }
+private fun AboutPage(open: (SettingsSubPage) -> Unit) {
     // The wordmark, which already says the name, so no heading repeats it underneath.
     Column(
         horizontalAlignment = Alignment.CenterHorizontally,
@@ -1030,9 +1037,35 @@ private fun AboutPage(vm: MainViewModel, open: (SettingsSubPage) -> Unit) {
         item { LinkItem(R.string.settings_source_code, R.string.settings_source_code_summary, REPO_URL) }
         item { LinkItem(R.string.settings_report_issue, R.string.settings_report_issue_summary, "$REPO_URL/issues/new") }
         item { LinkItem(R.string.settings_privacy, R.string.settings_privacy_summary, PRIVACY_URL) }
+        item {
+            ListItem(
+                headlineContent = { Text(stringResource(R.string.settings_credits)) },
+                supportingContent = { Text(stringResource(R.string.settings_credits_summary)) },
+                trailingContent = { Icon(Icons.AutoMirrored.Filled.ArrowForward, contentDescription = null) },
+                colors = transparentItem(),
+                modifier = Modifier.clickable { open(SettingsSubPage.Credits) },
+            )
+        }
     }
-    BackupGroup(vm)
-    SettingsGroup(R.string.settings_credits) {
+    // Twitch's branding rules ask every third-party client to say it is not one of theirs.
+    Text(
+        stringResource(R.string.settings_twitch_disclaimer),
+        style = MaterialTheme.typography.bodySmall,
+        color = MaterialTheme.colorScheme.onSurfaceVariant,
+        textAlign = TextAlign.Center,
+        modifier = Modifier.fillMaxWidth().padding(horizontal = 32.dp, vertical = 20.dp),
+    )
+}
+
+/**
+ * Who Chatter is built on: the services it talks to and the libraries it is made of. Two long
+ * lists that are read once out of curiosity, which is a page of their own rather than the tail
+ * end of everything else the about page has to say.
+ */
+@Composable
+private fun CreditsPage() {
+    var shownLicense by remember { mutableStateOf<Dependency?>(null) }
+    SettingsGroup(R.string.settings_credits_services) {
         CREDITS.forEach { (title, summary, url) ->
             item { LinkItem(title, summary, url) }
         }
@@ -1050,14 +1083,6 @@ private fun AboutPage(vm: MainViewModel, open: (SettingsSubPage) -> Unit) {
             }
         }
     }
-    // Twitch's branding rules ask every third-party client to say it is not one of theirs.
-    Text(
-        stringResource(R.string.settings_twitch_disclaimer),
-        style = MaterialTheme.typography.bodySmall,
-        color = MaterialTheme.colorScheme.onSurfaceVariant,
-        textAlign = TextAlign.Center,
-        modifier = Modifier.fillMaxWidth().padding(horizontal = 32.dp, vertical = 20.dp),
-    )
     shownLicense?.let { dependency ->
         LicenseSheet(dependency, onDismiss = { shownLicense = null })
     }
