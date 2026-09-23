@@ -66,6 +66,12 @@ Download the APK from the [latest release](https://github.com/derLesh/Chatter/re
 compare it with the SHA-256 published next to it. Chatter needs Android 13 or newer and a Twitch
 account.
 
+## License
+
+The source code is public so you can read it, check what the app does and contribute, but Chatter
+is not open source. You may build it for your own use; you may not publish it, or use its code in
+an app of your own, without asking first. The [LICENSE](LICENSE) has the details.
+
 ---
 
 <sub>Chatter is an independent app and is not affiliated with, endorsed by or sponsored by Twitch Interactive, Inc.</sub>

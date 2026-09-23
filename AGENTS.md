@@ -86,9 +86,10 @@ secrets reach exactly one step, the one that builds; tests and lint never see th
 `play_track` input uploads the bundle to that Play track; `none`, the default, uploads nowhere.
 
 `docs/play-store/` holds what the Play Console needs — the data safety answers, the foreground
-service justification and the listing text. When the app's network or storage behaviour changes,
-`docs/privacy-policy.html` and `docs/play-store/data-safety.md` change with it: they are
-declarations, and a stale one is a policy violation.
+service justification and the listing text. It is in `.gitignore` and lives only on the
+maintainer's machine, so a fresh clone does not have it. When the app's network or storage
+behaviour changes, `docs/privacy-policy.html` and `docs/play-store/data-safety.md` change with it:
+they are declarations, and a stale one is a policy violation.
 
 What it reads from Settings → Secrets and variables → Actions:
 

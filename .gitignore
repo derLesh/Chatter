@@ -7,3 +7,6 @@ local.properties
 captures/
 .cxx/
 __pycache__/
+
+# Play Console notes, kept out of the public repository
+docs/play-store/

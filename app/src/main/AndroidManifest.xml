@@ -75,8 +75,8 @@
             android:foregroundServiceType="specialUse">
             <!--
                 Google reads this value when it reviews the specialUse declaration, so it says why
-                no other type fits: there is no push to fall back on. docs/play-store/ holds the
-                longer version of the same argument, for the form in the Play Console.
+                no other type fits: there is no push to fall back on. The form in the Play Console
+                carries the longer version of the same argument.
             -->
             <property
                 android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"

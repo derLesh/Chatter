@@ -1,0 +1,46 @@
+Chatter License
+
+Copyright (c) 2026 Lukas (github.com/derLesh). All rights reserved.
+
+The source code of Chatter is published so that people can read it, learn from it, check what the
+app does, report problems and contribute improvements. It is not open source: publishing it grants
+none of the rights an open source license would, except those listed below.
+
+1. What you may do
+
+   a. View and read the source code, and fork this repository on GitHub as far as GitHub's Terms of
+      Service allow.
+   b. Build the app from this source code and run it on your own devices, for your own personal,
+      non-commercial use.
+   c. Modify the source code in order to propose those changes back to this repository, for example
+      as a pull request.
+
+2. What you may not do without the prior written permission of the copyright holder
+
+   a. Publish, distribute, sell or otherwise make available the app, a modified version of it, or
+      any app built from this source code — in the Google Play Store, in any other store, as an APK
+      or in any other form.
+   b. Use this source code, in whole or in part, in another app, product or service of your own.
+   c. Remove or change this license or the copyright notice.
+
+3. Contributions
+
+   By submitting a contribution to this repository (a pull request, a patch or anything else), you
+   confirm that you have the right to do so, and you grant the copyright holder a perpetual,
+   worldwide, royalty-free, irrevocable license to use, modify, distribute and relicense that
+   contribution as part of Chatter.
+
+4. Third-party components
+
+   Libraries and other components that Chatter uses remain under their own licenses. The app lists
+   them under Settings → About → Credits & licenses.
+
+5. No warranty
+
+   THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT
+   NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
+   NONINFRINGEMENT. IN NO EVENT SHALL THE COPYRIGHT HOLDER BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+   LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
+   CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+
+For any use not covered here, ask first: https://github.com/derLesh/Chatter/issues
