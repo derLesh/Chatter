@@ -322,6 +322,18 @@ class MessageBuffersTest {
     }
 
     @Test
+    fun aSharedChatMessageIsOneRowAsWrittenInItsOwnChannel() = watchingCombined { shown ->
+        // Each channel of the session gets a copy under an id of its own; only source-id is shared.
+        buffers.add(at("forsen", "f-copy", 100).copy(sharedId = "s1"))
+        buffers.add(at("xqc", "x-copy", 100).copy(sharedId = "s1", sourceRoomId = "forsen-id"))
+        // Written in a partner that is not in the combined chat: both copies are partners'.
+        buffers.add(at("forsen", "f-other", 200).copy(sharedId = "s2", sourceRoomId = "third"))
+        buffers.add(at("xqc", "x-other", 200).copy(sharedId = "s2", sourceRoomId = "third"))
+        advanceUntilIdle()
+        assertEquals(listOf("f-copy", "x-other"), shown().map { it.id })
+    }
+
+    @Test
     fun aCombinedChatFollowsWhenItsChannelsChange() = watchingCombined { shown ->
         buffers.open("moondye7")
         buffers.add(at("xqc", "x1", 100))

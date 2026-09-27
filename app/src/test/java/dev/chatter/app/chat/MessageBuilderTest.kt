@@ -185,6 +185,44 @@ class MessageBuilderTest {
     }
 
     @Test
+    fun sharedChatMessagesFromAPartnerWearTheBadgesOfTheirChannel() {
+        val asked = mutableListOf<Pair<String?, String?>>()
+        val builder = MessageBuilder(emotes, { channelId, tag, _ -> asked += channelId to tag; emptyList() })
+        val tags = "room-id=1;source-room-id=2;source-id=shared;badges=subscriber/0;" +
+            "source-badges=moderator/1,subscriber/12;source-badge-info=subscriber/14"
+        val item = builder.build(privmsg("hi", tags), "lukas", "1", mentions)!!
+        item.body.prepare()
+
+        assertEquals("2", item.sourceRoomId)
+        assertEquals("shared", item.sharedId)
+        // Looked up where they were earned, not in the channel the copy arrived in.
+        assertEquals(listOf<Pair<String?, String?>>("2" to "moderator/1,subscriber/12"), asked)
+    }
+
+    @Test
+    fun sharedChatMessagesWrittenHereAreNotFromAPartner() {
+        val item = build(privmsg("hi", "room-id=1;source-room-id=1;source-id=x;source-badges=vip/1"))
+        assertEquals(null, item.sourceRoomId)
+        assertEquals("x", item.sharedId)
+
+        val plain = build(privmsg("hi", "room-id=1"))
+        assertEquals(null, plain.sourceRoomId)
+        assertEquals(null, plain.sharedId)
+    }
+
+    @Test
+    fun sharedChatNoticesAreMarkedAsWell() {
+        val msg = IrcMessage.parse(
+            "@id=n;login=sub;display-name=Sub;msg-id=sharedchatnotice;source-msg-id=sub;room-id=1;" +
+                "source-room-id=2;source-id=s;system-msg=Sub\\ssubscribed. :tmi.twitch.tv USERNOTICE #chan",
+        )!!
+        val item = builder.build(msg, "lukas", "1", mentions)!!
+        assertEquals(MessageKind.UserNotice, item.kind)
+        assertEquals("2", item.sourceRoomId)
+        assertEquals("s", item.sharedId)
+    }
+
+    @Test
     fun parseColor() {
         assertEquals(0xFFFF0000.toInt(), MessageBuilder.parseColor("#FF0000"))
         assertEquals(null, MessageBuilder.parseColor(""))

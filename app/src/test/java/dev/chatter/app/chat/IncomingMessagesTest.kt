@@ -211,6 +211,18 @@ class IncomingMessagesTest {
     }
 
     @Test
+    fun aSharedChatMentionInTwoOpenChannelsRingsOnce() = runTest(dispatcher) {
+        buffers.open("forsen")
+        buffers.open("xqc")
+        val tags = "source-room-id=1;source-id=s1"
+        incoming.handle(line("@id=a;room-id=1;$tags :someone!someone@someone.tmi.twitch.tv PRIVMSG #forsen :hey lukas"))
+        incoming.handle(line("@id=b;room-id=2;$tags :someone!someone@someone.tmi.twitch.tv PRIVMSG #xqc :hey lukas"))
+
+        assertEquals(listOf("a"), mentioned.map { it.first.id })
+        assertEquals(1, stats.mentions)
+    }
+
+    @Test
     fun theUsersOwnMessagesAreNeitherUnreadNorMentions() = runTest(dispatcher) {
         buffers.open("forsen")
         incoming.handle(privmsg("lukas", "lukas talking to himself"))

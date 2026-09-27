@@ -85,6 +85,8 @@ fun ChannelTopBar(
     unreadMessages: Map<String, Int>,
     roomState: RoomState?,
     roleBadge: Badge?,
+    /** The Shared Chat partners of [active], or null while it shares its chat with nobody. */
+    sharedWith: List<String>?,
     connection: ConnectionState,
     showUnread: Boolean,
     hiddenUnread: Set<String>,
@@ -136,7 +138,7 @@ fun ChannelTopBar(
                         Spacer(Modifier.width(10.dp))
                         Column(Modifier.weight(1f, fill = false)) {
                             Text(i?.displayName ?: active, style = MaterialTheme.typography.titleMedium, maxLines = 1)
-                            ChannelStatus(connection, roomState, roleBadge, imageLoader)
+                            ChannelStatus(connection, roomState, roleBadge, sharedWith, imageLoader)
                         }
                     } else {
                         Text(stringResource(R.string.no_channels_title), style = MaterialTheme.typography.titleMedium)
@@ -242,10 +244,18 @@ private fun UnreadStrip(
     }
 }
 
-/** The user's role badge and the active chat modes as small chips, next to the settings icon. */
+/**
+ * The user's role badge, a Shared Chat that is running and the active chat modes, as the line
+ * under the channel's name.
+ */
 @Composable
-private fun ChannelModes(state: RoomState?, roleBadge: Badge?, imageLoader: ImageLoader) {
+private fun ChannelModes(state: RoomState?, roleBadge: Badge?, sharedWith: List<String>?, imageLoader: ImageLoader) {
     val modes = buildList {
+        // First: it changes whose messages the chat is full of, which no mode does.
+        if (sharedWith != null) add(
+            if (sharedWith.isEmpty()) stringResource(R.string.shared_chat)
+            else stringResource(R.string.shared_chat_with, sharedWith.joinToString(", ")),
+        )
         if (state == null) return@buildList
         if (state.slow > 0) add(stringResource(R.string.mode_slow, state.slow))
         if (state.followersOnly == 0) add(stringResource(R.string.mode_followers))
@@ -296,6 +306,7 @@ internal fun ChannelStatus(
     connection: ConnectionState,
     state: RoomState?,
     roleBadge: Badge?,
+    sharedWith: List<String>?,
     imageLoader: ImageLoader,
 ) {
     // A dropped connection is the one thing worth saying in words; it also makes the role and
@@ -309,7 +320,7 @@ internal fun ChannelStatus(
         )
         return
     }
-    ChannelModes(state, roleBadge, imageLoader)
+    ChannelModes(state, roleBadge, sharedWith, imageLoader)
 }
 
 /**

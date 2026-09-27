@@ -119,6 +119,13 @@ data class ChatItem(
      * are dropped from the top.
      */
     val alternate: Boolean = false,
+    /**
+     * Twitch's `source-id`, set while the channel shares its chat: every channel of the session
+     * gets a copy of the message under an id of its own, and this is the one they have in common.
+     */
+    val sharedId: String? = null,
+    /** The id of the Shared Chat partner this was written in; null for a message written here. */
+    val sourceRoomId: String? = null,
 ) {
     val canReply: Boolean get() = kind == MessageKind.Chat || kind == MessageKind.Action
 

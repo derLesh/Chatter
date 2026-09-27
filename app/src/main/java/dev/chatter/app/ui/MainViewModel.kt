@@ -88,6 +88,10 @@ class MainViewModel(private val c: AppContainer) : ViewModel() {
     val powerSaveMode = c.powerSaveMode
     val roomStates = c.chat.rooms.states
     val roles = c.chat.rooms.roles
+    /** The Shared Chat partners of every channel that shares its chat right now, by channel. */
+    val sharedChats = c.chat.sharedChats.sessions
+    /** Name and picture of every Shared Chat partner met so far, by channel id. */
+    val chatPartners = c.chat.sharedChats.partners
     val emoteVersion = c.emotes.version
     val blockedUsers = c.blocked.blocked
     val blockedLogins = c.blocked.logins

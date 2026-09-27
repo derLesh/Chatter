@@ -267,6 +267,8 @@
     <string name="mode_subs">Subs</string>
     <string name="mode_emotes">Nur Emotes</string>
     <string name="mode_unique">Unique</string>
+    <string name="shared_chat">Geteilter Chat</string>
+    <string name="shared_chat_with">Geteilter Chat mit %1$s</string>
     <string name="settings_group_text">Text</string>
     <string name="settings_text_size_sample">Hallo Chat, so groß werden Nachrichten angezeigt.</string>
     <string name="settings_smooth_scrolling">Weiches Scrollen</string>

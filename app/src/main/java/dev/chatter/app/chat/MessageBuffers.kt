@@ -281,10 +281,19 @@ class MessageBuffers(
             if (showDeleted || !item.deleted) merged.add(item)
         }
 
-        // The list keys its rows by id. Twitch's ids are unique across channels, but one message
-        // shown in two of them (a shared chat) would be the same row twice.
+        // One message of a Shared Chat arrives in every channel of the session, each copy under an
+        // id of its own, and only the shared id says they are one. It is shown once, as the copy
+        // of the channel it was written in wherever that one is part of the combined chat.
+        val native = merged.mapNotNullTo(HashSet()) { item -> item.sharedId.takeIf { item.sourceRoomId == null } }
         val seen = HashSet<String>(merged.size)
-        val unique = merged.asReversed().filter { seen.add(it.id) }.take(settings.value.messageLimit).asReversed()
+        val unique = merged.asReversed().filter { item ->
+            val shared = item.sharedId
+            when {
+                shared == null -> seen.add(item.id)
+                item.sourceRoomId != null && shared in native -> false
+                else -> seen.add(shared)
+            }
+        }.take(settings.value.messageLimit).asReversed()
 
         val before = groupRows[key].orEmpty()
         val rows = HashMap<String, GroupRow>(unique.size)

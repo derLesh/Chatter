@@ -48,6 +48,18 @@ class HelixApi(
         http.getJson<HelixList<HelixUser>>(u, headers()).data
     }
 
+    /** The same as [users], for channels only known by their id — a Shared Chat partner's. */
+    suspend fun usersById(ids: List<String>): List<HelixUser> = ids.chunked(100).flatMap { batch ->
+        val u = "https://api.twitch.tv/helix/users".toHttpUrl().newBuilder()
+            .apply { batch.forEach { addQueryParameter("id", it) } }.build().toString()
+        http.getJson<HelixList<HelixUser>>(u, headers()).data
+    }
+
+    /** The Shared Chat session [broadcasterId] is in, or null while it shares its chat with nobody. */
+    suspend fun sharedChatSession(broadcasterId: String): HelixSharedChatSession? =
+        http.getJson<HelixList<HelixSharedChatSession>>(url("shared_chat/session", "broadcaster_id" to broadcasterId), headers())
+            .data.firstOrNull()
+
     suspend fun liveStreams(logins: List<String>): List<HelixStream> = logins.chunked(100).flatMap { batch ->
         val u = "https://api.twitch.tv/helix/streams".toHttpUrl().newBuilder()
             .addQueryParameter("first", "100")
@@ -236,6 +248,15 @@ data class HelixUser(
     /** "partner", "affiliate" or "". */
     @SerialName("broadcaster_type") val broadcasterType: String = "",
 )
+
+@Serializable
+data class HelixSharedChatSession(
+    @SerialName("host_broadcaster_id") val hostId: String = "",
+    val participants: List<HelixSharedChatParticipant> = emptyList(),
+)
+
+@Serializable
+data class HelixSharedChatParticipant(@SerialName("broadcaster_id") val broadcasterId: String)
 
 @Serializable
 data class HelixStream(

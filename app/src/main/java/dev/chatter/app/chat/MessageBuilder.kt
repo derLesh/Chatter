@@ -105,6 +105,8 @@ class MessageBuilder(
         channelId: String?,
         ownMessage: Boolean,
         strippedPrefix: Int = 0,
+        /** Where the badges were earned: a Shared Chat partner's message wears that channel's. */
+        badgeChannelId: String? = channelId,
     ) = MessageBody.lazily(
         segments = {
             val text = if (strippedPrefix == 0) rawBody else rawBody.substring(strippedPrefix)
@@ -117,7 +119,7 @@ class MessageBuilder(
             }
             segments(channel, text, ranges, channelId, ownMessage)
         },
-        badges = { badges.resolve(channelId, badgesTag, userId) },
+        badges = { badges.resolve(badgeChannelId, badgesTag, userId) },
         // Asked after the message has been built: a provider that was unreachable may still turn
         // up, and then this message is built once more with its emotes in it.
         worthKeeping = { !emotes.complete(channelId) },
@@ -143,6 +145,8 @@ class MessageBuilder(
         val body = if (stripped == 0) raw else raw.substring(stripped)
 
         val isOwn = login.equals(selfLogin, ignoreCase = true)
+        val roomId = channelId ?: msg.tag("room-id")
+        val partner = partnerRoom(msg, roomId)
         return ChatItem(
             id = msg.tag("id") ?: UUID.randomUUID().toString(),
             channel = channel,
@@ -152,9 +156,9 @@ class MessageBuilder(
             displayName = msg.tag("display-name") ?: login,
             color = parseColor(msg.tag("color")),
             body = deferred(
-                channel, raw, emotesTag = msg.tag("emotes"), badgesTag = msg.tag("badges"),
-                userId = msg.tag("user-id"), channelId = channelId ?: msg.tag("room-id"),
-                ownMessage = false, strippedPrefix = stripped,
+                channel, raw, emotesTag = msg.tag("emotes"), badgesTag = badgesOf(msg),
+                userId = msg.tag("user-id"), channelId = roomId,
+                ownMessage = false, strippedPrefix = stripped, badgeChannelId = partner ?: roomId,
             ),
             text = body,
             isMention = !isOwn && (mentions.matches(body) || reply?.parentLogin.equals(selfLogin, ignoreCase = true)),
@@ -162,6 +166,8 @@ class MessageBuilder(
             isOwn = isOwn,
             reply = reply,
             historical = historical,
+            sharedId = msg.tag("source-id"),
+            sourceRoomId = partner,
         )
     }
 
@@ -171,6 +177,8 @@ class MessageBuilder(
     ): ChatItem {
         val body = msg.trailing.orEmpty()
         val login = msg.tag("login")
+        val roomId = channelId ?: msg.tag("room-id")
+        val partner = partnerRoom(msg, roomId)
         return ChatItem(
             id = msg.tag("id") ?: UUID.randomUUID().toString(),
             channel = channel,
@@ -181,16 +189,32 @@ class MessageBuilder(
             color = parseColor(msg.tag("color")),
             // A notice without a message of its own (a plain sub, a raid) shows no badges either.
             body = if (body.isEmpty()) MessageBody.EMPTY else deferred(
-                channel, body, emotesTag = msg.tag("emotes"), badgesTag = msg.tag("badges"),
-                userId = msg.tag("user-id"), channelId = channelId ?: msg.tag("room-id"),
-                ownMessage = false,
+                channel, body, emotesTag = msg.tag("emotes"), badgesTag = badgesOf(msg),
+                userId = msg.tag("user-id"), channelId = roomId,
+                ownMessage = false, badgeChannelId = partner ?: roomId,
             ),
             systemText = msg.tag("system-msg"),
             text = body,
             isMention = body.isNotEmpty() && !login.equals(selfLogin, ignoreCase = true) && mentions.matches(body),
             historical = historical,
+            sharedId = msg.tag("source-id"),
+            sourceRoomId = partner,
         )
     }
+
+    /**
+     * The channel a message was written in, when that is a Shared Chat partner rather than the
+     * channel it arrived in. During a session the channel's own messages carry the tag as well,
+     * naming the channel itself.
+     */
+    private fun partnerRoom(msg: IrcMessage, roomId: String?): String? =
+        msg.tag("source-room-id")?.takeIf { it != (msg.tag("room-id") ?: roomId) }
+
+    /**
+     * The badges the sender wears where they wrote. In a Shared Chat `badges` are the ones for the
+     * channel the copy arrived in, which is not where somebody's sub or moderator badge was earned.
+     */
+    private fun badgesOf(msg: IrcMessage): String? = msg.tag("source-badges") ?: msg.tag("badges")
 
     internal data class EmoteRange(val start: Int, val end: Int, val id: String, val name: String)
 

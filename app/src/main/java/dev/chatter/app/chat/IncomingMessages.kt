@@ -34,7 +34,18 @@ class IncomingMessages(
     private val onWhisper: (whisper: InboxWhisper, watched: Boolean) -> Unit,
     /** The first time a channel names its Twitch id: its emotes and badges can be fetched now. */
     private val onRoomFound: (channelId: String) -> Unit,
+    /** Which channels share their chat, and with whom; see [SharedChats]. */
+    private val sharedChats: SharedChats = SharedChats(),
+    /** A channel has just started sharing its chat: who with is worth asking now. */
+    private val onSharedChatStarted: (channel: String) -> Unit = {},
+    /** Shared Chat partners whose messages arrived before anybody knew who they are. */
+    private val onPartnersFound: (ids: List<String>) -> Unit = {},
 ) {
+    /**
+     * The shared ids of the last mentions told about. In a Shared Chat one message arrives in
+     * every channel of the session, and with two of them open it would ring twice.
+     */
+    private val mentionedShared = LinkedHashSet<String>()
     /**
      * When the newest live message of each channel was written, so that a reconnect can ask the
      * history service for the gap rather than for everything again.
@@ -76,6 +87,7 @@ class IncomingMessages(
         lastLive.clear()
         // An answer from the connection before is not coming any more.
         unconfirmed.clear()
+        mentionedShared.clear()
     }
 
     fun handle(msg: IrcMessage) {
@@ -112,6 +124,13 @@ class IncomingMessages(
         val built = builder.build(msg, selfLogin(), rooms.id(channel), mentions) ?: return
         // Muted and hidden messages still count as "seen", so a reconnect does not fetch them again.
         lastLive[channel] = built.timestamp
+        // Before the mute list: a muted message says just as much about whether a session runs.
+        if (sharedChats.onLiveMessage(channel, msg.tag("room-id") ?: rooms.id(channel), msg.tag("source-room-id"))) {
+            onSharedChatStarted(channel)
+        }
+        built.sourceRoomId?.let { partner ->
+            sharedChats.unknown(listOf(partner)).takeIf { it.isNotEmpty() }?.let(onPartnersFound)
+        }
         if (muted.mutes(built)) return
         val item = rules.apply(built) ?: return
         rememberChatter(channel, item)
@@ -120,10 +139,18 @@ class IncomingMessages(
         if (!item.isOwn) stats.countReceived()
         val watched = windows.isWatching(channel)
         if (!item.isOwn && !watched) buffers.countUnread(channel)
-        if (item.isMention) {
+        if (item.isMention && firstSighting(item)) {
             stats.countMention()
             onMention(item, watched)
         }
+    }
+
+    /** False for a Shared Chat message already told about through another channel of the session. */
+    private fun firstSighting(item: ChatItem): Boolean {
+        val shared = item.sharedId ?: return true
+        if (!mentionedShared.add(shared)) return false
+        if (mentionedShared.size > MENTIONS_REMEMBERED) mentionedShared.remove(mentionedShared.first())
+        return true
     }
 
     private fun onWhisper(whisper: InboxWhisper) {
@@ -162,5 +189,8 @@ class IncomingMessages(
     private companion object {
         /** How long a sent message waits for Twitch to name it before it is given up on. */
         const val ECHO_TIMEOUT_MS = 10_000L
+
+        /** The copies of one message arrive within moments of each other; a few are plenty. */
+        const val MENTIONS_REMEMBERED = 64
     }
 }

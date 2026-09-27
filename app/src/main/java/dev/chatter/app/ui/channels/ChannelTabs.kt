@@ -72,7 +72,8 @@ import dev.chatter.app.irc.ConnectionState
  * title naming only the page on screen cannot say.
  *
  * The tab already names the page, so the line under it carries only what the title's second line
- * did: the connection, the user's role and the chat modes. A channel with none of them has no line.
+ * did: the connection, the user's role, a Shared Chat and the chat modes. A channel with none of
+ * them has no line.
  *
  * Holding a tab opens what the channel menu of the other bar holds for that page.
  */
@@ -86,6 +87,8 @@ fun ChannelTabBar(
     unreadMessages: Map<String, Int>,
     roomState: RoomState?,
     roleBadge: Badge?,
+    /** The Shared Chat partners of [active], or null while it shares its chat with nobody. */
+    sharedWith: List<String>?,
     connection: ConnectionState,
     showUnread: Boolean,
     hiddenUnread: Set<String>,
@@ -143,11 +146,11 @@ fun ChannelTabBar(
                 active == null -> false
                 connection != ConnectionState.Connected -> true
                 activeGroup != null -> activeGroup.name.isNotBlank()
-                else -> roleBadge != null || roomState?.hasModes() == true
+                else -> roleBadge != null || sharedWith != null || roomState?.hasModes() == true
             }
             if (hasStatus) Box(Modifier.padding(start = 16.dp, end = 16.dp, bottom = 6.dp)) {
                 if (activeGroup != null) GroupStatus(connection, activeGroup, info)
-                else ChannelStatus(connection, roomState, roleBadge, imageLoader)
+                else ChannelStatus(connection, roomState, roleBadge, sharedWith, imageLoader)
             }
         }
     }

@@ -76,6 +76,9 @@ class ChatRepository(
     /** Which windows are on screen and what each of them shows; see [ChatWindows]. */
     val windows = ChatWindows()
 
+    /** Which channels share their chat, and with whom; see [SharedChats]. */
+    val sharedChats = SharedChats()
+
     // --- state touched only on `worker` ---
     private val lastSent = HashMap<String, Pair<String, Long>>()
     private val rateLimiter = RateLimiter(30_000)
@@ -102,6 +105,9 @@ class ChatRepository(
         onMention = ::onMention,
         onWhisper = ::onWhisper,
         onRoomFound = { channelId -> scope.launch { loadEmotesAndBadges(channelId) } },
+        sharedChats = sharedChats,
+        onSharedChatStarted = { channel -> scope.launch { loadSharedChat(channel) } },
+        onPartnersFound = { ids -> scope.launch { describePartners(ids) } },
     )
 
     private val _mentionEvents = MutableSharedFlow<ChatItem>(extraBufferCapacity = 32)
@@ -262,6 +268,7 @@ class ChatRepository(
         chatterRegistry.clear()
         rooms.clear()
         incoming.clear()
+        sharedChats.clear()
         loadedChannels.clear()
         joinedChannels = emptyList()
         _unreadMentions.value = emptyMap()
@@ -285,6 +292,7 @@ class ChatRepository(
             buffers.close(ch)
             chatterRegistry.remove(ch)
             rooms.forget(ch)
+            sharedChats.forget(ch)
             loadedChannels.remove(ch)
             _unreadMentions.update { it - ch }
         }
@@ -377,7 +385,47 @@ class ChatRepository(
             }
             buffers.merge(channel, items)
             if (announce) buffers.remove(channel, historyId(channel))
+            // Old messages from a Shared Chat partner are marked like new ones. Whether a session
+            // still runs is for the live messages to say, not for ones written an hour ago.
+            sharedChats.unknown(items.mapNotNullTo(HashSet()) { it.sourceRoomId })
+        }.let { describePartners(it) }
+    }
+
+    /** Who the channel that has just started sharing its chat shares it with. */
+    private suspend fun loadSharedChat(channel: String) {
+        val roomId = rooms.id(channel) ?: return
+        val session = try {
+            helix.sharedChatSession(roomId)
+        } catch (e: Exception) {
+            // The partners still turn up one by one, as their messages arrive.
+            Log.d(TAG, "No Shared Chat session for $channel: ${e.message}")
+            return
         }
+        val ids = session?.participants?.map { it.broadcasterId }.orEmpty()
+        val unknown = withContext(worker) {
+            sharedChats.setParticipants(channel, roomId, ids)
+            sharedChats.unknown(ids - roomId)
+        }
+        describePartners(unknown)
+    }
+
+    /**
+     * Name, picture and badges of Shared Chat partners. The badges are what a partner's message
+     * is drawn with, since `source-badges` names the ones of the channel it was written in; a
+     * channel the user is in has them already.
+     */
+    private suspend fun describePartners(ids: List<String>) {
+        if (ids.isEmpty()) return
+        val known = rooms.knownIds().toSet()
+        ids.filter { it !in known }.forEach { scope.launch { badges.loadChannel(it) } }
+        val users = try {
+            helix.usersById(ids)
+        } catch (e: Exception) {
+            Log.w(TAG, "Shared Chat partners failed: ${e.message}")
+            withContext(worker) { sharedChats.failed(ids) }
+            return
+        }
+        sharedChats.described(users.map { ChatPartner(it.id, it.login, it.displayName, it.profileImageUrl.ifEmpty { null }) })
     }
 
     /** A mention, once [IncomingMessages] has built it: the inbox, the badge and the ringing. */

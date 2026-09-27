@@ -104,6 +104,15 @@ fun MainScreen(vm: MainViewModel, onInbox: () -> Unit, onSettings: () -> Unit) {
     val nicknames by vm.nicknames.collectAsStateWithLifecycle()
     val inboxUnread by vm.inboxUnread.collectAsStateWithLifecycle()
     val update by vm.availableUpdate.collectAsStateWithLifecycle()
+    val sharedChats by vm.sharedChats.collectAsStateWithLifecycle()
+    val chatPartners by vm.chatPartners.collectAsStateWithLifecycle()
+    val partnerMarks = remember(chatPartners) {
+        chatPartners.mapValues { (_, p) -> ChannelMark(p.avatarUrl, p.displayName) }
+    }
+    // Null while the channel on screen shares its chat with nobody; the partners Chatter can name.
+    val sharedWith = activeChannel?.let { sharedChats[it] }?.map { id ->
+        chatPartners[id]?.displayName ?: info.values.firstOrNull { it.id == id }?.displayName
+    }?.filterNotNull()
 
     val context = LocalContext.current
     // Not context.resources: only this one follows a configuration change, so a snackbar shown
@@ -263,6 +272,7 @@ fun MainScreen(vm: MainViewModel, onInbox: () -> Unit, onSettings: () -> Unit) {
                 unreadMessages = unreadMessages,
                 roomState = roomState,
                 roleBadge = roleBadge,
+                sharedWith = sharedWith,
                 connection = connection,
                 showUnread = settings.unreadInTitleBar,
                 hiddenUnread = hiddenUnread,
@@ -287,6 +297,7 @@ fun MainScreen(vm: MainViewModel, onInbox: () -> Unit, onSettings: () -> Unit) {
                 unreadMessages = unreadMessages,
                 roomState = roomState,
                 roleBadge = roleBadge,
+                sharedWith = sharedWith,
                 connection = connection,
                 showUnread = settings.unreadInTitleBar,
                 hiddenUnread = hiddenUnread,
@@ -332,6 +343,7 @@ fun MainScreen(vm: MainViewModel, onInbox: () -> Unit, onSettings: () -> Unit) {
                     ChatList(
                         messages = remember(channel) { vm.chat(channel) },
                         channels = marks,
+                        partners = partnerMarks,
                         style = style,
                         imageLoader = loader,
                         onGesture = { item, gesture ->

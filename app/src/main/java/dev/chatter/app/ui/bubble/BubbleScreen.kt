@@ -35,6 +35,7 @@ import dev.chatter.app.chat.Segment
 import dev.chatter.app.irc.ConnectionState
 import dev.chatter.app.ui.MainViewModel
 import dev.chatter.app.ui.channels.ChannelAvatar
+import dev.chatter.app.ui.chat.ChannelMark
 import dev.chatter.app.ui.chat.ChatList
 import dev.chatter.app.ui.chat.EmoteCardSheet
 import dev.chatter.app.ui.chat.EmotePickerSheet
@@ -53,6 +54,10 @@ fun BubbleScreen(vm: MainViewModel, channel: String?) {
     val connection by vm.connection.collectAsStateWithLifecycle()
     val info by vm.channelInfo.collectAsStateWithLifecycle()
     val emoteVersion by vm.emoteVersion.collectAsStateWithLifecycle()
+    val chatPartners by vm.chatPartners.collectAsStateWithLifecycle()
+    val partnerMarks = remember(chatPartners) {
+        chatPartners.mapValues { (_, p) -> ChannelMark(p.avatarUrl, p.displayName) }
+    }
 
     // Same rule as the chat screen: the battery saver stills the emotes and stops linked images.
     val powerSave by vm.powerSaveMode.collectAsStateWithLifecycle()
@@ -117,6 +122,7 @@ fun BubbleScreen(vm: MainViewModel, channel: String?) {
                 modifier = Modifier.weight(1f),
                 smoothScrolling = settings.smoothScrolling,
                 onEmoteClick = { emoteCard = it },
+                partners = partnerMarks,
             )
             InputBar(
                 value = vm.input,

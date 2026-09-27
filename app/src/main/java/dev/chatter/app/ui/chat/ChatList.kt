@@ -41,7 +41,8 @@ import kotlinx.coroutines.launch
  * (reverseLayout), follows new messages automatically unless the user scrolled up to read.
  *
  * [channels] marks every message with the channel it came from, by login; only a combined chat
- * passes it, where that is not obvious from the page.
+ * passes it, where that is not obvious from the page. [partners] marks the messages a Shared Chat
+ * partner sent over, by channel id, on every page: there it is never obvious.
  */
 @Composable
 fun ChatList(
@@ -53,6 +54,7 @@ fun ChatList(
     smoothScrolling: Boolean = false,
     onEmoteClick: ((Segment.EmoteSeg) -> Unit)? = null,
     channels: Map<String, ChannelMark>? = null,
+    partners: Map<String, ChannelMark> = emptyMap(),
 ) {
     // Already filtered for deleted messages by the repository, which had to copy the buffer anyway.
     val items by messages.collectAsStateWithLifecycle()
@@ -111,7 +113,9 @@ fun ChatList(
                     )
                 } else Modifier
                 val item = items[count - 1 - index]
-                Box(rowModifier) { MessageRow(item, style, imageLoader, onGesture, onEmoteClick, channels?.get(item.channel)) }
+                // Where it was written, which for a partner's message is not the channel it came in.
+                val mark = item.sourceRoomId?.let(partners::get) ?: channels?.get(item.channel)
+                Box(rowModifier) { MessageRow(item, style, imageLoader, onGesture, onEmoteClick, mark) }
             }
         }
         if (!follow) {
