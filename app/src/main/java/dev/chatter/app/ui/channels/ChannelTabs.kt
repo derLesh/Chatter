@@ -24,12 +24,14 @@ import androidx.compose.material.icons.filled.MailOutline
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.Badge
 import androidx.compose.material3.BadgedBox
-import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuGroup
 import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.DropdownMenuPopup
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.MenuDefaults
 import androidx.compose.material3.PrimaryScrollableTabRow
 import androidx.compose.material3.Surface
 import androidx.compose.material3.TabRowDefaults
@@ -210,40 +212,29 @@ private fun ChannelTabs(
                 mentions = mentions,
                 hasNew = hasNew,
                 onClick = { onSelect(page) },
-                menu = { dismiss ->
-                    if (position > 0) DropdownMenuItem(
-                        text = { Text(stringResource(R.string.move_left)) },
-                        leadingIcon = { Icon(Icons.AutoMirrored.Filled.KeyboardArrowLeft, null) },
-                        onClick = { dismiss(); onMove(page, -1) },
-                    )
-                    if (position < pages.lastIndex) DropdownMenuItem(
-                        text = { Text(stringResource(R.string.move_right)) },
-                        leadingIcon = { Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, null) },
-                        onClick = { dismiss(); onMove(page, 1) },
-                    )
-                    if (group != null) DropdownMenuItem(
-                        text = { Text(stringResource(R.string.edit)) },
-                        leadingIcon = { Icon(Icons.Default.Edit, null) },
-                        onClick = { dismiss(); onEditGroup(page) },
-                    ) else {
+                // Grouped by what they do to the tab: where it stands, what it is, and whether it stays.
+                actions = listOf(
+                    listOfNotNull(
+                        TabAction(stringResource(R.string.move_left), { Icon(Icons.AutoMirrored.Filled.KeyboardArrowLeft, null) }) {
+                            onMove(page, -1)
+                        }.takeIf { position > 0 },
+                        TabAction(stringResource(R.string.move_right), { Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, null) }) {
+                            onMove(page, 1)
+                        }.takeIf { position < pages.lastIndex },
+                    ),
+                    if (group != null) listOf(
+                        TabAction(stringResource(R.string.edit), { Icon(Icons.Default.Edit, null) }) { onEditGroup(page) },
+                    ) else listOfNotNull(
                         // Combining takes two channels; with fewer the dialog has nothing to pick.
-                        if (channelCount >= 2) DropdownMenuItem(
-                            text = { Text(stringResource(R.string.combine_channels)) },
-                            leadingIcon = { Icon(painterResource(R.drawable.ic_combine_chats), null) },
-                            onClick = { dismiss(); onCombine(page) },
-                        )
-                        DropdownMenuItem(
-                            text = { Text(stringResource(R.string.rename_channel)) },
-                            leadingIcon = { Icon(Icons.Default.Edit, null) },
-                            onClick = { dismiss(); onRename(page) },
-                        )
-                    }
-                    DropdownMenuItem(
-                        text = { Text(stringResource(R.string.remove_channel)) },
-                        leadingIcon = { Icon(Icons.Default.Delete, null) },
-                        onClick = { dismiss(); onRemove(page) },
-                    )
-                },
+                        TabAction(stringResource(R.string.combine_channels), { Icon(painterResource(R.drawable.ic_combine_chats), null) }) {
+                            onCombine(page)
+                        }.takeIf { channelCount >= 2 },
+                        TabAction(stringResource(R.string.rename_channel), { Icon(Icons.Default.Edit, null) }) { onRename(page) },
+                    ),
+                    listOf(
+                        TabAction(stringResource(R.string.remove_channel), { Icon(Icons.Default.Delete, null) }) { onRemove(page) },
+                    ),
+                ).filter { it.isNotEmpty() },
             )
         }
         // At the end of the row, where the next channel will appear once it is added.
@@ -253,9 +244,12 @@ private fun ChannelTabs(
     }
 }
 
+/** One entry of the menu a tab opens when it is held. */
+private class TabAction(val label: String, val icon: @Composable () -> Unit, val onClick: () -> Unit)
+
 /**
  * One page as a tab. Not Material's own Tab, which has no way to be held: holding is what opens
- * [menu], the page's options.
+ * the page's options, [actions], one menu group per list.
  */
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
@@ -266,7 +260,7 @@ private fun ChannelTab(
     mentions: Int,
     hasNew: Boolean,
     onClick: () -> Unit,
-    menu: @Composable (dismiss: () -> Unit) -> Unit,
+    actions: List<List<TabAction>>,
 ) {
     var open by remember { mutableStateOf(false) }
     val color = when {
@@ -316,8 +310,20 @@ private fun ChannelTab(
                 }
             }
         }
-        DropdownMenu(expanded = open, onDismissRequest = { open = false }) {
-            menu { open = false }
+        DropdownMenuPopup(expanded = open, onDismissRequest = { open = false }) {
+            actions.forEachIndexed { g, group ->
+                if (g > 0) Spacer(Modifier.height(MenuDefaults.GroupSpacing))
+                DropdownMenuGroup(shapes = MenuDefaults.groupShape(g, actions.size)) {
+                    group.forEachIndexed { i, action ->
+                        DropdownMenuItem(
+                            text = { Text(action.label) },
+                            leadingIcon = action.icon,
+                            shape = MenuDefaults.itemShape(i, group.size).shape,
+                            onClick = { open = false; action.onClick() },
+                        )
+                    }
+                }
+            }
         }
     }
 }

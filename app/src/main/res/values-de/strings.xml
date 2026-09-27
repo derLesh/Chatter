@@ -68,7 +68,7 @@
     <string name="combined_chat_create">Kombinieren</string>
     <string name="edit">Bearbeiten</string>
     <string name="input_hint_in">Nachricht in %1$s</string>
-    <string name="send_in_channel">Channel, in den du schreibst</string>
+    <string name="send_in_channel">Schreibe in</string>
     <plurals name="combined_chat_live">
         <item quantity="one">%d Channel live</item>
         <item quantity="other">%d Channels live</item>

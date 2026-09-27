@@ -23,11 +23,14 @@ import androidx.compose.material.icons.automirrored.filled.Send
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Face
-import androidx.compose.material3.DropdownMenu
-import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.DropdownMenuGroup
+import androidx.compose.material3.DropdownMenuPopup
+import androidx.compose.material3.DropdownMenuPopupPositionProvider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.MenuDefaults
+import androidx.compose.material3.SelectableDropdownMenuItem
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextField
 import androidx.compose.material3.TextFieldDefaults
@@ -43,6 +46,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.TransformOrigin
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
@@ -50,6 +54,10 @@ import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.IntOffset
+import androidx.compose.ui.unit.IntRect
+import androidx.compose.ui.unit.IntSize
+import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import coil3.ImageLoader
 import coil3.compose.AsyncImage
@@ -164,28 +172,53 @@ private fun SendChannelPicker(
                 ChannelAvatar(info[selected], imageLoader, 28.dp)
             }
         }
-        DropdownMenu(expanded = open, onDismissRequest = { open = false }) {
-            Text(
-                stringResource(R.string.send_in_channel),
-                style = MaterialTheme.typography.labelMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
-            )
-            channels.forEach { login ->
-                DropdownMenuItem(
-                    leadingIcon = { ChannelAvatar(info[login], imageLoader, 28.dp) },
-                    text = {
-                        Text(
-                            info[login]?.displayName ?: login,
-                            color = if (login == selected) MaterialTheme.colorScheme.primary else Color.Unspecified,
-                            maxLines = 1,
-                        )
-                    },
-                    trailingIcon = { if (login == selected) Icon(Icons.Default.Check, contentDescription = null) },
-                    onClick = { open = false; onSelect(login) },
-                )
+        DropdownMenuPopup(
+            expanded = open,
+            onDismissRequest = { open = false },
+            popupPositionProvider = remember { OnTopOfAnchor() },
+        ) {
+            DropdownMenuGroup(shapes = MenuDefaults.groupShape(0, 1)) {
+                MenuDefaults.DropdownMenuGroupLabel {
+                    Text(stringResource(R.string.send_in_channel), color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+                channels.forEachIndexed { index, login ->
+                    SelectableDropdownMenuItem(
+                        selected = login == selected,
+                        onClick = { open = false; onSelect(login) },
+                        text = { Text(info[login]?.displayName ?: login, maxLines = 1) },
+                        shapes = MenuDefaults.itemShape(index, channels.size),
+                        leadingIcon = { ChannelAvatar(info[login], imageLoader, 28.dp) },
+                        trailingContent = { if (login == selected) Icon(Icons.Default.Check, contentDescription = null) },
+                    )
+                }
             }
         }
+    }
+}
+
+/**
+ * Sets a menu straight on top of what opened it. Material's own positioning keeps every menu 48dp
+ * clear of the window's edges, and the send picker sits closer to the bottom than that, so its
+ * menu would float a good way above the field it belongs to.
+ */
+private class OnTopOfAnchor : DropdownMenuPopupPositionProvider {
+    override var transformOrigin by mutableStateOf(TransformOrigin(0f, 1f))
+        private set
+
+    override fun calculatePosition(
+        anchorBounds: IntRect,
+        windowSize: IntSize,
+        layoutDirection: LayoutDirection,
+        popupContentSize: IntSize,
+    ): IntOffset {
+        val ltr = layoutDirection == LayoutDirection.Ltr
+        // Opening from the anchor's corner, so it grows out of the picture that was tapped.
+        transformOrigin = TransformOrigin(if (ltr) 0f else 1f, 1f)
+        val x = if (ltr) anchorBounds.left else anchorBounds.right - popupContentSize.width
+        return IntOffset(
+            x.coerceIn(0, (windowSize.width - popupContentSize.width).coerceAtLeast(0)),
+            (anchorBounds.top - popupContentSize.height).coerceAtLeast(0),
+        )
     }
 }
 

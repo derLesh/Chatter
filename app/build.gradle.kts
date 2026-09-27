@@ -58,7 +58,7 @@ val sponsorLink = sponsoring && (project.findProperty("distribution") as String?
 
 android {
     namespace = "dev.chatter.app"
-    compileSdk = 36
+    compileSdk = 37
 
     defaultConfig {
         applicationId = "dev.chatter.app"
