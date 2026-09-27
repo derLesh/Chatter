@@ -250,7 +250,8 @@ class ChatRepository(
 
         lastSent[channel] = input.trim() to now
         val reply = replyParent?.let {
-            ReplyInfo(it.id, it.login.orEmpty(), it.displayName.orEmpty(), it.text)
+            // Twitch puts the answer into the conversation the parent is part of; the echo too.
+            ReplyInfo(it.id, it.login.orEmpty(), it.displayName.orEmpty(), it.text, threadId = it.reply?.threadId ?: it.id)
         }
         incoming.sent(builder.buildOwn(channel, wire, state, auth.account?.login.orEmpty(), rooms.id(channel), reply))
         stats.countSent(channel)

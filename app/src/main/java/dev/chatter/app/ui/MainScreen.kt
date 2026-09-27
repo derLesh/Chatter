@@ -72,6 +72,7 @@ import dev.chatter.app.ui.chat.EmoteCardSheet
 import dev.chatter.app.ui.chat.EmotePickerSheet
 import dev.chatter.app.ui.chat.InputBar
 import dev.chatter.app.ui.chat.NicknameDialog
+import dev.chatter.app.ui.chat.ThreadSheet
 import dev.chatter.app.ui.chat.UserCardSheet
 import dev.chatter.app.ui.inbox.InboxScreen
 import kotlinx.coroutines.flow.filter
@@ -140,6 +141,8 @@ fun MainScreen(vm: MainViewModel, onInbox: () -> Unit, onSettings: () -> Unit) {
     // The channel a new combined chat was asked for from, ticked when the dialog opens.
     var combineWith by remember { mutableStateOf<String?>(null) }
     var nicknameTarget by remember { mutableStateOf<ChatItem?>(null) }
+    // The message whose conversation is open, or null while none is.
+    var threadOf by remember { mutableStateOf<ChatItem?>(null) }
 
     // Animated emotes are the most expensive thing on the screen, and the battery saver is the
     // phone being asked to do less — so it stills them, the same way the setting does. It stops
@@ -353,6 +356,12 @@ fun MainScreen(vm: MainViewModel, onInbox: () -> Unit, onSettings: () -> Unit) {
                                 MessageGesture.Tap -> settings.messageTap
                                 MessageGesture.NameTap -> settings.nameTap
                                 MessageGesture.Hold -> TapAction.UserCard
+                                // Reading the conversation, which is the one thing it can be.
+                                MessageGesture.Thread -> {
+                                    threadOf = item
+                                    vm.startReply(item)
+                                    return@ChatList
+                                }
                             }
                             // What cannot be answered or named (a notice, a message Twitch has
                             // not confirmed yet) opens the card instead, as every tap used to.
@@ -373,7 +382,9 @@ fun MainScreen(vm: MainViewModel, onInbox: () -> Unit, onSettings: () -> Unit) {
                 value = vm.input,
                 onValueChange = vm::onInputChange,
                 enabled = vm.sendChannel != null && connection == ConnectionState.Connected,
-                replyTo = vm.replyTo,
+                // The conversation has a field of its own, and two asking for the keyboard at once
+                // would fight over it.
+                replyTo = vm.replyTo.takeIf { threadOf == null },
                 suggestions = vm.suggestions,
                 imageLoader = loader,
                 onSuggestion = vm::applySuggestion,
@@ -409,6 +420,38 @@ fun MainScreen(vm: MainViewModel, onInbox: () -> Unit, onSettings: () -> Unit) {
             onBan = { vm.banUser(item) },
             onDismiss = { actionItem = null },
         )
+    }
+    threadOf?.let { opened ->
+        // Answering is what the sheet is for: a sent answer leaves nothing to answer, so the next
+        // one goes to the message answered last, and with it into the same conversation.
+        var target by remember(opened) { mutableStateOf(opened) }
+        LaunchedEffect(target, vm.replyTo) { if (vm.replyTo == null) vm.startReply(target) }
+        ThreadSheet(
+            threadId = opened.reply?.threadId ?: opened.id,
+            messages = remember(opened.channel) { vm.chat(opened.channel) },
+            style = style,
+            imageLoader = loader,
+            partners = partnerMarks,
+            onAnswer = { if (vm.startReply(it)) target = it },
+            onDismiss = {
+                threadOf = null
+                vm.cancelReply()
+            },
+        ) {
+            InputBar(
+                value = vm.input,
+                onValueChange = vm::onInputChange,
+                enabled = vm.sendChannel != null && connection == ConnectionState.Connected,
+                replyTo = vm.replyTo,
+                suggestions = vm.suggestions,
+                imageLoader = loader,
+                onSuggestion = vm::applySuggestion,
+                onCancelReply = null,
+                onEmotePicker = { showPicker = true },
+                onSend = vm::send,
+                modifier = Modifier.fillMaxWidth(),
+            )
+        }
     }
     nicknameTarget?.let { target ->
         val login = target.login

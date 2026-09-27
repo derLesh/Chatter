@@ -147,6 +147,17 @@ class MessageBuilderTest {
     }
 
     @Test
+    fun repliesKnowTheConversationTheyArePartOf() {
+        val deep = build(privmsg("@lukas yes", "reply-parent-msg-id=p;reply-parent-user-login=lukas;reply-thread-parent-msg-id=root"))
+        assertEquals("p", deep.reply!!.parentId)
+        assertEquals("root", deep.reply!!.threadId)
+
+        // An answer to the first message names no thread of its own: the parent is the start.
+        val first = build(privmsg("@lukas yes", "reply-parent-msg-id=p;reply-parent-user-login=lukas"))
+        assertEquals("p", first.reply!!.threadId)
+    }
+
+    @Test
     fun repliesStripTheMentionByDisplayName() {
         // Twitch writes the display name into the message, which need not resemble the login.
         val tags = "reply-parent-msg-id=p;reply-parent-user-login=lukas;reply-parent-display-name=ルカス;" +

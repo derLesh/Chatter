@@ -86,6 +86,11 @@ data class ReplyInfo(
     val parentLogin: String,
     val parentDisplayName: String,
     val parentBody: String,
+    /**
+     * The message the whole conversation started with, from `reply-thread-parent-msg-id`. The
+     * same as [parentId] for an answer to that first message.
+     */
+    val threadId: String = parentId,
 )
 
 /** Immutable, render-ready chat line. */

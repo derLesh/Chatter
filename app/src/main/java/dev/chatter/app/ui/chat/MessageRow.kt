@@ -141,8 +141,11 @@ private val timeFormats = object : ThreadLocal<MutableMap<String, SimpleDateForm
 private fun formatTime(pattern: String, at: Long): String =
     timeFormats.get()!!.getOrPut(pattern) { SimpleDateFormat(pattern, Locale.getDefault()) }.format(Date(at))
 
-/** How a message was touched. What each of them does is the screen's to decide. */
-enum class MessageGesture { Tap, NameTap, Hold }
+/**
+ * How a message was touched. What each of them does is the screen's to decide. [Thread] is a tap
+ * on the line saying which message this one answers.
+ */
+enum class MessageGesture { Tap, NameTap, Hold, Thread }
 
 /**
  * One message. [onGesture] hears about taps and holds, and about a tap on the name as a gesture
@@ -228,6 +231,10 @@ fun MessageRow(
                 fontSize = (style.fontSize - 2).sp,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
+                // Its own target, so that reading the conversation is not the same tap as answering.
+                modifier = if (onGesture == null) Modifier else Modifier
+                    .fillMaxWidth()
+                    .clickable { onGesture(item, MessageGesture.Thread) },
             )
         }
         if (item.kind == MessageKind.UserNotice && item.systemText != null) {

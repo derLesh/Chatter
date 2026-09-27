@@ -73,6 +73,9 @@ import dev.chatter.app.ui.channels.ChannelAvatar
  * On a combined chat [sendChannels] are its channels, and a picture in front of the field says
  * which of them [sendChannel] the message goes to; tapping it picks another. With a single channel
  * there is nothing to pick, and the field looks as it always did.
+ *
+ * Without [onCancelReply] the reply strip has no way to be closed: in a conversation, answering
+ * into it is the point.
  */
 @Composable
 fun InputBar(
@@ -83,7 +86,7 @@ fun InputBar(
     suggestions: List<Suggestion>,
     imageLoader: ImageLoader,
     onSuggestion: (Suggestion) -> Unit,
-    onCancelReply: () -> Unit,
+    onCancelReply: (() -> Unit)?,
     onEmotePicker: () -> Unit,
     onSend: () -> Unit,
     modifier: Modifier = Modifier,
@@ -266,7 +269,7 @@ private fun SuggestionRow(suggestions: List<Suggestion>, imageLoader: ImageLoade
 }
 
 @Composable
-private fun ReplyBar(item: ChatItem, onCancel: () -> Unit) {
+private fun ReplyBar(item: ChatItem, onCancel: (() -> Unit)?) {
     Row(
         verticalAlignment = Alignment.CenterVertically,
         modifier = Modifier
@@ -282,8 +285,8 @@ private fun ReplyBar(item: ChatItem, onCancel: () -> Unit) {
             overflow = TextOverflow.Ellipsis,
             modifier = Modifier.weight(1f),
         )
-        IconButton(onClick = onCancel) {
+        if (onCancel != null) IconButton(onClick = onCancel) {
             Icon(Icons.Default.Close, contentDescription = stringResource(R.string.cancel))
-        }
+        } else Spacer(Modifier.height(48.dp))
     }
 }

@@ -336,6 +336,7 @@ class MessageBuilder(
             parentLogin = login,
             parentDisplayName = msg.tag("reply-parent-display-name") ?: login,
             parentBody = msg.tag("reply-parent-msg-body").orEmpty(),
+            threadId = msg.tag("reply-thread-parent-msg-id") ?: id,
         )
     }
 

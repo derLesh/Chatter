@@ -36,6 +36,7 @@
     <string name="input_hint_disabled">Nicht verbunden</string>
     <string name="send">Senden</string>
     <string name="replying_to">Antwort an @%1$s: %2$s</string>
+    <string name="thread_title">Unterhaltung</string>
     <string name="cancel">Abbrechen</string>
     <string name="ok">OK</string>
     <string name="emotes_recent">Zuletzt</string>
