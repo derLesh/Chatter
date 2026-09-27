@@ -99,6 +99,7 @@ fun ChannelTopBar(
     onInbox: () -> Unit,
     inboxUnread: Int,
     onSettings: () -> Unit,
+    settingsBadge: Boolean = false,
 ) {
     var expanded by remember { mutableStateOf(false) }
     val activeGroup = active?.let { groups[it] }
@@ -184,7 +185,10 @@ fun ChannelTopBar(
                 }
             }
             IconButton(onClick = onSettings) {
-                Icon(Icons.Default.Settings, contentDescription = stringResource(R.string.settings))
+                // A newer version waits in the settings; the dot is all that says so out here.
+                BadgedBox(badge = { if (settingsBadge) Badge() }) {
+                    Icon(Icons.Default.Settings, contentDescription = stringResource(R.string.settings))
+                }
             }
         },
     )
@@ -288,7 +292,7 @@ private fun formatMinutes(minutes: Int): String = when {
 }
 
 @Composable
-private fun ChannelStatus(
+internal fun ChannelStatus(
     connection: ConnectionState,
     state: RoomState?,
     roleBadge: Badge?,
@@ -313,7 +317,7 @@ private fun ChannelStatus(
  * name of its own, which hides them — the channels it reads.
  */
 @Composable
-private fun GroupStatus(connection: ConnectionState, group: ChannelGroup, info: Map<String, ChannelInfo>) {
+internal fun GroupStatus(connection: ConnectionState, group: ChannelGroup, info: Map<String, ChannelInfo>) {
     val text = when {
         connection != ConnectionState.Connected -> stringResource(R.string.status_connecting)
         group.name.isNotBlank() -> group.channels.joinToString(" \u00B7 ") { info[it]?.displayName ?: it }
@@ -507,7 +511,7 @@ fun GroupAvatar(channels: List<String>, info: Map<String, ChannelInfo>, imageLoa
 /** Left over on each side once the channel menu is opened up to the full screen width. */
 private val DROPDOWN_MARGIN = 8.dp
 
-private fun formatCount(n: Int): String = if (n > 999) "999+" else n.toString()
+internal fun formatCount(n: Int): String = if (n > 999) "999+" else n.toString()
 
 fun formatViewers(n: Int): String = when {
     n >= 1_000_000 -> String.format(java.util.Locale.getDefault(), "%.1fM", n / 1_000_000f)

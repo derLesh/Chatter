@@ -57,6 +57,8 @@
     <string name="channel_options">Channel options</string>
     <string name="move_up">Move up</string>
     <string name="move_down">Move down</string>
+    <string name="move_left">Move left</string>
+    <string name="move_right">Move right</string>
     <string name="remove_channel">Remove</string>
     <string name="rename_channel">Rename</string>
     <string name="rename_channel_hint">Give the channel a nickname</string>
@@ -72,7 +74,7 @@
     <string name="combined_chat_create">Combine</string>
     <string name="edit">Edit</string>
     <string name="input_hint_in">Message in %1$s</string>
-    <string name="send_in_channel">Channel to write in</string>
+    <string name="send_in_channel">Write in</string>
     <plurals name="combined_chat_live">
         <item quantity="one">%d channel live</item>
         <item quantity="other">%d channels live</item>
@@ -167,8 +169,10 @@
     <string name="channel_notify_off">Notifications off</string>
     <string name="channel_notification_settings">Sound &amp; vibration</string>
     <string name="channel_in_title_bar">Show unread</string>
+    <string name="settings_channel_tabs">Channels as tabs</string>
+    <string name="settings_channel_tabs_hint">All channels in one row, in the order you swipe through them. Hold a tab for its options.</string>
     <string name="settings_unread_title_bar">Show unread channels in the title bar</string>
-    <string name="settings_unread_title_bar_hint">The avatars of channels with new messages, next to the channel name. Single channels can be left out in their menu.</string>
+    <string name="settings_unread_title_bar_hint">The avatars of channels with new messages next to the channel name, or a mark on their tab. Single channels can be left out in their menu.</string>
     <string name="settings_group_device">On this phone</string>
     <string name="settings_keep_screen_on">Keep the screen on</string>
     <string name="settings_keep_screen_on_hint">Stops the display from sleeping in the chat</string>
@@ -393,6 +397,15 @@
     <!-- Changelog -->
     <string name="settings_changelog">Changelog</string>
     <string name="settings_changelog_summary">Changes in each Chatter version</string>
+    <string name="settings_update_check">Look for updates</string>
+    <string name="settings_update_check_hint">Ask GitHub once a day whether a newer version is out</string>
+    <string name="update_available">Chatter %1$s is out</string>
+    <string name="update_installed">You have %1$s</string>
+    <string name="update_whats_new">What\'s new</string>
+    <string name="update_download">Download</string>
+    <string name="update_download_version">Download %1$s</string>
+    <string name="update_download_hint">Opens the APK on GitHub. Install it over this one, and your channels and settings stay as they are.</string>
+    <string name="update_page_title">New version</string>
     <string name="changelog_major">Breaking</string>
     <string name="changelog_minor">New</string>
     <string name="changelog_patch">Fixed</string>
