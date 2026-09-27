@@ -1,1 +1,0 @@
-minor: Hear in the settings when a new version is out, if you installed Chatter from GitHub

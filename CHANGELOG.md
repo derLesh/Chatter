@@ -3,6 +3,11 @@
 Every release of Chatter, newest first. Written from the entries in `pending-changelog/` by
 `./gradlew releaseVersion`, and shown in the app under Settings → About → Changelog.
 
+## 0.6.0 — 2026-09-27
+- minor: Hear in the settings when a new version is out, if you installed Chatter from GitHub
+- minor: Show every channel as a tab in the title bar, so a swipe shows where it goes; hold a tab for its options
+- patch: Show the channel picker of combined chats and the options of a held tab as Material 3 grouped menus
+
 ## 0.5.0 — 2026-09-22
 - minor: Bring 7TV badges back, the way Chatterino gets them now
 - minor: Log in with several Twitch accounts and switch between them on the account page
