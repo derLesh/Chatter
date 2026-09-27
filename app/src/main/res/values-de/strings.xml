@@ -28,6 +28,15 @@
     <!-- Chat -->
     <string name="reply_to">↪ Antwort an @%1$s: %2$s</string>
     <string name="more_messages">Neue Nachrichten</string>
+    <string name="unseen_line">Neu</string>
+    <plurals name="unseen_messages">
+        <item quantity="one">%d neue Nachricht</item>
+        <item quantity="other">%d neue Nachrichten</item>
+    </plurals>
+    <plurals name="unseen_messages_more">
+        <item quantity="one">Mehr als %d neue Nachricht</item>
+        <item quantity="other">Mehr als %d neue Nachrichten</item>
+    </plurals>
     <string name="action_reply">Antworten</string>
     <string name="action_mention">Erwähnen</string>
     <string name="action_copy">Kopieren</string>

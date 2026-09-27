@@ -1,6 +1,7 @@
 package dev.chatter.app.ui
 
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.text.TextRange
@@ -28,6 +29,7 @@ import dev.chatter.app.net.HelixBlockedUser
 import dev.chatter.app.net.HelixUser
 import dev.chatter.app.settings.ThemeMode
 import dev.chatter.app.stats.Stats
+import dev.chatter.app.ui.chat.ReadMark
 import dev.chatter.app.ui.theme.NameColorPalette
 import dev.chatter.app.settings.TapAction
 import dev.chatter.app.settings.TimestampFormat
@@ -180,6 +182,28 @@ class MainViewModel(private val c: AppContainer) : ViewModel() {
     /** The channel last written in on each combined chat, so coming back to one writes there again. */
     private val sendChannels = HashMap<String, String>()
 
+    /** The newest message each page had on screen, as its list last said; see [onSeen]. */
+    private val seen = HashMap<String, ReadMark>()
+
+    /**
+     * How far each page had been read when the user last left it. Fixed from then until they
+     * leave it again, so the line it draws stays put while they catch up.
+     */
+    private val readMarks = mutableStateMapOf<String, ReadMark>()
+
+    /** The list on screen has [mark] as its newest message on screen now. */
+    fun onSeen(page: String, mark: ReadMark) {
+        seen[page] = mark
+    }
+
+    /** Where the line above the unseen messages of [page] goes; null for a page never left. */
+    fun readMark(page: String): ReadMark? = readMarks[page]
+
+    /** The user is leaving [page], for another one or for another app. */
+    private fun leave(page: String) {
+        seen[page]?.let { readMarks[page] = it }
+    }
+
     /** The messages of a channel, or of a combined chat by its key. */
     fun chat(page: String) = c.chat.messages(page)
 
@@ -195,6 +219,7 @@ class MainViewModel(private val c: AppContainer) : ViewModel() {
         val channels = page?.let(::channelsOf).orEmpty()
         if (shownPage == page && shownChannels == channels) return
         val samePage = shownPage == page
+        if (!samePage) shownPage?.let(::leave)
         shownPage = page
         shownChannels = channels
         c.chat.windows.setChannels(this, channels.toSet())
@@ -261,7 +286,10 @@ class MainViewModel(private val c: AppContainer) : ViewModel() {
     fun setUiVisible(visible: Boolean) {
         c.chat.windows.setVisible(this, visible, shownChannels.toSet())
         // Leaving may come before the delay is up, and then it is the last chance to write it.
-        if (!visible) writeLastChannel()
+        if (!visible) {
+            writeLastChannel()
+            shownPage?.let(::leave)
+        }
         if (visible) {
             c.connect()
             shownChannels.forEach {
