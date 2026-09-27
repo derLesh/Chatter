@@ -571,6 +571,10 @@ class MainViewModel(private val c: AppContainer) : ViewModel() {
         viewModelScope.launch { c.settings.setUnreadInTitleBar(v) }
     }
 
+    fun setChannelTabs(v: Boolean) {
+        viewModelScope.launch { c.settings.setChannelTabs(v) }
+    }
+
     fun setHaptics(v: Boolean) {
         viewModelScope.launch { c.settings.setHaptics(v) }
     }

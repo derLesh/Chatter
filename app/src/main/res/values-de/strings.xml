@@ -51,6 +51,8 @@
     <string name="channel_options">Channel-Optionen</string>
     <string name="move_up">Nach oben</string>
     <string name="move_down">Nach unten</string>
+    <string name="move_left">Nach links</string>
+    <string name="move_right">Nach rechts</string>
     <string name="remove_channel">Entfernen</string>
     <string name="rename_channel">Umbenennen</string>
     <string name="rename_channel_hint">Gib dem Channel einen Spitznamen</string>
@@ -161,8 +163,10 @@
     <string name="channel_notify_off">Benachrichtigungen aus</string>
     <string name="channel_notification_settings">Ton &amp; Vibration</string>
     <string name="channel_in_title_bar">Ungelesene anzeigen</string>
+    <string name="settings_channel_tabs">Channels als Tabs</string>
+    <string name="settings_channel_tabs_hint">Alle Channels in einer Zeile, in der Reihenfolge, in der du wischst. Halte einen Tab gedrückt für seine Optionen.</string>
     <string name="settings_unread_title_bar">Ungelesene Kanäle in der Titelleiste</string>
-    <string name="settings_unread_title_bar_hint">Zeige bei ungelesenene Nachrichten, den Avatar eines Kanals in der Titelleiste an</string>
+    <string name="settings_unread_title_bar_hint">Zeige bei ungelesenen Nachrichten den Avatar eines Kanals in der Titelleiste an, oder eine Markierung an seinem Tab</string>
     <string name="settings_group_device">Auf diesem Handy</string>
     <string name="settings_keep_screen_on">Bildschirm anlassen</string>
     <string name="settings_keep_screen_on_hint">Verhindert, dass sich das Display im Chat ausschaltet</string>

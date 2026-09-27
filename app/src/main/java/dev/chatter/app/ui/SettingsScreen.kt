@@ -910,6 +910,14 @@ private fun ChannelsPage(vm: MainViewModel, settings: Settings) {
     SettingsGroup {
         item {
             SwitchItem(
+                R.string.settings_channel_tabs,
+                settings.channelTabs,
+                { vm.setChannelTabs(it) },
+                R.string.settings_channel_tabs_hint,
+            )
+        }
+        item {
+            SwitchItem(
                 R.string.settings_unread_title_bar,
                 settings.unreadInTitleBar,
                 { vm.setUnreadInTitleBar(it) },

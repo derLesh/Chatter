@@ -62,6 +62,7 @@ import dev.chatter.app.ui.channels.AddChannelDialog
 import dev.chatter.app.ui.channels.CombineChannelsDialog
 import dev.chatter.app.ui.channels.RenameChannelDialog
 import dev.chatter.app.ui.channels.ChannelPages
+import dev.chatter.app.ui.channels.ChannelTabBar
 import dev.chatter.app.ui.channels.ChannelTopBar
 import dev.chatter.app.ui.chat.ChannelMark
 import dev.chatter.app.ui.chat.ChatList
@@ -126,6 +127,8 @@ fun MainScreen(vm: MainViewModel, onInbox: () -> Unit, onSettings: () -> Unit) {
     var renameTarget by remember { mutableStateOf<String?>(null) }
     // Null while no dialog is open; the key of the combined chat being changed, or "" for a new one.
     var combineTarget by remember { mutableStateOf<String?>(null) }
+    // The channel a new combined chat was asked for from, ticked when the dialog opens.
+    var combineWith by remember { mutableStateOf<String?>(null) }
     var nicknameTarget by remember { mutableStateOf<ChatItem?>(null) }
 
     // Animated emotes are the most expensive thing on the screen, and the battery saver is the
@@ -236,26 +239,53 @@ fun MainScreen(vm: MainViewModel, onInbox: () -> Unit, onSettings: () -> Unit) {
         contentWindowInsets = WindowInsets(0),
         snackbarHost = { SnackbarHost(snackbar) },
         topBar = {
-            ChannelTopBar(
+            val onSelect = { ch: String ->
+                scope.launch {
+                    pagerState.scrollToPage(pages.pageOf(pageKeys.indexOf(ch).coerceAtLeast(0), pagerState.currentPage))
+                }
+                Unit
+            }
+            val roomState = activeChannel?.let { roomStates[it] }
+            val roleBadge = activeChannel?.let { ch -> roles[ch]?.let { vm.roleBadge(ch, it) } }
+            if (settings.channelTabs) ChannelTabBar(
                 pages = pageKeys,
                 groups = groups,
                 active = active,
                 info = info,
                 unread = unread,
                 unreadMessages = unreadMessages,
-                roomState = activeChannel?.let { roomStates[it] },
-                roleBadge = activeChannel?.let { ch -> roles[ch]?.let { vm.roleBadge(ch, it) } },
+                roomState = roomState,
+                roleBadge = roleBadge,
                 connection = connection,
                 showUnread = settings.unreadInTitleBar,
                 hiddenUnread = hiddenUnread,
                 imageLoader = vm.imageLoader,
-                onSelect = { ch ->
-                    scope.launch {
-                        pagerState.scrollToPage(pages.pageOf(pageKeys.indexOf(ch).coerceAtLeast(0), pagerState.currentPage))
-                    }
-                },
+                onSelect = onSelect,
                 onAdd = { showAdd = true },
-                onCombine = { combineTarget = "" },
+                onCombine = { combineWith = it; combineTarget = "" },
+                onEditGroup = { combineTarget = it },
+                onRemove = vm::removeChannel,
+                onRename = { renameTarget = it },
+                onMove = vm::moveChannel,
+                onInbox = onInbox,
+                inboxUnread = inboxUnread,
+                onSettings = onSettings,
+            ) else ChannelTopBar(
+                pages = pageKeys,
+                groups = groups,
+                active = active,
+                info = info,
+                unread = unread,
+                unreadMessages = unreadMessages,
+                roomState = roomState,
+                roleBadge = roleBadge,
+                connection = connection,
+                showUnread = settings.unreadInTitleBar,
+                hiddenUnread = hiddenUnread,
+                imageLoader = vm.imageLoader,
+                onSelect = onSelect,
+                onAdd = { showAdd = true },
+                onCombine = { combineWith = null; combineTarget = "" },
                 onEditGroup = { combineTarget = it },
                 onRemove = vm::removeChannel,
                 onRename = { renameTarget = it },
@@ -406,6 +436,7 @@ fun MainScreen(vm: MainViewModel, onInbox: () -> Unit, onSettings: () -> Unit) {
             imageLoader = vm.imageLoader,
             onSave = { name, members -> vm.saveGroup(group?.key, name, members) },
             onDismiss = { combineTarget = null },
+            preselected = combineWith,
         )
     }
     renameTarget?.let { login ->

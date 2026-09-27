@@ -62,6 +62,8 @@ data class Settings(
     val sevenTvEvents: Boolean = true,
     /** Show the avatars of channels with unread messages in the title bar. */
     val unreadInTitleBar: Boolean = true,
+    /** Every channel as a tab in the title bar, instead of the one on screen and a menu of the rest. */
+    val channelTabs: Boolean = true,
     /** Suggest emotes while typing. */
     val emoteSuggestions: Boolean = true,
     /** Suggest the names of recent chatters after an "@". */
@@ -138,6 +140,7 @@ class SettingsRepository(
             showUnlisted7tv = p[UNLISTED_7TV] ?: false,
             sevenTvEvents = p[SEVENTV_EVENTS] ?: true,
             unreadInTitleBar = p[UNREAD_TITLE_BAR] ?: true,
+            channelTabs = p[CHANNEL_TABS] ?: true,
             emoteSuggestions = p[EMOTE_SUGGESTIONS] ?: true,
             userSuggestions = p[USER_SUGGESTIONS] ?: true,
             mentionWithAt = p[MENTION_WITH_AT] ?: true,
@@ -187,6 +190,7 @@ class SettingsRepository(
     suspend fun setShowUnlisted7tv(v: Boolean) = store.edit { it[UNLISTED_7TV] = v }
     suspend fun setSevenTvEvents(v: Boolean) = store.edit { it[SEVENTV_EVENTS] = v }
     suspend fun setUnreadInTitleBar(v: Boolean) = store.edit { it[UNREAD_TITLE_BAR] = v }
+    suspend fun setChannelTabs(v: Boolean) = store.edit { it[CHANNEL_TABS] = v }
     suspend fun setEmoteSuggestions(v: Boolean) = store.edit { it[EMOTE_SUGGESTIONS] = v }
     suspend fun setUserSuggestions(v: Boolean) = store.edit { it[USER_SUGGESTIONS] = v }
     suspend fun setMentionWithAt(v: Boolean) = store.edit { it[MENTION_WITH_AT] = v }
@@ -234,6 +238,7 @@ class SettingsRepository(
         p[UNLISTED_7TV] = s.showUnlisted7tv
         p[SEVENTV_EVENTS] = s.sevenTvEvents
         p[UNREAD_TITLE_BAR] = s.unreadInTitleBar
+        p[CHANNEL_TABS] = s.channelTabs
         p[EMOTE_SUGGESTIONS] = s.emoteSuggestions
         p[USER_SUGGESTIONS] = s.userSuggestions
         p[MENTION_WITH_AT] = s.mentionWithAt
@@ -279,6 +284,7 @@ class SettingsRepository(
         val UNLISTED_7TV = booleanPreferencesKey("show_unlisted_7tv")
         val SEVENTV_EVENTS = booleanPreferencesKey("seventv_events")
         val UNREAD_TITLE_BAR = booleanPreferencesKey("unread_title_bar")
+        val CHANNEL_TABS = booleanPreferencesKey("channel_tabs")
         val EMOTE_SUGGESTIONS = booleanPreferencesKey("emote_suggestions")
         val USER_SUGGESTIONS = booleanPreferencesKey("user_suggestions")
         val MENTION_WITH_AT = booleanPreferencesKey("mention_with_at")
