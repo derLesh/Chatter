@@ -4,7 +4,7 @@ Every release of Chatter, newest first. Written from the entries in `pending-cha
 `./gradlew releaseVersion`, and shown in the app under Settings → About → Changelog.
 
 ## 0.6.0 — 2026-09-27
-- minor: Hear in the settings when a new version is out, if you installed Chatter from GitHub
+- minor: Get a notification in the settings when a new version is available, if you installed Chatter from GitHub
 - minor: Show every channel as a tab in the title bar, so a swipe shows where it goes; hold a tab for its options
 - patch: Show the channel picker of combined chats and the options of a held tab as Material 3 grouped menus
 
