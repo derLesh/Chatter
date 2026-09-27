@@ -99,6 +99,7 @@ fun ChannelTopBar(
     onInbox: () -> Unit,
     inboxUnread: Int,
     onSettings: () -> Unit,
+    settingsBadge: Boolean = false,
 ) {
     var expanded by remember { mutableStateOf(false) }
     val activeGroup = active?.let { groups[it] }
@@ -184,7 +185,10 @@ fun ChannelTopBar(
                 }
             }
             IconButton(onClick = onSettings) {
-                Icon(Icons.Default.Settings, contentDescription = stringResource(R.string.settings))
+                // A newer version waits in the settings; the dot is all that says so out here.
+                BadgedBox(badge = { if (settingsBadge) Badge() }) {
+                    Icon(Icons.Default.Settings, contentDescription = stringResource(R.string.settings))
+                }
             }
         },
     )

@@ -100,6 +100,7 @@ fun ChannelTabBar(
     onInbox: () -> Unit,
     inboxUnread: Int,
     onSettings: () -> Unit,
+    settingsBadge: Boolean = false,
 ) {
     val activeGroup = active?.let { groups[it] }
     Surface(color = MaterialTheme.colorScheme.surfaceContainer) {
@@ -130,7 +131,10 @@ fun ChannelTabBar(
                     }
                 }
                 IconButton(onClick = onSettings) {
-                    Icon(Icons.Default.Settings, contentDescription = stringResource(R.string.settings))
+                    // A newer version waits in the settings; the dot is all that says so out here.
+                    BadgedBox(badge = { if (settingsBadge) Badge() }) {
+                        Icon(Icons.Default.Settings, contentDescription = stringResource(R.string.settings))
+                    }
                 }
             }
             // Asked here rather than left to the status line, which would still take its padding

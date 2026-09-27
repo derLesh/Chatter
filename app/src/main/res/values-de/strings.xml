@@ -391,6 +391,15 @@
     <!-- Changelog -->
     <string name="settings_changelog">Changelog</string>
     <string name="settings_changelog_summary">Chatter Versionsänderungen</string>
+    <string name="settings_update_check">Nach Updates suchen</string>
+    <string name="settings_update_check_hint">Frage einmal am Tag bei GitHub nach, ob es eine neue Version gibt</string>
+    <string name="update_available">Chatter %1$s ist da</string>
+    <string name="update_installed">Du hast %1$s</string>
+    <string name="update_whats_new">Was ist neu</string>
+    <string name="update_download">Herunterladen</string>
+    <string name="update_download_version">%1$s herunterladen</string>
+    <string name="update_download_hint">Öffnet die APK auf GitHub. Installiere sie über diese, deine Channels und Einstellungen bleiben erhalten.</string>
+    <string name="update_page_title">Neue Version</string>
     <string name="changelog_major">Änderungen</string>
     <string name="changelog_minor">Neu</string>
     <string name="changelog_patch">Behoben</string>

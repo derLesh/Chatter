@@ -103,6 +103,7 @@ fun MainScreen(vm: MainViewModel, onInbox: () -> Unit, onSettings: () -> Unit) {
     val blockedLogins by vm.blockedLogins.collectAsStateWithLifecycle()
     val nicknames by vm.nicknames.collectAsStateWithLifecycle()
     val inboxUnread by vm.inboxUnread.collectAsStateWithLifecycle()
+    val update by vm.availableUpdate.collectAsStateWithLifecycle()
 
     val context = LocalContext.current
     // Not context.resources: only this one follows a configuration change, so a snackbar shown
@@ -148,6 +149,12 @@ fun MainScreen(vm: MainViewModel, onInbox: () -> Unit, onSettings: () -> Unit) {
     // Keep the chat service (and with it the connection) running while there are channels.
     LifecycleStartEffect(channels.isNotEmpty()) {
         if (channels.isNotEmpty()) ChatService.start(context)
+        onStopOrDispose { }
+    }
+
+    // Whenever the chat comes on screen; the repository itself keeps it to once a day.
+    LifecycleStartEffect(Unit) {
+        vm.checkForUpdate()
         onStopOrDispose { }
     }
 
@@ -270,6 +277,7 @@ fun MainScreen(vm: MainViewModel, onInbox: () -> Unit, onSettings: () -> Unit) {
                 onInbox = onInbox,
                 inboxUnread = inboxUnread,
                 onSettings = onSettings,
+                settingsBadge = update != null,
             ) else ChannelTopBar(
                 pages = pageKeys,
                 groups = groups,
@@ -293,6 +301,7 @@ fun MainScreen(vm: MainViewModel, onInbox: () -> Unit, onSettings: () -> Unit) {
                 onInbox = onInbox,
                 inboxUnread = inboxUnread,
                 onSettings = onSettings,
+                settingsBadge = update != null,
             )
         },
     ) { padding ->

@@ -855,6 +855,19 @@ class MainViewModel(private val c: AppContainer) : ViewModel() {
     /** The update notes have been seen, so they should not come back. */
     fun markChangelogRead() = c.changelog.markRead()
 
+    /** A newer release on GitHub, for the APK installed from there; null otherwise. */
+    val availableUpdate = c.updates.available
+
+    fun checkForUpdate() = c.updates.checkIfDue()
+
+    fun setUpdateCheck(v: Boolean) {
+        viewModelScope.launch {
+            c.settings.setUpdateCheck(v)
+            // Switched back on after a long while off, the answer it still holds may be stale.
+            if (v) c.updates.checkIfDue()
+        }
+    }
+
     private companion object {
         /** How long a channel has to stay on screen before it is remembered as the last one. */
         const val LAST_CHANNEL_DELAY_MS = 1_500L

@@ -10,6 +10,7 @@ import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.floatPreferencesKey
 import androidx.datastore.preferences.core.intPreferencesKey
+import androidx.datastore.preferences.core.longPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.Flow
@@ -72,6 +73,8 @@ data class Settings(
     val mentionWithAt: Boolean = true,
     /** Keep deleted messages in the chat, struck through, instead of hiding them. */
     val showDeleted: Boolean = true,
+    /** Ask GitHub once a day whether a newer version is out; only the APK from GitHub has it. */
+    val updateCheck: Boolean = true,
     /** Show a linked image in place of its url, fetched from the host it sits on. */
     val inlineImages: Boolean = true,
     /** The only hosts whose images are ever fetched. The user adds to it and takes from it. */
@@ -145,6 +148,7 @@ class SettingsRepository(
             userSuggestions = p[USER_SUGGESTIONS] ?: true,
             mentionWithAt = p[MENTION_WITH_AT] ?: true,
             showDeleted = p[SHOW_DELETED] ?: true,
+            updateCheck = p[UPDATE_CHECK] ?: true,
             inlineImages = p[INLINE_IMAGES] ?: true,
             // Only an absent key falls back to the defaults: a list the user emptied stays empty.
             imageHosts = p[IMAGE_HOSTS]?.split(',')?.map { it.trim() }?.filter { it.isNotEmpty() }
@@ -195,6 +199,7 @@ class SettingsRepository(
     suspend fun setUserSuggestions(v: Boolean) = store.edit { it[USER_SUGGESTIONS] = v }
     suspend fun setMentionWithAt(v: Boolean) = store.edit { it[MENTION_WITH_AT] = v }
     suspend fun setShowDeleted(v: Boolean) = store.edit { it[SHOW_DELETED] = v }
+    suspend fun setUpdateCheck(v: Boolean) = store.edit { it[UPDATE_CHECK] = v }
     suspend fun setInlineImages(v: Boolean) = store.edit { it[INLINE_IMAGES] = v }
     suspend fun setImageHosts(v: List<String>) = store.edit { p -> p[IMAGE_HOSTS] = v.joinToString(",") }
     suspend fun setCarouselChannels(v: Boolean) = store.edit { it[CAROUSEL_CHANNELS] = v }
@@ -214,6 +219,19 @@ class SettingsRepository(
     val seenVersion: Flow<String?> = store.data.map { it[SEEN_VERSION] }
 
     suspend fun setSeenVersion(v: String) = store.edit { it[SEEN_VERSION] = v }
+
+    /**
+     * The latest release GitHub named at the last check, as JSON, and when that check was. Kept
+     * out of [Settings]: it is what the app found out, not something the user set, and a backup
+     * carrying it over to another phone would bring along news that may no longer be true.
+     */
+    val availableUpdate: Flow<String?> = store.data.map { it[AVAILABLE_UPDATE] }
+    val updateCheckedAt: Flow<Long?> = store.data.map { it[UPDATE_CHECKED_AT] }
+
+    suspend fun setAvailableUpdate(json: String, checkedAt: Long) = store.edit {
+        it[AVAILABLE_UPDATE] = json
+        it[UPDATE_CHECKED_AT] = checkedAt
+    }
 
     /**
      * Writes every setting at once, for restoring a backup. New settings have to be added here
@@ -243,6 +261,7 @@ class SettingsRepository(
         p[USER_SUGGESTIONS] = s.userSuggestions
         p[MENTION_WITH_AT] = s.mentionWithAt
         p[SHOW_DELETED] = s.showDeleted
+        p[UPDATE_CHECK] = s.updateCheck
         p[INLINE_IMAGES] = s.inlineImages
         p[IMAGE_HOSTS] = s.imageHosts.joinToString(",")
         p[CAROUSEL_CHANNELS] = s.carouselChannels
@@ -289,6 +308,7 @@ class SettingsRepository(
         val USER_SUGGESTIONS = booleanPreferencesKey("user_suggestions")
         val MENTION_WITH_AT = booleanPreferencesKey("mention_with_at")
         val SHOW_DELETED = booleanPreferencesKey("show_deleted")
+        val UPDATE_CHECK = booleanPreferencesKey("update_check")
         val INLINE_IMAGES = booleanPreferencesKey("inline_images")
         val IMAGE_HOSTS = stringPreferencesKey("image_hosts")
         val CAROUSEL_CHANNELS = booleanPreferencesKey("carousel_channels")
@@ -304,6 +324,8 @@ class SettingsRepository(
         val NAME_TAP = stringPreferencesKey("name_tap")
         val COPY_FIRST = booleanPreferencesKey("copy_first")
         val SEEN_VERSION = stringPreferencesKey("seen_changelog_version")
+        val AVAILABLE_UPDATE = stringPreferencesKey("available_update")
+        val UPDATE_CHECKED_AT = longPreferencesKey("update_checked_at")
         const val MAX_RECENT = 40
     }
 }

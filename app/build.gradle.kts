@@ -46,6 +46,13 @@ val versionProps = Properties().apply {
 val sponsoring = false
 
 /**
+ * Whether this is the APK people install themselves from the GitHub releases, rather than the
+ * build for Play. The release workflow says so with `-Pdistribution=github`, and forgetting it can
+ * only ever leave out what Play must not see, never put it in.
+ */
+val sideloaded = (project.findProperty("distribution") as String?) == "github"
+
+/**
  * Whether this build may show the way to GitHub Sponsors.
  *
  * Google Play wants payments that happen in an app to go through its own billing, and a link
@@ -54,7 +61,7 @@ val sponsoring = false
  * `-Pdistribution=github` for the sideload APK, and forgetting it can only ever leave the link
  * out, never put it where it must not be.
  */
-val sponsorLink = sponsoring && (project.findProperty("distribution") as String?) == "github"
+val sponsorLink = sponsoring && sideloaded
 
 android {
     namespace = "dev.chatter.app"
@@ -104,9 +111,13 @@ android {
         debug {
             // Whoever is building the app themselves is the one who wants to see it.
             buildConfigField("boolean", "SPONSOR_LINK", "$sponsoring")
+            buildConfigField("boolean", "UPDATE_CHECK", "true")
         }
         release {
             buildConfigField("boolean", "SPONSOR_LINK", "$sponsorLink")
+            // Play updates its own installs and forbids an app to point anywhere else for an
+            // update, so only the sideloaded APK asks GitHub whether a newer version is out.
+            buildConfigField("boolean", "UPDATE_CHECK", "$sideloaded")
             isMinifyEnabled = true
             isShrinkResources = true
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")

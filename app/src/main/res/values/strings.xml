@@ -397,6 +397,15 @@
     <!-- Changelog -->
     <string name="settings_changelog">Changelog</string>
     <string name="settings_changelog_summary">Changes in each Chatter version</string>
+    <string name="settings_update_check">Look for updates</string>
+    <string name="settings_update_check_hint">Ask GitHub once a day whether a newer version is out</string>
+    <string name="update_available">Chatter %1$s is out</string>
+    <string name="update_installed">You have %1$s</string>
+    <string name="update_whats_new">What\'s new</string>
+    <string name="update_download">Download</string>
+    <string name="update_download_version">Download %1$s</string>
+    <string name="update_download_hint">Opens the APK on GitHub. Install it over this one, and your channels and settings stay as they are.</string>
+    <string name="update_page_title">New version</string>
     <string name="changelog_major">Breaking</string>
     <string name="changelog_minor">New</string>
     <string name="changelog_patch">Fixed</string>

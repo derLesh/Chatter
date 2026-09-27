@@ -133,6 +133,8 @@ import dev.chatter.app.ui.channels.ManageChannelsPage
 import dev.chatter.app.ui.channels.RenameChannelDialog
 import dev.chatter.app.ui.chat.ChatStyle
 import dev.chatter.app.ui.chat.MessageRow
+import dev.chatter.app.ui.update.UpdateCard
+import dev.chatter.app.ui.update.UpdatePage
 import dev.chatter.app.ui.settings.AccountPage
 import dev.chatter.app.ui.settings.AccountRowIcon
 import dev.chatter.app.ui.settings.AddKeywordDialog
@@ -185,6 +187,7 @@ private enum class SettingsSubPage(val title: Int) {
     ImageHosts(R.string.settings_image_hosts),
     Rules(R.string.settings_rules),
     Changelog(R.string.settings_changelog),
+    Update(R.string.update_page_title),
     Credits(R.string.settings_credits),
 }
 
@@ -208,6 +211,7 @@ fun SettingsScreen(vm: MainViewModel, onBack: () -> Unit) {
     val settings by vm.settings.collectAsStateWithLifecycle()
     val auth by vm.authState.collectAsStateWithLifecycle()
     val account = (auth as? AuthState.LoggedIn)?.account
+    val update by vm.availableUpdate.collectAsStateWithLifecycle()
     val scope = rememberCoroutineScope()
 
     addFailed?.let { error ->
@@ -279,8 +283,13 @@ fun SettingsScreen(vm: MainViewModel, onBack: () -> Unit) {
                     val releases by vm.releases.collectAsStateWithLifecycle()
                     ChangelogPage(releases, BuildConfig.VERSION_NAME)
                 }
+                // Gone once the new version is installed, which leaves nothing to show here.
+                SettingsSubPage.Update -> update?.let { UpdatePage(it) }
                 null -> when (current) {
-                    null -> Home(account, vm.imageLoader) { page = it }
+                    null -> {
+                        update?.let { UpdateCard(it, BuildConfig.VERSION_NAME) { subPage = SettingsSubPage.Update } }
+                        Home(account, vm.imageLoader) { page = it }
+                    }
                     SettingsPage.Appearance -> AppearancePage(settings, vm)
                     SettingsPage.Chat -> ChatPage(settings, vm) { subPage = it }
                     SettingsPage.Emotes -> EmotesPage(settings, vm)
@@ -293,7 +302,7 @@ fun SettingsScreen(vm: MainViewModel, onBack: () -> Unit) {
                         BackupGroup(vm)
                     }
                     SettingsPage.Support -> SupportPage(vm)
-                    SettingsPage.About -> AboutPage { subPage = it }
+                    SettingsPage.About -> AboutPage(settings, vm) { subPage = it }
                 }
             }
         }
@@ -1055,7 +1064,7 @@ private fun formatNumber(n: Long): String = NumberFormat.getIntegerInstance().fo
 private fun formatDay(at: Long): String = DateFormat.getDateInstance(DateFormat.MEDIUM).format(Date(at))
 
 @Composable
-private fun AboutPage(open: (SettingsSubPage) -> Unit) {
+private fun AboutPage(settings: Settings, vm: MainViewModel, open: (SettingsSubPage) -> Unit) {
     // The wordmark, which already says the name, so no heading repeats it underneath.
     Column(
         horizontalAlignment = Alignment.CenterHorizontally,
@@ -1094,6 +1103,17 @@ private fun AboutPage(open: (SettingsSubPage) -> Unit) {
                 trailingContent = { Icon(Icons.AutoMirrored.Filled.ArrowForward, contentDescription = null) },
                 colors = transparentItem(),
                 modifier = Modifier.clickable { open(SettingsSubPage.Credits) },
+            )
+        }
+    }
+    // Only the APK from GitHub has anything to switch here; Play keeps its installs up to date.
+    if (BuildConfig.UPDATE_CHECK) SettingsGroup {
+        item {
+            SwitchItem(
+                R.string.settings_update_check,
+                settings.updateCheck,
+                vm::setUpdateCheck,
+                R.string.settings_update_check_hint,
             )
         }
     }

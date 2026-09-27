@@ -20,6 +20,7 @@ import dev.chatter.app.auth.AuthState
 import dev.chatter.app.badges.BadgeRepository
 import dev.chatter.app.badges.SupporterTitles
 import dev.chatter.app.changelog.ChangelogRepository
+import dev.chatter.app.update.UpdateRepository
 import dev.chatter.app.channels.BlockedUsersRepository
 import dev.chatter.app.channels.ChannelRepository
 import dev.chatter.app.chat.AppChatNotices
@@ -112,6 +113,7 @@ class AppContainer(private val context: Context) {
     val stats = StatsRepository(context.statsStore, scope)
     val backup = BackupManager(settings, rules, nicknames, channels)
     val changelog = ChangelogRepository(context, settings, BuildConfig.VERSION_NAME, scope)
+    val updates = UpdateRepository(http, settings, BuildConfig.VERSION_NAME, BuildConfig.UPDATE_CHECK, scope)
     val irc = IrcConnection(socketHttp, scope)
     val whisperSender = WhisperSender(context, helix, auth)
     private val chatters = ChatterRegistry()
