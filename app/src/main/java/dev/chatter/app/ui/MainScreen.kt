@@ -41,6 +41,7 @@ import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
@@ -183,6 +184,7 @@ fun MainScreen(vm: MainViewModel, onInbox: () -> Unit, onSettings: () -> Unit) {
     }
 
     val haptics = LocalHapticFeedback.current
+    val focusManager = LocalFocusManager.current
     LaunchedEffect(resources, settings.haptics) {
         vm.messages.collect { message ->
             // Everything that reaches the snackbar is something that did not work out.
@@ -360,6 +362,9 @@ fun MainScreen(vm: MainViewModel, onInbox: () -> Unit, onSettings: () -> Unit) {
                                 MessageGesture.Hold -> TapAction.UserCard
                                 // Reading the conversation, which is the one thing it can be.
                                 MessageGesture.Thread -> {
+                                    // Otherwise the field keeps its focus under the sheet, and
+                                    // Android hands it the keyboard back once the sheet is gone.
+                                    focusManager.clearFocus()
                                     threadOf = item
                                     vm.startReply(item)
                                     return@ChatList

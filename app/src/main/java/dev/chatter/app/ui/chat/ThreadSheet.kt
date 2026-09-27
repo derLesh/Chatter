@@ -7,12 +7,17 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.SheetValue
 import androidx.compose.material3.Text
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.style.TextOverflow
@@ -24,6 +29,7 @@ import dev.chatter.app.R
 import dev.chatter.app.chat.ChatItem
 import dev.chatter.app.chat.ReplyInfo
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.filter
 
 /**
  * One conversation out of a busy chat: the message it started with and every answer to it that is
@@ -56,11 +62,25 @@ fun ThreadSheet(
 
     // Straight up to full height: the field sits at the bottom, and a half-open sheet would put
     // it under the keyboard.
+    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     ModalBottomSheet(
         onDismissRequest = onDismiss,
-        sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
+        sheetState = sheetState,
         containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
     ) {
+        // The sheet's own window: read out here, these would be the chat's behind it.
+        val keyboard = LocalSoftwareKeyboardController.current
+        val focus = LocalFocusManager.current
+        // The keyboard goes with the sheet, the moment it is on its way out. Left to itself it
+        // outlives the sheet by a moment, over the chat, and the chat jumps when it finally goes.
+        LaunchedEffect(sheetState) {
+            snapshotFlow { sheetState.currentValue == SheetValue.Expanded && sheetState.targetValue == SheetValue.Hidden }
+                .filter { it }
+                .collect {
+                    focus.clearFocus()
+                    keyboard?.hide()
+                }
+        }
         Column {
             Text(
                 stringResource(R.string.thread_title),
