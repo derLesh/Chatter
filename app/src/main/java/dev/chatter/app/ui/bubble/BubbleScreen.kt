@@ -136,6 +136,7 @@ fun BubbleScreen(vm: MainViewModel, channel: String?) {
                 onCancelReply = vm::cancelReply,
                 onEmotePicker = { showPicker = true },
                 onSend = vm::send,
+                replyStarts = vm.replyStarts,
                 modifier = Modifier.fillMaxWidth(),
             )
         }

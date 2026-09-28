@@ -1,6 +1,7 @@
 package dev.chatter.app.ui
 
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
@@ -126,6 +127,17 @@ class MainViewModel(private val c: AppContainer) : ViewModel() {
         private set
     var replyTo by mutableStateOf<ChatItem?>(null)
         private set
+
+    /**
+     * How many answers the user has begun. The field brings the keyboard up for each one, and only
+     * for those: an answer that comes back with its page's draft was not just begun.
+     */
+    var replyStarts by mutableIntStateOf(0)
+        private set
+
+    /** The pages left with something unsent in the field, for the mark beside their name. */
+    var draftPages by mutableStateOf<Set<String>>(emptySet())
+        private set
     var suggestions by mutableStateOf<List<Suggestion>>(emptyList())
         private set
 
@@ -182,6 +194,27 @@ class MainViewModel(private val c: AppContainer) : ViewModel() {
     /** The channel last written in on each combined chat, so coming back to one writes there again. */
     private val sendChannels = HashMap<String, String>()
 
+    /** What was being written on a page the user left: the text, and the message it answers. */
+    private class Draft(val input: TextFieldValue, val replyTo: ChatItem?)
+
+    /**
+     * The drafts of the pages not on screen. One field for every page would carry whatever was
+     * typed along to the next one, and a swipe in the middle of a sentence would send it there.
+     */
+    private val drafts = HashMap<String, Draft>()
+
+    /** Puts what the field holds away under [from], and takes out what [to] was left with. */
+    private fun swapDraft(from: String?, to: String?) {
+        if (from != null) {
+            if (input.text.isNotBlank() || replyTo != null) drafts[from] = Draft(input, replyTo)
+            else drafts.remove(from)
+        }
+        val draft = to?.let(drafts::remove)
+        input = draft?.input ?: TextFieldValue("")
+        replyTo = draft?.replyTo
+        draftPages = drafts.keys.toSet()
+    }
+
     /** The newest message each page had on screen, as its list last said; see [onSeen]. */
     private val seen = HashMap<String, ReadMark>()
 
@@ -219,7 +252,10 @@ class MainViewModel(private val c: AppContainer) : ViewModel() {
         val channels = page?.let(::channelsOf).orEmpty()
         if (shownPage == page && shownChannels == channels) return
         val samePage = shownPage == page
-        if (!samePage) shownPage?.let(::leave)
+        if (!samePage) {
+            shownPage?.let(::leave)
+            swapDraft(shownPage, page)
+        }
         shownPage = page
         shownChannels = channels
         c.chat.windows.setChannels(this, channels.toSet())
@@ -236,7 +272,8 @@ class MainViewModel(private val c: AppContainer) : ViewModel() {
         // happens to be reading in a bubble on the side.
         if (page != null && !inBubble) rememberLastChannel(page)
         sendChannel = page?.let { sendChannels[it] }?.takeIf { it in channels } ?: channels.firstOrNull()
-        if (!samePage || replyTo?.channel !in channels) replyTo = null
+        // A combined chat that lost the channel of the message being answered cannot answer it.
+        if (replyTo?.channel !in channels) replyTo = null
         suggestions = emptyList()
     }
 
@@ -556,6 +593,7 @@ class MainViewModel(private val c: AppContainer) : ViewModel() {
         if (!item.canReply || item.id.startsWith("local-")) return false
         selectSendChannel(item.channel)
         replyTo = item
+        replyStarts++
         return true
     }
 

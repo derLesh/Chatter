@@ -104,6 +104,8 @@ fun ChannelTabBar(
     inboxUnread: Int,
     onSettings: () -> Unit,
     settingsBadge: Boolean = false,
+    /** The pages left with an unsent message in the field. */
+    drafts: Set<String> = emptySet(),
 ) {
     val activeGroup = active?.let { groups[it] }
     Surface(color = MaterialTheme.colorScheme.surfaceContainer) {
@@ -118,6 +120,7 @@ fun ChannelTabBar(
                     unreadMessages = unreadMessages,
                     showUnread = showUnread,
                     hiddenUnread = hiddenUnread,
+                    drafts = drafts,
                     imageLoader = imageLoader,
                     onSelect = onSelect,
                     onAdd = onAdd,
@@ -169,6 +172,7 @@ private fun ChannelTabs(
     unreadMessages: Map<String, Int>,
     showUnread: Boolean,
     hiddenUnread: Set<String>,
+    drafts: Set<String>,
     imageLoader: ImageLoader,
     onSelect: (String) -> Unit,
     onAdd: () -> Unit,
@@ -218,6 +222,7 @@ private fun ChannelTabs(
                 selected = isSelected,
                 mentions = mentions,
                 hasNew = hasNew,
+                hasDraft = page in drafts,
                 onClick = { onSelect(page) },
                 // Grouped by what they do to the tab: where it stands, what it is, and whether it stays.
                 actions = listOf(
@@ -266,6 +271,7 @@ private fun ChannelTab(
     selected: Boolean,
     mentions: Int,
     hasNew: Boolean,
+    hasDraft: Boolean,
     onClick: () -> Unit,
     actions: List<List<TabAction>>,
 ) {
@@ -303,6 +309,10 @@ private fun ChannelTab(
                     overflow = TextOverflow.Ellipsis,
                     modifier = Modifier.widthIn(max = 140.dp),
                 )
+                if (hasDraft) {
+                    Spacer(Modifier.width(4.dp))
+                    DraftMark()
+                }
                 if (mentions > 0) {
                     Spacer(Modifier.width(6.dp))
                     Badge { Text(formatCount(mentions)) }

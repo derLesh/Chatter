@@ -76,6 +76,9 @@ import dev.chatter.app.ui.channels.ChannelAvatar
  *
  * Without [onCancelReply] the reply strip has no way to be closed: in a conversation, answering
  * into it is the point.
+ *
+ * [replyStarts] counts the answers the user began, and each one brings the keyboard up. The
+ * answer itself cannot say so: it also comes back with the draft of a page swiped back to.
  */
 @Composable
 fun InputBar(
@@ -90,6 +93,7 @@ fun InputBar(
     onEmotePicker: () -> Unit,
     onSend: () -> Unit,
     modifier: Modifier = Modifier,
+    replyStarts: Int = 0,
     sendChannels: List<String> = emptyList(),
     sendChannel: String? = null,
     channelInfo: Map<String, ChannelInfo> = emptyMap(),
@@ -99,7 +103,7 @@ fun InputBar(
     val focus = remember { FocusRequester() }
     // Picking a message to answer is only half of answering it: the keyboard comes up with it,
     // so that one tap on a message is all it takes to start typing.
-    LaunchedEffect(replyTo?.id) { if (replyTo != null && enabled) focus.requestFocus() }
+    LaunchedEffect(replyStarts) { if (replyTo != null && enabled) focus.requestFocus() }
     // No bar of its own: the input sits straight on the chat background, so only the rounded
     // field, the chips and the reply strip stand out.
     Column(modifier) {

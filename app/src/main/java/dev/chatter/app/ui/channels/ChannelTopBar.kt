@@ -102,6 +102,8 @@ fun ChannelTopBar(
     inboxUnread: Int,
     onSettings: () -> Unit,
     settingsBadge: Boolean = false,
+    /** The pages left with an unsent message in the field. */
+    drafts: Set<String> = emptySet(),
 ) {
     var expanded by remember { mutableStateOf(false) }
     val activeGroup = active?.let { groups[it] }
@@ -153,6 +155,7 @@ fun ChannelTopBar(
                     info = info,
                     unread = unread,
                     unreadMessages = unreadMessages,
+                    drafts = drafts,
                     imageLoader = imageLoader,
                     anchorX = anchorX,
                     onDismiss = { expanded = false },
@@ -352,6 +355,7 @@ private fun ChannelDropdown(
     info: Map<String, ChannelInfo>,
     unread: Map<String, Int>,
     unreadMessages: Map<String, Int>,
+    drafts: Set<String>,
     imageLoader: ImageLoader,
     anchorX: Dp,
     onDismiss: () -> Unit,
@@ -417,6 +421,10 @@ private fun ChannelDropdown(
                 },
                 trailingIcon = {
                     Row(verticalAlignment = Alignment.CenterVertically) {
+                        if (page in drafts) {
+                            DraftMark()
+                            Spacer(Modifier.width(6.dp))
+                        }
                         // New messages (neutral) and mentions (red) since the page was last viewed.
                         if (messages > 0 && page != active) {
                             Badge(
@@ -480,6 +488,17 @@ private fun ChannelDropdown(
 }
 
 /** Round profile picture with a red ring and dot while the channel is live. */
+/** Beside a page's name: something is typed there and not sent yet. */
+@Composable
+internal fun DraftMark() {
+    Icon(
+        Icons.Default.Edit,
+        contentDescription = stringResource(R.string.draft_waiting),
+        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+        modifier = Modifier.size(14.dp),
+    )
+}
+
 @Composable
 fun ChannelAvatar(info: ChannelInfo?, imageLoader: ImageLoader, size: Dp) {
     Box(Modifier.size(size)) {

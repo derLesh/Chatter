@@ -293,6 +293,7 @@ fun MainScreen(vm: MainViewModel, onInbox: () -> Unit, onSettings: () -> Unit) {
                 inboxUnread = inboxUnread,
                 onSettings = onSettings,
                 settingsBadge = update != null,
+                drafts = vm.draftPages,
             ) else ChannelTopBar(
                 pages = pageKeys,
                 groups = groups,
@@ -318,6 +319,7 @@ fun MainScreen(vm: MainViewModel, onInbox: () -> Unit, onSettings: () -> Unit) {
                 inboxUnread = inboxUnread,
                 onSettings = onSettings,
                 settingsBadge = update != null,
+                drafts = vm.draftPages,
             )
         },
     ) { padding ->
@@ -399,6 +401,7 @@ fun MainScreen(vm: MainViewModel, onInbox: () -> Unit, onSettings: () -> Unit) {
                 onCancelReply = vm::cancelReply,
                 onEmotePicker = { showPicker = true },
                 onSend = vm::send,
+                replyStarts = vm.replyStarts,
                 modifier = Modifier.fillMaxWidth(),
                 sendChannels = activeGroup?.channels.orEmpty(),
                 sendChannel = vm.sendChannel,
@@ -457,6 +460,7 @@ fun MainScreen(vm: MainViewModel, onInbox: () -> Unit, onSettings: () -> Unit) {
                 onCancelReply = null,
                 onEmotePicker = { showPicker = true },
                 onSend = vm::send,
+                replyStarts = vm.replyStarts,
                 modifier = Modifier.fillMaxWidth(),
             )
         }
