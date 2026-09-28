@@ -1,1 +1,0 @@
-minor: Mark where you stopped reading a channel, with a chip that jumps back to it

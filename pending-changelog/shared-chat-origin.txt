@@ -1,1 +1,0 @@
-minor: Show which channel a Shared Chat message was written in, with the badges earned there

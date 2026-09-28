@@ -3,6 +3,12 @@
 Every release of Chatter, newest first. Written from the entries in `pending-changelog/` by
 `./gradlew releaseVersion`, and shown in the app under Settings → About → Changelog.
 
+## 0.7.0 — 2026-09-28
+- minor: Mark where you stopped reading a channel, with a chip that jumps back to it
+- minor: Show which channel a Shared Chat message was written in, with the badges earned there
+- minor: Tap the line a reply quotes to read the whole conversation and answer into it
+- patch: Mentions you have on screen are marked as read in the inbox, also when you come back to the app
+
 ## 0.6.0 — 2026-09-27
 - minor: Get a notification in the settings when a new version is available, if you installed Chatter from GitHub
 - minor: Show every channel as a tab in the title bar, so a swipe shows where it goes; hold a tab for its options

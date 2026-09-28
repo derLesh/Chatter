@@ -1,1 +1,0 @@
-minor: Tap the line a reply quotes to read the whole conversation and answer into it
