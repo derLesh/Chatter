@@ -492,6 +492,18 @@ class MainViewModel(private val c: AppContainer) : ViewModel() {
         viewModelScope.launch { c.inbox.markRead(mention.id) }
     }
 
+    /**
+     * Mentions the chat has on screen right now. Opening a channel reads all of its mentions, but
+     * coming back to the app on the channel it was left on is no opening, and the ones that
+     * arrived meanwhile would otherwise stay unread in the inbox while the user looks at them.
+     */
+    fun onMentionsSeen(ids: Set<String>) {
+        // Called on every scroll that changes which mentions are visible, nearly always about
+        // ones read long ago; only an unread one is worth a write.
+        if (c.inbox.mentions.value.none { !it.read && it.id in ids }) return
+        viewModelScope.launch { c.inbox.markRead(ids) }
+    }
+
     fun markInboxRead() {
         viewModelScope.launch { c.inbox.markAllRead() }
     }

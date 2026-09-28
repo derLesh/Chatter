@@ -54,8 +54,12 @@ class MentionInboxRepository(private val store: DataStore<Preferences>, scope: C
         }
     }
 
-    suspend fun markRead(id: String) = update { list ->
-        list.map { if (it.id == id) it.copy(read = true) else it }
+    suspend fun markRead(id: String) = markRead(setOf(id))
+
+    /** Leaves the store alone when all of [ids] are read already, as they usually are. */
+    suspend fun markRead(ids: Set<String>) = update { list ->
+        if (list.none { !it.read && it.id in ids }) list
+        else list.map { if (it.id in ids) it.copy(read = true) else it }
     }
 
     /** Called when a channel is opened: its mentions have been seen by definition. */

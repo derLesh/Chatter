@@ -1,0 +1,1 @@
+patch: Mentions you have on screen are marked as read in the inbox, also when you come back to the app

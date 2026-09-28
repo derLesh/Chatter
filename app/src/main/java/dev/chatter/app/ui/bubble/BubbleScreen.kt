@@ -123,6 +123,7 @@ fun BubbleScreen(vm: MainViewModel, channel: String?) {
                 smoothScrolling = settings.smoothScrolling,
                 onEmoteClick = { emoteCard = it },
                 partners = partnerMarks,
+                onMentionsSeen = vm::onMentionsSeen,
             )
             InputBar(
                 value = vm.input,

@@ -351,6 +351,7 @@ fun MainScreen(vm: MainViewModel, onInbox: () -> Unit, onSettings: () -> Unit) {
                         partners = partnerMarks,
                         readMark = vm.readMark(channel),
                         onSeen = if (channel == active) { mark -> vm.onSeen(channel, mark) } else null,
+                        onMentionsSeen = if (channel == active) vm::onMentionsSeen else null,
                         style = style,
                         imageLoader = loader,
                         onGesture = { item, gesture ->

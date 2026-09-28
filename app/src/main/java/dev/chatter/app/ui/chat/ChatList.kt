@@ -49,6 +49,7 @@ import dev.chatter.app.chat.ChatItem
 import dev.chatter.app.chat.Segment
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.launch
 
@@ -63,6 +64,7 @@ import kotlinx.coroutines.launch
  * [readMark] is how far the page had been read when the user last left it. What arrived since
  * gets a line above it and a chip that jumps there; see [ReadMark]. [onSeen] hears which message
  * is the newest on screen, and only the page in front passes it: the others are not being read.
+ * [onMentionsSeen] hears the mentions on screen, by id, under the same rule.
  */
 @Composable
 fun ChatList(
@@ -77,6 +79,7 @@ fun ChatList(
     partners: Map<String, ChannelMark> = emptyMap(),
     readMark: ReadMark? = null,
     onSeen: ((ReadMark) -> Unit)? = null,
+    onMentionsSeen: ((Set<String>) -> Unit)? = null,
 ) {
     // Already filtered for deleted messages by the repository, which had to copy the buffer anyway.
     val items by messages.collectAsStateWithLifecycle()
@@ -116,6 +119,19 @@ fun ChatList(
             .filterNotNull()
             .distinctUntilChanged { a, b -> a.id == b.id }
             .collect { currentOnSeen?.invoke(ReadMark(it.id, it.timestamp)) }
+    }
+    val currentOnMentionsSeen by rememberUpdatedState(onMentionsSeen)
+    if (onMentionsSeen != null) LaunchedEffect(listState) {
+        snapshotFlow {
+            // Checked against the row's key: a message that just arrived shifts every index by
+            // one before the layout has caught up, and a mention a row below the screen is not seen.
+            listState.layoutInfo.visibleItemsInfo.mapNotNullTo(HashSet()) { row ->
+                items.getOrNull(items.size - 1 - row.index)?.takeIf { it.isMention && it.id == row.key }?.id
+            }
+        }
+            .filter { it.isNotEmpty() }
+            .distinctUntilChanged()
+            .collect { currentOnMentionsSeen?.invoke(it) }
     }
     // Always a straight jump to the newest message, never an animated one. A new message is
     // inserted at index 0, which pushes the list's anchor up by a row, and the viewport has to
