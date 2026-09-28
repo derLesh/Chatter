@@ -1,0 +1,1 @@
+patch: Slide between chat, inbox and settings, and preview where the back gesture leads while it is dragged

@@ -3,15 +3,12 @@ package dev.chatter.app.ui
 import android.content.Intent
 import android.net.Uri
 import android.provider.Settings as AndroidSettings
-import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedContent
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
-import androidx.compose.animation.slideInHorizontally
-import androidx.compose.animation.slideOutHorizontally
-import androidx.compose.animation.togetherWith
+import androidx.navigationevent.NavigationEventInfo
+import androidx.navigationevent.compose.NavigationBackHandler
+import androidx.navigationevent.compose.rememberNavigationEventState
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -316,8 +313,6 @@ fun SettingsScreen(vm: MainViewModel, onBack: () -> Unit) {
             else -> onBack()
         }
     }
-    BackHandler(onBack = goBack)
-
     val settings by vm.settings.collectAsStateWithLifecycle()
     val auth by vm.authState.collectAsStateWithLifecycle()
     val account = (auth as? AuthState.LoggedIn)?.account
@@ -334,6 +329,10 @@ fun SettingsScreen(vm: MainViewModel, onBack: () -> Unit) {
     }
 
     addAccount?.let { url ->
+        NavigationBackHandler(
+            state = rememberNavigationEventState(currentInfo = NavigationEventInfo.None),
+            onBackCompleted = { addAccount = null },
+        )
         LoginWebView(url, Modifier.fillMaxSize().safeDrawingPadding(), signedOut = true) { redirect ->
             scope.launch {
                 val result = vm.handleRedirect(redirect) ?: return@launch
@@ -344,22 +343,17 @@ fun SettingsScreen(vm: MainViewModel, onBack: () -> Unit) {
         return
     }
 
-    AnimatedContent(
-        targetState = SettingsPlace(page, subPage, searching),
-        transitionSpec = {
-            // Like Android: the opened page (title bar included) slides in over the list; going
-            // back, it slides out on top. Pages are opaque, so nothing shows through.
-            val forward = targetState.depth > initialState.depth
-            val transform = if (forward) {
-                slideInHorizontally { it } togetherWith
-                    (slideOutHorizontally { -it / 4 } + fadeOut(targetAlpha = 0.5f))
-            } else {
-                (slideInHorizontally { -it / 4 } + fadeIn(initialAlpha = 0.5f)) togetherWith
-                    slideOutHorizontally { it }
-            }
-            transform.apply { targetContentZIndex = if (forward) 1f else -1f }
-        },
-        label = "settings-page",
+    val place = SettingsPlace(page, subPage, searching)
+    // One step up. On the list of categories there is none left: leaving the settings is the
+    // screen around them's to animate.
+    val backTo = when {
+        subPage != null -> place.copy(subPage = null)
+        page != null -> place.copy(page = null)
+        searching -> place.copy(searching = false)
+        else -> null
+    }
+    rememberPredictiveTransition(place, backTo, onBack = goBack, label = "settings-page").AnimatedContent(
+        transitionSpec = { slideBetweenScreens(forward = targetState.depth > initialState.depth) },
     ) { (current, currentSub, currentSearching) ->
         if (current == null && currentSearching) {
             SearchPage(

@@ -4,6 +4,7 @@ import android.Manifest
 import android.content.pm.PackageManager
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.animation.AnimatedContent
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -572,6 +573,9 @@ private fun EmptyState(onAdd: () -> Unit, modifier: Modifier) {
     }
 }
 
+/** The screens the app moves between once logged in: the chat, and the two it opens over itself. */
+private enum class Screen { Chat, Inbox, Settings }
+
 @Composable
 fun AppRoot(vm: MainViewModel) {
     val auth by vm.authState.collectAsStateWithLifecycle()
@@ -598,17 +602,37 @@ fun AppRoot(vm: MainViewModel) {
         dev.chatter.app.auth.AuthState.Loading -> Box(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background))
         dev.chatter.app.auth.AuthState.LoggedOut -> LoginScreen(vm)
         is dev.chatter.app.auth.AuthState.LoggedIn -> {
-            when {
-                showSettings -> SettingsScreen(vm, onBack = { showSettings = false })
-                showInbox -> InboxScreen(
-                    vm,
-                    onOpenChannel = { channel ->
-                        vm.requestedChannel.value = channel
-                        showInbox = false
-                    },
-                    onBack = { showInbox = false },
-                )
-                else -> MainScreen(vm, onInbox = { showInbox = true }, onSettings = { showSettings = true })
+            val screen = when {
+                showSettings -> Screen.Settings
+                showInbox -> Screen.Inbox
+                else -> Screen.Chat
+            }
+            val toChat = {
+                showSettings = false
+                showInbox = false
+            }
+            // The chat leaves the composition while another screen is fully over it, as it always
+            // has; it is only there underneath while one slides, or is dragged away by the gesture.
+            rememberPredictiveTransition(
+                current = screen,
+                backTo = Screen.Chat.takeIf { screen != Screen.Chat },
+                onBack = toChat,
+                label = "screen",
+            ).AnimatedContent(
+                transitionSpec = { slideBetweenScreens(forward = targetState != Screen.Chat) },
+            ) { shown ->
+                when (shown) {
+                    Screen.Settings -> SettingsScreen(vm, onBack = toChat)
+                    Screen.Inbox -> InboxScreen(
+                        vm,
+                        onOpenChannel = { channel ->
+                            vm.requestedChannel.value = channel
+                            showInbox = false
+                        },
+                        onBack = toChat,
+                    )
+                    Screen.Chat -> MainScreen(vm, onInbox = { showInbox = true }, onSettings = { showSettings = true })
+                }
             }
             // Shows itself only right after an update, and only for more than a fix release.
             UpdateNotesSheet(vm)

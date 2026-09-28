@@ -1,7 +1,9 @@
 package dev.chatter.app.ui
 
+import androidx.navigationevent.NavigationEventInfo
+import androidx.navigationevent.compose.NavigationBackHandler
+import androidx.navigationevent.compose.rememberNavigationEventState
 import android.net.Uri
-import androidx.activity.compose.BackHandler
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.infiniteRepeatable
@@ -83,7 +85,10 @@ fun LoginScreen(vm: MainViewModel) {
 
     val url = webLoginUrl
     if (url != null) {
-        BackHandler { webLoginUrl = null }
+        NavigationBackHandler(
+            state = rememberNavigationEventState(currentInfo = NavigationEventInfo.None),
+            onBackCompleted = { webLoginUrl = null },
+        )
         LoginWebView(url, Modifier.fillMaxSize().safeDrawingPadding()) { redirect ->
             scope.launch {
                 val result = vm.handleRedirect(redirect) ?: return@launch

@@ -1,7 +1,6 @@
 package dev.chatter.app.ui.inbox
 
 import android.text.format.DateUtils
-import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -75,9 +74,6 @@ import kotlinx.coroutines.launch
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun InboxScreen(vm: MainViewModel, onOpenChannel: (String) -> Unit, onBack: () -> Unit) {
-    // Without this, back would leave the app instead of going back to the chat behind it.
-    BackHandler(onBack = onBack)
-
     val mentions by vm.inboxMentions.collectAsStateWithLifecycle()
     val whispers by vm.inboxWhispers.collectAsStateWithLifecycle()
     val mentionUnread by vm.mentionUnread.collectAsStateWithLifecycle()

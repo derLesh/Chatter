@@ -6,6 +6,8 @@ composeBom = "2026.06.01"
 material3 = "1.5.0-alpha29"
 coreKtx = "1.17.0"
 activityCompose = "1.12.4"
+# The one activity-compose brings along; named here because the back handlers use it directly.
+navigationevent = "1.1.1"
 lifecycle = "2.10.0"
 datastore = "1.2.1"
 okhttp = "5.3.2"
@@ -22,6 +24,7 @@ changelog = "0.1.0"
 [libraries]
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
 androidx-activity-compose = { group = "androidx.activity", name = "activity-compose", version.ref = "activityCompose" }
+androidx-navigationevent-compose = { group = "androidx.navigationevent", name = "navigationevent-compose", version.ref = "navigationevent" }
 androidx-lifecycle-runtime-compose = { group = "androidx.lifecycle", name = "lifecycle-runtime-compose", version.ref = "lifecycle" }
 androidx-lifecycle-viewmodel-compose = { group = "androidx.lifecycle", name = "lifecycle-viewmodel-compose", version.ref = "lifecycle" }
 androidx-lifecycle-process = { group = "androidx.lifecycle", name = "lifecycle-process", version.ref = "lifecycle" }
