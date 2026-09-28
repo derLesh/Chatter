@@ -57,6 +57,7 @@ import dev.chatter.app.R
 import dev.chatter.app.badges.Badge
 import dev.chatter.app.chat.ChatItem
 import dev.chatter.app.chat.ImageLinks
+import dev.chatter.app.chat.LinkText
 import dev.chatter.app.chat.MessageKind
 import dev.chatter.app.chat.Segment
 import dev.chatter.app.settings.TimestampFormat
@@ -92,6 +93,8 @@ data class ChatStyle(
      * linked images off, which is the same thing as allowing nobody.
      */
     val imageHosts: List<String>,
+    /** Whether a long link is written as its site and the start of its path; see [LinkText]. */
+    val shortLinks: Boolean = true,
 )
 
 /**
@@ -314,7 +317,7 @@ private fun LinkedImage(url: String, style: ChatStyle, loader: ImageLoader, alon
 
 private fun linkText(url: String, style: ChatStyle) = buildAnnotatedString {
     withLink(LinkAnnotation.Url(url, TextLinkStyles(SpanStyle(color = style.linkColor, textDecoration = TextDecoration.Underline)))) {
-        append(url)
+        append(if (style.shortLinks) LinkText.shorten(url) else url)
     }
 }
 
@@ -434,7 +437,7 @@ private fun AnnotatedString.Builder.appendSegments(segments: List<Segment>, inli
             }
             is Segment.Link -> withLink(
                 LinkAnnotation.Url(seg.url, TextLinkStyles(SpanStyle(color = style.linkColor, textDecoration = TextDecoration.Underline))),
-            ) { append(seg.text) }
+            ) { append(if (style.shortLinks) LinkText.shorten(seg.text) else seg.text) }
             is Segment.Mention -> {
                 val color = seg.login?.let { readableNameColor(seg.color, it, style.dark, style.nameColors) } ?: Color.Unspecified
                 withStyle(SpanStyle(color = color, fontWeight = FontWeight.Bold)) { append(seg.name) }

@@ -79,6 +79,8 @@ data class Settings(
     val inlineImages: Boolean = true,
     /** The only hosts whose images are ever fetched. The user adds to it and takes from it. */
     val imageHosts: List<String> = ImageLinks.DEFAULT_HOSTS,
+    /** Write links out in full instead of shortening long ones to their site and path. */
+    val fullLinks: Boolean = false,
     /** Swiping off the last channel goes to the first one, and the other way round. */
     val carouselChannels: Boolean = false,
     /** The badge providers whose badges are shown in front of a name. */
@@ -153,6 +155,7 @@ class SettingsRepository(
             // Only an absent key falls back to the defaults: a list the user emptied stays empty.
             imageHosts = p[IMAGE_HOSTS]?.split(',')?.map { it.trim() }?.filter { it.isNotEmpty() }
                 ?: ImageLinks.DEFAULT_HOSTS,
+            fullLinks = p[FULL_LINKS] ?: false,
             carouselChannels = p[CAROUSEL_CHANNELS] ?: false,
             haptics = p[HAPTICS] ?: true,
             keepScreenOn = p[KEEP_SCREEN_ON] ?: false,
@@ -202,6 +205,7 @@ class SettingsRepository(
     suspend fun setUpdateCheck(v: Boolean) = store.edit { it[UPDATE_CHECK] = v }
     suspend fun setInlineImages(v: Boolean) = store.edit { it[INLINE_IMAGES] = v }
     suspend fun setImageHosts(v: List<String>) = store.edit { p -> p[IMAGE_HOSTS] = v.joinToString(",") }
+    suspend fun setFullLinks(v: Boolean) = store.edit { it[FULL_LINKS] = v }
     suspend fun setCarouselChannels(v: Boolean) = store.edit { it[CAROUSEL_CHANNELS] = v }
     suspend fun setHaptics(v: Boolean) = store.edit { it[HAPTICS] = v }
     suspend fun setKeepScreenOn(v: Boolean) = store.edit { it[KEEP_SCREEN_ON] = v }
@@ -264,6 +268,7 @@ class SettingsRepository(
         p[UPDATE_CHECK] = s.updateCheck
         p[INLINE_IMAGES] = s.inlineImages
         p[IMAGE_HOSTS] = s.imageHosts.joinToString(",")
+        p[FULL_LINKS] = s.fullLinks
         p[CAROUSEL_CHANNELS] = s.carouselChannels
         p[HAPTICS] = s.haptics
         p[KEEP_SCREEN_ON] = s.keepScreenOn
@@ -310,6 +315,7 @@ class SettingsRepository(
         val SHOW_DELETED = booleanPreferencesKey("show_deleted")
         val UPDATE_CHECK = booleanPreferencesKey("update_check")
         val INLINE_IMAGES = booleanPreferencesKey("inline_images")
+        val FULL_LINKS = booleanPreferencesKey("full_links")
         val IMAGE_HOSTS = stringPreferencesKey("image_hosts")
         val CAROUSEL_CHANNELS = booleanPreferencesKey("carousel_channels")
         val HAPTICS = booleanPreferencesKey("haptics")

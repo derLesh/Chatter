@@ -663,6 +663,7 @@ private fun ChatPage(settings: Settings, vm: MainViewModel, open: (SettingsSubPa
                 modifier = Modifier.clickable { open(SettingsSubPage.ImageHosts) },
             )
         }
+        item { SwitchItem(R.string.settings_full_links, settings.fullLinks, vm::setFullLinks, R.string.settings_full_links_hint) }
     }
     // What the app offers while typing.
     SettingsGroup(R.string.settings_group_input) {

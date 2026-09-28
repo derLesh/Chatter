@@ -872,6 +872,10 @@ class MainViewModel(private val c: AppContainer) : ViewModel() {
         viewModelScope.launch { c.settings.setInlineImages(v) }
     }
 
+    fun setFullLinks(v: Boolean) {
+        viewModelScope.launch { c.settings.setFullLinks(v) }
+    }
+
     /** Whatever they pasted, turned into the bare host it names. */
     fun addImageHost(input: String) {
         val current = settings.value.imageHosts

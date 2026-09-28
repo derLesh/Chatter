@@ -26,7 +26,7 @@ fun rememberChatStyle(
     return remember(
         settings.fontSize, settings.timestamps, settings.highlightColor, settings.alternateBackground,
         settings.nameColors, settings.highlightFirstMessages, settings.haptics,
-        settings.inlineImages, settings.imageHosts, powerSave, nicknames, dark, colors,
+        settings.inlineImages, settings.imageHosts, settings.fullLinks, powerSave, nicknames, dark, colors,
     ) {
         ChatStyle(
             fontSize = settings.fontSize,
@@ -45,6 +45,7 @@ fun rememberChatStyle(
             // Off, or the battery saver, is the same as allowing nobody, so the row only ever
             // reads one thing to decide whether a picture is fetched.
             imageHosts = if (settings.inlineImages && !powerSave) settings.imageHosts else emptyList(),
+            shortLinks = !settings.fullLinks,
         )
     }
 }

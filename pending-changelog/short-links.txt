@@ -1,0 +1,1 @@
+minor: Shorten long links to their site and the start of their path, with a setting to show them in full

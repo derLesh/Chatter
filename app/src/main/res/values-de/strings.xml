@@ -188,7 +188,9 @@
     <string name="settings_provider_ffz">FrankerFaceZ</string>
     <string name="settings_show_deleted">Entfernte Nachrichten anzeigen</string>
     <string name="settings_show_deleted_hint">Durchgestrichen stehen lassen, statt sie auszublenden.</string>
-    <string name="settings_group_images">Bilder im Chat</string>
+    <string name="settings_group_images">Links und Bilder</string>
+    <string name="settings_full_links">Links vollständig anzeigen</string>
+    <string name="settings_full_links_hint">Sonst werden lange Links auf die Seite und den Anfang des Pfads gekürzt</string>
     <string name="settings_inline_images">Verlinkte Bilder anzeigen</string>
     <string name="settings_inline_images_hint">URLs mit einem Bild werden durch das Bild ersetzt. Im Akkusparmodus deaktiviert.</string>
     <string name="settings_image_hosts">Seiten zum Laden</string>

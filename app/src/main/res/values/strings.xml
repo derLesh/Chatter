@@ -194,7 +194,9 @@
     <string name="settings_provider_ffz">FrankerFaceZ</string>
     <string name="settings_show_deleted">Show deleted messages</string>
     <string name="settings_show_deleted_hint">Keep them struck through instead of hiding them.</string>
-    <string name="settings_group_images">Images in chat</string>
+    <string name="settings_group_images">Links and images</string>
+    <string name="settings_full_links">Show links in full</string>
+    <string name="settings_full_links_hint">Otherwise long links are shortened to their site and the start of the path</string>
     <string name="settings_inline_images">Show linked images</string>
     <string name="settings_inline_images_hint">Links to an image are replaced by the image. Off while the battery saver is on.</string>
     <string name="settings_image_hosts">Sites to load from</string>
