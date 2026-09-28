@@ -27,11 +27,13 @@ import dev.chatter.app.R
 /**
  * Answers one whisper. What was written is quoted above the field: the inbox is the only place
  * the conversation exists, so without it the answer would be written into thin air.
+ *
+ * Without [quoted] it starts a conversation instead, as from the user card.
  */
 @Composable
 fun WhisperReplyDialog(
     name: String,
-    quoted: String,
+    quoted: String?,
     onSend: (String) -> Unit,
     onDismiss: () -> Unit,
 ) {
@@ -48,7 +50,7 @@ fun WhisperReplyDialog(
         title = { Text(stringResource(R.string.whisper_reply_title, name)) },
         text = {
             Column {
-                Text(
+                if (quoted != null) Text(
                     text = quoted,
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -59,7 +61,7 @@ fun WhisperReplyDialog(
                 OutlinedTextField(
                     value = text,
                     onValueChange = { text = it },
-                    label = { Text(stringResource(R.string.whisper_reply_hint)) },
+                    label = { Text(stringResource(if (quoted != null) R.string.whisper_reply_hint else R.string.whisper_new_hint)) },
                     keyboardOptions = KeyboardOptions(imeAction = ImeAction.Send),
                     keyboardActions = KeyboardActions(onSend = { confirm() }),
                     modifier = Modifier.focusRequester(focus),

@@ -77,6 +77,7 @@ import dev.chatter.app.ui.chat.NicknameDialog
 import dev.chatter.app.ui.chat.ThreadSheet
 import dev.chatter.app.ui.chat.UserCardSheet
 import dev.chatter.app.ui.inbox.InboxScreen
+import dev.chatter.app.ui.inbox.WhisperReplyDialog
 import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.launch
@@ -147,6 +148,8 @@ fun MainScreen(vm: MainViewModel, onInbox: () -> Unit, onSettings: () -> Unit) {
     // The channel a new combined chat was asked for from, ticked when the dialog opens.
     var combineWith by remember { mutableStateOf<String?>(null) }
     var nicknameTarget by remember { mutableStateOf<ChatItem?>(null) }
+    // Whom a whisper is being written to from their card: the message, and their id if known.
+    var whisperTo by remember { mutableStateOf<Pair<ChatItem, String?>?>(null) }
     // The message whose conversation is open, or null while none is.
     var threadOf by remember { mutableStateOf<ChatItem?>(null) }
 
@@ -433,6 +436,7 @@ fun MainScreen(vm: MainViewModel, onInbox: () -> Unit, onSettings: () -> Unit) {
             onNickname = { nicknameTarget = item },
             onReply = { vm.startReply(item) },
             onMention = { vm.mention(item) },
+            onWhisper = { userId -> whisperTo = item to userId },
             onDelete = { vm.deleteMessage(item) },
             onTimeout = { vm.timeoutUser(item) },
             onBan = { vm.banUser(item) },
@@ -471,6 +475,20 @@ fun MainScreen(vm: MainViewModel, onInbox: () -> Unit, onSettings: () -> Unit) {
                 waitUntil = vm.sendWaitUntil,
                 restriction = restriction,
                 modifier = Modifier.fillMaxWidth(),
+            )
+        }
+    }
+    whisperTo?.let { (item, userId) ->
+        val login = item.login
+        if (login == null) whisperTo = null else {
+            WhisperReplyDialog(
+                name = nicknames[login.lowercase()] ?: item.displayName ?: login,
+                quoted = null,
+                onSend = { text ->
+                    // Twitch may refuse a whisper for reasons only it knows; the snackbar says which.
+                    scope.launch { snackbar.showSnackbar(vm.whisperTo(login, userId, text)) }
+                },
+                onDismiss = { whisperTo = null },
             )
         }
     }

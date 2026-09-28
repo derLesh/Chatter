@@ -20,6 +20,10 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Send
+import androidx.compose.foundation.clickable
+import androidx.compose.material.icons.filled.MailOutline
+import androidx.compose.ui.platform.LocalUriHandler
+import androidx.compose.ui.window.Dialog
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Clear
 import androidx.compose.material.icons.filled.Delete
@@ -69,6 +73,8 @@ import java.time.format.FormatStyle
 /**
  * Opens on tap / long press of a message: who wrote it (avatar, badges, account age, bio),
  * what you can do with it, and the user's recent messages in this channel.
+ *
+ * [onWhisper] gets their Twitch id where the card has loaded it, which saves the whisper a lookup.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -87,6 +93,7 @@ fun UserCardSheet(
     onNickname: () -> Unit,
     onReply: () -> Unit,
     onMention: () -> Unit,
+    onWhisper: (userId: String?) -> Unit,
     onDelete: () -> Unit,
     onTimeout: () -> Unit,
     onBan: () -> Unit,
@@ -95,6 +102,7 @@ fun UserCardSheet(
     var recent by remember(item.id) { mutableStateOf<List<ChatItem>?>(null) }
     var user by remember(item.id) { mutableStateOf<HelixUser?>(null) }
     var reporting by remember(item.id) { mutableStateOf(false) }
+    var avatarOpen by remember(item.id) { mutableStateOf(false) }
     LaunchedEffect(item.id) { recent = recentMessages() }
     LaunchedEffect(item.id) { user = profile() }
 
@@ -111,7 +119,7 @@ fun UserCardSheet(
     ModalBottomSheet(onDismissRequest = onDismiss, containerColor = MaterialTheme.colorScheme.surfaceContainerLow) {
         LazyColumn(Modifier.fillMaxWidth()) {
             if (isUserMessage) {
-                item { Header(item, user, style, imageLoader, onNickname) }
+                item { Header(item, user, style, imageLoader, onNickname, onAvatar = { avatarOpen = true }) }
                 user?.description?.takeIf { it.isNotBlank() }?.let { bio ->
                     item {
                         Text(
@@ -170,6 +178,10 @@ fun UserCardSheet(
                         horizontalArrangement = Arrangement.spacedBy(8.dp),
                         modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
                     ) {
+                        ModButton(Icons.Default.MailOutline, R.string.action_whisper, danger = false) {
+                            onWhisper(user?.id)
+                            onDismiss()
+                        }
                         user?.let { user ->
                             ModButton(
                                 icon = if (blocked) Icons.Default.Check else Icons.Default.Clear,
@@ -228,6 +240,21 @@ fun UserCardSheet(
         }
     }
 
+    if (avatarOpen) user?.profileImageUrl?.takeIf { it.isNotEmpty() }?.let { url ->
+        // Twitch hands out 300 px pictures; bigger than that they would only be blurred.
+        Dialog(onDismissRequest = { avatarOpen = false }) {
+            AsyncImage(
+                model = url,
+                contentDescription = stringResource(R.string.user_avatar, item.displayName ?: item.login.orEmpty()),
+                imageLoader = imageLoader,
+                modifier = Modifier
+                    .size(300.dp)
+                    .clip(RoundedCornerShape(24.dp))
+                    .clickable { avatarOpen = false },
+            )
+        }
+    }
+
     if (reporting) {
         val login = item.login.orEmpty()
         ReportDialog(
@@ -248,7 +275,9 @@ private fun Header(
     style: ChatStyle,
     imageLoader: ImageLoader,
     onNickname: () -> Unit,
+    onAvatar: () -> Unit,
 ) {
+    val uriHandler = LocalUriHandler.current
     Row(
         verticalAlignment = Alignment.CenterVertically,
         modifier = Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 8.dp),
@@ -260,7 +289,8 @@ private fun Header(
             modifier = Modifier
                 .size(72.dp)
                 .clip(CircleShape)
-                .background(MaterialTheme.colorScheme.surfaceContainerHighest),
+                .background(MaterialTheme.colorScheme.surfaceContainerHighest)
+                .clickable(enabled = !user?.profileImageUrl.isNullOrEmpty(), onClick = onAvatar),
         )
         Spacer(Modifier.width(16.dp))
         Column(Modifier.weight(1f)) {
@@ -276,6 +306,15 @@ private fun Header(
                 )
                 IconButton(onClick = onNickname) {
                     Icon(Icons.Default.Edit, contentDescription = stringResource(R.string.nickname_title))
+                }
+                // Their channel page, which the Twitch app opens itself where it is installed.
+                item.login?.let { login ->
+                    IconButton(onClick = { uriHandler.openUri("https://www.twitch.tv/$login") }) {
+                        Icon(
+                            ImageVector.vectorResource(R.drawable.ic_open_in_new),
+                            contentDescription = stringResource(R.string.action_open_on_twitch),
+                        )
+                    }
                 }
             }
             val subtitle = listOfNotNull(

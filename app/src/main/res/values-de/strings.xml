@@ -483,6 +483,10 @@
     <string name="whisper_sent">Flüsternachricht an %1$s gesendet</string>
     <string name="whisper_reply_title">Flüstern an %1$s</string>
     <string name="whisper_reply_hint">Deine Antwort</string>
+    <string name="whisper_new_hint">Deine Nachricht</string>
+    <string name="action_whisper">Flüstern</string>
+    <string name="action_open_on_twitch">Auf Twitch öffnen</string>
+    <string name="user_avatar">Profilbild von %1$s</string>
     <string name="whisper_error_empty">Nichts zu flüstern</string>
     <string name="whisper_error_scope">Chatter darf noch nicht flüstern — melde dich einmal ab und wieder an</string>
     <string name="whisper_error_refused">Twitch hat die Flüsternachricht abgelehnt: %1$s. Flüstern geht nur mit einer bestätigten Telefonnummer im Twitch Konto</string>

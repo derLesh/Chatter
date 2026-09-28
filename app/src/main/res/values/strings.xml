@@ -491,6 +491,10 @@
     <string name="whisper_sent">Whisper sent to %1$s</string>
     <string name="whisper_reply_title">Whisper to %1$s</string>
     <string name="whisper_reply_hint">Your answer</string>
+    <string name="whisper_new_hint">Your message</string>
+    <string name="action_whisper">Whisper</string>
+    <string name="action_open_on_twitch">Open on Twitch</string>
+    <string name="user_avatar">Profile picture of %1$s</string>
     <string name="whisper_error_empty">Nothing to whisper</string>
     <string name="whisper_error_scope">Chatter may not send whispers yet - sign out and in again to allow it</string>
     <string name="whisper_error_refused">Twitch refused the whisper: %1$s. Whispers need a verified phone number on your Twitch account</string>

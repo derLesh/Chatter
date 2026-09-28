@@ -589,6 +589,10 @@ class MainViewModel(private val c: AppContainer) : ViewModel() {
         viewModelScope.launch { c.inbox.clear() }
     }
 
+    /** Whispers to a chatter from their card. Returns the sentence to show about it, sent or not. */
+    suspend fun whisperTo(login: String, userId: String?, text: String): String =
+        c.whisperSender.send(login, userId, text).message
+
     /** Answers a whisper. Returns the sentence to show about it, sent or not. */
     suspend fun sendWhisper(whisper: InboxWhisper, text: String): String =
         c.whisperSender.send(whisper.login, whisper.userId, text).message
