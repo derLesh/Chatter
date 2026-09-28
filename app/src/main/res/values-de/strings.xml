@@ -461,6 +461,10 @@
     <!-- Statistik -->
     <string name="settings_stats">Statistik</string>
     <string name="settings_stats_summary">Nachrichten, Kanäle, aktive Tage</string>
+    <string name="settings_search">Einstellungen durchsuchen</string>
+    <string name="settings_search_clear">Suche leeren</string>
+    <string name="settings_search_none">Keine Einstellung passt dazu</string>
+    <string name="settings_theme">Design</string>
     <string name="settings_stats_group_messages">Nachrichten</string>
     <string name="settings_stats_sent">Gesendet</string>
     <string name="settings_stats_received">Empfangen</string>

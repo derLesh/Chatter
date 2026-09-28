@@ -21,6 +21,15 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import kotlinx.coroutines.delay
+import androidx.compose.ui.graphics.lerp
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.compositionLocalOf
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.foundation.relocation.bringIntoViewRequester
+import androidx.compose.foundation.relocation.BringIntoViewRequester
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.core.Animatable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -34,11 +43,23 @@ import androidx.compose.ui.unit.dp
 // because the pages are spread over more than one file and all of them look the same.
 
 internal class GroupScope {
-    val items = mutableListOf<@Composable () -> Unit>()
-    fun item(content: @Composable () -> Unit) {
-        items += content
+    val items = mutableListOf<Pair<Int?, @Composable () -> Unit>>()
+
+    /** One tile. [key] is the title a search result names it by; see [LocalSettingsTarget]. */
+    fun item(key: Int? = null, content: @Composable () -> Unit) {
+        items += key to content
     }
 }
+
+/**
+ * The setting a search result led to, by its title: when its page opens, the page scrolls to it
+ * and it lights up for a moment, so the eye lands on it among the others. A group is found by its
+ * heading, a single tile by the key it was given.
+ */
+internal val LocalSettingsTarget = compositionLocalOf<Int?> { null }
+
+/** Long enough for the page to have slid in: scrolling while it moves would miss the target. */
+private const val REVEAL_DELAY_MS = 350L
 
 /**
  * Related settings as separate tiles with a small gap (Android 16 style): the outer corners
@@ -47,7 +68,9 @@ internal class GroupScope {
 @Composable
 internal fun SettingsGroup(title: Int? = null, build: GroupScope.() -> Unit) {
     val items = GroupScope().apply(build).items
-    Column {
+    val target = LocalSettingsTarget.current
+    val (groupReveal, groupGlow) = reveal(title != null && title == target)
+    Column(groupReveal) {
         if (title != null) {
             Text(
                 stringResource(title),
@@ -57,17 +80,40 @@ internal fun SettingsGroup(title: Int? = null, build: GroupScope.() -> Unit) {
             )
         }
         Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
-            items.forEachIndexed { i, content ->
+            items.forEachIndexed { i, (key, content) ->
+                val (tileReveal, tileGlow) = reveal(key != null && key == target)
                 Surface(
-                    color = MaterialTheme.colorScheme.surfaceContainer,
+                    color = lerp(
+                        MaterialTheme.colorScheme.surfaceContainer,
+                        MaterialTheme.colorScheme.primaryContainer,
+                        maxOf(groupGlow, tileGlow),
+                    ),
                     shape = tileShape(i, items.size),
-                    modifier = Modifier.fillMaxWidth(),
+                    modifier = Modifier.fillMaxWidth().then(tileReveal),
                 ) {
                     Box(Modifier.padding(vertical = 2.dp)) { content() }
                 }
             }
         }
     }
+}
+
+/**
+ * Scrolls to what it is put on once, when [active], and lights it up: the modifier to put on it,
+ * and how strongly it glows right now, from 1 fading to 0.
+ */
+@Composable
+private fun reveal(active: Boolean): Pair<Modifier, Float> {
+    if (!active) return Modifier to 0f
+    val requester = remember { BringIntoViewRequester() }
+    val glow = remember { Animatable(0f) }
+    LaunchedEffect(Unit) {
+        delay(REVEAL_DELAY_MS)
+        requester.bringIntoView()
+        glow.snapTo(1f)
+        glow.animateTo(0f, tween(durationMillis = 1_600, delayMillis = 400))
+    }
+    return Modifier.bringIntoViewRequester(requester) to glow.value
 }
 
 private fun tileShape(index: Int, count: Int): RoundedCornerShape {

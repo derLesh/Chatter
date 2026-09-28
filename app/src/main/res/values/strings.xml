@@ -463,6 +463,10 @@
     <!-- Stats -->
     <string name="settings_stats">Stats</string>
     <string name="settings_stats_summary">Messages, channels, active days</string>
+    <string name="settings_search">Search settings</string>
+    <string name="settings_search_clear">Clear search</string>
+    <string name="settings_search_none">No setting matches that</string>
+    <string name="settings_theme">Theme</string>
     <string name="settings_stats_group_messages">Messages</string>
     <string name="settings_stats_sent">Sent</string>
     <string name="settings_stats_received">Received</string>

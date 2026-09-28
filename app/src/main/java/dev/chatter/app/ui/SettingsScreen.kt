@@ -43,6 +43,7 @@ import androidx.compose.material.icons.automirrored.filled.List
 import androidx.compose.material.icons.filled.AccountCircle
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.DateRange
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
@@ -52,6 +53,7 @@ import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.Person
+import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -74,11 +76,14 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.TextField
+import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.material3.rememberTopAppBarState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
@@ -90,12 +95,15 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
@@ -133,6 +141,8 @@ import dev.chatter.app.ui.channels.ManageChannelsPage
 import dev.chatter.app.ui.channels.RenameChannelDialog
 import dev.chatter.app.ui.chat.ChatStyle
 import dev.chatter.app.ui.chat.MessageRow
+import dev.chatter.app.ui.settings.LocalSettingsTarget
+import dev.chatter.app.ui.settings.SettingsSearch
 import dev.chatter.app.ui.update.UpdateCard
 import dev.chatter.app.ui.update.UpdatePage
 import dev.chatter.app.ui.settings.AccountPage
@@ -191,10 +201,106 @@ private enum class SettingsSubPage(val title: Int) {
     Credits(R.string.settings_credits),
 }
 
+/**
+ * One setting as the search finds it: the title it is shown under, the page it is on, and what
+ * else it may be looked for by. [key] is the tile or group it opens to — null for a page itself.
+ */
+private class SearchEntry(
+    val title: Int,
+    val page: SettingsPage,
+    val hint: Int? = null,
+    val also: List<Int> = emptyList(),
+    val key: Int? = title,
+)
+
+/**
+ * Everything the search finds, in the order the pages show it. A setting is found by the title
+ * its tile is keyed with (`item(R.string.x)`), so a new setting that should be found needs both:
+ * the key on its tile and a line here.
+ */
+private val SEARCH_INDEX: List<SearchEntry> by lazy {
+    buildList {
+        SettingsPage.entries.filter { it.shown }.forEach { add(SearchEntry(it.title, it, it.summary, key = null)) }
+        val appearance = SettingsPage.Appearance
+        add(SearchEntry(R.string.settings_theme, appearance, also = THEME_MODES.map { it.second }))
+        add(SearchEntry(R.string.settings_dynamic_color, appearance, R.string.settings_dynamic_color_hint))
+        add(SearchEntry(R.string.settings_highlight_color, appearance, R.string.settings_highlight_color_hint))
+        add(SearchEntry(R.string.settings_name_colors, appearance, R.string.settings_name_colors_hint))
+        add(SearchEntry(R.string.settings_app_icon, appearance))
+        add(SearchEntry(R.string.settings_font_size, appearance))
+        add(SearchEntry(R.string.settings_timestamps, appearance))
+        add(SearchEntry(R.string.settings_alternate_background, appearance, R.string.settings_alternate_background_hint))
+        add(SearchEntry(R.string.settings_smooth_scrolling, appearance, R.string.settings_smooth_scrolling_hint))
+        add(SearchEntry(R.string.settings_show_deleted, appearance, R.string.settings_show_deleted_hint))
+        add(SearchEntry(R.string.settings_first_messages, appearance, R.string.settings_first_messages_hint))
+        add(SearchEntry(R.string.settings_keep_screen_on, appearance, R.string.settings_keep_screen_on_hint))
+        add(SearchEntry(R.string.settings_haptics, appearance, R.string.settings_haptics_hint))
+        val chat = SettingsPage.Chat
+        add(SearchEntry(R.string.settings_message_limit, chat))
+        add(SearchEntry(R.string.settings_load_history, chat, R.string.settings_load_history_hint))
+        add(SearchEntry(R.string.settings_inline_images, chat, R.string.settings_inline_images_hint))
+        add(SearchEntry(R.string.settings_image_hosts, chat))
+        add(SearchEntry(R.string.settings_full_links, chat, R.string.settings_full_links_hint))
+        add(SearchEntry(R.string.settings_emote_suggestions, chat, R.string.settings_emote_suggestions_hint))
+        add(SearchEntry(R.string.settings_user_suggestions, chat, R.string.settings_user_suggestions_hint))
+        add(SearchEntry(R.string.settings_mention_with_at, chat, R.string.settings_mention_with_at_hint))
+        add(SearchEntry(R.string.settings_message_tap, chat))
+        add(SearchEntry(R.string.settings_name_tap, chat))
+        add(SearchEntry(R.string.settings_carousel, chat, R.string.settings_carousel_hint))
+        add(SearchEntry(R.string.settings_copy_first, chat, R.string.settings_copy_first_hint))
+        val emotes = SettingsPage.Emotes
+        add(SearchEntry(R.string.settings_emotes_enabled, emotes, R.string.settings_emotes_new_messages_hint))
+        add(SearchEntry(R.string.settings_animated_emotes, emotes))
+        add(SearchEntry(R.string.settings_zero_width, emotes, R.string.settings_zero_width_hint))
+        add(SearchEntry(R.string.settings_unlisted_7tv, emotes, R.string.settings_unlisted_7tv_hint))
+        add(SearchEntry(R.string.settings_seventv_events, emotes, R.string.settings_seventv_events_hint))
+        add(SearchEntry(R.string.settings_emote_providers, emotes, also = PROVIDERS.map { it.second }))
+        add(SearchEntry(R.string.settings_badge_providers, emotes, also = BADGE_PROVIDERS.map { it.second }))
+        val filters = SettingsPage.Filters
+        add(SearchEntry(R.string.settings_mute_keywords, filters, R.string.settings_mute_keywords_summary))
+        add(SearchEntry(R.string.settings_rules, filters, R.string.settings_rules_summary))
+        add(SearchEntry(R.string.settings_blocked_users, filters))
+        val notifications = SettingsPage.Notifications
+        add(SearchEntry(R.string.settings_keywords, notifications, R.string.settings_keywords_summary))
+        add(SearchEntry(R.string.settings_sender_avatars, notifications, R.string.settings_sender_avatars_hint))
+        add(SearchEntry(R.string.settings_system_notifications, notifications, R.string.settings_notifications_hint))
+        add(SearchEntry(R.string.settings_bubbles, notifications, R.string.settings_bubbles_hint))
+        val channels = SettingsPage.Channels
+        add(SearchEntry(R.string.settings_channel_tabs, channels, R.string.settings_channel_tabs_hint))
+        add(SearchEntry(R.string.settings_unread_title_bar, channels, R.string.settings_unread_title_bar_hint))
+        val account = SettingsPage.Account
+        add(SearchEntry(R.string.settings_group_accounts, account, also = listOf(R.string.logout, R.string.account_add_short)))
+        add(SearchEntry(R.string.settings_group_backup, account, also = listOf(R.string.backup_export, R.string.backup_import)))
+        val about = SettingsPage.About
+        add(SearchEntry(R.string.settings_changelog, about, R.string.settings_changelog_summary))
+        add(SearchEntry(R.string.settings_source_code, about, R.string.settings_source_code_summary))
+        add(SearchEntry(R.string.settings_report_issue, about, R.string.settings_report_issue_summary))
+        add(SearchEntry(R.string.settings_privacy, about, R.string.settings_privacy_summary))
+        add(SearchEntry(R.string.settings_credits, about, R.string.settings_credits_summary))
+        // Only the APK from GitHub has the switch; see the about page.
+        if (BuildConfig.UPDATE_CHECK) add(SearchEntry(R.string.settings_update_check, about, R.string.settings_update_check_hint))
+    }
+}
+
+/** Where in the settings the user is: the search, a category, a page inside it. */
+private data class SettingsPlace(
+    val page: SettingsPage? = null,
+    val subPage: SettingsSubPage? = null,
+    /** The search is open; a category opened from it goes back to it. */
+    val searching: Boolean = false,
+) {
+    /** How deep this is, which is what says whether a move is forward or back. */
+    val depth: Int get() = (if (searching) 1 else 0) + (if (page != null) 1 else 0) + (if (subPage != null) 1 else 0)
+}
+
 @Composable
 fun SettingsScreen(vm: MainViewModel, onBack: () -> Unit) {
     var page by rememberSaveable { mutableStateOf<SettingsPage?>(null) }
     var subPage by rememberSaveable { mutableStateOf<SettingsSubPage?>(null) }
+    var searching by rememberSaveable { mutableStateOf(false) }
+    var query by rememberSaveable { mutableStateOf("") }
+    // The setting a search result opened its page at, lit up there until the page is left.
+    var target by rememberSaveable { mutableStateOf<Int?>(null) }
     // Twitch's login page, shown over the settings while another account is being added.
     var addAccount by remember { mutableStateOf<String?>(null) }
     var addFailed by remember { mutableStateOf<String?>(null) }
@@ -202,7 +308,11 @@ fun SettingsScreen(vm: MainViewModel, onBack: () -> Unit) {
         when {
             addAccount != null -> addAccount = null
             subPage != null -> subPage = null
-            page != null -> page = null
+            page != null -> {
+                page = null
+                target = null
+            }
+            searching -> searching = false
             else -> onBack()
         }
     }
@@ -235,7 +345,7 @@ fun SettingsScreen(vm: MainViewModel, onBack: () -> Unit) {
     }
 
     AnimatedContent(
-        targetState = page to subPage,
+        targetState = SettingsPlace(page, subPage, searching),
         transitionSpec = {
             // Like Android: the opened page (title bar included) slides in over the list; going
             // back, it slides out on top. Pages are opaque, so nothing shows through.
@@ -250,14 +360,29 @@ fun SettingsScreen(vm: MainViewModel, onBack: () -> Unit) {
             transform.apply { targetContentZIndex = if (forward) 1f else -1f }
         },
         label = "settings-page",
-    ) { (current, currentSub) ->
+    ) { (current, currentSub, currentSearching) ->
+        if (current == null && currentSearching) {
+            SearchPage(
+                query = query,
+                onQuery = { query = it },
+                onOpen = { entry ->
+                    page = entry.page
+                    target = entry.key
+                },
+                onBack = goBack,
+            )
+            return@AnimatedContent
+        }
         // The about page carries its own icon and app name, so it gets no title bar heading.
         val title = when {
             currentSub != null -> currentSub.title
             current == SettingsPage.About -> null
             else -> current?.title ?: R.string.settings
         }
-        SettingsPageScaffold(title = title, onBack = goBack) {
+        // Only the list of categories is searched from; a category is already where to look.
+        val onSearch = if (current == null && currentSub == null) ({ searching = true }) else null
+        SettingsPageScaffold(title = title, onBack = goBack, onSearch = onSearch) {
+          CompositionLocalProvider(LocalSettingsTarget provides target.takeIf { currentSub == null }) {
             when (currentSub) {
                 SettingsSubPage.BlockedUsers -> BlockedUsersPage(vm)
                 SettingsSubPage.MentionKeywords -> KeywordsPage(
@@ -305,18 +430,99 @@ fun SettingsScreen(vm: MainViewModel, onBack: () -> Unit) {
                     SettingsPage.About -> AboutPage(settings, vm) { subPage = it }
                 }
             }
+          }
         }
     }
 }
 
-/** How deep in the settings a state is, which is what says whether a move is forward or back. */
-private val Pair<SettingsPage?, SettingsSubPage?>.depth: Int
-    get() = (if (first != null) 1 else 0) + (if (second != null) 1 else 0)
+/**
+ * The search over every setting: a field in the title bar, and underneath whatever matches, each
+ * with the category it is in. A result opens its category at the setting.
+ */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun SearchPage(query: String, onQuery: (String) -> Unit, onOpen: (SearchEntry) -> Unit, onBack: () -> Unit) {
+    val resources = LocalResources.current
+    val focus = remember { FocusRequester() }
+    LaunchedEffect(Unit) { focus.requestFocus() }
+    val results = remember(query, resources) {
+        fun text(res: Int) = SettingsSearch.plainTitle(resources.getString(res))
+        val matching = SEARCH_INDEX.filter { e ->
+            SettingsSearch.matches(query, (listOfNotNull(e.title, e.hint, e.page.title) + e.also).map(::text))
+        }
+        // What is called what was typed comes before what only mentions it.
+        val (named, mentioned) = matching.partition { SettingsSearch.matches(query, listOf(text(it.title))) }
+        (named + mentioned).map { it to text(it.title) }
+    }
+    Scaffold(
+        containerColor = MaterialTheme.colorScheme.surface,
+        topBar = {
+            TopAppBar(
+                navigationIcon = {
+                    IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Filled.ArrowBack, stringResource(R.string.back)) }
+                },
+                title = {
+                    TextField(
+                        value = query,
+                        onValueChange = onQuery,
+                        placeholder = { Text(stringResource(R.string.settings_search)) },
+                        singleLine = true,
+                        keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
+                        colors = TextFieldDefaults.colors(
+                            focusedContainerColor = Color.Transparent,
+                            unfocusedContainerColor = Color.Transparent,
+                            focusedIndicatorColor = Color.Transparent,
+                            unfocusedIndicatorColor = Color.Transparent,
+                        ),
+                        modifier = Modifier.fillMaxWidth().focusRequester(focus),
+                    )
+                },
+                actions = {
+                    if (query.isNotEmpty()) IconButton(onClick = { onQuery("") }) {
+                        Icon(Icons.Default.Close, stringResource(R.string.settings_search_clear))
+                    }
+                },
+            )
+        },
+    ) { padding ->
+        Column(
+            Modifier
+                .fillMaxSize()
+                .padding(padding)
+                .verticalScroll(rememberScrollState())
+                .padding(horizontal = 16.dp, vertical = 8.dp),
+        ) {
+            if (query.isNotBlank() && results.isEmpty()) {
+                Text(
+                    stringResource(R.string.settings_search_none),
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    textAlign = TextAlign.Center,
+                    modifier = Modifier.fillMaxWidth().padding(32.dp),
+                )
+            }
+            if (results.isNotEmpty()) SettingsGroup {
+                results.forEach { (entry, title) ->
+                    item {
+                        ListItem(
+                            headlineContent = { Text(title) },
+                            // A category found as itself needs no category underneath.
+                            supportingContent = if (entry.key == null) null else ({ Text(stringResource(entry.page.title)) }),
+                            leadingContent = { CategoryIcon(entry.page.icon) },
+                            colors = transparentItem(),
+                            modifier = Modifier.clickable { onOpen(entry) },
+                        )
+                    }
+                }
+            }
+            Spacer(Modifier.height(16.dp))
+        }
+    }
+}
 
 /** One settings page: its own collapsing large title bar and scrolling content. */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun SettingsPageScaffold(title: Int?, onBack: () -> Unit, content: @Composable () -> Unit) {
+private fun SettingsPageScaffold(title: Int?, onBack: () -> Unit, onSearch: (() -> Unit)? = null, content: @Composable () -> Unit) {
     val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior(rememberTopAppBarState())
     val back = @Composable {
         IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Filled.ArrowBack, stringResource(R.string.back)) }
@@ -334,6 +540,11 @@ private fun SettingsPageScaffold(title: Int?, onBack: () -> Unit, content: @Comp
                 LargeTopAppBar(
                     title = { Text(stringResource(title)) },
                     navigationIcon = back,
+                    actions = {
+                        if (onSearch != null) IconButton(onClick = onSearch) {
+                            Icon(Icons.Default.Search, stringResource(R.string.settings_search))
+                        }
+                    },
                     scrollBehavior = scrollBehavior,
                 )
             }
@@ -421,7 +632,7 @@ private fun claimUrl(twitchId: String?, login: String): String =
 @Composable
 private fun AppearancePage(settings: Settings, vm: MainViewModel) {
     SettingsGroup(R.string.settings_group_colors) {
-        item {
+        item(R.string.settings_theme) {
             ListItem(
                 // The buttons are the row. Three options of one word each say at a glance what a
                 // sheet would only say once it is open, and "System / Light / Dark" under the
@@ -440,34 +651,34 @@ private fun AppearancePage(settings: Settings, vm: MainViewModel) {
                 colors = transparentItem(),
             )
         }
-        item { SwitchItem(R.string.settings_dynamic_color, settings.dynamicColor, vm::setDynamicColor, R.string.settings_dynamic_color_hint) }
-        item { HighlightColorPicker(settings.highlightColor, vm::setHighlightColor) }
-        item { NameColorPicker(settings.nameColors, vm::setNameColors) }
-        item { AppIconPicker() }
+        item(R.string.settings_dynamic_color) { SwitchItem(R.string.settings_dynamic_color, settings.dynamicColor, vm::setDynamicColor, R.string.settings_dynamic_color_hint) }
+        item(R.string.settings_highlight_color) { HighlightColorPicker(settings.highlightColor, vm::setHighlightColor) }
+        item(R.string.settings_name_colors) { NameColorPicker(settings.nameColors, vm::setNameColors) }
+        item(R.string.settings_app_icon) { AppIconPicker() }
     }
 
     SettingsGroup(R.string.settings_group_text) {
-        item { TextSizeItem(settings, vm) }
-        item { TimestampPicker(settings.timestamps, vm::setTimestamps) }
+        item(R.string.settings_font_size) { TextSizeItem(settings, vm) }
+        item(R.string.settings_timestamps) { TimestampPicker(settings.timestamps, vm::setTimestamps) }
     }
 
     // How a message itself is drawn, which is what somebody looking for "the chat looks wrong"
     // comes here for — the emotes in it have a category of their own.
     SettingsGroup(R.string.settings_group_messages) {
-        item {
+        item(R.string.settings_alternate_background) {
             SwitchItem(
                 R.string.settings_alternate_background, settings.alternateBackground,
                 vm::setAlternateBackground, R.string.settings_alternate_background_hint,
             )
         }
-        item {
+        item(R.string.settings_smooth_scrolling) {
             SwitchItem(
                 R.string.settings_smooth_scrolling, settings.smoothScrolling,
                 vm::setSmoothScrolling, R.string.settings_smooth_scrolling_hint,
             )
         }
-        item { SwitchItem(R.string.settings_show_deleted, settings.showDeleted, vm::setShowDeleted, R.string.settings_show_deleted_hint) }
-        item {
+        item(R.string.settings_show_deleted) { SwitchItem(R.string.settings_show_deleted, settings.showDeleted, vm::setShowDeleted, R.string.settings_show_deleted_hint) }
+        item(R.string.settings_first_messages) {
             SwitchItem(
                 R.string.settings_first_messages, settings.highlightFirstMessages,
                 vm::setHighlightFirstMessages, R.string.settings_first_messages_hint,
@@ -477,13 +688,13 @@ private fun AppearancePage(settings: Settings, vm: MainViewModel) {
 
     // The two that are about the phone rather than the chat, together instead of one group each.
     SettingsGroup(R.string.settings_group_device) {
-        item {
+        item(R.string.settings_keep_screen_on) {
             SwitchItem(
                 R.string.settings_keep_screen_on, settings.keepScreenOn,
                 vm::setKeepScreenOn, R.string.settings_keep_screen_on_hint,
             )
         }
-        item {
+        item(R.string.settings_haptics) {
             SwitchItem(
                 R.string.settings_haptics, settings.haptics,
                 vm::setHaptics, R.string.settings_haptics_hint,
@@ -500,11 +711,11 @@ private fun AppearancePage(settings: Settings, vm: MainViewModel) {
 @Composable
 private fun EmotesPage(settings: Settings, vm: MainViewModel) {
     SettingsGroup(R.string.settings_group_emotes) {
-        item { SwitchItem(R.string.settings_emotes_enabled, settings.emotesEnabled, vm::setEmotesEnabled, R.string.settings_emotes_new_messages_hint) }
-        item { SwitchItem(R.string.settings_animated_emotes, settings.animatedEmotes, vm::setAnimatedEmotes) }
-        item { SwitchItem(R.string.settings_zero_width, settings.zeroWidthEmotes, vm::setZeroWidthEmotes, R.string.settings_zero_width_hint) }
-        item { SwitchItem(R.string.settings_unlisted_7tv, settings.showUnlisted7tv, vm::setShowUnlisted7tv, R.string.settings_unlisted_7tv_hint) }
-        item { SwitchItem(R.string.settings_seventv_events, settings.sevenTvEvents, vm::setSevenTvEvents, R.string.settings_seventv_events_hint) }
+        item(R.string.settings_emotes_enabled) { SwitchItem(R.string.settings_emotes_enabled, settings.emotesEnabled, vm::setEmotesEnabled, R.string.settings_emotes_new_messages_hint) }
+        item(R.string.settings_animated_emotes) { SwitchItem(R.string.settings_animated_emotes, settings.animatedEmotes, vm::setAnimatedEmotes) }
+        item(R.string.settings_zero_width) { SwitchItem(R.string.settings_zero_width, settings.zeroWidthEmotes, vm::setZeroWidthEmotes, R.string.settings_zero_width_hint) }
+        item(R.string.settings_unlisted_7tv) { SwitchItem(R.string.settings_unlisted_7tv, settings.showUnlisted7tv, vm::setShowUnlisted7tv, R.string.settings_unlisted_7tv_hint) }
+        item(R.string.settings_seventv_events) { SwitchItem(R.string.settings_seventv_events, settings.sevenTvEvents, vm::setSevenTvEvents, R.string.settings_seventv_events_hint) }
     }
     SettingsGroup(R.string.settings_emote_providers) {
         PROVIDERS.forEach { (provider, label) ->
@@ -526,7 +737,7 @@ private fun EmotesPage(settings: Settings, vm: MainViewModel) {
 private fun FiltersPage(settings: Settings, vm: MainViewModel, open: (SettingsSubPage) -> Unit) {
     val blocked by vm.blockedUsers.collectAsStateWithLifecycle()
     SettingsGroup {
-        item {
+        item(R.string.settings_mute_keywords) {
             KeywordListItem(
                 title = R.string.settings_mute_keywords,
                 summary = R.string.settings_mute_keywords_summary,
@@ -534,7 +745,7 @@ private fun FiltersPage(settings: Settings, vm: MainViewModel, open: (SettingsSu
                 onClick = { open(SettingsSubPage.MuteKeywords) },
             )
         }
-        item {
+        item(R.string.settings_rules) {
             val rules by vm.rules.collectAsStateWithLifecycle()
             ListItem(
                 headlineContent = { Text(stringResource(R.string.settings_rules)) },
@@ -549,7 +760,7 @@ private fun FiltersPage(settings: Settings, vm: MainViewModel, open: (SettingsSu
                 modifier = Modifier.clickable { open(SettingsSubPage.Rules) },
             )
         }
-        item {
+        item(R.string.settings_blocked_users) {
             ListItem(
                 headlineContent = { Text(stringResource(R.string.settings_blocked_users)) },
                 supportingContent = {
@@ -625,7 +836,7 @@ private fun TextSizeItem(settings: Settings, vm: MainViewModel) {
 @Composable
 private fun ChatPage(settings: Settings, vm: MainViewModel, open: (SettingsSubPage) -> Unit) {
     SettingsGroup(R.string.settings_group_history) {
-        item {
+        item(R.string.settings_message_limit) {
             var limit by remember(settings.messageLimit) { mutableFloatStateOf(settings.messageLimit.toFloat()) }
             SliderItem(
                 title = stringResource(R.string.settings_message_limit, limit.roundToInt()),
@@ -636,16 +847,16 @@ private fun ChatPage(settings: Settings, vm: MainViewModel, open: (SettingsSubPa
                 steps = 18,
             )
         }
-        item { SwitchItem(R.string.settings_load_history, settings.loadHistory, vm::setLoadHistory, R.string.settings_load_history_hint) }
+        item(R.string.settings_load_history) { SwitchItem(R.string.settings_load_history, settings.loadHistory, vm::setLoadHistory, R.string.settings_load_history_hint) }
     }
     SettingsGroup(R.string.settings_group_images) {
-        item {
+        item(R.string.settings_inline_images) {
             SwitchItem(
                 R.string.settings_inline_images, settings.inlineImages,
                 vm::setInlineImages, R.string.settings_inline_images_hint,
             )
         }
-        item {
+        item(R.string.settings_image_hosts) {
             ListItem(
                 headlineContent = { Text(stringResource(R.string.settings_image_hosts)) },
                 supportingContent = {
@@ -663,19 +874,19 @@ private fun ChatPage(settings: Settings, vm: MainViewModel, open: (SettingsSubPa
                 modifier = Modifier.clickable { open(SettingsSubPage.ImageHosts) },
             )
         }
-        item { SwitchItem(R.string.settings_full_links, settings.fullLinks, vm::setFullLinks, R.string.settings_full_links_hint) }
+        item(R.string.settings_full_links) { SwitchItem(R.string.settings_full_links, settings.fullLinks, vm::setFullLinks, R.string.settings_full_links_hint) }
     }
     // What the app offers while typing.
     SettingsGroup(R.string.settings_group_input) {
-        item { SwitchItem(R.string.settings_emote_suggestions, settings.emoteSuggestions, vm::setEmoteSuggestions, R.string.settings_emote_suggestions_hint) }
-        item { SwitchItem(R.string.settings_user_suggestions, settings.userSuggestions, vm::setUserSuggestions, R.string.settings_user_suggestions_hint) }
-        item { SwitchItem(R.string.settings_mention_with_at, settings.mentionWithAt, vm::setMentionWithAt, R.string.settings_mention_with_at_hint) }
+        item(R.string.settings_emote_suggestions) { SwitchItem(R.string.settings_emote_suggestions, settings.emoteSuggestions, vm::setEmoteSuggestions, R.string.settings_emote_suggestions_hint) }
+        item(R.string.settings_user_suggestions) { SwitchItem(R.string.settings_user_suggestions, settings.userSuggestions, vm::setUserSuggestions, R.string.settings_user_suggestions_hint) }
+        item(R.string.settings_mention_with_at) { SwitchItem(R.string.settings_mention_with_at, settings.mentionWithAt, vm::setMentionWithAt, R.string.settings_mention_with_at_hint) }
     }
     // What a tap or a swipe on the chat does.
     SettingsGroup(R.string.settings_group_controls) {
-        item { TapActionPicker(R.string.settings_message_tap, settings.messageTap, vm::setMessageTap) }
-        item { TapActionPicker(R.string.settings_name_tap, settings.nameTap, vm::setNameTap) }
-        item {
+        item(R.string.settings_message_tap) { TapActionPicker(R.string.settings_message_tap, settings.messageTap, vm::setMessageTap) }
+        item(R.string.settings_name_tap) { TapActionPicker(R.string.settings_name_tap, settings.nameTap, vm::setNameTap) }
+        item(R.string.settings_carousel) {
             SwitchItem(
                 R.string.settings_carousel, settings.carouselChannels,
                 vm::setCarouselChannels, R.string.settings_carousel_hint,
@@ -683,7 +894,7 @@ private fun ChatPage(settings: Settings, vm: MainViewModel, open: (SettingsSubPa
         }
     }
     SettingsGroup(R.string.settings_group_user_card) {
-        item { SwitchItem(R.string.settings_copy_first, settings.copyFirst, vm::setCopyFirst, R.string.settings_copy_first_hint) }
+        item(R.string.settings_copy_first) { SwitchItem(R.string.settings_copy_first, settings.copyFirst, vm::setCopyFirst, R.string.settings_copy_first_hint) }
     }
 }
 
@@ -691,7 +902,7 @@ private fun ChatPage(settings: Settings, vm: MainViewModel, open: (SettingsSubPa
 private fun NotificationsPage(settings: Settings, vm: MainViewModel, open: (SettingsSubPage) -> Unit) {
     val context = LocalContext.current
     SettingsGroup(R.string.settings_group_mentions) {
-        item {
+        item(R.string.settings_keywords) {
             KeywordListItem(
                 title = R.string.settings_keywords,
                 summary = R.string.settings_keywords_summary,
@@ -699,13 +910,13 @@ private fun NotificationsPage(settings: Settings, vm: MainViewModel, open: (Sett
                 onClick = { open(SettingsSubPage.MentionKeywords) },
             )
         }
-        item {
+        item(R.string.settings_sender_avatars) {
             SwitchItem(
                 R.string.settings_sender_avatars, settings.senderAvatars,
                 vm::setSenderAvatars, R.string.settings_sender_avatars_hint,
             )
         }
-        item {
+        item(R.string.settings_system_notifications) {
             ListItem(
                 headlineContent = { Text(stringResource(R.string.settings_system_notifications)) },
                 supportingContent = { Text(stringResource(R.string.settings_notifications_hint)) },
@@ -722,7 +933,7 @@ private fun NotificationsPage(settings: Settings, vm: MainViewModel, open: (Sett
         }
     }
     SettingsGroup(R.string.settings_group_bubbles) {
-        item { SwitchItem(R.string.settings_bubbles, settings.bubbles, vm::setBubbles, R.string.settings_bubbles_hint) }
+        item(R.string.settings_bubbles) { SwitchItem(R.string.settings_bubbles, settings.bubbles, vm::setBubbles, R.string.settings_bubbles_hint) }
     }
 }
 
@@ -918,7 +1129,7 @@ private fun ChannelsPage(vm: MainViewModel, settings: Settings) {
         onEditGroup = { combineTarget = it },
     )
     SettingsGroup {
-        item {
+        item(R.string.settings_channel_tabs) {
             SwitchItem(
                 R.string.settings_channel_tabs,
                 settings.channelTabs,
@@ -926,7 +1137,7 @@ private fun ChannelsPage(vm: MainViewModel, settings: Settings) {
                 R.string.settings_channel_tabs_hint,
             )
         }
-        item {
+        item(R.string.settings_unread_title_bar) {
             SwitchItem(
                 R.string.settings_unread_title_bar,
                 settings.unreadInTitleBar,
@@ -1085,7 +1296,7 @@ private fun AboutPage(settings: Settings, vm: MainViewModel, open: (SettingsSubP
         )
     }
     SettingsGroup {
-        item {
+        item(R.string.settings_changelog) {
             ListItem(
                 headlineContent = { Text(stringResource(R.string.settings_changelog)) },
                 supportingContent = { Text(stringResource(R.string.settings_changelog_summary)) },
@@ -1094,10 +1305,10 @@ private fun AboutPage(settings: Settings, vm: MainViewModel, open: (SettingsSubP
                 modifier = Modifier.clickable { open(SettingsSubPage.Changelog) },
             )
         }
-        item { LinkItem(R.string.settings_source_code, R.string.settings_source_code_summary, REPO_URL) }
-        item { LinkItem(R.string.settings_report_issue, R.string.settings_report_issue_summary, "$REPO_URL/issues/new") }
-        item { LinkItem(R.string.settings_privacy, R.string.settings_privacy_summary, PRIVACY_URL) }
-        item {
+        item(R.string.settings_source_code) { LinkItem(R.string.settings_source_code, R.string.settings_source_code_summary, REPO_URL) }
+        item(R.string.settings_report_issue) { LinkItem(R.string.settings_report_issue, R.string.settings_report_issue_summary, "$REPO_URL/issues/new") }
+        item(R.string.settings_privacy) { LinkItem(R.string.settings_privacy, R.string.settings_privacy_summary, PRIVACY_URL) }
+        item(R.string.settings_credits) {
             ListItem(
                 headlineContent = { Text(stringResource(R.string.settings_credits)) },
                 supportingContent = { Text(stringResource(R.string.settings_credits_summary)) },
@@ -1109,7 +1320,7 @@ private fun AboutPage(settings: Settings, vm: MainViewModel, open: (SettingsSubP
     }
     // Only the APK from GitHub has anything to switch here; Play keeps its installs up to date.
     if (BuildConfig.UPDATE_CHECK) SettingsGroup {
-        item {
+        item(R.string.settings_update_check) {
             SwitchItem(
                 R.string.settings_update_check,
                 settings.updateCheck,
