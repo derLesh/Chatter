@@ -46,6 +46,21 @@
     <string name="emotes">Emotes</string>
     <string name="input_hint">Send a message</string>
     <string name="input_hint_disabled">Not connected</string>
+    <string name="input_hint_subs_only">Subscribers-only chat</string>
+    <string name="input_hint_followers_only">Followers-only chat</string>
+    <string name="input_hint_emote_only">Emote-only chat</string>
+    <plurals name="characters_left">
+        <item quantity="one">%d character left</item>
+        <item quantity="other">%d characters left</item>
+    </plurals>
+    <plurals name="characters_too_many">
+        <item quantity="one">%d character too many</item>
+        <item quantity="other">%d characters too many</item>
+    </plurals>
+    <plurals name="send_wait">
+        <item quantity="one">Slow mode: %d second until the next message</item>
+        <item quantity="other">Slow mode: %d seconds until the next message</item>
+    </plurals>
     <string name="send">Send</string>
     <string name="replying_to">Replying to @%1$s: %2$s</string>
     <string name="thread_title">Conversation</string>

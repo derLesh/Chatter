@@ -34,6 +34,10 @@ class Rooms {
     /** Channels where the user is moderator or broadcaster. */
     val moderated: StateFlow<Set<String>> = _moderated
 
+    private val _subscribed = MutableStateFlow<Set<String>>(emptySet())
+    /** Channels the user is subscribed to, as the badges they wear there say. */
+    val subscribed: StateFlow<Set<String>> = _subscribed
+
     private val _ready = MutableStateFlow<Set<String>>(emptySet())
     /**
      * Channels Twitch has confirmed the join for. Its ROOMSTATE is the answer to a JOIN, so it is
@@ -73,6 +77,9 @@ class Rooms {
         val moderates = role == ChatRole.Moderator || role == ChatRole.Broadcaster
         _moderated.update { if (moderates) it + channel else it - channel }
         _roles.update { if (it[channel] == role) it else it + (channel to role) }
+        // A founder was among the first to subscribe, and is one still while the badge shows.
+        val subscriber = tags["badges"].orEmpty().split(',').any { it.startsWith("subscriber/") || it.startsWith("founder/") }
+        _subscribed.update { if (subscriber) it + channel else it - channel }
     }
 
     fun onGlobalUserState(tags: Map<String, String>) {
@@ -85,6 +92,7 @@ class Rooms {
         _states.update { it - channel }
         _roles.update { it - channel }
         _moderated.update { it - channel }
+        _subscribed.update { it - channel }
         _ready.update { it - channel }
     }
 
@@ -98,6 +106,7 @@ class Rooms {
         _states.value = emptyMap()
         _roles.value = emptyMap()
         _moderated.value = emptySet()
+        _subscribed.value = emptySet()
         _ready.value = emptySet()
     }
 }

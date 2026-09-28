@@ -40,6 +40,8 @@ class IncomingMessages(
     private val onSharedChatStarted: (channel: String) -> Unit = {},
     /** Shared Chat partners whose messages arrived before anybody knew who they are. */
     private val onPartnersFound: (ids: List<String>) -> Unit = {},
+    /** Twitch refused a message the user sent in this channel. */
+    private val onRefused: (channel: String) -> Unit = {},
 ) {
     /**
      * The shared ids of the last mentions told about. In a Shared Chat one message arrives in
@@ -96,8 +98,12 @@ class IncomingMessages(
             "PRIVMSG", "USERNOTICE" -> if (channel != null) onChatMessage(channel, msg)
             "WHISPER" -> InboxWhisper.from(msg)?.let(::onWhisper)
             "NOTICE" -> if (channel != null) {
-                // Every refusal of a sent message has an id of this shape; its message stays unnamed.
-                if (msg.tag("msg-id")?.startsWith("msg_") == true) answered(channel)
+                // Every refusal of a sent message has an id of this shape. The message on screen
+                // was never delivered, so it is struck out, and the notice below it says why.
+                if (msg.tag("msg-id")?.startsWith("msg_") == true) answered(channel)?.let { refused ->
+                    buffers.markDeleted(channel) { it.id == refused.id }
+                    onRefused(channel)
+                }
                 builder.build(msg, "", null, filters().mentions)?.let(buffers::add)
             }
             "CLEARCHAT" -> if (channel != null) onClearChat(channel, msg)

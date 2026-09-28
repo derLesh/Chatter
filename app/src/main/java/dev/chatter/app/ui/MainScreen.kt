@@ -56,6 +56,7 @@ import dev.chatter.app.R
 import dev.chatter.app.settings.TapAction
 import dev.chatter.app.chat.ChatItem
 import dev.chatter.app.chat.Segment
+import dev.chatter.app.chat.SendLimits
 import dev.chatter.app.irc.ConnectionState
 import dev.chatter.app.service.ChatService
 import dev.chatter.app.ui.changelog.UpdateNotesSheet
@@ -102,6 +103,7 @@ fun MainScreen(vm: MainViewModel, onInbox: () -> Unit, onSettings: () -> Unit) {
     val modChannels by vm.modChannels.collectAsStateWithLifecycle()
     val roomStates by vm.roomStates.collectAsStateWithLifecycle()
     val roles by vm.roles.collectAsStateWithLifecycle()
+    val subscribed by vm.subscribedChannels.collectAsStateWithLifecycle()
     val blockedLogins by vm.blockedLogins.collectAsStateWithLifecycle()
     val nicknames by vm.nicknames.collectAsStateWithLifecycle()
     val inboxUnread by vm.inboxUnread.collectAsStateWithLifecycle()
@@ -115,6 +117,9 @@ fun MainScreen(vm: MainViewModel, onInbox: () -> Unit, onSettings: () -> Unit) {
     val sharedWith = activeChannel?.let { sharedChats[it] }?.map { id ->
         chatPartners[id]?.displayName ?: info.values.firstOrNull { it.id == id }?.displayName
     }?.filterNotNull()
+
+    // What may keep the user from writing where the next message goes, for the field to say.
+    val restriction = vm.sendChannel?.let { ch -> SendLimits.restriction(roomStates[ch], roles[ch], ch in subscribed) }
 
     val context = LocalContext.current
     // Not context.resources: only this one follows a configuration change, so a snackbar shown
@@ -402,6 +407,8 @@ fun MainScreen(vm: MainViewModel, onInbox: () -> Unit, onSettings: () -> Unit) {
                 onEmotePicker = { showPicker = true },
                 onSend = vm::send,
                 replyStarts = vm.replyStarts,
+                waitUntil = vm.sendWaitUntil,
+                restriction = restriction,
                 modifier = Modifier.fillMaxWidth(),
                 sendChannels = activeGroup?.channels.orEmpty(),
                 sendChannel = vm.sendChannel,
@@ -461,6 +468,8 @@ fun MainScreen(vm: MainViewModel, onInbox: () -> Unit, onSettings: () -> Unit) {
                 onEmotePicker = { showPicker = true },
                 onSend = vm::send,
                 replyStarts = vm.replyStarts,
+                waitUntil = vm.sendWaitUntil,
+                restriction = restriction,
                 modifier = Modifier.fillMaxWidth(),
             )
         }

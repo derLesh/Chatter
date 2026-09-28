@@ -29,6 +29,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import dev.chatter.app.chat.SendLimits
 import dev.chatter.app.R
 import dev.chatter.app.auth.AuthState
 import dev.chatter.app.chat.Segment
@@ -55,6 +56,9 @@ fun BubbleScreen(vm: MainViewModel, channel: String?) {
     val info by vm.channelInfo.collectAsStateWithLifecycle()
     val emoteVersion by vm.emoteVersion.collectAsStateWithLifecycle()
     val chatPartners by vm.chatPartners.collectAsStateWithLifecycle()
+    val roomStates by vm.roomStates.collectAsStateWithLifecycle()
+    val roles by vm.roles.collectAsStateWithLifecycle()
+    val subscribed by vm.subscribedChannels.collectAsStateWithLifecycle()
     val partnerMarks = remember(chatPartners) {
         chatPartners.mapValues { (_, p) -> ChannelMark(p.avatarUrl, p.displayName) }
     }
@@ -137,6 +141,8 @@ fun BubbleScreen(vm: MainViewModel, channel: String?) {
                 onEmotePicker = { showPicker = true },
                 onSend = vm::send,
                 replyStarts = vm.replyStarts,
+                waitUntil = vm.sendWaitUntil,
+                restriction = vm.sendChannel?.let { ch -> SendLimits.restriction(roomStates[ch], roles[ch], ch in subscribed) },
                 modifier = Modifier.fillMaxWidth(),
             )
         }

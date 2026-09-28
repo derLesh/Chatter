@@ -37,6 +37,7 @@ import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -47,6 +48,7 @@ import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.TransformOrigin
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
@@ -64,8 +66,11 @@ import coil3.compose.AsyncImage
 import dev.chatter.app.R
 import dev.chatter.app.channels.ChannelInfo
 import dev.chatter.app.chat.ChatItem
+import dev.chatter.app.chat.ChatRestriction
+import dev.chatter.app.chat.SendLimits
 import dev.chatter.app.ui.Suggestion
 import dev.chatter.app.ui.channels.ChannelAvatar
+import kotlinx.coroutines.delay
 
 /**
  * The field a message is written in, with the emote picker, the suggestions and the reply strip.
@@ -79,6 +84,10 @@ import dev.chatter.app.ui.channels.ChannelAvatar
  *
  * [replyStarts] counts the answers the user began, and each one brings the keyboard up. The
  * answer itself cannot say so: it also comes back with the draft of a page swiped back to.
+ *
+ * What Twitch would refuse is said here first: the characters left once a message gets long,
+ * the seconds of slow mode on the send button, and a [restriction] in place of the placeholder.
+ * [waitUntil] is when slow mode lets the user write again.
  */
 @Composable
 fun InputBar(
@@ -94,6 +103,8 @@ fun InputBar(
     onSend: () -> Unit,
     modifier: Modifier = Modifier,
     replyStarts: Int = 0,
+    waitUntil: Long = 0L,
+    restriction: ChatRestriction? = null,
     sendChannels: List<String> = emptyList(),
     sendChannel: String? = null,
     channelInfo: Map<String, ChannelInfo> = emptyMap(),
@@ -104,6 +115,18 @@ fun InputBar(
     // Picking a message to answer is only half of answering it: the keyboard comes up with it,
     // so that one tap on a message is all it takes to start typing.
     LaunchedEffect(replyStarts) { if (replyTo != null && enabled) focus.requestFocus() }
+    var waitLeft by remember { mutableIntStateOf(0) }
+    LaunchedEffect(waitUntil) {
+        while (true) {
+            val left = ((waitUntil - System.currentTimeMillis() + 999) / 1000).toInt().coerceAtLeast(0)
+            waitLeft = left
+            if (left == 0) break
+            delay(250)
+        }
+    }
+    val length = remember(value.text) { SendLimits.length(value.text) }
+    val tooLong = length > SendLimits.MAX_LENGTH
+    val canSend = enabled && value.text.isNotBlank() && !tooLong && waitLeft == 0
     // No bar of its own: the input sits straight on the chat background, so only the rounded
     // field, the chips and the reply strip stand out.
     Column(modifier) {
@@ -131,6 +154,7 @@ fun InputBar(
                     Text(
                         when {
                             !enabled -> stringResource(R.string.input_hint_disabled)
+                            restriction != null -> stringResource(restriction.hint)
                             choosing -> stringResource(R.string.input_hint_in, channelInfo[sendChannel]?.displayName ?: sendChannel!!)
                             else -> stringResource(R.string.input_hint)
                         },
@@ -138,12 +162,25 @@ fun InputBar(
                         overflow = TextOverflow.Ellipsis,
                     )
                 },
+                trailingIcon = if (length < SendLimits.COUNTER_FROM) null else {
+                    {
+                        val left = SendLimits.MAX_LENGTH - length
+                        val said = if (tooLong) pluralStringResource(R.plurals.characters_too_many, -left, -left)
+                        else pluralStringResource(R.plurals.characters_left, left, left)
+                        Text(
+                            "$left",
+                            style = MaterialTheme.typography.labelMedium,
+                            color = if (tooLong) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.semantics { contentDescription = said },
+                        )
+                    }
+                },
                 maxLines = 4,
                 keyboardOptions = KeyboardOptions(
                     capitalization = KeyboardCapitalization.Sentences,
                     imeAction = ImeAction.Send,
                 ),
-                keyboardActions = KeyboardActions(onSend = { onSend() }),
+                keyboardActions = KeyboardActions(onSend = { if (canSend) onSend() }),
                 shape = RoundedCornerShape(20.dp),
                 colors = TextFieldDefaults.colors(
                     focusedContainerColor = MaterialTheme.colorScheme.surfaceContainerHighest,
@@ -155,8 +192,17 @@ fun InputBar(
                 ),
                 modifier = Modifier.weight(1f).focusRequester(focus),
             )
-            IconButton(onClick = onSend, enabled = enabled && value.text.isNotBlank()) {
-                Icon(Icons.AutoMirrored.Filled.Send, contentDescription = stringResource(R.string.send))
+            IconButton(onClick = onSend, enabled = canSend) {
+                if (waitLeft > 0) {
+                    val wait = pluralStringResource(R.plurals.send_wait, waitLeft, waitLeft)
+                    Text(
+                        "$waitLeft",
+                        style = MaterialTheme.typography.labelLarge,
+                        modifier = Modifier.semantics { contentDescription = wait },
+                    )
+                } else {
+                    Icon(Icons.AutoMirrored.Filled.Send, contentDescription = stringResource(R.string.send))
+                }
             }
         }
     }
@@ -228,6 +274,14 @@ private class OnTopOfAnchor : DropdownMenuPopupPositionProvider {
         )
     }
 }
+
+/** What the field says in place of its placeholder while this is in the way. */
+private val ChatRestriction.hint: Int
+    get() = when (this) {
+        ChatRestriction.SubsOnly -> R.string.input_hint_subs_only
+        ChatRestriction.FollowersOnly -> R.string.input_hint_followers_only
+        ChatRestriction.EmoteOnly -> R.string.input_hint_emote_only
+    }
 
 @Composable
 private fun SuggestionRow(suggestions: List<Suggestion>, imageLoader: ImageLoader, onClick: (Suggestion) -> Unit) {

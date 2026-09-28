@@ -57,6 +57,7 @@ class IncomingMessagesTest {
     private val mentioned = mutableListOf<Pair<ChatItem, Boolean>>()
     private val whispered = mutableListOf<Pair<InboxWhisper, Boolean>>()
     private val roomsFound = mutableListOf<String>()
+    private val refused = mutableListOf<String>()
 
     private val incoming = IncomingMessages(
         builder = builder,
@@ -71,6 +72,7 @@ class IncomingMessagesTest {
         onMention = { item, watched -> mentioned += item to watched },
         onWhisper = { whisper, watched -> whispered += whisper to watched },
         onRoomFound = { roomsFound += it },
+        onRefused = { refused += it },
     )
 
     private val window = Any()
@@ -173,6 +175,24 @@ class IncomingMessagesTest {
         advanceUntilIdle()
         assertEquals(listOf("local-1", "real-2"), ids().filter { it.startsWith("local-") || it.startsWith("real-") })
         watcher.cancel()
+    }
+
+    @Test
+    fun aRefusedMessageIsStruckOutAndHandedBack() = runTest(dispatcher) {
+        buffers.open("forsen")
+        val watcher = launch { buffers.messages("forsen").collect {} }
+        incoming.sent(own("local-1"))
+        incoming.handle(line("@msg-id=msg_slowmode :tmi.twitch.tv NOTICE #forsen :This room is in slow mode."))
+        advanceUntilIdle()
+        assertEquals(listOf("forsen"), refused)
+        assertTrue(buffers.messages("forsen").value.first { it.id == "local-1" }.deleted)
+        watcher.cancel()
+    }
+
+    @Test
+    fun aNoticeWithNothingWaitingRefusesNothing() = runTest(dispatcher) {
+        incoming.handle(line("@msg-id=msg_channel_suspended :tmi.twitch.tv NOTICE #forsen :This channel does not exist."))
+        assertTrue(refused.isEmpty())
     }
 
     @Test
@@ -312,6 +332,11 @@ class IncomingMessagesTest {
         incoming.handle(line("@badges=moderator/1 :tmi.twitch.tv USERSTATE #forsen"))
         assertEquals(ChatRole.Moderator, rooms.roles.value["forsen"])
         assertTrue(rooms.isPrivileged("forsen"))
+        assertFalse("forsen" in rooms.subscribed.value)
+        incoming.handle(line("@badges=subscriber/12,premium/1 :tmi.twitch.tv USERSTATE #forsen"))
+        assertTrue("forsen" in rooms.subscribed.value)
+        incoming.handle(line("@badges=founder/0 :tmi.twitch.tv USERSTATE #forsen"))
+        assertTrue("a founder is a subscriber", "forsen" in rooms.subscribed.value)
     }
 
     // ---- whispers ------------------------------------------------------------------------------------

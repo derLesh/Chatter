@@ -23,6 +23,7 @@ import dev.chatter.app.chat.ImageLinks
 import dev.chatter.app.chat.InboxMention
 import dev.chatter.app.chat.InboxWhisper
 import dev.chatter.app.chat.SendResult
+import dev.chatter.app.chat.SendLimits
 import dev.chatter.app.emotes.Emote
 import dev.chatter.app.emotes.EmoteProvider
 import dev.chatter.app.net.HelixChannelSearch
@@ -91,6 +92,7 @@ class MainViewModel(private val c: AppContainer) : ViewModel() {
     val powerSaveMode = c.powerSaveMode
     val roomStates = c.chat.rooms.states
     val roles = c.chat.rooms.roles
+    val subscribedChannels = c.chat.rooms.subscribed
     /** The Shared Chat partners of every channel that shares its chat right now, by channel. */
     val sharedChats = c.chat.sharedChats.sessions
     /** Name and picture of every Shared Chat partner met so far, by channel id. */
@@ -170,6 +172,44 @@ class MainViewModel(private val c: AppContainer) : ViewModel() {
         // Something outside the app did not answer. Said once, and then not again.
         viewModelScope.launch {
             c.trouble.unreachable.collect { _messages.send(UiMessage(R.string.error_service_down, it)) }
+        }
+        viewModelScope.launch { c.chat.refused.collect(::onRefused) }
+    }
+
+    /** A message this window sent: where from, and when, in case Twitch gives it back. */
+    private class Sent(val text: String, val page: String?, val at: Long)
+
+    /** The last message this window sent in each channel, by channel. */
+    private val sent = HashMap<String, Sent>()
+
+    /**
+     * Until when each channel's slow mode keeps the user from writing again, by channel. Only
+     * what this window sent counts: that is all it can know about.
+     */
+    private val slowUntil = mutableStateMapOf<String, Long>()
+
+    /** When the user may write in the channel they are writing in; 0 when they may now. */
+    val sendWaitUntil: Long get() = sendChannel?.let { slowUntil[it] } ?: 0L
+
+    /**
+     * Twitch did not take the last message sent in [channel]. It goes back into the field it was
+     * written in, so that nothing has to be typed again — unless something new is being written
+     * there by now, which is not to be overwritten.
+     */
+    private fun onRefused(channel: String) {
+        val refused = sent.remove(channel) ?: return
+        if (System.currentTimeMillis() - refused.at > REFUSAL_WINDOW_MS) return
+        // A message Twitch did not take started no slow mode either.
+        slowUntil.remove(channel)
+        val restored = TextFieldValue(refused.text, TextRange(refused.text.length))
+        if (refused.page == shownPage) {
+            if (input.text.isNotBlank()) return
+            selectSendChannel(channel)
+            input = restored
+            updateSuggestions()
+        } else if (refused.page != null && refused.page !in drafts) {
+            drafts[refused.page] = Draft(restored, null)
+            draftPages = drafts.keys.toSet()
         }
     }
 
@@ -608,6 +648,13 @@ class MainViewModel(private val c: AppContainer) : ViewModel() {
         viewModelScope.launch {
             when (c.chat.send(channel, text, reply)) {
                 SendResult.Ok -> {
+                    // A command is not a message: no slow mode, and nothing to give back.
+                    if (CommandParser.parse(text.trim()) == null) {
+                        val now = System.currentTimeMillis()
+                        sent[channel] = Sent(text.trim(), shownPage, now)
+                        val slow = SendLimits.slowSeconds(roomStates.value[channel], roles.value[channel])
+                        if (slow > 0) slowUntil[channel] = now + slow * 1000L
+                    }
                     input = TextFieldValue("")
                     replyTo = null
                     suggestions = emptyList()
@@ -957,5 +1004,11 @@ class MainViewModel(private val c: AppContainer) : ViewModel() {
     private companion object {
         /** How long a channel has to stay on screen before it is remembered as the last one. */
         const val LAST_CHANNEL_DELAY_MS = 1_500L
+
+        /**
+         * How long after sending a refusal can still be about that message. Twitch answers within
+         * a second; the same window the chat gives it to name a sent message.
+         */
+        const val REFUSAL_WINDOW_MS = 10_000L
     }
 }

@@ -108,7 +108,12 @@ class ChatRepository(
         sharedChats = sharedChats,
         onSharedChatStarted = { channel -> scope.launch { loadSharedChat(channel) } },
         onPartnersFound = { ids -> scope.launch { describePartners(ids) } },
+        onRefused = { _refused.tryEmit(it) },
     )
+
+    private val _refused = MutableSharedFlow<String>(extraBufferCapacity = 8)
+    /** The channels Twitch just refused one of the user's messages in, one event per refusal. */
+    val refused: SharedFlow<String> = _refused
 
     private val _mentionEvents = MutableSharedFlow<ChatItem>(extraBufferCapacity = 32)
     /** Emitted for live (non-history) messages that mention the user in a channel they are not looking at. */
