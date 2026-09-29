@@ -92,6 +92,8 @@ class MainViewModel(private val c: AppContainer) : ViewModel() {
     val modChannels = c.chat.rooms.moderated
     val powerSaveMode = c.powerSaveMode
     val saveData = c.dataSaving.active
+    val backgroundStop = c.backgroundHealth.lastStop
+    val batteryRestrictions = c.backgroundHealth.restrictions
     val roomStates = c.chat.rooms.states
     val roles = c.chat.rooms.roles
     val subscribedChannels = c.chat.rooms.subscribed
@@ -900,6 +902,11 @@ class MainViewModel(private val c: AppContainer) : ViewModel() {
     fun setDynamicColor(v: Boolean) {
         viewModelScope.launch { c.settings.setDynamicColor(v) }
     }
+
+    /** Reads the battery settings again, for a screen the user may have left to change them. */
+    fun refreshBatteryRestrictions() = c.backgroundHealth.refresh()
+
+    fun dismissBackgroundStop() = c.backgroundHealth.dismiss()
 
     fun setMobileData(v: MobileData) {
         viewModelScope.launch { c.settings.setMobileData(v) }

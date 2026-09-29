@@ -49,6 +49,7 @@ class ChatService : Service() {
         }
 
         container.notifier.clearNotListening()
+        container.backgroundHealth.setListening(true)
         container.connect()
 
         // With the app in front, on another channel or another screen, a notification would only
@@ -103,6 +104,8 @@ class ChatService : Service() {
         // Without the service the process is the next one Android ends, and the statistics may
         // hold ten minutes of counting that are not on disk yet.
         container.stats.saveNow()
+        // Stopped on purpose: whatever ends the process from here on did not cost any mentions.
+        container.backgroundHealth.setListening(false)
         scope.cancel()
         super.onDestroy()
     }

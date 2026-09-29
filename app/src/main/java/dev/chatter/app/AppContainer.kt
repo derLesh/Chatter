@@ -46,6 +46,7 @@ import dev.chatter.app.net.DataSaving
 import dev.chatter.app.net.HelixApi
 import dev.chatter.app.net.ServiceTrouble
 import dev.chatter.app.net.ThirdPartyApi
+import dev.chatter.app.service.BackgroundHealth
 import dev.chatter.app.service.ChatNotifier
 import dev.chatter.app.settings.BackupManager
 import dev.chatter.app.settings.SettingsRepository
@@ -74,6 +75,7 @@ private val Context.nicknameStore by preferencesDataStore("nicknames")
 private val Context.inboxStore by preferencesDataStore("inbox")
 private val Context.ruleStore by preferencesDataStore("rules")
 private val Context.statsStore by preferencesDataStore("stats")
+private val Context.healthStore by preferencesDataStore("background_health")
 
 /**
  * Creates and wires every long-lived object of the app (manual dependency injection).
@@ -114,6 +116,7 @@ class AppContainer(private val context: Context) {
     val whisperInbox = WhisperInboxRepository(context.inboxStore, scope)
     val rules = RuleRepository(context.ruleStore, scope)
     val stats = StatsRepository(context.statsStore, scope)
+    val backgroundHealth = BackgroundHealth(context, context.healthStore, scope)
     val backup = BackupManager(settings, rules, nicknames, channels)
     val changelog = ChangelogRepository(context, settings, BuildConfig.VERSION_NAME, scope)
     /** True while Chatter should spend as little data as it can; see [DataSaving]. */
@@ -168,6 +171,7 @@ class AppContainer(private val context: Context) {
         notifier.createChannels()
         chat.start()
         stats.start(chat.windows.anyVisible)
+        backgroundHealth.start()
         changelog.start()
         // Read on every message, so it is mirrored onto the repository instead of passed around.
         scope.launch { settings.settings.collect { badges.enabled = it.badgeProviders } }

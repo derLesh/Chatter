@@ -127,7 +127,9 @@ import dev.chatter.app.chat.Segment
 import dev.chatter.app.emotes.EmoteProvider
 import dev.chatter.app.net.HelixBlockedUser
 import dev.chatter.app.service.ChatNotifier
+import androidx.lifecycle.compose.LifecycleResumeEffect
 import dev.chatter.app.settings.MobileData
+import dev.chatter.app.ui.settings.BackgroundCard
 import dev.chatter.app.settings.Settings
 import dev.chatter.app.settings.ThemeMode
 import dev.chatter.app.settings.TapAction
@@ -907,6 +909,14 @@ private fun ChatPage(settings: Settings, vm: MainViewModel, open: (SettingsSubPa
 @Composable
 private fun NotificationsPage(settings: Settings, vm: MainViewModel, open: (SettingsSubPage) -> Unit) {
     val context = LocalContext.current
+    val stop by vm.backgroundStop.collectAsStateWithLifecycle()
+    val battery by vm.batteryRestrictions.collectAsStateWithLifecycle()
+    // The card's button leads into the system settings; coming back is when to look again.
+    LifecycleResumeEffect(Unit) {
+        vm.refreshBatteryRestrictions()
+        onPauseOrDispose { }
+    }
+    BackgroundCard(stop, battery, vm::dismissBackgroundStop)
     SettingsGroup(R.string.settings_group_mentions) {
         item(R.string.settings_keywords) {
             KeywordListItem(
