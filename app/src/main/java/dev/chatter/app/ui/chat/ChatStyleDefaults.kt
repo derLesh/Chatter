@@ -26,13 +26,14 @@ fun rememberChatStyle(
     nicknames: Map<String, String>,
     powerSave: Boolean = false,
     saveData: Boolean = false,
+    emoteFrameRate: Float = EmoteFrameRate.ACTIVE,
 ): ChatStyle {
     val dark = isAppInDarkTheme()
     val colors = MaterialTheme.colorScheme
     return remember(
         settings.fontSize, settings.timestamps, settings.highlightColor, settings.alternateBackground,
         settings.nameColors, settings.highlightFirstMessages, settings.haptics,
-        settings.inlineImages, settings.imageHosts, settings.fullLinks, powerSave, saveData, nicknames, dark, colors,
+        settings.inlineImages, settings.imageHosts, settings.fullLinks, powerSave, saveData, emoteFrameRate, nicknames, dark, colors,
     ) {
         ChatStyle(
             fontSize = settings.fontSize,
@@ -57,6 +58,7 @@ fun rememberChatStyle(
             imageHosts = if (settings.inlineImages && !powerSave && !saveData) settings.imageHosts else emptyList(),
             shortLinks = !settings.fullLinks,
             smallEmotes = saveData,
+            emoteFrameRate = emoteFrameRate,
         )
     }
 }

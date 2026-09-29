@@ -124,6 +124,8 @@
     <string name="settings_timestamps">Timestamps</string>
     <string name="settings_timestamps_off">No time</string>
     <string name="settings_animated_emotes">Animated emotes</string>
+    <string name="settings_slow_idle_emotes">Slow down when left alone</string>
+    <string name="settings_slow_idle_emotes_hint">After three minutes without a touch, animated emotes play at 10 instead of 30 frames a second, which saves battery with the screen kept on</string>
     <string name="settings_keywords">Highlighted words</string>
     <string name="settings_keywords_summary">Words that alert you like your own name does</string>
     <string name="settings_keywords_hint">Your username is always highlighted</string>

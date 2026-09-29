@@ -97,6 +97,8 @@ data class ChatStyle(
     val shortLinks: Boolean = true,
     /** Emotes in their smallest size, to save data; see [dev.chatter.app.net.DataSaving]. */
     val smallEmotes: Boolean = false,
+    /** What animated emotes ask the display for; see [EmoteFrameRate]. */
+    val emoteFrameRate: Float = EmoteFrameRate.ACTIVE,
 )
 
 /**
@@ -112,7 +114,6 @@ private const val HIGHLIGHT_ALPHA = 0.2f
 /** Messages loaded from history are clearly dimmed so live chat stands out. */
 private const val HISTORICAL_ALPHA = 0.5f
 private const val EMOTE_EM = 2.1f
-private const val EMOTE_FRAME_RATE = 30f
 /** Big enough to see what was linked, small enough that one picture is not the whole screen. */
 private val IMAGE_MAX_WIDTH = 220.dp
 private val IMAGE_MAX_HEIGHT = 180.dp
@@ -182,9 +183,9 @@ fun MessageRow(
         (data as? InlineData.EmoteData)?.seg?.takeIf { s -> !s.emote.sizeKnown || s.overlays.any { !it.sizeKnown } }
             ?.let { s -> (s.overlays + s.emote).maxOf { EmoteSizes.aspectRatio(it) } }
     }
-    val inlineContent = remember(built, imageLoader, measured, style.smallEmotes) {
+    val inlineContent = remember(built, imageLoader, measured, style.smallEmotes, style.emoteFrameRate) {
         built.inline.mapValues { (_, data) ->
-            inlineFor(data, imageLoader, emoteClick.takeIf { onEmoteClick != null }, style.smallEmotes)
+            inlineFor(data, imageLoader, emoteClick.takeIf { onEmoteClick != null }, style.smallEmotes, style.emoteFrameRate)
         }
     }
 
@@ -330,6 +331,7 @@ private fun inlineFor(
     loader: ImageLoader,
     onEmoteClick: ((Segment.EmoteSeg) -> Unit)?,
     smallEmotes: Boolean = false,
+    frameRate: Float = EmoteFrameRate.ACTIVE,
 ): InlineTextContent = when (data) {
     is InlineData.ChannelData -> InlineTextContent(
         Placeholder(BADGE_EM.em, BADGE_EM.em, PlaceholderVerticalAlign.Center),
@@ -353,7 +355,7 @@ private fun inlineFor(
         InlineTextContent(
             Placeholder((EMOTE_EM * aspect).em, EMOTE_EM.em, PlaceholderVerticalAlign.Center),
         ) {
-            Box(Modifier.fillMaxSize().preferredFrameRate(EMOTE_FRAME_RATE).then(if (onEmoteClick != null) Modifier.clickable { onEmoteClick(data.seg) } else Modifier)) {
+            Box(Modifier.fillMaxSize().preferredFrameRate(frameRate).then(if (onEmoteClick != null) Modifier.clickable { onEmoteClick(data.seg) } else Modifier)) {
                 (listOf(base) + data.seg.overlays).forEach { e ->
                     SharedEmoteImage(
                         url = if (smallEmotes) e.smallUrl else e.url,

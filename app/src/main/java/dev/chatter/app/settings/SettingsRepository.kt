@@ -48,6 +48,8 @@ data class Settings(
     /** Messages containing one of these words are never shown. */
     val muteKeywords: List<String> = emptyList(),
     val animatedEmotes: Boolean = true,
+    /** Animated emotes at fewer frames a second once the chat has gone untouched for a while. */
+    val slowIdleEmotes: Boolean = true,
     /** Names of the most recently used emotes, newest first. */
     val recentEmotes: List<String> = emptyList(),
     val themeMode: ThemeMode = ThemeMode.System,
@@ -146,6 +148,7 @@ class SettingsRepository(
             mentionKeywords = p[KEYWORDS].orEmpty().split(',').map { it.trim() }.filter { it.isNotEmpty() },
             muteKeywords = p[MUTE_KEYWORDS].orEmpty().split(',').map { it.trim() }.filter { it.isNotEmpty() },
             animatedEmotes = p[ANIMATED] ?: true,
+            slowIdleEmotes = p[SLOW_IDLE_EMOTES] ?: true,
             recentEmotes = p[RECENT_EMOTES].orEmpty().split(' ').filter { it.isNotEmpty() },
             themeMode = p[THEME_MODE]?.let { v -> ThemeMode.entries.firstOrNull { it.name == v } } ?: ThemeMode.System,
             dynamicColor = p[DYNAMIC_COLOR] ?: true,
@@ -201,6 +204,7 @@ class SettingsRepository(
     suspend fun setMentionKeywords(v: List<String>) = store.edit { it[KEYWORDS] = v.joinToString(",") }
     suspend fun setMuteKeywords(v: List<String>) = store.edit { it[MUTE_KEYWORDS] = v.joinToString(",") }
     suspend fun setAnimatedEmotes(v: Boolean) = store.edit { it[ANIMATED] = v }
+    suspend fun setSlowIdleEmotes(v: Boolean) = store.edit { it[SLOW_IDLE_EMOTES] = v }
     suspend fun setThemeMode(v: ThemeMode) = store.edit { it[THEME_MODE] = v.name }
     suspend fun setDynamicColor(v: Boolean) = store.edit { it[DYNAMIC_COLOR] = v }
     suspend fun setPureBlack(v: Boolean) = store.edit { it[PURE_BLACK] = v }
@@ -265,6 +269,7 @@ class SettingsRepository(
         p[KEYWORDS] = s.mentionKeywords.joinToString(",")
         p[MUTE_KEYWORDS] = s.muteKeywords.joinToString(",")
         p[ANIMATED] = s.animatedEmotes
+        p[SLOW_IDLE_EMOTES] = s.slowIdleEmotes
         p[RECENT_EMOTES] = s.recentEmotes.joinToString(" ")
         p[THEME_MODE] = s.themeMode.name
         p[DYNAMIC_COLOR] = s.dynamicColor
@@ -315,6 +320,7 @@ class SettingsRepository(
         val KEYWORDS = stringPreferencesKey("mention_keywords")
         val MUTE_KEYWORDS = stringPreferencesKey("mute_keywords")
         val ANIMATED = booleanPreferencesKey("animated_emotes")
+        val SLOW_IDLE_EMOTES = booleanPreferencesKey("slow_idle_emotes")
         val RECENT_EMOTES = stringPreferencesKey("recent_emotes")
         val THEME_MODE = stringPreferencesKey("theme_mode")
         val DYNAMIC_COLOR = booleanPreferencesKey("dynamic_color")

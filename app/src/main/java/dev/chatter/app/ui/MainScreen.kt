@@ -70,7 +70,12 @@ import dev.chatter.app.ui.channels.ChannelTopBar
 import dev.chatter.app.ui.chat.ChannelMark
 import dev.chatter.app.ui.chat.ChatList
 import dev.chatter.app.ui.chat.MessageGesture
+import dev.chatter.app.ui.chat.ChatActivity
+import dev.chatter.app.ui.chat.EmoteFrameRate
+import dev.chatter.app.ui.chat.SharedEmotes
+import dev.chatter.app.ui.chat.noteTouches
 import dev.chatter.app.ui.chat.rememberChatStyle
+import dev.chatter.app.ui.chat.rememberEmoteFrameRate
 import dev.chatter.app.ui.chat.EmoteCardSheet
 import dev.chatter.app.ui.chat.EmotePickerSheet
 import dev.chatter.app.ui.chat.InputBar
@@ -161,7 +166,16 @@ fun MainScreen(vm: MainViewModel, onInbox: () -> Unit, onSettings: () -> Unit) {
     val powerSave by vm.powerSaveMode.collectAsStateWithLifecycle()
     val saveData by vm.saveData.collectAsStateWithLifecycle()
     val loader = if (settings.animatedEmotes && !powerSave && !saveData) vm.imageLoader else vm.staticImageLoader
-    val style = rememberChatStyle(settings, nicknames, powerSave, saveData)
+    // A chat left alone next to the stream keeps its emotes moving, just with fewer frames.
+    val activity = remember { ChatActivity() }
+    val emoteFrameRate = rememberEmoteFrameRate(activity, settings.slowIdleEmotes)
+    val style = rememberChatStyle(settings, nicknames, powerSave, saveData, emoteFrameRate)
+    // Only while this screen is in front: the bubble draws the same shared emotes, and it is not
+    // the main window going untouched that should slow them down there.
+    LifecycleStartEffect(emoteFrameRate) {
+        SharedEmotes.setFrameRate(emoteFrameRate)
+        onStopOrDispose { SharedEmotes.setFrameRate(EmoteFrameRate.ACTIVE) }
+    }
 
     // Only while the chat is on screen; leaving it (or the settings) lets the screen sleep again.
     val view = LocalView.current
@@ -268,6 +282,7 @@ fun MainScreen(vm: MainViewModel, onInbox: () -> Unit, onSettings: () -> Unit) {
     }
 
     Scaffold(
+        modifier = Modifier.noteTouches(activity),
         contentWindowInsets = WindowInsets(0),
         snackbarHost = { SnackbarHost(snackbar) },
         topBar = {
@@ -401,7 +416,7 @@ fun MainScreen(vm: MainViewModel, onInbox: () -> Unit, onSettings: () -> Unit) {
             }
             InputBar(
                 value = vm.input,
-                onValueChange = vm::onInputChange,
+                onValueChange = { activity.note(); vm.onInputChange(it) },
                 enabled = vm.sendChannel != null && connection == ConnectionState.Connected,
                 // The conversation has a field of its own, and two asking for the keyboard at once
                 // would fight over it.
@@ -465,7 +480,7 @@ fun MainScreen(vm: MainViewModel, onInbox: () -> Unit, onSettings: () -> Unit) {
         ) {
             InputBar(
                 value = vm.input,
-                onValueChange = vm::onInputChange,
+                onValueChange = { activity.note(); vm.onInputChange(it) },
                 enabled = vm.sendChannel != null && connection == ConnectionState.Connected,
                 replyTo = vm.replyTo,
                 suggestions = vm.suggestions,

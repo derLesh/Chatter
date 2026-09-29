@@ -1002,6 +1002,10 @@ class MainViewModel(private val c: AppContainer) : ViewModel() {
         viewModelScope.launch { c.settings.setAnimatedEmotes(v) }
     }
 
+    fun setSlowIdleEmotes(v: Boolean) {
+        viewModelScope.launch { c.settings.setSlowIdleEmotes(v) }
+    }
+
     fun resetStats() {
         viewModelScope.launch { c.stats.reset() }
     }

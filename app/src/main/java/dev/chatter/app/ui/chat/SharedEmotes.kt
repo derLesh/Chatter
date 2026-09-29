@@ -1,10 +1,16 @@
 package dev.chatter.app.ui.chat
 
 import android.content.Context
+import android.graphics.Bitmap
+import android.graphics.Canvas
+import android.graphics.Color
+import android.graphics.Paint
 import android.graphics.drawable.Animatable
+import android.graphics.drawable.AnimatedImageDrawable
 import android.graphics.drawable.Drawable
 import android.os.Handler
 import android.os.Looper
+import android.os.SystemClock
 import android.util.LruCache
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.runtime.Composable
@@ -26,6 +32,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import coil3.ImageLoader
+import coil3.size.ScaleDrawable
 import coil3.asDrawable
 import coil3.request.ImageRequest
 import coil3.request.SuccessResult
@@ -42,6 +49,12 @@ import java.util.WeakHashMap
  * copies of an emote change frame together and are decoded once.
  *
  * Main thread only, as drawables are.
+ *
+ * Normally an animated emote is animated by the RenderThread, at the pace its file sets, and
+ * nothing the app asks for changes that pace. For fewer frames ([setFrameRate]) the app steps the
+ * animations itself: each one is drawn in software into a small picture of its own, still at its
+ * own pace — drawn less often, it would not skip frames but play slower — and one tick for all of
+ * them puts what changed on screen, a single window frame at the lower rate.
  */
 object SharedEmotes {
     /** Recently shown emotes kept once off screen, so scrolling back does not decode them again. */
@@ -49,7 +62,31 @@ object SharedEmotes {
 
     private class Shown(val drawable: Drawable) {
         val listeners = LinkedHashSet<() -> Unit>()
+
+        /** While stepped: the current frame, drawn in software. */
+        var frame: Bitmap? = null
+
+        /** While stepped: the frame has moved on since the screen last showed it. */
+        var changed = false
+
+        /** While stepped: the last draw asked for the next frame. */
+        var scheduled = false
+
+        /** While stepped: draws the next frame when the animation says it is due. */
+        val advance = Runnable {
+            frame?.let {
+                drawFrame(this, it)
+                changed = true
+            }
+        }
+
+        private val animated = drawable.isAnimatedImage()
+        val stepped: Boolean get() = frameIntervalMs > 0 && animated
     }
+
+    /** Coil hands an animated image over wrapped in a [ScaleDrawable] of its own. */
+    private fun Drawable.isAnimatedImage(): Boolean =
+        this is AnimatedImageDrawable || (this as? ScaleDrawable)?.child is AnimatedImageDrawable
 
     /**
      * Per loader, because the static loader (animated emotes turned off) must not be handed an
@@ -64,6 +101,86 @@ object SharedEmotes {
     private val byDrawable = IdentityHashMap<Drawable, Shown>()
     private val mainHandler = Handler(Looper.getMainLooper())
 
+    /** How often stepped animations are put on screen, or 0 while the RenderThread animates them. */
+    private var frameIntervalMs = 0L
+    private val tick = Runnable { present() }
+
+    /**
+     * How many frames a second animated emotes get on screen: [EmoteFrameRate.ACTIVE] or more
+     * leaves them to the RenderThread, anything less has them stepped and shown at that rate.
+     */
+    fun setFrameRate(fps: Float) {
+        val interval = if (fps >= EmoteFrameRate.ACTIVE) 0L else (1000f / fps).toLong()
+        if (interval == frameIntervalMs) return
+        frameIntervalMs = interval
+        mainHandler.removeCallbacks(tick)
+        byDrawable.forEach { (drawable, shown) ->
+            mainHandler.removeCallbacks(shown.advance, drawable)
+            // Let go of, not recycled: a frame already drawn may still be on its way to the screen.
+            shown.frame = null
+            shown.changed = false
+            // Drawn once more either way: into its own picture now, or by the RenderThread again.
+            shown.listeners.toList().forEach { it() }
+        }
+    }
+
+    /**
+     * The picture to draw for [drawable] while animations are stepped, or null to draw the
+     * drawable itself. The first time, this is also where its first frame is drawn.
+     */
+    fun steppedFrame(drawable: Drawable): Bitmap? {
+        val shown = byDrawable[drawable]?.takeIf { it.stepped } ?: return null
+        shown.frame?.let { return it }
+        val width = drawable.intrinsicWidth.coerceAtLeast(1)
+        val height = drawable.intrinsicHeight.coerceAtLeast(1)
+        val frame = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888)
+        shown.frame = frame
+        drawFrame(shown, frame)
+        if (!mainHandler.hasCallbacks(tick)) mainHandler.postDelayed(tick, frameIntervalMs)
+        return frame
+    }
+
+    /**
+     * One software draw: shows the frame that is due and, through [fanOut], asks for the next
+     * one. Drawn on a software canvas, the drawable steps frame by frame at its own pace instead
+     * of handing itself to the RenderThread. It moves one frame per draw and only when that frame
+     * is due, so it has to be drawn at its own pace — at a slower one it would play slower.
+     */
+    private fun drawFrame(shown: Shown, frame: Bitmap) {
+        shown.scheduled = false
+        frame.eraseColor(Color.TRANSPARENT)
+        shown.drawable.draw(Canvas(frame))
+        // The drawable measures in nanoseconds and the handler in milliseconds: drawn a hair before
+        // its frame is due, it finds less than a millisecond left, says 0, and asks for nothing —
+        // which would leave it standing still for good. A running one is simply asked again.
+        if (!shown.scheduled && (shown.drawable as? Animatable)?.isRunning == true) {
+            mainHandler.postAtTime(shown.advance, shown.drawable, SystemClock.uptimeMillis() + RETRY_MS)
+        }
+    }
+
+    /** How soon a draw that came too early is tried again. */
+    private const val RETRY_MS = 4L
+
+    /**
+     * Puts on screen what the stepped animations moved on to since last time, all in one window
+     * frame. Decoding a small emote at its own pace costs little; drawing and showing the whole
+     * window for each of its frames is what the lower rate saves.
+     */
+    private fun present() {
+        if (frameIntervalMs <= 0) return
+        var any = false
+        byDrawable.values.forEach { shown ->
+            if (shown.frame == null) return@forEach
+            any = true
+            if (shown.changed) {
+                shown.changed = false
+                shown.listeners.toList().forEach { it() }
+            }
+        }
+        // Nothing stepped on screen, nothing to wake up for; the next one starts this again.
+        if (any) mainHandler.postDelayed(tick, frameIntervalMs)
+    }
+
     private fun store(loader: ImageLoader) = stores.getOrPut(loader) { Store() }
 
     // A drawable has room for one callback only, so invalidations are passed on to every place
@@ -74,11 +191,19 @@ object SharedEmotes {
         }
 
         override fun scheduleDrawable(who: Drawable, what: Runnable, `when`: Long) {
-            mainHandler.postAtTime(what, who, `when`)
+            // A stepped animation's next frame is drawn into its own picture when it is due, not
+            // put on screen: [present] does that for all of them at the lower rate.
+            val shown = byDrawable[who]
+            if (shown != null && shown.stepped && shown.frame != null) {
+                shown.scheduled = true
+                mainHandler.postAtTime(shown.advance, who, `when`)
+            }
+            else mainHandler.postAtTime(what, who, `when`)
         }
 
         override fun unscheduleDrawable(who: Drawable, what: Runnable) {
             mainHandler.removeCallbacks(what, who)
+            byDrawable[who]?.let { mainHandler.removeCallbacks(it.advance, who) }
         }
     }
 
@@ -122,6 +247,8 @@ object SharedEmotes {
         if (shown.listeners.isEmpty()) {
             store.shown.remove(url)
             byDrawable.remove(drawable)
+            mainHandler.removeCallbacks(shown.advance, drawable)
+            shown.frame = null
             store.recent.put(url, drawable)
             // AnimatedImageDrawable keeps animating on the RenderThread when nothing draws it.
             (drawable as? Animatable)?.stop()
@@ -166,16 +293,17 @@ fun SharedEmoteImage(
             .then(if (contentDescription != null) Modifier.semantics { this.contentDescription = contentDescription } else Modifier)
             .drawBehind {
                 invalidations
-                loaded?.let { drawFitted(it) }
+                loaded?.let { drawable -> drawFitted(drawable, SharedEmotes.steppedFrame(drawable)) }
             },
     )
 }
 
 /**
  * Scaled on the canvas instead of through the bounds: every occurrence shares the drawable, and
- * bounds set for one would move the others.
+ * bounds set for one would move the others. [frame] is the drawable's current frame while
+ * animations are stepped (see [SharedEmotes.setFrameRate]), drawn in its place.
  */
-private fun DrawScope.drawFitted(drawable: Drawable) {
+private fun DrawScope.drawFitted(drawable: Drawable, frame: Bitmap?) {
     val width = drawable.bounds.width().toFloat()
     val height = drawable.bounds.height().toFloat()
     if (width <= 0f || height <= 0f) return
@@ -184,6 +312,12 @@ private fun DrawScope.drawFitted(drawable: Drawable) {
         translate((size.width - width * scale) / 2f, (size.height - height * scale) / 2f)
         scale(scale, scale, pivot = Offset.Zero)
     }) {
-        drawIntoCanvas { drawable.draw(it.nativeCanvas) }
+        drawIntoCanvas {
+            if (frame != null) it.nativeCanvas.drawBitmap(frame, null, drawable.bounds, framePaint)
+            else drawable.draw(it.nativeCanvas)
+        }
     }
 }
+
+/** Scaled like the drawable itself would be. */
+private val framePaint = Paint(Paint.FILTER_BITMAP_FLAG)

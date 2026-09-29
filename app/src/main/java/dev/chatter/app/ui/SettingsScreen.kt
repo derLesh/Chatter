@@ -255,6 +255,7 @@ private val SEARCH_INDEX: List<SearchEntry> by lazy {
         val emotes = SettingsPage.Emotes
         add(SearchEntry(R.string.settings_emotes_enabled, emotes, R.string.settings_emotes_new_messages_hint))
         add(SearchEntry(R.string.settings_animated_emotes, emotes))
+        add(SearchEntry(R.string.settings_slow_idle_emotes, emotes, R.string.settings_slow_idle_emotes_hint))
         add(SearchEntry(R.string.settings_zero_width, emotes, R.string.settings_zero_width_hint))
         add(SearchEntry(R.string.settings_unlisted_7tv, emotes, R.string.settings_unlisted_7tv_hint))
         add(SearchEntry(R.string.settings_seventv_events, emotes, R.string.settings_seventv_events_hint))
@@ -722,6 +723,12 @@ private fun EmotesPage(settings: Settings, vm: MainViewModel) {
     SettingsGroup(R.string.settings_group_emotes) {
         item(R.string.settings_emotes_enabled) { SwitchItem(R.string.settings_emotes_enabled, settings.emotesEnabled, vm::setEmotesEnabled, R.string.settings_emotes_new_messages_hint) }
         item(R.string.settings_animated_emotes) { SwitchItem(R.string.settings_animated_emotes, settings.animatedEmotes, vm::setAnimatedEmotes) }
+        // Only says something while they move at all.
+        if (settings.animatedEmotes) {
+            item(R.string.settings_slow_idle_emotes) {
+                SwitchItem(R.string.settings_slow_idle_emotes, settings.slowIdleEmotes, vm::setSlowIdleEmotes, R.string.settings_slow_idle_emotes_hint)
+            }
+        }
         item(R.string.settings_zero_width) { SwitchItem(R.string.settings_zero_width, settings.zeroWidthEmotes, vm::setZeroWidthEmotes, R.string.settings_zero_width_hint) }
         item(R.string.settings_unlisted_7tv) { SwitchItem(R.string.settings_unlisted_7tv, settings.showUnlisted7tv, vm::setShowUnlisted7tv, R.string.settings_unlisted_7tv_hint) }
         item(R.string.settings_seventv_events) { SwitchItem(R.string.settings_seventv_events, settings.sevenTvEvents, vm::setSevenTvEvents, R.string.settings_seventv_events_hint) }

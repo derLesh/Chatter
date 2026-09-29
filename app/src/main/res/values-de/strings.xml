@@ -118,6 +118,8 @@
     <string name="settings_timestamps">Zeitstempel</string>
     <string name="settings_timestamps_off">Keine Zeit</string>
     <string name="settings_animated_emotes">Animierte Emotes</string>
+    <string name="settings_slow_idle_emotes">Ohne Berührung verlangsamen</string>
+    <string name="settings_slow_idle_emotes_hint">Nach drei Minuten ohne Berührung laufen animierte Emotes mit 10 statt 30 Bildern pro Sekunde, das spart Akku, wenn der Bildschirm anbleibt</string>
     <string name="settings_keywords">Hervorgehobene Wörter</string>
     <string name="settings_keywords_summary">Wörter, die dich benachrichtigen wie dein eigener Name</string>
     <string name="settings_keywords_hint">Dein Nutzername wird immer hervorgehoben</string>
