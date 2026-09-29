@@ -1,3 +1,4 @@
+import com.android.build.api.variant.BuildConfigField
 import com.android.build.api.variant.HasHostTestsBuilder
 import com.android.build.api.variant.HostTestBuilder
 import java.util.Properties
@@ -65,6 +66,15 @@ val sideloaded = (project.findProperty("distribution") as String?) == "github"
  */
 val sponsorLink = sponsoring && sideloaded
 
+/**
+ * The two builds the baselineprofile plugin adds: the one the baseline profile is recorded on and
+ * the one the macrobenchmark measures. They are an app of their own, for the same reason as the
+ * microbenchmark — the connected test wipes it to show the login and uninstalls it afterwards —
+ * and the only builds that log in with a token handed to them (see MainActivity), which is how the
+ * journeys get past the login to the chat.
+ */
+val profilingBuildTypes = listOf("nonMinifiedRelease", "benchmarkRelease")
+
 android {
     namespace = "dev.chatter.app"
     compileSdk = 37
@@ -77,6 +87,8 @@ android {
         versionName = versionProps.getProperty("version")
         buildConfigField("String", "TWITCH_CLIENT_ID", "\"$twitchClientId\"")
         buildConfigField("boolean", "SPONSORING", "$sponsoring")
+        // True only in the profilingBuildTypes.
+        buildConfigField("boolean", "PROFILING", "false")
 
         // The microbenchmark in androidTest (see testBuildType below). Emulators are let through
         // because CI has nothing else; their numbers only mean something next to each other, which
@@ -205,6 +217,12 @@ androidComponents {
     }
     beforeVariants(selector().withBuildType("microbenchmark")) { variant ->
         (variant as HasHostTestsBuilder).hostTests[HostTestBuilder.UNIT_TEST_TYPE]?.enable = false
+    }
+    for (buildType in profilingBuildTypes) {
+        onVariants(selector().withBuildType(buildType)) { variant ->
+            variant.applicationId.set("dev.chatter.app.profiling")
+            variant.buildConfigFields?.put("PROFILING", BuildConfigField("boolean", "true", null))
+        }
     }
     onVariants { variant ->
         variant.sources.assets?.addGeneratedSourceDirectory(copyChangelog, CopyChangelog::assets)

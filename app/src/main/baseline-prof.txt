@@ -1,8 +1,9 @@
 # Written by hand, next to the profile :baselineprofile generates (src/release/generated/). That one
-# starts the app on a clean install and never gets past the login, so it knows nothing of the code
-# that runs most: every message on its way in, all night in the background, and the chat being
-# drawn whenever it is open. Without a rule that code starts out interpreted after every install
-# and update, until Android's background compilation gets round to it, which can take a day.
+# records what its journeys ran into on one phone, one channel, one day: the code that runs most —
+# every message on its way in, all night in the background, and the chat being drawn — is only as
+# complete there as the messages that happened to arrive, and a profile generated without a Twitch
+# token has none of it. Without a rule that code starts out interpreted after every install and
+# update, until Android's background compilation gets round to it, which can take a day.
 #
 # Whole packages rather than single methods, so that the rules do not go stale when a method is
 # renamed. The build merges both files; R8 carries the rules over to the names it gives.

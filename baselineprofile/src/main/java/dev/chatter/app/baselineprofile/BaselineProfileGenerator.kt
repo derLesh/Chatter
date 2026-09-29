@@ -7,35 +7,56 @@ import org.junit.Rule
 import org.junit.Test
 
 /**
- * Writes the baseline profile for Chatter.
+ * Writes the baseline profile for Chatter: the three ways into the app that matter most.
  *
- * A fresh install is logged out, so what this can reach is the start itself: the activity, the
- * theme, Compose starting up and drawing its first frame, and the login screen. That is the path
- * every cold start takes before anything else, and the one that is slowest without a profile.
+ * The login screen is what a fresh install starts on, once. The chat is what every start after
+ * that ends on, and reading it — messages arriving, being built and drawn, the list scrolled — is
+ * what the app does most. Both of those need a Twitch login, which is why they are skipped
+ * without `profiling.token` in local.properties (see Journeys.kt).
  *
- * The chat itself cannot be reached from here — it is behind a Twitch login, and this runs on a
- * clean install with no token. Its drawing code still benefits from the AndroidX profiles that
- * ship inside the Compose libraries.
+ * The message path and the chat drawing are also named package by package in the hand-written
+ * app/src/main/baseline-prof.txt, so they are in the release even from a profile generated
+ * without a token.
  */
 class BaselineProfileGenerator {
     @get:Rule
     val rule = BaselineProfileRule()
 
     @Test
-    fun startup() = rule.collect(
-        packageName = PACKAGE,
-        includeInStartupProfile = true,
-    ) {
-        pressHome()
-        startActivityAndWait()
-        // The first frame is not the last word: the login screen settles once the stored token
-        // has been looked for, and waiting for it keeps that work in the profile too.
-        device.wait(Until.hasObject(By.pkg(PACKAGE).depth(0)), TIMEOUT_MS)
-        device.waitForIdle()
+    fun loginScreen() {
+        startLoggedOut()
+        rule.collect(PACKAGE, includeInStartupProfile = true) {
+            pressHome()
+            startActivityAndWait()
+            // The first frame is not the last word: the login screen settles once the stored
+            // token has been looked for, and waiting for it keeps that work in the profile too.
+            device.wait(Until.hasObject(By.pkg(PACKAGE).depth(0)), TIMEOUT_MS)
+            device.waitForIdle()
+        }
+    }
+
+    @Test
+    fun chatStart() {
+        startInChat()
+        rule.collect(PACKAGE, includeInStartupProfile = true) {
+            pressHome()
+            startActivityAndWait()
+            chat()
+        }
+    }
+
+    /** Not part of the start, so kept out of the startup profile, which decides the dex layout. */
+    @Test
+    fun chatReading() {
+        startInChat()
+        rule.collect(PACKAGE) {
+            pressHome()
+            startActivityAndWait()
+            readChat()
+        }
     }
 
     private companion object {
-        const val PACKAGE = "dev.chatter.app"
         const val TIMEOUT_MS = 5_000L
     }
 }

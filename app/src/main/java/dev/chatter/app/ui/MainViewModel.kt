@@ -813,6 +813,13 @@ class MainViewModel(private val c: AppContainer) : ViewModel() {
 
     suspend fun handleRedirect(url: String): Result<Unit>? = c.auth.handleRedirect(url)
 
+    /** The profiling builds' way in, with a token handed over instead of Twitch's login page. */
+    fun logInForProfiling(token: String, channel: String?) {
+        viewModelScope.launch {
+            if (c.auth.logIn(token).isSuccess && channel != null) addChannel(channel)
+        }
+    }
+
     fun logout() {
         viewModelScope.launch {
             c.disconnect()

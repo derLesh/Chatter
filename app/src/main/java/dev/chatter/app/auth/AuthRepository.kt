@@ -148,6 +148,15 @@ class AuthRepository(
         params["error"]?.let { return Result.failure(IllegalStateException(params["error_description"] ?: it)) }
         if (params["state"] != pendingState) return Result.failure(IllegalStateException("State mismatch"))
         val token = params["access_token"] ?: return Result.failure(IllegalStateException("No token"))
+        return logIn(token)
+    }
+
+    /**
+     * Logs in with an access token Twitch handed out: asks Twitch whose it is and makes that
+     * account the active one. The WebView login ends here, and so does the profiling builds' (see
+     * MainActivity), which is handed its token instead of asking Twitch for one.
+     */
+    suspend fun logIn(token: String): Result<Unit> {
         val result = runCatching {
             val v = helix.validate(token)
             // expires_in == 0 means the token does not expire on its own.

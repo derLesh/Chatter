@@ -39,8 +39,11 @@ import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.testTagsAsResourceId
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil3.ImageLoader
@@ -52,6 +55,9 @@ import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.launch
+
+/** The message list as UI Automator finds it. The benchmark module spells the same name out. */
+const val CHAT_LIST_TAG = "chat"
 
 /**
  * The message list of one channel, or of a combined chat. Newest message at the bottom
@@ -147,7 +153,12 @@ fun ChatList(
             state = listState,
             reverseLayout = true,
             contentPadding = PaddingValues(vertical = 4.dp),
-            modifier = Modifier.fillMaxSize(),
+            // How the baseline profile and the macrobenchmark find the list to scroll: UI Automator
+            // only sees a Compose test tag where it is handed over as a resource id.
+            modifier = Modifier
+                .fillMaxSize()
+                .semantics { testTagsAsResourceId = true }
+                .testTag(CHAT_LIST_TAG),
         ) {
             // reverseLayout puts index 0 at the bottom, so index i shows the i-th newest message.
             val count = items.size

@@ -113,11 +113,24 @@ What it reads from Settings → Secrets and variables → Actions:
 ## The baseline profile
 
 The release carries two lists of what ART compiles ahead of time. `app/src/release/generated/` is
-what `./gradlew :app:generateBaselineProfile` records on the connected phone: the cold start and
-the login screen, nothing behind the login. `app/src/main/baseline-prof.txt` is written by hand
-and names whole packages — the message path that runs all night in the background and the chat
-drawing — so it does not go stale when a method is renamed. A new hot package goes into the
-hand-written file; after a release that changed the start or the login, generate the other again.
+what `./gradlew :app:generateReleaseBaselineProfile` records on the connected phone: the login
+screen of a fresh install, the start into the chat and a busy channel being read and scrolled.
+`app/src/main/baseline-prof.txt` is written by hand and names whole packages — the message path
+that runs all night in the background and the chat drawing — so it does not go stale when a method
+is renamed. A new hot package goes into the hand-written file.
+
+Everything past the login needs a Twitch token, and the phone's own Chatter is never touched for
+it: the builds the profile is recorded and measured on are an app of their own
+(`dev.chatter.app.profiling`), and the only ones that log in with a token handed to them. The token
+sits in `local.properties` as `profiling.token=`, next to `twitch.clientId`;
+`./gradlew :baselineprofile:profilingTokenUrl` prints where to get one, and `profiling.channel=`
+picks a busy channel other than the default. Without a token the chat journeys are skipped and
+the profile knows nothing but the login screen — do not commit one of those.
+
+Generate it again before a release that changed what the start or the chat runs through: a new
+screen on the way, a new kind of message, a change to the list. Then run
+`./gradlew :baselineprofile:connectedBenchmarkReleaseAndroidTest` and put what `ChatBenchmark`
+says about the cold start and the chat frames, with the profile and without, into the commit.
 
 ## Commands
 
@@ -128,6 +141,8 @@ hand-written file; after a release that changed the start or the login, generate
 ./gradlew :app:testDebugUnitTest     # unit tests
 ./gradlew :app:installDebug          # build and install on the connected phone
 ./gradlew :app:connectedMicrobenchmarkAndroidTest   # what a message costs, on the connected phone
+./gradlew :app:generateReleaseBaselineProfile       # record the baseline profile on the connected phone
+./gradlew :baselineprofile:connectedBenchmarkReleaseAndroidTest   # what the profile is worth
 ```
 
 A change is not confirmed by compiling. Install it and open the screen it touches:
