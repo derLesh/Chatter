@@ -119,13 +119,11 @@ screen of a fresh install, the start into the chat and a busy channel being read
 that runs all night in the background and the chat drawing — so it does not go stale when a method
 is renamed. A new hot package goes into the hand-written file.
 
-Everything past the login needs a Twitch token, and the phone's own Chatter is never touched for
-it: the builds the profile is recorded and measured on are an app of their own
-(`dev.chatter.app.profiling`), and the only ones that log in with a token handed to them. The token
-sits in `local.properties` as `profiling.token=`, next to `twitch.clientId`;
-`./gradlew :baselineprofile:profilingTokenUrl` prints where to get one, and `profiling.channel=`
-picks a busy channel other than the default. Without a token the chat journeys are skipped and
-the profile knows nothing but the login screen — do not commit one of those.
+The journeys read a busy channel as a guest, so they need no Twitch login, and the phone's own
+Chatter is never touched: the builds the profile is recorded and measured on are an app of their
+own (`dev.chatter.app.profiling`), and the only ones that can be told from outside to read a
+channel. `-Pandroid.testInstrumentationRunnerArguments.chatterChannel=<login>` picks another
+channel when the default is offline — a chat with nothing arriving profiles next to nothing.
 
 Generate it again before a release that changed what the start or the chat runs through: a new
 screen on the way, a new kind of message, a change to the list. Then run

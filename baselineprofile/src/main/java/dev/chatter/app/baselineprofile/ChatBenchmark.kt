@@ -15,8 +15,8 @@ import org.junit.Test
  * each measured with the profile and without it — the way the app runs right after an install or
  * an update, before Android has compiled anything of its own accord.
  *
- * `./gradlew :baselineprofile:connectedBenchmarkReleaseAndroidTest` on the phone, logged in with
- * `profiling.token` like the generator (see Journeys.kt). The messages are live, so no two runs
+ * `./gradlew :baselineprofile:connectedBenchmarkReleaseAndroidTest` on the phone. It reads a busy
+ * channel as a guest, like the generator (see Journeys.kt). The messages are live, so no two runs
  * read the same chat; compare the two modes of one run with each other, not with another run.
  */
 class ChatBenchmark {
@@ -24,7 +24,7 @@ class ChatBenchmark {
     val rule = MacrobenchmarkRule()
 
     @Before
-    fun logIn() = startInChat()
+    fun openChat() = startInChat()
 
     @Test
     fun startWithoutProfile() = start(CompilationMode.None())

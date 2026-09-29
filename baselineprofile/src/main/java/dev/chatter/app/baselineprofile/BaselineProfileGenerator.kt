@@ -11,12 +11,9 @@ import org.junit.Test
  *
  * The login screen is what a fresh install starts on, once. The chat is what every start after
  * that ends on, and reading it — messages arriving, being built and drawn, the list scrolled — is
- * what the app does most. Both of those need a Twitch login, which is why they are skipped
- * without `profiling.token` in local.properties (see Journeys.kt).
- *
- * The message path and the chat drawing are also named package by package in the hand-written
- * app/src/main/baseline-prof.txt, so they are in the release even from a profile generated
- * without a token.
+ * what the app does most. The journeys read it as a guest, so they need no Twitch login; what only
+ * a login would run (Twitch's badges, writing) is not in here, and the hand-written
+ * app/src/main/baseline-prof.txt names those packages whole.
  */
 class BaselineProfileGenerator {
     @get:Rule
