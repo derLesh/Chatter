@@ -43,8 +43,16 @@ class MessageBuffers(
     private var groups: Map<String, List<String>> = emptyMap()
     /** The other way round: the combined chats a channel is in, which a change to it concerns too. */
     private var groupsOf: Map<String, List<String>> = emptyMap()
-    /** The rows each combined chat showed last time, by message id; see [snapshotGroup]. */
-    private val groupRows = HashMap<String, HashMap<String, GroupRow>>()
+    /** What each combined chat showed last time, and from which messages; see [snapshotGroup]. */
+    private val groupStates = HashMap<String, GroupState>()
+
+    /**
+     * Per channel, how many messages were ever added to its end, and how often it changed in any
+     * other way. A combined chat compares them with what it saw last time to know whether all it
+     * has to do is add what came in since.
+     */
+    private val appended = HashMap<String, Long>()
+    private val reshaped = HashMap<String, Long>()
 
     // New messages per channel since the user last looked at it. Counted here and published
     // together with the message lists, rather than on every single message.
@@ -69,6 +77,7 @@ class MessageBuffers(
     }
 
     fun close(channel: String) {
+        reshape(channel)
         buffers.remove(channel)
         ids.remove(channel)
         dirty.remove(channel)
@@ -86,7 +95,7 @@ class MessageBuffers(
             flows.remove(key)
             watchers.remove(key)?.cancel()
             dirty.remove(key)
-            groupRows.remove(key)
+            groupStates.remove(key)
         }
         val changed = next.filter { (key, channels) -> groups[key] != channels }.keys
         groups = next
@@ -100,7 +109,8 @@ class MessageBuffers(
         buffers.clear()
         ids.clear()
         dirty.clear()
-        groupRows.clear()
+        groupStates.clear()
+        buffers.keys.forEach { reshape(it) }
         flows.values.forEach { it.value = emptyList() }
         unreadCounts.clear()
         unreadDirty = false
@@ -112,7 +122,10 @@ class MessageBuffers(
         val buffer = buffers[item.channel] ?: return
         if (!ids.getOrPut(item.channel) { HashSet() }.add(item.id)) return
         buffer.addLast(item.copy(alternate = !(buffer.lastOrNull()?.alternate ?: true)))
+        // Trimming only ever takes messages older than the newest the limit keeps, which a
+        // combined chat held to the same limit has let go of already: this stays an append.
         trim(item.channel, buffer)
+        appended[item.channel] = (appended[item.channel] ?: 0) + 1
         markDirty(item.channel)
     }
 
@@ -135,7 +148,7 @@ class MessageBuffers(
         // Re-number the alternating backgrounds (only happens on join / reconnect).
         merged.forEachIndexed { i, m -> buffer.addLast(if (m.alternate == (i % 2 == 1)) m else m.copy(alternate = i % 2 == 1)) }
         trim(channel, buffer)
-        markDirty(channel)
+        reshape(channel)
     }
 
     /** Takes one message out again, by the id it went in under. */
@@ -143,7 +156,7 @@ class MessageBuffers(
         val buffer = buffers[channel] ?: return
         if (ids[channel]?.remove(id) != true) return
         buffer.removeAll { it.id == id }
-        markDirty(channel)
+        reshape(channel)
     }
 
     /**
@@ -158,7 +171,7 @@ class MessageBuffers(
         known.remove(from)
         // Already there under its real id, e.g. from a history that was quicker: one is enough.
         if (!known.add(to)) buffer.removeAt(index) else buffer[index] = buffer[index].copy(id = to)
-        markDirty(channel)
+        reshape(channel)
     }
 
     /**
@@ -179,7 +192,7 @@ class MessageBuffers(
                     changed = true
                 }
             }
-            if (changed) markDirty(channel)
+            if (changed) reshape(channel)
         }
     }
 
@@ -194,7 +207,7 @@ class MessageBuffers(
                 changed = true
             }
         }
-        if (changed) markDirty(channel)
+        if (changed) reshape(channel)
     }
 
     /** Throws out what the mute list covers now, e.g. after a word was added to it. */
@@ -204,7 +217,7 @@ class MessageBuffers(
             val removed = buffer.removeAll { item ->
                 muted.mutes(item).also { if (it) known?.remove(item.id) }
             }
-            if (removed) markDirty(channel)
+            if (removed) reshape(channel)
         }
     }
 
@@ -212,7 +225,7 @@ class MessageBuffers(
         buffers.forEach { (channel, buffer) ->
             if (buffer.size > limit) {
                 trim(channel, buffer, limit)
-                markDirty(channel)
+                reshape(channel)
             }
         }
     }
@@ -253,6 +266,12 @@ class MessageBuffers(
         return out
     }
 
+    /** Any change to [channel] other than messages added to its end; see [snapshotGroup]. */
+    private fun reshape(channel: String) {
+        reshaped[channel] = (reshaped[channel] ?: 0) + 1
+        markDirty(channel)
+    }
+
     /**
      * The messages of several channels as one list, in the order they were written.
      *
@@ -264,22 +283,23 @@ class MessageBuffers(
      * and mixed together those would come out in clumps. A row keeps the shade it was given for
      * as long as it is on screen, just as a channel's does, so nothing flickers when the list
      * moves on; and it keeps the copy it was given, so an unchanged message is the same object.
+     *
+     * Putting it all together is a merge of every channel and two sets the size of the list, and
+     * it would happen ten times a second while a busy combined chat is open, to add a handful of
+     * messages at the end. So when nothing but new messages came in since last time, and they
+     * belong after everything shown, only they are added ([appendToGroup]); anything else — a
+     * deletion, history folded in, a Shared Chat copy of a message already shown — puts the list
+     * together from scratch, and the result is the same either way.
      */
-    private fun snapshotGroup(key: String, channels: List<String>): List<ChatItem> {
+    private fun snapshotGroup(key: String, channels: List<String>): List<ChatItem> =
+        groupStates[key]?.let { appendToGroup(it, channels) } ?: rebuildGroup(key, channels)
+
+    /** The whole combined chat, put together from its channels. */
+    private fun rebuildGroup(key: String, channels: List<String>): List<ChatItem> {
         val lists = channels.mapNotNull { buffers[it] }
         val showDeleted = settings.value.showDeleted
-        val merged = ArrayList<ChatItem>(lists.sumOf { it.size })
-        val at = IntArray(lists.size)
-        while (true) {
-            var next = -1
-            for (i in lists.indices) {
-                if (at[i] == lists[i].size) continue
-                if (next < 0 || lists[i][at[i]].timestamp < lists[next][at[next]].timestamp) next = i
-            }
-            if (next < 0) break
-            val item = lists[next][at[next]++]
-            if (showDeleted || !item.deleted) merged.add(item)
-        }
+        val all = mergeByTime(lists)
+        val merged = all.filter { showDeleted || !it.deleted }
 
         // One message of a Shared Chat arrives in every channel of the session, each copy under an
         // id of its own, and only the shared id says they are one. It is shown once, as the copy
@@ -295,10 +315,17 @@ class MessageBuffers(
             }
         }.take(settings.value.messageLimit).asReversed()
 
-        val before = groupRows[key].orEmpty()
-        val rows = HashMap<String, GroupRow>(unique.size)
+        val before = groupStates[key]?.byId.orEmpty()
+        val state = GroupState(
+            channels = channels,
+            showDeleted = showDeleted,
+            limit = settings.value.messageLimit,
+            appended = channels.associateWith { appended[it] ?: 0 },
+            reshaped = channels.associateWith { reshaped[it] ?: 0 },
+        )
+        state.latest = all.maxOfOrNull { it.timestamp }
         var alternate = true
-        val out = unique.map { item ->
+        unique.forEach { item ->
             val old = before[item.id]
             alternate = old?.shown?.alternate ?: !alternate
             val shown = when {
@@ -306,17 +333,132 @@ class MessageBuffers(
                 old?.source === item -> old.shown
                 else -> item.copy(alternate = alternate)
             }
-            rows[item.id] = GroupRow(item, shown)
-            shown
+            state.add(GroupRow(item, shown))
         }
-        groupRows[key] = rows
-        // Built here for the same reason as a channel's — see [snapshot].
-        out.forEach { it.body.prepare() }
-        return out
+        groupStates[key] = state
+        return state.publish()
+    }
+
+    /**
+     * The combined chat with what its channels added since [state] was taken, or null if more
+     * than that happened and it has to be put together again. Checks everything before it
+     * changes anything, so that a null leaves [state] as it was.
+     */
+    private fun appendToGroup(state: GroupState, channels: List<String>): List<ChatItem>? {
+        if (state.channels != channels || state.showDeleted != settings.value.showDeleted ||
+            state.limit != settings.value.messageLimit
+        ) return null
+        val fresh = ArrayList<List<ChatItem>>(channels.size)
+        for (channel in channels) {
+            if ((reshaped[channel] ?: 0) != state.reshaped[channel]) return null
+            val count = (appended[channel] ?: 0) - (state.appended[channel] ?: 0)
+            if (count == 0L) continue
+            val buffer = buffers[channel] ?: return null
+            if (count > buffer.size) return null
+            fresh += buffer.subList(buffer.size - count.toInt(), buffer.size)
+        }
+        if (fresh.isEmpty()) return state.published
+        val all = mergeByTime(fresh)
+        val added = all.filter { state.showDeleted || !it.deleted }
+
+        // Only what was written after everything so far can simply be added: a message written
+        // earlier belongs somewhere in the middle. A tie goes to whichever channel comes first,
+        // which may not be where it would be added, so that is left to a rebuild too.
+        val latest = state.latest
+        if (latest != null && all.minOf { it.timestamp } <= latest) return null
+        val sharedAdded = HashSet<String>()
+        val idsAdded = HashSet<String>()
+        for (item in added) {
+            val shared = item.sharedId
+            // A Shared Chat copy decides which copy of a message is shown, and where.
+            if (shared != null && (shared in state.shared || !sharedAdded.add(shared))) return null
+            if (shared == null && (item.id in state.byId || !idsAdded.add(item.id))) return null
+        }
+
+        channels.forEach { channel -> state.appended[channel] = appended[channel] ?: 0 }
+        state.latest = maxOf(latest ?: Long.MIN_VALUE, all.maxOf { it.timestamp })
+        // The same start as a rebuild: the first row of an empty list is the unshaded one.
+        var alternate = state.lastShown?.alternate ?: true
+        for (item in added) {
+            alternate = !alternate
+            state.add(GroupRow(item, if (item.alternate == alternate) item else item.copy(alternate = alternate)))
+        }
+        state.trimTo(state.limit)
+        return state.publish()
+    }
+
+    /**
+     * [lists] as one, ordered by time. Each list's own order is kept, even where its times are
+     * not in order: merging only ever decides which list comes next, and a tie goes to the first.
+     */
+    private fun mergeByTime(lists: List<List<ChatItem>>): List<ChatItem> {
+        val merged = ArrayList<ChatItem>(lists.sumOf { it.size })
+        val at = IntArray(lists.size)
+        while (true) {
+            var next = -1
+            for (i in lists.indices) {
+                if (at[i] == lists[i].size) continue
+                if (next < 0 || lists[i][at[i]].timestamp < lists[next][at[next]].timestamp) next = i
+            }
+            if (next < 0) break
+            merged.add(lists[next][at[next]++])
+        }
+        return merged
     }
 
     /** A message as a combined chat shows it, and the message in its channel it was made from. */
     private class GroupRow(val source: ChatItem, val shown: ChatItem)
+
+    /**
+     * A combined chat as it was last put on screen, and the state of its channels then — what
+     * [appendToGroup] needs to tell whether new messages can simply be added.
+     */
+    private class GroupState(
+        val channels: List<String>,
+        val showDeleted: Boolean,
+        val limit: Int,
+        appended: Map<String, Long>,
+        val reshaped: Map<String, Long>,
+    ) {
+        val appended = HashMap(appended)
+        private val rows = ArrayDeque<GroupRow>()
+        val byId = HashMap<String, GroupRow>()
+        /** The shared ids of the Shared Chat messages shown. */
+        val shared = HashSet<String>()
+        /** The list last handed to the screen. */
+        var published: List<ChatItem> = emptyList()
+            private set
+
+        /**
+         * The latest time among the channels' messages taken in so far, shown or not. Kept even
+         * when the oldest go, which can only ever make a rebuild more likely, never wrong.
+         */
+        var latest: Long? = null
+
+        val lastShown: ChatItem? get() = rows.lastOrNull()?.shown
+
+        fun add(row: GroupRow) {
+            rows.addLast(row)
+            byId[row.source.id] = row
+            row.source.sharedId?.let { shared += it }
+        }
+
+        fun trimTo(limit: Int) {
+            while (rows.size > limit) {
+                val row = rows.removeFirst()
+                byId.remove(row.source.id)
+                row.source.sharedId?.let { shared -= it }
+            }
+        }
+
+        /** A new list for the screen, with the messages in it built; see [snapshot]. */
+        fun publish(): List<ChatItem> {
+            val out = rows.map { it.shown }
+            out.forEach { it.body.prepare() }
+            published = out
+            return out
+        }
+    }
 
     private fun markDirty(channel: String) {
         dirty.add(channel)

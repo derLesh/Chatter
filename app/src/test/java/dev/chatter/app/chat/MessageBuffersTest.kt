@@ -355,4 +355,74 @@ class MessageBuffersTest {
         advanceUntilIdle()
         assertEquals(listOf("x1"), shown().map { it.id })
     }
+
+    @Test
+    fun aCombinedChatOfBusyChannelsInterleavesTheirMessages() = watchingCombined { shown ->
+        settings.value = Settings(messageLimit = 6)
+        advanceUntilIdle()
+        listOf("f1" to 10L, "x1" to 11L, "f2" to 12L).forEach { (id, t) -> buffers.add(at(if (id[0] == 'f') "forsen" else "xqc", id, t)) }
+        advanceUntilIdle()
+        listOf("x2" to 13L, "f3" to 14L, "x3" to 15L, "x4" to 16L, "f4" to 17L).forEach { (id, t) ->
+            buffers.add(at(if (id[0] == 'f') "forsen" else "xqc", id, t))
+            advanceUntilIdle()
+        }
+        assertEquals(listOf("f2", "x2", "f3", "x3", "x4", "f4"), shown().map { it.id })
+        assertTrue("rows alternate", shown().zipWithNext().all { (a, b) -> a.alternate != b.alternate })
+    }
+
+    /**
+     * What a combined chat shows is the same whether it was put together bit by bit, a publish
+     * after every message, or all at once from the channels as they stand: random messages in
+     * three channels, some written out of order, some deleted, some Shared Chat copies.
+     */
+    @Test
+    fun aCombinedChatBuiltBitByBitIsTheSameAsOneBuiltAtOnce() = runTest(dispatcher) {
+        val channels = listOf("a", "b", "c")
+        val random = kotlin.random.Random(42)
+        settings.value = Settings(messageLimit = 8)
+        val live = MessageBuffers(this, dispatcher, settings)
+        val ops = ArrayList<(MessageBuffers) -> Unit>()
+        fun replayed(): List<String> {
+            val fresh = MessageBuffers(this, dispatcher, settings)
+            channels.forEach { fresh.open(it) }
+            fresh.setGroups(mapOf("+all" to channels))
+            ops.forEach { it(fresh) }
+            val watcher = launch { fresh.messages("+all").collect {} }
+            advanceUntilIdle()
+            return fresh.messages("+all").value.map { it.id }.also {
+                watcher.cancel()
+                // Lets go of the combined chat, and with it of what watches whether it is watched.
+                fresh.setGroups(emptyMap())
+            }
+        }
+        channels.forEach { live.open(it) }
+        live.setGroups(mapOf("+all" to channels))
+        val watcher = launch { live.messages("+all").collect {} }
+        advanceUntilIdle()
+
+        var time = 1_000L
+        repeat(120) { n ->
+            val channel = channels[random.nextInt(channels.size)]
+            // Mostly later than everything so far; now and then a little earlier.
+            time += if (random.nextInt(8) == 0) -random.nextLong(1, 30) else random.nextLong(1, 20)
+            val item = at(channel, "m$n", time).let {
+                when (random.nextInt(12)) {
+                    0 -> it.copy(sharedId = "s${n / 2}")
+                    1 -> it.copy(sharedId = "s${n / 2}", sourceRoomId = "partner")
+                    else -> it
+                }
+            }
+            val op: (MessageBuffers) -> Unit = when (random.nextInt(15)) {
+                0 -> { buffers -> buffers.markDeleted(channel) { it.id == "m${n - 3}" } }
+                else -> { buffers -> buffers.add(item) }
+            }
+            ops += op
+            op(live)
+            advanceUntilIdle()
+            assertEquals("after step $n", replayed(), live.messages("+all").value.map { it.id })
+        }
+        assertTrue("something was shown", live.messages("+all").value.isNotEmpty())
+        watcher.cancel()
+        live.setGroups(emptyMap())
+    }
 }
