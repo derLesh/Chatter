@@ -95,6 +95,8 @@ data class ChatStyle(
     val imageHosts: List<String>,
     /** Whether a long link is written as its site and the start of its path; see [LinkText]. */
     val shortLinks: Boolean = true,
+    /** Emotes in their smallest size, to save data; see [dev.chatter.app.net.DataSaving]. */
+    val smallEmotes: Boolean = false,
 )
 
 /**
@@ -180,8 +182,10 @@ fun MessageRow(
         (data as? InlineData.EmoteData)?.seg?.takeIf { s -> !s.emote.sizeKnown || s.overlays.any { !it.sizeKnown } }
             ?.let { s -> (s.overlays + s.emote).maxOf { EmoteSizes.aspectRatio(it) } }
     }
-    val inlineContent = remember(built, imageLoader, measured) {
-        built.inline.mapValues { (_, data) -> inlineFor(data, imageLoader, emoteClick.takeIf { onEmoteClick != null }) }
+    val inlineContent = remember(built, imageLoader, measured, style.smallEmotes) {
+        built.inline.mapValues { (_, data) ->
+            inlineFor(data, imageLoader, emoteClick.takeIf { onEmoteClick != null }, style.smallEmotes)
+        }
     }
 
     val firstMessage = item.isFirstMessage && style.firstMessageBackground != null
@@ -321,7 +325,12 @@ private fun linkText(url: String, style: ChatStyle) = buildAnnotatedString {
     }
 }
 
-private fun inlineFor(data: InlineData, loader: ImageLoader, onEmoteClick: ((Segment.EmoteSeg) -> Unit)?): InlineTextContent = when (data) {
+private fun inlineFor(
+    data: InlineData,
+    loader: ImageLoader,
+    onEmoteClick: ((Segment.EmoteSeg) -> Unit)?,
+    smallEmotes: Boolean = false,
+): InlineTextContent = when (data) {
     is InlineData.ChannelData -> InlineTextContent(
         Placeholder(BADGE_EM.em, BADGE_EM.em, PlaceholderVerticalAlign.Center),
     ) {
@@ -347,7 +356,7 @@ private fun inlineFor(data: InlineData, loader: ImageLoader, onEmoteClick: ((Seg
             Box(Modifier.fillMaxSize().preferredFrameRate(EMOTE_FRAME_RATE).then(if (onEmoteClick != null) Modifier.clickable { onEmoteClick(data.seg) } else Modifier)) {
                 (listOf(base) + data.seg.overlays).forEach { e ->
                     SharedEmoteImage(
-                        url = e.url,
+                        url = if (smallEmotes) e.smallUrl else e.url,
                         contentDescription = e.name,
                         loader = loader,
                         onLoaded = EmoteSizes.onSize(e),

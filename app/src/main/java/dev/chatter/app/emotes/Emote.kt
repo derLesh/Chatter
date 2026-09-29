@@ -38,6 +38,18 @@ data class Emote(
             EmoteProvider.Ffz -> url.replace(Regex("/[12]$"), "/4")
         }
 
+    /**
+     * Smallest available size, for saving data: a quarter of the pixels of [url], and on a
+     * sharp screen somewhat soft for it.
+     */
+    val smallUrl: String
+        get() = when (provider) {
+            EmoteProvider.Twitch -> url.replace("/2.0", "/1.0")
+            EmoteProvider.SevenTv -> url.replace("/2x.webp", "/1x.webp")
+            EmoteProvider.Bttv -> url.replace("/2x.webp", "/1x.webp")
+            EmoteProvider.Ffz -> url.replace(Regex("/[24]$"), "/1")
+        }
+
     /** The emote's page on the provider's website (Twitch has none). */
     val pageUrl: String?
         get() = when (provider) {

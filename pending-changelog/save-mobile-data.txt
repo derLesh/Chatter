@@ -1,0 +1,1 @@
+minor: Save data on mobile data: no linked images, still and smaller emotes, while the chat keeps arriving

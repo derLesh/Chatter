@@ -15,19 +15,24 @@ import dev.chatter.app.ui.theme.isPureBlack
  * [powerSave] is Android's battery saver: the phone being asked to do less. Fetching a picture
  * for every link somebody posts is the opposite of that, so it stops for as long as the saver is
  * on — the same rule animated emotes already follow.
+ *
+ * [saveData] is Data Saver, or the user's own choice to save data on a metered network. It does
+ * the same, and has the emotes fetched in their smallest size on top of it: pictures are where
+ * the data goes, and the chat reads the same without them.
  */
 @Composable
 fun rememberChatStyle(
     settings: Settings,
     nicknames: Map<String, String>,
     powerSave: Boolean = false,
+    saveData: Boolean = false,
 ): ChatStyle {
     val dark = isAppInDarkTheme()
     val colors = MaterialTheme.colorScheme
     return remember(
         settings.fontSize, settings.timestamps, settings.highlightColor, settings.alternateBackground,
         settings.nameColors, settings.highlightFirstMessages, settings.haptics,
-        settings.inlineImages, settings.imageHosts, settings.fullLinks, powerSave, nicknames, dark, colors,
+        settings.inlineImages, settings.imageHosts, settings.fullLinks, powerSave, saveData, nicknames, dark, colors,
     ) {
         ChatStyle(
             fontSize = settings.fontSize,
@@ -47,10 +52,11 @@ fun rememberChatStyle(
             nameColors = settings.nameColors,
             nicknames = nicknames,
             haptics = settings.haptics,
-            // Off, or the battery saver, is the same as allowing nobody, so the row only ever
-            // reads one thing to decide whether a picture is fetched.
-            imageHosts = if (settings.inlineImages && !powerSave) settings.imageHosts else emptyList(),
+            // Off, or either saver, is the same as allowing nobody, so the row only ever reads
+            // one thing to decide whether a picture is fetched. The link stays either way.
+            imageHosts = if (settings.inlineImages && !powerSave && !saveData) settings.imageHosts else emptyList(),
             shortLinks = !settings.fullLinks,
+            smallEmotes = saveData,
         )
     }
 }

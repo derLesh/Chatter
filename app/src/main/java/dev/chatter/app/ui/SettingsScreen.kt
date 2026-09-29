@@ -127,6 +127,7 @@ import dev.chatter.app.chat.Segment
 import dev.chatter.app.emotes.EmoteProvider
 import dev.chatter.app.net.HelixBlockedUser
 import dev.chatter.app.service.ChatNotifier
+import dev.chatter.app.settings.MobileData
 import dev.chatter.app.settings.Settings
 import dev.chatter.app.settings.ThemeMode
 import dev.chatter.app.settings.TapAction
@@ -239,6 +240,7 @@ private val SEARCH_INDEX: List<SearchEntry> by lazy {
         add(SearchEntry(R.string.settings_inline_images, chat, R.string.settings_inline_images_hint))
         add(SearchEntry(R.string.settings_image_hosts, chat))
         add(SearchEntry(R.string.settings_full_links, chat, R.string.settings_full_links_hint))
+        add(SearchEntry(R.string.settings_mobile_data, chat, R.string.settings_mobile_data_hint, also = MOBILE_DATA.map { it.second }))
         add(SearchEntry(R.string.settings_emote_suggestions, chat, R.string.settings_emote_suggestions_hint))
         add(SearchEntry(R.string.settings_user_suggestions, chat, R.string.settings_user_suggestions_hint))
         add(SearchEntry(R.string.settings_mention_with_at, chat, R.string.settings_mention_with_at_hint))
@@ -878,6 +880,7 @@ private fun ChatPage(settings: Settings, vm: MainViewModel, open: (SettingsSubPa
             )
         }
         item(R.string.settings_full_links) { SwitchItem(R.string.settings_full_links, settings.fullLinks, vm::setFullLinks, R.string.settings_full_links_hint) }
+        item(R.string.settings_mobile_data) { MobileDataPicker(settings.mobileData, vm) }
     }
     // What the app offers while typing.
     SettingsGroup(R.string.settings_group_input) {
@@ -1524,6 +1527,31 @@ private val CREDITS = listOf(
 private const val REPO_URL = "https://github.com/derLesh/Chatter"
 private const val SPONSOR_URL = "https://github.com/sponsors/derLesh"
 private const val PRIVACY_URL = "https://derlesh.github.io/Chatter/privacy-policy.html"
+
+private val MOBILE_DATA = listOf(
+    MobileData.Normal to R.string.mobile_data_normal,
+    MobileData.SaveData to R.string.mobile_data_save,
+)
+
+/**
+ * What Chatter does on mobile data. With Data Saver on, the phone saves data whatever is picked
+ * here, which the row says, so that "Normal" is not taken for a promise it cannot keep.
+ */
+@Composable
+private fun MobileDataPicker(selected: MobileData, vm: MainViewModel) {
+    val saving by vm.saveData.collectAsStateWithLifecycle()
+    ChoiceItem(
+        title = R.string.settings_mobile_data,
+        value = selected,
+        options = MOBILE_DATA.map { it.first },
+        label = { choice ->
+            val name = stringResource(MOBILE_DATA.first { it.first == choice }.second)
+            if (saving && choice == MobileData.Normal) stringResource(R.string.mobile_data_saver_on, name) else name
+        },
+        onPick = vm::setMobileData,
+        hint = R.string.settings_mobile_data_hint,
+    )
+}
 
 private val THEME_MODES = listOf(
     ThemeMode.System to R.string.theme_system,

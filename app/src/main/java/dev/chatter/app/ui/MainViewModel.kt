@@ -30,6 +30,7 @@ import dev.chatter.app.net.HelixChannelSearch
 import dev.chatter.app.net.HelixBlockedUser
 import dev.chatter.app.net.HelixUser
 import dev.chatter.app.settings.ThemeMode
+import dev.chatter.app.settings.MobileData
 import dev.chatter.app.stats.Stats
 import dev.chatter.app.ui.chat.ReadMark
 import dev.chatter.app.ui.theme.NameColorPalette
@@ -90,6 +91,7 @@ class MainViewModel(private val c: AppContainer) : ViewModel() {
     val activePage = c.chat.activePage
     val modChannels = c.chat.rooms.moderated
     val powerSaveMode = c.powerSaveMode
+    val saveData = c.dataSaving.active
     val roomStates = c.chat.rooms.states
     val roles = c.chat.rooms.roles
     val subscribedChannels = c.chat.rooms.subscribed
@@ -897,6 +899,10 @@ class MainViewModel(private val c: AppContainer) : ViewModel() {
 
     fun setDynamicColor(v: Boolean) {
         viewModelScope.launch { c.settings.setDynamicColor(v) }
+    }
+
+    fun setMobileData(v: MobileData) {
+        viewModelScope.launch { c.settings.setMobileData(v) }
     }
 
     fun setPureBlack(v: Boolean) {

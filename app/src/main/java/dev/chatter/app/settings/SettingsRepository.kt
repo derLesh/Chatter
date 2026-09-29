@@ -30,6 +30,12 @@ enum class TimestampFormat(val pattern: String?) {
     Twelve("h:mm a"),
 }
 
+/**
+ * What Chatter does on a metered network, like mobile data. [SaveData] is what Android's Data
+ * Saver does for the whole phone, for people who want it for Chatter alone.
+ */
+enum class MobileData { Normal, SaveData }
+
 /** What tapping a message, or the name in front of it, does. Holding always opens the user card. */
 enum class TapAction { Reply, UserCard, Mention, Nothing }
 
@@ -86,6 +92,8 @@ data class Settings(
     val imageHosts: List<String> = ImageLinks.DEFAULT_HOSTS,
     /** Write links out in full instead of shortening long ones to their site and path. */
     val fullLinks: Boolean = false,
+    /** Whether linked images, animation and sharp emotes are left out on a metered network. */
+    val mobileData: MobileData = MobileData.Normal,
     /** Swiping off the last channel goes to the first one, and the other way round. */
     val carouselChannels: Boolean = false,
     /** The badge providers whose badges are shown in front of a name. */
@@ -162,6 +170,7 @@ class SettingsRepository(
             imageHosts = p[IMAGE_HOSTS]?.split(',')?.map { it.trim() }?.filter { it.isNotEmpty() }
                 ?: ImageLinks.DEFAULT_HOSTS,
             fullLinks = p[FULL_LINKS] ?: false,
+            mobileData = p[MOBILE_DATA]?.let { v -> MobileData.entries.firstOrNull { it.name == v } } ?: MobileData.Normal,
             carouselChannels = p[CAROUSEL_CHANNELS] ?: false,
             haptics = p[HAPTICS] ?: true,
             keepScreenOn = p[KEEP_SCREEN_ON] ?: false,
@@ -213,6 +222,7 @@ class SettingsRepository(
     suspend fun setInlineImages(v: Boolean) = store.edit { it[INLINE_IMAGES] = v }
     suspend fun setImageHosts(v: List<String>) = store.edit { p -> p[IMAGE_HOSTS] = v.joinToString(",") }
     suspend fun setFullLinks(v: Boolean) = store.edit { it[FULL_LINKS] = v }
+    suspend fun setMobileData(v: MobileData) = store.edit { it[MOBILE_DATA] = v.name }
     suspend fun setCarouselChannels(v: Boolean) = store.edit { it[CAROUSEL_CHANNELS] = v }
     suspend fun setHaptics(v: Boolean) = store.edit { it[HAPTICS] = v }
     suspend fun setKeepScreenOn(v: Boolean) = store.edit { it[KEEP_SCREEN_ON] = v }
@@ -277,6 +287,7 @@ class SettingsRepository(
         p[INLINE_IMAGES] = s.inlineImages
         p[IMAGE_HOSTS] = s.imageHosts.joinToString(",")
         p[FULL_LINKS] = s.fullLinks
+        p[MOBILE_DATA] = s.mobileData.name
         p[CAROUSEL_CHANNELS] = s.carouselChannels
         p[HAPTICS] = s.haptics
         p[KEEP_SCREEN_ON] = s.keepScreenOn
@@ -325,6 +336,7 @@ class SettingsRepository(
         val UPDATE_CHECK = booleanPreferencesKey("update_check")
         val INLINE_IMAGES = booleanPreferencesKey("inline_images")
         val FULL_LINKS = booleanPreferencesKey("full_links")
+        val MOBILE_DATA = stringPreferencesKey("mobile_data")
         val IMAGE_HOSTS = stringPreferencesKey("image_hosts")
         val CAROUSEL_CHANNELS = booleanPreferencesKey("carousel_channels")
         val HAPTICS = booleanPreferencesKey("haptics")

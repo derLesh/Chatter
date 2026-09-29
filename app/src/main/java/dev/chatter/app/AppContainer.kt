@@ -6,6 +6,7 @@ import android.content.Intent
 import android.content.IntentFilter
 import android.net.ConnectivityManager
 import android.net.Network
+import android.net.NetworkCapabilities
 import android.os.PowerManager
 import androidx.datastore.preferences.preferencesDataStore
 import coil3.ImageLoader
@@ -41,6 +42,7 @@ import dev.chatter.app.emotes.SevenTvEventClient
 import dev.chatter.app.emotes.SevenTvLiveUpdates
 import dev.chatter.app.irc.ConnectionState
 import dev.chatter.app.irc.IrcConnection
+import dev.chatter.app.net.DataSaving
 import dev.chatter.app.net.HelixApi
 import dev.chatter.app.net.ServiceTrouble
 import dev.chatter.app.net.ThirdPartyApi
@@ -58,6 +60,7 @@ import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withTimeoutOrNull
 import okhttp3.Cache
@@ -113,7 +116,9 @@ class AppContainer(private val context: Context) {
     val stats = StatsRepository(context.statsStore, scope)
     val backup = BackupManager(settings, rules, nicknames, channels)
     val changelog = ChangelogRepository(context, settings, BuildConfig.VERSION_NAME, scope)
-    val updates = UpdateRepository(http, settings, BuildConfig.VERSION_NAME, BuildConfig.UPDATE_CHECK, scope)
+    /** True while Chatter should spend as little data as it can; see [DataSaving]. */
+    val dataSaving = DataSaving(context, settings.settings.map { it.mobileData }, scope)
+    val updates = UpdateRepository(http, settings, BuildConfig.VERSION_NAME, BuildConfig.UPDATE_CHECK, dataSaving.active, scope)
     val irc = IrcConnection(socketHttp, scope)
     val whisperSender = WhisperSender(context, helix, auth)
     private val chatters = ChatterRegistry()
@@ -333,7 +338,13 @@ class AppContainer(private val context: Context) {
             override fun onAvailable(network: Network) = irc.setNetworkAvailable(true)
             // A switch from Wi-Fi to mobile can report the loss after the arrival, so this asks
             // what is there now rather than trusting the order the two callbacks come in.
-            override fun onLost(network: Network) = irc.setNetworkAvailable(cm.activeNetwork != null)
+            override fun onLost(network: Network) {
+                irc.setNetworkAvailable(cm.activeNetwork != null)
+                dataSaving.networkChanged()
+            }
+            // Also where a network turns out to be metered, or a hotspot stops being one.
+            override fun onCapabilitiesChanged(network: Network, caps: NetworkCapabilities) =
+                dataSaving.networkChanged()
         })
     }
 

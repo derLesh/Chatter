@@ -3,6 +3,7 @@ package dev.chatter.app.update
 import android.util.Log
 import dev.chatter.app.changelog.Version
 import dev.chatter.app.net.AppJson
+import dev.chatter.app.net.DataSaving
 import dev.chatter.app.net.fetch
 import dev.chatter.app.settings.SettingsRepository
 import kotlinx.coroutines.CoroutineScope
@@ -30,6 +31,8 @@ class UpdateRepository(
     private val settings: SettingsRepository,
     versionName: String,
     private val enabled: Boolean,
+    /** While this is true the check waits: a release can wait for Wi-Fi, see [DataSaving]. */
+    private val saveData: StateFlow<Boolean>,
     private val scope: CoroutineScope,
     private val clock: () -> Long = System::currentTimeMillis,
 ) {
@@ -51,7 +54,7 @@ class UpdateRepository(
     fun checkIfDue() {
         if (!enabled || checking?.isActive == true) return
         checking = scope.launch {
-            if (!settings.settings.first().updateCheck) return@launch
+            if (!settings.settings.first().updateCheck || saveData.value) return@launch
             val now = clock()
             if (!UpdateCheck.isDue(settings.updateCheckedAt.first(), now)) return@launch
             val request = Request.Builder()

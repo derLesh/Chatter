@@ -63,10 +63,11 @@ fun BubbleScreen(vm: MainViewModel, channel: String?) {
         chatPartners.mapValues { (_, p) -> ChannelMark(p.avatarUrl, p.displayName) }
     }
 
-    // Same rule as the chat screen: the battery saver stills the emotes and stops linked images.
+    // Same rule as the chat screen: either saver stills the emotes and stops linked images.
     val powerSave by vm.powerSaveMode.collectAsStateWithLifecycle()
-    val style = rememberChatStyle(settings, nicknames, powerSave)
-    val loader = if (settings.animatedEmotes && !powerSave) vm.imageLoader else vm.staticImageLoader
+    val saveData by vm.saveData.collectAsStateWithLifecycle()
+    val style = rememberChatStyle(settings, nicknames, powerSave, saveData)
+    val loader = if (settings.animatedEmotes && !powerSave && !saveData) vm.imageLoader else vm.staticImageLoader
     var emoteCard by remember { mutableStateOf<Segment.EmoteSeg?>(null) }
     var showPicker by remember { mutableStateOf(false) }
 
