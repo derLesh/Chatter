@@ -160,7 +160,7 @@ class AppContainer(private val context: Context) {
 
     // After the image loader: mention notifications carry the channel avatar as their icon.
     private val channelIcons = ChannelIcons(context, channels, imageLoader)
-    val notifier = ChatNotifier(context, channels, helix, settings.settings, channelIcons)
+    val notifier = ChatNotifier(context, channels, helix, settings.settings, channelIcons, dataSaving.active)
     private val shortcuts = ChannelShortcuts(context, channels.identities, channelIcons, scope)
 
     private val _powerSaveMode = MutableStateFlow(false)

@@ -209,7 +209,7 @@
     <string name="settings_full_links">Links vollständig anzeigen</string>
     <string name="settings_full_links_hint">Sonst werden lange Links auf die Seite und den Anfang des Pfads gekürzt</string>
     <string name="settings_mobile_data">Bei mobilen Daten</string>
-    <string name="settings_mobile_data_hint">Datensparen lässt verlinkte Bilder und Animationen weg, zeigt Emotes kleiner und verschiebt die Suche nach Updates. Nachrichten, Erwähnungen und Whispers kommen weiter wie bisher an. Ist der Datensparmodus von Android an, spart Chatter bei mobilen Daten immer.</string>
+    <string name="settings_mobile_data_hint">Datensparen lässt verlinkte Bilder und Animationen weg, zeigt Emotes kleiner, lädt keine Profilbilder für Benachrichtigungen und verschiebt die Suche nach Updates. Nachrichten, Erwähnungen und Whispers kommen weiter wie bisher an. Ist der Datensparmodus von Android an, spart Chatter bei mobilen Daten immer.</string>
     <string name="mobile_data_normal">Normal</string>
     <string name="mobile_data_save">Daten sparen</string>
     <string name="mobile_data_saver_on">%1$s, aber der Datensparmodus ist an</string>

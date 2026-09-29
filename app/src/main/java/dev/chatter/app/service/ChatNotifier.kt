@@ -54,6 +54,8 @@ class ChatNotifier(
     private val helix: HelixApi,
     private val settings: StateFlow<Settings>,
     private val icons: ChannelIcons,
+    /** True while Chatter saves data; see [dev.chatter.app.net.DataSaving]. */
+    private val saveData: StateFlow<Boolean>,
 ) {
     private val manager = NotificationManagerCompat.from(context)
     private val nm = context.getSystemService(NotificationManager::class.java)
@@ -249,12 +251,14 @@ class ChatNotifier(
     private fun channelName(channel: String): String = channels.info.value[channel]?.displayName ?: channel
 
     /**
-     * The Twitch profile picture of whoever wrote the message, looked up once per chatter. Off
-     * unless the user asked for it: it costs a Twitch request and a download per new name.
+     * The Twitch profile picture of whoever wrote the message, looked up once per chatter. It
+     * costs a Twitch request and a download per new name, which is why it is a setting — and why
+     * it is left out while saving data: the notification is just as useful without the face. A
+     * picture already in the cache is still used, since it costs nothing any more.
      */
     private suspend fun loadSenderIcon(login: String?) {
         val key = login?.lowercase() ?: return
-        if (!settings.value.senderAvatars || senderIcons.containsKey(key)) return
+        if (!settings.value.senderAvatars || saveData.value || senderIcons.containsKey(key)) return
         val url = runCatching { helix.users(listOf(key)).firstOrNull()?.profileImageUrl }.getOrNull() ?: return
         icons.load(url)?.let {
             // Mentions come from ever new people; the cache must not grow without end.

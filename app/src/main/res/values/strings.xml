@@ -215,7 +215,7 @@
     <string name="settings_full_links">Show links in full</string>
     <string name="settings_full_links_hint">Otherwise long links are shortened to their site and the start of the path</string>
     <string name="settings_mobile_data">On mobile data</string>
-    <string name="settings_mobile_data_hint">Saving data leaves out linked images and animation, shows emotes smaller and puts off the update check. Messages, mentions and whispers keep arriving as before. With Android\'s Data Saver on, Chatter always saves data on mobile data.</string>
+    <string name="settings_mobile_data_hint">Saving data leaves out linked images and animation, shows emotes smaller, loads no profile pictures for notifications and puts off the update check. Messages, mentions and whispers keep arriving as before. With Android\'s Data Saver on, Chatter always saves data on mobile data.</string>
     <string name="mobile_data_normal">Normal</string>
     <string name="mobile_data_save">Save data</string>
     <string name="mobile_data_saver_on">%1$s, but Data Saver is on</string>
