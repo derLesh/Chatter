@@ -110,6 +110,15 @@ What it reads from Settings → Secrets and variables → Actions:
 | `PLAY_SERVICE_ACCOUNT_JSON` | the service account allowed to release to Play | only needed for a `play_track` other than `none`, which stops without it |
 | `SPONSORS_TOKEN` | a classic token of the sponsored account with `read:user`, for the sponsor sync | only that workflow, which fails without it; nothing else is affected |
 
+## The baseline profile
+
+The release carries two lists of what ART compiles ahead of time. `app/src/release/generated/` is
+what `./gradlew :app:generateBaselineProfile` records on the connected phone: the cold start and
+the login screen, nothing behind the login. `app/src/main/baseline-prof.txt` is written by hand
+and names whole packages — the message path that runs all night in the background and the chat
+drawing — so it does not go stale when a method is renamed. A new hot package goes into the
+hand-written file; after a release that changed the start or the login, generate the other again.
+
 ## Commands
 
 ```sh

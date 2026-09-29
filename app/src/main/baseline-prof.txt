@@ -1,0 +1,28 @@
+# Written by hand, next to the profile :baselineprofile generates (src/release/generated/). That one
+# starts the app on a clean install and never gets past the login, so it knows nothing of the code
+# that runs most: every message on its way in, all night in the background, and the chat being
+# drawn whenever it is open. Without a rule that code starts out interpreted after every install
+# and update, until Android's background compilation gets round to it, which can take a day.
+#
+# Whole packages rather than single methods, so that the rules do not go stale when a method is
+# renamed. The build merges both files; R8 carries the rules over to the names it gives.
+#
+#   H  hot: compiled ahead of time     S  used at startup     P  used after startup
+#   L  a class to load and initialize early
+
+# The message path: the socket, parsing, building, the filters and the buffers.
+HSPLdev/chatter/app/irc/**;->**(**)**
+Ldev/chatter/app/irc/**;
+HSPLdev/chatter/app/chat/**;->**(**)**
+Ldev/chatter/app/chat/**;
+HSPLdev/chatter/app/emotes/EmoteRepository;->**(**)**
+HSPLdev/chatter/app/emotes/ProviderEmotes;->**(**)**
+HSPLdev/chatter/app/emotes/Emote;->**(**)**
+HSPLdev/chatter/app/badges/BadgeRepository;->**(**)**
+HSPLdev/chatter/app/stats/StatsRepository;->**(**)**
+HSPLdev/chatter/app/service/ChatNotifier;->**(**)**
+
+# Drawing the chat: the list, a message row, emotes, colors.
+HSPLdev/chatter/app/ui/chat/**;->**(**)**
+Ldev/chatter/app/ui/chat/**;
+HSPLdev/chatter/app/ui/theme/**;->**(**)**
