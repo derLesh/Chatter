@@ -100,6 +100,9 @@ class ChatService : Service() {
     }
 
     override fun onDestroy() {
+        // Without the service the process is the next one Android ends, and the statistics may
+        // hold ten minutes of counting that are not on disk yet.
+        container.stats.saveNow()
         scope.cancel()
         super.onDestroy()
     }

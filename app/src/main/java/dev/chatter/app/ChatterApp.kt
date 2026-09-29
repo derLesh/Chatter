@@ -15,5 +15,14 @@ class ChatterApp : Application(), SingletonImageLoader.Factory {
         container.start()
     }
 
+    /**
+     * Android wants memory back from a process it may end next. The statistics wait up to ten
+     * minutes between saves in the background, and this is the last good moment for them.
+     */
+    override fun onTrimMemory(level: Int) {
+        super.onTrimMemory(level)
+        if (level >= TRIM_MEMORY_BACKGROUND) container.stats.saveNow()
+    }
+
     override fun newImageLoader(context: PlatformContext): ImageLoader = container.imageLoader
 }

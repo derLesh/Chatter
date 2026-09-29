@@ -162,7 +162,7 @@ class AppContainer(private val context: Context) {
     fun start() {
         notifier.createChannels()
         chat.start()
-        stats.start()
+        stats.start(chat.windows.anyVisible)
         changelog.start()
         // Read on every message, so it is mirrored onto the repository instead of passed around.
         scope.launch { settings.settings.collect { badges.enabled = it.badgeProviders } }

@@ -13,10 +13,14 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.drop
+import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlinx.serialization.Serializable
 import java.time.LocalDate
 import java.util.concurrent.atomic.AtomicLong
@@ -88,21 +92,53 @@ class StatsRepository(private val store: DataStore<Preferences>, private val sco
      */
     private val counted = Channel<Unit>(Channel.CONFLATED)
 
-    fun start() {
+    /** What is on disk, so that a save with nothing new to say can be skipped. Null until loaded. */
+    private var saved: Stats? = null
+    private val saving = Mutex()
+
+    /**
+     * Starts loading and saving. [inFront] is whether the app is on screen: the stats page may be
+     * open then, and the numbers are saved every half minute. In the background, with a busy
+     * channel joined all night, that would be a rewrite of the whole file twice a minute for
+     * numbers nobody reads, so they pile up for ten minutes at a time instead — and are saved the
+     * moment the app leaves the screen, which is when the process starts being at risk.
+     */
+    fun start(inFront: StateFlow<Boolean>) {
         scope.launch {
-            var saved = load()
-            _stats.value = saved
-            while (isActive) {
-                // Wait for something to count, then let the next half minute of it pile up.
-                counted.receive()
-                delay(SAVE_INTERVAL_MS)
-                fold()
-                val current = _stats.value
-                if (current != saved) {
-                    save(current)
-                    saved = current
-                }
+            saving.withLock {
+                val loaded = load()
+                _stats.value = loaded
+                saved = loaded
             }
+            launch {
+                inFront.drop(1).filter { !it }.collect { flush() }
+            }
+            while (isActive) {
+                // Wait for something to count, then let the next while of it pile up.
+                counted.receive()
+                delay(if (inFront.value) SAVE_INTERVAL_MS else BACKGROUND_SAVE_INTERVAL_MS)
+                flush()
+            }
+        }
+    }
+
+    /**
+     * Writes what was counted so far, if anything was. For the moments the process may be about to
+     * go — the app leaving the screen, Android asking for memory back, the service being stopped —
+     * so that what is lost to a kill is at most the last few minutes.
+     */
+    fun saveNow() {
+        scope.launch { flush() }
+    }
+
+    private suspend fun flush() = saving.withLock {
+        // Not loaded yet: saving now would put fresh stats over the ones on disk.
+        val before = saved ?: return@withLock
+        fold()
+        val current = _stats.value
+        if (current != before) {
+            save(current)
+            saved = current
         }
     }
 
@@ -153,10 +189,13 @@ class StatsRepository(private val store: DataStore<Preferences>, private val sco
     /** Throws everything counted so far away and starts over from now. */
     suspend fun reset() {
         val fresh = Stats(since = System.currentTimeMillis())
-        receivedDelta.set(0)
-        mentionDelta.set(0)
-        _stats.value = fresh
-        save(fresh)
+        saving.withLock {
+            receivedDelta.set(0)
+            mentionDelta.set(0)
+            _stats.value = fresh
+            save(fresh)
+            saved = fresh
+        }
     }
 
     /**
@@ -174,8 +213,11 @@ class StatsRepository(private val store: DataStore<Preferences>, private val sco
 
     private companion object {
         val STATS = stringPreferencesKey("stats")
-        /** How much counting a sudden death of the process may cost. */
+        /** How much counting a sudden death of the process may cost while the app is on screen. */
         const val SAVE_INTERVAL_MS = 30_000L
+
+        /** The same in the background, where nobody is looking and every write wakes the disk. */
+        const val BACKGROUND_SAVE_INTERVAL_MS = 10 * 60_000L
 
         /** How often a screen showing the stats sees them move. */
         const val LIVE_INTERVAL_MS = 250L
