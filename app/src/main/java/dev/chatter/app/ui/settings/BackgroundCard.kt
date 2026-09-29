@@ -29,6 +29,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.core.net.toUri
 import dev.chatter.app.R
 import dev.chatter.app.service.BackgroundStop
 import dev.chatter.app.service.BatteryRestrictions
@@ -113,7 +114,7 @@ private fun openAppSettings(context: Context) {
 }
 
 private fun open(context: Context, url: String) {
-    runCatching { context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url))) }
+    runCatching { context.startActivity(Intent(Intent.ACTION_VIEW, url.toUri())) }
 }
 
 /**
