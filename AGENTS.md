@@ -71,6 +71,15 @@ then says so and closes the issue. Somebody who does not sponsor changes nothing
 issue ever reaches a shell — the body goes to the script as an environment variable, because it is
 whatever somebody typed. Its rules are tested in `.github/scripts/test_claim_supporter.py`.
 
+`.github/workflows/benchmark.yml` measures what one message costs on its way in — parsing,
+building, the mute list, the rules, the buffer — for the branch it is started on and for master,
+one after the other on the same emulator, and puts both into the job summary with the change
+between them. It is started by hand; run it on a pull request that touches `irc/` or `chat/`. The
+benchmark itself is `MessageCostBenchmark` in `app/src/androidTest`, fed a busy channel's worth of
+made-up lines by `BusyChannel`. It runs against the `microbenchmark` build type: the debug build,
+not debuggable (a debuggable app runs unoptimized and would measure nothing a user runs), with an
+application id of its own, because a connected test uninstalls what it tested afterwards.
+
 `.github/workflows/release.yml` is the release itself, started by hand from the Actions tab. Nobody
 picks a version there either — it runs `releaseVersion`, so the pending entries decide it. It then
 builds and signs both the APK and the Play bundle, pushes the release commit and the `v<version>`
@@ -109,6 +118,7 @@ What it reads from Settings → Secrets and variables → Actions:
 ./gradlew releaseVersion             # fold them into CHANGELOG.md, bump the version, clear pending
 ./gradlew :app:testDebugUnitTest     # unit tests
 ./gradlew :app:installDebug          # build and install on the connected phone
+./gradlew :app:connectedMicrobenchmarkAndroidTest   # what a message costs, on the connected phone
 ```
 
 A change is not confirmed by compiling. Install it and open the screen it touches:

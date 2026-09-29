@@ -1,0 +1,89 @@
+# What one message costs on its way in, for a branch and for master side by side. Chatter stays
+# joined in the background on purpose, so this is what the battery pays for all night, and a change
+# that makes it dearer should be seen before it is merged.
+#
+# Started by hand from the Actions tab, on the branch to measure: an emulator run takes a good ten
+# minutes, and most pushes change nothing about it. Both checkouts run on the same emulator one
+# after the other, because numbers from two different machines say more about the machines.
+name: Benchmark
+
+on:
+  workflow_dispatch:
+    inputs:
+      compare_with:
+        description: The branch or tag to compare with
+        default: master
+        required: true
+
+concurrency:
+  group: benchmark-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  benchmark:
+    name: Measure a message
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - name: Check out the branch
+        uses: actions/checkout@v5
+        with:
+          path: branch
+
+      # Nothing to compare when the branch is the one it would be compared with.
+      - name: Check out ${{ inputs.compare_with }}
+        if: github.ref_name != inputs.compare_with
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ inputs.compare_with }}
+          path: base
+
+      - name: Set up JDK
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v4
+
+      # The emulator is only usable with hardware acceleration, which the runner has but does not
+      # hand to its user until told to.
+      - name: Enable KVM
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+
+      # The action runs every line of the script on its own, so each run is one line.
+      - name: Run the benchmark on an emulator
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 34
+          target: google_apis
+          arch: x86_64
+          disable-animations: true
+          script: |
+            sh branch/.github/scripts/run-benchmark.sh branch "$PWD/branch.json"
+            if [ -d base ]; then sh branch/.github/scripts/run-benchmark.sh base "$PWD/base.json"; fi
+
+      - name: Write the summary
+        run: |
+          if [ -f base.json ]; then
+            python3 branch/.github/scripts/benchmark-summary.py branch.json base.json >> "$GITHUB_STEP_SUMMARY"
+          else
+            python3 branch/.github/scripts/benchmark-summary.py branch.json >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+      - name: Keep the raw numbers
+        uses: actions/upload-artifact@v4
+        with:
+          name: benchmark
+          path: |
+            branch.json
+            base.json
+          if-no-files-found: ignore
+          retention-days: 30

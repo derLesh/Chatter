@@ -1,3 +1,5 @@
+import com.android.build.api.variant.HasHostTestsBuilder
+import com.android.build.api.variant.HostTestBuilder
 import java.util.Properties
 
 plugins {
@@ -75,6 +77,12 @@ android {
         versionName = versionProps.getProperty("version")
         buildConfigField("String", "TWITCH_CLIENT_ID", "\"$twitchClientId\"")
         buildConfigField("boolean", "SPONSORING", "$sponsoring")
+
+        // The microbenchmark in androidTest (see testBuildType below). Emulators are let through
+        // because CI has nothing else; their numbers only mean something next to each other, which
+        // is how the Benchmark workflow uses them.
+        testInstrumentationRunner = "androidx.benchmark.junit4.AndroidBenchmarkRunner"
+        testInstrumentationRunnerArguments["androidx.benchmark.suppressErrors"] = "EMULATOR"
     }
 
     signingConfigs {
@@ -125,7 +133,25 @@ android {
             // still be installed directly for testing.
             signingConfig = signingConfigs.findByName("upload") ?: signingConfigs.getByName("debug")
         }
+        // What the microbenchmark runs against: the debug build without being debuggable, because a
+        // debuggable app runs its code with the optimizations switched off and would be measuring
+        // something no user ever runs. Not minified either, so the benchmark can reach the classes it
+        // calls, which R8 would rename or throw away.
+        create("microbenchmark") {
+            initWith(getByName("debug"))
+            isDebuggable = false
+            // An app of its own: a connected test uninstalls what it tested when it is done, and
+            // that must not be the Chatter somebody is logged in to on the same phone.
+            applicationIdSuffix = ".benchmark"
+            signingConfig = signingConfigs.getByName("debug")
+            matchingFallbacks += listOf("release")
+        }
     }
+
+    testBuildType = "microbenchmark"
+    // Has the app compiled ahead of time when a connected test installs it, the way the benchmark
+    // plugin does for a benchmark module. Interpreted and half-compiled code would measure the JIT.
+    experimentalProperties["android.experimental.force-aot-compilation"] = true
 
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
@@ -171,6 +197,15 @@ val copyChangelog = tasks.register<CopyChangelog>("copyChangelog") {
 }
 
 androidComponents {
+    // Unit tests only come with the build type the device tests run against, and that is the
+    // microbenchmark's now. They are about the debug build, as they always were: CI and everyone
+    // else run testDebugUnitTest.
+    beforeVariants(selector().withBuildType("debug")) { variant ->
+        (variant as HasHostTestsBuilder).hostTests[HostTestBuilder.UNIT_TEST_TYPE]?.enable = true
+    }
+    beforeVariants(selector().withBuildType("microbenchmark")) { variant ->
+        (variant as HasHostTestsBuilder).hostTests[HostTestBuilder.UNIT_TEST_TYPE]?.enable = false
+    }
     onVariants { variant ->
         variant.sources.assets?.addGeneratedSourceDirectory(copyChangelog, CopyChangelog::assets)
     }
@@ -204,6 +239,12 @@ dependencies {
     testImplementation(libs.junit)
     // Lets the tests drive the coroutines and the clock of anything built around a dispatcher.
     testImplementation(libs.kotlinx.coroutines.test)
+
+    androidTestImplementation(libs.androidx.benchmark.junit4)
+    // The benchmark runs in the process of the app it measures, and brings an activity and a
+    // permission it needs there. Only the build it measures gets them; see testBuildType.
+    "microbenchmarkImplementation"(libs.androidx.benchmark.junit4)
+    androidTestImplementation(libs.androidx.test.ext.junit)
 
     // The profile the :baselineprofile module generates, compiled into the release APK.
     baselineProfile(project(":baselineprofile"))
