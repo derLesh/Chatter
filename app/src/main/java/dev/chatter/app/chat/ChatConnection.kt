@@ -32,7 +32,7 @@ interface ChatNotices {
 
 /** The counting that happens while messages go by; [dev.chatter.app.stats.StatsRepository] does it. */
 interface ChatStats {
-    fun countReceived()
+    fun countReceived(channel: String)
     fun countMention()
     fun countSent(channel: String)
 }

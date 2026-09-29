@@ -128,7 +128,9 @@ import dev.chatter.app.emotes.EmoteProvider
 import dev.chatter.app.net.HelixBlockedUser
 import dev.chatter.app.service.ChatNotifier
 import androidx.lifecycle.compose.LifecycleResumeEffect
+import android.text.format.Formatter
 import dev.chatter.app.settings.MobileData
+import dev.chatter.app.stats.Stats
 import dev.chatter.app.ui.settings.BackgroundCard
 import dev.chatter.app.settings.Settings
 import dev.chatter.app.settings.ThemeMode
@@ -420,7 +422,7 @@ fun SettingsScreen(vm: MainViewModel, onBack: () -> Unit) {
                     SettingsPage.Filters -> FiltersPage(settings, vm) { subPage = it }
                     SettingsPage.Notifications -> NotificationsPage(settings, vm) { subPage = it }
                     SettingsPage.Channels -> ChannelsPage(vm, settings)
-                    SettingsPage.Stats -> StatsPage(vm)
+                    SettingsPage.Stats -> StatsPage(vm) { page = SettingsPage.Channels }
                     SettingsPage.Account -> {
                         AccountPage(vm, onAddAccount = { addAccount = vm.addAccountUrl() })
                         BackupGroup(vm)
@@ -1197,11 +1199,18 @@ private fun ChannelsPage(vm: MainViewModel, settings: Settings) {
  * never leaves it, which is also why it can be thrown away in one go at the bottom.
  */
 @Composable
-private fun StatsPage(vm: MainViewModel) {
+private fun StatsPage(vm: MainViewModel, onChannels: () -> Unit) {
+    val context = LocalContext.current
     val stats by vm.stats.collectAsStateWithLifecycle()
     val info by vm.channelInfo.collectAsStateWithLifecycle()
     var confirmReset by remember { mutableStateOf(false) }
     val busiest = remember(stats) { stats.busiestChannels.take(5) }
+    val week = remember(stats) { stats.backgroundByChannel(Stats.KEEP_DAYS) }
+    val today = remember(stats) { stats.backgroundByChannel(1).toMap() }
+    val outliers = remember(week) { Stats.outliers(week) }
+    val bytesToday = remember(stats) { stats.trafficOver(1) }
+    val bytesWeek = remember(stats) { stats.trafficOver(Stats.KEEP_DAYS) }
+    val size = { bytes: Long -> Formatter.formatShortFileSize(context, bytes) }
 
     SettingsGroup(R.string.settings_stats_group_messages) {
         item { StatRow(R.string.settings_stats_sent, formatNumber(stats.sent)) }
@@ -1245,6 +1254,67 @@ private fun StatsPage(vm: MainViewModel) {
             }
         }
     }
+    // What staying joined costs while the app is closed: which channel brings in how much, so that
+    // whether to keep a very busy one overnight is a choice the user can actually make.
+    SettingsGroup(R.string.settings_stats_group_background) {
+        if (week.isEmpty()) {
+            item {
+                ListItem(
+                    headlineContent = { Text(stringResource(R.string.settings_stats_background_none)) },
+                    colors = transparentItem(),
+                )
+            }
+        }
+        week.take(BACKGROUND_CHANNELS_SHOWN).forEach { (login, count) ->
+            item {
+                val busy = login in outliers
+                ListItem(
+                    headlineContent = { Text(info[login]?.displayName ?: login) },
+                    supportingContent = {
+                        Column {
+                            Text(
+                                stringResource(
+                                    R.string.settings_stats_today_week,
+                                    formatNumber(today[login] ?: 0), formatNumber(count),
+                                )
+                            )
+                            if (busy) {
+                                Text(
+                                    stringResource(R.string.settings_stats_background_busy),
+                                    color = MaterialTheme.colorScheme.primary,
+                                )
+                            }
+                        }
+                    },
+                    trailingContent = if (busy) {
+                        { Icon(Icons.AutoMirrored.Filled.ArrowForward, contentDescription = null) }
+                    } else null,
+                    colors = transparentItem(),
+                    modifier = if (busy) Modifier.clickable(onClick = onChannels) else Modifier,
+                )
+            }
+        }
+    }
+    SettingsGroup(R.string.settings_stats_group_data) {
+        item {
+            ListItem(
+                headlineContent = { Text(stringResource(R.string.settings_stats_data_open)) },
+                supportingContent = {
+                    Text(stringResource(R.string.settings_stats_today_week, size(bytesToday.open), size(bytesWeek.open)))
+                },
+                colors = transparentItem(),
+            )
+        }
+        item {
+            ListItem(
+                headlineContent = { Text(stringResource(R.string.settings_stats_data_background)) },
+                supportingContent = {
+                    Text(stringResource(R.string.settings_stats_today_week, size(bytesToday.background), size(bytesWeek.background)))
+                },
+                colors = transparentItem(),
+            )
+        }
+    }
     SettingsGroup {
         item {
             ListItem(
@@ -1285,6 +1355,9 @@ private fun StatRow(label: Int, value: String) {
         colors = transparentItem(),
     )
 }
+
+/** How many channels the background figures list; the ones further down cost little by then. */
+private const val BACKGROUND_CHANNELS_SHOWN = 8
 
 /** Grouped the way the phone's language groups them, so six digits stay readable. */
 private fun formatNumber(n: Long): String = NumberFormat.getIntegerInstance().format(n)

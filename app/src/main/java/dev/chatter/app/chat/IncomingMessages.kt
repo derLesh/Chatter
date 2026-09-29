@@ -142,7 +142,7 @@ class IncomingMessages(
         rememberChatter(channel, item)
         buffers.add(item)
         // Only live messages: the history fetched on join was received long ago.
-        if (!item.isOwn) stats.countReceived()
+        if (!item.isOwn) stats.countReceived(channel)
         val watched = windows.isWatching(channel)
         if (!item.isOwn && !watched) buffers.countUnread(channel)
         if (item.isMention && firstSighting(item)) {

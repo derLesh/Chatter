@@ -46,7 +46,7 @@ class IncomingMessagesTest {
         var received = 0
         var mentions = 0
         var sent = 0
-        override fun countReceived() { received++ }
+        override fun countReceived(channel: String) { received++ }
         override fun countMention() { mentions++ }
         override fun countSent(channel: String) { sent++ }
     }

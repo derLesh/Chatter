@@ -496,6 +496,13 @@
     <string name="settings_stats_since">Counting since</string>
     <string name="settings_stats_group_channels">Your activity in chats</string>
     <string name="settings_stats_no_channels">Nothing sent yet</string>
+    <string name="settings_stats_group_background">In the background</string>
+    <string name="settings_stats_background_none">Nothing has arrived in the background in the last 7 days</string>
+    <string name="settings_stats_today_week">Today %1$s · last 7 days %2$s</string>
+    <string name="settings_stats_background_busy">Far more than your other channels. If it is not worth the battery, remove it under Channels.</string>
+    <string name="settings_stats_group_data">Data used</string>
+    <string name="settings_stats_data_open">While open</string>
+    <string name="settings_stats_data_background">In the background</string>
     <string name="settings_stats_reset">Reset stats</string>
     <string name="settings_stats_reset_hint">All statistics stay on this device</string>
     <string name="settings_stats_reset_action">Reset</string>
