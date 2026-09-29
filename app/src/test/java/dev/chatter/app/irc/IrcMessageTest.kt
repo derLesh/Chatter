@@ -57,4 +57,43 @@ class IrcMessageTest {
         val line = "@x=${IrcMessage.escapeTagValue(value)} :n PRIVMSG #c :t"
         assertEquals(value, IrcMessage.parse(line)!!.tag("x"))
     }
+
+    // ---- tags looked up in the line ------------------------------------------------------------
+
+    @Test
+    fun aTagIsNotFoundInsideAnotherOnesName() {
+        val msg = IrcMessage.parse("@user-id=5;badges=vip/1;badge-info=;id=abc :n PRIVMSG #c :t")!!
+        assertEquals("abc", msg.tag("id"))
+        assertEquals("vip/1", msg.tag("badges"))
+        assertNull(msg.tag("badge"))
+        assertNull(msg.tag("badge-info"))
+        assertNull(msg.tag("missing"))
+    }
+
+    @Test
+    fun aTagWithoutValueCountsAsEmpty() {
+        val msg = IrcMessage.parse("@flag;last=1 :n PRIVMSG #c :t")!!
+        assertNull(msg.tag("flag"))
+        assertEquals("1", msg.tag("last"))
+        assertEquals(mapOf("flag" to "", "last" to "1"), msg.tags)
+    }
+
+    @Test
+    fun aLineWithoutTagsHasNone() {
+        val msg = IrcMessage.parse(":n PRIVMSG #c :t")!!
+        assertNull(msg.tag("id"))
+        assertEquals(emptyMap<String, String>(), msg.tags)
+    }
+
+    @Test
+    fun aLineIsReadInPlaceInsideAFrame() {
+        val frame = "@id=1 :a!a@a PRIVMSG #c :first\r\n@id=2;color=#FF0000 :b!b@b PRIVMSG #c :second\r\n"
+        val second = frame.indexOf("@id=2")
+        val msg = IrcMessage.parse(frame, second, frame.length - 2)!!
+        assertEquals("2", msg.tag("id"))
+        assertEquals("#FF0000", msg.tag("color"))
+        assertEquals("b", msg.nick)
+        assertEquals("b!b@b", msg.prefix)
+        assertEquals("second", msg.trailing)
+    }
 }

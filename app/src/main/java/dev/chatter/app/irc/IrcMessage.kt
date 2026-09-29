@@ -3,10 +3,24 @@ package dev.chatter.app.irc
 /**
  * One parsed IRC line, e.g.
  * `@badges=moderator/1;color=#FF0000 :nick!nick@nick.tmi.twitch.tv PRIVMSG #channel :hello`
+ *
+ * The tags stay in the line they came in and are looked up when they are read. A chat message
+ * carries twenty of them and the app reads about half; parsing all of them into a map was a key, a
+ * value and a map entry apiece for every message in every joined channel, all night in the
+ * background, and most of it garbage straight away. Only [tags], for the few lines that want
+ * them all, builds the map.
+ *
+ * The line may be a whole frame from the socket with this line somewhere in it; [parse] is told
+ * where, so a frame does not have to be cut into lines first.
  */
-data class IrcMessage(
-    val tags: Map<String, String>,
-    val prefix: String?,
+class IrcMessage private constructor(
+    private val line: String,
+    /** Where the tags are in [line], without the "@" and the space after them; empty if there are none. */
+    private val tagsStart: Int,
+    private val tagsEnd: Int,
+    /** Where the prefix is in [line], without the ":"; -1 if there is none. */
+    private val prefixStart: Int,
+    private val prefixEnd: Int,
     val command: String,
     val params: List<String>,
 ) {
@@ -18,58 +32,96 @@ data class IrcMessage(
     val trailing: String?
         get() = if (params.size >= 2) params.last() else null
 
+    /** The prefix, `nick!user@host` or a server name. */
+    val prefix: String?
+        get() = if (prefixStart < 0) null else line.substring(prefixStart, prefixEnd)
+
     /** Login name of the sender, taken from the prefix `nick!user@host`. */
     val nick: String?
-        get() = prefix?.substringBefore('!')?.takeIf { it.isNotEmpty() }
+        get() {
+            if (prefixStart < 0) return null
+            val bang = line.indexOf('!', prefixStart).let { if (it == -1 || it > prefixEnd) prefixEnd else it }
+            return if (bang > prefixStart) line.substring(prefixStart, bang) else null
+        }
 
-    fun tag(name: String): String? = tags[name]?.takeIf { it.isNotEmpty() }
+    /** Every tag, empty ones included. Built when first asked for; [tag] is the cheap way to one. */
+    val tags: Map<String, String>
+        get() = parsedTags ?: parseTags(line, tagsStart, tagsEnd).also { parsedTags = it }
+
+    // A field rather than `by lazy`, which would be one more object for every message only to
+    // build a map for the few that are ever asked for one.
+    @Volatile private var parsedTags: Map<String, String>? = null
+
+    /** The value of the tag [name], or null if it is missing or empty. */
+    fun tag(name: String): String? {
+        var pos = tagsStart
+        while (pos < tagsEnd) {
+            var sep = line.indexOf(';', pos)
+            if (sep == -1 || sep > tagsEnd) sep = tagsEnd
+            val keyEnd = pos + name.length
+            if (keyEnd <= sep && line.regionMatches(pos, name, 0, name.length) && (keyEnd == sep || line[keyEnd] == '=')) {
+                return if (keyEnd + 1 >= sep) null else unescapeTagValue(line, keyEnd + 1, sep)
+            }
+            pos = sep + 1
+        }
+        return null
+    }
+
+    override fun toString(): String = "IrcMessage($command $params)"
 
     companion object {
-        /** Parses a single IRC line (without trailing CR/LF). Returns null for empty or malformed lines. */
-        fun parse(line: String): IrcMessage? {
-            if (line.isEmpty()) return null
-            var pos = 0
-            val len = line.length
+        /**
+         * Parses the IRC line between [start] and [end] of [text] (without CR/LF). Returns null for
+         * empty or malformed lines.
+         */
+        fun parse(text: String, start: Int = 0, end: Int = text.length): IrcMessage? {
+            if (end <= start) return null
+            var pos = start
 
-            var tags: Map<String, String> = emptyMap()
-            if (line[0] == '@') {
-                val end = line.indexOf(' ')
-                if (end == -1) return null
-                tags = parseTags(line, 1, end)
-                pos = end + 1
+            var tagsStart = 0
+            var tagsEnd = 0
+            if (text[pos] == '@') {
+                val space = text.indexOf(' ', pos)
+                if (space == -1 || space >= end) return null
+                tagsStart = pos + 1
+                tagsEnd = space
+                pos = space + 1
             }
-            while (pos < len && line[pos] == ' ') pos++
+            while (pos < end && text[pos] == ' ') pos++
 
-            var prefix: String? = null
-            if (pos < len && line[pos] == ':') {
-                val end = line.indexOf(' ', pos)
-                if (end == -1) return null
-                prefix = line.substring(pos + 1, end)
-                pos = end + 1
+            var prefixStart = -1
+            var prefixEnd = -1
+            if (pos < end && text[pos] == ':') {
+                val space = text.indexOf(' ', pos)
+                if (space == -1 || space >= end) return null
+                prefixStart = pos + 1
+                prefixEnd = space
+                pos = space + 1
             }
-            while (pos < len && line[pos] == ' ') pos++
+            while (pos < end && text[pos] == ' ') pos++
 
-            val cmdEnd = line.indexOf(' ', pos).let { if (it == -1) len else it }
+            val cmdEnd = text.indexOf(' ', pos).let { if (it == -1 || it > end) end else it }
             if (cmdEnd <= pos) return null
-            val command = line.substring(pos, cmdEnd)
+            val command = text.substring(pos, cmdEnd)
             pos = cmdEnd
 
             val params = ArrayList<String>(4)
-            while (pos < len) {
-                while (pos < len && line[pos] == ' ') pos++
-                if (pos >= len) break
-                if (line[pos] == ':') {
-                    params.add(line.substring(pos + 1))
+            while (pos < end) {
+                while (pos < end && text[pos] == ' ') pos++
+                if (pos >= end) break
+                if (text[pos] == ':') {
+                    params.add(text.substring(pos + 1, end))
                     break
                 }
-                val end = line.indexOf(' ', pos).let { if (it == -1) len else it }
-                params.add(line.substring(pos, end))
-                pos = end
+                val paramEnd = text.indexOf(' ', pos).let { if (it == -1 || it > end) end else it }
+                params.add(text.substring(pos, paramEnd))
+                pos = paramEnd
             }
-            return IrcMessage(tags, prefix, command, params)
+            return IrcMessage(text, tagsStart, tagsEnd, prefixStart, prefixEnd, command, params)
         }
 
         private fun parseTags(line: String, start: Int, end: Int): Map<String, String> {
+            if (start >= end) return emptyMap()
             val result = HashMap<String, String>(32)
             var pos = start
             while (pos < end) {

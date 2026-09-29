@@ -237,14 +237,20 @@ class IrcConnection(
         override fun onMessage(webSocket: WebSocket, text: String) {
             if (!isCurrent(webSocket)) return
             lastActivity = System.currentTimeMillis()
-            for (line in text.split("\r\n")) {
-                if (line.isEmpty()) continue
+            // Walked rather than split: a frame is usually one line, and each message keeps its
+            // place in the frame instead of a copy of it (see IrcMessage).
+            var start = 0
+            while (start < text.length) {
+                val end = text.indexOf("\r\n", start).let { if (it == -1) text.length else it }
+                val lineStart = start
+                start = end + 2
+                if (end == lineStart) continue
                 // Answer PINGs directly on the socket thread, before any parsing work.
-                if (line.startsWith("PING")) {
-                    webSocket.send("PONG" + line.substring(4))
+                if (text.startsWith("PING", lineStart)) {
+                    webSocket.send("PONG" + text.substring(lineStart + 4, end))
                     continue
                 }
-                val msg = IrcMessage.parse(line) ?: continue
+                val msg = IrcMessage.parse(text, lineStart, end) ?: continue
                 when (msg.command) {
                     "001" -> onWelcome(webSocket)
                     "RECONNECT" -> scheduleReconnect(immediate = true)
