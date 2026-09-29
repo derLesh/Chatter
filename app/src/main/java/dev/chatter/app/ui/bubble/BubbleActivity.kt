@@ -31,7 +31,7 @@ class BubbleActivity : ComponentActivity() {
         vm.inBubble = true
         setContent {
             val settings by vm.settings.collectAsStateWithLifecycle()
-            ChatterTheme(themeMode = settings.themeMode, dynamicColor = settings.dynamicColor) {
+            ChatterTheme(settings.themeMode, settings.dynamicColor, settings.pureBlack) {
                 BubbleScreen(vm, channel)
             }
         }

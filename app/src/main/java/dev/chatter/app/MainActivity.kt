@@ -27,7 +27,7 @@ class MainActivity : ComponentActivity() {
         handleIntent(intent)
         setContent {
             val settings by vm.settings.collectAsStateWithLifecycle()
-            ChatterTheme(themeMode = settings.themeMode, dynamicColor = settings.dynamicColor) { AppRoot(vm) }
+            ChatterTheme(settings.themeMode, settings.dynamicColor, settings.pureBlack) { AppRoot(vm) }
         }
     }
 

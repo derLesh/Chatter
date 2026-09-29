@@ -149,6 +149,8 @@
     <string name="theme_dark">Dark</string>
     <string name="settings_dynamic_color">Material You colors</string>
     <string name="settings_dynamic_color_hint">Use your system\'s colors</string>
+    <string name="settings_pure_black">Pure black</string>
+    <string name="settings_pure_black_hint">Black background for OLED screens, saves battery</string>
     <string name="cmd_usage">Usage: %1$s</string>
     <string name="cmd_banned">%1$s has been banned.</string>
     <string name="cmd_timed_out">%1$s has been timed out for %2$s.</string>

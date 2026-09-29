@@ -98,6 +98,7 @@ private val LightColors = lightColorScheme(
 fun ChatterTheme(
     themeMode: ThemeMode = ThemeMode.System,
     dynamicColor: Boolean = true,
+    pureBlack: Boolean = false,
     content: @Composable () -> Unit,
 ) {
     val dark = when (themeMode) {
@@ -106,13 +107,14 @@ fun ChatterTheme(
         ThemeMode.Dark -> true
     }
     val context = LocalContext.current
-    val colors = when {
+    val base = when {
         // Material You (Android 12+, always available with minSdk 33).
         dynamicColor && dark -> dynamicDarkColorScheme(context)
         dynamicColor -> dynamicLightColorScheme(context)
         dark -> DarkColors
         else -> LightColors
     }
+    val colors = if (pureBlack && dark) pureBlack(base) else base
 
     // Status/navigation bar icons must follow the app theme, not the system theme.
     val view = LocalView.current
@@ -129,6 +131,39 @@ fun ChatterTheme(
     MaterialTheme(colorScheme = colors, content = content)
 }
 
+/**
+ * [dark] with black behind everything that fills the screen for hours — the chat, the bars above
+ * and below it — because on an OLED screen a black pixel is one that is switched off.
+ *
+ * Only the neutral surfaces change. Every accent comes from [dark] as it is, so Material You keeps
+ * the wallpaper's colors. The containers each move one step down the same tonal ladder instead of
+ * being made up: tiles, sheets and cards stay lighter than the black around them and keep the
+ * faint tint the palette gave them.
+ */
+fun pureBlack(dark: ColorScheme): ColorScheme = dark.copy(
+    background = Color.Black,
+    surface = Color.Black,
+    surfaceDim = Color.Black,
+    surfaceContainerLowest = Color.Black,
+    surfaceContainerLow = dark.surface,
+    surfaceContainer = dark.surfaceContainerLow,
+    surfaceContainerHigh = dark.surfaceContainer,
+    surfaceContainerHighest = dark.surfaceContainerHigh,
+)
+
+/**
+ * Whether this is a [pureBlack] scheme. Nothing else puts pure black behind the app — Material's
+ * darkest background is a grey — so the scheme can say so itself, and whatever has a color scheme
+ * at hand does not need a second thing passed along to know.
+ */
+val ColorScheme.isPureBlack: Boolean get() = background == Color.Black
+
+/**
+ * The title bar and the channel tabs. A container everywhere else, so that they stand apart from
+ * the chat below; black on a [pureBlack] scheme, because they are on screen as long as the chat.
+ */
+val ColorScheme.barColor: Color get() = if (isPureBlack) background else surfaceContainer
+
 /** Resolves the mention highlight setting (see [Settings.highlightColor]) to a color. */
 fun highlightColor(setting: Int, scheme: ColorScheme): Color = when (setting) {
     Settings.HIGHLIGHT_DEFAULT -> LiveRed
@@ -136,8 +171,12 @@ fun highlightColor(setting: Int, scheme: ColorScheme): Color = when (setting) {
     else -> Color(setting)
 }
 
-/** Background tint of highlighted (mention) messages. */
-fun highlightBackground(setting: Int, scheme: ColorScheme): Color = highlightColor(setting, scheme).copy(alpha = 0.2f)
+/**
+ * Background tint of highlighted (mention) messages. Over black the same tint comes out a good
+ * deal darker than over grey, so it is laid on thicker there to be seen at a glance all the same.
+ */
+fun highlightBackground(setting: Int, scheme: ColorScheme): Color =
+    highlightColor(setting, scheme).copy(alpha = if (scheme.isPureBlack) 0.3f else 0.2f)
 
 /** True if the current color scheme is dark (whatever the system setting says). */
 @Composable

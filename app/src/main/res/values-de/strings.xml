@@ -143,6 +143,8 @@
     <string name="theme_dark">Dunkel</string>
     <string name="settings_dynamic_color">Material-You Farben</string>
     <string name="settings_dynamic_color_hint">Verwende die Farben deines Systems</string>
+    <string name="settings_pure_black">Reines Schwarz</string>
+    <string name="settings_pure_black_hint">Schwarzer Hintergrund für OLED-Bildschirme, spart Akku</string>
     <string name="cmd_usage">Verwendung: %1$s</string>
     <string name="cmd_banned">%1$s wurde gebannt.</string>
     <string name="cmd_timed_out">%1$s wurde für %2$s stummgeschaltet.</string>

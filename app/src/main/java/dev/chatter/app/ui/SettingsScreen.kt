@@ -221,6 +221,7 @@ private val SEARCH_INDEX: List<SearchEntry> by lazy {
         val appearance = SettingsPage.Appearance
         add(SearchEntry(R.string.settings_theme, appearance, also = THEME_MODES.map { it.second }))
         add(SearchEntry(R.string.settings_dynamic_color, appearance, R.string.settings_dynamic_color_hint))
+        add(SearchEntry(R.string.settings_pure_black, appearance, R.string.settings_pure_black_hint))
         add(SearchEntry(R.string.settings_highlight_color, appearance, R.string.settings_highlight_color_hint))
         add(SearchEntry(R.string.settings_name_colors, appearance, R.string.settings_name_colors_hint))
         add(SearchEntry(R.string.settings_app_icon, appearance))
@@ -625,6 +626,7 @@ private fun claimUrl(twitchId: String?, login: String): String =
 
 @Composable
 private fun AppearancePage(settings: Settings, vm: MainViewModel) {
+    val dark = isAppInDarkTheme()
     SettingsGroup(R.string.settings_group_colors) {
         item(R.string.settings_theme) {
             ListItem(
@@ -646,6 +648,13 @@ private fun AppearancePage(settings: Settings, vm: MainViewModel) {
             )
         }
         item(R.string.settings_dynamic_color) { SwitchItem(R.string.settings_dynamic_color, settings.dynamicColor, vm::setDynamicColor, R.string.settings_dynamic_color_hint) }
+        // A light theme has no black to turn anything to, so the switch is only there while the
+        // app is dark — whether the user chose Dark or the phone is dark under System.
+        if (dark) {
+            item(R.string.settings_pure_black) {
+                SwitchItem(R.string.settings_pure_black, settings.pureBlack, vm::setPureBlack, R.string.settings_pure_black_hint)
+            }
+        }
         item(R.string.settings_highlight_color) { HighlightColorPicker(settings.highlightColor, vm::setHighlightColor) }
         item(R.string.settings_name_colors) { NameColorPicker(settings.nameColors, vm::setNameColors) }
         item(R.string.settings_app_icon) { AppIconPicker() }

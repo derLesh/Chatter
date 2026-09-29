@@ -67,6 +67,7 @@ import dev.chatter.app.channels.displayName
 import dev.chatter.app.chat.RoomState
 import dev.chatter.app.irc.ConnectionState
 import dev.chatter.app.ui.theme.LiveRed
+import dev.chatter.app.ui.theme.barColor
 
 /**
  * The bar above the chat: the page on screen with the menu of all of them behind it, the other
@@ -112,7 +113,7 @@ fun ChannelTopBar(
     val density = LocalDensity.current
 
     TopAppBar(
-        colors = TopAppBarDefaults.topAppBarColors(containerColor = MaterialTheme.colorScheme.surfaceContainer),
+        colors = TopAppBarDefaults.topAppBarColors(containerColor = MaterialTheme.colorScheme.barColor),
         title = {
             Box(Modifier.onGloballyPositioned { anchorX = with(density) { it.positionInWindow().x.toDp() } }) {
                 Row(
@@ -239,7 +240,7 @@ private fun UnreadStrip(
                             .size(9.dp)
                             .clip(CircleShape)
                             .background(MaterialTheme.colorScheme.primary)
-                            .border(1.5.dp, MaterialTheme.colorScheme.surfaceContainer, CircleShape),
+                            .border(1.5.dp, MaterialTheme.colorScheme.barColor, CircleShape),
                     )
                 }
             }

@@ -64,6 +64,7 @@ import dev.chatter.app.channels.ChannelInfo
 import dev.chatter.app.channels.displayName
 import dev.chatter.app.chat.RoomState
 import dev.chatter.app.irc.ConnectionState
+import dev.chatter.app.ui.theme.barColor
 
 /**
  * The bar above the chat when the pages are tabs: every page in the order a swipe goes through
@@ -108,7 +109,7 @@ fun ChannelTabBar(
     drafts: Set<String> = emptySet(),
 ) {
     val activeGroup = active?.let { groups[it] }
-    Surface(color = MaterialTheme.colorScheme.surfaceContainer) {
+    Surface(color = MaterialTheme.colorScheme.barColor) {
         Column(Modifier.windowInsetsPadding(TopAppBarDefaults.windowInsets)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 ChannelTabs(
@@ -192,7 +193,7 @@ private fun ChannelTabs(
         // The row cannot be told that no tab is selected, which is the case for a moment after
         // start and whenever there are no channels at all; it then draws no indicator instead.
         selectedTabIndex = selected.coerceAtLeast(0),
-        containerColor = MaterialTheme.colorScheme.surfaceContainer,
+        containerColor = MaterialTheme.colorScheme.barColor,
         edgePadding = 4.dp,
         minTabWidth = 0.dp,
         indicator = {

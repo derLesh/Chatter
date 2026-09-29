@@ -47,6 +47,11 @@ data class Settings(
     val themeMode: ThemeMode = ThemeMode.System,
     /** Material You: colors derived from the wallpaper instead of Twitch purple. */
     val dynamicColor: Boolean = true,
+    /**
+     * Black instead of Material's dark greys behind the chat, for OLED screens, where a black
+     * pixel is one that is switched off. Only means anything while the theme is dark.
+     */
+    val pureBlack: Boolean = false,
     /** Alternate the background of every other message for easier reading. */
     val alternateBackground: Boolean = false,
     /** Mention highlight: [HIGHLIGHT_DEFAULT] (red), [HIGHLIGHT_ACCENT] (theme color) or an ARGB color. */
@@ -136,6 +141,7 @@ class SettingsRepository(
             recentEmotes = p[RECENT_EMOTES].orEmpty().split(' ').filter { it.isNotEmpty() },
             themeMode = p[THEME_MODE]?.let { v -> ThemeMode.entries.firstOrNull { it.name == v } } ?: ThemeMode.System,
             dynamicColor = p[DYNAMIC_COLOR] ?: true,
+            pureBlack = p[PURE_BLACK] ?: false,
             alternateBackground = p[ALTERNATE_BG] ?: false,
             highlightColor = p[HIGHLIGHT_COLOR] ?: Settings.HIGHLIGHT_DEFAULT,
             loadHistory = p[LOAD_HISTORY] ?: true,
@@ -188,6 +194,7 @@ class SettingsRepository(
     suspend fun setAnimatedEmotes(v: Boolean) = store.edit { it[ANIMATED] = v }
     suspend fun setThemeMode(v: ThemeMode) = store.edit { it[THEME_MODE] = v.name }
     suspend fun setDynamicColor(v: Boolean) = store.edit { it[DYNAMIC_COLOR] = v }
+    suspend fun setPureBlack(v: Boolean) = store.edit { it[PURE_BLACK] = v }
     suspend fun setAlternateBackground(v: Boolean) = store.edit { it[ALTERNATE_BG] = v }
     suspend fun setHighlightColor(v: Int) = store.edit { it[HIGHLIGHT_COLOR] = v }
     suspend fun setLoadHistory(v: Boolean) = store.edit { it[LOAD_HISTORY] = v }
@@ -251,6 +258,7 @@ class SettingsRepository(
         p[RECENT_EMOTES] = s.recentEmotes.joinToString(" ")
         p[THEME_MODE] = s.themeMode.name
         p[DYNAMIC_COLOR] = s.dynamicColor
+        p[PURE_BLACK] = s.pureBlack
         p[ALTERNATE_BG] = s.alternateBackground
         p[HIGHLIGHT_COLOR] = s.highlightColor
         p[LOAD_HISTORY] = s.loadHistory
@@ -299,6 +307,7 @@ class SettingsRepository(
         val RECENT_EMOTES = stringPreferencesKey("recent_emotes")
         val THEME_MODE = stringPreferencesKey("theme_mode")
         val DYNAMIC_COLOR = booleanPreferencesKey("dynamic_color")
+        val PURE_BLACK = booleanPreferencesKey("pure_black")
         val ALTERNATE_BG = booleanPreferencesKey("alternate_background")
         val HIGHLIGHT_COLOR = intPreferencesKey("highlight_color")
         val LOAD_HISTORY = booleanPreferencesKey("load_history")

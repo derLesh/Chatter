@@ -6,6 +6,7 @@ import androidx.compose.runtime.remember
 import dev.chatter.app.settings.Settings
 import dev.chatter.app.ui.theme.highlightBackground
 import dev.chatter.app.ui.theme.isAppInDarkTheme
+import dev.chatter.app.ui.theme.isPureBlack
 
 /**
  * The look of a chat message as the settings describe it. Shared by the chat screen and the
@@ -35,7 +36,11 @@ fun rememberChatStyle(
             secondaryText = colors.onSurfaceVariant,
             linkColor = colors.primary,
             mentionBackground = highlightBackground(settings.highlightColor, colors),
-            alternateBackground = if (settings.alternateBackground) colors.onSurface.copy(alpha = 0.05f) else null,
+            // Every other row a shade lighter. Over black the usual shade is too faint to follow
+            // along a line with, so it is a little stronger there.
+            alternateBackground = if (settings.alternateBackground) {
+                colors.onSurface.copy(alpha = if (colors.isPureBlack) 0.08f else 0.05f)
+            } else null,
             noticeBackground = colors.primaryContainer.copy(alpha = 0.35f),
             firstMessageBackground = if (settings.highlightFirstMessages) colors.tertiary.copy(alpha = 0.18f) else null,
             accent = colors.primary,
