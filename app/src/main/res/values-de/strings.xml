@@ -5,6 +5,7 @@
     <string name="notif_channel_mentions">Erwähnungen</string>
     <string name="notif_me">Ich</string>
     <string name="notif_connecting">Verbinde…</string>
+    <string name="notif_waiting_network">Warte auf ein Netzwerk…</string>
     <plurals name="notif_connected">
         <item quantity="one">Mit %d Channel verbunden</item>
         <item quantity="other">Mit %d Channels verbunden</item>
@@ -72,6 +73,7 @@
     <string name="no_channels_text">Füge einen Channel hinzu</string>
     <string name="channels">Channels</string>
     <string name="status_connecting">Verbinde…</string>
+    <string name="status_waiting_network">Warte auf ein Netzwerk…</string>
     <string name="status_live">Live · %1$s</string>
     <string name="unread_in_channel">Ungelesene Nachrichten in %1$s</string>
     <string name="channel_options">Channel-Optionen</string>

@@ -189,6 +189,7 @@ class ChatRepository(
 
         scope.launch(worker) {
             var wasConnected = false
+            var previous: ConnectionState? = null
             irc.state.collect { state ->
                 when (state) {
                     ConnectionState.Connected -> if (wasConnected) {
@@ -196,9 +197,12 @@ class ChatRepository(
                         // Fetch what was said while we were offline.
                         buffers.channels().forEach { ch -> scope.launch { loadHistory(ch, since = incoming.lastLive(ch)) } }
                     } else wasConnected = true
-                    ConnectionState.Connecting -> if (wasConnected) systemAll(R.string.chat_disconnected)
+                    // Said once when the connection drops, not again for every try after it.
+                    ConnectionState.Connecting, ConnectionState.WaitingForNetwork ->
+                        if (previous == ConnectionState.Connected) systemAll(R.string.chat_disconnected)
                     else -> Unit
                 }
+                previous = state
             }
         }
 

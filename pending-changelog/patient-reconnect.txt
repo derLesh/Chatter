@@ -1,0 +1,1 @@
+patch: Stop retrying the chat every half minute on a network that does not reach the internet

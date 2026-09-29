@@ -121,6 +121,7 @@ class ChatService : Service() {
     private fun buildNotification(channelCount: Int, state: ConnectionState): Notification {
         val text = when (state) {
             ConnectionState.Connected -> resources.getQuantityString(R.plurals.notif_connected, channelCount, channelCount)
+            ConnectionState.WaitingForNetwork -> getString(R.string.notif_waiting_network)
             else -> getString(R.string.notif_connecting)
         }
         val disconnect = PendingIntent.getService(

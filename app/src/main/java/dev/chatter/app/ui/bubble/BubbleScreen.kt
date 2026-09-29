@@ -36,6 +36,7 @@ import dev.chatter.app.chat.Segment
 import dev.chatter.app.irc.ConnectionState
 import dev.chatter.app.ui.MainViewModel
 import dev.chatter.app.ui.channels.ChannelAvatar
+import dev.chatter.app.ui.channels.connectionStatus
 import dev.chatter.app.ui.chat.ChannelMark
 import dev.chatter.app.ui.chat.ChatList
 import dev.chatter.app.ui.chat.EmoteCardSheet
@@ -108,7 +109,7 @@ fun BubbleScreen(vm: MainViewModel, channel: String?) {
                     )
                     if (connection != ConnectionState.Connected) {
                         Text(
-                            stringResource(R.string.status_connecting),
+                            stringResource(connectionStatus(connection)),
                             style = MaterialTheme.typography.labelSmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )

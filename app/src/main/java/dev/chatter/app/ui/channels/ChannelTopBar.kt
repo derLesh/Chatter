@@ -317,7 +317,7 @@ internal fun ChannelStatus(
     // the modes stale, so it takes the line for itself.
     if (connection != ConnectionState.Connected) {
         Text(
-            text = stringResource(R.string.status_connecting),
+            text = stringResource(connectionStatus(connection)),
             style = MaterialTheme.typography.labelMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             maxLines = 1,
@@ -327,6 +327,10 @@ internal fun ChannelStatus(
     ChannelModes(state, roleBadge, sharedWith, imageLoader)
 }
 
+/** What the title bar says while the chat is not connected. */
+internal fun connectionStatus(connection: ConnectionState): Int =
+    if (connection == ConnectionState.WaitingForNetwork) R.string.status_waiting_network else R.string.status_connecting
+
 /**
  * What is under a combined chat's name: that the connection is down, or — when the user gave it a
  * name of its own, which hides them — the channels it reads.
@@ -334,7 +338,7 @@ internal fun ChannelStatus(
 @Composable
 internal fun GroupStatus(connection: ConnectionState, group: ChannelGroup, info: Map<String, ChannelInfo>) {
     val text = when {
-        connection != ConnectionState.Connected -> stringResource(R.string.status_connecting)
+        connection != ConnectionState.Connected -> stringResource(connectionStatus(connection))
         group.name.isNotBlank() -> group.channels.joinToString(" \u00B7 ") { info[it]?.displayName ?: it }
         else -> return
     }

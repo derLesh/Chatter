@@ -19,7 +19,11 @@ import okhttp3.WebSocket
 import okhttp3.WebSocketListener
 import kotlin.random.Random
 
-enum class ConnectionState { Disconnected, Connecting, Connected, AuthFailed }
+/**
+ * Where the chat connection stands. [WaitingForNetwork] is the phone having no network at all:
+ * nothing is tried until one turns up.
+ */
+enum class ConnectionState { Disconnected, Connecting, WaitingForNetwork, Connected, AuthFailed }
 
 /**
  * A single authenticated WebSocket connection to Twitch chat that is used both
@@ -52,9 +56,16 @@ class IrcConnection(
     /**
      * Whether the phone has a network at all. Retrying without one is a DNS lookup that cannot
      * succeed, and the backoff tops out at half a minute, so a night in flight mode would be a
-     * couple of thousand of them. [setNetworkAvailable] brings the connection back instead.
+     * couple of thousand of them. [setNetwork] brings the connection back instead.
      */
     private var networkUp = true
+
+    /**
+     * Whether Android found that the network reaches the internet. A network without — a hotel
+     * Wi-Fi behind its login page, a hotspot whose phone lost its signal — is still tried, since
+     * some networks work without ever passing Android's check, but patiently: see [backoffMs].
+     */
+    private var networkValidated = true
 
     /**
      * Connects (or keeps the existing connection). A new token for the same user is only stored
@@ -78,22 +89,48 @@ class IrcConnection(
     }
 
     /**
-     * What the phone's network is doing. Coming back skips the backoff and reconnects right away;
-     * going away stops the retries until it does, because there is nothing to connect to.
+     * What the phone's network is doing: whether there is one, and whether Android found that it
+     * reaches the internet. Coming back skips the backoff and reconnects right away; going away
+     * stops the retries until it does, because there is nothing to connect to. A network that
+     * turns out to reach the internet after all ends a long wait at once.
+     *
+     * Android reports the capabilities of a network again and again — every change of signal
+     * strength is one — so only a change of the two things asked for here does anything.
      */
-    fun setNetworkAvailable(up: Boolean): Unit = synchronized(lock) {
+    fun setNetwork(up: Boolean, validated: Boolean): Unit = synchronized(lock) {
+        val cameBack = up && !networkUp
+        val nowReachable = up && validated && !networkValidated
         networkUp = up
-        if (!wanted) return
-        if (!up) {
-            reconnectJob?.cancel()
-            return
+        networkValidated = validated
+        if (!wanted || _state.value == ConnectionState.Connected) return
+        when {
+            // Not connected, so a socket there is a try under way, on a network that just went.
+            !up -> {
+                reconnectJob?.cancel()
+                closeSocket()
+                _state.value = ConnectionState.WaitingForNetwork
+            }
+            // A socket opened on the network before is likely dead: start over on the new one.
+            cameBack -> {
+                attempt = 0
+                reconnectJob?.cancel()
+                closeSocket()
+                openSocket()
+            }
+            // Only while waiting between two tries; one under way is left to finish.
+            nowReachable && socket == null -> retryNow()
         }
-        if (_state.value != ConnectionState.Connected) {
-            attempt = 0
-            reconnectJob?.cancel()
-            closeSocket()
-            openSocket()
-        }
+    }
+
+    /**
+     * Tries again at once instead of waiting out the backoff, for the moment somebody opens the
+     * app and would otherwise look at "Connecting…" for up to five minutes.
+     */
+    fun retryNow(): Unit = synchronized(lock) {
+        if (!wanted || !networkUp || socket != null || _state.value == ConnectionState.Connected) return
+        attempt = 0
+        reconnectJob?.cancel()
+        openSocket()
     }
 
     // While connecting, the JOINs are sent after the welcome message (see onWelcome).
@@ -150,13 +187,13 @@ class IrcConnection(
     private fun scheduleReconnect(immediate: Boolean = false): Unit = synchronized(lock) {
         if (!wanted || reconnectJob?.isActive == true) return
         closeSocket()
-        _state.value = ConnectionState.Connecting
-        // Without a network there is nothing to retry against; setNetworkAvailable brings us back.
-        if (!networkUp) return
-        val delayMs = if (immediate) 0L else {
-            val base = (1000L shl attempt.coerceAtMost(5)).coerceAtMost(30_000L)
-            base + Random.nextLong(0, 1000)
+        // Without a network there is nothing to retry against; setNetwork brings us back.
+        if (!networkUp) {
+            _state.value = ConnectionState.WaitingForNetwork
+            return
         }
+        _state.value = ConnectionState.Connecting
+        val delayMs = if (immediate) 0L else backoffMs(attempt, networkValidated) + Random.nextLong(0, 1000)
         attempt++
         reconnectJob = scope.launch {
             delay(delayMs)
@@ -250,16 +287,36 @@ class IrcConnection(
         }
     }
 
-    private companion object {
-        const val TAG = "IrcConnection"
+    internal companion object {
+        private const val TAG = "IrcConnection"
+
+        /**
+         * How long to wait before the next try after [attempt] failed ones. Doubling up to half a
+         * minute, which is what a dropped connection on a working network needs. Past that the
+         * network is working but Twitch cannot be reached through it — a login page, a firewall —
+         * and trying every half minute all night is a TLS handshake and an awake radio each time
+         * for nothing, so the wait keeps doubling up to five minutes. A network Android could not
+         * get through to the internet is waited on like that from the start.
+         */
+        fun backoffMs(attempt: Int, validated: Boolean): Long {
+            if (!validated) return (1000L shl attempt.coerceIn(0, 9)).coerceAtMost(MAX_BACKOFF_MS)
+            if (attempt < PATIENT_AFTER) return (1000L shl attempt.coerceIn(0, 5)).coerceAtMost(SHORT_BACKOFF_MS)
+            return (SHORT_BACKOFF_MS shl (attempt - PATIENT_AFTER + 1).coerceAtMost(4)).coerceAtMost(MAX_BACKOFF_MS)
+        }
+
+        private const val SHORT_BACKOFF_MS = 30_000L
+        private const val MAX_BACKOFF_MS = 5 * 60_000L
+
+        /** Failed tries on a working network before the wait grows past [SHORT_BACKOFF_MS]; a good five minutes. */
+        private const val PATIENT_AFTER = 14
 
         /** How long Twitch has to answer the login before the socket counts as dead. */
-        const val HANDSHAKE_TIMEOUT_MS = 20_000L
+        private const val HANDSHAKE_TIMEOUT_MS = 20_000L
 
         /** How long a connected socket may say nothing at all before it counts as dead. */
-        const val SILENCE_LIMIT_MS = 6 * 60_000L
+        private const val SILENCE_LIMIT_MS = 6 * 60_000L
 
-        fun isAuthFailure(text: String?) = text != null &&
+        private fun isAuthFailure(text: String?) = text != null &&
             (text.contains("authentication failed", ignoreCase = true) ||
                 text.contains("Improperly formatted auth", ignoreCase = true))
     }

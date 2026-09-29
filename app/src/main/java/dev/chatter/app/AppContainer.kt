@@ -250,6 +250,8 @@ class AppContainer(private val context: Context) {
         // when to try again; whatever is already there is left alone.
         scope.launch {
             chat.windows.anyVisible.collect { visible ->
+                // Somebody looking at "Connecting…" should not wait out a long backoff.
+                if (visible) irc.retryNow()
                 // The global set comes from Helix, so there is no point before a login is there.
                 if (visible && auth.account != null) {
                     badges.retryMissing(supporterTitles())
@@ -337,18 +339,26 @@ class AppContainer(private val context: Context) {
 
     private fun registerNetworkCallback() {
         val cm = context.getSystemService(ConnectivityManager::class.java)
-        irc.setNetworkAvailable(cm.activeNetwork != null)
+        /** Tells the chat whether there is a network now, and whether it reaches the internet. */
+        fun tellChat(network: Network?) {
+            val caps = network?.let { cm.getNetworkCapabilities(it) }
+            irc.setNetwork(up = network != null, validated = caps?.hasCapability(NetworkCapabilities.NET_CAPABILITY_VALIDATED) == true)
+        }
+        tellChat(cm.activeNetwork)
         cm.registerDefaultNetworkCallback(object : ConnectivityManager.NetworkCallback() {
-            override fun onAvailable(network: Network) = irc.setNetworkAvailable(true)
+            override fun onAvailable(network: Network) = tellChat(network)
             // A switch from Wi-Fi to mobile can report the loss after the arrival, so this asks
             // what is there now rather than trusting the order the two callbacks come in.
             override fun onLost(network: Network) {
-                irc.setNetworkAvailable(cm.activeNetwork != null)
+                tellChat(cm.activeNetwork)
                 dataSaving.networkChanged()
             }
-            // Also where a network turns out to be metered, or a hotspot stops being one.
-            override fun onCapabilitiesChanged(network: Network, caps: NetworkCapabilities) =
+            // Where a network turns out to reach the internet, or not, and where it turns out to
+            // be metered, or a hotspot stops being one.
+            override fun onCapabilitiesChanged(network: Network, caps: NetworkCapabilities) {
+                irc.setNetwork(up = true, validated = caps.hasCapability(NetworkCapabilities.NET_CAPABILITY_VALIDATED))
                 dataSaving.networkChanged()
+            }
         })
     }
 
