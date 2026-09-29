@@ -25,6 +25,7 @@ import androidx.compose.material.icons.automirrored.filled.ExitToApp
 import androidx.compose.material.icons.filled.AccountCircle
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Button
 import androidx.compose.material3.Icon
 import androidx.compose.material3.ListItem
 import androidx.compose.material3.MaterialTheme
@@ -79,7 +80,10 @@ fun AccountPage(vm: MainViewModel, onAddAccount: () -> Unit) {
     // The state, not the account list: switching swaps which account is the active one without
     // changing the list at all, and this page is mostly about which one that is.
     val auth by vm.authState.collectAsStateWithLifecycle()
-    val active = (auth as? AuthState.LoggedIn)?.account ?: return
+    val active = (auth as? AuthState.LoggedIn)?.account ?: run {
+        if (auth is AuthState.Guest) GuestCard(onLogIn = vm::leaveGuest)
+        return
+    }
     var profile by remember(active.userId) { mutableStateOf<HelixUser?>(null) }
     var following by remember(active.userId) { mutableStateOf<Int?>(null) }
     var loggingOut by remember { mutableStateOf<Account?>(null) }
@@ -119,6 +123,32 @@ fun AccountPage(vm: MainViewModel, onAddAccount: () -> Unit) {
                 TextButton(onClick = { loggingOut = null }) { Text(stringResource(R.string.cancel)) }
             },
         )
+    }
+}
+
+/** In place of the account for a guest: what reading without one leaves out, and the way to one. */
+@Composable
+private fun GuestCard(onLogIn: () -> Unit) {
+    Surface(
+        color = MaterialTheme.colorScheme.surfaceContainer,
+        shape = RoundedCornerShape(24.dp),
+        modifier = Modifier.fillMaxWidth(),
+    ) {
+        Column(Modifier.padding(horizontal = 20.dp, vertical = 18.dp)) {
+            Text(
+                stringResource(R.string.account_guest_title),
+                style = MaterialTheme.typography.titleLarge,
+                fontWeight = FontWeight.Bold,
+            )
+            Spacer(Modifier.height(6.dp))
+            Text(
+                stringResource(R.string.account_guest_text),
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            Spacer(Modifier.height(14.dp))
+            Button(onClick = onLogIn) { Text(stringResource(R.string.login_button)) }
+        }
     }
 }
 

@@ -635,10 +635,11 @@ class MainViewModel(private val c: AppContainer) : ViewModel() {
 
     /**
      * Answers [item] with the next message sent. False for one that cannot be answered: a notice,
-     * or the user's own message before Twitch has said what it is called.
+     * the user's own message before Twitch has said what it is called, or anything at all for a
+     * guest, who cannot write.
      */
     fun startReply(item: ChatItem): Boolean {
-        if (!item.canReply || item.id.startsWith("local-")) return false
+        if (c.auth.account == null || !item.canReply || item.id.startsWith("local-")) return false
         selectSendChannel(item.channel)
         replyTo = item
         replyStarts++
@@ -813,10 +814,21 @@ class MainViewModel(private val c: AppContainer) : ViewModel() {
 
     suspend fun handleRedirect(url: String): Result<Unit>? = c.auth.handleRedirect(url)
 
-    /** The profiling builds' way in, with a token handed over instead of Twitch's login page. */
-    fun logInForProfiling(token: String, channel: String?) {
+    /** Reads chats without an account; see AuthState.Guest. */
+    fun continueAsGuest() {
+        viewModelScope.launch { c.auth.continueAsGuest() }
+    }
+
+    /** From reading as a guest back to the login screen. */
+    fun leaveGuest() {
+        viewModelScope.launch { c.auth.leaveGuest() }
+    }
+
+    /** The profiling builds' way past the login screen: reads [channel] as a guest. */
+    fun readAsGuest(channel: String) {
         viewModelScope.launch {
-            if (c.auth.logIn(token).isSuccess && channel != null) addChannel(channel)
+            if (c.auth.account == null) c.auth.continueAsGuest()
+            addChannel(channel)
         }
     }
 

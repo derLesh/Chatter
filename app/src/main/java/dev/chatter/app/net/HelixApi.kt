@@ -9,6 +9,13 @@ import kotlinx.serialization.json.put
 import kotlinx.serialization.json.putJsonObject
 import okhttp3.HttpUrl.Companion.toHttpUrl
 import okhttp3.OkHttpClient
+import java.io.IOException
+
+/**
+ * Twitch's API answers nobody without a login, so a guest's request is not sent at all. Kept
+ * apart from a failure to reach Twitch, which is worth telling somebody about; this is not.
+ */
+class NotLoggedInException : IOException("Twitch's API needs a login")
 
 /** The emotes Twitch itself lets the user type, as the emote repository asks for them. */
 interface TwitchEmoteApi {
@@ -31,7 +38,7 @@ class HelixApi(
 ) : TwitchEmoteApi, TwitchBadgeApi {
     private suspend fun headers() = mapOf(
         "Client-Id" to BuildConfig.TWITCH_CLIENT_ID,
-        "Authorization" to "Bearer ${token().orEmpty()}",
+        "Authorization" to "Bearer ${token() ?: throw NotLoggedInException()}",
     )
 
     private fun url(path: String, vararg params: Pair<String, String?>): String =

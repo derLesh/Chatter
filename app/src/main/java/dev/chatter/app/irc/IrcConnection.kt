@@ -79,6 +79,12 @@ class IrcConnection(
         if (socket == null) openSocket()
     }
 
+    /**
+     * Connects to read without an account: Twitch lets anybody in under a justinfan name and no
+     * password, to read every channel and to write in none.
+     */
+    fun connectAnonymously() = connect(ANONYMOUS_LOGIN, token = "")
+
     fun disconnect(): Unit = synchronized(lock) {
         wanted = false
         reconnectJob?.cancel()
@@ -230,7 +236,7 @@ class IrcConnection(
         override fun onOpen(webSocket: WebSocket, response: Response) {
             lastActivity = System.currentTimeMillis()
             webSocket.send("CAP REQ :twitch.tv/tags twitch.tv/commands")
-            webSocket.send("PASS oauth:$token")
+            if (token.isNotEmpty()) webSocket.send("PASS oauth:$token")
             webSocket.send("NICK $login")
         }
 
@@ -295,6 +301,7 @@ class IrcConnection(
 
     internal companion object {
         private const val TAG = "IrcConnection"
+        private const val ANONYMOUS_LOGIN = "justinfan12345"
 
         /**
          * How long to wait before the next try after [attempt] failed ones. Doubling up to half a

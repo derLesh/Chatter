@@ -238,6 +238,8 @@ class ChatRepository(
     suspend fun send(channel: String, input: String, replyTo: ChatItem?): SendResult = withContext(worker) {
         var text = input.trim()
         if (text.isEmpty()) return@withContext SendResult.Empty
+        // A guest's connection reads and never writes, and every command goes through a login.
+        if (auth.account == null) return@withContext SendResult.NotConnected
         CommandParser.parse(text)?.let { command ->
             system(channel, commands.execute(command, rooms.id(channel)))
             val invalid = command is ChatCommand.Usage || command is ChatCommand.Unknown
@@ -293,7 +295,7 @@ class ChatRepository(
     // ---------------------------------------------------------------------------------------
 
     private fun syncChannels(list: List<String>) {
-        if (auth.account == null) return
+        if (!auth.canRead) return
         val added = list - joinedChannels.toSet()
         val removed = joinedChannels - list.toSet()
         joinedChannels = list

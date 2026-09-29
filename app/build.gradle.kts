@@ -70,8 +70,8 @@ val sponsorLink = sponsoring && sideloaded
  * The two builds the baselineprofile plugin adds: the one the baseline profile is recorded on and
  * the one the macrobenchmark measures. They are an app of their own, for the same reason as the
  * microbenchmark — the connected test wipes it to show the login and uninstalls it afterwards —
- * and the only builds that log in with a token handed to them (see MainActivity), which is how the
- * journeys get past the login to the chat.
+ * and the only builds that can be told to read a channel as a guest (see MainActivity), which is
+ * how the journeys get past the login screen to a chat.
  */
 val profilingBuildTypes = listOf("nonMinifiedRelease", "benchmarkRelease")
 

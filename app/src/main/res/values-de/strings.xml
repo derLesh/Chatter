@@ -108,6 +108,11 @@
     <string name="login_button">Mit Twitch anmelden</string>
     <string name="login_session_expired">Deine Anmeldung bei Twitch ist abgelaufen. Bitte melde dich neu an.</string>
     <string name="login_failed">Anmeldung fehlgeschlagen: %1$s</string>
+    <string name="login_guest">Ohne Anmeldung weiter</string>
+    <string name="guest_bar">Du liest als Gast mit</string>
+    <string name="guest_log_in">Anmelden</string>
+    <string name="account_guest_title">Als Gast unterwegs</string>
+    <string name="account_guest_text">Ohne Anmeldung liest Chatter jeden Chat mit, den du hinzufügst. Zum Schreiben, für Flüstern, Twitchs eigene Abzeichen und Benachrichtigungen im Hintergrund braucht es ein Twitch-Konto.</string>
 
     <!-- Settings -->
     <string name="settings">Einstellungen</string>

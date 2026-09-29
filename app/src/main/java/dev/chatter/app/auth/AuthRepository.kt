@@ -3,6 +3,7 @@ package dev.chatter.app.auth
 import android.net.Uri
 import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
+import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.longPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
@@ -41,6 +42,13 @@ data class Account(
 sealed interface AuthState {
     data object Loading : AuthState
     data object LoggedOut : AuthState
+
+    /**
+     * Reading without an account. Twitch lets anybody read a chat, so channels are added and
+     * followed as usual; writing, whispers, Twitch's own badges and everything else its API
+     * answers need a login.
+     */
+    data object Guest : AuthState
     data class LoggedIn(val account: Account) : AuthState
 }
 
@@ -85,6 +93,15 @@ class AuthRepository(
     val account: Account? get() = (state.value as? AuthState.LoggedIn)?.account
     val token: String? get() = account?.token
 
+    /** Whether there is a chat to read: an account is logged in, or a guest is reading. */
+    val canRead: Boolean get() = state.value.let { it is AuthState.LoggedIn || it is AuthState.Guest }
+
+    /**
+     * Whether the app reads as a guest while no account is logged in. Logging in ends it, so that
+     * logging that account out again leads to the login screen and not back into the chat.
+     */
+    private var guest = false
+
     /** Loads the stored tokens (refreshing them if needed). Call once at app start. */
     suspend fun restore() {
         val p = store.data.first()
@@ -96,6 +113,7 @@ class AuthRepository(
         writeLock.withLock {
             _accounts.value = accounts
             activeId = AccountStore.activeIn(accounts.map { it.userId }, p[ACTIVE_KEY])
+            guest = p[GUEST_KEY] == true
             // Log in optimistically so the chat can connect right away (also offline).
             publish()
             if (migrated && accounts.isNotEmpty()) persist()
@@ -148,15 +166,6 @@ class AuthRepository(
         params["error"]?.let { return Result.failure(IllegalStateException(params["error_description"] ?: it)) }
         if (params["state"] != pendingState) return Result.failure(IllegalStateException("State mismatch"))
         val token = params["access_token"] ?: return Result.failure(IllegalStateException("No token"))
-        return logIn(token)
-    }
-
-    /**
-     * Logs in with an access token Twitch handed out: asks Twitch whose it is and makes that
-     * account the active one. The WebView login ends here, and so does the profiling builds' (see
-     * MainActivity), which is handed its token instead of asking Twitch for one.
-     */
-    suspend fun logIn(token: String): Result<Unit> {
         val result = runCatching {
             val v = helix.validate(token)
             // expires_in == 0 means the token does not expire on its own.
@@ -166,6 +175,23 @@ class AuthRepository(
         // After the login is in, so a picture that could not be fetched never fails one.
         if (result.isSuccess) refreshProfiles()
         return result
+    }
+
+    // ---- Reading as a guest -------------------------------------------------------------------
+
+    /** Reads chats without logging in, until an account is added; see [AuthState.Guest]. */
+    suspend fun continueAsGuest() = setGuest(true)
+
+    /** Back to the login screen. The channels stay, for whoever logs in. */
+    suspend fun leaveGuest() = setGuest(false)
+
+    private suspend fun setGuest(on: Boolean) {
+        writeLock.withLock {
+            guest = on
+            _sessionExpired.value = false
+            persist()
+            publish()
+        }
     }
 
     // ---- Several accounts ---------------------------------------------------------------------
@@ -289,19 +315,21 @@ class AuthRepository(
                 if (at < 0) _accounts.value + account
                 else _accounts.value.toMutableList().also { it[at] = account }
             if (makeActive) activeId = account.userId
+            guest = false
             _sessionExpired.value = false
             persist()
             publish()
         }
     }
 
-    /** Writes the account list; call while holding [writeLock]. */
+    /** Writes the account list and whether a guest is reading; call while holding [writeLock]. */
     private suspend fun persist() {
         val list = _accounts.value.map { it.stored() }
         val active = activeId
         store.edit { prefs ->
             if (list.isEmpty()) prefs.clear() else prefs[ACCOUNTS_KEY] = AccountStore.encode(list)
             if (active != null) prefs[ACTIVE_KEY] = active else prefs.remove(ACTIVE_KEY)
+            if (guest) prefs[GUEST_KEY] = true else prefs.remove(GUEST_KEY)
             // The single-account keys of older versions; their account is in the list now.
             LEGACY_KEYS.forEach { prefs.remove(it) }
         }
@@ -310,7 +338,11 @@ class AuthRepository(
     /** Publishes the active account as the state; call while holding [writeLock]. */
     private fun publish() {
         val active = _accounts.value.firstOrNull { it.userId == activeId }
-        _state.value = if (active == null) AuthState.LoggedOut else AuthState.LoggedIn(active)
+        _state.value = when {
+            active != null -> AuthState.LoggedIn(active)
+            guest -> AuthState.Guest
+            else -> AuthState.LoggedOut
+        }
     }
 
     private fun Account.stored() = StoredAccount(
@@ -363,6 +395,7 @@ class AuthRepository(
 
         private val ACCOUNTS_KEY = stringPreferencesKey("accounts")
         private val ACTIVE_KEY = stringPreferencesKey("active_account")
+        private val GUEST_KEY = booleanPreferencesKey("guest")
 
         private val TOKEN_KEY = stringPreferencesKey("token")
         private val REFRESH_KEY = stringPreferencesKey("refresh_token")

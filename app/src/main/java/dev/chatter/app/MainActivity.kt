@@ -16,7 +16,6 @@ import dev.chatter.app.ui.theme.ChatterTheme
 import dev.chatter.app.util.EXTRA_CHANNEL
 import dev.chatter.app.util.EXTRA_INBOX_TAB
 import dev.chatter.app.util.EXTRA_PROFILING_CHANNEL
-import dev.chatter.app.util.EXTRA_PROFILING_TOKEN
 
 class MainActivity : ComponentActivity() {
     private val vm: MainViewModel by viewModels {
@@ -53,12 +52,8 @@ class MainActivity : ComponentActivity() {
         intent ?: return
         intent.getStringExtra(EXTRA_CHANNEL)?.let { vm.requestedChannel.value = it }
         intent.getIntExtra(EXTRA_INBOX_TAB, -1).takeIf { it >= 0 }?.let { vm.requestedInbox.value = it }
-        // An exported activity that logs in with whatever token it is handed would let any app on
-        // the phone swap the account underneath the user, so no build anybody installs has this.
-        if (BuildConfig.PROFILING) {
-            intent.getStringExtra(EXTRA_PROFILING_TOKEN)?.let { token ->
-                vm.logInForProfiling(token, intent.getStringExtra(EXTRA_PROFILING_CHANNEL))
-            }
-        }
+        // Any app on the phone may start this activity, and none of them should be adding
+        // channels to somebody's list, so no build anybody installs listens for this.
+        if (BuildConfig.PROFILING) intent.getStringExtra(EXTRA_PROFILING_CHANNEL)?.let(vm::readAsGuest)
     }
 }

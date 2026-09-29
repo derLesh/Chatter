@@ -26,6 +26,7 @@ import androidx.compose.material.icons.filled.Face
 import androidx.compose.material3.DropdownMenuGroup
 import androidx.compose.material3.DropdownMenuPopup
 import androidx.compose.material3.DropdownMenuPopupPositionProvider
+import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -346,5 +347,25 @@ private fun ReplyBar(item: ChatItem, onCancel: (() -> Unit)?) {
         if (onCancel != null) IconButton(onClick = onCancel) {
             Icon(Icons.Default.Close, contentDescription = stringResource(R.string.cancel))
         } else Spacer(Modifier.height(48.dp))
+    }
+}
+
+/**
+ * Where the field sits for a guest. Reading needs no account and writing does, so instead of a
+ * field that could never send, this says so and leads to the login.
+ */
+@Composable
+fun GuestBar(onLogIn: () -> Unit, modifier: Modifier = Modifier) {
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        modifier = modifier.padding(start = 20.dp, end = 12.dp, top = 8.dp, bottom = 8.dp),
+    ) {
+        Text(
+            stringResource(R.string.guest_bar),
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.weight(1f),
+        )
+        FilledTonalButton(onClick = onLogIn) { Text(stringResource(R.string.guest_log_in)) }
     }
 }

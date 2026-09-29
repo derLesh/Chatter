@@ -69,7 +69,8 @@ class ChatService : Service() {
         }
         // What the service is for, and therefore what ends it: somebody logged in with at least one
         // channel joined. Logging out leaves the channels in place, so without watching the login
-        // as well the service would sit there for ever, saying "connecting" about nothing.
+        // as well the service would sit there for ever, saying "connecting" about nothing. A guest
+        // has nobody to mention and nobody to whisper to, so nothing worth keeping a service for.
         scope.launch {
             combine(
                 container.channels.channels,
@@ -78,7 +79,7 @@ class ChatService : Service() {
             ) { ch, st, auth -> Triple(ch.size, st, auth) }
                 .distinctUntilChanged()
                 .collect { (count, state, auth) ->
-                    if (count == 0 || state == ConnectionState.AuthFailed || auth is AuthState.LoggedOut) {
+                    if (count == 0 || state == ConnectionState.AuthFailed || auth is AuthState.LoggedOut || auth is AuthState.Guest) {
                         // Logging out and a rejected login close the socket themselves; running
                         // out of channels did not, and left it reconnecting in a process that has
                         // nothing left to listen for.

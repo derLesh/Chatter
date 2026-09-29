@@ -33,6 +33,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
@@ -160,6 +161,12 @@ fun LoginScreen(vm: MainViewModel) {
                             Text(stringResource(R.string.login_failed, it), color = MaterialTheme.colorScheme.error, textAlign = TextAlign.Center)
                         }
                     }
+                }
+                // Reading needs no account and no Client ID, so this is there even when the login
+                // is not.
+                Spacer(Modifier.height(8.dp))
+                TextButton(onClick = vm::continueAsGuest, modifier = Modifier.fillMaxWidth()) {
+                    Text(stringResource(R.string.login_guest))
                 }
             }
         }

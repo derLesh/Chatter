@@ -4,6 +4,7 @@ import android.util.Log
 import dev.chatter.app.chat.BadgeSource
 import dev.chatter.app.net.ChatterSupporter
 import dev.chatter.app.net.HelixBadgeSet
+import dev.chatter.app.net.NotLoggedInException
 import dev.chatter.app.net.ServiceTrouble
 import dev.chatter.app.net.ThirdPartyBadgeApi
 import dev.chatter.app.net.TwitchBadgeApi
@@ -116,7 +117,7 @@ class BadgeRepository(
                 trouble.reachable(ServiceTrouble.TWITCH)
             }
             .onFailure {
-                trouble.report(ServiceTrouble.TWITCH)
+                if (it !is NotLoggedInException) trouble.report(ServiceTrouble.TWITCH)
                 Log.w(TAG, "Global badges failed: ${it.message}")
             }
     }
@@ -129,7 +130,7 @@ class BadgeRepository(
             }
             .onFailure {
                 failedChannels.add(channelId)
-                trouble.report(ServiceTrouble.TWITCH)
+                if (it !is NotLoggedInException) trouble.report(ServiceTrouble.TWITCH)
                 Log.w(TAG, "Channel badges failed: ${it.message}")
             }
     }

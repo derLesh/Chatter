@@ -207,6 +207,16 @@ class AppContainer(private val context: Context) {
                             launch { blocked.load(state.account.userId) }
                         }
                     }
+                    AuthState.Guest -> {
+                        // Only ever reached from the login screen, so there is no account's
+                        // state to undo: the channels are joined anonymously, and what loads
+                        // without an account is loaded.
+                        userId = null
+                        connect()
+                        chat.resync()
+                        launch { emotes.loadGlobal() }
+                        launch { badges.retryMissing(supporterTitles()) }
+                    }
                     AuthState.LoggedOut -> {
                         userId = null
                         irc.disconnect()
@@ -287,9 +297,13 @@ class AppContainer(private val context: Context) {
         },
     )
 
-    /** Opens the chat connection if a user is logged in. Safe to call repeatedly. */
+    /** Opens the chat connection for whoever reads, an account or a guest. Safe to call repeatedly. */
     fun connect() {
-        auth.account?.let { irc.connect(it.login, it.token) }
+        when (val state = auth.state.value) {
+            is AuthState.LoggedIn -> irc.connect(state.account.login, state.account.token)
+            AuthState.Guest -> irc.connectAnonymously()
+            AuthState.LoggedOut, AuthState.Loading -> Unit
+        }
     }
 
     /**

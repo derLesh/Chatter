@@ -54,6 +54,7 @@ import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.repeatOnLifecycle
 import dev.chatter.app.R
+import dev.chatter.app.auth.AuthState
 import dev.chatter.app.settings.TapAction
 import dev.chatter.app.chat.ChatItem
 import dev.chatter.app.chat.Segment
@@ -78,6 +79,7 @@ import dev.chatter.app.ui.chat.rememberChatStyle
 import dev.chatter.app.ui.chat.rememberEmoteFrameRate
 import dev.chatter.app.ui.chat.EmoteCardSheet
 import dev.chatter.app.ui.chat.EmotePickerSheet
+import dev.chatter.app.ui.chat.GuestBar
 import dev.chatter.app.ui.chat.InputBar
 import dev.chatter.app.ui.chat.NicknameDialog
 import dev.chatter.app.ui.chat.ThreadSheet
@@ -99,6 +101,8 @@ fun MainScreen(vm: MainViewModel, onInbox: () -> Unit, onSettings: () -> Unit) {
     val unreadMessages by vm.unreadMessages.collectAsStateWithLifecycle()
     val connection by vm.connection.collectAsStateWithLifecycle()
     val settings by vm.settings.collectAsStateWithLifecycle()
+    // Reading without an account: no field to write in, no service, no notifications to allow.
+    val guest = vm.authState.collectAsStateWithLifecycle().value is AuthState.Guest
     val active by vm.activePage.collectAsStateWithLifecycle()
     val activeGroup = active?.let { groups[it] }
     // The channel the chat modes and the user's role in the title bar are about. A combined chat
@@ -185,8 +189,8 @@ fun MainScreen(vm: MainViewModel, onInbox: () -> Unit, onSettings: () -> Unit) {
     }
 
     // Keep the chat service (and with it the connection) running while there are channels.
-    LifecycleStartEffect(channels.isNotEmpty()) {
-        if (channels.isNotEmpty()) ChatService.start(context)
+    LifecycleStartEffect(channels.isNotEmpty(), guest) {
+        if (channels.isNotEmpty() && !guest) ChatService.start(context)
         onStopOrDispose { }
     }
 
@@ -202,8 +206,8 @@ fun MainScreen(vm: MainViewModel, onInbox: () -> Unit, onSettings: () -> Unit) {
     }
 
     val notificationPermission = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { }
-    LaunchedEffect(Unit) {
-        if (ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) {
+    LaunchedEffect(guest) {
+        if (!guest && ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) {
             notificationPermission.launch(Manifest.permission.POST_NOTIFICATIONS)
         }
     }
@@ -414,7 +418,8 @@ fun MainScreen(vm: MainViewModel, onInbox: () -> Unit, onSettings: () -> Unit) {
                     )
                 }
             }
-            InputBar(
+            if (guest) GuestBar(onLogIn = vm::leaveGuest, modifier = Modifier.fillMaxWidth())
+            else InputBar(
                 value = vm.input,
                 onValueChange = { activity.note(); vm.onInputChange(it) },
                 enabled = vm.sendChannel != null && connection == ConnectionState.Connected,
@@ -443,6 +448,7 @@ fun MainScreen(vm: MainViewModel, onInbox: () -> Unit, onSettings: () -> Unit) {
         UserCardSheet(
             item = item,
             canModerate = item.channel in modChannels,
+            guest = guest,
             style = style,
             imageLoader = loader,
             recentMessages = { vm.recentMessagesOf(item) },
@@ -478,7 +484,8 @@ fun MainScreen(vm: MainViewModel, onInbox: () -> Unit, onSettings: () -> Unit) {
                 vm.cancelReply()
             },
         ) {
-            InputBar(
+            if (guest) GuestBar(onLogIn = vm::leaveGuest, modifier = Modifier.fillMaxWidth())
+            else InputBar(
                 value = vm.input,
                 onValueChange = { activity.note(); vm.onInputChange(it) },
                 enabled = vm.sendChannel != null && connection == ConnectionState.Connected,
@@ -610,15 +617,15 @@ fun AppRoot(vm: MainViewModel) {
     // Logging the last account out leaves the settings underneath the login screen, and whoever
     // logs in next would land on the page they were last on rather than in the chat.
     LaunchedEffect(auth) {
-        if (auth is dev.chatter.app.auth.AuthState.LoggedOut) {
+        if (auth is AuthState.LoggedOut) {
             showSettings = false
             showInbox = false
         }
     }
     when (auth) {
-        dev.chatter.app.auth.AuthState.Loading -> Box(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background))
-        dev.chatter.app.auth.AuthState.LoggedOut -> LoginScreen(vm)
-        is dev.chatter.app.auth.AuthState.LoggedIn -> {
+        AuthState.Loading -> Box(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background))
+        AuthState.LoggedOut -> LoginScreen(vm)
+        is AuthState.LoggedIn, AuthState.Guest -> {
             val screen = when {
                 showSettings -> Screen.Settings
                 showInbox -> Screen.Inbox

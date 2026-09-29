@@ -114,6 +114,11 @@
     <string name="login_button">Log in with Twitch</string>
     <string name="login_session_expired">Your Twitch login has run out. Please log in again.</string>
     <string name="login_failed">Login failed: %1$s</string>
+    <string name="login_guest">Continue without logging in</string>
+    <string name="guest_bar">You are reading as a guest</string>
+    <string name="guest_log_in">Log in</string>
+    <string name="account_guest_title">Reading as a guest</string>
+    <string name="account_guest_text">Without a login Chatter reads every chat you add. Writing, whispers, Twitch\'s own badges and notifications in the background need a Twitch account.</string>
 
     <!-- Settings -->
     <string name="settings">Settings</string>

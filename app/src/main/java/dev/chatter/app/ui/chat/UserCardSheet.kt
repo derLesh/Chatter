@@ -75,12 +75,14 @@ import java.time.format.FormatStyle
  * what you can do with it, and the user's recent messages in this channel.
  *
  * [onWhisper] gets their Twitch id where the card has loaded it, which saves the whisper a lookup.
+ * A [guest] cannot write, so the card offers nothing that would: no reply, mention or whisper.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun UserCardSheet(
     item: ChatItem,
     canModerate: Boolean,
+    guest: Boolean,
     style: ChatStyle,
     imageLoader: ImageLoader,
     recentMessages: suspend () -> List<ChatItem>,
@@ -109,7 +111,7 @@ fun UserCardSheet(
     @Suppress("DEPRECATION")
     val clipboard = LocalClipboardManager.current
     val isUserMessage = item.login != null
-    val canReply = item.canReply && !item.id.startsWith("local-")
+    val canReply = !guest && item.canReply && !item.id.startsWith("local-")
 
     // The sheet waits for the recent messages, which come from memory and take no time. Opened
     // before them it would find itself short and open all the way, and a sheet that is open all
@@ -164,7 +166,7 @@ fun UserCardSheet(
                     // The two swap places and Mention stays in the middle, so the one the user
                     // reaches for most is always the first button.
                     if (copyFirst) copy() else reply()
-                    if (isUserMessage) ActionButton(Icons.Default.Person, R.string.action_mention) { onMention(); onDismiss() }
+                    if (isUserMessage && !guest) ActionButton(Icons.Default.Person, R.string.action_mention) { onMention(); onDismiss() }
                     if (copyFirst) reply() else copy()
                 }
             }
@@ -178,9 +180,11 @@ fun UserCardSheet(
                         horizontalArrangement = Arrangement.spacedBy(8.dp),
                         modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
                     ) {
-                        ModButton(Icons.Default.MailOutline, R.string.action_whisper, danger = false) {
-                            onWhisper(user?.id)
-                            onDismiss()
+                        if (!guest) {
+                            ModButton(Icons.Default.MailOutline, R.string.action_whisper, danger = false) {
+                                onWhisper(user?.id)
+                                onDismiss()
+                            }
                         }
                         user?.let { user ->
                             ModButton(

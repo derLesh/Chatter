@@ -27,11 +27,10 @@ const val EXTRA_WHISPER_USER_ID = "whisper_user_id"
 const val EXTRA_CHANNEL = "channel"
 
 /**
- * The login the baseline profile and the macrobenchmark bring along to reach the chat, and the
- * channel to join with it. Only the builds they run on listen; see `profilingBuildTypes` in build.gradle.kts.
- * The benchmark module spells the same two names out, having no access to these.
+ * The channel the baseline profile and the macrobenchmark read as a guest, to get past the login
+ * screen to a chat. Only the builds they run on listen; see `profilingBuildTypes` in
+ * build.gradle.kts. The benchmark module spells the same name out, having no access to this one.
  */
-const val EXTRA_PROFILING_TOKEN = "profiling_token"
 const val EXTRA_PROFILING_CHANNEL = "profiling_channel"
 
 private const val CHANNEL_PREFIX = "channel:"
