@@ -574,8 +574,8 @@
     <string name="rule_pattern">Looks for</string>
     <string name="rule_pattern_hint">Matched as a whole word, upper and lower case alike</string>
     <string name="rule_pattern_regex_hint">A regular expression. An invalid one never matches</string>
-    <string name="rule_pattern_slow_hint">A group that repeats inside a repeat, together with a lookaround or backreference, can stall the chat on some messages. This rule would be skipped</string>
-    <string name="rule_slow">Skipped: this pattern could stall the chat. Drop the repeat around the repeated group</string>
+    <string name="rule_pattern_unusable_hint">Chatter cannot use this pattern: it is broken, or needs a lookaround or a backreference, which are not supported because they can stall the chat</string>
+    <string name="rule_unusable">Not used: this pattern is broken, or needs a lookaround or backreference</string>
     <string name="rule_target">Where</string>
     <string name="rule_target_message">Message</string>
     <string name="rule_target_author">Name</string>

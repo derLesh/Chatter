@@ -112,27 +112,45 @@ class RuleEngineTest {
         assertFalse(RuleEngine.skips("(a+)+$"))
     }
 
-    /** RE2 has no lookarounds, so these run on the platform's engine — as long as they cannot run away. */
+    /**
+     * The shapes no heuristic catches — an alternation that matches the same text two ways, a
+     * bounded repeat of one — run on RE2 as well, and finish.
+     */
     @Test
-    fun lookaroundsStillWork() {
-        val engine = RuleEngine(listOf(rule("(?<!@)lesh", regex = true, color = RED)))
-        assertEquals(RED, engine.apply(message("hi lesh"))?.highlight)
-        assertNull(engine.apply(message("hi @lesh"))?.highlight)
+    fun ambiguousRepetitionRunsInLinearTimeToo() {
+        listOf("(a|a)*$", "(a|aa){1,30}$", "(.*a){12}").forEach { pattern ->
+            val engine = RuleEngine(listOf(rule(pattern, regex = true, color = RED)))
+            val started = System.nanoTime()
+            engine.apply(message("a".repeat(400) + "!"))
+            val millis = (System.nanoTime() - started) / 1_000_000
+            assertTrue("$pattern took $millis ms", millis < 1_000)
+        }
+    }
+
+    /**
+     * RE2 has no lookarounds or backreferences, and no other engine can be stopped once it runs
+     * away, so a pattern that needs them is not used at all — whatever its shape.
+     */
+    @Test
+    fun aPatternRE2CannotRunIsNotUsed() {
+        listOf("(?<!@)lesh", """(?=x)(\w+\s?)*$""", """(a)\1""", "(unclosed").forEach { pattern ->
+            assertTrue(pattern, RuleEngine.skips(pattern))
+            assertTrue(pattern, RuleEngine(listOf(rule(pattern, regex = true, color = RED))).isEmpty)
+        }
     }
 
     @Test
-    fun aRunawayPatternRE2CannotRunIsSkipped() {
-        val pattern = """(?=x)(\w+\s?)*$"""
-        assertTrue(RuleEngine.skips(pattern))
-        val engine = RuleEngine(listOf(rule(pattern, regex = true, color = RED)))
-        assertTrue(engine.isEmpty)
-    }
-
-    @Test
-    fun ordinaryPatternsAreNotSkipped() {
+    fun ordinaryPatternsAreUsed() {
         assertFalse(RuleEngine.skips("""^!\w+"""))
         assertFalse(RuleEngine.skips("(foo|bar)+"))
-        assertFalse(RuleEngine.skips("""(?<=!)\w+"""))
+        assertFalse(RuleEngine.skips("""\bgiveaway\b"""))
+    }
+
+    /** Plain words keep matching whole words, which is not a regex the user wrote. */
+    @Test
+    fun plainWordsAreNotAffected() {
+        val engine = RuleEngine(listOf(rule("(?<!@)lesh", color = RED)))
+        assertEquals(RED, engine.apply(message("look (?<!@)lesh here"))?.highlight)
     }
 
     private companion object {

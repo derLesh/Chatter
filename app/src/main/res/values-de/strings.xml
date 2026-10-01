@@ -565,8 +565,8 @@
     <string name="rule_pattern">Sucht nach</string>
     <string name="rule_pattern_hint">Trifft als ganzes Wort, Groß- und Kleinschreibung egal</string>
     <string name="rule_pattern_regex_hint">Ein regulärer Ausdruck. Ein ungültiger trifft nie</string>
-    <string name="rule_pattern_slow_hint">Eine Gruppe, die sich innerhalb einer Wiederholung wiederholt, zusammen mit einem Lookaround oder Rückverweis, kann den Chat bei manchen Nachrichten aufhalten. Diese Regel würde übersprungen</string>
-    <string name="rule_slow">Übersprungen: Dieses Muster könnte den Chat aufhalten. Nimm die Wiederholung um die wiederholte Gruppe heraus</string>
+    <string name="rule_pattern_unusable_hint">Dieses Muster kann Chatter nicht verwenden: Es ist fehlerhaft oder braucht einen Lookaround oder Rückverweis. Die werden nicht unterstützt, weil sie den Chat aufhalten können</string>
+    <string name="rule_unusable">Nicht verwendet: Das Muster ist fehlerhaft oder braucht einen Lookaround oder Rückverweis</string>
     <string name="rule_target">Wo</string>
     <string name="rule_target_message">Nachricht</string>
     <string name="rule_target_author">Name</string>

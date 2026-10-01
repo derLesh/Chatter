@@ -17,9 +17,10 @@ import com.google.re2j.Pattern as Re2Pattern
  * a pattern like `(a+)+$` and one message made for it, and it cannot be stopped from outside: it
  * copies the text and runs natively. That would hold the message path all night in the
  * background. So user patterns run on RE2/J, whose time grows only with the length of the text,
- * whatever the pattern. RE2 knows no lookarounds or backreferences; a pattern that needs them
- * runs on the platform's engine, unless it has the shape that backtracks without end — then it
- * is skipped, and the rules page says so ([skips]).
+ * whatever the pattern — and only there. RE2 knows no lookarounds or backreferences; a pattern
+ * that needs them is not used rather than handed to an engine that may never finish, and the
+ * rules page says so ([skips]). Telling the safe ones of those apart from the rest by their
+ * shape does not work: `(a|a)*$` and `(a|aa){1,30}$` run away just as `(a+)+$` does.
  */
 class RuleEngine(rules: List<ChatRule> = emptyList()) {
     private class Compiled(val rule: ChatRule, val matcher: TextMatcher)
@@ -71,14 +72,11 @@ class RuleEngine(rules: List<ChatRule> = emptyList()) {
         /** Twitch's own limit for a message; nothing longer is worth reading. */
         private const val MAX_TEXT = 500
 
-        private val NESTED_QUANTIFIER = Regex("""\((?:[^()\\]|\\.)*[+*](?:[^()\\]|\\.)*\)[+*{]""")
-
         /**
-         * Whether a regular-expression rule with [pattern] is skipped because it could stall the
-         * chat: RE2 cannot run it, and it repeats a group that itself repeats — `(a+)+`,
-         * `(\w*\s?)*` — the shape that backtracks without end.
+         * Whether a regular-expression rule with [pattern] is not used: RE2 cannot run it,
+         * because it is broken or needs a lookaround or a backreference. The rules page says so.
          */
-        fun skips(pattern: String): Boolean = re2(pattern) == null && NESTED_QUANTIFIER.containsMatchIn(pattern)
+        fun skips(pattern: String): Boolean = re2(pattern) == null
 
         private fun re2(pattern: String): Re2Pattern? =
             runCatching { Re2Pattern.compile(pattern, Re2Pattern.CASE_INSENSITIVE) }.getOrNull()
@@ -93,10 +91,8 @@ class RuleEngine(rules: List<ChatRule> = emptyList()) {
                 )
                 return TextMatcher { word.containsMatchIn(it.take(MAX_TEXT)) }
             }
-            re2(rule.pattern)?.let { p -> return TextMatcher { p.matcher(it.take(MAX_TEXT)).find() } }
-            if (NESTED_QUANTIFIER.containsMatchIn(rule.pattern)) return null
-            val platform = runCatching { Regex(rule.pattern, RegexOption.IGNORE_CASE) }.getOrNull() ?: return null
-            return TextMatcher { platform.containsMatchIn(it.take(MAX_TEXT)) }
+            val p = re2(rule.pattern) ?: return null
+            return TextMatcher { p.matcher(it.take(MAX_TEXT)).find() }
         }
     }
 }

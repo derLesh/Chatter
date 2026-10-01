@@ -74,16 +74,16 @@ fun RuleDialog(rule: ChatRule?, onSave: (ChatRule) -> Unit, onDismiss: () -> Uni
                     singleLine = true,
                     label = { Text(stringResource(R.string.rule_pattern)) },
                     supportingText = {
-                        val slow = draft.regex && RuleEngine.skips(draft.pattern)
+                        val unusable = draft.regex && RuleEngine.skips(draft.pattern)
                         Text(
                             stringResource(
                                 when {
-                                    slow -> R.string.rule_pattern_slow_hint
+                                    unusable -> R.string.rule_pattern_unusable_hint
                                     draft.regex -> R.string.rule_pattern_regex_hint
                                     else -> R.string.rule_pattern_hint
                                 },
                             ),
-                            color = if (slow) MaterialTheme.colorScheme.error else Color.Unspecified,
+                            color = if (unusable) MaterialTheme.colorScheme.error else Color.Unspecified,
                         )
                     },
                     keyboardOptions = KeyboardOptions(

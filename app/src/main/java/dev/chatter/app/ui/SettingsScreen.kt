@@ -1072,7 +1072,7 @@ private fun RulesPage(vm: MainViewModel) {
                         Column {
                             Text(ruleSummary(rule))
                             if (rule.regex && RuleEngine.skips(rule.pattern)) {
-                                Text(stringResource(R.string.rule_slow), color = scheme.error)
+                                Text(stringResource(R.string.rule_unusable), color = scheme.error)
                             }
                         }
                     },
