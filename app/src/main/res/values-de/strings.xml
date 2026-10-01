@@ -285,8 +285,8 @@
     <string name="account_add_short">Hinzufügen</string>
     <string name="account_add_hint">Mit einem weiteren Twitch Konto anmelden und jederzeit wechseln</string>
     <string name="account_logout_title">%1$s abmelden?</string>
-    <string name="account_logout_text">Chatter macht mit deinem anderen Konto weiter.</string>
-    <string name="account_logout_last_text">Es ist dein letztes Konto — Chatter zeigt danach wieder den Anmeldebildschirm.</string>
+    <string name="account_logout_text">Chatter meldet es auch bei Twitch ab und macht mit deinem anderen Konto weiter.</string>
+    <string name="account_logout_last_text">Chatter meldet es auch bei Twitch ab. Es ist dein letztes Konto — danach kommt der Anmeldebildschirm und fragt wieder nach dem Passwort.</string>
     <string name="settings_version">Version %1$s</string>
     <string name="settings_credits">Credits &amp; Lizenzen</string>
     <string name="settings_credits_summary">Verwendete Dienste und Open-Source-Software</string>

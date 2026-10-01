@@ -291,8 +291,8 @@
     <string name="account_add_short">Add</string>
     <string name="account_add_hint">Log in with another Twitch account and switch whenever you like</string>
     <string name="account_logout_title">Log %1$s out?</string>
-    <string name="account_logout_text">Chatter carries on with your other account.</string>
-    <string name="account_logout_last_text">It is your last account, so Chatter goes back to the login screen.</string>
+    <string name="account_logout_text">Chatter signs it out at Twitch too and carries on with your other account.</string>
+    <string name="account_logout_last_text">Chatter signs it out at Twitch too. It is your last account, so the login screen comes next and asks for the password again.</string>
     <string name="settings_version">Version %1$s</string>
     <string name="settings_credits">Credits &amp; licenses</string>
     <string name="settings_credits_summary">Services and open source software used</string>

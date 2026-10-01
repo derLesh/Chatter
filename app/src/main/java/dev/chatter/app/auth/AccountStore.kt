@@ -36,6 +36,15 @@ object AccountStore {
         return runCatching { json.decodeFromString<List<StoredAccount>>(text) }.getOrDefault(emptyList())
     }
 
+    /** The tokens waiting to be revoked, each one still encrypted. */
+    fun encodeTokens(tokens: List<String>): String = json.encodeToString(tokens.distinct())
+
+    /** Junk reads as nothing queued: a token that cannot be read cannot be revoked either. */
+    fun decodeTokens(text: String?): List<String> {
+        if (text.isNullOrBlank()) return emptyList()
+        return runCatching { json.decodeFromString<List<String>>(text) }.getOrDefault(emptyList())
+    }
+
     /**
      * Which of [userIds] the app acts as, given the stored [active] one: that one while it is
      * still there, and otherwise the first of the list — an account whose entry went missing

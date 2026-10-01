@@ -58,4 +58,22 @@ class AccountStoreTest {
     fun noAccountsMeansNoActiveOne() {
         assertNull(AccountStore.activeIn(emptyList(), "1"))
     }
+
+    @Test
+    fun tokensToRevokeSurviveTheRoundTrip() {
+        val queued = listOf("a", "b")
+        assertEquals(queued, AccountStore.decodeTokens(AccountStore.encodeTokens(queued)))
+    }
+
+    /** Logging the same account out twice before Twitch answered must not ask twice. */
+    @Test
+    fun aTokenIsQueuedOnce() {
+        assertEquals(listOf("a"), AccountStore.decodeTokens(AccountStore.encodeTokens(listOf("a", "a"))))
+    }
+
+    @Test
+    fun junkQueuesNothing() {
+        assertEquals(emptyList<String>(), AccountStore.decodeTokens(null))
+        assertEquals(emptyList<String>(), AccountStore.decodeTokens("{not a list"))
+    }
 }

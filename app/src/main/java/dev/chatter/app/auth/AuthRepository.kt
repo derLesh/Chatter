@@ -10,6 +10,7 @@ import androidx.datastore.preferences.core.stringPreferencesKey
 import dev.chatter.app.BuildConfig
 import dev.chatter.app.net.HelixApi
 import dev.chatter.app.net.HttpException
+import dev.chatter.app.net.fetch
 import dev.chatter.app.net.postForm
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -18,7 +19,9 @@ import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
+import okhttp3.FormBody
 import okhttp3.OkHttpClient
+import okhttp3.Request
 import java.util.UUID
 
 data class Account(
@@ -118,6 +121,8 @@ class AuthRepository(
             publish()
             if (migrated && accounts.isNotEmpty()) persist()
         }
+        // Tokens of a logout that happened offline; Twitch is told about them now.
+        revokePending()
         if (activeId == null) return
         freshToken()
         refreshProfiles()
@@ -170,7 +175,10 @@ class AuthRepository(
             val v = helix.validate(token)
             // expires_in == 0 means the token does not expire on its own.
             val expiresAt = if (v.expiresIn > 0) System.currentTimeMillis() + v.expiresIn * 1000L else Long.MAX_VALUE
-            saveAccount(Account(v.login, v.userId, token, refreshToken = null, expiresAt = expiresAt))
+            saveAccount(
+                Account(v.login, v.userId, token, refreshToken = null, expiresAt = expiresAt),
+                revokeReplaced = true,
+            )
         }
         // After the login is in, so a picture that could not be fetched never fails one.
         if (result.isSuccess) refreshProfiles()
@@ -220,10 +228,15 @@ class AuthRepository(
         forget(activeId ?: return, expired)
     }
 
+    /**
+     * Takes the account off the phone, and — unless Twitch ended the session itself — off Twitch
+     * as well. Dropping the token here alone would leave it valid for as long as Twitch lets a
+     * token live, which for the WebView login is months, wherever a copy of it went.
+     */
     private suspend fun forget(userId: String, expired: Boolean) {
-        writeLock.withLock {
-            val rest = _accounts.value.filterNot { it.userId == userId }
-            if (rest.size == _accounts.value.size) return
+        val gone = writeLock.withLock {
+            val gone = _accounts.value.firstOrNull { it.userId == userId } ?: return
+            val rest = _accounts.value - gone
             _accounts.value = rest
             if (activeId == userId) activeId = rest.firstOrNull()?.userId
             // Only worth explaining when nothing is left: with another account to fall back on,
@@ -231,7 +244,63 @@ class AuthRepository(
             _sessionExpired.value = expired && rest.isEmpty()
             persist()
             publish()
+            gone
         }
+        // Twitch's own session in the WebView would let the next person straight back in. Which
+        // account it belongs to cannot be told, so it goes whichever one was logged out; adding
+        // an account clears it anyway.
+        WebSession.clear()
+        if (expired) return
+        queueRevoke(listOfNotNull(gone.token, gone.refreshToken))
+        revokePending()
+    }
+
+    // ---- Revoking tokens --------------------------------------------------------------------
+
+    private val revokeLock = Mutex()
+
+    /**
+     * Remembers [tokens] to be revoked at Twitch, encrypted like the accounts are. Written before
+     * the first try, so a logout while offline, or a process killed in the middle of one, still
+     * gets to Twitch the next time the app starts.
+     */
+    private suspend fun queueRevoke(tokens: List<String>) {
+        if (tokens.isEmpty()) return
+        store.edit { p ->
+            p[REVOKE_KEY] = AccountStore.encodeTokens(AccountStore.decodeTokens(p[REVOKE_KEY]) + tokens.map(TokenCipher::encrypt))
+        }
+    }
+
+    /** Revokes every queued token Twitch can be reached for, and keeps the rest for later. */
+    suspend fun revokePending() = revokeLock.withLock {
+        val queued = AccountStore.decodeTokens(store.data.first()[REVOKE_KEY])
+        if (queued.isEmpty()) return@withLock
+        // A token that cannot be decrypted any more cannot be revoked either, so it is done with.
+        val left = queued.filter { encrypted -> TokenCipher.decrypt(encrypted)?.let { !revoke(it) } ?: false }
+        store.edit { p ->
+            // Whatever was queued while this ran stays queued.
+            val now = AccountStore.decodeTokens(p[REVOKE_KEY]) - queued.toSet() + left
+            if (now.isEmpty()) p.remove(REVOKE_KEY) else p[REVOKE_KEY] = AccountStore.encodeTokens(now)
+        }
+    }
+
+    /**
+     * Asks Twitch to revoke [token]. True when it is done with — revoked now, or already
+     * invalid, which Twitch answers with a 400 — and false when it should be tried again.
+     */
+    private suspend fun revoke(token: String): Boolean = try {
+        val body = FormBody.Builder()
+            .add("client_id", BuildConfig.TWITCH_CLIENT_ID)
+            .add("token", token)
+            .build()
+        http.fetch(Request.Builder().url("https://id.twitch.tv/oauth2/revoke").post(body).build())
+        true
+    } catch (e: HttpException) {
+        e.code == 400 || e.code == 404
+    } catch (e: kotlinx.coroutines.CancellationException) {
+        throw e
+    } catch (e: Exception) {
+        false
     }
 
     /**
@@ -305,12 +374,18 @@ class AuthRepository(
         }
     }
 
-    private suspend fun saveAccount(account: Account, makeActive: Boolean = true) {
-        writeLock.withLock {
+    /**
+     * [revokeReplaced] for a new login into an account that is already here: the token it had
+     * before is not needed any more, and a token nobody needs should not stay valid either. A
+     * refresh leaves it alone; Twitch retires the old token on its own then.
+     */
+    private suspend fun saveAccount(account: Account, makeActive: Boolean = true, revokeReplaced: Boolean = false) {
+        val replaced = writeLock.withLock {
             // Where the account is already in the list it is replaced where it stands: logging
             // into it again must neither list it twice nor move it, because the order of the
             // list is the order the switcher shows.
             val at = _accounts.value.indexOfFirst { it.userId == account.userId }
+            val before = _accounts.value.getOrNull(at)
             _accounts.value =
                 if (at < 0) _accounts.value + account
                 else _accounts.value.toMutableList().also { it[at] = account }
@@ -319,6 +394,11 @@ class AuthRepository(
             _sessionExpired.value = false
             persist()
             publish()
+            before
+        }
+        if (revokeReplaced && replaced != null && replaced.token != account.token) {
+            queueRevoke(listOfNotNull(replaced.token, replaced.refreshToken))
+            revokePending()
         }
     }
 
@@ -327,7 +407,8 @@ class AuthRepository(
         val list = _accounts.value.map { it.stored() }
         val active = activeId
         store.edit { prefs ->
-            if (list.isEmpty()) prefs.clear() else prefs[ACCOUNTS_KEY] = AccountStore.encode(list)
+            // Not prefs.clear(): the tokens still waiting to be revoked live in the same store.
+            if (list.isEmpty()) prefs.remove(ACCOUNTS_KEY) else prefs[ACCOUNTS_KEY] = AccountStore.encode(list)
             if (active != null) prefs[ACTIVE_KEY] = active else prefs.remove(ACTIVE_KEY)
             if (guest) prefs[GUEST_KEY] = true else prefs.remove(GUEST_KEY)
             // The single-account keys of older versions; their account is in the list now.
@@ -396,6 +477,8 @@ class AuthRepository(
         private val ACCOUNTS_KEY = stringPreferencesKey("accounts")
         private val ACTIVE_KEY = stringPreferencesKey("active_account")
         private val GUEST_KEY = booleanPreferencesKey("guest")
+        /** Encrypted tokens of logged-out accounts that Twitch has not confirmed revoking yet. */
+        private val REVOKE_KEY = stringPreferencesKey("revoke")
 
         private val TOKEN_KEY = stringPreferencesKey("token")
         private val REFRESH_KEY = stringPreferencesKey("refresh_token")
