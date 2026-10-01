@@ -93,4 +93,14 @@ class HonestLinkTest {
     fun aPortStays() {
         assertEquals("http://evil.example:8080/x", LinkText.honest("http://user:pw@evil.example:8080/x"))
     }
+
+    /** U+202E turns what follows around: written "vt.hctiwt", it reads "twitch.tv". */
+    @Test
+    fun charactersThatTurnTheTextAroundAreLeftOut() {
+        val url = "https://evil.example/‮vt.hctiwt"
+        assertEquals("https://evil.example/vt.hctiwt", LinkText.honest(url))
+        assertEquals("evil.example/vt.hctiwt", LinkText.display(url, short = true))
+        assertTrue(LinkText.isUnusual(url))
+        assertTrue(LinkText.isUnusual("https://evil.example/⁧x⁩"))
+    }
 }

@@ -19,6 +19,9 @@ object LinkText {
 
     private val prefix = Regex("^(https?://)?(www\\.)?", RegexOption.IGNORE_CASE)
 
+    /** The marks and overrides that set which way text runs (Unicode's Bidi_Control). */
+    private val BIDI = Regex("[\\u061C\\u200E\\u200F\\u202A-\\u202E\\u2066-\\u2069]")
+
     /** Scheme (optional), authority, and everything after it. */
     private val parts = Regex("^([a-zA-Z][a-zA-Z0-9+.-]*://)?([^/?#]*)(.*)$", RegexOption.DOT_MATCHES_ALL)
 
@@ -26,11 +29,14 @@ object LinkText {
      * [url] the way it is shown: the part before an "@" in front of the host left out, and the
      * host in punycode when it is not plain ASCII. Scam links are a constant in Twitch chats,
      * and both are how one dresses up as another site — `twitch.tv@evil.example` goes to
-     * evil.example, and `twіtch.tv` with a Cyrillic "і" is not twitch.tv. What is shown is where
-     * the link goes; everything else stays as written.
+     * evil.example, and `twіtch.tv` with a Cyrillic "і" is not twitch.tv. The characters that turn
+     * the direction of the text go as well: a U+202E in the path makes `evil.example/vt.hctiwt`
+     * read as `evil.example/twitch.tv`. What is shown is where the link goes; everything else
+     * stays as written.
      */
     fun honest(url: String): String {
-        val (scheme, authority, rest) = split(url) ?: return url
+        val plain = url.replace(BIDI, "")
+        val (scheme, authority, rest) = split(plain) ?: return plain
         val hostPort = authority.substringAfterLast('@')
         val host = hostPort.substringBefore(':')
         val port = hostPort.removePrefix(host)
@@ -44,7 +50,7 @@ object LinkText {
     fun isUnusual(url: String): Boolean {
         val (_, authority, _) = split(url) ?: return false
         val host = authority.substringAfterLast('@').substringBefore(':')
-        return '@' in authority || host.any { it.code > 0x7F } ||
+        return '@' in authority || BIDI.containsMatchIn(url) || host.any { it.code > 0x7F } ||
             host.split('.').any { it.startsWith("xn--", ignoreCase = true) }
     }
 
