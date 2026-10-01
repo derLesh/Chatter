@@ -78,16 +78,24 @@ class BackupManager(
         )
     )
 
-    /** Returns false if the text is not a Chatter backup at all; anything it carries is applied. */
-    suspend fun import(text: String): Boolean {
-        val backup = runCatching { SettingsBackup.json.decodeFromString<SettingsBackup>(text) }.getOrNull() ?: return false
-        if (backup.app != SettingsBackup.APP) return false
+    /**
+     * The backup in [text], held to what the settings allow ([BackupCheck]), or null if it is
+     * not a Chatter backup at all. Nothing is written yet: the user sees what it would change
+     * first, and [apply] is what writes it.
+     */
+    fun read(text: String): SettingsBackup? {
+        val backup = runCatching { SettingsBackup.json.decodeFromString<SettingsBackup>(text) }.getOrNull() ?: return null
+        if (backup.app != SettingsBackup.APP) return null
+        return BackupCheck.clean(backup)
+    }
+
+    /** Applies whatever [backup] carries, as [read] left it. */
+    suspend fun apply(backup: SettingsBackup) {
         backup.settings?.let { settings.replaceAll(it) }
         backup.rules?.let { rules.replaceAll(it) }
         backup.nicknames?.let { nicknames.replaceAll(it) }
         backup.channels?.let {
             channels.restore(it.logins, it.names, it.notificationsOff.toSet(), it.hiddenUnread.toSet(), it.groups)
         }
-        return true
     }
 }

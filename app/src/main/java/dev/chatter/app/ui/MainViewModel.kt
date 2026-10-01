@@ -31,6 +31,7 @@ import dev.chatter.app.net.HelixBlockedUser
 import dev.chatter.app.net.HelixUser
 import dev.chatter.app.settings.ThemeMode
 import dev.chatter.app.settings.MobileData
+import dev.chatter.app.settings.SettingsBackup
 import dev.chatter.app.stats.Stats
 import dev.chatter.app.ui.chat.ReadMark
 import dev.chatter.app.ui.theme.NameColorPalette
@@ -550,7 +551,11 @@ class MainViewModel(private val c: AppContainer) : ViewModel() {
     fun exportBackup(): String = c.backup.export()
 
     /** Restores a backup. False means the file was not one of ours. */
-    suspend fun importBackup(text: String): Boolean = c.backup.import(text)
+    /** The backup in [text], checked and not yet applied; null if it is not one of ours. */
+    fun readBackup(text: String): SettingsBackup? = c.backup.read(text)
+
+    /** Restores a backup [readBackup] returned, once the user has seen what it changes. */
+    suspend fun applyBackup(backup: SettingsBackup) = c.backup.apply(backup)
 
     // ---- Highlight rules ---------------------------------------------------------------------
 

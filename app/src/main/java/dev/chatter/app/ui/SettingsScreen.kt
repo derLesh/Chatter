@@ -134,6 +134,7 @@ import dev.chatter.app.settings.MobileData
 import dev.chatter.app.stats.Stats
 import dev.chatter.app.ui.settings.BackgroundCard
 import dev.chatter.app.settings.Settings
+import dev.chatter.app.settings.SettingsBackup
 import dev.chatter.app.settings.ThemeMode
 import dev.chatter.app.settings.TapAction
 import dev.chatter.app.settings.TimestampFormat
@@ -1496,6 +1497,7 @@ private fun BackupGroup(vm: MainViewModel) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     var status by remember { mutableStateOf<Int?>(null) }
+    var pending by remember { mutableStateOf<SettingsBackup?>(null) }
 
     val export = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument(BACKUP_MIME)) { uri ->
         if (uri != null) {
@@ -1518,13 +1520,54 @@ private fun BackupGroup(vm: MainViewModel) {
                         context.contentResolver.openInputStream(uri)?.bufferedReader()?.use { it.readText() }
                     }.getOrNull()
                 }
-                status = when {
-                    text == null -> R.string.backup_failed
-                    vm.importBackup(text) -> R.string.backup_imported
-                    else -> R.string.backup_invalid
+                if (text == null) {
+                    status = R.string.backup_failed
+                    return@launch
                 }
+                // Nothing is written until the user has seen what the file would change.
+                pending = vm.readBackup(text)
+                if (pending == null) status = R.string.backup_invalid
             }
         }
+    }
+
+    pending?.let { backup ->
+        val hosts = backup.settings?.imageHosts
+        AlertDialog(
+            onDismissRequest = { pending = null },
+            title = { Text(stringResource(R.string.backup_confirm_title)) },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text(stringResource(R.string.backup_confirm_text))
+                    Text(
+                        stringResource(
+                            R.string.backup_confirm_counts,
+                            backup.rules?.size ?: 0,
+                            backup.nicknames?.size ?: 0,
+                            backup.channels?.logins?.size ?: 0,
+                        ),
+                    )
+                    // Which sites the app will fetch from is the one thing a backup decides that
+                    // reaches outside the phone, so it is spelled out.
+                    if (hosts != null) {
+                        Text(
+                            if (hosts.isEmpty()) stringResource(R.string.backup_confirm_no_hosts)
+                            else stringResource(R.string.backup_confirm_hosts, hosts.joinToString(", ")),
+                        )
+                    }
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = {
+                    pending = null
+                    scope.launch {
+                        vm.applyBackup(backup)
+                        status = R.string.backup_imported
+                    }
+                }) { Text(stringResource(R.string.backup_restore)) }
+            },
+            dismissButton = { TextButton(onClick = { pending = null }) { Text(stringResource(R.string.cancel)) } },
+        )
     }
 
     SettingsGroup(R.string.settings_group_backup) {

@@ -598,4 +598,10 @@
     <string name="backup_imported">Settings restored</string>
     <string name="backup_invalid">That is not a Chatter backup</string>
     <string name="backup_failed">The file could not be read</string>
+    <string name="backup_confirm_title">Restore this backup?</string>
+    <string name="backup_confirm_text">It replaces your settings with the ones in the file. Only open backups from people you trust.</string>
+    <string name="backup_confirm_counts">Rules: %1$d · Nicknames: %2$d · Channels: %3$d</string>
+    <string name="backup_confirm_hosts">Pictures linked in chat will be loaded from: %1$s</string>
+    <string name="backup_confirm_no_hosts">Pictures linked in chat will not be loaded from any site</string>
+    <string name="backup_restore">Restore</string>
 </resources>

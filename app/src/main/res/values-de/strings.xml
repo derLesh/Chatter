@@ -589,4 +589,10 @@
     <string name="backup_imported">Einstellungen wiederhergestellt</string>
     <string name="backup_invalid">Das ist kein Chatter-Backup</string>
     <string name="backup_failed">Die Datei konnte nicht gelesen werden</string>
+    <string name="backup_confirm_title">Dieses Backup wiederherstellen?</string>
+    <string name="backup_confirm_text">Es ersetzt deine Einstellungen durch die aus der Datei. Öffne nur Backups von Leuten, denen du vertraust.</string>
+    <string name="backup_confirm_counts">Regeln: %1$d · Spitznamen: %2$d · Channels: %3$d</string>
+    <string name="backup_confirm_hosts">Verlinkte Bilder werden geladen von: %1$s</string>
+    <string name="backup_confirm_no_hosts">Verlinkte Bilder werden von keiner Seite geladen</string>
+    <string name="backup_restore">Wiederherstellen</string>
 </resources>
