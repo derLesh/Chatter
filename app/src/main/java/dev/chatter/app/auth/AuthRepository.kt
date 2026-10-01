@@ -45,6 +45,19 @@ data class Account(
 
     /** What Chatter uses that this login was not given; see [TwitchScopes.missing]. */
     val missingScopes: Set<String> get() = TwitchScopes.missing(scopes)
+
+    /**
+     * Everything but the tokens. A data class would print them, and an account ends up in a
+     * string more easily than anybody means it to — a log line, an assertion message, a crash
+     * report that prints the state it crashed in — and from there in a bug report on GitHub.
+     */
+    override fun toString(): String =
+        "Account(login=$login, userId=$userId, token=$REDACTED, refreshToken=${refreshToken?.let { REDACTED }}, " +
+            "expiresAt=$expiresAt, displayName=$displayName, scopes=$scopes)"
+
+    private companion object {
+        const val REDACTED = "‹redacted›"
+    }
 }
 
 sealed interface AuthState {
@@ -483,7 +496,10 @@ class AuthRepository(
         @SerialName("access_token") val accessToken: String,
         @SerialName("refresh_token") val refreshToken: String? = null,
         @SerialName("expires_in") val expiresIn: Long = 3600,
-    )
+    ) {
+        /** Without the tokens, for the same reason as [Account.toString]. */
+        override fun toString(): String = "TokenResponse(expiresIn=$expiresIn)"
+    }
 
     companion object {
         const val REDIRECT_URI = "http://localhost"
