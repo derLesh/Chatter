@@ -1,1 +1,0 @@
-patch: Handle and draw chat messages at full speed right after an install or update

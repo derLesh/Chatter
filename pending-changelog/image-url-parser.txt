@@ -1,1 +1,0 @@
-patch: Read a linked picture's address the way it is fetched, so a trick in it cannot load one from another site

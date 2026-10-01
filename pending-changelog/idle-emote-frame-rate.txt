@@ -1,1 +1,0 @@
-minor: Slow animated emotes to 10 frames a second when the chat has not been touched for three minutes

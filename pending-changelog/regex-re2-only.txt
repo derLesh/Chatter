@@ -1,1 +1,0 @@
-major: Regex rules with lookarounds or backreferences are no longer used, since they could stall the chat

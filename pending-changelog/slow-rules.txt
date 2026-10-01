@@ -1,1 +1,0 @@
-patch: Run regex rules so that no pattern can stall the chat, and mark the rare one that has to be skipped

@@ -1,1 +1,0 @@
-patch: Spend less work and memory on every chat message, in the background too

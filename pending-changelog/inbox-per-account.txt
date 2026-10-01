@@ -1,1 +1,0 @@
-patch: Keep mentions and whispers with the account they were sent to, and forget them when it logs out

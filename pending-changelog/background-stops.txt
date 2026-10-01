@@ -1,1 +1,0 @@
-minor: Say in the notification settings when Android stopped the background connection, and how to prevent it

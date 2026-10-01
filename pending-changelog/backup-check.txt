@@ -1,1 +1,0 @@
-patch: Check a restored backup and show what it changes, including which sites pictures load from, before applying it

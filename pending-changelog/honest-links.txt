@@ -1,1 +1,0 @@
-patch: Show where a link really goes, and ask before opening one dressed up as another site

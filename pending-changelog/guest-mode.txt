@@ -1,1 +1,0 @@
-minor: Read chats as a guest without a Twitch login, and log in later to write
