@@ -19,6 +19,8 @@ data class StoredAccount(
     val expiresAt: Long = 0L,
     val displayName: String = "",
     val avatarUrl: String = "",
+    /** What Twitch lets the token do, as `/oauth2/validate` said; null for older entries. */
+    val scopes: List<String>? = null,
 )
 
 /**

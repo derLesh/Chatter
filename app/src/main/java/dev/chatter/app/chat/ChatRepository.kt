@@ -4,6 +4,7 @@ import android.content.Context
 import android.util.Log
 import dev.chatter.app.R
 import dev.chatter.app.auth.AuthRepository
+import dev.chatter.app.auth.TwitchScopes
 import dev.chatter.app.badges.BadgeRepository
 import dev.chatter.app.channels.BlockedUsersRepository
 import dev.chatter.app.channels.ChannelRepository
@@ -350,7 +351,10 @@ class ChatRepository(
      * or broadcaster, so a failure here is the normal case and stays quiet.
      */
     private suspend fun loadChatters(channel: String, channelId: String) {
-        val userId = auth.account?.userId ?: return
+        val account = auth.account ?: return
+        // A login without the scope would only collect a 401 on every join.
+        if (!TwitchScopes.allows(account.scopes, "moderator:read:chatters")) return
+        val userId = account.userId
         val users = try {
             helix.chatters(channelId, userId)
         } catch (e: Exception) {

@@ -171,7 +171,7 @@
     <string name="cmd_raid">Raid zu %1$s gestartet.</string>
     <string name="cmd_unraid">Raid abgebrochen.</string>
     <string name="cmd_color">Namensfarbe geändert zu %1$s.</string>
-    <string name="cmd_error_scope">Für diesen Befehl fehlt eine Berechtigung. Melde dich ab und wieder an, um sie zu erteilen.</string>
+    <string name="cmd_error_scope">Das hat Twitch Chatter noch nicht erlaubt. Melde dich unter Einstellungen → Konto erneut an, um es zu erlauben.</string>
     <string name="cmd_error_permission">Nicht erlaubt: %1$s</string>
     <string name="cmd_error_generic">Befehl fehlgeschlagen: %1$s</string>
     <string name="cmd_error_no_user">Nutzer %1$s nicht gefunden</string>
@@ -278,6 +278,9 @@
     <string name="settings_load_history_hint">Lade die Chat History über recent-messages.robotty.de</string>
     <string name="settings_system_notifications">Benachrichtigungseinstellungen</string>
     <string name="settings_group_accounts">Konten</string>
+    <string name="account_scopes_title">Diese Anmeldung erlaubt weniger, als Chatter nutzt</string>
+    <string name="account_scopes_text">Sie stammt aus einer älteren Version von Chatter. Melde dich erneut an, dann fragt Twitch, ob du den Rest erlaubst, etwa das Moderieren, wo du Moderator bist</string>
+    <string name="account_reauthorize">Erneut anmelden</string>
     <string name="account_id">%1$s</string>
     <string name="account_copy_id">Twitch-ID kopieren</string>
     <string name="account_active">Chatte mit diesem Konto</string>

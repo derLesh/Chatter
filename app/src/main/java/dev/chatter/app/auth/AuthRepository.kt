@@ -37,9 +37,14 @@ data class Account(
      */
     val displayName: String = "",
     val avatarUrl: String = "",
+    /** What Twitch lets [token] do; null for an account stored before the app kept it. */
+    val scopes: Set<String>? = null,
 ) {
     /** The name to put in front of a person: theirs where Twitch knows one, the login otherwise. */
     val name: String get() = displayName.ifEmpty { login }
+
+    /** What Chatter uses that this login was not given; see [TwitchScopes.missing]. */
+    val missingScopes: Set<String> get() = TwitchScopes.missing(scopes)
 }
 
 sealed interface AuthState {
@@ -126,6 +131,25 @@ class AuthRepository(
         if (activeId == null) return
         freshToken()
         refreshProfiles()
+        learnScopes()
+    }
+
+    /**
+     * Asks Twitch what the tokens of accounts stored before the app kept their scopes may do,
+     * so the account page can say when a login lacks something. Offline it waits for the next start;
+     * until then such an account is let try every command, as it always was.
+     */
+    private suspend fun learnScopes() {
+        for (acc in _accounts.value.filter { it.scopes == null }) {
+            val granted = runCatching { helix.validate(acc.token).scopes.toSet() }.getOrNull() ?: continue
+            writeLock.withLock {
+                val at = _accounts.value.indexOfFirst { it.userId == acc.userId && it.token == acc.token }
+                if (at < 0) return@withLock
+                _accounts.value = _accounts.value.toMutableList().also { it[at] = it[at].copy(scopes = granted) }
+                persist()
+                publish()
+            }
+        }
     }
 
     /** The one account an older version of the app stored, or null if there was none. */
@@ -153,7 +177,7 @@ class AuthRepository(
             .appendQueryParameter("response_type", "token")
             .appendQueryParameter("client_id", BuildConfig.TWITCH_CLIENT_ID)
             .appendQueryParameter("redirect_uri", REDIRECT_URI)
-            .appendQueryParameter("scope", SCOPES.joinToString(" "))
+            .appendQueryParameter("scope", TwitchScopes.ALL.joinToString(" "))
             .appendQueryParameter("state", state)
             .apply { if (forceVerify) appendQueryParameter("force_verify", "true") }
             .build().toString()
@@ -178,7 +202,7 @@ class AuthRepository(
             // expires_in == 0 means the token does not expire on its own.
             val expiresAt = if (v.expiresIn > 0) System.currentTimeMillis() + v.expiresIn * 1000L else Long.MAX_VALUE
             saveAccount(
-                Account(v.login, v.userId, token, refreshToken = null, expiresAt = expiresAt),
+                Account(v.login, v.userId, token, refreshToken = null, expiresAt = expiresAt, scopes = v.scopes.toSet()),
                 revokeReplaced = true,
             )
         }
@@ -436,6 +460,7 @@ class AuthRepository(
         expiresAt = expiresAt,
         displayName = displayName,
         avatarUrl = avatarUrl,
+        scopes = scopes?.sorted(),
     )
 
     /** Null for an entry whose token cannot be read any more — a keystore key that was replaced. */
@@ -449,6 +474,7 @@ class AuthRepository(
             expiresAt = expiresAt,
             displayName = displayName,
             avatarUrl = avatarUrl,
+            scopes = scopes?.toSet(),
         )
     }
 
@@ -461,19 +487,6 @@ class AuthRepository(
 
     companion object {
         const val REDIRECT_URI = "http://localhost"
-        val SCOPES = listOf(
-            "chat:read", "chat:edit", "user:read:emotes", "user:read:follows", "user:manage:chat_color",
-            // Whispers arrive over the chat connection, but only for a token that asked for them.
-            // Sending them goes through Helix, which wants the newer scope of the two.
-            "whispers:read", "user:manage:whispers",
-            "user:read:blocked_users", "user:manage:blocked_users",
-            // The chatter list; Twitch only answers for channels the user moderates.
-            "moderator:read:chatters",
-            // Moderation commands (only work where the user is moderator/broadcaster).
-            "moderator:manage:banned_users", "moderator:manage:chat_messages", "moderator:manage:chat_settings",
-            "moderator:manage:announcements", "moderator:manage:shoutouts",
-            "channel:manage:moderators", "channel:manage:vips", "channel:manage:raids",
-        )
         private const val REFRESH_MARGIN_MS = 10 * 60_000L
 
         private val ACCOUNTS_KEY = stringPreferencesKey("accounts")

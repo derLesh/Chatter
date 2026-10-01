@@ -287,6 +287,12 @@ private val SEARCH_INDEX: List<SearchEntry> by lazy {
     }
 }
 
+/**
+ * Twitch's login page over the settings. [signedOut] starts it without Twitch's session, which
+ * adding an account needs and logging the active account in again does not.
+ */
+private data class TwitchLogin(val url: String, val signedOut: Boolean)
+
 /** Where in the settings the user is: the search, a category, a page inside it. */
 private data class SettingsPlace(
     val page: SettingsPage? = null,
@@ -306,8 +312,9 @@ fun SettingsScreen(vm: MainViewModel, onBack: () -> Unit) {
     var query by rememberSaveable { mutableStateOf("") }
     // The setting a search result opened its page at, lit up there until the page is left.
     var target by rememberSaveable { mutableStateOf<Int?>(null) }
-    // Twitch's login page, shown over the settings while another account is being added.
-    var addAccount by remember { mutableStateOf<String?>(null) }
+    // Twitch's login page, shown over the settings while an account is added or logged in
+    // again.
+    var addAccount by remember { mutableStateOf<TwitchLogin?>(null) }
     var addFailed by remember { mutableStateOf<String?>(null) }
     val goBack = {
         when {
@@ -336,12 +343,12 @@ fun SettingsScreen(vm: MainViewModel, onBack: () -> Unit) {
         )
     }
 
-    addAccount?.let { url ->
+    addAccount?.let { login ->
         NavigationBackHandler(
             state = rememberNavigationEventState(currentInfo = NavigationEventInfo.None),
             onBackCompleted = { addAccount = null },
         )
-        LoginWebView(url, Modifier.fillMaxSize().safeDrawingPadding(), signedOut = true) { redirect ->
+        LoginWebView(login.url, Modifier.fillMaxSize().safeDrawingPadding(), signedOut = login.signedOut) { redirect ->
             scope.launch {
                 val result = vm.handleRedirect(redirect) ?: return@launch
                 addAccount = null
@@ -425,7 +432,12 @@ fun SettingsScreen(vm: MainViewModel, onBack: () -> Unit) {
                     SettingsPage.Channels -> ChannelsPage(vm, settings)
                     SettingsPage.Stats -> StatsPage(vm) { page = SettingsPage.Channels }
                     SettingsPage.Account -> {
-                        AccountPage(vm, onAddAccount = { addAccount = vm.addAccountUrl() })
+                        AccountPage(
+                            vm,
+                            onAddAccount = { addAccount = TwitchLogin(vm.addAccountUrl(), signedOut = true) },
+                            // The same account again: Twitch's session can stay, it only asks to allow the rest.
+                            onReauthorize = { addAccount = TwitchLogin(vm.reauthorizeUrl(), signedOut = false) },
+                        )
                         BackupGroup(vm)
                     }
                     SettingsPage.Support -> SupportPage(vm)

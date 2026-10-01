@@ -3,6 +3,7 @@ package dev.chatter.app.chat
 import android.content.Context
 import dev.chatter.app.R
 import dev.chatter.app.auth.AuthRepository
+import dev.chatter.app.auth.TwitchScopes
 import dev.chatter.app.net.HelixApi
 import dev.chatter.app.net.HttpException
 import kotlinx.coroutines.CancellationException
@@ -19,6 +20,11 @@ class CommandExecutor(
         // A whisper goes to a person rather than into a channel, so it is the one command that
         // needs no room to be sent from - every other one is answered here instead of failing.
         if (channelId == null && command !is ChatCommand.Whisper) return str(R.string.cmd_error_generic, "unknown channel")
+        // A login that was not given the scope would only get a 401 from Twitch that names it.
+        // Saying how to give it is the answer the user can do something with.
+        requiredScope(command)?.let { scope ->
+            if (!TwitchScopes.allows(auth.account?.scopes, scope)) return str(R.string.cmd_error_scope)
+        }
         return try {
             run(command, channelId.orEmpty(), me)
         } catch (e: HttpException) {
@@ -90,6 +96,19 @@ class CommandExecutor(
         }
         is ChatCommand.Usage -> str(R.string.cmd_usage, command.usage)
         is ChatCommand.Unknown -> str(R.string.error_unsupported_command, command.name)
+    }
+
+    /** The moderation scope [command] needs, or null for one any account may run. */
+    private fun requiredScope(command: ChatCommand): String? = when (command) {
+        is ChatCommand.Ban, is ChatCommand.Timeout, is ChatCommand.Unban -> "moderator:manage:banned_users"
+        is ChatCommand.Delete, ChatCommand.Clear -> "moderator:manage:chat_messages"
+        is ChatCommand.Settings -> "moderator:manage:chat_settings"
+        is ChatCommand.Announce -> "moderator:manage:announcements"
+        is ChatCommand.Shoutout -> "moderator:manage:shoutouts"
+        is ChatCommand.Mod -> "channel:manage:moderators"
+        is ChatCommand.Vip -> "channel:manage:vips"
+        is ChatCommand.Raid, ChatCommand.Unraid -> "channel:manage:raids"
+        else -> null
     }
 
     private suspend fun userId(login: String): String =

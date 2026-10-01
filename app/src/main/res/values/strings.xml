@@ -177,7 +177,7 @@
     <string name="cmd_raid">Raid to %1$s started.</string>
     <string name="cmd_unraid">Raid cancelled.</string>
     <string name="cmd_color">Name color changed to %1$s.</string>
-    <string name="cmd_error_scope">Missing permission for this command. Log out and log in again to grant it.</string>
+    <string name="cmd_error_scope">Twitch has not allowed Chatter this yet. Log in again under Settings → Account to allow it.</string>
     <string name="cmd_error_permission">Not allowed: %1$s</string>
     <string name="cmd_error_generic">Command failed: %1$s</string>
     <string name="cmd_error_no_user">User %1$s not found</string>
@@ -284,6 +284,9 @@
     <string name="settings_load_history_hint">Load the chat history via recent-messages.robotty.de</string>
     <string name="settings_system_notifications">Notification settings</string>
     <string name="settings_group_accounts">Accounts</string>
+    <string name="account_scopes_title">This login allows less than Chatter uses</string>
+    <string name="account_scopes_text">It was made by an older version of Chatter. Log in again and Twitch asks you to allow the rest, such as moderating where you are a moderator</string>
+    <string name="account_reauthorize">Log in again</string>
     <string name="account_id">%1$s</string>
     <string name="account_copy_id">Copy Twitch ID</string>
     <string name="account_active">Chatting with this account</string>

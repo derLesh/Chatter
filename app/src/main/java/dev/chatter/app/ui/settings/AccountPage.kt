@@ -75,7 +75,7 @@ import java.time.format.FormatStyle
  * the login and are there offline, the rest is asked of Twitch while the page is open.
  */
 @Composable
-fun AccountPage(vm: MainViewModel, onAddAccount: () -> Unit) {
+fun AccountPage(vm: MainViewModel, onAddAccount: () -> Unit, onReauthorize: () -> Unit) {
     val accounts by vm.accounts.collectAsStateWithLifecycle()
     // The state, not the account list: switching swaps which account is the active one without
     // changing the list at all, and this page is mostly about which one that is.
@@ -105,6 +105,7 @@ fun AccountPage(vm: MainViewModel, onAddAccount: () -> Unit) {
         onAdd = onAddAccount,
         onLogout = { loggingOut = it },
     )
+    if (active.missingScopes.isNotEmpty()) MissingScopesCard(onReauthorize)
 
     loggingOut?.let { target ->
         val last = accounts.size == 1
@@ -272,6 +273,36 @@ private fun AccountsGroup(
                 colors = transparentItem(),
                 modifier = Modifier.clickable { onLogout(active) },
             )
+        }
+    }
+}
+
+/**
+ * Said only when the active login was given less than Chatter uses — one from a version that
+ * asked for less. Twitch cannot add a scope to a token, so the way to the rest is logging in
+ * again; see [dev.chatter.app.auth.TwitchScopes].
+ */
+@Composable
+private fun MissingScopesCard(onReauthorize: () -> Unit) {
+    Surface(
+        color = MaterialTheme.colorScheme.surfaceContainer,
+        shape = RoundedCornerShape(24.dp),
+        modifier = Modifier.fillMaxWidth(),
+    ) {
+        Column(Modifier.padding(horizontal = 20.dp, vertical = 18.dp)) {
+            Text(
+                stringResource(R.string.account_scopes_title),
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.Bold,
+            )
+            Spacer(Modifier.height(6.dp))
+            Text(
+                stringResource(R.string.account_scopes_text),
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            Spacer(Modifier.height(14.dp))
+            Button(onClick = onReauthorize) { Text(stringResource(R.string.account_reauthorize)) }
         }
     }
 }

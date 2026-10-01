@@ -812,6 +812,12 @@ class MainViewModel(private val c: AppContainer) : ViewModel() {
     /** Twitch's login page for a second account, which has to ask who is logging in. */
     fun addAccountUrl(): String = c.auth.authorizeUrl(forceVerify = true)
 
+    /**
+     * Twitch's page for logging the active account in again, for a login that was given less
+     * than Chatter uses. The old token is revoked once the new one is in.
+     */
+    fun reauthorizeUrl(): String = c.auth.authorizeUrl(forceVerify = true)
+
     suspend fun handleRedirect(url: String): Result<Unit>? = c.auth.handleRedirect(url)
 
     /** Reads chats without an account; see AuthState.Guest. */
