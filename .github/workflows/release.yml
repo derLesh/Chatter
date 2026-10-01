@@ -306,8 +306,8 @@ jobs:
       - name: Write the release notes
         run: awk '/^## /{ heading++ } heading == 1 && !/^## /' CHANGELOG.md > "$RUNNER_TEMP/notes.md"
 
-      # Which key actually signed it. Play ties the app to the first certificate it sees, so this
-      # fingerprint is worth reading once and comparing with the one the Play Console shows.
+      # What was built, for anybody who opens the run. Not who signed it: the certificate's owner
+      # is the maintainer's name and town, and a run's summary is public in a public repository.
       - name: Summarise the build
         env:
           VERSION: ${{ steps.version.outputs.version }}
@@ -327,11 +327,6 @@ jobs:
             echo "| Play track | $PLAY_TRACK |"
             echo "| APK | \`$(sha256sum "$APK" | cut -d' ' -f1)\` |"
             echo "| Bundle | \`$(sha256sum "$AAB" | cut -d' ' -f1)\` |"
-            echo
-            echo '### Signed by'
-            echo '```'
-            keytool -printcert -jarfile "$AAB" | grep -E 'Owner|SHA256' || true
-            echo '```'
             echo
             echo '### Release notes'
             cat "$RUNNER_TEMP/notes.md"
