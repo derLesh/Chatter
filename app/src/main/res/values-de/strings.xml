@@ -308,6 +308,7 @@
     <string name="settings_licenses">Open-Source-Lizenzen</string>
     <string name="license_open_project">Projektseite</string>
     <string name="license_apache2">Apache-Lizenz 2.0</string>
+    <string name="license_bsd3">BSD-Lizenz (3 Klauseln)</string>
     <string name="settings_sponsor">Chatter unterstützen</string>
     <string name="settings_sponsor_summary">Über GitHub Sponsors, einmalig oder monatlich. Unterstützer erhalten ein Badge im Chat.</string>
     <string name="settings_support">Unterstützen</string>
@@ -561,6 +562,8 @@
     <string name="rule_pattern">Sucht nach</string>
     <string name="rule_pattern_hint">Trifft als ganzes Wort, Groß- und Kleinschreibung egal</string>
     <string name="rule_pattern_regex_hint">Ein regulärer Ausdruck. Ein ungültiger trifft nie</string>
+    <string name="rule_pattern_slow_hint">Eine Gruppe, die sich innerhalb einer Wiederholung wiederholt, zusammen mit einem Lookaround oder Rückverweis, kann den Chat bei manchen Nachrichten aufhalten. Diese Regel würde übersprungen</string>
+    <string name="rule_slow">Übersprungen: Dieses Muster könnte den Chat aufhalten. Nimm die Wiederholung um die wiederholte Gruppe heraus</string>
     <string name="rule_target">Wo</string>
     <string name="rule_target_message">Nachricht</string>
     <string name="rule_target_author">Name</string>

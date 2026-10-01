@@ -314,6 +314,7 @@
     <string name="settings_licenses">Open source licenses</string>
     <string name="license_open_project">Project page</string>
     <string name="license_apache2">Apache License 2.0</string>
+    <string name="license_bsd3">BSD 3-Clause License</string>
     <string name="settings_sponsor">Support Chatter</string>
     <string name="settings_sponsor_summary">Through GitHub Sponsors, once or every month. Supporters get a badge in chat.</string>
     <string name="settings_support">Support</string>
@@ -570,6 +571,8 @@
     <string name="rule_pattern">Looks for</string>
     <string name="rule_pattern_hint">Matched as a whole word, upper and lower case alike</string>
     <string name="rule_pattern_regex_hint">A regular expression. An invalid one never matches</string>
+    <string name="rule_pattern_slow_hint">A group that repeats inside a repeat, together with a lookaround or backreference, can stall the chat on some messages. This rule would be skipped</string>
+    <string name="rule_slow">Skipped: this pattern could stall the chat. Drop the repeat around the repeated group</string>
     <string name="rule_target">Where</string>
     <string name="rule_target_message">Message</string>
     <string name="rule_target_author">Name</string>

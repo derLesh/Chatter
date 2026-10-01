@@ -44,6 +44,7 @@ import androidx.compose.ui.unit.dp
 import dev.chatter.app.R
 import dev.chatter.app.chat.ChatRule
 import dev.chatter.app.chat.RuleAction
+import dev.chatter.app.chat.RuleEngine
 import dev.chatter.app.chat.RuleTarget
 import java.util.UUID
 
@@ -73,7 +74,17 @@ fun RuleDialog(rule: ChatRule?, onSave: (ChatRule) -> Unit, onDismiss: () -> Uni
                     singleLine = true,
                     label = { Text(stringResource(R.string.rule_pattern)) },
                     supportingText = {
-                        Text(stringResource(if (draft.regex) R.string.rule_pattern_regex_hint else R.string.rule_pattern_hint))
+                        val slow = draft.regex && RuleEngine.skips(draft.pattern)
+                        Text(
+                            stringResource(
+                                when {
+                                    slow -> R.string.rule_pattern_slow_hint
+                                    draft.regex -> R.string.rule_pattern_regex_hint
+                                    else -> R.string.rule_pattern_hint
+                                },
+                            ),
+                            color = if (slow) MaterialTheme.colorScheme.error else Color.Unspecified,
+                        )
                     },
                     keyboardOptions = KeyboardOptions(
                         capitalization = KeyboardCapitalization.None,

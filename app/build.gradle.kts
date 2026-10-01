@@ -248,6 +248,8 @@ dependencies {
     debugImplementation(libs.compose.ui.tooling)
 
     implementation(libs.okhttp)
+    // Linear-time regular expressions for the user's rules; see RuleEngine.
+    implementation(libs.re2j)
     implementation(libs.coil.compose)
     implementation(libs.coil.gif)
     implementation(libs.coil.network.okhttp)

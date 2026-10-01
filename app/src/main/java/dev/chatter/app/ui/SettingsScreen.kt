@@ -122,6 +122,7 @@ import dev.chatter.app.chat.ImageLinks
 import dev.chatter.app.chat.MessageBody
 import dev.chatter.app.chat.MessageKind
 import dev.chatter.app.chat.RuleAction
+import dev.chatter.app.chat.RuleEngine
 import dev.chatter.app.chat.RuleTarget
 import dev.chatter.app.chat.Segment
 import dev.chatter.app.emotes.EmoteProvider
@@ -1066,7 +1067,14 @@ private fun RulesPage(vm: MainViewModel) {
             item {
                 ListItem(
                     headlineContent = { Text(rule.pattern, fontFamily = if (rule.regex) FontFamily.Monospace else null) },
-                    supportingContent = { Text(ruleSummary(rule)) },
+                    supportingContent = {
+                        Column {
+                            Text(ruleSummary(rule))
+                            if (rule.regex && RuleEngine.skips(rule.pattern)) {
+                                Text(stringResource(R.string.rule_slow), color = scheme.error)
+                            }
+                        }
+                    },
                     leadingContent = {
                         Box(
                             Modifier
@@ -1465,7 +1473,7 @@ private fun CreditsPage() {
             item {
                 ListItem(
                     headlineContent = { Text(dependency.name) },
-                    supportingContent = { Text(stringResource(R.string.license_apache2)) },
+                    supportingContent = { Text(stringResource(dependency.license)) },
                     trailingContent = { Icon(Icons.AutoMirrored.Filled.ArrowForward, contentDescription = null) },
                     colors = transparentItem(),
                     modifier = Modifier.clickable { shownLicense = dependency },
@@ -1561,10 +1569,15 @@ private const val BACKUP_MIME = "application/json"
 private fun backupFileName(): String =
     "chatter-" + SimpleDateFormat("yyyy-MM-dd", Locale.US).format(Date()) + ".json"
 
-/** One of the libraries Chatter ships, for the license listing. */
-private data class Dependency(val name: String, val url: String)
+/** One of the libraries Chatter ships, for the license listing, with the name and text of its license. */
+private data class Dependency(
+    val name: String,
+    val url: String,
+    val license: Int = R.string.license_apache2,
+    val text: Int = R.raw.license_apache_2_0,
+)
 
-/** The libraries Chatter ships. All of them are Apache 2.0, so they share one license text. */
+/** The libraries Chatter ships. Most are Apache 2.0 and share that license text. */
 private val DEPENDENCIES = listOf(
     Dependency("Kotlin", "https://kotlinlang.org"),
     Dependency("Kotlin Coroutines", "https://github.com/Kotlin/kotlinx.coroutines"),
@@ -1573,6 +1586,7 @@ private val DEPENDENCIES = listOf(
     Dependency("Jetpack Compose", "https://developer.android.com/jetpack/compose"),
     Dependency("OkHttp", "https://square.github.io/okhttp/"),
     Dependency("Coil", "https://coil-kt.github.io/coil/"),
+    Dependency("RE2/J", "https://github.com/google/re2j", R.string.license_bsd3, R.raw.license_re2j),
 )
 
 /** The full license text of one dependency, plus a way to its project page. */
@@ -1585,7 +1599,7 @@ private fun LicenseSheet(dependency: Dependency, onDismiss: () -> Unit) {
     LaunchedEffect(Unit) {
         text = withContext(Dispatchers.IO) {
             runCatching {
-                context.resources.openRawResource(R.raw.license_apache_2_0).bufferedReader().use { it.readText() }
+                context.resources.openRawResource(dependency.text).bufferedReader().use { it.readText() }
             }.getOrDefault("")
         }
     }
@@ -1598,7 +1612,7 @@ private fun LicenseSheet(dependency: Dependency, onDismiss: () -> Unit) {
         ) {
             Text(dependency.name, style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
             Text(
-                stringResource(R.string.license_apache2),
+                stringResource(dependency.license),
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )

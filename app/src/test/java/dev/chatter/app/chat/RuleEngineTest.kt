@@ -1,6 +1,7 @@
 package dev.chatter.app.chat
 
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertSame
 import org.junit.Assert.assertTrue
@@ -94,6 +95,44 @@ class RuleEngineTest {
         val hiding = RuleEngine(listOf(rule("hi", action = RuleAction.Hide)))
         val own = message("hi", isOwn = true)
         assertSame(own, hiding.apply(own))
+    }
+
+    /**
+     * `(a+)+$` against a long run of a's that does not end the way it wants takes a backtracking
+     * engine longer than anybody would wait. On RE2 it is as quick as any other pattern.
+     */
+    @Test
+    fun aPatternThatWouldBacktrackRunsInLinearTime() {
+        val engine = RuleEngine(listOf(rule("(a+)+$", regex = true, color = RED)))
+        val started = System.nanoTime()
+        assertNull(engine.apply(message("a".repeat(400) + "!"))?.highlight)
+        assertEquals(RED, engine.apply(message("aaaa"))?.highlight)
+        val millis = (System.nanoTime() - started) / 1_000_000
+        assertTrue("took $millis ms", millis < 1_000)
+        assertFalse(RuleEngine.skips("(a+)+$"))
+    }
+
+    /** RE2 has no lookarounds, so these run on the platform's engine — as long as they cannot run away. */
+    @Test
+    fun lookaroundsStillWork() {
+        val engine = RuleEngine(listOf(rule("(?<!@)lesh", regex = true, color = RED)))
+        assertEquals(RED, engine.apply(message("hi lesh"))?.highlight)
+        assertNull(engine.apply(message("hi @lesh"))?.highlight)
+    }
+
+    @Test
+    fun aRunawayPatternRE2CannotRunIsSkipped() {
+        val pattern = """(?=x)(\w+\s?)*$"""
+        assertTrue(RuleEngine.skips(pattern))
+        val engine = RuleEngine(listOf(rule(pattern, regex = true, color = RED)))
+        assertTrue(engine.isEmpty)
+    }
+
+    @Test
+    fun ordinaryPatternsAreNotSkipped() {
+        assertFalse(RuleEngine.skips("""^!\w+"""))
+        assertFalse(RuleEngine.skips("(foo|bar)+"))
+        assertFalse(RuleEngine.skips("""(?<=!)\w+"""))
     }
 
     private companion object {
