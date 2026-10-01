@@ -19,7 +19,6 @@ import androidx.compose.ui.platform.LocalView
 import androidx.core.view.WindowCompat
 import dev.chatter.app.settings.Settings
 import dev.chatter.app.settings.ThemeMode
-import kotlin.math.abs
 import java.util.concurrent.ConcurrentHashMap
 
 val LiveRed = Color(0xFFEB0400)
@@ -199,9 +198,16 @@ fun readableNameColor(
     dark: Boolean,
     palette: NameColorPalette = NameColorPalette.HslLuma,
 ): Color {
-    val base = argb?.let { Color(it) } ?: DefaultNameColors[abs((login ?: "").hashCode()) % DefaultNameColors.size]
+    val base = argb?.let { Color(it) } ?: DefaultNameColors[fallbackColorIndex(login, DefaultNameColors.size)]
     return NameColorCache.get(base, dark, palette)
 }
+
+/**
+ * Which of [size] fallback colors [login] gets. Not `abs(hash) % size`: the absolute value of
+ * Int.MIN_VALUE is Int.MIN_VALUE again, and a login with that hash — "polygenelubricants" is
+ * one, and a valid Twitch name — would index below zero and crash every chat it writes in.
+ */
+internal fun fallbackColorIndex(login: String?, size: Int): Int = Math.floorMod((login ?: "").hashCode(), size)
 
 /**
  * Remembers what [NameColorPalette.adjust] worked out for a color, because working it out is a
