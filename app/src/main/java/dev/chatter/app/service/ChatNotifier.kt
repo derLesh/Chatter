@@ -346,6 +346,17 @@ class ChatNotifier(
             .setAutoCancel(true)
             .setContentIntent(openWhispersIntent())
             .addAction(whisperReplyAction(login, thread.userId))
+            // A whisper is a private message. On a lock screen that hides private content it is
+            // only "a new whisper", without who sent it or what it says — whatever the phone's
+            // default for the channel happens to be.
+            .setVisibility(NotificationCompat.VISIBILITY_PRIVATE)
+            .setPublicVersion(
+                NotificationCompat.Builder(context, CHANNEL_WHISPERS)
+                    .setSmallIcon(R.drawable.ic_notification)
+                    .setContentTitle(context.getString(R.string.notif_whisper_public))
+                    .setCategory(NotificationCompat.CATEGORY_MESSAGE)
+                    .build(),
+            )
             .build()
         try {
             // The login is the tag, so one notification per person and none of them collide with
@@ -377,6 +388,8 @@ class ChatNotifier(
             .addRemoteInput(RemoteInput.Builder(KEY_REPLY).setLabel(label).build())
             .setSemanticAction(NotificationCompat.Action.SEMANTIC_ACTION_REPLY)
             .setShowsUserInterface(false)
+            // It writes as the user, so it is theirs alone: on a locked phone it asks to unlock first.
+            .setAuthenticationRequired(true)
             .build()
     }
 
@@ -408,6 +421,8 @@ class ChatNotifier(
             .addRemoteInput(RemoteInput.Builder(KEY_REPLY).setLabel(label).build())
             .setSemanticAction(NotificationCompat.Action.SEMANTIC_ACTION_REPLY)
             .setShowsUserInterface(false)
+            // It writes as the user, so it is theirs alone: on a locked phone it asks to unlock first.
+            .setAuthenticationRequired(true)
             .build()
     }
 
