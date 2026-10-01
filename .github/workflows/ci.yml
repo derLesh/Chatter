@@ -33,6 +33,11 @@ jobs:
           distribution: temurin
           java-version: '21'
 
+      # gradle-wrapper.jar is a binary nobody reads in a diff. This compares it with the checksums
+      # Gradle publishes for its releases, so a pull request cannot swap it for something else.
+      - name: Check the Gradle wrapper
+        uses: gradle/actions/wrapper-validation@748248ddd2a24f49513d8f472f81c3a07d4d50e1 # v4.4.4
+
       - name: Set up Gradle
         uses: gradle/actions/setup-gradle@748248ddd2a24f49513d8f472f81c3a07d4d50e1 # v4.4.4
 

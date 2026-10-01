@@ -53,6 +53,19 @@ the upload key and the Play credentials. Dependabot (`.github/dependabot.yml`) o
 when one of them has a new version; read what changed before merging it, and pin a new action the
 same way.
 
+The build checks what it downloads. `gradle/wrapper/gradle-wrapper.properties` carries the
+checksum of the Gradle distribution, CI compares `gradle-wrapper.jar` with the ones Gradle
+publishes, and `gradle/verification-metadata.xml` holds the SHA-256 of every plugin and library.
+A new or updated dependency fails the build until its checksum is in there:
+
+```sh
+./gradlew --write-verification-metadata sha256 build :app:bundleRelease :app:assembleMicrobenchmarkAndroidTest :baselineprofile:assemble
+```
+
+Read what it adds before committing it — a checksum that changed for a version that did not is
+exactly what the file is there to catch. The release job builds without a Gradle cache from earlier
+runs, so nothing another run wrote ends up in a signed build.
+
 Supporting Chatter is **switched off** everywhere until GitHub Sponsors is set up: `sponsoring`
 in `app/build.gradle.kts` takes the settings category out of every build and keeps the app from
 asking for a supporter list nobody serves, and the two workflows below have their triggers
