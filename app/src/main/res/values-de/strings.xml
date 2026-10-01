@@ -43,6 +43,8 @@
     <string name="action_reply">Antworten</string>
     <string name="action_mention">Erwähnen</string>
     <string name="action_copy">Kopieren</string>
+    <string name="link_check_title">Diesen Link öffnen?</string>
+    <string name="link_check_text">Er ist so geschrieben, dass er nach einer anderen Seite aussieht. In Wirklichkeit führt er zu:</string>
     <string name="emotes">Emotes</string>
     <string name="input_hint">Nachricht senden</string>
     <string name="input_hint_disabled">Nicht verbunden</string>

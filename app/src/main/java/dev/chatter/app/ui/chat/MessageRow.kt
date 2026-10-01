@@ -322,7 +322,7 @@ private fun LinkedImage(url: String, style: ChatStyle, loader: ImageLoader, alon
 
 private fun linkText(url: String, style: ChatStyle) = buildAnnotatedString {
     withLink(LinkAnnotation.Url(url, TextLinkStyles(SpanStyle(color = style.linkColor, textDecoration = TextDecoration.Underline)))) {
-        append(if (style.shortLinks) LinkText.shorten(url) else url)
+        append(LinkText.display(url, style.shortLinks))
     }
 }
 
@@ -448,7 +448,7 @@ private fun AnnotatedString.Builder.appendSegments(segments: List<Segment>, inli
             }
             is Segment.Link -> withLink(
                 LinkAnnotation.Url(seg.url, TextLinkStyles(SpanStyle(color = style.linkColor, textDecoration = TextDecoration.Underline))),
-            ) { append(if (style.shortLinks) LinkText.shorten(seg.text) else seg.text) }
+            ) { append(LinkText.display(seg.text, style.shortLinks)) }
             is Segment.Mention -> {
                 val color = seg.login?.let { readableNameColor(seg.color, it, style.dark, style.nameColors) } ?: Color.Unspecified
                 withStyle(SpanStyle(color = color, fontWeight = FontWeight.Bold)) { append(seg.name) }

@@ -10,6 +10,7 @@ import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
 import dev.chatter.app.ChatterApp
 import dev.chatter.app.ui.MainViewModel
+import dev.chatter.app.ui.chat.LinkGuard
 import dev.chatter.app.ui.theme.ChatterTheme
 import dev.chatter.app.util.EXTRA_CHANNEL
 
@@ -32,7 +33,7 @@ class BubbleActivity : ComponentActivity() {
         setContent {
             val settings by vm.settings.collectAsStateWithLifecycle()
             ChatterTheme(settings.themeMode, settings.dynamicColor, settings.pureBlack) {
-                BubbleScreen(vm, channel)
+                LinkGuard { BubbleScreen(vm, channel) }
             }
         }
     }

@@ -45,6 +45,8 @@
     <string name="action_reply">Reply</string>
     <string name="action_mention">Mention</string>
     <string name="action_copy">Copy</string>
+    <string name="link_check_title">Open this link?</string>
+    <string name="link_check_text">It is written to look like another site. It really goes to:</string>
     <string name="emotes">Emotes</string>
     <string name="input_hint">Send a message</string>
     <string name="input_hint_disabled">Not connected</string>

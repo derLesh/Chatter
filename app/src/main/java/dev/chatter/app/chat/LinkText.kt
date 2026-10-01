@@ -1,5 +1,7 @@
 package dev.chatter.app.chat
 
+import java.net.IDN
+
 /**
  * How a link is written in a message. What a link says about where it leads is its site and the
  * start of its path; the rest is ids and tracking, which nobody reads and which wraps a Reddit
@@ -16,6 +18,45 @@ object LinkText {
     private const val MIN_PART = 8
 
     private val prefix = Regex("^(https?://)?(www\\.)?", RegexOption.IGNORE_CASE)
+
+    /** Scheme (optional), authority, and everything after it. */
+    private val parts = Regex("^([a-zA-Z][a-zA-Z0-9+.-]*://)?([^/?#]*)(.*)$", RegexOption.DOT_MATCHES_ALL)
+
+    /**
+     * [url] the way it is shown: the part before an "@" in front of the host left out, and the
+     * host in punycode when it is not plain ASCII. Scam links are a constant in Twitch chats,
+     * and both are how one dresses up as another site — `twitch.tv@evil.example` goes to
+     * evil.example, and `twіtch.tv` with a Cyrillic "і" is not twitch.tv. What is shown is where
+     * the link goes; everything else stays as written.
+     */
+    fun honest(url: String): String {
+        val (scheme, authority, rest) = split(url) ?: return url
+        val hostPort = authority.substringAfterLast('@')
+        val host = hostPort.substringBefore(':')
+        val port = hostPort.removePrefix(host)
+        return scheme + ascii(host) + port + rest
+    }
+
+    /**
+     * Whether [url] is one of the links [honest] has to correct, or one already in punycode —
+     * worth a look at the real address before it is opened.
+     */
+    fun isUnusual(url: String): Boolean {
+        val (_, authority, _) = split(url) ?: return false
+        val host = authority.substringAfterLast('@').substringBefore(':')
+        return '@' in authority || host.any { it.code > 0x7F } ||
+            host.split('.').any { it.startsWith("xn--", ignoreCase = true) }
+    }
+
+    /** How a link is written in the chat: [honest] always, and [shorten]ed when [short]. */
+    fun display(url: String, short: Boolean): String = honest(url).let { if (short) shorten(it) else it }
+
+    private fun split(url: String): Triple<String, String, String>? =
+        parts.find(url)?.destructured?.let { (scheme, authority, rest) -> Triple(scheme, authority, rest) }
+
+    private fun ascii(host: String): String =
+        if (host.all { it.code <= 0x7F }) host
+        else runCatching { IDN.toASCII(host, IDN.ALLOW_UNASSIGNED) }.getOrDefault(host)
 
     fun shorten(url: String, max: Int = MAX_LENGTH): String {
         val bare = url.replaceFirst(prefix, "").trimEnd('/')

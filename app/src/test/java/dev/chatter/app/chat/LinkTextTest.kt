@@ -53,3 +53,44 @@ class LinkTextTest {
         ).forEach { assertTrue(it, LinkText.shorten(it).length <= LinkText.MAX_LENGTH) }
     }
 }
+
+class HonestLinkTest {
+    /** The part before "@" is user info: the site is what follows it. */
+    @Test
+    fun userInfoInFrontOfTheHostIsLeftOut() {
+        assertEquals("https://evil.example/login", LinkText.honest("https://twitch.tv@evil.example/login"))
+        assertEquals("evil.example/login", LinkText.display("https://twitch.tv@evil.example/login", short = true))
+        assertTrue(LinkText.isUnusual("https://twitch.tv@evil.example/login"))
+    }
+
+    /** "twіtch.tv" with a Cyrillic "і" looks exactly like twitch.tv, and is not. */
+    @Test
+    fun aHostThatIsNotPlainAsciiIsShownInPunycode() {
+        val shown = LinkText.honest("https://twіtch.tv/lesh")
+        assertTrue(shown, shown.startsWith("https://xn--"))
+        assertTrue(shown.endsWith(".tv/lesh"))
+        assertTrue(LinkText.isUnusual("https://twіtch.tv/lesh"))
+        assertTrue(LinkText.isUnusual("https://xn--twtch-6ve.tv/"))
+    }
+
+    @Test
+    fun anOrdinaryLinkIsLeftAsItIs() {
+        val url = "https://www.twitch.tv/lesh?ref=chat#top"
+        assertEquals(url, LinkText.honest(url))
+        assertEquals("twitch.tv/lesh?ref=chat#top", LinkText.honest("twitch.tv/lesh?ref=chat#top"))
+        assertTrue(!LinkText.isUnusual(url))
+    }
+
+    /** An "@" further on — a mention in a path, an address in a query — is not user info. */
+    @Test
+    fun anAtSignAfterTheHostIsNoTrick() {
+        val url = "https://www.youtube.com/@lesh/videos?q=a@b"
+        assertEquals(url, LinkText.honest(url))
+        assertTrue(!LinkText.isUnusual(url))
+    }
+
+    @Test
+    fun aPortStays() {
+        assertEquals("http://evil.example:8080/x", LinkText.honest("http://user:pw@evil.example:8080/x"))
+    }
+}
