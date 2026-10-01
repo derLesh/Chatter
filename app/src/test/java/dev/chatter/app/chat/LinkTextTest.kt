@@ -89,6 +89,14 @@ class HonestLinkTest {
         assertTrue(!LinkText.isUnusual(url))
     }
 
+    /** A browser reads the backslash as a slash: this goes to evil.example, and says so. */
+    @Test
+    fun aBackslashEndsTheHost() {
+        val url = "https://evil.example\\@twitch.tv/login"
+        assertTrue(LinkText.honest(url).startsWith("https://evil.example"))
+        assertTrue(LinkText.isUnusual(url))
+    }
+
     @Test
     fun aPortStays() {
         assertEquals("http://evil.example:8080/x", LinkText.honest("http://user:pw@evil.example:8080/x"))

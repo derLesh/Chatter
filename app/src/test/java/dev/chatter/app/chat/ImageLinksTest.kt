@@ -45,6 +45,25 @@ class ImageLinksTest {
         assertNull(ImageLinks.imageUrl("https://i.imgur.com.evil.example/a.png", hosts))
     }
 
+    /**
+     * Where the authority ends is OkHttp's call, since OkHttp fetches it: a backslash ends it
+     * like a slash, so each of these goes to evil.example, however much imgur.com is in the text.
+     */
+    @Test
+    fun theHostIsWhatTheImageClientWouldAsk() {
+        assertNull(ImageLinks.imageUrl("https://evil.example\\@imgur.com/a.png", hosts))
+        assertNull(ImageLinks.imageUrl("https://evil.example\\.imgur.com/a.png", hosts))
+        assertNull(ImageLinks.imageUrl("https://evil.example?@imgur.com/a.png", hosts))
+        assertNull(ImageLinks.imageUrl("https://evil.example#@imgur.com/a.png", hosts))
+        assertNull(ImageLinks.imageUrl("https://user@i.imgur.com/a.png", hosts))
+    }
+
+    /** What is fetched is the url as OkHttp reads it, so the host checked is the host asked. */
+    @Test
+    fun theUrlHandedBackIsTheParsedOne() {
+        assertEquals("https://i.imgur.com/a.png", ImageLinks.imageUrl("HTTPS://I.IMGUR.COM/a.png", hosts))
+    }
+
     @Test
     fun anIdThisBuildsAUrlFromCanOnlyBeLettersAndDigits() {
         // Anything that could steer the address somewhere else stays a link.

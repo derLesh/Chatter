@@ -1,5 +1,7 @@
 package dev.chatter.app.net
 
+import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
+
 /**
  * Where the pictures of emotes and badges may come from.
  *
@@ -27,12 +29,11 @@ object TrustedImages {
      * "//cdn…" — FFZ and 7TV answer that way — becomes https.
      */
     fun url(raw: String): String? {
-        val url = if (raw.startsWith("//")) "https:$raw" else raw
-        if (!url.startsWith("https://", ignoreCase = true)) return null
-        val authority = url.substring("https://".length).substringBefore('/').substringBefore('?').substringBefore('#')
-        // "https://cdn.7tv.app@evil.example/" goes to evil.example.
-        if ('@' in authority) return null
-        val host = authority.substringBefore(':').lowercase()
-        return url.takeIf { HOSTS.any { host == it || host.endsWith(".$it") } }
+        // Read by the parser that will fetch it, and handed back the way it reads it, so the host
+        // checked here is the host asked; see ImageLinks.imageUrl.
+        val parsed = (if (raw.startsWith("//")) "https:$raw" else raw).toHttpUrlOrNull() ?: return null
+        if (!parsed.isHttps || parsed.username.isNotEmpty() || parsed.password.isNotEmpty()) return null
+        val host = parsed.host
+        return parsed.toString().takeIf { HOSTS.any { host == it || host.endsWith(".$it") } }
     }
 }

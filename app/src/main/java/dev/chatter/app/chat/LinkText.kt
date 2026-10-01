@@ -23,7 +23,9 @@ object LinkText {
     private val BIDI = Regex("[\\u061C\\u200E\\u200F\\u202A-\\u202E\\u2066-\\u2069]")
 
     /** Scheme (optional), authority, and everything after it. */
-    private val parts = Regex("^([a-zA-Z][a-zA-Z0-9+.-]*://)?([^/?#]*)(.*)$", RegexOption.DOT_MATCHES_ALL)
+    // A backslash ends the authority as a slash does: browsers and OkHttp read
+    // `evil.example\@twitch.tv` as evil.example, so the text has to as well.
+    private val parts = Regex("^([a-zA-Z][a-zA-Z0-9+.-]*://)?([^/\\\\?#]*)(.*)$", RegexOption.DOT_MATCHES_ALL)
 
     /**
      * [url] the way it is shown: the part before an "@" in front of the host left out, and the
@@ -48,9 +50,9 @@ object LinkText {
      * worth a look at the real address before it is opened.
      */
     fun isUnusual(url: String): Boolean {
-        val (_, authority, _) = split(url) ?: return false
+        val (_, authority, rest) = split(url) ?: return false
         val host = authority.substringAfterLast('@').substringBefore(':')
-        return '@' in authority || BIDI.containsMatchIn(url) || host.any { it.code > 0x7F } ||
+        return '@' in authority || rest.startsWith('\\') || BIDI.containsMatchIn(url) || host.any { it.code > 0x7F } ||
             host.split('.').any { it.startsWith("xn--", ignoreCase = true) }
     }
 

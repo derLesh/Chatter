@@ -1,5 +1,7 @@
 package dev.chatter.app.chat
 
+import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
+
 /**
  * Which links in a message are shown as pictures, and where the picture actually is.
  *
@@ -43,16 +45,22 @@ object ImageLinks {
      * thought up.
      */
     fun imageUrl(url: String, hosts: Collection<String>): String? {
-        if (!url.startsWith("https://", ignoreCase = true) && !url.startsWith("http://", ignoreCase = true)) return null
-        val host = host(url) ?: return null
+        // Read the way the image client will read it, OkHttp's own parser, and hand back the url
+        // it produced. Picking the host out by hand disagreed with it at the edges — a backslash
+        // ends the authority for OkHttp as it does in a browser, so `https://evil.example\@imgur.com/a.png`
+        // looked like imgur.com here and was fetched from evil.example there.
+        val parsed = url.toHttpUrlOrNull() ?: return null
+        if (parsed.username.isNotEmpty() || parsed.password.isNotEmpty()) return null
+        val host = parsed.host
         if (hosts.none { it.isNotEmpty() && (host == it || host.endsWith(".$it")) }) return null
-        val path = path(url)
-        if (path.substringAfterLast('/').substringAfterLast('.', "").lowercase() in IMAGE_TYPES) return url
+        val segments = parsed.pathSegments.filter { it.isNotEmpty() }
+        val file = segments.lastOrNull().orEmpty()
+        if (file.substringAfterLast('.', "").lowercase() in IMAGE_TYPES) return parsed.toString()
         // Imgur and Gyazo hand out a page, not the picture; the picture sits on their image host
         // under the same id. An album or a gallery is more than one picture, so it stays a link.
         // The id goes into a url this builds, so it may be nothing but plain ASCII letters and
         // digits — no dot, no slash, no escape, nothing that could steer the address elsewhere.
-        val id = path.trim('/').takeIf { it.length in 1..MAX_ID && it.all(::isPlainAscii) } ?: return null
+        val id = segments.singleOrNull()?.takeIf { it.length in 1..MAX_ID && it.all(::isPlainAscii) } ?: return null
         return when {
             host == "imgur.com" || host.endsWith(".imgur.com") -> "https://i.imgur.com/$id.png"
             host == "gyazo.com" || host.endsWith(".gyazo.com") -> "https://i.gyazo.com/$id.png"
@@ -99,17 +107,4 @@ object ImageLinks {
         .substringBefore(':')
         .removePrefix("www.")
         .lowercase()
-
-    // The authority ends at the last "@", so "https://imgur.com@evil.example/x.png" is read as
-    // the host it really goes to and not as the one it is dressed up as.
-    private fun host(url: String): String? = url
-        .substringAfter("://", "")
-        .substringBefore('/')
-        .substringAfterLast('@')
-        .substringBefore(':')
-        .lowercase()
-        .takeIf { it.isNotEmpty() }
-
-    private fun path(url: String): String =
-        url.substringAfter("://", url).substringAfter('/', "").substringBefore('#').substringBefore('?')
 }

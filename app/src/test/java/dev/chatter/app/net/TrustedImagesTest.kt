@@ -36,5 +36,7 @@ class TrustedImagesTest {
     @Test
     fun userInfoCannotDressUpAHost() {
         assertNull(TrustedImages.url("https://cdn.7tv.app@evil.example/x.webp"))
+        assertNull(TrustedImages.url("https://evil.example\\@cdn.7tv.app/x.webp"))
+        assertNull(TrustedImages.url("//evil.example\\.7tv.app/x.webp"))
     }
 }
