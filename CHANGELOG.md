@@ -3,39 +3,6 @@
 Every release of Chatter, newest first. Written from the entries in `pending-changelog/` by
 `./gradlew releaseVersion`, and shown in the app under Settings → About → Changelog.
 
-## 1.0.0 — 2026-10-01
-- major: Regex rules with lookarounds or backreferences are no longer used, since they could stall the chat
-- minor: Keep what was typed with its channel, so swiping to another one no longer takes it along
-- minor: Read chats as a guest without a Twitch login, and log in later to write
-- minor: Save data on mobile data: no linked images, still and smaller emotes, while the chat keeps arriving
-- minor: Say in the notification settings when Android stopped the background connection, and how to prevent it
-- minor: Search the settings, and land right on the setting that was found
-- minor: Shorten long links to their site and the start of their path, with a setting to show them in full
-- minor: Show characters left, slow mode seconds and chat modes before sending, and hand refused messages back
-- minor: Show on the statistics page which channels arrive in the background and how much data Chatter used
-- minor: Slow animated emotes to 10 frames a second when the chat has not been touched for three minutes
-- minor: Turn the dark theme pure black for OLED screens, with or without Material You colors
-- minor: Whisper to a chatter, open their Twitch page and see their picture large, all from the user card
-- patch: Check a restored backup and show what it changes, including which sites pictures load from, before applying it
-- patch: Check the combined chats in a restored backup, so none can slip a command in as a channel name
-- patch: Fix a crash when a chatter without a name color has one of a few unlucky names
-- patch: Handle and draw chat messages at full speed right after an install or update
-- patch: Keep mentions and whispers with the account they were sent to, and forget them when it logs out
-- patch: Keep the login on Twitch's own pages, and open any other link from it in the browser
-- patch: Load no profile pictures for notifications while saving data
-- patch: Logging out also signs the account out at Twitch, so its token stops working everywhere
-- patch: Read a linked picture's address the way it is fetched, so a trick in it cannot load one from another site
-- patch: Replying from a notification asks to unlock the phone first, and whispers keep their sender off the lock screen
-- patch: Run regex rules so that no pattern can stall the chat, and mark the rare one that has to be skipped
-- patch: Save the statistics every ten minutes instead of twice a minute while Chatter is in the background
-- patch: Say on the account page when a login allows less than Chatter uses, with a way to log in again
-- patch: Show links that hide behind invisible direction marks as they really are, and ask before opening them
-- patch: Show where a link really goes, and ask before opening one dressed up as another site
-- patch: Slide between chat, inbox and settings, and preview where the back gesture leads while it is dragged
-- patch: Spend less work and memory on every chat message, in the background too
-- patch: Spend less work on combined chats of busy channels while they are open
-- patch: Stop retrying the chat every half minute on a network that does not reach the internet
-
 ## 0.7.0 — 2026-09-28
 - minor: Mark where you stopped reading a channel, with a chip that jumps back to it
 - minor: Show which channel a Shared Chat message was written in, with the badges earned there

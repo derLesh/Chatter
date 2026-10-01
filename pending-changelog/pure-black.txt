@@ -1,0 +1,1 @@
+minor: Turn the dark theme pure black for OLED screens, with or without Material You colors

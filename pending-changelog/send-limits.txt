@@ -1,0 +1,1 @@
+minor: Show characters left, slow mode seconds and chat modes before sending, and hand refused messages back

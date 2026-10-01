@@ -1,0 +1,1 @@
+patch: Replying from a notification asks to unlock the phone first, and whispers keep their sender off the lock screen

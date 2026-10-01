@@ -1,0 +1,1 @@
+minor: Keep what was typed with its channel, so swiping to another one no longer takes it along

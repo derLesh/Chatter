@@ -1,0 +1,1 @@
+minor: Show on the statistics page which channels arrive in the background and how much data Chatter used

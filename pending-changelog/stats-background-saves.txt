@@ -1,0 +1,1 @@
+patch: Save the statistics every ten minutes instead of twice a minute while Chatter is in the background

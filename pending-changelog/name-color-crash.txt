@@ -1,0 +1,1 @@
+patch: Fix a crash when a chatter without a name color has one of a few unlucky names
