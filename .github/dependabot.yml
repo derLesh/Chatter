@@ -1,0 +1,13 @@
+# The workflows name every action by a commit, never by a tag: a tag can be moved by whoever
+# controls the action, and the release job hands such actions the upload key and the Play
+# credentials. Pinning means nothing moves on its own, so this is what keeps the pins from going
+# stale — it opens a pull request for a new version, with the release notes, to be read and merged.
+version: 2
+updates:
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+    groups:
+      actions:
+        patterns: ["*"]

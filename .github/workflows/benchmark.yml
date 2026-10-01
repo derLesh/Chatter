@@ -29,26 +29,28 @@ jobs:
     timeout-minutes: 60
     steps:
       - name: Check out the branch
-        uses: actions/checkout@v5
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
         with:
           path: branch
+          persist-credentials: false
 
       # Nothing to compare when the branch is the one it would be compared with.
       - name: Check out ${{ inputs.compare_with }}
         if: github.ref_name != inputs.compare_with
-        uses: actions/checkout@v5
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
         with:
           ref: ${{ inputs.compare_with }}
           path: base
+          persist-credentials: false
 
       - name: Set up JDK
-        uses: actions/setup-java@v5
+        uses: actions/setup-java@b6effb05e454b25005698d916606bdc6ffcbf961 # v5.7.0
         with:
           distribution: temurin
           java-version: '21'
 
       - name: Set up Gradle
-        uses: gradle/actions/setup-gradle@v4
+        uses: gradle/actions/setup-gradle@748248ddd2a24f49513d8f472f81c3a07d4d50e1 # v4.4.4
 
       # The emulator is only usable with hardware acceleration, which the runner has but does not
       # hand to its user until told to.
@@ -60,7 +62,7 @@ jobs:
 
       # The action runs every line of the script on its own, so each run is one line.
       - name: Run the benchmark on an emulator
-        uses: reactivecircus/android-emulator-runner@v2
+        uses: reactivecircus/android-emulator-runner@a421e43855164a8197daf9d8d40fe71c6996bb0d # v2.38.0
         with:
           api-level: 34
           target: google_apis
@@ -79,7 +81,7 @@ jobs:
           fi
 
       - name: Keep the raw numbers
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: benchmark
           path: |

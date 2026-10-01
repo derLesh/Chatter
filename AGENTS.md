@@ -47,6 +47,12 @@ throws away. Lint is part of the gate, so a new lint error fails the branch — 
 bundle, because R8, the resource shrinker and resource linking only ever run there, and a release
 is a bad time to find out one of them is unhappy.
 
+Every action in the workflows is named by a commit, not by a tag, with the version in a comment
+next to it. A tag can be moved by whoever controls the action, and the release job hands actions
+the upload key and the Play credentials. Dependabot (`.github/dependabot.yml`) opens a pull request
+when one of them has a new version; read what changed before merging it, and pin a new action the
+same way.
+
 Supporting Chatter is **switched off** everywhere until GitHub Sponsors is set up: `sponsoring`
 in `app/build.gradle.kts` takes the settings category out of every build and keeps the app from
 asking for a supporter list nobody serves, and the two workflows below have their triggers

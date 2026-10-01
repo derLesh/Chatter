@@ -46,7 +46,9 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+        with:
+          persist-credentials: false
 
       # The release commit is pushed to the branch the run started on, and a tag on a side branch
       # would be a version the main line never had. A dry run may start anywhere.
@@ -96,7 +98,7 @@ jobs:
           fi
 
       - name: Set up JDK
-        uses: actions/setup-java@v5
+        uses: actions/setup-java@b6effb05e454b25005698d916606bdc6ffcbf961 # v5.7.0
         with:
           distribution: temurin
           java-version: '21'
@@ -146,16 +148,18 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+        with:
+          persist-credentials: false
 
       - name: Set up JDK
-        uses: actions/setup-java@v5
+        uses: actions/setup-java@b6effb05e454b25005698d916606bdc6ffcbf961 # v5.7.0
         with:
           distribution: temurin
           java-version: '21'
 
       - name: Set up Gradle
-        uses: gradle/actions/setup-gradle@v4
+        uses: gradle/actions/setup-gradle@748248ddd2a24f49513d8f472f81c3a07d4d50e1 # v4.4.4
 
       - name: Check the pending changelog entries
         run: ./gradlew checkChangelog
@@ -172,7 +176,7 @@ jobs:
       - name: Upload the test and lint reports
         if: failure()
         continue-on-error: true
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: reports
           retention-days: 7
@@ -193,18 +197,18 @@ jobs:
     steps:
       # The whole history, so the release commit and the tag can be pushed, and so the version
       # before this one can be read back out of the previous tag.
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
         with:
           fetch-depth: 0
 
       - name: Set up JDK
-        uses: actions/setup-java@v5
+        uses: actions/setup-java@b6effb05e454b25005698d916606bdc6ffcbf961 # v5.7.0
         with:
           distribution: temurin
           java-version: '21'
 
       - name: Set up Gradle
-        uses: gradle/actions/setup-gradle@v4
+        uses: gradle/actions/setup-gradle@748248ddd2a24f49513d8f472f81c3a07d4d50e1 # v4.4.4
 
       - name: Fold the pending entries into the changelog
         run: ./gradlew releaseVersion
@@ -323,7 +327,7 @@ jobs:
 
       - name: Upload the artifacts to the run
         continue-on-error: true
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: chatter-${{ steps.version.outputs.version }}
           path: |
@@ -371,9 +375,12 @@ jobs:
           ' > "$RUNNER_TEMP/whatsnew/whatsnew-en-US"
           cp "$RUNNER_TEMP/whatsnew/whatsnew-en-US" "$RUNNER_TEMP/whatsnew/whatsnew-de-DE"
 
+      # The one third-party action that is handed a credential: the service account that may release
+      # to Play. It is pinned to a commit that was read, and a new version is read again before its
+      # pull request from Dependabot is merged.
       - name: Upload the bundle to Play
         if: ${{ !inputs.dry_run && inputs.play_track != 'none' }}
-        uses: r0adkll/upload-google-play@v1
+        uses: r0adkll/upload-google-play@e738b9dd8f2476ea806d921b64aacd24f34515a5 # v1.1.5
         with:
           serviceAccountJsonPlainText: ${{ secrets.PLAY_SERVICE_ACCOUNT_JSON }}
           packageName: dev.chatter.app
