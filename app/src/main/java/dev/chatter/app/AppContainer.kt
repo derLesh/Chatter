@@ -62,6 +62,8 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withTimeoutOrNull
 import okhttp3.Cache
@@ -112,8 +114,11 @@ class AppContainer(private val context: Context) {
     val channels = ChannelRepository(context.channelStore, helix, scope)
     val blocked = BlockedUsersRepository(helix, scope)
     val nicknames = NicknameRepository(context.nicknameStore, scope)
-    val inbox = MentionInboxRepository(context.inboxStore, scope)
-    val whisperInbox = WhisperInboxRepository(context.inboxStore, scope)
+    /** The user id of the account the app acts as, or null for a guest or nobody. */
+    private val activeUserId: StateFlow<String?> =
+        auth.state.map { (it as? AuthState.LoggedIn)?.account?.userId }.stateIn(scope, SharingStarted.Eagerly, null)
+    val inbox = MentionInboxRepository(context.inboxStore, activeUserId, scope)
+    val whisperInbox = WhisperInboxRepository(context.inboxStore, activeUserId, scope)
     val rules = RuleRepository(context.ruleStore, scope)
     val stats = StatsRepository(context.statsStore, scope)
     val backgroundHealth = BackgroundHealth(context, context.healthStore, scope)
@@ -180,11 +185,23 @@ class AppContainer(private val context: Context) {
         // One notification channel per Twitch channel, so each can be given its own sound.
         scope.launch { channels.identities.collect { notifier.syncChannels(it) } }
         // Every mention lands in the inbox, whether or not it was worth a notification.
-        scope.launch { chat.allMentions.collect { inbox.add(it.item, read = it.seen) } }
-        scope.launch { chat.whispers.collect { whisperInbox.add(it) } }
+        // Each row is kept for the account it was addressed to. What arrives while nobody is
+        // logged in — a guest gets neither — has nobody to go to.
+        scope.launch {
+            chat.allMentions.collect { m -> activeUserId.value?.let { inbox.add(m.item, read = m.seen, account = it) } }
+        }
+        scope.launch { chat.whispers.collect { w -> activeUserId.value?.let { whisperInbox.add(w, account = it) } } }
         scope.launch {
             channels.loadCache()
             auth.restore()
+            // Only from here on is the account list the real one rather than the empty start.
+            // Whatever an account that is gone received goes with it, however it went: logged
+            // out, ended by Twitch, or unreadable after the keystore key was replaced.
+            auth.accounts.collect { list ->
+                val ids = list.map { it.userId }
+                inbox.keepOnly(ids)
+                whisperInbox.keepOnly(ids)
+            }
         }
         scope.launch {
             var userId: String? = null
@@ -197,7 +214,11 @@ class AppContainer(private val context: Context) {
                             // Switching accounts, not the first login: what is loaded belongs to
                             // the account before it, and a block list that stays would go on
                             // hiding people this account never blocked.
-                            if (userId != null) blocked.clear()
+                            // The same goes for the mentions and whispers in the shade.
+                            if (userId != null) {
+                                blocked.clear()
+                                notifier.clearConversations()
+                            }
                             userId = state.account.userId
                             chat.resync()
                             launch { emotes.loadGlobal() }
@@ -223,6 +244,7 @@ class AppContainer(private val context: Context) {
                         chat.reset()
                         emotes.clear()
                         blocked.clear()
+                        notifier.clearConversations()
                     }
                     AuthState.Loading -> Unit
                 }

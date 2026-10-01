@@ -305,6 +305,17 @@ class ChatNotifier(
         addWhisperLine(login, name = null, userId = null, line = WhisperLine(reason, System.currentTimeMillis(), own = true))
     }
 
+    /**
+     * Takes down every mention and whisper, for when the account they were addressed to is not
+     * the one the app acts as any more. A whisper left in the shade would otherwise go on showing
+     * somebody else's private message, and its reply action would answer as the wrong account.
+     */
+    @Synchronized
+    fun clearConversations() {
+        recent.keys.toList().forEach { clear(it) }
+        clearWhispers()
+    }
+
     /** Takes the whisper notifications down once the user opens the tab that holds them. */
     @Synchronized
     fun clearWhispers() {

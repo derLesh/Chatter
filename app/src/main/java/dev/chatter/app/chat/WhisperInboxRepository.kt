@@ -9,6 +9,7 @@ import dev.chatter.app.net.AppJson
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.serialization.Serializable
@@ -26,6 +27,8 @@ data class InboxWhisper(
     /** ARGB color from the `color` tag, or null if the sender never picked one. */
     val color: Int? = null,
     val read: Boolean = false,
+    /** The user id of the account it was sent to; null for rows from before inboxes knew. */
+    val owner: String? = null,
 ) {
     companion object {
         /**
@@ -58,28 +61,49 @@ data class InboxWhisper(
  * Every whisper the user has received, newest first and surviving restarts. Chatter cannot send
  * whispers (Twitch dropped that from chat), so this is a mailbox to read, not a conversation.
  */
-class WhisperInboxRepository(private val store: DataStore<Preferences>, scope: CoroutineScope) {
-    val whispers: StateFlow<List<InboxWhisper>> = store.data
-        .map { p -> decode(p[WHISPERS]) }
-        .stateIn(scope, SharingStarted.Eagerly, emptyList())
+class WhisperInboxRepository(
+    private val store: DataStore<Preferences>,
+    /** The user id of the account the app acts as; its whispers are the only ones shown. */
+    private val owner: StateFlow<String?>,
+    scope: CoroutineScope,
+) {
+    /** The active account's whispers, newest first. See [InboxOwners]. */
+    val whispers: StateFlow<List<InboxWhisper>> = combine(store.data, owner) { p, me ->
+        if (me == null) emptyList() else decode(p[WHISPERS]).filter { it.owner == me }
+    }.stateIn(scope, SharingStarted.Eagerly, emptyList())
 
     val unreadCount: StateFlow<Int> = whispers
         .map { list -> list.count { !it.read } }
         .stateIn(scope, SharingStarted.Eagerly, 0)
 
-    suspend fun add(whisper: InboxWhisper) = update { list ->
-        if (list.any { it.id == whisper.id }) list else (listOf(whisper) + list).take(LIMIT)
+    /** [account] is the user id the whisper was sent to. */
+    suspend fun add(whisper: InboxWhisper, account: String) = update { list ->
+        // Twitch numbers whispers per thread, so the same id can turn up for another account.
+        if (list.any { it.id == whisper.id && it.owner == account }) list
+        else (listOf(whisper.copy(owner = account)) + list).take(LIMIT)
     }
 
     suspend fun markRead(id: String) = update { list ->
-        list.map { if (it.id == id) it.copy(read = true) else it }
+        val me = owner.value
+        list.map { if (it.id == id && it.owner == me) it.copy(read = true) else it }
     }
 
     suspend fun markAllRead() = update { list ->
-        if (list.none { !it.read }) list else list.map { it.copy(read = true) }
+        val me = owner.value
+        if (list.none { it.owner == me && !it.read }) list
+        else list.map { if (it.owner == me) it.copy(read = true) else it }
     }
 
-    suspend fun clear() = update { emptyList() }
+    /** Empties the active account's inbox; the other accounts keep theirs. */
+    suspend fun clear() = update { list ->
+        val me = owner.value
+        if (list.none { it.owner == me }) list else list.filterNot { it.owner == me }
+    }
+
+    /** Lets go of the whispers of every account that is not in [accounts]; see [InboxOwners]. */
+    suspend fun keepOnly(accounts: Collection<String>) = update { list ->
+        InboxOwners.keepOnly(list, accounts, { it.owner }) { row, id -> row.copy(owner = id) }
+    }
 
     private suspend fun update(transform: (List<InboxWhisper>) -> List<InboxWhisper>) {
         store.edit { p ->
