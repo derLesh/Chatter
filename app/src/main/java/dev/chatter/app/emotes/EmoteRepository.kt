@@ -7,6 +7,7 @@ import dev.chatter.app.net.FfzEmote
 import dev.chatter.app.net.ServiceTrouble
 import dev.chatter.app.net.SevenTvActiveEmote
 import dev.chatter.app.net.ThirdPartyEmoteApi
+import dev.chatter.app.net.TrustedImages
 import dev.chatter.app.net.TwitchEmoteApi
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
@@ -244,7 +245,7 @@ class EmoteRepository(
         EmoteProvider.Ffz -> answer(provider) {
             thirdParty.ffzGlobal()
                 .let { g -> g.defaultSets.flatMap { g.sets[it.toString()]?.emoticons.orEmpty() } }
-                .map { it.toEmote(false) }
+                .mapNotNull { it.toEmote(false) }
         }
         EmoteProvider.Bttv -> answer(provider) { thirdParty.bttvGlobal().map { it.toEmote(false) } }
         EmoteProvider.SevenTv -> answer(provider) {
@@ -256,7 +257,7 @@ class EmoteRepository(
 
     private suspend fun fetchChannel(channelId: String, provider: EmoteProvider): List<Emote>? = when (provider) {
         EmoteProvider.Ffz -> answer(provider) {
-            thirdParty.ffzChannel(channelId)?.sets?.values?.flatMap { it.emoticons }?.map { it.toEmote(true) }.orEmpty()
+            thirdParty.ffzChannel(channelId)?.sets?.values?.flatMap { it.emoticons }?.mapNotNull { it.toEmote(true) }.orEmpty()
         }
         EmoteProvider.Bttv -> answer(provider) {
             thirdParty.bttvChannel(channelId)?.let { it.channelEmotes + it.sharedEmotes }?.map { it.toEmote(true) }.orEmpty()
@@ -307,11 +308,12 @@ class EmoteRepository(
         author = user?.displayName?.ifEmpty { null },
     )
 
-    private fun FfzEmote.toEmote(channel: Boolean): Emote {
+    /** Null for an emote whose picture is not on FFZ's own hosts; see [TrustedImages]. */
+    private fun FfzEmote.toEmote(channel: Boolean): Emote? {
         val raw = animated?.let { it["2"] ?: it["1"] } ?: urls["2"] ?: urls["1"] ?: ""
         return Emote(
             name = name, id = id.toString(),
-            url = if (raw.startsWith("//")) "https:$raw" else raw,
+            url = TrustedImages.url(raw) ?: return null,
             provider = EmoteProvider.Ffz,
             aspectRatio = if (height > 0) width.toFloat() / height else 1f,
             isChannel = channel,
@@ -322,10 +324,11 @@ class EmoteRepository(
     private fun SevenTvActiveEmote.toEmote(channel: Boolean): Emote? {
         val host = data?.host ?: return null
         val file = host.files.firstOrNull { it.name.startsWith("1x") }
-        val base = if (host.url.startsWith("//")) "https:${host.url}" else host.url
+        // The host is 7TV's answer, not Chatter's; see [TrustedImages].
+        val url = TrustedImages.url("${host.url}/2x.webp") ?: return null
         return Emote(
             name = name, id = id,
-            url = "$base/2x.webp",
+            url = url,
             provider = EmoteProvider.SevenTv,
             aspectRatio = if (file != null && file.height > 0) file.width.toFloat() / file.height else 1f,
             // Flag 1 on the active emote or 256 on the emote itself marks it as zero-width.

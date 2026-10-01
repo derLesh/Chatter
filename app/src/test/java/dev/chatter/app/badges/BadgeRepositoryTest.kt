@@ -53,7 +53,7 @@ class BadgeRepositoryTest {
         companion object {
             fun badgeSet(setId: String, version: String, title: String) = HelixBadgeSet(
                 setId = setId,
-                versions = listOf(HelixBadgeVersion(id = version, title = title, url2x = "https://twitch.invalid/$setId")),
+                versions = listOf(HelixBadgeVersion(id = version, title = title, url2x = "https://static-cdn.jtvnw.net/badges/v1/$setId/2")),
             )
         }
     }
@@ -67,7 +67,7 @@ class BadgeRepositoryTest {
         override suspend fun chatterinoBadges(): ChatterinoBadges {
             chatterinoCalls++
             val users = chatterino ?: throw IOException("Chatterino is down")
-            return ChatterinoBadges(listOf(ChatterinoBadge(tooltip = "Chatterino Fan", image2 = "https://c.invalid/2", users = users)))
+            return ChatterinoBadges(listOf(ChatterinoBadge(tooltip = "Chatterino Fan", image2 = "https://fourtf.com/chatterino/badges/fan.png", users = users)))
         }
 
         override suspend fun chatterSupporters(): ChatterSupporters {

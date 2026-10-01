@@ -7,6 +7,7 @@ import dev.chatter.app.net.HelixBadgeSet
 import dev.chatter.app.net.NotLoggedInException
 import dev.chatter.app.net.ServiceTrouble
 import dev.chatter.app.net.ThirdPartyBadgeApi
+import dev.chatter.app.net.TrustedImages
 import dev.chatter.app.net.TwitchBadgeApi
 import java.time.Instant
 import java.time.LocalDate
@@ -165,8 +166,8 @@ class BadgeRepository(
                 .onSuccess { list ->
                     val byUser = HashMap<String, MutableList<Badge>>()
                     for (badge in list.badges) {
-                        val url = badge.image2.ifEmpty { badge.image1 }.ifEmpty { badge.image3 }
-                        if (url.isEmpty()) continue
+                        // Only from Chatterino's own host; see TrustedImages.
+                        val url = TrustedImages.url(badge.image2.ifEmpty { badge.image1 }.ifEmpty { badge.image3 }) ?: continue
                         val image = Badge(url, badge.tooltip, BadgeProvider.Chatterino)
                         badge.users.forEach { byUser.getOrPut(it) { ArrayList(1) } += image }
                     }
@@ -232,7 +233,8 @@ class BadgeRepository(
     private fun List<HelixBadgeSet>.toMap(): Map<String, Badge> {
         val map = HashMap<String, Badge>()
         for (set in this) for (v in set.versions) {
-            map["${set.setId}/${v.id}"] = Badge(v.url2x.ifEmpty { v.url1x }, v.title, BadgeProvider.Twitch)
+            val url = TrustedImages.url(v.url2x.ifEmpty { v.url1x }) ?: continue
+            map["${set.setId}/${v.id}"] = Badge(url, v.title, BadgeProvider.Twitch)
         }
         return map
     }

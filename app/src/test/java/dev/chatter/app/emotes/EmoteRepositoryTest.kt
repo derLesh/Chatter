@@ -70,14 +70,14 @@ class EmoteRepositoryTest {
 
         private fun List<String>.toBttv() = map { BttvEmote(id = "bttv-$it", code = it) }
         private fun List<String>.toFfz() = mapIndexed { i, name ->
-            FfzEmote(id = i.toLong(), name = name, urls = mapOf("2" to "https://ffz.invalid/$name"))
+            FfzEmote(id = i.toLong(), name = name, urls = mapOf("2" to "https://cdn.frankerfacez.com/emote/$i/2"))
         }
 
         private fun List<String>.toSevenTv() = map {
             SevenTvActiveEmote(
                 id = "stv-$it",
                 name = it,
-                data = SevenTvEmoteData(host = SevenTvHost("//cdn.7tv.invalid/emote/stv-$it")),
+                data = SevenTvEmoteData(host = SevenTvHost("//cdn.7tv.app/emote/stv-$it")),
             )
         }
     }
@@ -342,6 +342,6 @@ class EmoteRepositoryTest {
     private fun sevenTvEmote(name: String) = SevenTvActiveEmote(
         id = "stv-$name",
         name = name,
-        data = SevenTvEmoteData(host = SevenTvHost("//cdn.7tv.invalid/emote/stv-$name")),
+        data = SevenTvEmoteData(host = SevenTvHost("//cdn.7tv.app/emote/stv-$name")),
     )
 }
