@@ -141,14 +141,17 @@ class IrcConnection(
 
     // While connecting, the JOINs are sent after the welcome message (see onWelcome).
     override fun join(channel: String): Unit = synchronized(lock) {
+        if (!isChannel(channel)) return
         if (joined.add(channel) && _state.value == ConnectionState.Connected) socket?.send("JOIN #$channel")
     }
 
     override fun part(channel: String): Unit = synchronized(lock) {
+        if (!isChannel(channel)) return
         if (joined.remove(channel) && _state.value == ConnectionState.Connected) socket?.send("PART #$channel")
     }
 
     override fun sendMessage(channel: String, text: String, replyParentId: String?): Boolean {
+        if (!isChannel(channel)) return false
         val tags = replyParentId?.let { "@reply-parent-msg-id=${IrcMessage.escapeTagValue(it)} " } ?: ""
         val clean = text.replace('\n', ' ').replace('\r', ' ')
         return synchronized(lock) {
@@ -301,6 +304,20 @@ class IrcConnection(
 
     internal companion object {
         private const val TAG = "IrcConnection"
+
+        private val CHANNEL = Regex("^[a-z0-9_]{1,25}$")
+
+        /**
+         * Whether [channel] may go into a command: a Twitch login and nothing else. It is the
+         * last place a name passes before it is written into a line of IRC, where a space, a
+         * comma or a line break would make it a different command — whatever stored or restored
+         * it should already have refused such a name, and this does not rely on that.
+         */
+        internal fun isChannel(channel: String): Boolean {
+            if (CHANNEL.matches(channel)) return true
+            Log.w(TAG, "Refused a channel name that is not a Twitch login")
+            return false
+        }
         private const val ANONYMOUS_LOGIN = "justinfan12345"
 
         /**

@@ -32,6 +32,16 @@ data class ChannelGroup(
         fun isKey(page: String): Boolean = page.startsWith(PREFIX)
 
         fun idOf(key: String): String = key.removePrefix(PREFIX)
+
+        /**
+         * What an id may be: the app makes them from a UUID, so letters, digits and dashes. One
+         * from a backup is somebody else's text, and the key it makes goes into the page list,
+         * which is stored comma-separated — "x,forsen" would come back as a combined chat and a
+         * channel, and whatever followed a comma would be joined over IRC as a channel name.
+         */
+        private val ID = Regex("^[A-Za-z0-9-]{1,36}$")
+
+        fun isValidId(id: String): Boolean = ID.matches(id)
     }
 }
 

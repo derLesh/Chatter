@@ -54,12 +54,15 @@ class ChannelRepository(
      * can sit between two channels, and is moved about the same way they are.
      */
     val pages: StateFlow<List<String>> = store.data
-        .map { p -> split(p[CHANNELS]) }
+        .map { p -> split(p[CHANNELS]).filter(::isPage) }
         .stateIn(scope, SharingStarted.Eagerly, emptyList())
 
-    /** The channels alone: what is joined, notified about and given a shortcut. */
+    /**
+     * The channels alone: what is joined, notified about and given a shortcut. Only real logins,
+     * whatever the stored list holds — these names end up in IRC commands.
+     */
     val channels: StateFlow<List<String>> = store.data
-        .map { p -> split(p[CHANNELS]).filterNot(ChannelGroup::isKey) }
+        .map { p -> split(p[CHANNELS]).filterNot(ChannelGroup::isKey).filter { VALID.matches(it) } }
         .distinctUntilChanged()
         .stateIn(scope, SharingStarted.Eagerly, emptyList())
 
@@ -239,7 +242,7 @@ class ChannelRepository(
         groups: List<ChannelGroup> = emptyList(),
     ) {
         val valid = logins.filterNot(ChannelGroup::isKey).mapNotNull { normalize(it) }.distinct()
-        val kept = groups.distinctBy { it.id }
+        val kept = groups.filter { ChannelGroup.isValidId(it.id) }.distinctBy { it.id }
             .map { g -> g.copy(channels = g.channels.mapNotNull { normalize(it) }.filter { it in valid }.distinct()) }
             .filter { it.channels.isNotEmpty() }
         val keys = kept.map { it.key }.toSet()
@@ -316,8 +319,13 @@ class ChannelRepository(
 
         private fun split(raw: String?): List<String> = raw.orEmpty().split(',').filter { it.isNotEmpty() }
 
+        /** A login, or the key of a combined chat with a well-formed id: nothing else is a page. */
+        private fun isPage(page: String): Boolean =
+            if (ChannelGroup.isKey(page)) ChannelGroup.isValidId(ChannelGroup.idOf(page)) else VALID.matches(page)
+
         private fun decodeGroups(raw: String?): List<ChannelGroup> =
             raw?.let { runCatching { AppJson.decodeFromString<List<ChannelGroup>>(it) }.getOrNull() }.orEmpty()
+                .filter { ChannelGroup.isValidId(it.id) }
 
         private fun decodeNames(raw: String?): Map<String, String> =
             raw?.let { runCatching { AppJson.decodeFromString<Map<String, String>>(it) }.getOrNull() }.orEmpty()

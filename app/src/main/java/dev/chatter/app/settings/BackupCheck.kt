@@ -1,5 +1,6 @@
 package dev.chatter.app.settings
 
+import dev.chatter.app.channels.ChannelGroup
 import dev.chatter.app.chat.ImageLinks
 
 /**
@@ -42,7 +43,16 @@ object BackupCheck {
             ?.mapValues { it.value.trim().take(MAX_NICKNAME) }
             ?.filter { (login, name) -> LOGIN.matches(login) && name.isNotEmpty() }
             ?.entries?.take(MAX_NICKNAMES)?.associate { it.key to it.value },
-        channels = backup.channels?.let { it.copy(logins = it.logins.take(MAX_CHANNELS)) },
+        channels = backup.channels?.let { c ->
+            // A combined chat's id becomes a key in the comma-separated page list; see
+            // ChannelGroup.isValidId. One that could not be one is left out with its place.
+            val groups = c.groups.filter { ChannelGroup.isValidId(it.id) }
+            val keys = groups.map { it.key }.toSet()
+            c.copy(
+                logins = c.logins.filter { !ChannelGroup.isKey(it) || it in keys }.take(MAX_CHANNELS),
+                groups = groups,
+            )
+        },
     )
 
     private fun clean(s: Settings) = s.copy(

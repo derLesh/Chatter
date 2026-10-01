@@ -1,0 +1,1 @@
+patch: Check the combined chats in a restored backup, so none can slip a command in as a channel name
