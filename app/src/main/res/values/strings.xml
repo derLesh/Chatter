@@ -15,6 +15,7 @@
     <string name="notif_disconnect">Disconnect</string>
     <string name="notif_reply">Reply</string>
     <string name="notif_reply_failed">Your reply could not be sent</string>
+    <string name="notif_reply_other_account">Not sent: Chatter is logged in to another account now than the one this was for</string>
     <string name="notif_whisper_public">New whisper</string>
 
     <string name="settings_sender_avatars">Profile pictures</string>

@@ -7,6 +7,7 @@ import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
 import android.media.AudioManager
+import android.net.Uri
 import android.os.VibrationAttributes
 import android.os.VibrationEffect
 import android.os.VibratorManager
@@ -28,6 +29,7 @@ import dev.chatter.app.net.HelixApi
 import dev.chatter.app.settings.Settings
 import dev.chatter.app.ui.bubble.BubbleActivity
 import dev.chatter.app.util.ChannelIcons
+import dev.chatter.app.util.EXTRA_ACCOUNT
 import dev.chatter.app.util.EXTRA_CHANNEL
 import dev.chatter.app.util.EXTRA_INBOX_TAB
 import dev.chatter.app.util.EXTRA_WHISPER
@@ -56,6 +58,8 @@ class ChatNotifier(
     private val icons: ChannelIcons,
     /** True while Chatter saves data; see [dev.chatter.app.net.DataSaving]. */
     private val saveData: StateFlow<Boolean>,
+    /** The user id of the account the app acts as, which every reply action is bound to. */
+    private val account: StateFlow<String?>,
 ) {
     private val manager = NotificationManagerCompat.from(context)
     private val nm = context.getSystemService(NotificationManager::class.java)
@@ -377,10 +381,12 @@ class ChatNotifier(
 
     private fun whisperReplyAction(login: String, userId: String?): NotificationCompat.Action {
         val intent = Intent(context, ReplyReceiver::class.java)
+            .setData(replyUri(REPLY_WHISPER, login))
             .putExtra(EXTRA_WHISPER, login)
             .putExtra(EXTRA_WHISPER_USER_ID, userId)
+            .putExtra(EXTRA_ACCOUNT, account.value)
         val pending = PendingIntent.getBroadcast(
-            context, "whisper:$login".hashCode(), intent,
+            context, 0, intent,
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_MUTABLE,
         )
         val label = context.getString(R.string.notif_reply)
@@ -411,9 +417,12 @@ class ChatNotifier(
      * writes what was typed before handing it to [ReplyReceiver].
      */
     private fun replyAction(channel: String): NotificationCompat.Action {
-        val intent = Intent(context, ReplyReceiver::class.java).putExtra(EXTRA_CHANNEL, channel)
+        val intent = Intent(context, ReplyReceiver::class.java)
+            .setData(replyUri(REPLY_CHANNEL, channel))
+            .putExtra(EXTRA_CHANNEL, channel)
+            .putExtra(EXTRA_ACCOUNT, account.value)
         val pending = PendingIntent.getBroadcast(
-            context, channel.hashCode(), intent,
+            context, 0, intent,
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_MUTABLE,
         )
         val label = context.getString(R.string.notif_reply)
@@ -463,6 +472,19 @@ class ChatNotifier(
         private const val MAX_SENDER_ICONS = 100
         /** Where Android puts the text typed into the reply action. */
         const val KEY_REPLY = "reply"
+
+        private const val REPLY_CHANNEL = "channel"
+        private const val REPLY_WHISPER = "whisper"
+
+        /**
+         * What tells one reply action from another. Android tells PendingIntents apart by their
+         * target, action and data, never by their extras — so with the conversation only in the
+         * extras and a hash of it as the request code, two conversations whose names hash alike
+         * shared one PendingIntent, and FLAG_UPDATE_CURRENT handed the older notification's reply
+         * the newer one's recipient. The conversation in the data makes each its own.
+         */
+        internal fun replyUri(kind: String, target: String): Uri =
+            Uri.Builder().scheme("chatter").authority("reply").appendPath(kind).appendPath(target).build()
 
         fun openChannelIntent(context: Context, channel: String?): PendingIntent {
             val intent = appLaunchIntent(context, channel)

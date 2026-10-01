@@ -13,6 +13,7 @@
     <string name="notif_disconnect">Trennen</string>
     <string name="notif_reply">Antworten</string>
     <string name="notif_reply_failed">Deine Antwort konnte nicht gesendet werden</string>
+    <string name="notif_reply_other_account">Nicht gesendet: Chatter ist inzwischen mit einem anderen Konto angemeldet als dem, für das sie war</string>
     <string name="notif_whisper_public">Neue Flüsternachricht</string>
 
     <string name="settings_sender_avatars">Profilbilder</string>

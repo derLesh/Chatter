@@ -165,7 +165,7 @@ class AppContainer(private val context: Context) {
 
     // After the image loader: mention notifications carry the channel avatar as their icon.
     private val channelIcons = ChannelIcons(context, channels, imageLoader)
-    val notifier = ChatNotifier(context, channels, helix, settings.settings, channelIcons, dataSaving.active)
+    val notifier = ChatNotifier(context, channels, helix, settings.settings, channelIcons, dataSaving.active, activeUserId)
     private val shortcuts = ChannelShortcuts(context, channels.identities, channelIcons, scope)
 
     private val _powerSaveMode = MutableStateFlow(false)
@@ -333,24 +333,30 @@ class AppContainer(private val context: Context) {
      * process, in which case the token is still being restored and nothing is connected yet — so
      * this waits for the connection for a moment rather than reporting failure right away.
      */
-    suspend fun sendFromNotification(channel: String, text: String): Boolean {
+    suspend fun sendFromNotification(account: String?, channel: String, text: String): Boolean {
+        val loggedIn = withTimeoutOrNull(NOTIFICATION_SEND_TIMEOUT_MS) { auth.state.first { it is AuthState.LoggedIn } } != null
+        // Only as the account the notification was for.
+        if (!loggedIn || auth.account?.userId != account) return false
         val ready = withTimeoutOrNull(NOTIFICATION_SEND_TIMEOUT_MS) {
-            auth.state.first { it is AuthState.LoggedIn }
             connect()
             chat.rooms.ready.first { channel in it }
         } != null
-        return ready && chat.send(channel, text, replyTo = null) == SendResult.Ok
+        return ready && auth.account?.userId == account && chat.send(channel, text, replyTo = null) == SendResult.Ok
     }
 
     /**
      * Sends a whisper typed into a notification. Like a channel reply, the broadcast may be what
      * started the process, so this waits for the stored login to come back before giving up.
      */
-    suspend fun whisperFromNotification(login: String, userId: String?, text: String): WhisperResult {
+    suspend fun whisperFromNotification(account: String?, login: String, userId: String?, text: String): WhisperResult {
         val ready = withTimeoutOrNull(NOTIFICATION_SEND_TIMEOUT_MS) {
             auth.state.first { it is AuthState.LoggedIn }
         } != null
         if (!ready) return WhisperResult(sent = false, message = context.getString(R.string.error_not_connected))
+        // A whisper answered as another account would tell a stranger who else the user is.
+        if (auth.account?.userId != account) {
+            return WhisperResult(sent = false, message = context.getString(R.string.notif_reply_other_account))
+        }
         return whisperSender.send(login, userId, text)
     }
 

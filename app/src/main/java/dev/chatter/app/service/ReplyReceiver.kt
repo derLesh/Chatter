@@ -5,6 +5,7 @@ import android.content.Context
 import android.content.Intent
 import androidx.core.app.RemoteInput
 import dev.chatter.app.ChatterApp
+import dev.chatter.app.util.EXTRA_ACCOUNT
 import dev.chatter.app.util.EXTRA_CHANNEL
 import dev.chatter.app.util.EXTRA_WHISPER
 import dev.chatter.app.util.EXTRA_WHISPER_USER_ID
@@ -26,6 +27,9 @@ class ReplyReceiver : BroadcastReceiver() {
         val whisperTo = intent.getStringExtra(EXTRA_WHISPER)
         val channel = intent.getStringExtra(EXTRA_CHANNEL)
         if (whisperTo == null && channel == null) return
+        // The account the notification was for; an action from before replies knew it has none,
+        // and fails rather than guess.
+        val account = intent.getStringExtra(EXTRA_ACCOUNT)
 
         // Connecting and sending outlive onReceive, so the broadcast is kept alive until it is done.
         val pending = goAsync()
@@ -33,13 +37,13 @@ class ReplyReceiver : BroadcastReceiver() {
             try {
                 if (whisperTo != null) {
                     val userId = intent.getStringExtra(EXTRA_WHISPER_USER_ID)
-                    val result = container.whisperFromNotification(whisperTo, userId, text)
+                    val result = container.whisperFromNotification(account, whisperTo, userId, text)
                     // Twitch refuses whispers for reasons of its own, and its wording is the only
                     // thing that explains which one it was.
                     if (result.sent) container.notifier.showWhisperSent(whisperTo, text)
                     else container.notifier.showWhisperFailed(whisperTo, result.message)
                 } else if (channel != null) {
-                    if (container.sendFromNotification(channel, text)) container.notifier.showSent(channel, text)
+                    if (container.sendFromNotification(account, channel, text)) container.notifier.showSent(channel, text)
                     else container.notifier.showSendFailed(channel)
                 }
             } finally {

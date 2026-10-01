@@ -23,6 +23,12 @@ const val INBOX_TAB_WHISPERS = 1
 const val EXTRA_WHISPER = "whisper"
 const val EXTRA_WHISPER_USER_ID = "whisper_user_id"
 
+/**
+ * Carried by every reply action: the user id of the account the notification was for. An answer
+ * goes out as that account or not at all — never as whichever one is active by the time it is sent.
+ */
+const val EXTRA_ACCOUNT = "account"
+
 /** Carried by a launch intent that names the channel to open. */
 const val EXTRA_CHANNEL = "channel"
 
