@@ -164,12 +164,14 @@ class AuthRepository(
      * Returns null if [url] is not our redirect, otherwise whether the login succeeded.
      */
     suspend fun handleRedirect(url: String): Result<Unit>? {
-        if (!url.startsWith(REDIRECT_URI)) return null
-        val uri = Uri.parse(url)
-        val params = (uri.fragment ?: uri.query ?: "").split('&')
-            .associate { it.substringBefore('=') to Uri.decode(it.substringAfter('=', "")) }
+        if (!LoginUrls.isRedirect(url)) return null
+        // A state is good for one answer. Whatever this one turns out to be, the next redirect
+        // cannot reuse it — and with no login running, none is expected at all.
+        val expected = pendingState
+        pendingState = null
+        val params = LoginUrls.answer(url)
         params["error"]?.let { return Result.failure(IllegalStateException(params["error_description"] ?: it)) }
-        if (params["state"] != pendingState) return Result.failure(IllegalStateException("State mismatch"))
+        if (expected == null || params["state"] != expected) return Result.failure(IllegalStateException("State mismatch"))
         val token = params["access_token"] ?: return Result.failure(IllegalStateException("No token"))
         val result = runCatching {
             val v = helix.validate(token)
