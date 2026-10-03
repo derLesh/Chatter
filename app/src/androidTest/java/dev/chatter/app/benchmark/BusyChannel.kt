@@ -3,21 +3,19 @@ package dev.chatter.app.benchmark
 import kotlin.random.Random
 
 /**
- * What a busy channel sends, line for line as Twitch writes it: the full set of tags on every
- * message, badges and colors, Twitch emotes with their positions, third-party emote names in the
- * text, replies with the whole quoted message in their tags, first messages, now and then a sub,
- * a deleted message or a timeout.
+ * A busy channel's lines as Twitch writes them: full tags, badges and colors, Twitch emotes with
+ * positions, third-party emote names, replies with quoted messages, first messages, and occasional
+ * subs, deletions and timeouts.
  *
- * Made up rather than recorded, and the same every time: a recording would put other people's
- * messages into the repository, and a benchmark that is to be compared between two branches needs
- * both to be fed exactly the same lines.
+ * Generated, not recorded: a recording would put other people's messages into the repository, and
+ * comparing two branches needs identical input.
  */
 object BusyChannel {
     const val CHANNEL = "benchchannel"
     const val ROOM_ID = "11148817"
     const val SELF = "benchuser"
 
-    /** The third-party emotes the channel's text uses; the fakes in the benchmark serve these. */
+    /** Third-party emotes used in the text; the benchmark's fakes serve these. */
     val sevenTvEmotes: List<String> = names("7tv", 600)
     val bttvEmotes: List<String> = names("bttv", 80)
     val ffzEmotes: List<String> = names("ffz", 40)
@@ -30,11 +28,11 @@ object BusyChannel {
         ).split(' ')
     private val colors = listOf("#FF0000", "#1E90FF", "#9ACD32", "#FF69B4", "#DAA520", "#8A2BE2", "")
 
-    /** The ROOMSTATE that opens a channel, which also tells the chat its room id. */
+    /** The ROOMSTATE that opens the channel and gives its room id. */
     val roomState: String =
         "@emote-only=0;followers-only=-1;r9k=0;room-id=$ROOM_ID;slow=0;subs-only=0 :tmi.twitch.tv ROOMSTATE #$CHANNEL"
 
-    /** [count] lines as they would arrive one after the other, the same ones for the same [seed]. */
+    /** [count] consecutive lines, identical for the same [seed]. */
     fun lines(count: Int, seed: Int = 7): List<String> {
         val random = Random(seed)
         val users = (0 until 400).map { "chatter_$it" to (100_000 + it * 37).toString() }
@@ -70,7 +68,7 @@ object BusyChannel {
                 else -> words[random.nextInt(words.size)]
             }
         }
-        // One in forty is a mention of the user, one in fifteen of somebody else.
+        // One in forty mentions the user, one in fifteen someone else.
         when {
             random.nextInt(40) == 0 -> parts.add(0, "@$SELF")
             random.nextInt(15) == 0 -> parts.add(0, "@${users[random.nextInt(users.size)].first}")
@@ -136,7 +134,7 @@ object BusyChannel {
         if (random.nextInt(20) == 0) add("sub-gifter/5")
     }.joinToString(",")
 
-    /** The `emotes` tag: every Twitch emote with the positions it stands at, in code points. */
+    /** The `emotes` tag: each Twitch emote with its positions, in code points. */
     private fun emotesTag(text: String, used: List<Pair<String, String>>): String {
         if (used.isEmpty()) return ""
         val positions = LinkedHashMap<String, MutableList<String>>()

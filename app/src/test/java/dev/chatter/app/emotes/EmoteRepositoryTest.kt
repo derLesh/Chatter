@@ -27,10 +27,7 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 import java.io.IOException
 
-/**
- * The emote repository against providers that answer whatever the test needs them to — including
- * not at all, which is the answer most of its rules are about.
- */
+/** The emote repository against fake providers, including ones that do not answer. */
 class EmoteRepositoryTest {
     private val providers = FakeProviders()
     private val twitch = FakeTwitch()
@@ -49,7 +46,7 @@ class EmoteRepositoryTest {
         var sevenTv: List<String>? = emptyList()
         var calls = 0
 
-        /** While set, BTTV's channel answer waits for it: a provider that takes its time. */
+        /** While set, BTTV's channel answer waits for it. */
         var bttvGate: CompletableDeferred<Unit>? = null
 
         private fun <T> answer(names: List<String>?, build: (List<String>) -> T): T {
@@ -336,7 +333,7 @@ class EmoteRepositoryTest {
         providers.sevenTv = listOf("catJAM")
         emotes.loadChannel(channel, userId = null)
 
-        // BTTV is asked again, and takes its time answering.
+        // BTTV is asked again and is slow to answer.
         providers.bttv = listOf("susge")
         providers.bttvGate = CompletableDeferred()
         val retry = launch { emotes.loadChannel(channel, userId = null, wanted = setOf(EmoteProvider.Bttv)) }

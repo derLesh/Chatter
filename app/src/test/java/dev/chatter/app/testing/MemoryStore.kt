@@ -9,9 +9,8 @@ import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 
 /**
- * A preferences store in memory, for the repositories' tests. Like the real one it runs one
- * change at a time, each on what the change before it left — which is the part the tests are
- * about. The real one's file cannot stand in: on Windows it fails to replace its own file.
+ * An in-memory preferences store for repository tests. Like the real one it applies one change at a
+ * time on the previous result. The real file store cannot replace its file on Windows.
  */
 class MemoryStore(initial: Preferences = emptyPreferences()) : DataStore<Preferences> {
     private val state = MutableStateFlow(initial)

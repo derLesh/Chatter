@@ -9,7 +9,7 @@ import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
-/** Names that end up in the comma-separated page list, and from there in IRC commands. */
+/** Names that go into the comma-separated page list and from there into IRC commands. */
 class ChannelNamesTest {
     @Test
     fun theIdsTheAppMakesAreValid() {

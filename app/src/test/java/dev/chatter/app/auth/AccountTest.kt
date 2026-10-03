@@ -10,7 +10,7 @@ class AccountTest {
         expiresAt = 0L, displayName = "Lesh",
     )
 
-    /** A string of an account — or of the state holding it — is what ends up in logs and bug reports. */
+    /** Account strings end up in logs and bug reports. */
     @Test
     fun theTokensNeverEndUpInAString() {
         listOf(account.toString(), AuthState.LoggedIn(account).toString()).forEach { text ->

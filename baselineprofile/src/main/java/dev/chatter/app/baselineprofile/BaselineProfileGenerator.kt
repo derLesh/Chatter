@@ -7,13 +7,10 @@ import org.junit.Rule
 import org.junit.Test
 
 /**
- * Writes the baseline profile for Chatter: the three ways into the app that matter most.
- *
- * The login screen is what a fresh install starts on, once. The chat is what every start after
- * that ends on, and reading it — messages arriving, being built and drawn, the list scrolled — is
- * what the app does most. The journeys read it as a guest, so they need no Twitch login; what only
- * a login would run (Twitch's badges, writing) is not in here, and the hand-written
- * app/src/main/baseline-prof.txt names those packages whole.
+ * Generates Chatter's baseline profile from the three most important journeys: the login screen of
+ * a fresh install, the start into the chat, and reading a busy chat. The journeys read as a guest,
+ * so what needs a login (Twitch badges, writing) is covered by the hand-written
+ * app/src/main/baseline-prof.txt instead.
  */
 class BaselineProfileGenerator {
     @get:Rule
@@ -25,8 +22,8 @@ class BaselineProfileGenerator {
         rule.collect(PACKAGE, includeInStartupProfile = true) {
             pressHome()
             startActivityAndWait()
-            // The first frame is not the last word: the login screen settles once the stored
-            // token has been looked for, and waiting for it keeps that work in the profile too.
+            // The login screen settles once the stored token was checked; waiting keeps that work
+            // in the profile.
             device.wait(Until.hasObject(By.pkg(PACKAGE).depth(0)), TIMEOUT_MS)
             device.waitForIdle()
         }

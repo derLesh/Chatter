@@ -39,7 +39,7 @@ class MessageBuilderTest {
 
     @Test
     fun twitchEmotePositionsCountCodePoints() {
-        // The emoji is 2 UTF-16 chars but 1 code point, so Twitch says the emote starts at 2.
+        // The emoji is 2 UTF-16 units but 1 code point, so Twitch puts the emote at 2.
         val text = "😀 Kappa"
         val item = build(privmsg(text, "emotes=25:2-6"))
         val emote = item.segments.filterIsInstance<Segment.EmoteSeg>().single()
@@ -90,7 +90,7 @@ class MessageBuilderTest {
         val mentioned = builder.build(privmsg("@forsen, @NoColor @elsewhere @stranger"), "lukas", "1", mentions)!!
             .segments.filterIsInstance<Segment.Mention>()
 
-        // Known chatters keep their login (so the row can color them), even with trailing punctuation.
+        // Known chatters keep their login (for coloring), even with trailing punctuation.
         assertEquals(listOf("forsen", "NoColor", null, null), mentioned.map { it.login })
         assertEquals(listOf(0xFF00FF00.toInt(), null, null, null), mentioned.map { it.color })
     }
@@ -105,7 +105,7 @@ class MessageBuilderTest {
         val mentioned = builder.build(privmsg("@Lurker @stranger"), "lukas", "1", mentions)!!
             .segments.filterIsInstance<Segment.Mention>()
 
-        // Someone Twitch lists but who has not written yet is colored from their login, not skipped.
+        // Listed but silent chatters are colored from their login, not skipped.
         assertEquals(listOf("Lurker", null), mentioned.map { it.login })
         assertEquals(listOf(null, null), mentioned.map { it.color })
         // Recently active chatters still come first in the suggestions.
@@ -152,14 +152,14 @@ class MessageBuilderTest {
         assertEquals("p", deep.reply!!.parentId)
         assertEquals("root", deep.reply!!.threadId)
 
-        // An answer to the first message names no thread of its own: the parent is the start.
+        // An answer to the first message has no thread of its own: the parent is the start.
         val first = build(privmsg("@lukas yes", "reply-parent-msg-id=p;reply-parent-user-login=lukas"))
         assertEquals("p", first.reply!!.threadId)
     }
 
     @Test
     fun repliesStripTheMentionByDisplayName() {
-        // Twitch writes the display name into the message, which need not resemble the login.
+        // Twitch writes the display name into the message, which may look nothing like the login.
         val tags = "reply-parent-msg-id=p;reply-parent-user-login=lukas;reply-parent-display-name=ルカス;" +
             "reply-parent-msg-body=hi;emotes=25:5-9"
         val item = build(privmsg("@ルカス Kappa yes", tags))
@@ -206,7 +206,7 @@ class MessageBuilderTest {
 
         assertEquals("2", item.sourceRoomId)
         assertEquals("shared", item.sharedId)
-        // Looked up where they were earned, not in the channel the copy arrived in.
+        // Looked up where they were earned, not where the copy arrived.
         assertEquals(listOf<Pair<String?, String?>>("2" to "moderator/1,subscriber/12"), asked)
     }
 

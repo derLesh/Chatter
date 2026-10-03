@@ -57,19 +57,16 @@ import org.junit.Test
 import org.junit.runner.RunWith
 
 /**
- * What one message costs on its way in while nobody is looking — which is what the battery pays
- * for all night, since Chatter stays joined in the background on purpose.
+ * What one incoming message costs with no window open, which is what the battery pays all night
+ * since Chatter stays joined in the background.
  *
- * The lines are a busy channel's ([BusyChannel]); the emote and badge repositories are the real
- * ones, filled with a channel's worth of emotes through fake providers; the mute list and the
- * rules are what somebody who uses them might have. No window is open, so no list is published and
- * nothing is drawn: the numbers are the parsing, the building, the filters, the chatter registry
- * and the buffer, and nothing else.
+ * Busy-channel lines ([BusyChannel]), the real emote and badge repositories filled through fake
+ * providers, and a realistic mute list and rules. Nothing is published or drawn: this measures
+ * parsing, building, filters, the chatter registry and the buffer.
  *
- * Each test reports time and allocations per message. Allocations matter as much as time here:
- * garbage is what makes the collector run, and a collection is what keeps the CPU awake longer.
- * Run with `./gradlew :app:connectedMicrobenchmarkAndroidTest` and a phone attached, or from the
- * Benchmark workflow, which runs a branch and master side by side.
+ * Each test reports time and allocations per message; garbage makes the collector run and keeps the
+ * CPU awake. Run `./gradlew :app:connectedMicrobenchmarkAndroidTest` with a phone attached, or the
+ * Benchmark workflow, which compares a branch with master.
  */
 @RunWith(AndroidJUnit4::class)
 class MessageCostBenchmark {
@@ -92,8 +89,8 @@ class MessageCostBenchmark {
         badges.loadThirdParty(supporterTitles = null)
 
         val chatters = ChatterRegistry()
-        // The limit most people leave it at. The lines outnumber it, so the buffer is trimmed as
-        // it would be all night, and a line that comes round again is new to it by then.
+        // The default limit. There are more lines than that, so the buffer trims as it would all
+        // night.
         val settings = MutableStateFlow(Settings(messageLimit = 500))
         val buffers = MessageBuffers(scope, Dispatchers.Unconfined, settings).apply { open(BusyChannel.CHANNEL) }
         val filters = ChatFilters(
@@ -132,7 +129,7 @@ class MessageCostBenchmark {
     @After
     fun tearDown() = scope.cancel()
 
-    /** Reading the line into command, tags and text: every tag, whether anybody reads it or not. */
+    /** Parsing a line into command, tags and text. */
     @Test
     fun parse() {
         var i = 0
@@ -141,7 +138,7 @@ class MessageCostBenchmark {
         }
     }
 
-    /** Everything after the parsing: the message built, filtered, put into its channel. */
+    /** Everything after parsing: building, filtering, buffering. */
     @Test
     fun handleParsed() {
         var i = 0
@@ -150,7 +147,7 @@ class MessageCostBenchmark {
         }
     }
 
-    /** The whole way from the socket's line to the buffer: what one message costs. */
+    /** The whole way from the socket line to the buffer. */
     @Test
     fun parseAndHandle() {
         var i = 0
@@ -223,7 +220,7 @@ private object Notices : ChatNotices {
     override fun ban(name: String) = "$name banned."
 }
 
-/** The real statistics add to a few numbers in memory; that is not what is measured here. */
+/** The real stats only add to counters in memory; not measured here. */
 private object NoStats : ChatStats {
     override fun countReceived(channel: String) = Unit
     override fun countMention() = Unit

@@ -4,11 +4,11 @@ import dev.chatter.app.chat.ChatRule
 import org.junit.Assert.assertEquals
 import org.junit.Test
 
-/** A backup somebody else made, held to what the settings screen would allow. */
+/** A backup from someone else, limited to what the settings screen allows. */
 class BackupCheckTest {
     private fun clean(settings: Settings) = BackupCheck.clean(SettingsBackup(settings = settings)).settings!!
 
-    /** "com" would match every .com site, and every picture linked from one would be fetched. */
+    /** "com" would match every .com site and load every picture linked from one. */
     @Test
     fun hostsThatMatchWholeDomainsAreDropped() {
         val hosts = clean(Settings(imageHosts = listOf("com", "", ".", "imgur.com", "*.example.com", "a..b"))).imageHosts
@@ -30,7 +30,7 @@ class BackupCheckTest {
         assertEquals(Settings().fontSize, clean(Settings(fontSize = Float.NaN)).fontSize)
     }
 
-    /** They are stored comma-separated: a comma inside one would make two of it. */
+    /** Stored comma-separated: a comma inside would split one into two. */
     @Test
     fun keywordsLoseTheirCommasAndBlanks() {
         val s = clean(Settings(mentionKeywords = listOf("a,b", " ", "c", "c")))

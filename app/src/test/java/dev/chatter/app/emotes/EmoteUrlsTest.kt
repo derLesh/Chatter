@@ -3,7 +3,7 @@ package dev.chatter.app.emotes
 import org.junit.Assert.assertEquals
 import org.junit.Test
 
-/** The sizes an emote is asked for in: each provider writes the size into its urls differently. */
+/** Emote sizes in the URLs; each provider encodes them differently. */
 class EmoteUrlsTest {
     private fun emote(url: String, provider: EmoteProvider) = Emote("e", "1", url, provider)
 

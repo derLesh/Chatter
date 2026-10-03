@@ -5,7 +5,7 @@ import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
-/** How the joins of a long channel list are spread out to stay inside Twitch's limit. */
+/** Pacing a long channel list's JOINs within Twitch's limit. */
 class JoinQueueTest {
     private var now = 1_000_000L
     private fun queue(rank: (String) -> Int = { 0 }) = JoinQueue({ now }, rank, limit = 20, windowMs = 10_000, answerTimeoutMs = 30_000)

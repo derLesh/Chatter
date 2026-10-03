@@ -50,7 +50,7 @@ class ChannelPagesTest {
         // From channel 0, the last of four is one swipe back, not three forward.
         assertEquals(ORIGIN - 1, carousel.pageOf(3, from = ORIGIN))
         assertEquals(ORIGIN + 1, carousel.pageOf(1, from = ORIGIN))
-        // And from wherever the user happens to be, not from the origin.
+        // And from wherever the user is, not from the origin.
         assertEquals(ORIGIN + 7, carousel.pageOf(3, from = ORIGIN + 6))
     }
 

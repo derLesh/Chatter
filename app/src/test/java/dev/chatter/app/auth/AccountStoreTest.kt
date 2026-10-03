@@ -29,14 +29,14 @@ class AccountStoreTest {
         assertTrue(AccountStore.decode("").isEmpty())
     }
 
-    /** A half-written file must not take the app down; it reads as logged out instead. */
+    /** A broken value must not crash the app; it reads as logged out. */
     @Test
     fun junkReadsAsNoAccounts() {
         assertTrue(AccountStore.decode("[{\"login\":\"lesh\"").isEmpty())
         assertTrue(AccountStore.decode("not json at all").isEmpty())
     }
 
-    /** A field added by a later version of the app must not make the whole list unreadable. */
+    /** A field added by a later version must not make the list unreadable. */
     @Test
     fun anUnknownFieldIsIgnored() {
         val text = """[{"login":"lesh","userId":"1","token":"t","favouriteColor":"green"}]"""
@@ -48,7 +48,7 @@ class AccountStoreTest {
         assertEquals("2", AccountStore.activeIn(listOf("1", "2"), "2"))
     }
 
-    /** Whatever happened to the account that was active, the app lands on another one. */
+    /** Whatever happened to the active account, another one takes over. */
     @Test
     fun aMissingActiveAccountFallsBackToTheFirst() {
         assertEquals("1", AccountStore.activeIn(listOf("1", "2"), "99"))
@@ -66,7 +66,7 @@ class AccountStoreTest {
         assertEquals(queued, AccountStore.decodeTokens(AccountStore.encodeTokens(queued)))
     }
 
-    /** Logging the same account out twice before Twitch answered must not ask twice. */
+    /** Logging the same account out twice before Twitch answered queues its tokens once. */
     @Test
     fun aTokenIsQueuedOnce() {
         assertEquals(listOf("a"), AccountStore.decodeTokens(AccountStore.encodeTokens(listOf("a", "a"))))

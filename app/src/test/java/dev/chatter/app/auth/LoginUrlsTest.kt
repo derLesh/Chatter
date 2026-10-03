@@ -12,7 +12,7 @@ class LoginUrlsTest {
         assertTrue(LoginUrls.isRedirect("http://localhost/#access_token=abc&state=s"))
     }
 
-    /** All of these start with "http://localhost", which is what the check used to look at. */
+    /** All of these start with "http://localhost", which a prefix check would accept. */
     @Test
     fun lookalikesAreNotTheRedirect() {
         assertFalse(LoginUrls.isRedirect("http://localhost.example.com/#access_token=abc"))
@@ -30,7 +30,7 @@ class LoginUrlsTest {
         assertEquals("s1", answer["state"])
     }
 
-    /** The implicit flow never answers in the query, so a token there is somebody else's. */
+    /** The implicit flow never answers in the query, so a token there is not Twitch's. */
     @Test
     fun aQueryIsNotRead() {
         assertEquals(emptyMap<String, String>(), LoginUrls.answer("http://localhost?access_token=abc&state=s1"))

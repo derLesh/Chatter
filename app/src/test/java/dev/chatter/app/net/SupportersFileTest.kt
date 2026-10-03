@@ -7,11 +7,8 @@ import java.io.File
 import java.time.LocalDate
 
 /**
- * The supporter list in this repository, read the way the app reads it.
- *
- * It is edited by hand and served straight from GitHub Pages, so nothing else would catch a comma
- * in the wrong place or a kind spelled almost right — the app is built to shrug both off, and the
- * badge would simply be missing or plain for somebody who paid for it.
+ * The repository's supporter list, read like the app reads it. It is edited by hand and the app
+ * silently tolerates mistakes (a missing or plain badge), so this is where they get caught.
  */
 class SupportersFileTest {
     private val file = File("../docs/supporters.json")
@@ -31,8 +28,7 @@ class SupportersFileTest {
                 supporter.twitch.all(Char::isDigit),
             )
             assertTrue("an entry with nobody behind it: ${supporter.twitch}", supporter.github.isNotEmpty())
-            // The app shrugs off a date it cannot read and shows the plain badge, which is what
-            // would make a slip here invisible. Here is where it is not.
+            // The app ignores unreadable dates and shows the plain badge, which would hide a typo.
             supporter.monthlySince?.let { assertTrue("not a date: $it", it.isDate()) }
             assertTrue("not a date: ${supporter.since}", supporter.since.isDate())
             assertTrue("a sponsorship cannot have happened less than never", supporter.oneTime >= 0)

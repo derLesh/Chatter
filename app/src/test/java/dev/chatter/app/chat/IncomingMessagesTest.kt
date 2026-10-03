@@ -16,8 +16,8 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 /**
- * What the app makes of what Twitch says — a ban, a deleted message, a mention, the first
- * ROOMSTATE of a channel — with nothing of Twitch present but the lines themselves.
+ * How the app handles what Twitch sends (bans, deletions, mentions, a channel's first ROOMSTATE),
+ * fed with nothing but IRC lines.
  */
 @OptIn(ExperimentalCoroutinesApi::class)
 class IncomingMessagesTest {
@@ -113,7 +113,7 @@ class IncomingMessagesTest {
         incoming.handle(
             line("@id=1;tmi-sent-ts=1700000000000 :someone!someone@someone.tmi.twitch.tv PRIVMSG #forsen :spoiler ahead")
         )
-        // Otherwise the next reconnect would fetch it from the history service all over again.
+        // Otherwise the next reconnect would fetch it from the history again.
         assertEquals(1700000000000L, incoming.lastLive("forsen"))
     }
 

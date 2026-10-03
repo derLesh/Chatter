@@ -16,7 +16,7 @@ import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Test
 
-/** Changes to the settings that are lists, made in quick succession. */
+/** Quick successive changes to list settings. */
 class SettingsListsTest {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     private val store = MemoryStore()
@@ -25,13 +25,13 @@ class SettingsListsTest {
     @After
     fun stop() = scope.cancel()
 
-    /** What is on disk under [key], not what the flow has caught up with so far. */
+    /** What is stored under [key], not what the flow has caught up with. */
     private suspend fun stored(key: String) = store.data.first()[stringPreferencesKey(key)]
 
     @Test
     fun keywordsChangedTogetherAllTakeEffect() = runBlocking {
         settings.updateMentionKeywords { listOf("a", "b", "c", "d") }
-        // Each one starts from what is stored, not from what the screen last saw.
+        // Each starts from the stored value, not from what the screen last saw.
         listOf("a", "b", "c").map { word -> async { settings.updateMentionKeywords { it - word } } }.awaitAll()
         assertEquals("d", stored("mention_keywords"))
     }

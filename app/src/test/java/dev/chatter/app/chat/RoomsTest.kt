@@ -65,7 +65,7 @@ class RoomsTest {
         assertNull(rooms.roles.value["forsen"])
         assertEquals(emptySet<String>(), rooms.moderated.value)
         assertEquals(emptySet<String>(), rooms.ready.value)
-        // The id is a fact about the channel and costs a request, so it is kept.
+        // The id does not depend on the login and costs a request, so it is kept.
         assertEquals("22484632", rooms.id("forsen"))
     }
 

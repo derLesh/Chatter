@@ -14,8 +14,8 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 /**
- * The buffers on a test dispatcher: the same single thread they run on in the app, only one the
- * test moves along itself, so that the publishing can be watched happening.
+ * The buffers on a test dispatcher: single-threaded like in the app, advanced by the test so the
+ * publishing can be observed.
  */
 @OptIn(ExperimentalCoroutinesApi::class)
 class MessageBuffersTest {
@@ -35,9 +35,8 @@ class MessageBuffersTest {
         )
 
     /**
-     * Runs a test with somebody watching the given channels. Nothing is published to a channel
-     * nobody is looking at, which is the point of the publishing but makes for a quiet test. The
-     * collectors are stopped at the end, or the test would wait on them for ever.
+     * Runs a test with collectors on the given channels, since nothing is published to unwatched
+     * channels. The collectors are cancelled at the end.
      */
     private fun watching(vararg channels: String, body: TestScope.(shown: (String) -> List<ChatItem>) -> Unit) =
         runTest(dispatcher) {
@@ -50,7 +49,7 @@ class MessageBuffersTest {
 
     @Test
     fun emotesThatArriveLateAreDrawnIntoTheMessagesAlreadyOnScreen() = watching("forsen") { shown ->
-        // Stands in for the emote tables: empty until the provider that was down answers.
+        // Stands in for the emote tables: empty until the provider answers.
         var known = emptySet<String>()
         fun body() = MessageBody.lazily(
             segments = { listOf(if ("catJAM" in known) Segment.Text("<emote>") else Segment.Text("catJAM")) },
@@ -133,7 +132,7 @@ class MessageBuffersTest {
         listOf("1", "2", "3", "4").forEach { buffers.add(message("forsen", it)) }
         buffers.add(message("forsen", "1"))
         advanceUntilIdle()
-        // The id left with the message, so it is a new one again — and pushes the limit along.
+        // The id went with the message, so it counts as new again and pushes the limit along.
         assertEquals(listOf("3", "4", "1"), shown("forsen").map { it.id })
     }
 
@@ -189,7 +188,7 @@ class MessageBuffersTest {
         buffers.countUnread("forsen")
         buffers.countUnread("forsen")
         buffers.countUnread("xqc")
-        buffers.add(message("forsen", "1")) // the counts ride along with a publish
+        buffers.add(message("forsen", "1")) // the counts come with a publish
         advanceUntilIdle()
         assertEquals(mapOf("forsen" to 2, "xqc" to 1), buffers.unreadMessages.value)
 
@@ -206,7 +205,7 @@ class MessageBuffersTest {
         advanceUntilIdle()
         assertTrue("no subscriber, no work", flow.value.isEmpty())
 
-        // Watching it catches up on everything that arrived in the meantime.
+        // Collecting catches up on everything that arrived meanwhile.
         val watcher = launch { flow.collect {} }
         advanceUntilIdle()
         assertEquals(listOf("1"), flow.value.map { it.id })
@@ -224,7 +223,7 @@ class MessageBuffersTest {
         assertEquals(emptyMap<String, Int>(), buffers.unreadMessages.value)
         assertEquals(emptyList<String>(), buffers.channels())
 
-        // Joining it again starts from nothing rather than from what was there before.
+        // Joining again starts empty.
         buffers.open("forsen")
         val second = launch { buffers.messages("forsen").collect {} }
         advanceUntilIdle()
@@ -244,8 +243,8 @@ class MessageBuffersTest {
     }
 
     /**
-     * A combined chat of forsen and xqc, watched on its own: the channels themselves are joined
-     * but not on screen, which is how the app has it while the combined chat is the page shown.
+     * A combined chat of forsen and xqc watched on its own; the channels are joined but not on
+     * screen, as in the app.
      */
     private fun watchingCombined(body: TestScope.(shown: () -> List<ChatItem>) -> Unit) = runTest(dispatcher) {
         buffers.open("forsen")
@@ -271,7 +270,7 @@ class MessageBuffersTest {
 
     @Test
     fun aChannelsOwnOrderIsKeptInACombinedChat() = watchingCombined { shown ->
-        // The user's own line goes in with the phone's clock, which can be ahead of Twitch's.
+        // The user's own line uses the phone's clock, which can be ahead of Twitch's.
         buffers.add(at("forsen", "own", 300))
         buffers.add(at("forsen", "reply", 250))
         buffers.add(at("xqc", "x1", 280))
@@ -282,7 +281,7 @@ class MessageBuffersTest {
 
     @Test
     fun theRowsOfACombinedChatAlternateOnTheirOwn() = watchingCombined { shown ->
-        // Both are the first of their channel, so both channels shade them the same.
+        // Both are their channel's first message, so both are shaded the same.
         buffers.add(at("forsen", "f1", 100))
         buffers.add(at("xqc", "x1", 200))
         advanceUntilIdle()
@@ -323,10 +322,10 @@ class MessageBuffersTest {
 
     @Test
     fun aSharedChatMessageIsOneRowAsWrittenInItsOwnChannel() = watchingCombined { shown ->
-        // Each channel of the session gets a copy under an id of its own; only source-id is shared.
+        // Each channel of the session gets a copy under its own id; only source-id is shared.
         buffers.add(at("forsen", "f-copy", 100).copy(sharedId = "s1"))
         buffers.add(at("xqc", "x-copy", 100).copy(sharedId = "s1", sourceRoomId = "forsen-id"))
-        // Written in a partner that is not in the combined chat: both copies are partners'.
+        // Written in a partner outside the combined chat: both copies are partner copies.
         buffers.add(at("forsen", "f-other", 200).copy(sharedId = "s2", sourceRoomId = "third"))
         buffers.add(at("xqc", "x-other", 200).copy(sharedId = "s2", sourceRoomId = "third"))
         advanceUntilIdle()
@@ -371,9 +370,9 @@ class MessageBuffersTest {
     }
 
     /**
-     * What a combined chat shows is the same whether it was put together bit by bit, a publish
-     * after every message, or all at once from the channels as they stand: random messages in
-     * three channels, some written out of order, some deleted, some Shared Chat copies.
+     * A combined chat shows the same whether built incrementally (a publish per message) or at
+     * once: random messages in three channels, some out of order, some deleted, some Shared Chat
+     * copies.
      */
     @Test
     fun aCombinedChatBuiltBitByBitIsTheSameAsOneBuiltAtOnce() = runTest(dispatcher) {
@@ -391,7 +390,7 @@ class MessageBuffersTest {
             advanceUntilIdle()
             return fresh.messages("+all").value.map { it.id }.also {
                 watcher.cancel()
-                // Lets go of the combined chat, and with it of what watches whether it is watched.
+                // Drops the combined chat and its subscription watcher.
                 fresh.setGroups(emptyMap())
             }
         }
@@ -403,7 +402,7 @@ class MessageBuffersTest {
         var time = 1_000L
         repeat(120) { n ->
             val channel = channels[random.nextInt(channels.size)]
-            // Mostly later than everything so far; now and then a little earlier.
+            // Mostly later than everything so far, sometimes slightly earlier.
             time += if (random.nextInt(8) == 0) -random.nextLong(1, 30) else random.nextLong(1, 20)
             val item = at(channel, "m$n", time).let {
                 when (random.nextInt(12)) {

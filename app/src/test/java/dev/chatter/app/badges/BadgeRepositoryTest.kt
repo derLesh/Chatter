@@ -14,14 +14,11 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 import java.io.IOException
 
-/**
- * The badge repository against lists that can refuse to answer — which is what most of its rules
- * are about, now that one of the four is gone for good and another only arrives over a socket.
- */
+/** The badge repository against lists that may not answer. */
 class BadgeRepositoryTest {
     private val twitch = FakeTwitchBadges()
     private val others = FakeOtherClients()
-    /** Midday on 2026-09-21, so that the months a badge counts are not a matter of the hour. */
+    /** Midday on 2026-09-21, so month counts do not depend on the hour. */
     private var clock = 1_789_992_000_000L
     private val badges = BadgeRepository(twitch, others) { clock }
 
@@ -180,8 +177,7 @@ class BadgeRepositoryTest {
 
     @Test
     fun withoutSupportTheListIsNotEvenAskedFor() = runTest {
-        // Nothing to support Chatter with yet: asking would be a message on the screen about a
-        // service that is not meant to answer.
+        // Sponsoring is off: no list to ask for.
         badges.loadThirdParty(null)
         assertEquals(0, others.supporterCalls)
         assertEquals("the other lists are still fetched", 1, others.chatterinoCalls)
@@ -209,7 +205,7 @@ class BadgeRepositoryTest {
 
     @Test
     fun aDateThatCannotBeReadStillWearsTheBadge() = runTest {
-        // A later version of the list, or a slip of the hand, must not cost somebody their badge.
+        // An unexpected value must not cost someone their badge.
         others.supporters = listOf(ChatterSupporter(twitch = "7", monthlySince = "last winter"))
         badges.loadThirdParty(titles)
         assertEquals(listOf("Supporter"), badges.resolve(null, null, userId = "7").map { it.title })
@@ -217,8 +213,8 @@ class BadgeRepositoryTest {
 
     @Test
     fun anEntryWithoutATwitchAccountIsLeftOut() = runTest {
-        // GitHub does not know which Twitch account a sponsor has; until somebody says, there is
-        // nobody to put the badge in front of.
+        // GitHub does not know a sponsor's Twitch account; until it is filled in there is nobody to
+        // show the badge for.
         others.supporters = listOf(
             ChatterSupporter(twitch = "", github = "someone"),
             ChatterSupporter(twitch = "7"),
@@ -259,7 +255,7 @@ class BadgeRepositoryTest {
         badges.sevenTvWearer("42", "old", worn = true)
         badges.sevenTvWearer("42", "new", worn = true)
 
-        // 7TV says the old entitlement is gone after handing out the new one.
+        // 7TV removes the old entitlement after granting the new one.
         badges.sevenTvWearer("42", "old", worn = false)
         assertEquals(listOf("New"), badges.resolve(null, null, userId = "42").map { it.title })
     }

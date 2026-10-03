@@ -19,7 +19,7 @@ class NameColorFallbackTest {
         }
     }
 
-    /** The same login keeps the same color, as it does on Twitch. */
+    /** The same login keeps the same color, as on Twitch. */
     @Test
     fun theColorStaysTheSameForALogin() {
         assertEquals(fallbackColorIndex("lesh", 15), fallbackColorIndex("lesh", 15))

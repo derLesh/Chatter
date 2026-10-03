@@ -31,7 +31,7 @@ class AutocompleteTest {
         val users = listOf("zed", "Alice", "bob", "alfred")
         assertEquals(listOf("Alice", "alfred"), Autocomplete.rankUsers("@al", users))
         assertEquals(users, Autocomplete.rankUsers("@", users))
-        // Names are also completed without an "@", so the same query works bare.
+        // Names complete without "@" too.
         assertEquals(listOf("Alice", "alfred"), Autocomplete.rankUsers("al", users))
     }
 

@@ -16,7 +16,7 @@ class InboxOwnersTest {
         assertEquals(listOf(Row("2", "b")), keepOnly(rows, "b"))
     }
 
-    /** Nothing to change must not mean a write: the stores compare by identity. */
+    /** No change must mean no write; the stores compare by identity. */
     @Test
     fun nothingToChangeHandsTheSameListBack() {
         val rows = listOf(Row("1", "a"), Row("2", "b"))
@@ -29,7 +29,10 @@ class InboxOwnersTest {
         assertEquals(listOf(Row("1", "a"), Row("2", "a")), keepOnly(rows, "a"))
     }
 
-    /** With two accounts nobody can say whose a whisper was, and guessing could show it to the wrong one. */
+    /**
+     * With two accounts nobody can tell whose a whisper was; guessing could show it to the wrong
+     * one.
+     */
     @Test
     fun rowsFromBeforeOwnersAreDroppedWhenTheAccountIsUnclear() {
         val rows = listOf(Row("1", null), Row("2", "b"))

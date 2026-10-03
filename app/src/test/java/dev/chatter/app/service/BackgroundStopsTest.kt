@@ -5,7 +5,7 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
 import org.junit.Test
 
-/** Which ends of the process the notification settings warn about. */
+/** Which process ends the notification settings warn about. */
 class BackgroundStopsTest {
     @Test
     fun theLatestStopWhileListeningIsTheOneShown() {

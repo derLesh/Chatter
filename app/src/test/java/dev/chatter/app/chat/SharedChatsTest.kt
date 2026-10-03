@@ -5,7 +5,7 @@ import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
-/** When a channel shares its chat and with whom, read off nothing but the messages and Helix. */
+/** Shared Chat sessions and partners, derived from messages and Helix alone. */
 class SharedChatsTest {
     private val shared = SharedChats()
 
@@ -14,11 +14,11 @@ class SharedChatsTest {
         assertFalse(shared.onLiveMessage("forsen", "1", null))
         assertEquals(emptyMap<String, List<String>>(), shared.sessions.value)
 
-        // The channel's own message, naming the channel itself: a session, partners unknown yet.
+        // The channel's own message naming itself: a session, partners unknown.
         assertTrue(shared.onLiveMessage("forsen", "1", "1"))
         assertEquals(mapOf("forsen" to emptyList<String>()), shared.sessions.value)
 
-        // A partner writes: now it is known, and nothing has started a second time.
+        // A partner writes: it is known now, and no second session starts.
         assertFalse(shared.onLiveMessage("forsen", "1", "2"))
         assertFalse(shared.onLiveMessage("forsen", "1", "2"))
         assertEquals(mapOf("forsen" to listOf("2")), shared.sessions.value)
@@ -33,7 +33,7 @@ class SharedChatsTest {
         shared.setParticipants("forsen", "1", listOf("1", "2", "3"))
         assertEquals(mapOf("forsen" to listOf("2", "3")), shared.sessions.value)
 
-        // An empty answer is Helix being behind the messages, not the session being over.
+        // An empty answer means Helix lags behind, not that the session ended.
         shared.setParticipants("forsen", "1", emptyList())
         assertEquals(mapOf("forsen" to listOf("2", "3")), shared.sessions.value)
     }

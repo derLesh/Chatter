@@ -98,8 +98,8 @@ class RuleEngineTest {
     }
 
     /**
-     * `(a+)+$` against a long run of a's that does not end the way it wants takes a backtracking
-     * engine longer than anybody would wait. On RE2 it is as quick as any other pattern.
+     * `(a+)+$` against a long run of a's that does not match takes a backtracking engine forever;
+     * RE2 is as fast as with any other pattern.
      */
     @Test
     fun aPatternThatWouldBacktrackRunsInLinearTime() {
@@ -113,8 +113,8 @@ class RuleEngineTest {
     }
 
     /**
-     * The shapes no heuristic catches — an alternation that matches the same text two ways, a
-     * bounded repeat of one — run on RE2 as well, and finish.
+     * Shapes no heuristic catches (an alternation matching the same text twice, a bounded repeat of
+     * one) run on RE2 as well and finish.
      */
     @Test
     fun ambiguousRepetitionRunsInLinearTimeToo() {
@@ -128,8 +128,8 @@ class RuleEngineTest {
     }
 
     /**
-     * RE2 has no lookarounds or backreferences, and no other engine can be stopped once it runs
-     * away, so a pattern that needs them is not used at all — whatever its shape.
+     * RE2 has no lookarounds or backreferences, and other engines cannot be stopped, so such
+     * patterns are not used at all.
      */
     @Test
     fun aPatternRE2CannotRunIsNotUsed() {
@@ -146,7 +146,7 @@ class RuleEngineTest {
         assertFalse(RuleEngine.skips("""\bgiveaway\b"""))
     }
 
-    /** Plain words keep matching whole words, which is not a regex the user wrote. */
+    /** Plain words still match whole words. */
     @Test
     fun plainWordsAreNotAffected() {
         val engine = RuleEngine(listOf(rule("(?<!@)lesh", color = RED)))

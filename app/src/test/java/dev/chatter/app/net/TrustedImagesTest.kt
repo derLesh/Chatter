@@ -5,7 +5,7 @@ import org.junit.Assert.assertNull
 import org.junit.Test
 
 class TrustedImagesTest {
-    /** What the providers actually answer with. */
+    /** What the providers actually send. */
     @Test
     fun theProvidersOwnHostsAreTrusted() {
         assertEquals("https://cdn.frankerfacez.com/emote/1/2", TrustedImages.url("//cdn.frankerfacez.com/emote/1/2"))

@@ -3,7 +3,7 @@ package dev.chatter.app.irc
 import org.junit.Assert.assertEquals
 import org.junit.Test
 
-/** How long the chat connection waits before trying again, on a network that works and one that does not. */
+/** Reconnect delays on validated and unvalidated networks. */
 class ReconnectBackoffTest {
     private fun waits(validated: Boolean, tries: Int) = (0 until tries).map { IrcConnection.backoffMs(it, validated) / 1000 }
 

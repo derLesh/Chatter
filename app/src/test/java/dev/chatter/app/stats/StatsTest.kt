@@ -6,7 +6,7 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 import java.time.LocalDate
 
-/** The background figures on the stats page, worked out from what [StatsRepository] keeps. */
+/** The stats page's background figures, computed from what [StatsRepository] stores. */
 class StatsTest {
     private val today = LocalDate.of(2026, 9, 29)
 
@@ -14,7 +14,7 @@ class StatsTest {
         backgroundReceived = mapOf(
             "2026-09-29" to mapOf("busy" to 500L, "quiet" to 5L),
             "2026-09-28" to mapOf("busy" to 700L, "other" to 20L),
-            // Older than a week: kept by nobody, but ignored if it were.
+            // Older than a week; never kept, but ignored if it were.
             "2026-09-01" to mapOf("quiet" to 9_000L),
         ),
         traffic = mapOf(

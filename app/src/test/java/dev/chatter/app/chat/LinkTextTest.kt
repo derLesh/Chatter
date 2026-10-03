@@ -81,7 +81,7 @@ class HonestLinkTest {
         assertTrue(!LinkText.isUnusual(url))
     }
 
-    /** An "@" further on — a mention in a path, an address in a query — is not user info. */
+    /** An "@" further on (in a path or query) is not user info. */
     @Test
     fun anAtSignAfterTheHostIsNoTrick() {
         val url = "https://www.youtube.com/@lesh/videos?q=a@b"
@@ -89,7 +89,7 @@ class HonestLinkTest {
         assertTrue(!LinkText.isUnusual(url))
     }
 
-    /** A browser reads the backslash as a slash: this goes to evil.example, and says so. */
+    /** Browsers read the backslash as a slash: this goes to evil.example, and the text says so. */
     @Test
     fun aBackslashEndsTheHost() {
         val url = "https://evil.example\\@twitch.tv/login"
@@ -102,7 +102,7 @@ class HonestLinkTest {
         assertEquals("http://evil.example:8080/x", LinkText.honest("http://user:pw@evil.example:8080/x"))
     }
 
-    /** U+202E turns what follows around: written "vt.hctiwt", it reads "twitch.tv". */
+    /** U+202E reverses what follows: "vt.hctiwt" reads "twitch.tv". */
     @Test
     fun charactersThatTurnTheTextAroundAreLeftOut() {
         val url = "https://evil.example/‮vt.hctiwt"

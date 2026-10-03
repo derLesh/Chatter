@@ -11,13 +11,12 @@ import org.junit.Rule
 import org.junit.Test
 
 /**
- * What the baseline profile is worth: the cold start into the chat and the frames of reading it,
- * each measured with the profile and without it — the way the app runs right after an install or
- * an update, before Android has compiled anything of its own accord.
+ * Measures the baseline profile's effect: cold start into the chat and frame timing while reading,
+ * each with and without the profile (as right after an install or update).
  *
- * `./gradlew :baselineprofile:connectedBenchmarkReleaseAndroidTest` on the phone. It reads a busy
- * channel as a guest, like the generator (see Journeys.kt). The messages are live, so no two runs
- * read the same chat; compare the two modes of one run with each other, not with another run.
+ * Run `./gradlew :baselineprofile:connectedBenchmarkReleaseAndroidTest`. It reads a busy channel as
+ * a guest (see Journeys.kt); the messages are live, so compare the two modes within one run, not
+ * across runs.
  */
 class ChatBenchmark {
     @get:Rule
@@ -65,7 +64,7 @@ class ChatBenchmark {
     private companion object {
         const val ITERATIONS = 10
 
-        /** Fails rather than measuring nothing when the build carries no profile. */
+        /** Fails instead of measuring nothing when the build has no profile. */
         val WITH_PROFILE = CompilationMode.Partial(BaselineProfileMode.Require)
     }
 }

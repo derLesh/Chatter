@@ -9,7 +9,10 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class UpdateCheckTest {
-    /** Cut down from what api.github.com answered for v0.5.0, the fields the check reads and a few it does not. */
+    /**
+     * Trimmed from api.github.com's answer for v0.5.0: the fields the check reads, and a few it
+     * ignores.
+     */
     private val latest = """
         {
           "url": "https://api.github.com/repos/derLesh/Chatter/releases/1",
@@ -32,7 +35,7 @@ class UpdateCheckTest {
         val update = UpdateCheck.parse(latest)!!
         assertEquals("0.6.0", update.version)
         assertEquals("2026-10-02", update.date)
-        // The checksum sits next to it and must not be what the button downloads.
+        // The checksum file next to it must not be the download.
         assertEquals("https://github.com/derLesh/Chatter/releases/download/v0.6.0/chatter-0.6.0.apk", update.url)
     }
 
@@ -64,7 +67,7 @@ class UpdateCheckTest {
         assertTrue(UpdateCheck.isNewer(update, Version(0, 5, 0)))
         assertTrue(UpdateCheck.isNewer(update, Version(0, 5, 9)))
         assertFalse(UpdateCheck.isNewer(update, Version(0, 6, 0)))
-        // A build ahead of the last release, which is what a development build usually is.
+        // A build ahead of the last release, as development builds usually are.
         assertFalse(UpdateCheck.isNewer(update, Version(0, 7, 0)))
         assertFalse(UpdateCheck.isNewer(update, null))
     }
@@ -75,7 +78,7 @@ class UpdateCheckTest {
         assertTrue(UpdateCheck.isDue(null, 1_000))
         assertFalse(UpdateCheck.isDue(1_000, 1_000 + day - 1))
         assertTrue(UpdateCheck.isDue(1_000, 1_000 + day))
-        // The clock was set back: waiting for it to catch up could take any amount of time.
+        // The clock was set back; waiting for it to catch up could take arbitrarily long.
         assertTrue(UpdateCheck.isDue(1_000 + day, 1_000))
     }
 

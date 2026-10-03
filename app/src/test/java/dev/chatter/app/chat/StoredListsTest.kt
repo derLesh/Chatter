@@ -14,14 +14,14 @@ import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Test
 
-/** What the repositories do with a stored list they cannot read: leave it be. */
+/** Repositories must leave stored lists they cannot read untouched. */
 class StoredListsTest {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Unconfined)
 
     @After
     fun stop() = scope.cancel()
 
-    /** What a version of the app that writes a different shape might have left. */
+    /** What a version writing a different shape might leave behind. */
     private val fromTheFuture = """{"version":2,"rules":[]}"""
 
     private val rulesKey = stringPreferencesKey("chat_rules")

@@ -29,7 +29,7 @@ class VersionTest {
 
     @Test
     fun `tells a fix release from a bigger one`() {
-        // Only the patch moved, so the app should stay quiet about it.
+        // Only the patch changed.
         assertTrue(Version(0, 2, 0).isOnlyAFixAwayFrom(Version(0, 2, 5)))
         assertTrue(!Version(0, 2, 0).isOnlyAFixAwayFrom(Version(0, 3, 0)))
         assertTrue(!Version(0, 2, 0).isOnlyAFixAwayFrom(Version(1, 0, 0)))
@@ -37,7 +37,7 @@ class VersionTest {
 }
 
 class ChangelogParserTest {
-    /** Exactly the shape "./gradlew releaseVersion" writes, header and all. */
+    /** Exactly what "./gradlew releaseVersion" writes, header included. */
     private val changelog = """
         # Changelog
 
@@ -87,7 +87,7 @@ class ChangelogParserTest {
     fun `survives a file it cannot make sense of`() {
         assertEquals(emptyList<Release>(), ChangelogParser.parse(""))
         assertEquals(emptyList<Release>(), ChangelogParser.parse("# Changelog\n\nNothing released yet.\n"))
-        // A heading without a version, and entries with no release to belong to.
+        // A heading without a version, and entries without a release.
         assertEquals(emptyList<Release>(), ChangelogParser.parse("## Unreleased\n- minor: Dangling\n"))
     }
 

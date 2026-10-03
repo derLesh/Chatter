@@ -6,7 +6,7 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
 import org.junit.Test
 
-/** Where the line above the first unseen message goes, whatever happened to the list meanwhile. */
+/** Where the unread line goes, whatever happened to the list meanwhile. */
 class ReadMarkTest {
     private fun at(id: String, timestamp: Long) =
         ChatItem(id = id, channel = "forsen", kind = MessageKind.Chat, timestamp = timestamp)
@@ -26,7 +26,7 @@ class ReadMarkTest {
 
     @Test
     fun aHiddenLastMessageIsFoundAgainByItsTime() {
-        // "b" was deleted by a moderator and is no longer shown.
+        // "b" was deleted by a moderator and is hidden.
         assertEquals(Unseen(first = 1, count = 3, cutOff = false), ReadMark("gone", 150).unseenIn(list))
     }
 

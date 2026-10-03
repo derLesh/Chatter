@@ -13,12 +13,12 @@ import java.io.IOException
 import java.net.ServerSocket
 import kotlin.concurrent.thread
 
-/** A request ends, one way or the other, whatever the other side does with the connection. */
+/** A request always completes, whatever the server does with the connection. */
 class HttpTest {
     private val server = ServerSocket(0)
     private val http = OkHttpClient()
 
-    /** Answers one request with [response], written as it stands, and hangs up. */
+    /** Answers one request with [response] verbatim and closes the connection. */
     private fun answerOnce(response: String) = thread {
         server.accept().use { socket ->
             val input = socket.getInputStream().bufferedReader()
@@ -43,7 +43,7 @@ class HttpTest {
                 withTimeout(5_000) { http.fetch(request()) }
                 fail("a body that never arrived cannot be a result")
             } catch (e: IOException) {
-                // What it should be: the read failed, and the caller hears about it.
+                // Expected: the read failed and the caller is told.
             }
         }
     }

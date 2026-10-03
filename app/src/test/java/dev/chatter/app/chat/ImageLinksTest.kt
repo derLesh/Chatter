@@ -13,7 +13,7 @@ class ImageLinksTest {
     fun aPictureOnAnAllowedHostIsTheUrlItself() {
         assertEquals("https://i.imgur.com/abc.png", ImageLinks.imageUrl("https://i.imgur.com/abc.png", hosts))
         assertEquals("https://i.redd.it/x.JPEG", ImageLinks.imageUrl("https://i.redd.it/x.JPEG", hosts))
-        // A size or a cache buster hanging off the url does not hide the file name.
+        // Size or cache-busting parameters do not hide the file name.
         assertEquals(
             "https://cdn.discordapp.com/a/b.webp?width=300#top",
             ImageLinks.imageUrl("https://cdn.discordapp.com/a/b.webp?width=300#top", hosts),
@@ -22,7 +22,7 @@ class ImageLinksTest {
 
     @Test
     fun onlyPlainPicturesAreEverFetched() {
-        // An SVG carries scripts, and everything else is a file the app cannot name.
+        // SVGs can carry scripts; unknown types stay links.
         assertNull(ImageLinks.imageUrl("https://i.imgur.com/a.svg", hosts))
         assertNull(ImageLinks.imageUrl("https://i.imgur.com/a.html", hosts))
         assertNull(ImageLinks.imageUrl("https://i.imgur.com/a.php?x=.png", hosts))
@@ -46,8 +46,8 @@ class ImageLinksTest {
     }
 
     /**
-     * Where the authority ends is OkHttp's call, since OkHttp fetches it: a backslash ends it
-     * like a slash, so each of these goes to evil.example, however much imgur.com is in the text.
+     * OkHttp fetches it, so OkHttp decides where the authority ends: a backslash ends it like a
+     * slash, so each of these goes to evil.example.
      */
     @Test
     fun theHostIsWhatTheImageClientWouldAsk() {
@@ -58,7 +58,7 @@ class ImageLinksTest {
         assertNull(ImageLinks.imageUrl("https://user@i.imgur.com/a.png", hosts))
     }
 
-    /** What is fetched is the url as OkHttp reads it, so the host checked is the host asked. */
+    /** The URL is returned as OkHttp parsed it, so the checked host is the requested one. */
     @Test
     fun theUrlHandedBackIsTheParsedOne() {
         assertEquals("https://i.imgur.com/a.png", ImageLinks.imageUrl("HTTPS://I.IMGUR.COM/a.png", hosts))
@@ -66,11 +66,11 @@ class ImageLinksTest {
 
     @Test
     fun anIdThisBuildsAUrlFromCanOnlyBeLettersAndDigits() {
-        // Anything that could steer the address somewhere else stays a link.
+        // Anything that could redirect the address stays a link.
         assertNull(ImageLinks.imageUrl("https://gyazo.com/..%2f..%2fetc", hosts))
         assertNull(ImageLinks.imageUrl("https://gyazo.com/a.b", hosts))
         assertNull(ImageLinks.imageUrl("https://gyazo.com/" + "a".repeat(100), hosts))
-        // What is left once the query and the fragment are cut off is still only the id.
+        // Without query and fragment, only the id is left.
         assertEquals("https://i.gyazo.com/abc.png", ImageLinks.imageUrl("https://gyazo.com/abc?w=1#top", hosts))
     }
 
@@ -78,14 +78,14 @@ class ImageLinksTest {
     fun aHostNobodyAllowedIsNeverFetched() {
         assertNull(ImageLinks.imageUrl("https://evil.example/cat.png", hosts))
         assertNull(ImageLinks.imageUrl("https://twitch.tv/forsen", hosts))
-        // "lol.gif" typed in chat parses as a host, and a host is not a picture.
+        // "lol.gif" typed in chat parses as a host, not a picture.
         assertNull(ImageLinks.imageUrl("https://lol.gif", hosts))
     }
 
     @Test
     fun anAllowedHostCoversItsSubdomains() {
         assertEquals("https://i.gyazo.com/a.png", ImageLinks.imageUrl("https://i.gyazo.com/a.png", listOf("gyazo.com")))
-        // ...but not a host that merely ends in the same letters.
+        // ...but not a host that only ends in the same letters.
         assertNull(ImageLinks.imageUrl("https://notgyazo.com/a.png", listOf("gyazo.com")))
     }
 
