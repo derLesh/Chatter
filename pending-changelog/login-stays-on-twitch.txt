@@ -1,1 +1,0 @@
-patch: Keep the login on Twitch's own pages, and open any other link from it in the browser

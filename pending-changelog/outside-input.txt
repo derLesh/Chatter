@@ -1,1 +1,0 @@
-patch: Only offer an update download from GitHub, and refuse a backup file too large to be one

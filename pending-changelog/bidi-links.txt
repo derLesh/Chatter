@@ -1,1 +1,0 @@
-patch: Show links that hide behind invisible direction marks as they really are, and ask before opening them

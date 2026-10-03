@@ -1,1 +1,0 @@
-patch: Logging out also signs the account out at Twitch, so its token stops working everywhere

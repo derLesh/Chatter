@@ -1,1 +1,0 @@
-patch: Keep quick changes to keywords, image sites and emote or badge providers from undoing each other

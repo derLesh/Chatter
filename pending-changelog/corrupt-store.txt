@@ -1,1 +1,0 @@
-patch: Open normally after one of Chatter's files was damaged, instead of crashing on every start

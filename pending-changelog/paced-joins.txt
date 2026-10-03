@@ -1,1 +1,0 @@
-patch: Join a long channel list at the pace Twitch allows, so no channel stays empty after a reconnect

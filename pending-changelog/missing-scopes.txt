@@ -1,1 +1,0 @@
-patch: Say on the account page when a login allows less than Chatter uses, with a way to log in again

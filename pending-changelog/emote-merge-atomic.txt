@@ -1,1 +1,0 @@
-patch: Keep a 7TV emote added live while the channel's other emotes are being loaded again

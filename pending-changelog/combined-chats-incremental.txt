@@ -1,1 +1,0 @@
-patch: Spend less work on combined chats of busy channels while they are open
