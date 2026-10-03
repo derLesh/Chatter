@@ -32,25 +32,16 @@ class HttpException(val code: Int, val body: String) : IOException("HTTP $code: 
 }
 
 /** Runs the request asynchronously and returns the body as text. Throws [HttpException] on non-2xx. */
-suspend fun OkHttpClient.fetch(request: Request): String = suspendCancellableCoroutine { cont ->
-    val call = newCall(request)
-    cont.invokeOnCancellation { call.cancel() }
-    call.enqueue(object : Callback {
-        override fun onFailure(call: Call, e: IOException) = cont.resumeWithException(e)
-
-        override fun onResponse(call: Call, response: Response) {
-            response.use {
-                val body = it.body.string()
-                if (it.isSuccessful) cont.resume(body)
-                else cont.resumeWithException(HttpException(it.code, body.take(200)))
-            }
-        }
-    })
-}
+suspend fun OkHttpClient.fetch(request: Request): String = fetchDecoding(request) { it.bufferedReader().readText() }
 
 /**
  * Runs the request and hands the body to [decode] while it is still streaming, so nothing has to
  * hold the whole response as a String first.
+ *
+ * Whatever goes wrong while the response is read resumes the caller with it. A connection that
+ * drops halfway through a body throws out of [Callback.onResponse], where OkHttp only logs it —
+ * and a caller nobody resumes waits forever: an emote list that never arrives, a history that
+ * says it is loading until the app is restarted.
  */
 suspend fun <T> OkHttpClient.fetchDecoding(request: Request, decode: (InputStream) -> T): T =
     suspendCancellableCoroutine { cont ->
@@ -60,20 +51,27 @@ suspend fun <T> OkHttpClient.fetchDecoding(request: Request, decode: (InputStrea
             override fun onFailure(call: Call, e: IOException) = cont.resumeWithException(e)
 
             override fun onResponse(call: Call, response: Response) {
-                response.use {
-                    if (!it.isSuccessful) {
-                        cont.resumeWithException(HttpException(it.code, it.body.string().take(200)))
-                        return
-                    }
-                    try {
+                try {
+                    response.use {
+                        if (!it.isSuccessful) throw HttpException(it.code, errorText(it))
                         cont.resume(decode(it.body.byteStream()))
-                    } catch (e: Throwable) {
-                        cont.resumeWithException(e)
                     }
+                } catch (e: Throwable) {
+                    // Already resumed or cancelled: there is nobody left to tell.
+                    if (cont.isActive) cont.resumeWithException(e)
                 }
             }
         })
     }
+
+/**
+ * The start of an error response, for the exception's message. Only the start is read: an error
+ * page can be any size, and the message keeps 200 characters of it either way.
+ */
+private fun errorText(response: Response): String =
+    runCatching { response.peekBody(ERROR_PEEK_BYTES).string().take(200) }.getOrDefault("")
+
+private const val ERROR_PEEK_BYTES = 4096L
 
 /**
  * A JSON response, parsed straight off the socket. The emote lists of a busy channel run to a few

@@ -1,0 +1,1 @@
+patch: Stop a connection that drops halfway through an answer from leaving emotes or history loading forever
