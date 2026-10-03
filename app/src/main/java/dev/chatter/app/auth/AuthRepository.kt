@@ -7,11 +7,13 @@ import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.longPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
+import android.util.Log
 import dev.chatter.app.BuildConfig
 import dev.chatter.app.net.HelixApi
 import dev.chatter.app.net.HttpException
 import dev.chatter.app.net.fetch
 import dev.chatter.app.net.postForm
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.first
@@ -93,6 +95,20 @@ class AuthRepository(
     /** Every logged-in account, the active one included, in the order they were added. */
     val accounts: StateFlow<List<Account>> = _accounts
 
+    /**
+     * Accounts whose tokens the keystore would not decrypt at start, kept exactly as they were
+     * stored. They are not logged in — there is no token to log in with — but they are not
+     * logged out either: [persist] writes them back untouched, and the next start tries again.
+     */
+    private var unreadable: List<StoredAccount> = emptyList()
+
+    private val _knownUserIds = MutableStateFlow<List<String>>(emptyList())
+    /**
+     * The user id of every account on the phone, the [unreadable] ones included. What belongs to
+     * an account — its inbox, its whispers — is kept for as long as it is in here.
+     */
+    val knownUserIds: StateFlow<List<String>> = _knownUserIds
+
     private val _sessionExpired = MutableStateFlow(false)
     /**
      * True when the login ended on its own — the token ran out or was revoked — as opposed to the
@@ -130,9 +146,10 @@ class AuthRepository(
         // An install from before several accounts were a thing kept one account in keys of its
         // own. It becomes the first entry of the list, and the old keys go on the next write.
         val migrated = stored.isEmpty()
-        val accounts = (if (migrated) listOfNotNull(legacyAccount(p)) else stored).mapNotNull { it.decrypted() }
+        val (accounts, unread) = decryptAll(if (migrated) listOfNotNull(legacyAccount(p)) else stored)
         writeLock.withLock {
             _accounts.value = accounts
+            unreadable = unread
             activeId = AccountStore.activeIn(accounts.map { it.userId }, p[ACTIVE_KEY])
             guest = p[GUEST_KEY] == true
             // Log in optimistically so the chat can connect right away (also offline).
@@ -163,6 +180,13 @@ class AuthRepository(
                 publish()
             }
         }
+    }
+
+    /** The stored accounts with their tokens decrypted, and the ones set aside; see [AccountStore.readAll]. */
+    private suspend fun decryptAll(stored: List<StoredAccount>): Pair<List<Account>, List<StoredAccount>> {
+        val read = AccountStore.readAll(stored, wait = { attempt -> delay(DECRYPT_RETRY_MS * attempt) }) { it.decrypted() }
+        if (read.unreadable.isNotEmpty()) Log.w(TAG, "Keeping ${read.unreadable.size} account(s) unread until the keystore answers")
+        return read.readable to read.unreadable
     }
 
     /** The one account an older version of the app stored, or null if there was none. */
@@ -315,7 +339,14 @@ class AuthRepository(
         val queued = AccountStore.decodeTokens(store.data.first()[REVOKE_KEY])
         if (queued.isEmpty()) return@withLock
         // A token that cannot be decrypted any more cannot be revoked either, so it is done with.
-        val left = queued.filter { encrypted -> TokenCipher.decrypt(encrypted)?.let { !revoke(it) } ?: false }
+        // One the keystore did not answer for stays queued: it is still valid at Twitch.
+        val left = queued.filter { encrypted ->
+            when (val t = TokenCipher.open(encrypted)) {
+                is Decrypted.Plain -> !revoke(t.text)
+                Decrypted.Lost -> false
+                Decrypted.Unavailable -> true
+            }
+        }
         store.edit { p ->
             // Whatever was queued while this ran stays queued.
             val now = AccountStore.decodeTokens(p[REVOKE_KEY]) - queued.toSet() + left
@@ -443,7 +474,9 @@ class AuthRepository(
 
     /** Writes the account list and whether a guest is reading; call while holding [writeLock]. */
     private suspend fun persist() {
-        val list = _accounts.value.map { it.stored() }
+        // An account logged in again since is the new one; its unreadable entry goes.
+        val list = _accounts.value.map { it.stored() } +
+            unreadable.filter { u -> _accounts.value.none { it.userId == u.userId } }
         val active = activeId
         store.edit { prefs ->
             // Not prefs.clear(): the tokens still waiting to be revoked live in the same store.
@@ -457,6 +490,7 @@ class AuthRepository(
 
     /** Publishes the active account as the state; call while holding [writeLock]. */
     private fun publish() {
+        _knownUserIds.value = (_accounts.value.map { it.userId } + unreadable.map { it.userId }).distinct()
         val active = _accounts.value.firstOrNull { it.userId == activeId }
         _state.value = when {
             active != null -> AuthState.LoggedIn(active)
@@ -476,18 +510,35 @@ class AuthRepository(
         scopes = scopes?.sorted(),
     )
 
-    /** Null for an entry whose token cannot be read any more — a keystore key that was replaced. */
-    private fun StoredAccount.decrypted(): Account? {
-        val plain = TokenCipher.decrypt(token) ?: return null
-        return Account(
-            login = login,
-            userId = userId,
-            token = plain,
-            refreshToken = refreshToken?.let { TokenCipher.decrypt(it) },
-            expiresAt = expiresAt,
-            displayName = displayName,
-            avatarUrl = avatarUrl,
-            scopes = scopes?.toSet(),
+    /**
+     * The account with its tokens decrypted. [Opened.Lost] for an entry whose token cannot be
+     * read any more — a keystore key that was replaced — and [Opened.Unavailable] while the
+     * keystore does not answer. A refresh token that is lost leaves the account as one without.
+     */
+    private fun StoredAccount.decrypted(): Opened<Account> {
+        val plain = when (val t = TokenCipher.open(token)) {
+            is Decrypted.Plain -> t.text
+            Decrypted.Lost -> return Opened.Lost
+            Decrypted.Unavailable -> return Opened.Unavailable
+        }
+        val refresh = refreshToken?.let {
+            when (val r = TokenCipher.open(it)) {
+                is Decrypted.Plain -> r.text
+                Decrypted.Lost -> null
+                Decrypted.Unavailable -> return Opened.Unavailable
+            }
+        }
+        return Opened.Readable(
+            Account(
+                login = login,
+                userId = userId,
+                token = plain,
+                refreshToken = refresh,
+                expiresAt = expiresAt,
+                displayName = displayName,
+                avatarUrl = avatarUrl,
+                scopes = scopes?.toSet(),
+            ),
         )
     }
 
@@ -502,7 +553,11 @@ class AuthRepository(
     }
 
     companion object {
+        private const val TAG = "AuthRepository"
         const val REDIRECT_URI = "http://localhost"
+
+        /** The keystore is asked again after one second, then two, then three. */
+        private const val DECRYPT_RETRY_MS = 1_000L
         private const val REFRESH_MARGIN_MS = 10 * 60_000L
 
         private val ACCOUNTS_KEY = stringPreferencesKey("accounts")

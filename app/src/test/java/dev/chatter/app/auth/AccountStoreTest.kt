@@ -1,5 +1,6 @@
 package dev.chatter.app.auth
 
+import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
@@ -75,5 +76,41 @@ class AccountStoreTest {
     fun junkQueuesNothing() {
         assertEquals(emptyList<String>(), AccountStore.decodeTokens(null))
         assertEquals(emptyList<String>(), AccountStore.decodeTokens("{not a list"))
+    }
+
+    @Test
+    fun aKeystoreThatAnswersLateStillLetsTheAccountIn() {
+        var tries = 0
+        val waits = mutableListOf<Int>()
+        val read = runBlocking {
+            AccountStore.readAll(listOf(lesh, bot), wait = { waits += it }) { entry ->
+                if (entry == lesh && ++tries < 3) Opened.Unavailable else Opened.Readable(entry.login)
+            }
+        }
+        assertEquals("in the order they were stored", listOf("lesh", "leshbot"), read.readable)
+        assertTrue(read.unreadable.isEmpty())
+        assertEquals(listOf(1, 2), waits)
+    }
+
+    @Test
+    fun anAccountTheKeystoreNeverAnswersForIsSetAsideNotForgotten() {
+        val read = runBlocking {
+            AccountStore.readAll(listOf(lesh, bot), wait = {}) { entry ->
+                if (entry == lesh) Opened.Unavailable else Opened.Readable(entry.login)
+            }
+        }
+        assertEquals(listOf("leshbot"), read.readable)
+        assertEquals(listOf(lesh), read.unreadable)
+    }
+
+    @Test
+    fun anAccountWhoseTokenIsLostIsInNeitherList() {
+        var asked = 0
+        val read = runBlocking {
+            AccountStore.readAll(listOf(lesh), wait = {}) { asked++; Opened.Lost }
+        }
+        assertTrue(read.readable.isEmpty())
+        assertTrue(read.unreadable.isEmpty())
+        assertEquals("a lost token is not asked about again", 1, asked)
     }
 }

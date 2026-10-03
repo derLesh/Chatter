@@ -23,12 +23,58 @@ data class StoredAccount(
     val scopes: List<String>? = null,
 )
 
+/** What came of opening one stored account; see [AccountStore.readAll]. */
+sealed interface Opened<out T> {
+    class Readable<T>(val value: T) : Opened<T>
+
+    /** Its token can never be read again. */
+    data object Lost : Opened<Nothing>
+
+    /** Its token could not be read this time; nothing is wrong with it. */
+    data object Unavailable : Opened<Nothing>
+}
+
 /**
  * The stored list of accounts as one preference value, and the rules for changing it. Kept apart
  * from [AuthRepository] because none of it needs Android: this is what the tests get at.
  */
 object AccountStore {
     private val json = Json { ignoreUnknownKeys = true; encodeDefaults = true }
+
+    /** The accounts that could be read, in the order they were stored, and those set aside. */
+    class Read<T>(val readable: List<T>, val unreadable: List<StoredAccount>)
+
+    /**
+     * Opens every stored account with [open], asking again for the ones it could not open this
+     * time: the keystore that decrypts the tokens is a system service, and what keeps it from
+     * answering is usually over within seconds. [wait] is called before each further attempt.
+     * Those still unopened after [attempts] tries are set aside rather than forgotten — and an
+     * account whose token is lost for good is in neither list.
+     */
+    suspend fun <T> readAll(
+        stored: List<StoredAccount>,
+        attempts: Int = 4,
+        wait: suspend (attempt: Int) -> Unit,
+        open: (StoredAccount) -> Opened<T>,
+    ): Read<T> {
+        val readable = HashMap<String, T>()
+        var pending = stored
+        for (attempt in 0 until attempts) {
+            if (attempt > 0) wait(attempt)
+            pending = pending.filter { entry ->
+                when (val result = open(entry)) {
+                    is Opened.Readable -> {
+                        readable[entry.userId] = result.value
+                        false
+                    }
+                    Opened.Lost -> false
+                    Opened.Unavailable -> true
+                }
+            }
+            if (pending.isEmpty()) break
+        }
+        return Read(stored.mapNotNull { readable[it.userId] }, pending)
+    }
 
     fun encode(accounts: List<StoredAccount>): String = json.encodeToString(accounts)
 

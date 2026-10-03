@@ -203,8 +203,8 @@ class AppContainer(
             // Only from here on is the account list the real one rather than the empty start.
             // Whatever an account that is gone received goes with it, however it went: logged
             // out, ended by Twitch, or unreadable after the keystore key was replaced.
-            auth.accounts.collect { list ->
-                val ids = list.map { it.userId }
+            // An account the keystore could not be asked about at start is still one of them.
+            auth.knownUserIds.collect { ids ->
                 inbox.keepOnly(ids)
                 whisperInbox.keepOnly(ids)
             }
