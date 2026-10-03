@@ -1,5 +1,7 @@
 package dev.chatter.app.ui
 
+import android.content.ClipData
+import android.content.ClipboardManager
 import android.content.Intent
 import android.net.Uri
 import android.provider.Settings as AndroidSettings
@@ -141,6 +143,8 @@ import dev.chatter.app.settings.ThemeMode
 import dev.chatter.app.settings.TapAction
 import dev.chatter.app.settings.TimestampFormat
 import dev.chatter.app.ui.changelog.ChangelogPage
+import dev.chatter.app.crash.Crash
+import dev.chatter.app.crash.DeviceInfo
 import dev.chatter.app.ui.channels.AddChannelDialog
 import dev.chatter.app.ui.channels.CombineChannelsDialog
 import dev.chatter.app.ui.channels.ManageChannelsPage
@@ -1405,6 +1409,67 @@ private fun formatNumber(n: Long): String = NumberFormat.getIntegerInstance().fo
 
 private fun formatDay(at: Long): String = DateFormat.getDateInstance(DateFormat.MEDIUM).format(Date(at))
 
+/**
+ * Opens the bug report form with what Chatter knows already filled in: its version, Android's and
+ * the phone's. If Chatter has crashed, it first offers to copy what it wrote down about that, to
+ * be pasted into the form — the form takes it as a field, but a stack trace is too long for a
+ * link, and nothing of it should leave the phone without the user putting it there themselves.
+ */
+@Composable
+private fun ReportIssueItem(vm: MainViewModel) {
+    val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+    var crash by remember { mutableStateOf<Crash?>(null) }
+    val open = { context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(bugReportUrl(vm.device)))) }
+    ListItem(
+        headlineContent = { Text(stringResource(R.string.settings_report_issue)) },
+        supportingContent = { Text(stringResource(R.string.settings_report_issue_summary)) },
+        trailingContent = { Icon(Icons.AutoMirrored.Filled.ArrowForward, contentDescription = null) },
+        colors = transparentItem(),
+        modifier = Modifier.clickable {
+            scope.launch {
+                val last = vm.lastCrash()
+                if (last == null) open() else crash = last
+            }
+        },
+    )
+    crash?.let { last ->
+        AlertDialog(
+            onDismissRequest = { crash = null },
+            title = { Text(stringResource(R.string.crash_attach_title)) },
+            text = {
+                val at = DateFormat.getDateTimeInstance(DateFormat.MEDIUM, DateFormat.SHORT).format(Date(last.at))
+                Text(stringResource(R.string.crash_attach_text, at))
+            },
+            confirmButton = {
+                val label = stringResource(R.string.crash_clip_label)
+                TextButton(onClick = {
+                    context.getSystemService(ClipboardManager::class.java)
+                        .setPrimaryClip(ClipData.newPlainText(label, last.text))
+                    crash = null
+                    open()
+                }) { Text(stringResource(R.string.crash_attach_copy)) }
+            },
+            dismissButton = {
+                TextButton(onClick = {
+                    crash = null
+                    open()
+                }) { Text(stringResource(R.string.crash_attach_skip)) }
+            },
+        )
+    }
+}
+
+/** The bug report template, its fields about the app and the phone filled in. */
+private fun bugReportUrl(device: DeviceInfo): String =
+    Uri.parse("$REPO_URL/issues/new").buildUpon()
+        .appendQueryParameter("template", "bug.yml")
+        .appendQueryParameter("version", "${device.appVersion} (${device.versionCode})")
+        .appendQueryParameter("android", "${device.android} (API ${device.sdk})")
+        .appendQueryParameter("device", device.device)
+        .build()
+        .toString()
+
 @Composable
 private fun AboutPage(settings: Settings, vm: MainViewModel, open: (SettingsSubPage) -> Unit) {
     // The wordmark, which already says the name, so no heading repeats it underneath.
@@ -1436,7 +1501,7 @@ private fun AboutPage(settings: Settings, vm: MainViewModel, open: (SettingsSubP
             )
         }
         item(R.string.settings_source_code) { LinkItem(R.string.settings_source_code, R.string.settings_source_code_summary, REPO_URL) }
-        item(R.string.settings_report_issue) { LinkItem(R.string.settings_report_issue, R.string.settings_report_issue_summary, "$REPO_URL/issues/new") }
+        item(R.string.settings_report_issue) { ReportIssueItem(vm) }
         item(R.string.settings_privacy) { LinkItem(R.string.settings_privacy, R.string.settings_privacy_summary, PRIVACY_URL) }
         item(R.string.settings_credits) {
             ListItem(

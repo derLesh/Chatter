@@ -330,7 +330,12 @@
     <string name="settings_source_code">Source code</string>
     <string name="settings_source_code_summary">github.com/derLesh/Chatter</string>
     <string name="settings_report_issue">Report a problem</string>
-    <string name="settings_report_issue_summary">Opens a new issue on GitHub</string>
+    <string name="settings_report_issue_summary">Opens a bug report on GitHub, with the app and Android version filled in</string>
+    <string name="crash_attach_title">Add the last crash?</string>
+    <string name="crash_attach_text">Chatter crashed on %1$s. Copy what it noted down about that, to paste into the report? Nothing of it leaves your phone unless you paste it.</string>
+    <string name="crash_attach_copy">Copy and continue</string>
+    <string name="crash_attach_skip">Without it</string>
+    <string name="crash_clip_label">Chatter crash</string>
 
     <!-- Chat modes (header chips) -->
     <string name="mode_slow">Slow %1$ds</string>

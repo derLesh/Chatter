@@ -324,7 +324,12 @@
     <string name="settings_source_code">Quellcode</string>
     <string name="settings_source_code_summary">github.com/derLesh/Chatter</string>
     <string name="settings_report_issue">Problem melden</string>
-    <string name="settings_report_issue_summary">Öffnet ein neues Issue auf GitHub</string>
+    <string name="settings_report_issue_summary">Öffnet einen Fehlerbericht auf GitHub, App- und Android-Version schon eingetragen</string>
+    <string name="crash_attach_title">Letzten Absturz anhängen?</string>
+    <string name="crash_attach_text">Chatter ist am %1$s abgestürzt. Kopieren, was es dazu notiert hat, um es in den Bericht einzufügen? Nichts davon verlässt das Handy, solange du es nicht selbst einfügst.</string>
+    <string name="crash_attach_copy">Kopieren und weiter</string>
+    <string name="crash_attach_skip">Ohne</string>
+    <string name="crash_clip_label">Chatter-Absturz</string>
 
     <!-- Chat modes (header chips) -->
     <string name="mode_slow">Langsam %1$ds</string>

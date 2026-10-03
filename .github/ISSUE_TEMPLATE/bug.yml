@@ -1,0 +1,59 @@
+name: Bug report
+description: Something in Chatter does not work the way it should
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thank you for taking the time. Opened from **Settings → About → Report a problem**,
+        Chatter fills in the version, Android and the phone for you, and offers to copy its last
+        crash so it can be pasted below.
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened
+      description: What you did, what you expected, and what Chatter did instead.
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: How to make it happen again
+      description: The steps, if you know them. "It happens sometimes" helps too.
+      placeholder: |
+        1. Open a channel
+        2. …
+    validations:
+      required: false
+  - type: input
+    id: version
+    attributes:
+      label: Chatter version
+      description: Settings → About shows it under the name.
+      placeholder: "0.8.0 (8)"
+    validations:
+      required: true
+  - type: input
+    id: android
+    attributes:
+      label: Android version
+      placeholder: "16 (API 36)"
+    validations:
+      required: false
+  - type: input
+    id: device
+    attributes:
+      label: Phone
+      placeholder: "Google Pixel 9"
+    validations:
+      required: false
+  - type: textarea
+    id: crash
+    attributes:
+      label: Crash
+      description: |
+        If Chatter closed on its own: paste what it copied for you. Have a look at it first — the
+        error can quote a bit of what was on screen.
+      render: text
+    validations:
+      required: false

@@ -37,6 +37,7 @@ import dev.chatter.app.chat.WhisperSender
 import dev.chatter.app.chat.CommandExecutor
 import dev.chatter.app.chat.EmoteOptions
 import dev.chatter.app.chat.MessageBuilder
+import dev.chatter.app.crash.CrashLog
 import dev.chatter.app.emotes.EmoteRepository
 import dev.chatter.app.emotes.SevenTvEventClient
 import dev.chatter.app.emotes.SevenTvLiveUpdates
@@ -83,7 +84,11 @@ private val Context.healthStore by preferencesDataStore("background_health")
  * Creates and wires every long-lived object of the app (manual dependency injection).
  * Lives as long as the process; get it via `(application as ChatterApp).container`.
  */
-class AppContainer(private val context: Context) {
+class AppContainer(
+    private val context: Context,
+    /** The last few crashes, for a bug report; see [CrashLog]. */
+    val crashLog: CrashLog,
+) {
     val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
 
     val http: OkHttpClient = OkHttpClient.Builder()

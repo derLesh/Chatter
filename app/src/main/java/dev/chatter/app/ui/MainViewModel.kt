@@ -10,10 +10,13 @@ import androidx.compose.ui.text.input.TextFieldValue
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dev.chatter.app.AppContainer
+import dev.chatter.app.BuildConfig
 import dev.chatter.app.R
 import dev.chatter.app.badges.Badge
 import dev.chatter.app.badges.BadgeProvider
 import dev.chatter.app.channels.ChannelGroup
+import dev.chatter.app.crash.Crash
+import dev.chatter.app.crash.DeviceInfo
 import dev.chatter.app.channels.RemovedPage
 import dev.chatter.app.channels.displayName
 import dev.chatter.app.chat.ChatCommand
@@ -691,6 +694,14 @@ class MainViewModel(private val c: AppContainer) : ViewModel() {
             }
         }
     }
+
+    // ---- Bug reports -------------------------------------------------------------------------
+
+    /** The last crash written down, read off the disk; null when there is none. */
+    suspend fun lastCrash(): Crash? = withContext(Dispatchers.IO) { c.crashLog.latest() }
+
+    /** Where Chatter runs, for the fields of a bug report. */
+    val device: DeviceInfo = DeviceInfo.current(BuildConfig.VERSION_NAME, BuildConfig.VERSION_CODE)
 
     // ---- Channels ----------------------------------------------------------------------------
 
