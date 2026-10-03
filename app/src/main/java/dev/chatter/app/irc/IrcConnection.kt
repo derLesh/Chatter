@@ -34,6 +34,8 @@ enum class ConnectionState { Disconnected, Connecting, WaitingForNetwork, Connec
 class IrcConnection(
     private val http: OkHttpClient,
     private val scope: CoroutineScope,
+    /** Which channels to join first after a connect; lower goes first. See [JoinQueue]. */
+    joinRank: (String) -> Int = { 0 },
 ) : ChatConnection {
     private val lock = Any()
 
@@ -52,6 +54,8 @@ class IrcConnection(
     private var reconnectJob: Job? = null
     private var watchdogJob: Job? = null
     private var handshakeJob: Job? = null
+    private var joinJob: Job? = null
+    private val joins = JoinQueue(System::currentTimeMillis, joinRank)
     @Volatile private var lastActivity = 0L
     /**
      * Whether the phone has a network at all. Retrying without one is a DNS lookup that cannot
@@ -141,12 +145,14 @@ class IrcConnection(
 
     // While connecting, the JOINs are sent after the welcome message (see onWelcome).
     override fun join(channel: String): Unit = synchronized(lock) {
-        if (!isChannel(channel)) return
-        if (joined.add(channel) && _state.value == ConnectionState.Connected) socket?.send("JOIN #$channel")
+        if (!isChannel(channel) || !joined.add(channel)) return
+        joins.add(channel)
+        if (_state.value == ConnectionState.Connected) sendJoins()
     }
 
     override fun part(channel: String): Unit = synchronized(lock) {
         if (!isChannel(channel)) return
+        joins.remove(channel)
         if (joined.remove(channel) && _state.value == ConnectionState.Connected) socket?.send("PART #$channel")
     }
 
@@ -187,8 +193,27 @@ class IrcConnection(
         }
     }
 
+    /**
+     * Sends what [joins] allows now, and comes back when it allows more. Called under [lock].
+     *
+     * Twitch allows joining many channels in one command, and each of them counts against the
+     * limit the same, so a portion goes out as one line.
+     */
+    private fun sendJoins() {
+        joinJob?.cancel()
+        val ws = socket ?: return
+        val batch = joins.take()
+        if (batch.isNotEmpty()) ws.send("JOIN " + batch.joinToString(",") { "#$it" })
+        val due = joins.nextDueAt() ?: return
+        joinJob = scope.launch {
+            delay((due - System.currentTimeMillis()).coerceAtLeast(0))
+            synchronized(lock) { if (socket === ws && _state.value == ConnectionState.Connected) sendJoins() }
+        }
+    }
+
     private fun closeSocket() {
         handshakeJob?.cancel()
+        joinJob?.cancel()
         socket?.cancel()
         socket = null
     }
@@ -262,13 +287,21 @@ class IrcConnection(
                 val msg = IrcMessage.parse(text, lineStart, end) ?: continue
                 when (msg.command) {
                     "001" -> onWelcome(webSocket)
+                    "ROOMSTATE" -> msg.channel?.let { synchronized(lock) { joins.answered(it) } }
                     "RECONNECT" -> scheduleReconnect(immediate = true)
-                    "NOTICE" -> if (msg.channel == null && isAuthFailure(msg.trailing)) {
-                        synchronized(lock) {
-                            wanted = false
-                            closeSocket()
+                    "NOTICE" -> {
+                        val channel = msg.channel
+                        if (channel == null && isAuthFailure(msg.trailing)) {
+                            synchronized(lock) {
+                                wanted = false
+                                closeSocket()
+                            }
+                            _state.value = ConnectionState.AuthFailed
                         }
-                        _state.value = ConnectionState.AuthFailed
+                        // A suspended channel never answers its JOIN, and asking again changes nothing.
+                        if (channel != null && msg.tag("msg-id") == "msg_channel_suspended") {
+                            synchronized(lock) { joins.answered(channel) }
+                        }
                     }
                 }
                 incoming.trySend(msg)
@@ -280,10 +313,8 @@ class IrcConnection(
                 handshakeJob?.cancel()
                 attempt = 0
                 _state.value = ConnectionState.Connected
-                // Twitch allows joining many channels in one command.
-                joined.chunked(20).forEach { batch ->
-                    webSocket.send("JOIN " + batch.joinToString(",") { "#$it" })
-                }
+                joins.restart(joined)
+                sendJoins()
             }
             startWatchdog()
         }
