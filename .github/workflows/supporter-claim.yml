@@ -1,16 +1,11 @@
-# Somebody says which Twitch account their sponsorship belongs to, and the badge follows.
+# Fills in the Twitch account of a sponsor. Chatter opens the issue with the Twitch id in it. GitHub
+# vouches for the author, docs/supporters.json says whether that account sponsors, and the id only
+# goes into that account's entry. Non-sponsors change nothing and are told so.
 #
-# The issue comes from Chatter, with the Twitch id already in it. What makes that safe is not the
-# issue: GitHub says who opened it, docs/supporters.json says whether that account sponsors, and
-# the number can only ever land in that account's own entry. Somebody who does not sponsor changes
-# nothing and is told so.
-#
-# Nothing from the issue ever reaches a shell. It goes to the script as an environment variable,
-# because a body is whatever somebody typed.
+# Issue content never reaches a shell; the body is passed to the script as an environment variable.
 name: Supporter badge
 
-# Off for now: GitHub Sponsors is not set up, so nobody can be a sponsor and nothing here has
-# anything to check against. Put the two lines back when it is.
+# Off until GitHub Sponsors is set up. Re-enable the two lines then.
 on:
   # issues:
   #   types: [opened, edited]

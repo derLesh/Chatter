@@ -1,11 +1,9 @@
-# A dependency update from Dependabot fails CI as it comes in: gradle/verification-metadata.xml
-# has no checksum for the new version yet. This adds the checksums to the pull request and starts
-# CI again on it, so the update is judged by the build and not by the missing file.
+# Dependabot updates fail CI because gradle/verification-metadata.xml lacks the new checksums. This
+# adds them to the pull request and restarts CI, so the update is judged by the build.
 #
-# It is two jobs on purpose. The first one runs the build — and with it whatever the new version
-# of a plugin does while it is configured — with a token that can only read. The second one can
-# write, and runs nothing but git: it takes the one file the first job hands it, refuses it if an
-# existing checksum changed rather than new ones being added, and pushes it.
+# Two jobs: the first runs the build (and whatever a new plugin version does) with a read-only
+# token. The second can write but only runs git: it takes the file from the first job, rejects it if
+# an existing checksum changed, and pushes it.
 name: Dependabot checksums
 
 on:
@@ -42,15 +40,14 @@ jobs:
       - name: Check the Gradle wrapper
         uses: gradle/actions/wrapper-validation@3f5f9adaf7d9fecd50b5935e54106014257a94e6 # v6.4.0
 
-      # No cache: what another run downloaded is exactly what this file is there not to trust.
+      # No cache: files downloaded by another run are exactly what must not be trusted here.
       - name: Set up Gradle
         uses: gradle/actions/setup-gradle@3f5f9adaf7d9fecd50b5935e54106014257a94e6 # v6.4.0
         with:
           cache-disabled: true
 
-      # The same command AGENTS.md gives, so the file ends up as it would on a dev machine. Whether
-      # the build passes is CI's to say once the checksums are there; an update that breaks it
-      # still gets them, so that CI fails on the breakage and not on the file.
+      # The command from AGENTS.md. An update that breaks the build still gets its checksums, so CI
+      # fails on the breakage and not on the file.
       - name: Write the checksums
         continue-on-error: true
         run: ./gradlew --continue --write-verification-metadata sha256 build :app:bundleRelease :app:assembleMicrobenchmarkAndroidTest :baselineprofile:assemble
@@ -69,7 +66,7 @@ jobs:
     timeout-minutes: 10
     permissions:
       contents: write
-      # To start CI again: a push made with this token starts no workflow of its own.
+      # To restart CI: pushes with this token trigger no workflows.
       actions: write
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -81,9 +78,9 @@ jobs:
           name: verification-metadata
           path: gradle/
 
-      # Gradle keeps the checksums it already has and adds the new ones, so an update can only add
-      # lines. A line that went or changed means a checksum is different for a version that is
-      # not: that is for a person to look at, not for this to commit.
+      # Gradle keeps existing checksums and adds new ones, so an update only adds lines. A removed
+      # or changed line means a checksum changed for an unchanged version; a person has to look at
+      # that.
       - name: Check that checksums were only added
         run: |
           if git diff --quiet -- gradle/verification-metadata.xml; then

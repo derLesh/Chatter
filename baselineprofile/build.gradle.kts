@@ -4,13 +4,12 @@ plugins {
 }
 
 /**
- * Generates the baseline profile shipped in the release APK: the list of methods ART compiles
- * ahead of time instead of interpreting on first use. The AndroidX libraries bring their own, so
- * this one is only about Chatter's share: the start, and the chat being read.
+ * Generates the baseline profile shipped in the release APK: the methods ART compiles ahead of
+ * time. AndroidX libraries bring their own; this covers Chatter's start and reading the chat.
  *
- * It is not built or run by CI — `./gradlew :app:generateReleaseBaselineProfile` with a phone
- * attached writes app/src/release/generated/baselineProfiles/, and that file is committed.
- * ChatBenchmark shows what it is worth: `./gradlew :baselineprofile:connectedBenchmarkReleaseAndroidTest`.
+ * Not run by CI: `./gradlew :app:generateReleaseBaselineProfile` with a phone attached writes
+ * app/src/release/generated/baselineProfiles/, which is committed. ChatBenchmark measures its
+ * effect: `./gradlew :baselineprofile:connectedBenchmarkReleaseAndroidTest`.
  */
 android {
     namespace = "dev.chatter.app.baselineprofile"

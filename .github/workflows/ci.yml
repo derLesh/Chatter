@@ -1,6 +1,5 @@
-# Every push and every pull request builds Chatter the way a release would, minus the signing: if
-# this is green, the branch compiles, its tests pass, lint is happy and the changelog entries it
-# adds are well formed — which is what the release workflow relies on.
+# Builds every push and pull request like a release, minus signing: compile, tests, lint and
+# changelog entries. The release workflow relies on this being green.
 name: CI
 
 on:
@@ -9,7 +8,7 @@ on:
   pull_request:
   workflow_dispatch:
 
-# A new push to the same branch makes the run before it pointless, so it is cancelled.
+# A new push to the same branch makes the previous run pointless.
 concurrency:
   group: ci-${{ github.ref }}
   cancel-in-progress: true
@@ -33,15 +32,15 @@ jobs:
           distribution: temurin
           java-version: '21'
 
-      # gradle-wrapper.jar is a binary nobody reads in a diff. This compares it with the checksums
-      # Gradle publishes for its releases, so a pull request cannot swap it for something else.
+      # gradle-wrapper.jar is a binary nobody reviews; this compares it with Gradle's published
+      # checksums.
       - name: Check the Gradle wrapper
         uses: gradle/actions/wrapper-validation@3f5f9adaf7d9fecd50b5935e54106014257a94e6 # v6.4.0
 
       - name: Set up Gradle
         uses: gradle/actions/setup-gradle@3f5f9adaf7d9fecd50b5935e54106014257a94e6 # v6.4.0
-        # v6 caches through a closed-source library unless told otherwise; the open one, a thin
-        # layer over actions/cache, is all a build this size needs.
+        # v6 caches through a closed-source library by default; the open provider over actions/cache
+        # is enough.
         with:
           cache-provider: basic
 
@@ -51,30 +50,27 @@ jobs:
       - name: Unit tests
         run: ./gradlew :app:testDebugUnitTest
 
-      # Not the app: the scripts the other workflows run where nobody is watching — the rules the
-      # supporter list is folded together by, and how the benchmark's numbers are written up.
+      # The scripts other workflows run unattended: the supporter list rules and the benchmark
+      # summary.
       - name: Check the workflow scripts
         run: python3 -m unittest discover -s .github/scripts -p 'test_*.py'
 
-      # The release variant, because that is the one that ships: it lints the minified build's
-      # configuration too, and catches a manifest or resource problem a debug build never sees.
+      # The release variant, since that is what ships; it also checks the minified build's
+      # configuration.
       - name: Lint
         run: ./gradlew :app:lintRelease
 
-      # No Twitch Client ID here: CI only proves the app builds, and the login is not exercised.
+      # No Twitch Client ID: CI only proves the app builds.
       - name: Assemble the debug APK
         run: ./gradlew :app:assembleDebug
 
-      # The release build is the one that can break on its own: R8 strips and rewrites, the
-      # resource shrinker removes what nothing appears to reference, and the bundle is what Play
-      # is handed. None of that is exercised by a debug build, and finding out during a release is
-      # finding out too late. It signs with the debug key here, which is all CI needs.
+      # R8, the resource shrinker and bundling only run in release builds; a release is a bad time
+      # to find out they fail. Signed with the debug key here.
       - name: Assemble the release bundle
         run: ./gradlew :app:bundleRelease
 
-      # A spare copy of the APK, and nothing more. The gate is the build, the tests and lint above
-      # it, so a full artifact store - which is an account-wide quota, not this repository's doing -
-      # is no reason to call the branch broken. The release workflow made the same call.
+      # Only a spare copy; the gate is build, tests and lint. A full artifact store (an account-wide
+      # quota) must not fail the branch.
       - name: Upload the debug APK
         continue-on-error: true
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
@@ -84,7 +80,7 @@ jobs:
           if-no-files-found: error
           retention-days: 7
 
-      # The reports say what failed, which the log alone often does not.
+      # The reports often say more than the log.
       - name: Upload the test and lint reports
         if: failure()
         continue-on-error: true

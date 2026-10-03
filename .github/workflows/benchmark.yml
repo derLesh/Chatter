@@ -1,10 +1,9 @@
-# What one message costs on its way in, for a branch and for master side by side. Chatter stays
-# joined in the background on purpose, so this is what the battery pays for all night, and a change
-# that makes it dearer should be seen before it is merged.
+# Measures what one incoming message costs, for a branch and for master. Chatter stays joined in the
+# background, so this is what the battery pays all night; regressions should show before merge.
 #
-# Started by hand from the Actions tab, on the branch to measure: an emulator run takes a good ten
-# minutes, and most pushes change nothing about it. Both checkouts run on the same emulator one
-# after the other, because numbers from two different machines say more about the machines.
+# Started by hand on the branch to measure: an emulator run takes over ten minutes. Both checkouts
+# run on the same emulator one after the other, since numbers from different machines are not
+# comparable.
 name: Benchmark
 
 on:
@@ -34,7 +33,7 @@ jobs:
           path: branch
           persist-credentials: false
 
-      # Nothing to compare when the branch is the one it would be compared with.
+      # Nothing to compare when the branch is the comparison branch.
       - name: Check out ${{ inputs.compare_with }}
         if: github.ref_name != inputs.compare_with
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -54,15 +53,14 @@ jobs:
         with:
           cache-provider: basic
 
-      # The emulator is only usable with hardware acceleration, which the runner has but does not
-      # hand to its user until told to.
+      # The emulator needs hardware acceleration, which the runner only grants once enabled.
       - name: Enable KVM
         run: |
           echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
           sudo udevadm control --reload-rules
           sudo udevadm trigger --name-match=kvm
 
-      # The action runs every line of the script on its own, so each run is one line.
+      # The action runs each script line separately, so each run is one line.
       - name: Run the benchmark on an emulator
         uses: reactivecircus/android-emulator-runner@a421e43855164a8197daf9d8d40fe71c6996bb0d # v2.38.0
         with:

@@ -1,18 +1,12 @@
-# Releasing Chatter, start to finish, from the button on the Actions tab. The version is never
-# typed in: the entries in pending-changelog/ decide it, exactly as "./gradlew releaseVersion" does
-# on a dev machine.
+# Releases Chatter from the Actions tab. The version comes from the entries in pending-changelog/,
+# as with "./gradlew releaseVersion".
 #
-# Three jobs, in the order a release can go wrong:
+# preflight checks the setup in seconds without building: secrets, keystore, branch, something to
+# release. verify is the CI gate: changelog, unit tests, scripts, lint. release folds the changelog,
+# builds and signs APK and bundle, and only then pushes the release commit and tag and publishes, so
+# a failed build leaves the repository untouched.
 #
-#   preflight  everything about the setup: the secrets, the keystore, the branch, that there is
-#              something to release. Seconds, not minutes, and nothing is built.
-#   verify     the same gate CI is: changelog entries, unit tests, the sponsor scripts, lint.
-#   release    folds the changelog, builds and signs the APK and the Play bundle, and only then
-#              pushes the release commit and tag and publishes. A build that fails leaves the
-#              repository untouched.
-#
-# The first two run side by side and hold no signing key between them: the key is only ever in
-# the one step that signs, so no test or lint run can trip over it or leak it.
+# preflight and verify run in parallel without the signing key; it only reaches the step that signs.
 name: Release
 
 on:
@@ -28,7 +22,7 @@ on:
         default: none
         options: [none, internal, alpha, beta, production]
 
-# Two releases at once would race over the version and the tag.
+# Two releases at once would race for the version and tag.
 concurrency:
   group: release
   cancel-in-progress: false
@@ -50,8 +44,8 @@ jobs:
         with:
           persist-credentials: false
 
-      # The release commit is pushed to the branch the run started on, and a tag on a side branch
-      # would be a version the main line never had. A dry run may start anywhere.
+      # The release commit goes to the branch the run started on; a tag on a side branch would be a
+      # version master never had. Dry runs may start anywhere.
       - name: Require the default branch
         if: ${{ !inputs.dry_run }}
         env:
@@ -62,7 +56,7 @@ jobs:
             exit 1
           fi
 
-      # Every missing secret at once, rather than one per attempt.
+      # Reports all missing secrets at once.
       - name: Require the secrets
         env:
           DRY_RUN: ${{ inputs.dry_run }}
@@ -75,10 +69,10 @@ jobs:
           PLAY_SERVICE_ACCOUNT_JSON: ${{ secrets.PLAY_SERVICE_ACCOUNT_JSON }}
         run: |
           missing=()
-          # A published APK that cannot log in is worse than no release at all.
+          # A published APK that cannot log in is worse than no release.
           [ -n "$TWITCH_CLIENT_ID" ] || missing+=(TWITCH_CLIENT_ID)
-          # Play refuses the debug key, and the key the first upload arrives with is the only one
-          # that may ever update the app. A dry run may sign with the debug key; nothing else may.
+          # Play refuses the debug key, and the first upload's key is the only one allowed to update
+          # the app. Only a dry run may sign with the debug key.
           if [ "$DRY_RUN" != "true" ] || [ -n "$KEYSTORE_BASE64" ]; then
             for name in KEYSTORE_BASE64 KEYSTORE_PASSWORD KEY_ALIAS KEY_PASSWORD; do
               [ -n "${!name}" ] || missing+=("$name")
@@ -103,9 +97,9 @@ jobs:
           distribution: temurin
           java-version: '21'
 
-      # Opening the keystore here turns "wrong password" and "no such alias" into a failure that
-      # says so, instead of one buried in a signing task ten minutes later. The passwords reach
-      # keytool through the environment, never on its command line.
+      # Opening the keystore here turns a wrong password or alias into a clear failure instead of
+      # one deep in a signing task later. The passwords reach keytool through the environment, not
+      # the command line.
       - name: Check the upload keystore
         env:
           KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
@@ -116,8 +110,8 @@ jobs:
           [ -n "$KEYSTORE_BASE64" ] || exit 0
           keystore="$RUNNER_TEMP/upload.jks"
           trap 'rm -f "$keystore"' EXIT
-          # A secret pasted from Windows or wrapped at 76 columns carries line breaks base64 -d
-          # would stumble over.
+          # Secrets pasted from Windows or wrapped at 76 columns contain line breaks base64 -d
+          # rejects.
           if ! printf '%s' "$KEYSTORE_BASE64" | tr -d '[:space:]' | base64 -d > "$keystore" 2>/dev/null; then
             echo "::error::KEYSTORE_BASE64 is not valid base64. Create it with: base64 -w0 upload.jks"
             exit 1
@@ -126,8 +120,8 @@ jobs:
             echo "::error::The keystore does not open with KEYSTORE_PASSWORD, or it holds no key called '$KEY_ALIAS'."
             exit 1
           fi
-          # Listing the alias only proves the store password. Reading the private key proves
-          # KEY_PASSWORD as well.
+          # Listing the alias only proves the store password; reading the private key proves
+          # KEY_PASSWORD too.
           if ! keytool -certreq -keystore "$keystore" -storepass:env KEYSTORE_PASSWORD -alias "$KEY_ALIAS" -keypass:env KEY_PASSWORD > /dev/null 2>&1; then
             echo "::error::KEY_PASSWORD does not unlock the key '$KEY_ALIAS'."
             exit 1
@@ -158,8 +152,8 @@ jobs:
           distribution: temurin
           java-version: '21'
 
-      # gradle-wrapper.jar is a binary nobody reads in a diff. This compares it with the checksums
-      # Gradle publishes for its releases, so a pull request cannot swap it for something else.
+      # gradle-wrapper.jar is a binary nobody reviews; this compares it with Gradle's published
+      # checksums.
       - name: Check the Gradle wrapper
         uses: gradle/actions/wrapper-validation@3f5f9adaf7d9fecd50b5935e54106014257a94e6 # v6.4.0
 
@@ -202,8 +196,7 @@ jobs:
     outputs:
       version: ${{ steps.version.outputs.version }}
     steps:
-      # The whole history, so the release commit and the tag can be pushed, and so the version
-      # before this one can be read back out of the previous tag.
+      # Full history, to push the release commit and tag and to read the previous tag's version.
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0
@@ -216,8 +209,7 @@ jobs:
 
       - name: Set up Gradle
         uses: gradle/actions/setup-gradle@3f5f9adaf7d9fecd50b5935e54106014257a94e6 # v6.4.0
-        # The build signed with the upload key starts from nothing another run left behind: a
-        # cache entry is written by whichever run got there first, and none of them is this one.
+        # The signed build starts without any cache another run could have written.
         with:
           cache-disabled: true
           cache-provider: basic
@@ -234,8 +226,8 @@ jobs:
             echo "::error::v$version is already tagged. version.properties and the tags disagree."
             exit 1
           fi
-          # Play refuses a bundle whose versionCode it has seen before, and the tags are the only
-          # record of what went out. Anything but a step up from the last one is a mistake.
+          # Play refuses a versionCode it has seen, and the tags record what was released; anything
+          # but an increase is a mistake.
           previous=$(git describe --tags --abbrev=0 2>/dev/null || true)
           if [ -n "$previous" ]; then
             was=$(git show "$previous:version.properties" 2>/dev/null | sed -n 's/^versionCode=//p')
@@ -247,7 +239,7 @@ jobs:
           echo "version=$version" >> "$GITHUB_OUTPUT"
           echo "code=$code" >> "$GITHUB_OUTPUT"
 
-      # Preflight has already opened it; this only puts it where Gradle can read it.
+      # Preflight already opened it; this only puts it where Gradle reads it.
       - name: Unpack the upload keystore
         id: keystore
         env:
@@ -260,13 +252,12 @@ jobs:
           printf '%s' "$KEYSTORE_BASE64" | tr -d '[:space:]' | base64 -d > "$RUNNER_TEMP/upload.jks"
           echo "path=$RUNNER_TEMP/upload.jks" >> "$GITHUB_OUTPUT"
 
-      # The only step that sees the signing key. build.gradle.kts reads it as CHATTER_*, and
-      # CHATTER_REQUIRE_UPLOAD_KEY makes a real release stop rather than fall back to the debug key.
+      # The only step with the signing key. build.gradle.kts reads it as CHATTER_*;
+      # CHATTER_REQUIRE_UPLOAD_KEY makes a real release fail instead of falling back to the debug
+      # key.
       #
-      # Two invocations, because the two builds are not the same app: only the APK people install
-      # themselves carries the link to GitHub Sponsors (see SPONSOR_LINK in build.gradle.kts), and
-      # the bundle Play is handed must not. The bundle is built second and without the flag, so
-      # what goes to Play is what a plain build produces.
+      # Two invocations, because only the sideloaded APK may carry the GitHub Sponsors link (see
+      # SPONSOR_LINK in build.gradle.kts). The bundle is built second without the flag.
       - name: Build and sign the APK and the Play bundle
         env:
           TWITCH_CLIENT_ID: ${{ secrets.TWITCH_CLIENT_ID }}
@@ -283,8 +274,7 @@ jobs:
         if: always()
         run: rm -f "$RUNNER_TEMP/upload.jks"
 
-      # Named after the version, so a downloaded APK still says which one it is, with a checksum
-      # next to it for anyone who wants to be sure the download is the one that was built.
+      # Named after the version, with a checksum next to the APK.
       - name: Name the artifacts after the version
         id: artifacts
         env:
@@ -301,13 +291,12 @@ jobs:
             echo "sha=$apk.sha256"
           } >> "$GITHUB_OUTPUT"
 
-      # The entries this release just folded in: everything from the newest heading down to the one
-      # before it, which is what CHANGELOG.md's shape guarantees.
+      # The entries this release folded in: from the newest heading to the previous one.
       - name: Write the release notes
         run: awk '/^## /{ heading++ } heading == 1 && !/^## /' CHANGELOG.md > "$RUNNER_TEMP/notes.md"
 
-      # What was built, for anybody who opens the run. Not who signed it: the certificate's owner
-      # is the maintainer's name and town, and a run's summary is public in a public repository.
+      # What was built. Not who signed it: the certificate's owner is the maintainer's name and
+      # town, and run summaries are public.
       - name: Summarise the build
         env:
           VERSION: ${{ steps.version.outputs.version }}
@@ -343,7 +332,7 @@ jobs:
             ${{ steps.artifacts.outputs.aab }}
           if-no-files-found: error
 
-      # Atomic, so the branch never gets the release commit without its tag or the other way round.
+      # Atomic, so the branch never gets the release commit without its tag or vice versa.
       - name: Push the release commit and tag
         if: ${{ !inputs.dry_run }}
         env:
@@ -371,8 +360,8 @@ jobs:
             --notes-file "$RUNNER_TEMP/notes.md" \
             "$APK" "$SHA"
 
-      # Play shows these under "What's new" and cuts anything past 500 characters, so the changelog
-      # entries are trimmed to whole lines that fit.
+      # Play shows these under "What's new" and cuts after 500 characters, so entries are trimmed to
+      # whole lines that fit.
       - name: Write the Play release notes
         if: ${{ inputs.play_track != 'none' }}
         run: |
@@ -382,9 +371,8 @@ jobs:
           ' > "$RUNNER_TEMP/whatsnew/whatsnew-en-US"
           cp "$RUNNER_TEMP/whatsnew/whatsnew-en-US" "$RUNNER_TEMP/whatsnew/whatsnew-de-DE"
 
-      # The one third-party action that is handed a credential: the service account that may release
-      # to Play. It is pinned to a commit that was read, and a new version is read again before its
-      # pull request from Dependabot is merged.
+      # The only third-party action handed a credential (the Play service account). Pinned to a
+      # reviewed commit; review new versions before merging Dependabot's pull request.
       - name: Upload the bundle to Play
         if: ${{ !inputs.dry_run && inputs.play_track != 'none' }}
         uses: r0adkll/upload-google-play@e738b9dd8f2476ea806d921b64aacd24f34515a5 # v1.1.5
