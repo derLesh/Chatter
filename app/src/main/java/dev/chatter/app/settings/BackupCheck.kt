@@ -5,19 +5,15 @@ import dev.chatter.app.chat.ImageLinks
 import java.io.InputStream
 
 /**
- * What a backup is allowed to bring in.
- *
- * A backup is a file people pass around — "here are my filters" — so it is input from somebody
- * else, not a copy of what this app once wrote. Everything in it is held to what the settings
- * screen itself would allow before any of it is written: an image host list of just "com" would
- * otherwise have the app fetch every picture anybody links, and hand the user's address to whoever
- * posted it.
+ * Limits for what a backup may bring in. Backups get passed around, so they are untrusted input and
+ * held to what the settings screen allows: an image host list of just "com" would load every linked
+ * picture and reveal the user's IP address to whoever posted it.
  */
 object BackupCheck {
-    /** The range the font size slider offers. */
+    /** The font size slider's range. */
     val FONT_SIZES = 10f..24f
 
-    /** The range the message limit slider offers. */
+    /** The message limit slider's range. */
     val MESSAGE_LIMITS = 100..2000
 
     const val MAX_HOSTS = 50
@@ -30,13 +26,12 @@ object BackupCheck {
     const val MAX_CHANNELS = 200
 
     /**
-     * More than everything above at its limits takes up. The file is whatever the user picked,
-     * and reading a video into a String to find out it is not a backup would end in running out
-     * of memory rather than in a message saying so.
+     * Well above a backup at all limits. Reading a large file into memory just to reject it could
+     * run out of memory.
      */
     const val MAX_FILE_BYTES = 2 * 1024 * 1024
 
-    /** The text of a backup file, or null when it is larger than any backup could be. */
+    /** The text of a backup file, or null if it is too large to be one. */
     fun readLimited(input: InputStream): String? {
         val bytes = input.readNBytes(MAX_FILE_BYTES + 1)
         return if (bytes.size > MAX_FILE_BYTES) null else bytes.decodeToString()
@@ -45,7 +40,7 @@ object BackupCheck {
     private val LOGIN = Regex("^[a-z0-9_]{1,25}$")
     private val HOST_LABEL = Regex("^[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?$")
 
-    /** [backup] with everything out of bounds dropped or brought back into bounds. */
+    /** [backup] with everything out of bounds dropped or clamped. */
     fun clean(backup: SettingsBackup): SettingsBackup = backup.copy(
         settings = backup.settings?.let(::clean),
         rules = backup.rules
@@ -58,8 +53,8 @@ object BackupCheck {
             ?.filter { (login, name) -> LOGIN.matches(login) && name.isNotEmpty() }
             ?.entries?.take(MAX_NICKNAMES)?.associate { it.key to it.value },
         channels = backup.channels?.let { c ->
-            // A combined chat's id becomes a key in the comma-separated page list; see
-            // ChannelGroup.isValidId. One that could not be one is left out with its place.
+            // Group ids end up in the comma-separated page list; see ChannelGroup.isValidId.
+            // Invalid ones are dropped together with their place in the list.
             val groups = c.groups.filter { ChannelGroup.isValidId(it.id) }
             val keys = groups.map { it.key }.toSet()
             c.copy(
@@ -74,19 +69,18 @@ object BackupCheck {
         messageLimit = s.messageLimit.coerceIn(MESSAGE_LIMITS),
         mentionKeywords = keywords(s.mentionKeywords),
         muteKeywords = keywords(s.muteKeywords),
-        // Stored space-separated; a name with a space in it would come back as two.
+        // Stored space-separated.
         recentEmotes = s.recentEmotes.filter { it.isNotBlank() && ' ' !in it }.distinct().take(MAX_RECENT_EMOTES),
         imageHosts = hosts(s.imageHosts),
     )
 
-    /** Stored comma-separated, so a comma inside one would split it in two on the next start. */
+    /** Stored comma-separated. */
     private fun keywords(list: List<String>) =
         list.map { it.replace(",", "").trim() }.filter { it.isNotEmpty() }.distinct().take(MAX_KEYWORDS)
 
     /**
-     * The hosts the way the settings screen takes them ([ImageLinks.cleanHost]), and only real
-     * ones: a name with a dot in it, made of what a host name may hold. A bare top-level domain
-     * would match every site under it.
+     * Hosts as the settings screen takes them ([ImageLinks.cleanHost]), and only real ones with a
+     * dot. A bare top-level domain would match every site under it.
      */
     fun hosts(list: List<String>): List<String> = list
         .map(ImageLinks::cleanHost)

@@ -8,33 +8,29 @@ import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
 
-/**
- * A release on GitHub, as much of it as telling the user about it takes. It is kept on the device
- * between checks, so the news is still there after a restart without asking GitHub again.
- */
+/** A GitHub release, as far as the update card needs it. Stored between checks. */
 @Serializable
 data class AvailableUpdate(
     val version: String,
-    /** The day it was published, "2026-09-22", or empty when GitHub did not say. */
+    /** Publishing day, "2026-09-22", or empty. */
     val date: String,
-    /** The release's entries of CHANGELOG.md, which is what the release workflow publishes. */
+    /** The release's CHANGELOG.md entries, as published by the release workflow. */
     val notes: String,
-    /** The APK itself, or the release page when the release carries none. */
+    /** The APK, or the release page if there is none. */
     val url: String,
 ) {
     /**
-     * The notes the way the changelog page shows a release. GitHub's copy is only the entries,
-     * without the heading the parser opens a release on, so the heading is put back first.
+     * The notes as a [Release]. GitHub's text lacks the heading the parser expects, so it is added.
      */
     fun release(): Release? = ChangelogParser.parse("## $version — $date\n$notes").firstOrNull()
 }
 
-/** What finding out about a new release involves, apart from the asking itself. */
+/** Parsing and timing of the update check. */
 object UpdateCheck {
-    /** Drafts and pre-releases are not "latest", so this is only ever something to install. */
+    /** Drafts and pre-releases are never "latest". */
     const val LATEST_URL = "https://api.github.com/repos/derLesh/Chatter/releases/latest"
 
-    /** How long a check counts for; GitHub is asked at most this often. */
+    /** GitHub is asked at most this often. */
     const val INTERVAL_MS = 24 * 60 * 60 * 1000L
 
     @Serializable
@@ -52,10 +48,10 @@ object UpdateCheck {
         @SerialName("browser_download_url") val url: String,
     )
 
-    /** GitHub's answer for the latest release, or null when it does not name a version. */
+    /** The latest release from GitHub's answer, or null if it names no version. */
     fun parse(json: String): AvailableUpdate? {
         val release = runCatching { AppJson.decodeFromString<GitHubRelease>(json) }.getOrNull() ?: return null
-        // The release workflow tags "v0.5.0"; the version is what follows the v.
+        // Tags look like "v0.5.0".
         val version = Version.parse(release.tag.removePrefix("v")) ?: return null
         val apk = release.assets.firstOrNull { it.name.endsWith(".apk") }?.url?.takeIf(::isGitHub)
         return AvailableUpdate(
@@ -67,9 +63,8 @@ object UpdateCheck {
     }
 
     /**
-     * Whether [url] is somewhere on GitHub, over https. It is what the update button hands to the
-     * browser, and what the browser then downloads and offers to install: whatever answered in
-     * GitHub's place — a captive portal, a proxy that rewrites JSON — must not get to pick that.
+     * Whether [url] is https on GitHub. The browser downloads it and offers to install it, so
+     * whatever answers in GitHub's place (captive portal, proxy) must not choose it.
      */
     internal fun isGitHub(url: String): Boolean {
         val parsed = url.toHttpUrlOrNull() ?: return false
@@ -78,7 +73,7 @@ object UpdateCheck {
             GITHUB_HOSTS.any { host == it || host.endsWith(".$it") }
     }
 
-    /** Release pages are on github.com; their files are handed out from githubusercontent.com. */
+    /** Release pages are on github.com, their files on githubusercontent.com. */
     private val GITHUB_HOSTS = listOf("github.com", "githubusercontent.com")
 
     /** Whether [update] is worth telling somebody running [installed] about. */
@@ -88,8 +83,8 @@ object UpdateCheck {
     }
 
     /**
-     * Whether it is time to ask again. A clock that went backwards since the last check would
-     * otherwise keep it from ever being due; that counts as due as well.
+     * Whether to ask again. A clock that went backwards counts as due, or it would never be due
+     * again.
      */
     fun isDue(lastChecked: Long?, now: Long): Boolean =
         lastChecked == null || now < lastChecked || now - lastChecked >= INTERVAL_MS

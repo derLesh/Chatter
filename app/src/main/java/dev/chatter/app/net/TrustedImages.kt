@@ -3,14 +3,12 @@ package dev.chatter.app.net
 import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
 
 /**
- * Where the pictures of emotes and badges may come from.
+ * Hosts emote and badge pictures may be loaded from.
  *
- * Their addresses are not Chatter's own: FFZ, 7TV and Chatterino answer with a url, and Twitch's
- * badge list does too. Every chatter's client fetches them, so an address that pointed anywhere
- * else — a provider's mistake, or a provider that was broken into — would hand every user's IP
- * address to whoever runs that host, and could be as large a file as it likes. So a url from a
- * provider is used only when it is https on the provider's own hosts, the way a picture somebody
- * links in chat is only shown from the hosts the user allows (see ImageLinks).
+ * The URLs come from the providers. One pointing elsewhere, by mistake or after a provider was
+ * compromised, would hand every user's IP address to that host and could serve a file of any size.
+ * So only https on the provider's own hosts is accepted, like linked images in chat (see
+ * ImageLinks).
  */
 object TrustedImages {
     /** Matched with their subdomains, so "7tv.app" covers "cdn.7tv.app". */
@@ -25,12 +23,12 @@ object TrustedImages {
     )
 
     /**
-     * [raw] as a url to fetch, or null when it is not one of [HOSTS]. A protocol-relative
-     * "//cdn…" — FFZ and 7TV answer that way — becomes https.
+     * [raw] as a URL to fetch, or null if it is not on one of [HOSTS]. Protocol-relative "//cdn…"
+     * (FFZ and 7TV) becomes https.
      */
     fun url(raw: String): String? {
-        // Read by the parser that will fetch it, and handed back the way it reads it, so the host
-        // checked here is the host asked; see ImageLinks.imageUrl.
+        // Parsed and returned by the same parser that fetches it, so the checked host is the
+        // requested one; see ImageLinks.imageUrl.
         val parsed = (if (raw.startsWith("//")) "https:$raw" else raw).toHttpUrlOrNull() ?: return null
         if (!parsed.isHttps || parsed.username.isNotEmpty() || parsed.password.isNotEmpty()) return null
         val host = parsed.host

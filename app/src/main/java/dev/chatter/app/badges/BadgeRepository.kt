@@ -15,66 +15,62 @@ import java.time.ZoneId
 import java.time.temporal.ChronoUnit
 import java.util.concurrent.ConcurrentHashMap
 
-/**
- * What the supporter badge is called, which depends on how, and for how long, somebody supports.
- */
+/** Names of the supporter badge, depending on how and how long someone supports. */
 class SupporterTitles(
-    /** Somebody who has supported Chatter at some point. */
+    /** Supported Chatter at some point. */
     val once: String,
-    /** A monthly sponsorship that has not been running for a whole month yet. */
+    /** Monthly sponsorship, less than a month so far. */
     val monthly: String,
-    /** One that has: the months are worth saying, the way a subscription badge says them. */
+    /** Monthly sponsorship for a number of months, like a subscriber badge. */
     val monthlyFor: (months: Int) -> String,
 )
 
-/** Where a badge comes from. Each one can be turned off on its own in the settings. */
+/** Where a badge comes from. Each can be turned off in the settings. */
 enum class BadgeProvider { Twitch, SevenTv, Chatterino, Chatter }
 
 data class Badge(val url: String, val title: String, val provider: BadgeProvider = BadgeProvider.Twitch)
 
 /**
- * Resolves the `badges` IRC tag (e.g. "moderator/1,subscriber/12") to images, and adds the
- * badges other clients hand out, which are tied to the Twitch user id rather than to a tag.
+ * Resolves the `badges` IRC tag (e.g. "moderator/1,subscriber/12") to images, and adds badges from
+ * other clients, which belong to a Twitch user id instead of a tag.
  */
 class BadgeRepository(
     private val helix: TwitchBadgeApi,
     private val thirdParty: ThirdPartyBadgeApi,
-    /** Where a list that did not answer is said out loud; a test does not care. */
+    /** Where unreachable lists are reported. */
     private val trouble: ServiceTrouble = ServiceTrouble(),
-    /** Only ever [System.currentTimeMillis]; a test hands in one it can move. */
+    /** Injected for tests. */
     private val now: () -> Long = System::currentTimeMillis,
 ) : BadgeSource {
     @Volatile private var global: Map<String, Badge> = emptyMap()
     private val channels = ConcurrentHashMap<String, Map<String, Badge>>()
 
-    /** Third-party badges by Twitch user id; a user can wear more than one. */
+    /** Third-party badges by Twitch user id; a user can have several. */
     @Volatile private var thirdPartyBadges: Map<String, List<Badge>> = emptyMap()
 
     /**
-     * The two fetched lists behind [thirdPartyBadges], each null until it has been fetched once.
-     *
-     * Kept apart so a provider that was unreachable can be fetched on its own later, without the
-     * one that did answer being thrown away and asked for again.
+     * The two lists behind [thirdPartyBadges], each null until fetched. Kept apart so one that
+     * failed can be fetched alone later.
      */
     @Volatile private var chatterinoBadges: Map<String, List<Badge>>? = null
     @Volatile private var supporterBadges: Map<String, List<Badge>>? = null
 
     /**
-     * 7TV badges, which are not a list one can fetch: since the cosmetics endpoint was retired
-     * they only arrive over the EventAPI, as a description of the badge ([sevenTvBadge]) and,
-     * separately, the people wearing it ([sevenTvWearer]). Chatterino does the same.
+     * 7TV badges. There is no list to fetch since the cosmetics endpoint was retired; they arrive
+     * over the EventAPI as a badge description ([sevenTvBadge]) and, separately, who wears it
+     * ([sevenTvWearer]). Chatterino does the same.
      */
     private val sevenTvCosmetics = ConcurrentHashMap<String, Badge>()
 
-    /** Twitch user id to the cosmetic id they wear; 7TV shows one badge per person. */
+    /** Twitch user id to the cosmetic they wear; 7TV shows one badge per person. */
     private val sevenTvWearers = ConcurrentHashMap<String, String>()
 
-    /** Channels whose badges did not load, to be tried again when the app comes back. */
+    /** Channels whose badges failed to load, retried when the app comes back. */
     private val failedChannels = ConcurrentHashMap.newKeySet<String>()
 
     @Volatile private var lastRetry = 0L
 
-    /** Which providers' badges are shown. Set from the settings, read on every message. */
+    /** Providers whose badges are shown. Set from the settings, read for every message. */
     @Volatile var enabled: Set<BadgeProvider> = BadgeProvider.entries.toSet()
 
     override fun resolve(channelId: String?, badgesTag: String?, userId: String?): List<Badge> {
@@ -104,7 +100,7 @@ class BadgeRepository(
         )
     }
 
-    /** Somebody started or stopped wearing one, by Twitch user id. */
+    /** Someone started or stopped wearing a badge, by Twitch user id. */
     fun sevenTvWearer(userId: String, cosmeticId: String, worn: Boolean) {
         if (worn) sevenTvWearers[userId] = cosmeticId
         else sevenTvWearers.remove(userId, cosmeticId)
@@ -137,13 +133,11 @@ class BadgeRepository(
     }
 
     /**
-     * Fetches whatever did not load earlier: the global set, the other clients' lists, and the
-     * channels that were unreachable. Everything that is already there is left alone, so this
-     * costs nothing on the usual return to the app.
+     * Fetches what failed to load earlier: the global set, the other clients' lists and unreachable
+     * channels. Loaded data is left alone, so the usual return to the app costs nothing.
      */
     suspend fun retryMissing(supporterTitles: SupporterTitles?) {
-        // A provider that is down stays down for a while, and the app is opened often; asking on
-        // every single return would be the kind of traffic a phone in a pocket should not make.
+        // Throttled: a provider that is down stays down for a while, and the app is opened often.
         val at = now()
         if (at - lastRetry < RETRY_AFTER_MS) return
         lastRetry = at
@@ -153,10 +147,9 @@ class BadgeRepository(
     }
 
     /**
-     * Chatterino's badge list and Chatter's own supporters. Each is one request for everybody, so
-     * each is fetched once and then only looked up by user id — and only the ones still missing
-     * are asked for, so a list that was unreachable at start is picked up later instead of being
-     * gone for good. 7TV is not among them; its badges arrive over the EventAPI.
+     * Chatterino's badge list and Chatter's supporters. One request each for all users, then looked
+     * up by user id. Only missing lists are fetched, so one that failed at start is picked up
+     * later. 7TV badges arrive over the EventAPI.
      */
     suspend fun loadThirdParty(supporterTitles: SupporterTitles?) {
         var changed = false
@@ -180,8 +173,7 @@ class BadgeRepository(
                 }
         }
 
-        // Null while there is nothing to support Chatter with: then there is no list to ask for,
-        // and asking would be a message on the screen about a service that is not meant to answer.
+        // Null while sponsoring is off; there is no list to fetch then.
         if (supporterTitles != null && supporterBadges == null) {
             runCatching { thirdParty.chatterSupporters() }
                 .onSuccess { list ->
@@ -200,10 +192,8 @@ class BadgeRepository(
     }
 
     /**
-     * The badge, named after what the list says about this supporter. A monthly sponsorship that
-     * has been running says for how long; everything else — a one-time sponsorship, a date that
-     * cannot be read, a field a later version of the list brings — wears the plain badge rather
-     * than none at all.
+     * The supporter's badge. A running monthly sponsorship shows its length; everything else,
+     * including unreadable dates or unknown fields, gets the plain badge.
      */
     private fun supporterBadge(supporter: ChatterSupporter, titles: SupporterTitles): Badge {
         val since = supporter.monthlySince?.let { runCatching { LocalDate.parse(it) }.getOrNull() }
@@ -242,10 +232,10 @@ class BadgeRepository(
     private companion object {
         const val TAG = "BadgeRepository"
 
-        /** How long after a failed fetch it is worth asking again. */
+        /** Wait after a failed fetch before trying again. */
         const val RETRY_AFTER_MS = 5 * 60_000L
 
-        /** The supporter badge ships with the app, so Coil loads it from the resources. */
+        /** Ships with the app; Coil loads it from the resources. */
         const val SUPPORTER_BADGE_URL = "android.resource://dev.chatter.app/drawable/ic_badge_supporter"
     }
 }

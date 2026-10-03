@@ -2,9 +2,9 @@ package dev.chatter.app.util
 
 import dev.chatter.app.emotes.Emote
 
-/** Pure helpers for input autocomplete, kept free of Android so they can be unit-tested. */
+/** Input autocomplete helpers, free of Android for the tests. */
 object Autocomplete {
-    /** The word the cursor is in (from its start up to the next space). */
+    /** The word the cursor is in, from its start to the next space. */
     data class Word(val start: Int, val end: Int, val text: String)
 
     fun currentWord(text: String, cursor: Int): Word? {
@@ -18,8 +18,8 @@ object Autocomplete {
     }
 
     /**
-     * Ranking: exact-case prefix, then case-insensitive prefix, then substring.
-     * Shorter names first within a group, so "LUL" comes before "LULW".
+     * Exact-case prefix, then case-insensitive prefix, then substring; shorter names first within
+     * each group, so "LUL" comes before "LULW".
      */
     fun rankEmotes(query: String, emotes: List<Emote>, limit: Int = 40): List<Emote> {
         if (query.isEmpty()) return emptyList()
@@ -35,7 +35,7 @@ object Autocomplete {
         return (exact.sortedWith(byLength) + prefix.sortedWith(byLength) + contains.sortedWith(byLength)).take(limit)
     }
 
-    /** Users keep their recency order (most recently active first); prefix matches come first. */
+    /** Keeps recency order (most recently active first), prefix matches first. */
     fun rankUsers(query: String, users: List<String>, limit: Int = 30): List<String> {
         val q = query.removePrefix("@")
         if (q.isEmpty()) return users.take(limit)
@@ -44,7 +44,7 @@ object Autocomplete {
         return (prefix + contains).take(limit)
     }
 
-    /** Replaces [word] with [replacement] plus a trailing space. Returns the new text and cursor. */
+    /** Replaces [word] with [replacement] and a space. Returns the new text and cursor position. */
     fun replace(text: String, word: Word, replacement: String): Pair<String, Int> {
         val after = text.substring(word.end)
         val insert = if (after.startsWith(" ")) replacement else "$replacement "
@@ -52,7 +52,7 @@ object Autocomplete {
         return newText to (word.start + insert.length + if (after.startsWith(" ")) 1 else 0)
     }
 
-    /** Inserts [value] at the cursor, padding it with spaces where needed. */
+    /** Inserts [value] at [cursor], adding spaces around it where needed. */
     fun insert(text: String, cursor: Int, value: String): Pair<String, Int> {
         val c = cursor.coerceIn(0, text.length)
         val before = text.substring(0, c)

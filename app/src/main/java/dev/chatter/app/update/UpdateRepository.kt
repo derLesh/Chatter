@@ -19,38 +19,37 @@ import okhttp3.OkHttpClient
 import okhttp3.Request
 
 /**
- * Whether a newer Chatter is out, for the APK people install from GitHub, which nothing else ever
- * tells about one. Play updates its own installs and does not let an app point anywhere else for
- * them, so a build for Play is made with [enabled] false and never asks.
+ * Checks for a newer release, for the APK installed from GitHub. Play updates its own installs and
+ * forbids pointing elsewhere, so Play builds have [enabled] false.
  *
- * GitHub is asked at most once a day, and only while the app is opened; what it said is kept on
- * the device until the next time. A check that fails is not counted, so the next start tries again.
+ * Asks at most once a day while the app is open and stores the answer. A failed check does not
+ * count, so the next start tries again.
  */
 class UpdateRepository(
     private val http: OkHttpClient,
     private val settings: SettingsRepository,
     versionName: String,
     private val enabled: Boolean,
-    /** While this is true the check waits: a release can wait for Wi-Fi, see [DataSaving]. */
+    /** While true the check waits; see [DataSaving]. */
     private val saveData: StateFlow<Boolean>,
     private val scope: CoroutineScope,
     private val clock: () -> Long = System::currentTimeMillis,
 ) {
     private val installed = Version.parse(versionName)
 
-    /** The newer release while the user wants to hear about one, and null the rest of the time. */
+    /** The newer release if the user wants to hear about it, otherwise null. */
     val available: StateFlow<AvailableUpdate?> = combine(
         settings.settings.map { it.updateCheck },
         settings.availableUpdate,
     ) { on, stored ->
         val update = stored?.let { runCatching { AppJson.decodeFromString<AvailableUpdate>(it) }.getOrNull() }
-        // Once the new version is installed, the stored one is no longer newer and the news is gone.
+        // After installing it, the stored release is no longer newer.
         update?.takeIf { enabled && on && UpdateCheck.isNewer(it, installed) }
     }.stateIn(scope, SharingStarted.Eagerly, null)
 
     private var checking: Job? = null
 
-    /** Asks GitHub for the latest release, unless that was done less than a day ago. */
+    /** Asks GitHub unless that was done less than a day ago. */
     fun checkIfDue() {
         if (!enabled || checking?.isActive == true) return
         checking = scope.launch {
@@ -62,7 +61,7 @@ class UpdateRepository(
                 .header("Accept", "application/vnd.github+json")
                 .build()
             val json = runCatching { http.fetch(request) }.getOrElse {
-                // Nothing the user asked for failed, so there is nothing to put on the screen.
+                // The user did not ask for this, so nothing goes on screen.
                 Log.i(TAG, "Could not ask GitHub for the latest release", it)
                 return@launch
             }

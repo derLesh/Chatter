@@ -13,45 +13,44 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.launch
 
-/** Carried by a launch intent that should open the inbox rather than a channel, naming its tab. */
+/** In a launch intent: open the inbox on this tab instead of a channel. */
 const val EXTRA_INBOX_TAB = "inbox_tab"
 
 const val INBOX_TAB_MENTIONS = 0
 const val INBOX_TAB_WHISPERS = 1
 
-/** Carried by the reply action of a whisper notification: who the answer goes back to. */
+/** In a whisper notification's reply action: who the answer goes to. */
 const val EXTRA_WHISPER = "whisper"
 const val EXTRA_WHISPER_USER_ID = "whisper_user_id"
 
 /**
- * Carried by every reply action: the user id of the account the notification was for. An answer
- * goes out as that account or not at all — never as whichever one is active by the time it is sent.
+ * In every reply action: the user id of the account the notification was for. The answer is sent as
+ * that account or not at all, never as whichever account is active by then.
  */
 const val EXTRA_ACCOUNT = "account"
 
-/** Carried by a launch intent that names the channel to open. */
+/** In a launch intent: the channel to open. */
 const val EXTRA_CHANNEL = "channel"
 
 /**
- * The channel the baseline profile and the macrobenchmark read as a guest, to get past the login
- * screen to a chat. Only the builds they run on listen; see `profilingBuildTypes` in
- * build.gradle.kts. The benchmark module spells the same name out, having no access to this one.
+ * The channel the baseline profile and the macrobenchmark read as a guest to get past the login.
+ * Only the profiling builds listen; see `profilingBuildTypes` in build.gradle.kts. The benchmark
+ * module repeats the name, it cannot see this constant.
  */
 const val EXTRA_PROFILING_CHANNEL = "profiling_channel"
 
 private const val CHANNEL_PREFIX = "channel:"
 private const val INBOX_ID = "inbox"
 
-/** Marks a shortcut as a conversation, which is what lets Android bubble it and share into it. */
+/** Marks a conversation shortcut, which Android needs for bubbles and the share sheet. */
 private const val CONVERSATION_CATEGORY = "android.shortcut.conversation"
 
 fun channelShortcutId(channel: String): String = "$CHANNEL_PREFIX$channel"
 
 /**
- * Opens the app, on [channel] when one is given. It goes through the launcher entry rather than
- * straight to MainActivity: the app icon is an activity-alias (see [AppIcon]), so a running task
- * has that alias as its root. An intent naming MainActivity does not match it, and Android then
- * only raises the task without ever delivering the intent — the tap would do nothing.
+ * Opens the app, on [channel] if given. Goes through the launcher alias instead of MainActivity:
+ * the running task's root is the alias (see [AppIcon]), and an intent naming MainActivity would
+ * only bring the task to front without being delivered.
  */
 fun appLaunchIntent(context: Context, channel: String?): Intent =
     (context.packageManager.getLaunchIntentForPackage(context.packageName)
@@ -60,10 +59,8 @@ fun appLaunchIntent(context: Context, channel: String?): Intent =
         .putExtra(EXTRA_CHANNEL, channel)
 
 /**
- * One channel as Android knows it. The same shortcut does three jobs, which is why there is only
- * this one description of it: the launcher offers it when the icon is held, the system shows it
- * as a person in the share sheet, and a mention notification hangs off it — the last one is what
- * makes the notification a conversation Android is willing to float as a bubble.
+ * A channel as an Android shortcut. Used by the launcher, the share sheet and mention
+ * notifications; the last makes a notification a conversation Android can show as a bubble.
  */
 fun channelShortcut(
     context: Context,
@@ -82,10 +79,7 @@ fun channelShortcut(
     .setIntent(appLaunchIntent(context, channel))
     .build()
 
-/**
- * Keeps the shortcuts behind the app icon in step with the channel list, so holding the icon
- * jumps straight into a channel or into the inbox instead of opening wherever the app was left.
- */
+/** Keeps the app icon's shortcuts in sync with the channel list. */
 class ChannelShortcuts(
     private val context: Context,
     private val identities: Flow<List<ChannelIdentity>>,
@@ -97,7 +91,7 @@ class ChannelShortcuts(
     }
 
     private suspend fun publish(channels: List<ChannelIdentity>) {
-        // Android takes only so many, and one of the slots belongs to the inbox.
+        // Android allows only a few; one slot is the inbox's.
         val room = (ShortcutManagerCompat.getMaxShortcutCountPerActivity(context) - 1).coerceAtLeast(1)
         val shortcuts = channels.take(room).mapIndexed { index, it ->
             channelShortcut(context, it.login, it.name, icons.channel(it.login), rank = index)
@@ -108,7 +102,7 @@ class ChannelShortcuts(
         }
     }
 
-    /** The inbox is only worth a slot once there are channels that could fill it. */
+    /** Only once there are channels. */
     private fun inboxShortcut(channelCount: Int): ShortcutInfoCompat =
         ShortcutInfoCompat.Builder(context, INBOX_ID)
             .setShortLabel(context.getString(R.string.shortcut_inbox))
@@ -119,8 +113,8 @@ class ChannelShortcuts(
             .build()
 
     /**
-     * A channel the user removed would otherwise keep haunting the share sheet and the people
-     * space: long-lived shortcuts stay cached there after they leave the dynamic list.
+     * Long-lived shortcuts stay cached in the share sheet after leaving the dynamic list, so
+     * removed channels are cleaned out explicitly.
      */
     private fun removeStale(logins: Set<String>) {
         val matchAll = ShortcutManagerCompat.FLAG_MATCH_DYNAMIC or ShortcutManagerCompat.FLAG_MATCH_CACHED

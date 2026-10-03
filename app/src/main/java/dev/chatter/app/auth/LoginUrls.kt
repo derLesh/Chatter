@@ -4,14 +4,12 @@ import java.net.URI
 import java.net.URLDecoder
 
 /**
- * Which addresses belong to the login, read with java.net.URI so the rules can be tested without
- * Android: the login page is where the user types their Twitch password, so what it may load and
- * what counts as Twitch's answer are decided here and nowhere else.
+ * Which URLs belong to the login. Plain java.net.URI, so the rules are testable without Android.
  */
 object LoginUrls {
     /**
-     * Whether [url] is Twitch's answer, `http://localhost#access_token=…`. Scheme, host and port
-     * have to match exactly: a prefix check also lets `http://localhost.example.com` or
+     * Whether [url] is Twitch's redirect, `http://localhost#access_token=…`. Scheme, host and port
+     * must match exactly; a prefix check would let `http://localhost.example.com` or
      * `http://localhost:8080@example.com` through.
      */
     fun isRedirect(url: String): Boolean {
@@ -24,8 +22,8 @@ object LoginUrls {
     }
 
     /**
-     * The parameters of Twitch's answer. The implicit flow only ever answers in the fragment; a
-     * query is somebody else's idea and is not read.
+     * The parameters of Twitch's answer. The implicit flow answers in the fragment only; a query is
+     * ignored.
      */
     fun answer(url: String): Map<String, String> {
         val fragment = parse(url)?.rawFragment ?: return emptyMap()
@@ -35,9 +33,8 @@ object LoginUrls {
     }
 
     /**
-     * Whether the login page may go to [url] inside the app: https on Twitch's own hosts. Any
-     * other site — help pages, terms, somebody else's sign-in — opens in the user's browser,
-     * which shows the address the WebView does not.
+     * Whether the login WebView may load [url]: https on Twitch hosts only. Everything else opens
+     * in the browser, which shows the address.
      */
     fun staysInLogin(url: String): Boolean {
         val uri = parse(url) ?: return false

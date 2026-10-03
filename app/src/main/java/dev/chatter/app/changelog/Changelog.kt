@@ -1,20 +1,17 @@
 package dev.chatter.app.changelog
 
-/** A version the way the changelog writes it: major.minor.patch. */
+/** A version as the changelog writes it: major.minor.patch. */
 data class Version(val major: Int, val minor: Int, val patch: Int) : Comparable<Version> {
     override fun compareTo(other: Version): Int =
         compareValuesBy(this, other, Version::major, Version::minor, Version::patch)
 
     override fun toString(): String = "$major.$minor.$patch"
 
-    /**
-     * Whether the step from here to [other] is only a fix release. Those are not worth putting a
-     * sheet in front of anyone, so the app keeps quiet about them until a bigger release lands.
-     */
+    /** Whether going to [other] is a patch release only. Those get no "what's new" sheet. */
     fun isOnlyAFixAwayFrom(other: Version): Boolean = other.major == major && other.minor == minor
 
     companion object {
-        /** Parses "1.2.3". Anything else — a missing value, a suffix — is not a version. */
+        /** Parses "1.2.3"; anything else, suffixes included, is null. */
         fun parse(text: String): Version? {
             val parts = text.trim().split('.')
             if (parts.size != 3) return null
@@ -24,21 +21,20 @@ data class Version(val major: Int, val minor: Int, val patch: Int) : Comparable<
     }
 }
 
-/** How far a change moved the version, which is how the app groups and labels it. */
+/** How far a change moved the version; used to group and label entries. */
 enum class Level { Major, Minor, Patch }
 
-/** The changes of one release that share a level, or the ones that name none ([level] null). */
+/** The changes of a release with one level, or those without a level ([level] null). */
 data class ChangeGroup(val level: Level?, val entries: List<String>)
 
-/** One released version of Chatter and everything it changed. */
+/** One release and its changes. */
 data class Release(val version: Version, val date: String, val groups: List<ChangeGroup>)
 
 /**
- * Reads the CHANGELOG.md that `./gradlew releaseVersion` writes, which is the very same file the
- * repository shows on GitHub — the app ships it as an asset instead of keeping a second copy.
+ * Reads CHANGELOG.md as `./gradlew releaseVersion` writes it; the app ships that file as an asset.
  *
- * Only three shapes carry meaning: `## <version> — <date>` opens a release, `- <level>: <text>` is
- * one change, and everything else is prose the app skips, so the file can keep its own header.
+ * `## <version> — <date>` opens a release and `- <level>: <text>` is one change. Everything else is
+ * skipped, so the file can have its own header.
  */
 object ChangelogParser {
     fun parse(markdown: String): List<Release> {
@@ -47,7 +43,7 @@ object ChangelogParser {
         var date = ""
         var changes = mutableListOf<Pair<Level?, String>>()
 
-        /** Closes off the release being read; one without any changes is not worth showing. */
+        /** Ends the current release; one without changes is dropped. */
         fun finish() {
             val current = version
             if (current != null && changes.isNotEmpty()) {
@@ -84,9 +80,9 @@ object ChangelogParser {
         return releases
     }
 
-    /** "0.3.0 — 2026-09-20", where the date is optional and may be joined by any kind of dash. */
+    /** "0.3.0 — 2026-09-20"; the date is optional and any dash works. */
     private val HEADING = Regex("""(\d+\.\d+\.\d+)(?:\s*[—–-]\s*(.*))?""")
 
-    /** Biggest news first, with the changes that name no level last. */
+    /** Biggest changes first, entries without a level last. */
     private val GROUP_ORDER = listOf(Level.Major, Level.Minor, Level.Patch, null)
 }

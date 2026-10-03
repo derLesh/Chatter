@@ -20,21 +20,19 @@ import okhttp3.WebSocketListener
 import kotlin.random.Random
 
 /**
- * Where the chat connection stands. [WaitingForNetwork] is the phone having no network at all:
- * nothing is tried until one turns up.
+ * State of the chat connection. [WaitingForNetwork]: the phone has no network, nothing is tried
+ * until one is back.
  */
 enum class ConnectionState { Disconnected, Connecting, WaitingForNetwork, Connected, AuthFailed }
 
 /**
- * A single authenticated WebSocket connection to Twitch chat that is used both
- * for reading and sending. Reconnects automatically with exponential backoff.
- *
- * All public methods are thread-safe.
+ * One authenticated WebSocket to Twitch chat for reading and sending. Reconnects with exponential
+ * backoff. Thread-safe.
  */
 class IrcConnection(
     private val http: OkHttpClient,
     private val scope: CoroutineScope,
-    /** Which channels to join first after a connect; lower goes first. See [JoinQueue]. */
+    /** Join order after a connect, lower first; see [JoinQueue]. */
     joinRank: (String) -> Int = { 0 },
 ) : ChatConnection {
     private val lock = Any()
@@ -42,7 +40,7 @@ class IrcConnection(
     private val _state = MutableStateFlow(ConnectionState.Disconnected)
     override val state: StateFlow<ConnectionState> = _state
 
-    // Unlimited so the socket thread never blocks; there is exactly one consumer (ChatRepository).
+    // Unlimited so the socket thread never blocks; ChatRepository is the only consumer.
     private val incoming = Channel<IrcMessage>(Channel.UNLIMITED)
     override val messages: Flow<IrcMessage> = incoming.receiveAsFlow()
 
@@ -58,22 +56,21 @@ class IrcConnection(
     private val joins = JoinQueue(System::currentTimeMillis, joinRank)
     @Volatile private var lastActivity = 0L
     /**
-     * Whether the phone has a network at all. Retrying without one is a DNS lookup that cannot
-     * succeed, and the backoff tops out at half a minute, so a night in flight mode would be a
-     * couple of thousand of them. [setNetwork] brings the connection back instead.
+     * Retrying without a network cannot succeed; a night in flight mode would be thousands of DNS
+     * lookups. [setNetwork] reconnects when it is back.
      */
     private var networkUp = true
 
     /**
-     * Whether Android found that the network reaches the internet. A network without — a hotel
-     * Wi-Fi behind its login page, a hotspot whose phone lost its signal — is still tried, since
-     * some networks work without ever passing Android's check, but patiently: see [backoffMs].
+     * Whether Android validated internet access. Unvalidated networks (captive portals, a hotspot
+     * without signal) are still tried, since some work without passing the check, but with the long
+     * backoff; see [backoffMs].
      */
     private var networkValidated = true
 
     /**
-     * Connects (or keeps the existing connection). A new token for the same user is only stored
-     * for the next reconnect: an authenticated connection stays valid when the token is renewed.
+     * Connects, or keeps the existing connection. A new token for the same user is only used on the
+     * next reconnect; the running session stays valid.
      */
     fun connect(login: String, token: String): Unit = synchronized(lock) {
         val userChanged = credentials?.first != login
@@ -83,10 +80,7 @@ class IrcConnection(
         if (socket == null) openSocket()
     }
 
-    /**
-     * Connects to read without an account: Twitch lets anybody in under a justinfan name and no
-     * password, to read every channel and to write in none.
-     */
+    /** Reads without an account: Twitch accepts any justinfan name without password, read-only. */
     fun connectAnonymously() = connect(ANONYMOUS_LOGIN, token = "")
 
     fun disconnect(): Unit = synchronized(lock) {
@@ -99,13 +93,11 @@ class IrcConnection(
     }
 
     /**
-     * What the phone's network is doing: whether there is one, and whether Android found that it
-     * reaches the internet. Coming back skips the backoff and reconnects right away; going away
-     * stops the retries until it does, because there is nothing to connect to. A network that
-     * turns out to reach the internet after all ends a long wait at once.
+     * Network changes. Coming back reconnects right away, losing the network stops retries, and a
+     * network that turns out to be validated ends a long backoff.
      *
-     * Android reports the capabilities of a network again and again — every change of signal
-     * strength is one — so only a change of the two things asked for here does anything.
+     * Android repeats capability callbacks for every signal change, so only changes of these two
+     * values do anything.
      */
     fun setNetwork(up: Boolean, validated: Boolean): Unit = synchronized(lock) {
         val cameBack = up && !networkUp
@@ -114,27 +106,28 @@ class IrcConnection(
         networkValidated = validated
         if (!wanted || _state.value == ConnectionState.Connected) return
         when {
-            // Not connected, so a socket there is a try under way, on a network that just went.
+            // Not connected, so any socket is a connection attempt on the network that just went
+            // away.
             !up -> {
                 reconnectJob?.cancel()
                 closeSocket()
                 _state.value = ConnectionState.WaitingForNetwork
             }
-            // A socket opened on the network before is likely dead: start over on the new one.
+            // A socket from the old network is likely dead; start over on the new one.
             cameBack -> {
                 attempt = 0
                 reconnectJob?.cancel()
                 closeSocket()
                 openSocket()
             }
-            // Only while waiting between two tries; one under way is left to finish.
+            // Only while waiting between attempts; one in progress is left to finish.
             nowReachable && socket == null -> retryNow()
         }
     }
 
     /**
-     * Tries again at once instead of waiting out the backoff, for the moment somebody opens the
-     * app and would otherwise look at "Connecting…" for up to five minutes.
+     * Skips the backoff, for when the app is opened and would otherwise show "Connecting…" for up
+     * to five minutes.
      */
     fun retryNow(): Unit = synchronized(lock) {
         if (!wanted || !networkUp || socket != null || _state.value == ConnectionState.Connected) return
@@ -143,7 +136,7 @@ class IrcConnection(
         openSocket()
     }
 
-    // While connecting, the JOINs are sent after the welcome message (see onWelcome).
+    // While connecting, the JOINs are sent after the welcome; see onWelcome.
     override fun join(channel: String): Unit = synchronized(lock) {
         if (!isChannel(channel) || !joined.add(channel)) return
         joins.add(channel)
@@ -174,13 +167,11 @@ class IrcConnection(
     }
 
     /**
-     * Gives Twitch a moment to answer the login with its welcome, and reconnects if it does not.
+     * Reconnects if Twitch does not answer the login with its welcome in time.
      *
-     * The socket has no read timeout — a quiet chat is normal — and OkHttp sends no pings of its
-     * own, because a ping every half minute all day is exactly the kind of traffic this app tries
-     * not to make. Once the connection stands, [startWatchdog] notices silence. Until then this
-     * is the only thing that would: a network that dies between the socket opening and the
-     * welcome leaves a socket that is never reported as failed and never answers either.
+     * The socket has no read timeout and OkHttp sends no pings, to keep traffic low. Once
+     * connected, [startWatchdog] detects silence; before that, a network that dies mid-handshake
+     * would leave a socket that neither fails nor answers.
      */
     private fun startHandshakeTimeout() {
         handshakeJob?.cancel()
@@ -194,10 +185,8 @@ class IrcConnection(
     }
 
     /**
-     * Sends what [joins] allows now, and comes back when it allows more. Called under [lock].
-     *
-     * Twitch allows joining many channels in one command, and each of them counts against the
-     * limit the same, so a portion goes out as one line.
+     * Sends the JOINs [joins] allows now and schedules the next batch. Called under [lock]. One
+     * JOIN line can name many channels; each counts against the limit.
      */
     private fun sendJoins() {
         joinJob?.cancel()
@@ -221,7 +210,7 @@ class IrcConnection(
     private fun scheduleReconnect(immediate: Boolean = false): Unit = synchronized(lock) {
         if (!wanted || reconnectJob?.isActive == true) return
         closeSocket()
-        // Without a network there is nothing to retry against; setNetwork brings us back.
+        // setNetwork reconnects once the network is back.
         if (!networkUp) {
             _state.value = ConnectionState.WaitingForNetwork
             return
@@ -236,12 +225,11 @@ class IrcConnection(
     }
 
     /**
-     * Twitch sends a PING roughly every 5 minutes. If nothing arrives for longer, the connection
-     * is dead without us noticing (e.g. after a silent network switch).
+     * Twitch sends a PING about every 5 minutes. Longer silence means the connection died
+     * unnoticed, e.g. after a silent network switch.
      *
-     * This sleeps exactly until the silence could have become long enough, rather than looking
-     * every minute: a night connected is then a handful of wakeups instead of several hundred,
-     * and a dead socket is noticed sooner, because the check falls on the moment it is due.
+     * Sleeps until the silence could exceed the limit instead of polling, so a connected night
+     * costs a handful of wakeups.
      */
     private fun startWatchdog() {
         watchdogJob?.cancel()
@@ -271,15 +259,14 @@ class IrcConnection(
         override fun onMessage(webSocket: WebSocket, text: String) {
             if (!isCurrent(webSocket)) return
             lastActivity = System.currentTimeMillis()
-            // Walked rather than split: a frame is usually one line, and each message keeps its
-            // place in the frame instead of a copy of it (see IrcMessage).
+            // Walked instead of split; each message keeps referring to the frame (see IrcMessage).
             var start = 0
             while (start < text.length) {
                 val end = text.indexOf("\r\n", start).let { if (it == -1) text.length else it }
                 val lineStart = start
                 start = end + 2
                 if (end == lineStart) continue
-                // Answer PINGs directly on the socket thread, before any parsing work.
+                // PINGs are answered on the socket thread before any parsing.
                 if (text.startsWith("PING", lineStart)) {
                     webSocket.send("PONG" + text.substring(lineStart + 4, end))
                     continue
@@ -298,7 +285,7 @@ class IrcConnection(
                             }
                             _state.value = ConnectionState.AuthFailed
                         }
-                        // A suspended channel never answers its JOIN, and asking again changes nothing.
+                        // A suspended channel never answers its JOIN; retrying is pointless.
                         if (channel != null && msg.tag("msg-id") == "msg_channel_suspended") {
                             synchronized(lock) { joins.answered(channel) }
                         }
@@ -339,10 +326,8 @@ class IrcConnection(
         private val CHANNEL = Regex("^[a-z0-9_]{1,25}$")
 
         /**
-         * Whether [channel] may go into a command: a Twitch login and nothing else. It is the
-         * last place a name passes before it is written into a line of IRC, where a space, a
-         * comma or a line break would make it a different command — whatever stored or restored
-         * it should already have refused such a name, and this does not rely on that.
+         * Whether [channel] is a plain Twitch login. Last check before the name goes into an IRC
+         * line, where a space, comma or line break would change the command.
          */
         internal fun isChannel(channel: String): Boolean {
             if (CHANNEL.matches(channel)) return true
@@ -352,12 +337,10 @@ class IrcConnection(
         private const val ANONYMOUS_LOGIN = "justinfan12345"
 
         /**
-         * How long to wait before the next try after [attempt] failed ones. Doubling up to half a
-         * minute, which is what a dropped connection on a working network needs. Past that the
-         * network is working but Twitch cannot be reached through it — a login page, a firewall —
-         * and trying every half minute all night is a TLS handshake and an awake radio each time
-         * for nothing, so the wait keeps doubling up to five minutes. A network Android could not
-         * get through to the internet is waited on like that from the start.
+         * Wait before the next attempt after [attempt] failures. Doubles up to 30 seconds, enough
+         * for a dropped connection. If it keeps failing on a working network (login page, firewall)
+         * the wait grows to five minutes, to spare the radio. Unvalidated networks get the long
+         * wait from the start.
          */
         fun backoffMs(attempt: Int, validated: Boolean): Long {
             if (!validated) return (1000L shl attempt.coerceIn(0, 9)).coerceAtMost(MAX_BACKOFF_MS)
@@ -368,13 +351,13 @@ class IrcConnection(
         private const val SHORT_BACKOFF_MS = 30_000L
         private const val MAX_BACKOFF_MS = 5 * 60_000L
 
-        /** Failed tries on a working network before the wait grows past [SHORT_BACKOFF_MS]; a good five minutes. */
+        /** Failed attempts before the wait grows past [SHORT_BACKOFF_MS]; about five minutes. */
         private const val PATIENT_AFTER = 14
 
-        /** How long Twitch has to answer the login before the socket counts as dead. */
+        /** How long Twitch has to answer the login. */
         private const val HANDSHAKE_TIMEOUT_MS = 20_000L
 
-        /** How long a connected socket may say nothing at all before it counts as dead. */
+        /** Silence after which a connected socket counts as dead. */
         private const val SILENCE_LIMIT_MS = 6 * 60_000L
 
         private fun isAuthFailure(text: String?) = text != null &&

@@ -12,28 +12,28 @@ import okhttp3.OkHttpClient
 import java.io.IOException
 
 /**
- * Twitch's API answers nobody without a login, so a guest's request is not sent at all. Kept
- * apart from a failure to reach Twitch, which is worth telling somebody about; this is not.
+ * Helix answers nobody without a login, so a guest's request is never sent. A separate type so it
+ * is not reported as Twitch being unreachable.
  */
 class NotLoggedInException : IOException("Twitch's API needs a login")
 
-/** The emotes Twitch itself lets the user type, as the emote repository asks for them. */
+/** Twitch emotes the user can type, as the emote repository needs them. */
 interface TwitchEmoteApi {
     suspend fun userEmotes(userId: String): List<HelixEmote>
     suspend fun channelEmotes(channelId: String): List<HelixEmote>
     suspend fun isFollowing(userId: String, channelId: String): Boolean
 }
 
-/** The badges Twitch itself hands out, as the badge repository asks for them. */
+/** Twitch badges, as the badge repository needs them. */
 interface TwitchBadgeApi {
     suspend fun globalBadges(): List<HelixBadgeSet>
     suspend fun channelBadges(channelId: String): List<HelixBadgeSet>
 }
 
-/** Minimal client for the parts of the Twitch Helix API the app needs. */
+/** Client for the parts of the Twitch Helix API the app uses. */
 class HelixApi(
     private val http: OkHttpClient,
-    /** Returns a currently valid access token (refreshing it if needed). */
+    /** A currently valid access token, refreshed if needed. */
     private val token: suspend () -> String?,
 ) : TwitchEmoteApi, TwitchBadgeApi {
     private suspend fun headers() = mapOf(
@@ -55,14 +55,14 @@ class HelixApi(
         http.getJson<HelixList<HelixUser>>(u, headers()).data
     }
 
-    /** The same as [users], for channels only known by their id — a Shared Chat partner's. */
+    /** Like [users], for channels only known by id, e.g. Shared Chat partners. */
     suspend fun usersById(ids: List<String>): List<HelixUser> = ids.chunked(100).flatMap { batch ->
         val u = "https://api.twitch.tv/helix/users".toHttpUrl().newBuilder()
             .apply { batch.forEach { addQueryParameter("id", it) } }.build().toString()
         http.getJson<HelixList<HelixUser>>(u, headers()).data
     }
 
-    /** The Shared Chat session [broadcasterId] is in, or null while it shares its chat with nobody. */
+    /** The Shared Chat session of [broadcasterId], or null if it is not sharing its chat. */
     suspend fun sharedChatSession(broadcasterId: String): HelixSharedChatSession? =
         http.getJson<HelixList<HelixSharedChatSession>>(url("shared_chat/session", "broadcaster_id" to broadcasterId), headers())
             .data.firstOrNull()
@@ -83,7 +83,7 @@ class HelixApi(
     override suspend fun channelBadges(channelId: String): List<HelixBadgeSet> =
         http.getJson<HelixList<HelixBadgeSet>>(url("chat/badges", "broadcaster_id" to channelId), headers()).data
 
-    /** All emotes the user may use anywhere (subs, follower, globals, ...). Paginated. */
+    /** Every emote the user may use anywhere (subs, follower, globals, ...). Paginated. */
     override suspend fun userEmotes(userId: String): List<HelixEmote> {
         val all = ArrayList<HelixEmote>()
         var cursor: String? = null
@@ -100,14 +100,13 @@ class HelixApi(
     suspend fun globalEmotes(): List<HelixEmote> =
         http.getJson<HelixList<HelixEmote>>(url("chat/emotes/global"), headers()).data
 
-    /** All Twitch emotes of a channel (subscriber tiers, bits, follower). */
+    /** All Twitch emotes of a channel (sub tiers, bits, follower). */
     override suspend fun channelEmotes(channelId: String): List<HelixEmote> =
         http.getJson<HelixList<HelixEmote>>(url("chat/emotes", "broadcaster_id" to channelId), headers()).data
 
     /**
-     * Who is currently in a channel's chat. Twitch only answers for channels where the user is
-     * moderator or broadcaster, and a big channel has far more chatters than are worth holding
-     * in memory, so this stops after [limit] of them.
+     * Who is in a channel's chat. Twitch only answers where the user is moderator or broadcaster;
+     * stops after [limit], since big channels have far more chatters than are worth keeping.
      */
     suspend fun chatters(channelId: String, moderatorId: String, limit: Int = 1000): List<HelixChatter> {
         val all = ArrayList<HelixChatter>()
@@ -126,7 +125,7 @@ class HelixApi(
         return all
     }
 
-    /** The users the logged-in user blocked on Twitch. Paginated, a few hundred at most. */
+    /** The users the logged-in user blocked on Twitch. Paginated. */
     suspend fun blockedUsers(userId: String): List<HelixBlockedUser> {
         val all = ArrayList<HelixBlockedUser>()
         var cursor: String? = null
@@ -148,7 +147,7 @@ class HelixApi(
         )
     }
 
-    /** How many channels [userId] follows. Twitch counts them on the first page of the list. */
+    /** How many channels [userId] follows; Twitch sends the total with the first page. */
     suspend fun followedCount(userId: String): Int =
         http.getJson<HelixTotal>(url("channels/followed", "user_id" to userId, "first" to "1"), headers()).total
 
@@ -156,7 +155,8 @@ class HelixApi(
         http.getJson<HelixList<JsonObject>>(url("channels/followed", "user_id" to userId, "broadcaster_id" to channelId), headers())
             .data.isNotEmpty()
 
-    // ---- Moderation (the IRC slash commands were removed by Twitch) ------------------------
+    // ---- Moderation (Twitch removed the IRC slash commands)
+    // ----------------------------------------
 
     /** [durationSeconds] null = permanent ban. */
     suspend fun ban(channelId: String, modId: String, userId: String, durationSeconds: Int?, reason: String?) {
@@ -209,8 +209,8 @@ class HelixApi(
     }
 
     /**
-     * Whispers cannot be sent over chat any more, only through here - and only by an account
-     * with a verified phone number, which is what a 403 from this call usually means.
+     * Whispers can only be sent through Helix, and only by accounts with a verified phone number; a
+     * 403 usually means that.
      */
     suspend fun sendWhisper(fromUserId: String, toUserId: String, message: String) {
         val body = buildJsonObject { put("message", message) }
@@ -237,7 +237,7 @@ data class HelixList<T>(val data: List<T> = emptyList())
 @Serializable
 data class HelixPagedList<T>(val data: List<T> = emptyList(), val pagination: Pagination? = null)
 
-/** A list where only how long it is matters, so none of its entries are parsed. */
+/** A list whose length is all that matters; its entries are not parsed. */
 @Serializable
 data class HelixTotal(val total: Int = 0)
 

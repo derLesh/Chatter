@@ -12,11 +12,8 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
 /**
- * The changelog as it ships with the app, and how much of it the user has already read.
- *
- * It shows up in two places: the whole list under the settings, and — right after an update — the
- * releases the user missed. That second one only happens for a new minor or major version, so a
- * release that only fixes things never puts a sheet in anyone's way.
+ * The bundled changelog and how much of it the user has read. Shown in the settings, and after an
+ * update as the releases the user missed, but only for minor and major versions.
  */
 class ChangelogRepository(
     private val context: Context,
@@ -25,11 +22,11 @@ class ChangelogRepository(
     private val scope: CoroutineScope,
 ) {
     private val _releases = MutableStateFlow<List<Release>>(emptyList())
-    /** Every release the app knows about, newest first. */
+    /** All known releases, newest first. */
     val releases: StateFlow<List<Release>> = _releases.asStateFlow()
 
     private val _unread = MutableStateFlow<List<Release>>(emptyList())
-    /** What to show after an update, and nothing at all the rest of the time. */
+    /** Releases to show after an update; empty otherwise. */
     val unread: StateFlow<List<Release>> = _unread.asStateFlow()
 
     val version: Version? = Version.parse(versionName)
@@ -41,7 +38,7 @@ class ChangelogRepository(
         }
     }
 
-    /** Once the user has seen them, this version counts as read and the notes stay gone. */
+    /** Marks the current version as read. */
     fun markRead() {
         _unread.value = emptyList()
         scope.launch { settings.setSeenVersion(versionName) }
@@ -55,28 +52,27 @@ class ChangelogRepository(
         val current = version ?: return emptyList()
         val seen = settings.seenVersion.first()?.let { Version.parse(it) }
         if (seen == null) {
-            // Nothing was ever recorded. On a fresh install there is no update to report, so the
-            // user starts out having read everything; otherwise they updated from a version that
-            // did not keep track yet, and the release they just got is the news.
+            // Nothing recorded yet. A fresh install has nothing to report; an update from a version
+            // that did not track this shows the current release.
             if (isFirstInstall()) {
                 settings.setSeenVersion(versionName)
                 return emptyList()
             }
             return _releases.value.filter { it.version == current }
         }
-        // Left unread on a fix release, so those notes still arrive with the next real one.
+        // Stays unread on a patch release, so the notes come with the next bigger one.
         if (seen.isOnlyAFixAwayFrom(current)) return emptyList()
         return _releases.value.filter { it.version > seen }
     }
 
-    /** Freshly installed rather than updated, which Android tells apart by these two timestamps. */
+    /** Android tells install and update apart by these two timestamps. */
     private fun isFirstInstall(): Boolean = runCatching {
         val info = context.packageManager.getPackageInfo(context.packageName, 0)
         info.firstInstallTime == info.lastUpdateTime
     }.getOrDefault(true)
 
     private companion object {
-        /** Written into the assets from the repo's CHANGELOG.md by the "copyChangelog" task. */
+        /** Copied from CHANGELOG.md by the copyChangelog task. */
         const val ASSET = "changelog.md"
     }
 }

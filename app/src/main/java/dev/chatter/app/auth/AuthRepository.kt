@@ -33,25 +33,20 @@ data class Account(
     val refreshToken: String?,
     /** Epoch millis when [token] expires. */
     val expiresAt: Long,
-    /**
-     * What Twitch calls the account and the picture it wears. The login alone would do to chat
-     * with, but a switcher that shows neither is a list of lowercase words.
-     */
+    /** Display name and avatar, for the account switcher. */
     val displayName: String = "",
     val avatarUrl: String = "",
-    /** What Twitch lets [token] do; null for an account stored before the app kept it. */
+    /** What [token] may do; null for accounts stored before scopes were kept. */
     val scopes: Set<String>? = null,
 ) {
-    /** The name to put in front of a person: theirs where Twitch knows one, the login otherwise. */
+    /** The display name, or the login if Twitch has none. */
     val name: String get() = displayName.ifEmpty { login }
 
     /** What Chatter uses that this login was not given; see [TwitchScopes.missing]. */
     val missingScopes: Set<String> get() = TwitchScopes.missing(scopes)
 
     /**
-     * Everything but the tokens. A data class would print them, and an account ends up in a
-     * string more easily than anybody means it to — a log line, an assertion message, a crash
-     * report that prints the state it crashed in — and from there in a bug report on GitHub.
+     * Leaves out the tokens, so an account printed into a log or a crash report gives nothing away.
      */
     override fun toString(): String =
         "Account(login=$login, userId=$userId, token=$REDACTED, refreshToken=${refreshToken?.let { REDACTED }}, " +
@@ -67,22 +62,20 @@ sealed interface AuthState {
     data object LoggedOut : AuthState
 
     /**
-     * Reading without an account. Twitch lets anybody read a chat, so channels are added and
-     * followed as usual; writing, whispers, Twitch's own badges and everything else its API
-     * answers need a login.
+     * Reading without an account. Twitch lets anyone read chat; writing, whispers and everything
+     * else in Helix need a login.
      */
     data object Guest : AuthState
     data class LoggedIn(val account: Account) : AuthState
 }
 
 /**
- * Twitch login (like DankChat): the implicit OAuth flow in a WebView, where Twitch redirects to
- * `http://localhost#access_token=...` and the WebView intercepts it. Those tokens are long-lived and
- * cannot be refreshed; once Twitch rejects one, the user logs in again. Accounts stored by the older
- * device code login still carry a refresh token, which [refresh] keeps renewing.
+ * Twitch login through the implicit OAuth flow in a WebView: Twitch redirects to
+ * `http://localhost#access_token=...` and the WebView catches it. These tokens cannot be refreshed;
+ * once Twitch rejects one, the user logs in again. Accounts from the old device code login still
+ * have a refresh token, which [refresh] renews.
  *
- * Several accounts can be logged in at once. Only one of them is the account the app acts as —
- * [state] is that one — and the rest wait in [accounts] until [switchTo] picks one of them.
+ * Several accounts can be logged in. [state] is the active one, the others wait in [accounts].
  */
 class AuthRepository(
     private val store: DataStore<Preferences>,
@@ -96,33 +89,31 @@ class AuthRepository(
     val accounts: StateFlow<List<Account>> = _accounts
 
     /**
-     * Accounts whose tokens the keystore would not decrypt at start, kept exactly as they were
-     * stored. They are not logged in — there is no token to log in with — but they are not
-     * logged out either: [persist] writes them back untouched, and the next start tries again.
+     * Accounts the keystore would not decrypt at start. They are written back unchanged by
+     * [persist] and tried again on the next start.
      */
     private var unreadable: List<StoredAccount> = emptyList()
 
     private val _knownUserIds = MutableStateFlow<List<String>>(emptyList())
     /**
-     * The user id of every account on the phone, the [unreadable] ones included. What belongs to
-     * an account — its inbox, its whispers — is kept for as long as it is in here.
+     * Every account on the phone, the [unreadable] ones included. Inbox and whispers are kept for
+     * these.
      */
     val knownUserIds: StateFlow<List<String>> = _knownUserIds
 
     private val _sessionExpired = MutableStateFlow(false)
     /**
-     * True when the login ended on its own — the token ran out or was revoked — as opposed to the
-     * user asking to be logged out. The difference is invisible from the login screen otherwise,
-     * and being asked to log in again out of nowhere is worth an explanation.
+     * True when Twitch ended the session (expired or revoked token) rather than the user logging
+     * out, so the login screen can say why it is back.
      */
     val sessionExpired: StateFlow<Boolean> = _sessionExpired
 
-    /** Set by the AppContainer to break the Helix <-> Auth construction cycle. */
+    /** Set by AppContainer; Helix and Auth need each other. */
     lateinit var helix: HelixApi
 
     private val refreshLock = Mutex()
 
-    /** Held for every change to the account list, so two of them cannot write over each other. */
+    /** Held for every change to the account list. */
     private val writeLock = Mutex()
 
     private var activeId: String? = null
@@ -134,17 +125,17 @@ class AuthRepository(
     val canRead: Boolean get() = state.value.let { it is AuthState.LoggedIn || it is AuthState.Guest }
 
     /**
-     * Whether the app reads as a guest while no account is logged in. Logging in ends it, so that
-     * logging that account out again leads to the login screen and not back into the chat.
+     * Reading as a guest while no account is logged in. Logging in ends it, so logging that account
+     * out leads to the login screen and not back into the chat.
      */
     private var guest = false
 
-    /** Loads the stored tokens (refreshing them if needed). Call once at app start. */
+    /** Loads the stored accounts and refreshes tokens where needed. Call once at start. */
     suspend fun restore() {
         val p = store.data.first()
         val stored = AccountStore.decode(p[ACCOUNTS_KEY])
-        // An install from before several accounts were a thing kept one account in keys of its
-        // own. It becomes the first entry of the list, and the old keys go on the next write.
+        // Older versions stored a single account in keys of its own. It becomes the first list
+        // entry; the old keys are removed on the next write.
         val migrated = stored.isEmpty()
         val (accounts, unread) = decryptAll(if (migrated) listOfNotNull(legacyAccount(p)) else stored)
         writeLock.withLock {
@@ -152,11 +143,11 @@ class AuthRepository(
             unreadable = unread
             activeId = AccountStore.activeIn(accounts.map { it.userId }, p[ACTIVE_KEY])
             guest = p[GUEST_KEY] == true
-            // Log in optimistically so the chat can connect right away (also offline).
+            // Optimistically, so the chat can connect right away, also offline.
             publish()
             if (migrated && accounts.isNotEmpty()) persist()
         }
-        // Tokens of a logout that happened offline; Twitch is told about them now.
+        // Tokens from a logout that happened offline.
         revokePending()
         if (activeId == null) return
         freshToken()
@@ -165,9 +156,8 @@ class AuthRepository(
     }
 
     /**
-     * Asks Twitch what the tokens of accounts stored before the app kept their scopes may do,
-     * so the account page can say when a login lacks something. Offline it waits for the next start;
-     * until then such an account is let try every command, as it always was.
+     * Asks Twitch for the scopes of accounts stored before scopes were kept, so the account page
+     * can point out missing ones. Until then such an account may try every command.
      */
     private suspend fun learnScopes() {
         for (acc in _accounts.value.filter { it.scopes == null }) {
@@ -182,7 +172,7 @@ class AuthRepository(
         }
     }
 
-    /** The stored accounts with their tokens decrypted, and the ones set aside; see [AccountStore.readAll]. */
+    /** See [AccountStore.readAll]. */
     private suspend fun decryptAll(stored: List<StoredAccount>): Pair<List<Account>, List<StoredAccount>> {
         val read = AccountStore.readAll(stored, wait = { attempt -> delay(DECRYPT_RETRY_MS * attempt) }) { it.decrypted() }
         if (read.unreadable.isNotEmpty()) Log.w(TAG, "Keeping ${read.unreadable.size} account(s) unread until the keystore answers")
@@ -203,9 +193,9 @@ class AuthRepository(
     private var pendingState: String? = null
 
     /**
-     * [forceVerify] makes Twitch ask again who is logging in even where it could answer from a
-     * session it still has. Adding a second account needs that: without it Twitch hands a token
-     * for whoever was there before straight back, which is the account the user already has.
+     * [forceVerify] makes Twitch ask who is logging in even if its session already knows. Needed
+     * for adding a second account; otherwise Twitch returns a token for the account already logged
+     * in.
      */
     fun authorizeUrl(forceVerify: Boolean = false): String {
         val state = UUID.randomUUID().toString()
@@ -221,13 +211,12 @@ class AuthRepository(
     }
 
     /**
-     * Handles the redirect `http://localhost#access_token=...&state=...`.
-     * Returns null if [url] is not our redirect, otherwise whether the login succeeded.
+     * Handles the redirect `http://localhost#access_token=...&state=...`. Returns null if [url] is
+     * not our redirect, otherwise whether the login succeeded.
      */
     suspend fun handleRedirect(url: String): Result<Unit>? {
         if (!LoginUrls.isRedirect(url)) return null
-        // A state is good for one answer. Whatever this one turns out to be, the next redirect
-        // cannot reuse it — and with no login running, none is expected at all.
+        // A state is valid for one answer, and only while a login is running.
         val expected = pendingState
         pendingState = null
         val params = LoginUrls.answer(url)
@@ -243,17 +232,17 @@ class AuthRepository(
                 revokeReplaced = true,
             )
         }
-        // After the login is in, so a picture that could not be fetched never fails one.
+        // Afterwards, so a failed picture download cannot fail the login.
         if (result.isSuccess) refreshProfiles()
         return result
     }
 
     // ---- Reading as a guest -------------------------------------------------------------------
 
-    /** Reads chats without logging in, until an account is added; see [AuthState.Guest]. */
+    /** Reads chats without an account until one is added; see [AuthState.Guest]. */
     suspend fun continueAsGuest() = setGuest(true)
 
-    /** Back to the login screen. The channels stay, for whoever logs in. */
+    /** Back to the login screen. The channels stay. */
     suspend fun leaveGuest() = setGuest(false)
 
     private suspend fun setGuest(on: Boolean) {
@@ -267,7 +256,7 @@ class AuthRepository(
 
     // ---- Several accounts ---------------------------------------------------------------------
 
-    /** Makes [userId] the account the app reads and writes as. Does nothing for an unknown one. */
+    /** Makes [userId] the active account. Does nothing for an unknown one. */
     suspend fun switchTo(userId: String) {
         writeLock.withLock {
             if (userId == activeId || _accounts.value.none { it.userId == userId }) return
@@ -280,10 +269,7 @@ class AuthRepository(
         refreshProfiles()
     }
 
-    /**
-     * Logs one account out. The others stay, and if it was the active one the app carries on as
-     * the next of them rather than showing the login screen.
-     */
+    /** Logs one account out. If it was the active one, the next account takes over. */
     suspend fun remove(userId: String) = forget(userId, expired = false)
 
     /** [expired] when Twitch ended the session, not the user; see [sessionExpired]. */
@@ -292,9 +278,8 @@ class AuthRepository(
     }
 
     /**
-     * Takes the account off the phone, and — unless Twitch ended the session itself — off Twitch
-     * as well. Dropping the token here alone would leave it valid for as long as Twitch lets a
-     * token live, which for the WebView login is months, wherever a copy of it went.
+     * Removes the account from the phone and, unless Twitch ended the session, revokes its tokens.
+     * WebView tokens stay valid for months otherwise.
      */
     private suspend fun forget(userId: String, expired: Boolean) {
         val gone = writeLock.withLock {
@@ -302,16 +287,15 @@ class AuthRepository(
             val rest = _accounts.value - gone
             _accounts.value = rest
             if (activeId == userId) activeId = rest.firstOrNull()?.userId
-            // Only worth explaining when nothing is left: with another account to fall back on,
-            // the app never reaches the login screen that would say it.
+            // With another account left the login screen never shows, so there is nothing to
+            // explain.
             _sessionExpired.value = expired && rest.isEmpty()
             persist()
             publish()
             gone
         }
-        // Twitch's own session in the WebView would let the next person straight back in. Which
-        // account it belongs to cannot be told, so it goes whichever one was logged out; adding
-        // an account clears it anyway.
+        // Twitch's WebView session would log the next person straight back in. It cannot be told
+        // which account it belongs to, so it is cleared on every logout.
         WebSession.clear()
         if (expired) return
         queueRevoke(listOfNotNull(gone.token, gone.refreshToken))
@@ -323,9 +307,8 @@ class AuthRepository(
     private val revokeLock = Mutex()
 
     /**
-     * Remembers [tokens] to be revoked at Twitch, encrypted like the accounts are. Written before
-     * the first try, so a logout while offline, or a process killed in the middle of one, still
-     * gets to Twitch the next time the app starts.
+     * Queues [tokens] for revoking, encrypted. Stored before the first attempt, so an offline
+     * logout or a killed process still revokes them on the next start.
      */
     private suspend fun queueRevoke(tokens: List<String>) {
         if (tokens.isEmpty()) return
@@ -334,12 +317,12 @@ class AuthRepository(
         }
     }
 
-    /** Revokes every queued token Twitch can be reached for, and keeps the rest for later. */
+    /** Revokes what Twitch can be reached for and keeps the rest queued. */
     suspend fun revokePending() = revokeLock.withLock {
         val queued = AccountStore.decodeTokens(store.data.first()[REVOKE_KEY])
         if (queued.isEmpty()) return@withLock
-        // A token that cannot be decrypted any more cannot be revoked either, so it is done with.
-        // One the keystore did not answer for stays queued: it is still valid at Twitch.
+        // A token that cannot be decrypted cannot be revoked either. One the keystore did not
+        // answer for stays queued.
         val left = queued.filter { encrypted ->
             when (val t = TokenCipher.open(encrypted)) {
                 is Decrypted.Plain -> !revoke(t.text)
@@ -348,15 +331,15 @@ class AuthRepository(
             }
         }
         store.edit { p ->
-            // Whatever was queued while this ran stays queued.
+            // Tokens queued while this ran stay queued.
             val now = AccountStore.decodeTokens(p[REVOKE_KEY]) - queued.toSet() + left
             if (now.isEmpty()) p.remove(REVOKE_KEY) else p[REVOKE_KEY] = AccountStore.encodeTokens(now)
         }
     }
 
     /**
-     * Asks Twitch to revoke [token]. True when it is done with — revoked now, or already
-     * invalid, which Twitch answers with a 400 — and false when it should be tried again.
+     * Revokes [token] at Twitch. True when it is gone (revoked, or already invalid: Twitch answers
+     * 400), false when it should be tried again.
      */
     private suspend fun revoke(token: String): Boolean = try {
         val body = FormBody.Builder()
@@ -374,9 +357,8 @@ class AuthRepository(
     }
 
     /**
-     * Fills in each account's display name and picture. Logging in only ever says the login, so
-     * without this an account switcher would be a list of lowercase words; one request covers
-     * every account at once, and what it brings back is stored so the list needs no network.
+     * Fills in display names and avatars of all accounts with one request and stores them, so the
+     * switcher works offline.
      */
     suspend fun refreshProfiles() {
         val logins = _accounts.value.map { it.login }
@@ -396,8 +378,8 @@ class AuthRepository(
     // ---- Token maintenance ------------------------------------------------------------------
 
     /**
-     * Returns a token that is valid for at least a few more minutes, refreshing it if necessary.
-     * Returns the old token if refreshing is not possible right now (e.g. offline).
+     * A token valid for at least a few more minutes, refreshed if needed. The old token if
+     * refreshing is not possible right now, e.g. offline.
      */
     suspend fun freshToken(): String? {
         val acc = account ?: return null
@@ -406,7 +388,9 @@ class AuthRepository(
         return account?.token
     }
 
-    /** Refreshes the token now. Returns false if Twitch rejected the refresh token (logged out). */
+    /**
+     * Refreshes the token now. Returns false if Twitch rejected the refresh token, which logs out.
+     */
     suspend fun refresh(expected: Account? = account): Boolean = refreshLock.withLock {
         val acc = account ?: return false
         // Another caller refreshed while we waited for the lock.
@@ -427,8 +411,7 @@ class AuthRepository(
                     refreshToken = t.refreshToken ?: acc.refreshToken,
                     expiresAt = System.currentTimeMillis() + t.expiresIn * 1000L,
                 ),
-                // A refresh says nothing about which account the user is on: the one being
-                // renewed may be an old active account the user has already switched away from.
+                // The renewed account may not be the active one any more.
                 makeActive = false,
             )
             true
@@ -440,20 +423,17 @@ class AuthRepository(
         } catch (e: kotlinx.coroutines.CancellationException) {
             throw e
         } catch (e: Exception) {
-            true // offline: try again later
+            true // offline, try again later
         }
     }
 
     /**
-     * [revokeReplaced] for a new login into an account that is already here: the token it had
-     * before is not needed any more, and a token nobody needs should not stay valid either. A
-     * refresh leaves it alone; Twitch retires the old token on its own then.
+     * [revokeReplaced] for logging into an account that is already here: its old tokens are
+     * revoked. A refresh leaves them alone, Twitch retires them itself.
      */
     private suspend fun saveAccount(account: Account, makeActive: Boolean = true, revokeReplaced: Boolean = false) {
         val replaced = writeLock.withLock {
-            // Where the account is already in the list it is replaced where it stands: logging
-            // into it again must neither list it twice nor move it, because the order of the
-            // list is the order the switcher shows.
+            // Replaced in place: the list order is the switcher's order.
             val at = _accounts.value.indexOfFirst { it.userId == account.userId }
             val before = _accounts.value.getOrNull(at)
             _accounts.value =
@@ -472,23 +452,23 @@ class AuthRepository(
         }
     }
 
-    /** Writes the account list and whether a guest is reading; call while holding [writeLock]. */
+    /** Writes the account list and the guest flag; call while holding [writeLock]. */
     private suspend fun persist() {
-        // An account logged in again since is the new one; its unreadable entry goes.
+        // An account logged in again replaces its unreadable entry.
         val list = _accounts.value.map { it.stored() } +
             unreadable.filter { u -> _accounts.value.none { it.userId == u.userId } }
         val active = activeId
         store.edit { prefs ->
-            // Not prefs.clear(): the tokens still waiting to be revoked live in the same store.
+            // Not prefs.clear(): the revoke queue lives in the same store.
             if (list.isEmpty()) prefs.remove(ACCOUNTS_KEY) else prefs[ACCOUNTS_KEY] = AccountStore.encode(list)
             if (active != null) prefs[ACTIVE_KEY] = active else prefs.remove(ACTIVE_KEY)
             if (guest) prefs[GUEST_KEY] = true else prefs.remove(GUEST_KEY)
-            // The single-account keys of older versions; their account is in the list now.
+            // Keys of the old single-account format.
             LEGACY_KEYS.forEach { prefs.remove(it) }
         }
     }
 
-    /** Publishes the active account as the state; call while holding [writeLock]. */
+    /** Publishes the active account as [state]; call while holding [writeLock]. */
     private fun publish() {
         _knownUserIds.value = (_accounts.value.map { it.userId } + unreadable.map { it.userId }).distinct()
         val active = _accounts.value.firstOrNull { it.userId == activeId }
@@ -510,11 +490,7 @@ class AuthRepository(
         scopes = scopes?.sorted(),
     )
 
-    /**
-     * The account with its tokens decrypted. [Opened.Lost] for an entry whose token cannot be
-     * read any more — a keystore key that was replaced — and [Opened.Unavailable] while the
-     * keystore does not answer. A refresh token that is lost leaves the account as one without.
-     */
+    /** Decrypts the tokens. A lost refresh token leaves an account without one. */
     private fun StoredAccount.decrypted(): Opened<Account> {
         val plain = when (val t = TokenCipher.open(token)) {
             is Decrypted.Plain -> t.text
@@ -548,7 +524,7 @@ class AuthRepository(
         @SerialName("refresh_token") val refreshToken: String? = null,
         @SerialName("expires_in") val expiresIn: Long = 3600,
     ) {
-        /** Without the tokens, for the same reason as [Account.toString]. */
+        /** Leaves out the tokens; see [Account.toString]. */
         override fun toString(): String = "TokenResponse(expiresIn=$expiresIn)"
     }
 
@@ -556,14 +532,14 @@ class AuthRepository(
         private const val TAG = "AuthRepository"
         const val REDIRECT_URI = "http://localhost"
 
-        /** The keystore is asked again after one second, then two, then three. */
+        /** Retry delays: one second, then two, then three. */
         private const val DECRYPT_RETRY_MS = 1_000L
         private const val REFRESH_MARGIN_MS = 10 * 60_000L
 
         private val ACCOUNTS_KEY = stringPreferencesKey("accounts")
         private val ACTIVE_KEY = stringPreferencesKey("active_account")
         private val GUEST_KEY = booleanPreferencesKey("guest")
-        /** Encrypted tokens of logged-out accounts that Twitch has not confirmed revoking yet. */
+        /** Encrypted tokens of logged-out accounts not yet revoked at Twitch. */
         private val REVOKE_KEY = stringPreferencesKey("revoke")
 
         private val TOKEN_KEY = stringPreferencesKey("token")

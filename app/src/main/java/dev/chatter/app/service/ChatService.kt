@@ -25,9 +25,8 @@ import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.launch
 
 /**
- * Keeps the process (and with it the chat WebSocket) alive while the app is in the background,
- * so mentions arrive in real time. It does no work of its own besides updating its notification
- * and forwarding mention events — the socket is idle most of the time, which costs very little battery.
+ * Keeps the process and the chat WebSocket alive in the background so mentions arrive in real time.
+ * Besides its notification it does nothing; the idle socket costs little battery.
  */
 class ChatService : Service() {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
@@ -39,17 +38,16 @@ class ChatService : Service() {
         super.onCreate()
         try {
             val notification = buildNotification(0, ConnectionState.Connecting)
-            // The special-use type came with Android 14. Android 13 does not know it and takes
-            // the service without one, the way it took every foreground service.
+            // The special-use type exists since Android 14; Android 13 takes the service without a
+            // type.
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
                 startForeground(NOTIFICATION_ID, notification, ServiceInfo.FOREGROUND_SERVICE_TYPE_SPECIAL_USE)
             } else {
                 startForeground(NOTIFICATION_ID, notification)
             }
         } catch (e: Exception) {
-            // Starting from the background is not allowed in some situations (e.g. sticky restart).
-            // Nothing else would ever say so: the app is not on screen, and the only sign would be
-            // mentions that stop arriving.
+            // Starting from the background is not always allowed (e.g. sticky restart). The
+            // notification is the only way the user learns that mentions stopped.
             Log.w(TAG, "startForeground failed: ${e.message}")
             container.notifier.notifyNotListening(R.string.notif_not_listening_service)
             stopSelf()
@@ -60,8 +58,8 @@ class ChatService : Service() {
         container.backgroundHealth.setListening(true)
         container.connect()
 
-        // With the app in front, on another channel or another screen, a notification would only
-        // cover what the user is reading; they get a buzz and the unread counts instead.
+        // With the app in front, a notification would cover what the user is reading; they get a
+        // vibration and the unread counts instead.
         val appInFront = container.chat.windows.anyVisible
         scope.launch {
             container.chat.mentionEvents.collect {
@@ -75,10 +73,9 @@ class ChatService : Service() {
                 else container.notifier.notifyWhisper(it)
             }
         }
-        // What the service is for, and therefore what ends it: somebody logged in with at least one
-        // channel joined. Logging out leaves the channels in place, so without watching the login
-        // as well the service would sit there for ever, saying "connecting" about nothing. A guest
-        // has nobody to mention and nobody to whisper to, so nothing worth keeping a service for.
+        // Runs while someone is logged in with at least one channel. Logging out keeps the
+        // channels, so the login is watched as well. A guest gets no mentions or whispers and needs
+        // no service.
         scope.launch {
             combine(
                 container.channels.channels,
@@ -88,9 +85,8 @@ class ChatService : Service() {
                 .distinctUntilChanged()
                 .collect { (count, state, auth) ->
                     if (count == 0 || state == ConnectionState.AuthFailed || auth is AuthState.LoggedOut || auth is AuthState.Guest) {
-                        // Logging out and a rejected login close the socket themselves; running
-                        // out of channels did not, and left it reconnecting in a process that has
-                        // nothing left to listen for.
+                        // Logout and a rejected login close the socket themselves; running out of
+                        // channels does not.
                         if (count == 0) container.disconnect()
                         stopSelf()
                     } else {
@@ -110,10 +106,10 @@ class ChatService : Service() {
     }
 
     override fun onDestroy() {
-        // Without the service the process is the next one Android ends, and the statistics may
-        // hold ten minutes of counting that are not on disk yet.
+        // Without the service Android may end the process next, and up to ten minutes of statistics
+        // are not saved yet.
         container.stats.saveNow()
-        // Stopped on purpose: whatever ends the process from here on did not cost any mentions.
+        // Stopped on purpose: later process ends cost no mentions.
         container.backgroundHealth.setListening(false)
         scope.cancel()
         super.onDestroy()
@@ -123,7 +119,7 @@ class ChatService : Service() {
         try {
             NotificationManagerCompat.from(this).notify(NOTIFICATION_ID, n)
         } catch (e: SecurityException) {
-            // No notification permission: the foreground service keeps running anyway.
+            // Without notification permission the service keeps running.
         }
     }
 

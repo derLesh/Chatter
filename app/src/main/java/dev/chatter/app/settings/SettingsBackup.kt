@@ -9,12 +9,8 @@ import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
 
 /**
- * Everything the app knows about how the user likes it, in one file.
- *
- * This is Chatter's own format and nobody else's: it is meant for moving to a new phone or
- * keeping a copy before experimenting, not for importing another client's settings. Every part
- * is optional, so an older backup — or one written by hand — restores what it does carry and
- * leaves the rest alone.
+ * All user settings in one file, Chatter's own format, for moving to a new phone or keeping a copy.
+ * Every part is optional; an older or hand-written backup restores what it has.
  */
 @Serializable
 data class SettingsBackup(
@@ -31,7 +27,7 @@ data class SettingsBackup(
         const val APP = "Chatter"
         const val VERSION = 1
 
-        // Readable on purpose: a backup is a file the user may well open and edit themselves.
+        // Readable, users may edit backups by hand.
         val json = Json {
             prettyPrint = true
             ignoreUnknownKeys = true
@@ -43,9 +39,8 @@ data class SettingsBackup(
 @Serializable
 data class ChannelBackup(
     /**
-     * The channels in the user's order, with the key of each combined chat ("+" and its id) where
-     * it sits among them. A version of Chatter that knows no combined chats drops those keys as
-     * the invalid logins they are to it, and restores the channels alone.
+     * Channels in the user's order, with combined chats as their key ("+" and id) in their place.
+     * Versions without combined chats drop those keys as invalid logins.
      */
     val logins: List<String> = emptyList(),
     /** Names the user gave channels, by login. */
@@ -79,9 +74,8 @@ class BackupManager(
     )
 
     /**
-     * The backup in [text], held to what the settings allow ([BackupCheck]), or null if it is
-     * not a Chatter backup at all. Nothing is written yet: the user sees what it would change
-     * first, and [apply] is what writes it.
+     * The backup in [text] after [BackupCheck], or null if it is not a Chatter backup. Nothing is
+     * written; [apply] does that once the user has seen the changes.
      */
     fun read(text: String): SettingsBackup? {
         val backup = runCatching { SettingsBackup.json.decodeFromString<SettingsBackup>(text) }.getOrNull() ?: return null
@@ -89,7 +83,7 @@ class BackupManager(
         return BackupCheck.clean(backup)
     }
 
-    /** Applies whatever [backup] carries, as [read] left it. */
+    /** Applies [backup] as [read] returned it. */
     suspend fun apply(backup: SettingsBackup) {
         backup.settings?.let { settings.replaceAll(it) }
         backup.rules?.let { rules.replaceAll(it) }

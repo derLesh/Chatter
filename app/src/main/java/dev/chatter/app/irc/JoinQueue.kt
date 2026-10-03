@@ -1,60 +1,54 @@
 package dev.chatter.app.irc
 
 /**
- * Which channels to JOIN next, and when.
+ * Decides which channels to JOIN and when.
  *
- * Twitch lets a normal account join [limit] channels per [windowMs] and silently ignores every
- * JOIN past that — no error, the channel simply stays empty. Sending all of them at once after a
- * connect was fine for a handful of channels and lost the rest of a long list on every reconnect,
- * until one happened to get through. So the joins go out in portions the limit allows, the
- * channels the user most wants to see first.
+ * Twitch allows [limit] JOINs per [windowMs] for a normal account and silently ignores the rest, so
+ * the channels stay empty. Joins go out in batches within the limit, most wanted channels first.
  *
- * A JOIN can also be lost for reasons nobody reports. Twitch answers a JOIN that worked with a
- * ROOMSTATE, so a channel that has not had one within [answerTimeoutMs] is asked for again, with
- * the wait doubling each time: a suspended channel never answers, and that should cost a JOIN
- * every few minutes rather than one every half minute all night.
+ * Twitch confirms a JOIN with a ROOMSTATE. A channel without one after [answerTimeoutMs] is joined
+ * again, with the wait doubling each time (a suspended channel never answers).
  *
- * Not thread-safe; [IrcConnection] calls it under its lock. The clock is passed in so the pacing
- * can be tested without waiting for it.
+ * Not thread-safe; [IrcConnection] calls it under its lock. The clock is injected for tests.
  */
 internal class JoinQueue(
     private val clock: () -> Long,
-    /** Lower goes first: the channel on screen, then the ones that notify, then the rest. */
+    /** Lower goes first: the channel on screen, then notifying ones, then the rest. */
     private val rank: (String) -> Int = { 0 },
     private val limit: Int = 20,
     private val windowMs: Long = 10_000L,
     private val answerTimeoutMs: Long = 30_000L,
 ) {
-    /** When each JOIN in the current window went out, oldest first. */
+    /** Send times of the JOINs in the current window, oldest first. */
     private val sent = ArrayDeque<Long>()
 
-    /** Channels still to be sent, in the order they were asked for. */
+    /** Channels still to send, in request order. */
     private val waiting = LinkedHashSet<String>()
 
-    /** Channels sent and not yet answered: when the next try is due, and how many there were. */
+    /** Sent but unconfirmed channels: when the next attempt is due, and how many there were. */
     private val unanswered = HashMap<String, Pending>()
 
     private class Pending(val dueAt: Long, val tries: Int)
 
-    /** Asks for [channel] to be joined. Nothing happens for one already waiting or sent. */
+    /** Queues [channel]. Nothing happens if it is already waiting or sent. */
     fun add(channel: String) {
         if (channel !in unanswered) waiting.add(channel)
     }
 
-    /** Forgets [channel], whatever it was waiting for. */
+    /** Drops [channel] from the queue and the retries. */
     fun remove(channel: String) {
         waiting.remove(channel)
         unanswered.remove(channel)
     }
 
-    /** Twitch has answered the JOIN of [channel]; it needs nothing more. */
+    /** Twitch confirmed the JOIN of [channel]. */
     fun answered(channel: String) {
         unanswered.remove(channel)
     }
 
     /**
-     * A new connection, which knows none of [channels] yet: all of them wait again. What went out
-     * on the old connection still counts against the limit — it is the account's, not the socket's.
+     * A new connection: all [channels] wait again. JOINs sent on the old connection still count;
+     * the limit is per account, not per socket.
      */
     fun restart(channels: Collection<String>) {
         waiting.clear()
@@ -62,7 +56,7 @@ internal class JoinQueue(
         waiting.addAll(channels)
     }
 
-    /** The channels to send a JOIN for now, best first; empty while the limit is used up. */
+    /** Channels to JOIN now, best first; empty while the limit is used up. */
     fun take(): List<String> {
         val now = clock()
         while (sent.isNotEmpty() && now - sent.first() >= windowMs) sent.removeFirst()
@@ -80,7 +74,7 @@ internal class JoinQueue(
         return batch
     }
 
-    /** When [take] could have something again, or null when nothing is left to send or wait for. */
+    /** When [take] may return something again, or null if nothing is pending. */
     fun nextDueAt(): Long? {
         val freed = if (sent.size >= limit) sent.first() + windowMs else null
         val waitingNow = if (waiting.isNotEmpty()) (freed ?: clock()) else null
@@ -89,7 +83,7 @@ internal class JoinQueue(
     }
 
     private companion object {
-        /** Thirty seconds doubled five times: a channel that never answers is asked every 16 minutes at most. */
+        /** 30 s doubled five times: an unanswered channel is retried every 16 minutes at most. */
         const val MAX_DOUBLINGS = 5
     }
 }

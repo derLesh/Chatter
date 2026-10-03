@@ -28,39 +28,36 @@ import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.atomic.AtomicLong
 
 /**
- * What the user has done in chat so far. Everything in here is counted on this device and stays
- * on it.
- *
- * The days are kept as dates rather than as a count, because a year is only worth looking back
- * on if it can still be broken down afterwards.
+ * What the user has done in chat, counted and kept on this device. Days are stored as dates so they
+ * can still be broken down later.
  */
 @Serializable
 data class Stats(
     /** Chat messages the user sent. */
     val sent: Long = 0,
-    /** Messages that reached a chat, whoever wrote them. */
+    /** Messages that reached a chat, from anyone. */
     val received: Long = 0,
     /** Of those, the ones addressed to the user. */
     val mentions: Long = 0,
     /** Messages sent, per channel login. */
     val sentPerChannel: Map<String, Long> = emptyMap(),
-    /** The days something was sent, as `2026-09-20`. */
+    /** Days on which something was sent, as `2026-09-20`. */
     val activeDays: Set<String> = emptySet(),
-    /** When the counting started, so the numbers can be read against a stretch of time. */
+    /** When counting started. */
     val since: Long = 0,
     /**
-     * Messages that arrived while the app was not on screen, per day and channel login — what
-     * staying joined overnight costs, channel by channel. Only the last [KEEP_DAYS] days.
+     * Messages received while the app was not on screen, per day and channel, to show what staying
+     * joined costs. Last [KEEP_DAYS] days only.
      */
     val backgroundReceived: Map<String, Map<String, Long>> = emptyMap(),
-    /** The data Chatter moved per day, split by whether it was on screen. Only the last [KEEP_DAYS] days. */
+    /** Data moved per day, on screen and in the background. Last [KEEP_DAYS] days only. */
     val traffic: Map<String, Traffic> = emptyMap(),
 ) {
-    /** Channels by how much was said in them, busiest first. */
+    /** Channels by messages sent, most first. */
     val busiestChannels: List<Pair<String, Long>>
         get() = sentPerChannel.entries.sortedByDescending { it.value }.map { it.key to it.value }
 
-    /** Messages per channel that arrived in the background over the last [days] days up to [today], most first. */
+    /** Background messages per channel over the last [days] days up to [today], most first. */
     fun backgroundByChannel(days: Int, today: LocalDate = LocalDate.now()): List<Pair<String, Long>> {
         val from = today.minusDays(days - 1L).toString()
         val totals = HashMap<String, Long>()
@@ -76,9 +73,11 @@ data class Stats(
         return traffic.filterKeys { it >= from }.values.fold(Traffic()) { sum, t -> sum + t }
     }
 
-    /** Days in a row up to [today] on which something was sent; 0 if today and yesterday are empty. */
+    /**
+     * Consecutive days up to [today] with something sent; 0 if neither today nor yesterday has any.
+     */
     fun streak(today: LocalDate = LocalDate.now()): Int {
-        // Today does not count against a streak until it is over, so it may start at yesterday.
+        // Today only counts once it is over, so a streak may end yesterday.
         var day = if (today.toString() in activeDays) today else today.minusDays(1)
         var days = 0
         while (day.toString() in activeDays) {
@@ -89,13 +88,12 @@ data class Stats(
     }
 
     companion object {
-        /** How many days of the background figures are kept; the stats page shows a week at most. */
+        /** The stats page shows a week at most. */
         const val KEEP_DAYS = 7
 
         /**
-         * The channels of [counts] that bring in far more than the others: several times the
-         * median of the rest, and a good number in absolute terms, so that a week in which every
-         * channel was quiet does not single one out for a few dozen lines.
+         * Channels in [counts] far above the rest: several times the median of the others and at
+         * least [minimum], so a quiet week does not single one out for a few dozen lines.
          */
         fun outliers(counts: List<Pair<String, Long>>, minimum: Long = OUTLIER_MINIMUM): Set<String> {
             if (counts.size < 2) return emptySet()
@@ -111,70 +109,58 @@ data class Stats(
     }
 }
 
-/** Bytes Chatter received and sent while it was on screen, and while it was not. */
+/** Bytes received and sent while on screen and while in the background. */
 @Serializable
 data class Traffic(val open: Long = 0, val background: Long = 0) {
     operator fun plus(other: Traffic) = Traffic(open + other.open, background + other.background)
 }
 
 /**
- * Keeps [Stats] up to date while the chat runs.
- *
- * Counting has to be free: a busy channel would otherwise buy a disk write for every message
- * nobody asked to have counted. So a count is a number in memory, and the whole thing goes to
- * disk on a slow heartbeat that does nothing at all when nothing happened.
+ * Keeps [Stats] up to date while the chat runs. Counting only touches memory; the stats are written
+ * on a slow timer that does nothing when nothing was counted.
  */
 class StatsRepository(private val store: DataStore<Preferences>, private val scope: CoroutineScope) : ChatStats {
     private val _stats = MutableStateFlow(Stats())
     val stats: StateFlow<Stats> = _stats
 
     /**
-     * Messages and mentions counted but not yet in [stats].
-     *
-     * Two numbers instead of a new [Stats] for every message that reaches any channel: this runs
-     * all day, in every joined channel, whether or not anybody is looking, and nothing reads the
-     * total until a screen shows it or it is written to disk. [fold] is where they meet.
+     * Counted but not yet folded into [stats]. Plain counters instead of a new [Stats] per message,
+     * since this runs for every message in every channel; [fold] merges them.
      */
     private val receivedDelta = AtomicLong()
     private val mentionDelta = AtomicLong()
 
-    /**
-     * The same for messages that arrived while the app was in the background, per channel. One
-     * counter per joined channel, made once; counting a message looks it up and adds one.
-     */
+    /** The same for background messages, one counter per channel. */
     private val backgroundDelta = ConcurrentHashMap<String, AtomicLong>()
 
-    /** Whether the app is on screen; see [start]. On screen until told otherwise, so nothing is miscounted. */
+    /** Set by [start]; on screen until then. */
     private var inFront: StateFlow<Boolean> = MutableStateFlow(true)
 
     /**
-     * The app's own traffic counter when it was last read, or -1 before the first reading, and
-     * whether what it moved since then was moved on screen. Only [fold] touches them.
+     * The traffic counter at the last reading (-1 before the first), and whether the app was on
+     * screen since. Only [fold] touches them.
      */
     private var lastBytes = -1L
     private var bytesInFront = true
 
     /**
-     * Counting something rings this; nothing else does. A heartbeat that wakes up every half
-     * minute to find that nobody has written anything is a wakeup an idle phone should not have
-     * to pay for, and the app spends most of its life exactly like that.
+     * Signalled by every count, so the save loop sleeps while nothing happens instead of waking
+     * every 30 seconds.
      */
     private val counted = Channel<Unit>(Channel.CONFLATED)
 
-    /** What is on disk, so that a save with nothing new to say can be skipped. Null until loaded. */
+    /** What is on disk, to skip saves that change nothing. Null until loaded. */
     private var saved: Stats? = null
     private val saving = Mutex()
 
     /**
-     * Starts loading and saving. [inFront] is whether the app is on screen: the stats page may be
-     * open then, and the numbers are saved every half minute. In the background, with a busy
-     * channel joined all night, that would be a rewrite of the whole file twice a minute for
-     * numbers nobody reads, so they pile up for ten minutes at a time instead — and are saved the
-     * moment the app leaves the screen, which is when the process starts being at risk.
+     * Starts loading and saving. On screen the stats are saved every 30 seconds; in the background
+     * every ten minutes, since a busy channel all night would otherwise rewrite the file
+     * constantly. Leaving the screen saves at once.
      */
     fun start(inFront: StateFlow<Boolean>) {
         this.inFront = inFront
-        // The first reading of the traffic counter, which everything after is measured from.
+        // First traffic reading, the baseline for all later ones.
         fold()
         scope.launch {
             saving.withLock {
@@ -182,13 +168,12 @@ class StatsRepository(private val store: DataStore<Preferences>, private val sco
                 _stats.value = loaded
                 saved = loaded
             }
-            // Every change is also where the data used so far changes sides: it is read right
-            // then, so that what was moved on screen is not put down to the background or back.
+            // Fold on every change, so traffic is attributed to the side it happened on.
             launch {
                 inFront.drop(1).collect { flush() }
             }
             while (isActive) {
-                // Wait for something to count, then let the next while of it pile up.
+                // Wait for a count, then let more pile up.
                 counted.receive()
                 delay(if (inFront.value) SAVE_INTERVAL_MS else BACKGROUND_SAVE_INTERVAL_MS)
                 flush()
@@ -197,16 +182,15 @@ class StatsRepository(private val store: DataStore<Preferences>, private val sco
     }
 
     /**
-     * Writes what was counted so far, if anything was. For the moments the process may be about to
-     * go — the app leaving the screen, Android asking for memory back, the service being stopped —
-     * so that what is lost to a kill is at most the last few minutes.
+     * Saves what was counted, for moments the process may die: leaving the screen, memory pressure,
+     * the service stopping.
      */
     fun saveNow() {
         scope.launch { flush() }
     }
 
     private suspend fun flush() = saving.withLock {
-        // Not loaded yet: saving now would put fresh stats over the ones on disk.
+        // Not loaded yet; saving would overwrite the stored stats.
         val before = saved ?: return@withLock
         fold()
         val current = _stats.value
@@ -216,7 +200,7 @@ class StatsRepository(private val store: DataStore<Preferences>, private val sco
         }
     }
 
-    /** Counts a message the user sent, and marks today as a day they were around. */
+    /** Counts a sent message and marks today as active. */
     override fun countSent(channel: String) {
         val today = LocalDate.now().toString()
         _stats.update {
@@ -229,7 +213,7 @@ class StatsRepository(private val store: DataStore<Preferences>, private val sco
         counted.trySend(Unit)
     }
 
-    /** Counts a message that arrived live. History loaded on join is not new and does not count. */
+    /** Counts a live message; history loaded on join does not count. */
     override fun countReceived(channel: String) {
         receivedDelta.incrementAndGet()
         if (!inFront.value) backgroundDelta.computeIfAbsent(channel) { AtomicLong() }.incrementAndGet()
@@ -242,9 +226,8 @@ class StatsRepository(private val store: DataStore<Preferences>, private val sco
     }
 
     /**
-     * Adds what was counted since the last time into [stats], and the data used since then to
-     * today. Synchronized because both a screen and the saving call it, and the traffic reading
-     * must be taken and replaced in one go.
+     * Folds the pending counts and traffic into [stats]. Synchronized: screens and saving both call
+     * it, and the traffic reading must be taken and replaced atomically.
      */
     @Synchronized
     private fun fold() {
@@ -274,9 +257,8 @@ class StatsRepository(private val store: DataStore<Preferences>, private val sco
     }
 
     /**
-     * What the app received and sent since the last reading — all of it, from the chat to the
-     * emotes — on the side it was on then. The counter starts over when the phone does, which is
-     * the one time it goes down.
+     * Everything the app received and sent since the last reading, on the side it was on. The
+     * counter only goes down when the phone restarts.
      */
     private fun readTraffic(): Traffic {
         val uid = Process.myUid()
@@ -284,7 +266,7 @@ class StatsRepository(private val store: DataStore<Preferences>, private val sco
         val tx = TrafficStats.getUidTxBytes(uid)
         val spentInFront = bytesInFront
         bytesInFront = inFront.value
-        // Not every phone counts per app; those say so with a negative number.
+        // Negative on phones that do not count per app.
         if (rx < 0 || tx < 0) return Traffic()
         val now = rx + tx
         val before = lastBytes
@@ -294,10 +276,7 @@ class StatsRepository(private val store: DataStore<Preferences>, private val sco
         return if (spentInFront) Traffic(open = moved) else Traffic(background = moved)
     }
 
-    /**
-     * The stats for a screen that shows them: brought up to date as they are read, and only for
-     * as long as somebody is reading.
-     */
+    /** Stats for a screen, updated while it is collecting. */
     fun live(intervalMs: Long = LIVE_INTERVAL_MS): Flow<Stats> = flow {
         while (true) {
             fold()
@@ -306,7 +285,7 @@ class StatsRepository(private val store: DataStore<Preferences>, private val sco
         }
     }
 
-    /** Throws everything counted so far away and starts over from now. */
+    /** Discards everything and starts counting from now. */
     suspend fun reset() {
         val fresh = Stats(since = System.currentTimeMillis())
         saving.withLock {
@@ -319,10 +298,7 @@ class StatsRepository(private val store: DataStore<Preferences>, private val sco
         }
     }
 
-    /**
-     * The stored stats, or fresh ones written straight back — so that "counting since" is the
-     * first start rather than whichever start happened to be the one that counted something.
-     */
+    /** The stored stats, or new ones written right away, so "counting since" is the first start. */
     private suspend fun load(): Stats {
         decode(store.data.first()[STATS])?.let { return it }
         return Stats(since = System.currentTimeMillis()).also { save(it) }
@@ -334,13 +310,13 @@ class StatsRepository(private val store: DataStore<Preferences>, private val sco
 
     private companion object {
         val STATS = stringPreferencesKey("stats")
-        /** How much counting a sudden death of the process may cost while the app is on screen. */
+        /** How much counting a process death may lose while on screen. */
         const val SAVE_INTERVAL_MS = 30_000L
 
-        /** The same in the background, where nobody is looking and every write wakes the disk. */
+        /** The same in the background, where every write wakes the disk. */
         const val BACKGROUND_SAVE_INTERVAL_MS = 10 * 60_000L
 
-        /** How often a screen showing the stats sees them move. */
+        /** Refresh rate of a screen showing the stats. */
         const val LIVE_INTERVAL_MS = 250L
 
 

@@ -31,17 +31,14 @@ class HttpException(val code: Int, val body: String) : IOException("HTTP $code: 
         get() = runCatching { AppJson.parseToJsonElement(body).jsonObject["message"]?.jsonPrimitive?.content }.getOrNull()
 }
 
-/** Runs the request asynchronously and returns the body as text. Throws [HttpException] on non-2xx. */
+/** Runs the request and returns the body as text. Throws [HttpException] on non-2xx. */
 suspend fun OkHttpClient.fetch(request: Request): String = fetchDecoding(request) { it.bufferedReader().readText() }
 
 /**
- * Runs the request and hands the body to [decode] while it is still streaming, so nothing has to
- * hold the whole response as a String first.
+ * Runs the request and hands the streaming body to [decode].
  *
- * Whatever goes wrong while the response is read resumes the caller with it. A connection that
- * drops halfway through a body throws out of [Callback.onResponse], where OkHttp only logs it —
- * and a caller nobody resumes waits forever: an emote list that never arrives, a history that
- * says it is loading until the app is restarted.
+ * Every failure while reading resumes the caller. An exception thrown out of [Callback.onResponse]
+ * is only logged by OkHttp, and the caller would wait forever.
  */
 suspend fun <T> OkHttpClient.fetchDecoding(request: Request, decode: (InputStream) -> T): T =
     suspendCancellableCoroutine { cont ->
@@ -57,25 +54,22 @@ suspend fun <T> OkHttpClient.fetchDecoding(request: Request, decode: (InputStrea
                         cont.resume(decode(it.body.byteStream()))
                     }
                 } catch (e: Throwable) {
-                    // Already resumed or cancelled: there is nobody left to tell.
+                    // Already resumed or cancelled.
                     if (cont.isActive) cont.resumeWithException(e)
                 }
             }
         })
     }
 
-/**
- * The start of an error response, for the exception's message. Only the start is read: an error
- * page can be any size, and the message keeps 200 characters of it either way.
- */
+/** The start of an error body for the exception message. Error pages can be any size. */
 private fun errorText(response: Response): String =
     runCatching { response.peekBody(ERROR_PEEK_BYTES).string().take(200) }.getOrDefault("")
 
 private const val ERROR_PEEK_BYTES = 4096L
 
 /**
- * A JSON response, parsed straight off the socket. The emote lists of a busy channel run to a few
- * hundred kilobytes, and reading one into a String only to parse that String held it twice.
+ * A JSON response decoded straight from the stream; emote lists of busy channels are a few hundred
+ * kilobytes.
  */
 @OptIn(ExperimentalSerializationApi::class)
 suspend inline fun <reified T> OkHttpClient.getJson(url: String, headers: Map<String, String> = emptyMap()): T {
@@ -83,7 +77,7 @@ suspend inline fun <reified T> OkHttpClient.getJson(url: String, headers: Map<St
     return fetchDecoding(request) { AppJson.decodeFromStream<T>(it) }
 }
 
-/** Like [getJson] but returns null for 404 (e.g. a channel that has no BTTV/7TV account). */
+/** Like [getJson], but null for a 404, e.g. a channel without a BTTV or 7TV account. */
 suspend inline fun <reified T> OkHttpClient.getJsonOrNull(url: String, headers: Map<String, String> = emptyMap()): T? =
     try {
         getJson<T>(url, headers)

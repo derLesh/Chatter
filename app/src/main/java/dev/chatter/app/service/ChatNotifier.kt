@@ -41,14 +41,12 @@ import kotlinx.coroutines.flow.StateFlow
 import java.util.concurrent.ConcurrentHashMap
 
 /**
- * Everything Chatter tells the user about while they are not looking: one grouped notification
- * per channel for the messages that mention them, and one per person who whispers them.
+ * Notifications: one per channel for mentions, one per person for whispers.
  *
- * A mention notification is a conversation: it carries a long-lived shortcut for its channel,
- * which is what lets Android show it in the conversation section and — if the user turned
- * bubbles on — float it over other apps as a chat bubble. A whisper deliberately carries no
- * such shortcut: there is no whisper screen for a bubble to open, and the senders are strangers
- * who would otherwise pile up in the people space and push the channels out of it.
+ * A mention notification is a conversation with a long-lived shortcut for its channel, so Android
+ * shows it in the conversation section and can float it as a bubble. Whispers get no shortcut:
+ * there is no whisper screen for a bubble, and the senders would crowd the channels out of the
+ * people space.
  */
 class ChatNotifier(
     private val context: Context,
@@ -56,17 +54,17 @@ class ChatNotifier(
     private val helix: HelixApi,
     private val settings: StateFlow<Settings>,
     private val icons: ChannelIcons,
-    /** True while Chatter saves data; see [dev.chatter.app.net.DataSaving]. */
+    /** True while saving data; see [dev.chatter.app.net.DataSaving]. */
     private val saveData: StateFlow<Boolean>,
-    /** The user id of the account the app acts as, which every reply action is bound to. */
+    /** The active account's user id; every reply action is bound to it. */
     private val account: StateFlow<String?>,
 ) {
     private val manager = NotificationManagerCompat.from(context)
     private val nm = context.getSystemService(NotificationManager::class.java)
     private val recent = HashMap<String, ArrayDeque<ChatItem>>()
-    /** Twitch profile pictures of the chatters in the notifications, by lowercase login. */
+    /** Twitch avatars of chatters in the notifications, by lowercase login. */
     private val senderIcons = ConcurrentHashMap<String, IconCompat>()
-    /** The whisper conversations currently on screen, by lowercase login. */
+    /** Whisper conversations currently shown, by lowercase login. */
     private val whisperThreads = HashMap<String, WhisperThread>()
 
     fun createChannels() {
@@ -77,28 +75,26 @@ class ChatNotifier(
         nm.createNotificationChannelGroup(
             NotificationChannelGroup(GROUP_MENTIONS, context.getString(R.string.notif_channel_mentions))
         )
-        // Whispers come from anyone, so they share one channel rather than getting one each.
+        // Whispers come from anyone, so they share one channel.
         nm.createNotificationChannel(
             NotificationChannel(CHANNEL_WHISPERS, context.getString(R.string.notif_channel_whispers), NotificationManager.IMPORTANCE_HIGH)
         )
         nm.createNotificationChannel(
             NotificationChannel(CHANNEL_PROBLEMS, context.getString(R.string.notif_channel_problems), NotificationManager.IMPORTANCE_DEFAULT)
         )
-        // Mentions used to share one notification channel; every Twitch channel has its own now.
+        // The single mentions channel of older versions.
         nm.deleteNotificationChannel(LEGACY_CHANNEL_MENTIONS)
     }
 
     /**
-     * Gives every Twitch channel a notification channel of its own, so a sound, a vibration
-     * pattern or plain silence can be picked per streamer in the system settings. Creating one
-     * that already exists only renames it - whatever the user set there is theirs to keep.
+     * One notification channel per Twitch channel, so sound and vibration can be set per streamer.
+     * Creating an existing channel only renames it and keeps the user's settings.
      */
     fun syncChannels(channels: List<ChannelIdentity>) {
         channels.forEach { ensureChannel(it.login, it.name) }
         val wanted = channels.mapTo(HashSet()) { mentionChannelId(it.login) }
-        // A channel the user removed would otherwise keep its row in the system settings forever.
-        // Conversation channels are spared: Android makes those itself, in the same group, when
-        // the user gives one chat its own sound, and they are not ours to throw away.
+        // Removes channels of streamers no longer in the list. Conversation channels are kept:
+        // Android creates those in the same group when the user customises a single chat.
         nm.notificationChannels
             .filter { it.conversationId == null && it.group == GROUP_MENTIONS && it.id !in wanted }
             .forEach { nm.deleteNotificationChannel(it.id) }
@@ -114,12 +110,8 @@ class ChatNotifier(
     }
 
     /**
-     * Says that Chatter has stopped listening, and why.
-     *
-     * The silence it explains is the whole point of the app: when the background connection
-     * cannot be started, or the Twitch login has run out, nothing else would ever say so — the
-     * app is not on screen, and everything simply stays quiet until somebody opens it and
-     * wonders where the mentions went.
+     * Tells the user that Chatter stopped listening, and why: the background connection could not
+     * start, or the login expired. Otherwise mentions would just stop without any sign.
      */
     fun notifyNotListening(reason: Int) {
         if (!manager.areNotificationsEnabled()) return
@@ -135,30 +127,29 @@ class ChatNotifier(
         try {
             manager.notify(NOT_LISTENING_ID, notification)
         } catch (e: SecurityException) {
-            // Permission was revoked in the meantime.
+            // Permission revoked in the meantime.
         }
     }
 
-    /** Takes that notice down again, for when the connection is back. */
+    /** Removes that notice once the connection is back. */
     fun clearNotListening() = manager.cancel(NOT_LISTENING_ID)
 
-    /** Loads the pictures (off the main thread) and then posts the notification. */
+    /** Loads the pictures and posts the notification. */
     suspend fun notify(item: ChatItem) {
         if (!manager.areNotificationsEnabled()) return
         val icon = icons.channel(item.channel)
-        // Fills the cache for this chatter; the older lines use what is already in it.
+        // Fills the cache for this chatter; older lines use what is cached.
         loadSenderIcon(item.login)
         post(item, icon)
     }
 
     /**
-     * What a mention or a whisper gets instead of a notification while Chatter is on screen: a
-     * short buzz and nothing more. The user is already in the app, and the unread counts show
-     * where it happened; a banner sliding over the chat they are reading would only be in the way.
+     * What a mention or whisper gets while Chatter is on screen: a short vibration instead of a
+     * banner over the chat.
      *
-     * It keeps to what the user chose for a notification of that kind — no buzz for a channel
-     * they silenced in the system settings, on a silent phone or under Do Not Disturb — and goes
-     * out as a notification vibration, so the system's own vibration switch for those applies too.
+     * It respects the user's choices for that notification: no vibration for a silenced channel, on
+     * a silent phone or in Do Not Disturb. It is sent as a notification vibration, so the system's
+     * vibration switch for notifications applies too.
      */
     fun buzz(channelId: String) {
         if (!manager.areNotificationsEnabled()) return
@@ -174,7 +165,7 @@ class ChatNotifier(
         )
     }
 
-    /** Shows a message the user sent straight from the notification in that same conversation. */
+    /** Shows a message sent from the notification in that conversation. */
     suspend fun showSent(channel: String, text: String) {
         if (!manager.areNotificationsEnabled()) return
         post(
@@ -186,10 +177,7 @@ class ChatNotifier(
         )
     }
 
-    /**
-     * Says in the conversation itself that a reply did not go out — the keyboard is long gone by
-     * then, so a message in the thread is the only place the user still looks.
-     */
+    /** Shows in the conversation that a reply was not sent; the keyboard is gone by then. */
     suspend fun showSendFailed(channel: String) {
         if (!manager.areNotificationsEnabled()) return
         val text = context.getString(R.string.notif_reply_failed)
@@ -209,7 +197,7 @@ class ChatNotifier(
         while (lines.size > 6) lines.removeFirst()
 
         val name = channelName(item.channel)
-        // A mention can beat the channel list to it, e.g. right after restoring a backup.
+        // A mention can arrive before the channel list, e.g. right after restoring a backup.
         ensureChannel(item.channel, name)
         val shortcutId = publishShortcut(item.channel, name, icon)
         val me = Person.Builder().setName(context.getString(R.string.notif_me)).build()
@@ -217,7 +205,7 @@ class ChatNotifier(
             .setConversationTitle("#${item.channel}")
             .setGroupConversation(true)
         lines.forEach { m ->
-            // A null person is what MessagingStyle reads as "the user themselves".
+            // MessagingStyle reads a null person as the user.
             val from = if (m.isOwn) null else Person.Builder()
                 .setName(m.displayName ?: m.login ?: "?")
                 .setKey(m.login)
@@ -241,11 +229,11 @@ class ChatNotifier(
         try {
             manager.notify(item.channel.hashCode(), notification)
         } catch (e: SecurityException) {
-            // Permission was revoked in the meantime.
+            // Permission revoked in the meantime.
         }
     }
 
-    /** Removes the notification of a channel once the user looks at it. */
+    /** Removes a channel's notification once the user looks at it. */
     @Synchronized
     fun clear(channel: String) {
         recent.remove(channel)
@@ -255,17 +243,15 @@ class ChatNotifier(
     private fun channelName(channel: String): String = channels.info.value[channel]?.displayName ?: channel
 
     /**
-     * The Twitch profile picture of whoever wrote the message, looked up once per chatter. It
-     * costs a Twitch request and a download per new name, which is why it is a setting — and why
-     * it is left out while saving data: the notification is just as useful without the face. A
-     * picture already in the cache is still used, since it costs nothing any more.
+     * The sender's Twitch avatar, looked up once per chatter. Costs a request and a download per
+     * new name, so it is a setting and skipped while saving data. Cached pictures are always used.
      */
     private suspend fun loadSenderIcon(login: String?) {
         val key = login?.lowercase() ?: return
         if (!settings.value.senderAvatars || saveData.value || senderIcons.containsKey(key)) return
         val url = runCatching { helix.users(listOf(key)).firstOrNull()?.profileImageUrl }.getOrNull() ?: return
         icons.load(url)?.let {
-            // Mentions come from ever new people; the cache must not grow without end.
+            // Mentions keep coming from new people; the cache must not grow without bound.
             if (senderIcons.size >= MAX_SENDER_ICONS) senderIcons.clear()
             senderIcons[key] = it
         }
@@ -276,15 +262,15 @@ class ChatNotifier(
     /** One line of a whisper conversation as the notification shows it. */
     private class WhisperLine(val text: String, val timestamp: Long, val own: Boolean)
 
-    /** What is known about the person on the other side, kept so an answer can go back to them. */
+    /** The other person, kept so an answer can go back to them. */
     private class WhisperThread(var name: String, var userId: String?) {
         val lines = ArrayDeque<WhisperLine>()
     }
 
-    /** Posts, or adds to, the conversation with whoever whispered. */
+    /** Posts or extends the conversation with the sender. */
     suspend fun notifyWhisper(whisper: InboxWhisper) {
         if (!manager.areNotificationsEnabled()) return
-        // Fills the cache for this sender; the older lines use what is already in it.
+        // Fills the cache for this sender; older lines use what is cached.
         loadSenderIcon(whisper.login)
         addWhisperLine(
             login = whisper.login,
@@ -294,15 +280,15 @@ class ChatNotifier(
         )
     }
 
-    /** Shows an answer the user sent straight from the notification in that same conversation. */
+    /** Shows an answer sent from the notification in that conversation. */
     fun showWhisperSent(login: String, text: String) {
         if (!manager.areNotificationsEnabled()) return
         addWhisperLine(login, name = null, userId = null, line = WhisperLine(text, System.currentTimeMillis(), own = true))
     }
 
     /**
-     * Says in the conversation itself why an answer did not go out. Twitch refuses whispers for
-     * reasons the app cannot see coming, and by then the keyboard the user typed on is long gone.
+     * Shows in the conversation why an answer was not sent; Twitch refuses whispers for reasons the
+     * app cannot predict.
      */
     fun showWhisperFailed(login: String, reason: String) {
         if (!manager.areNotificationsEnabled()) return
@@ -310,9 +296,8 @@ class ChatNotifier(
     }
 
     /**
-     * Takes down every mention and whisper, for when the account they were addressed to is not
-     * the one the app acts as any more. A whisper left in the shade would otherwise go on showing
-     * somebody else's private message, and its reply action would answer as the wrong account.
+     * Removes all mentions and whispers when the active account changes. Otherwise a whisper would
+     * keep showing someone else's private message, and its reply would go out as the wrong account.
      */
     @Synchronized
     fun clearConversations() {
@@ -320,7 +305,7 @@ class ChatNotifier(
         clearWhispers()
     }
 
-    /** Takes the whisper notifications down once the user opens the tab that holds them. */
+    /** Removes the whisper notifications once the whisper tab is opened. */
     @Synchronized
     fun clearWhispers() {
         whisperThreads.keys.forEach { manager.cancel(it, WHISPER_NOTIFICATION_ID) }
@@ -339,7 +324,7 @@ class ChatNotifier(
         val me = Person.Builder().setName(context.getString(R.string.notif_me)).build()
         val sender = Person.Builder().setName(thread.name).setKey(key).setIcon(senderIcons[key]).build()
         val style = NotificationCompat.MessagingStyle(me)
-        // A null person is what MessagingStyle reads as "the user themselves".
+        // MessagingStyle reads a null person as the user.
         thread.lines.forEach { style.addMessage(it.text, it.timestamp, if (it.own) null else sender) }
 
         val notification = NotificationCompat.Builder(context, CHANNEL_WHISPERS)
@@ -350,9 +335,7 @@ class ChatNotifier(
             .setAutoCancel(true)
             .setContentIntent(openWhispersIntent())
             .addAction(whisperReplyAction(login, thread.userId))
-            // A whisper is a private message. On a lock screen that hides private content it is
-            // only "a new whisper", without who sent it or what it says — whatever the phone's
-            // default for the channel happens to be.
+            // On a lock screen that hides private content, only "a new whisper" is shown.
             .setVisibility(NotificationCompat.VISIBILITY_PRIVATE)
             .setPublicVersion(
                 NotificationCompat.Builder(context, CHANNEL_WHISPERS)
@@ -363,11 +346,11 @@ class ChatNotifier(
             )
             .build()
         try {
-            // The login is the tag, so one notification per person and none of them collide with
-            // the mentions, which carry no tag at all.
+            // Tagged with the login: one notification per person, separate from the mentions, which
+            // have no tag.
             manager.notify(key, WHISPER_NOTIFICATION_ID, notification)
         } catch (e: SecurityException) {
-            // Permission was revoked in the meantime.
+            // Permission revoked in the meantime.
         }
     }
 
@@ -394,7 +377,7 @@ class ChatNotifier(
             .addRemoteInput(RemoteInput.Builder(KEY_REPLY).setLabel(label).build())
             .setSemanticAction(NotificationCompat.Action.SEMANTIC_ACTION_REPLY)
             .setShowsUserInterface(false)
-            // It writes as the user, so it is theirs alone: on a locked phone it asks to unlock first.
+            // It writes as the user, so a locked phone asks to unlock first.
             .setAuthenticationRequired(true)
             .build()
     }
@@ -402,9 +385,8 @@ class ChatNotifier(
     // ------------------------------------------------------------------------------------------
 
     /**
-     * The conversation shortcut a notification points at. The channel list publishes the same
-     * shortcut (see [dev.chatter.app.util.ChannelShortcuts]), but a notification cannot wait for
-     * that: the shortcut has to exist before the notification naming it arrives.
+     * The conversation shortcut a notification points to. [dev.chatter.app.util.ChannelShortcuts]
+     * publishes the same one, but it has to exist before the notification arrives.
      */
     private fun publishShortcut(channel: String, name: String, icon: IconCompat): String {
         val shortcut = channelShortcut(context, channel, name, icon)
@@ -413,8 +395,8 @@ class ChatNotifier(
     }
 
     /**
-     * Answering without opening the app. The intent has to be mutable — that is where Android
-     * writes what was typed before handing it to [ReplyReceiver].
+     * Reply without opening the app. The intent must be mutable: Android writes the typed text into
+     * it before handing it to [ReplyReceiver].
      */
     private fun replyAction(channel: String): NotificationCompat.Action {
         val intent = Intent(context, ReplyReceiver::class.java)
@@ -430,13 +412,14 @@ class ChatNotifier(
             .addRemoteInput(RemoteInput.Builder(KEY_REPLY).setLabel(label).build())
             .setSemanticAction(NotificationCompat.Action.SEMANTIC_ACTION_REPLY)
             .setShowsUserInterface(false)
-            // It writes as the user, so it is theirs alone: on a locked phone it asks to unlock first.
+            // It writes as the user, so a locked phone asks to unlock first.
             .setAuthenticationRequired(true)
             .build()
     }
 
     private fun bubbleMetadata(channel: String, icon: IconCompat): NotificationCompat.BubbleMetadata {
-        // The data uri makes every channel its own document, so two channels bubble side by side.
+        // The data URI makes each channel its own document, so two channels can bubble side by
+        // side.
         val intent = Intent(context, BubbleActivity::class.java)
             .setAction(Intent.ACTION_VIEW)
             .setData("chatter://channel/$channel".toUri())
@@ -447,41 +430,40 @@ class ChatNotifier(
         )
         return NotificationCompat.BubbleMetadata.Builder(pending, icon)
             .setDesiredHeight(BUBBLE_HEIGHT_DP)
-            // The notification stays: a bubble the user has not opened yet is easy to miss.
+            // Keeps the notification; an unopened bubble is easy to miss.
             .setSuppressNotification(false)
             .build()
     }
 
     companion object {
         const val CHANNEL_CONNECTION = "connection"
-        /** Holds the per-channel mention channels together in the system settings. */
+        /** Groups the per-channel mention channels in the system settings. */
         private const val GROUP_MENTIONS = "mentions"
-        /** The one shared mentions channel of older versions, replaced by one per channel. */
+        /** The single mentions channel of older versions. */
         private const val LEGACY_CHANNEL_MENTIONS = "mentions"
         private const val GROUP = "mentions"
         const val CHANNEL_WHISPERS = "whispers"
         private const val GROUP_WHISPERS = "whispers"
-        /** Whisper notifications are told apart by the sender's login as their tag, not by id. */
+        /** Whisper notifications are told apart by their tag (the sender's login), not by id. */
         private const val WHISPER_NOTIFICATION_ID = 2
         const val CHANNEL_PROBLEMS = "problems"
         private const val NOT_LISTENING_ID = 3
 
-        /** The notification channel mentions in [channel] are posted to. */
+        /** The notification channel for mentions in [channel]. */
         fun mentionChannelId(channel: String): String = "mentions:$channel"
         private const val BUBBLE_HEIGHT_DP = 620
         private const val MAX_SENDER_ICONS = 100
-        /** Where Android puts the text typed into the reply action. */
+        /** Key of the text typed into the reply action. */
         const val KEY_REPLY = "reply"
 
         private const val REPLY_CHANNEL = "channel"
         private const val REPLY_WHISPER = "whisper"
 
         /**
-         * What tells one reply action from another. Android tells PendingIntents apart by their
-         * target, action and data, never by their extras — so with the conversation only in the
-         * extras and a hash of it as the request code, two conversations whose names hash alike
-         * shared one PendingIntent, and FLAG_UPDATE_CURRENT handed the older notification's reply
-         * the newer one's recipient. The conversation in the data makes each its own.
+         * Makes each conversation's reply PendingIntent distinct. Android compares PendingIntents
+         * by target, action and data, never by extras; with the conversation only in the extras,
+         * two conversations with the same hash shared one PendingIntent and replies went to the
+         * wrong person.
          */
         internal fun replyUri(kind: String, target: String): Uri =
             Uri.Builder().scheme("chatter").authority("reply").appendPath(kind).appendPath(target).build()

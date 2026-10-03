@@ -1,6 +1,6 @@
 package dev.chatter.app.util
 
-/** Sliding-window limiter: at most `limit` events per `windowMs`. Not thread-safe. */
+/** Sliding-window limiter: at most `limit` events per [windowMs]. Not thread-safe. */
 class RateLimiter(private val windowMs: Long) {
     private val sent = ArrayDeque<Long>()
 

@@ -22,7 +22,7 @@ import kotlinx.serialization.Serializable
 
 enum class ThemeMode { System, Light, Dark }
 
-/** How the time in front of a message is written, or [Off] for no timestamp at all. */
+/** The time format in front of a message, or [Off]. */
 enum class TimestampFormat(val pattern: String?) {
     Off(null),
     Short("HH:mm"),
@@ -31,12 +31,12 @@ enum class TimestampFormat(val pattern: String?) {
 }
 
 /**
- * What Chatter does on a metered network, like mobile data. [SaveData] is what Android's Data
- * Saver does for the whole phone, for people who want it for Chatter alone.
+ * Behaviour on metered networks. [SaveData] does for Chatter what Android's Data Saver does for the
+ * whole phone.
  */
 enum class MobileData { Normal, SaveData }
 
-/** What tapping a message, or the name in front of it, does. Holding always opens the user card. */
+/** What tapping a message or its name does. Holding always opens the user card. */
 enum class TapAction { Reply, UserCard, Mention, Nothing }
 
 @Serializable
@@ -45,22 +45,19 @@ data class Settings(
     val timestamps: TimestampFormat = TimestampFormat.Short,
     val messageLimit: Int = 500,
     val mentionKeywords: List<String> = emptyList(),
-    /** Messages containing one of these words are never shown. */
+    /** Messages containing one of these words are hidden. */
     val muteKeywords: List<String> = emptyList(),
     val animatedEmotes: Boolean = true,
-    /** Animated emotes at fewer frames a second once the chat has gone untouched for a while. */
+    /** Fewer frames per second for animated emotes once the chat has been idle for a while. */
     val slowIdleEmotes: Boolean = true,
     /** Names of the most recently used emotes, newest first. */
     val recentEmotes: List<String> = emptyList(),
     val themeMode: ThemeMode = ThemeMode.System,
-    /** Material You: colors derived from the wallpaper instead of Twitch purple. */
+    /** Material You colors from the wallpaper instead of Twitch purple. */
     val dynamicColor: Boolean = true,
-    /**
-     * Black instead of Material's dark greys behind the chat, for OLED screens, where a black
-     * pixel is one that is switched off. Only means anything while the theme is dark.
-     */
+    /** Black instead of dark grey behind the chat, for OLED screens. Dark theme only. */
     val pureBlack: Boolean = false,
-    /** Alternate the background of every other message for easier reading. */
+    /** Different background on every other message. */
     val alternateBackground: Boolean = false,
     /** Mention highlight: [HIGHLIGHT_DEFAULT] (red), [HIGHLIGHT_ACCENT] (theme color) or an ARGB color. */
     val highlightColor: Int = HIGHLIGHT_DEFAULT,
@@ -69,66 +66,65 @@ data class Settings(
     /** Animate new messages into view instead of jumping. */
     val smoothScrolling: Boolean = true,
     val emotesEnabled: Boolean = true,
-    /** Draw zero-width emotes on top of the previous emote (off: show them next to it). */
+    /** Draw zero-width emotes on top of the previous emote; off shows them next to it. */
     val zeroWidthEmotes: Boolean = true,
     val showUnlisted7tv: Boolean = false,
-    /** Live 7TV emote changes (added / removed / renamed) as notices in the chat. */
+    /** Live 7TV emote changes as notices in the chat. */
     val sevenTvEvents: Boolean = true,
-    /** Show the avatars of channels with unread messages in the title bar. */
+    /** Avatars of channels with unread messages in the title bar. */
     val unreadInTitleBar: Boolean = true,
-    /** Every channel as a tab in the title bar, instead of the one on screen and a menu of the rest. */
+    /** Every channel as a tab in the title bar instead of a menu. */
     val channelTabs: Boolean = true,
     /** Suggest emotes while typing. */
     val emoteSuggestions: Boolean = true,
-    /** Suggest the names of recent chatters after an "@". */
+    /** Suggest recent chatters after an "@". */
     val userSuggestions: Boolean = true,
-    /** Put an "@" in front of a name picked from the suggestions. */
+    /** Put an "@" in front of a suggested name. */
     val mentionWithAt: Boolean = true,
-    /** Keep deleted messages in the chat, struck through, instead of hiding them. */
+    /** Show deleted messages struck through instead of hiding them. */
     val showDeleted: Boolean = true,
-    /** Ask GitHub once a day whether a newer version is out; only the APK from GitHub has it. */
+    /** Check GitHub daily for a newer version; only in the GitHub APK. */
     val updateCheck: Boolean = true,
-    /** Show a linked image in place of its url, fetched from the host it sits on. */
+    /** Show linked images instead of their URL. */
     val inlineImages: Boolean = true,
-    /** The only hosts whose images are ever fetched. The user adds to it and takes from it. */
+    /** The only hosts linked images are loaded from. */
     val imageHosts: List<String> = ImageLinks.DEFAULT_HOSTS,
-    /** Write links out in full instead of shortening long ones to their site and path. */
+    /** Write links in full instead of shortening them. */
     val fullLinks: Boolean = false,
-    /** Whether linked images, animation and sharp emotes are left out on a metered network. */
+    /** Leave out linked images, animation and sharp emotes on metered networks. */
     val mobileData: MobileData = MobileData.Normal,
-    /** Swiping off the last channel goes to the first one, and the other way round. */
+    /** Swiping past the last channel wraps around to the first. */
     val carouselChannels: Boolean = false,
-    /** The badge providers whose badges are shown in front of a name. */
+    /** Badge providers shown in front of names. */
     val badgeProviders: Set<BadgeProvider> = BadgeProvider.entries.toSet(),
-    /** The emote providers whose emotes are shown; the others stay plain text. */
+    /** Emote providers shown; the others stay text. */
     val emoteProviders: Set<EmoteProvider> = EmoteProvider.entries.toSet(),
     /**
-     * Short vibrations for the things that happen without the user asking: a mention arriving
-     * under their eyes, a message held, a send that did not go out.
+     * Short vibrations for things the user did not trigger: a mention arriving on screen, a held
+     * message, a send that failed.
      */
     val haptics: Boolean = true,
     /** Keep the screen awake while the chat is on screen. */
     val keepScreenOn: Boolean = false,
     /** Offer mention notifications as a floating chat bubble over other apps. */
     val bubbles: Boolean = false,
-    /** Show the Twitch profile picture of whoever wrote a message in the notification. */
+    /** The sender's Twitch avatar in notifications. */
     val senderAvatars: Boolean = true,
-    /** Mark the first message a chatter ever writes in a channel (Twitch's own flag). */
+    /** Mark a chatter's first message in a channel (Twitch's flag). */
     val highlightFirstMessages: Boolean = true,
-    /** How the name colors users picked are made readable on the chat background. */
+    /** How user-picked name colors are adjusted for readability. */
     val nameColors: NameColorPalette = NameColorPalette.HslLuma,
-    /** What a tap on a message does. Answering is the one thing done to messages all the time. */
+    /** Tap on a message. */
     val messageTap: TapAction = TapAction.Reply,
-    /** What a tap on the name in front of a message does: whoever wrote it, like elsewhere on Twitch. */
+    /** Tap on the name in front of a message. */
     val nameTap: TapAction = TapAction.UserCard,
     /**
-     * Put Copy where Reply is on the user card, first in the row. For those who reply with a tap
-     * on the message and open the card mostly to copy it.
+     * Copy instead of Reply as the first action on the user card, for people who reply by tapping.
      */
     val copyFirst: Boolean = false,
 ) {
     companion object {
-        // Real ARGB colors are always opaque (0xFF......), so these can never clash with one.
+        // ARGB colors are opaque (0xFF......), so these never clash with one.
         const val HIGHLIGHT_DEFAULT = 0
         const val HIGHLIGHT_ACCENT = 1
     }
@@ -141,7 +137,7 @@ class SettingsRepository(
     val settings: StateFlow<Settings> = store.data.map { p ->
         Settings(
             fontSize = p[FONT_SIZE] ?: 14f,
-            // Falls back to the old on/off switch so an existing choice survives the update.
+            // Falls back to the old on/off switch.
             timestamps = p[TIMESTAMP_FORMAT]?.let { v -> TimestampFormat.entries.firstOrNull { it.name == v } }
                 ?: if (p[TIMESTAMPS] == false) TimestampFormat.Off else TimestampFormat.Short,
             messageLimit = p[LIMIT] ?: 500,
@@ -194,10 +190,8 @@ class SettingsRepository(
     suspend fun setNameTap(v: TapAction) = store.edit { it[NAME_TAP] = v.name }
     suspend fun setCopyFirst(v: Boolean) = store.edit { it[COPY_FIRST] = v }
     suspend fun setMessageLimit(v: Int) = store.edit { it[LIMIT] = v }
-    // The lists are changed from what is stored, inside the one edit. Worked out from [settings]
-    // instead, two changes in quick succession each started from the same list, and the second
-    // put back what the first had just taken away.
-    // Stored as one comma-separated line, the way they always were, so nothing has to migrate.
+    // List settings are changed from the stored value inside one edit, so quick successive changes
+    // cannot undo each other. Stored comma-separated, as they always were.
     suspend fun updateMentionKeywords(change: (List<String>) -> List<String>) =
         store.edit { it[KEYWORDS] = change(words(it[KEYWORDS])).joinToString(",") }
     suspend fun updateMuteKeywords(change: (List<String>) -> List<String>) =
@@ -239,18 +233,14 @@ class SettingsRepository(
     suspend fun updateEmoteProviders(change: (Set<EmoteProvider>) -> Set<EmoteProvider>) =
         store.edit { p -> p[EMOTE_PROVIDERS] = change(emoteProviders(p[EMOTE_PROVIDERS])).joinToString(",") { it.name } }
 
-    /**
-     * The version whose changelog the user has read, which is what the app compares against to
-     * find out whether it has anything new to tell them. Null until they have read one.
-     */
+    /** The version whose changelog the user has read. Null until one was read. */
     val seenVersion: Flow<String?> = store.data.map { it[SEEN_VERSION] }
 
     suspend fun setSeenVersion(v: String) = store.edit { it[SEEN_VERSION] = v }
 
     /**
-     * The latest release GitHub named at the last check, as JSON, and when that check was. Kept
-     * out of [Settings]: it is what the app found out, not something the user set, and a backup
-     * carrying it over to another phone would bring along news that may no longer be true.
+     * The release GitHub reported at the last check (JSON) and when that was. Not part of
+     * [Settings]: it is not a user choice and must not travel with a backup.
      */
     val availableUpdate: Flow<String?> = store.data.map { it[AVAILABLE_UPDATE] }
     val updateCheckedAt: Flow<Long?> = store.data.map { it[UPDATE_CHECKED_AT] }
@@ -261,8 +251,8 @@ class SettingsRepository(
     }
 
     /**
-     * Writes every setting at once, for restoring a backup. New settings have to be added here
-     * too, or a restore would quietly leave them at whatever they were.
+     * Writes every setting, for restoring a backup. New settings must be added here, or a restore
+     * leaves them unchanged.
      */
     suspend fun replaceAll(s: Settings) = store.edit { p ->
         p[FONT_SIZE] = s.fontSize
@@ -317,7 +307,7 @@ class SettingsRepository(
     private companion object {
         fun words(raw: String?): List<String> = raw.orEmpty().split(',').map { it.trim() }.filter { it.isNotEmpty() }
 
-        // Only an absent key falls back to the defaults: a list the user emptied stays empty.
+        // Only a missing key means defaults; a list the user emptied stays empty.
         fun hosts(raw: String?): List<String> =
             raw?.split(',')?.map { it.trim() }?.filter { it.isNotEmpty() } ?: ImageLinks.DEFAULT_HOSTS
 

@@ -1,30 +1,27 @@
 package dev.chatter.app.irc
 
 /**
- * One parsed IRC line, e.g.
- * `@badges=moderator/1;color=#FF0000 :nick!nick@nick.tmi.twitch.tv PRIVMSG #channel :hello`
+ * One parsed IRC line, e.g. `@badges=moderator/1;color=#FF0000 :nick!nick@nick.tmi.twitch.tv
+ * PRIVMSG #channel :hello`
  *
- * The tags stay in the line they came in and are looked up when they are read. A chat message
- * carries twenty of them and the app reads about half; parsing all of them into a map was a key, a
- * value and a map entry apiece for every message in every joined channel, all night in the
- * background, and most of it garbage straight away. Only [tags], for the few lines that want
- * them all, builds the map.
+ * Tags stay in the original string and are looked up on demand: a message carries about twenty and
+ * the app reads half, and building a map for each message in every channel all night was mostly
+ * garbage. [tags] builds the map for the few callers that want all of them.
  *
- * The line may be a whole frame from the socket with this line somewhere in it; [parse] is told
- * where, so a frame does not have to be cut into lines first.
+ * [line] may be a whole socket frame; [parse] gets the bounds of this line in it.
  */
 class IrcMessage private constructor(
     private val line: String,
-    /** Where the tags are in [line], without the "@" and the space after them; empty if there are none. */
+    /** Tag section in [line] without the "@" and trailing space; empty if there are none. */
     private val tagsStart: Int,
     private val tagsEnd: Int,
-    /** Where the prefix is in [line], without the ":"; -1 if there is none. */
+    /** Prefix in [line] without the ":"; -1 if there is none. */
     private val prefixStart: Int,
     private val prefixEnd: Int,
     val command: String,
     val params: List<String>,
 ) {
-    /** "#channel" -> "channel" for commands whose first param is a channel. */
+    /** "#channel" -> "channel" for commands whose first parameter is a channel. */
     val channel: String?
         get() = params.firstOrNull()?.takeIf { it.startsWith("#") }?.substring(1)
 
@@ -36,7 +33,7 @@ class IrcMessage private constructor(
     val prefix: String?
         get() = if (prefixStart < 0) null else line.substring(prefixStart, prefixEnd)
 
-    /** Login name of the sender, taken from the prefix `nick!user@host`. */
+    /** Sender login, from the prefix `nick!user@host`. */
     val nick: String?
         get() {
             if (prefixStart < 0) return null
@@ -44,12 +41,11 @@ class IrcMessage private constructor(
             return if (bang > prefixStart) line.substring(prefixStart, bang) else null
         }
 
-    /** Every tag, empty ones included. Built when first asked for; [tag] is the cheap way to one. */
+    /** Every tag, empty ones included, built on first use. [tag] is cheaper for a single one. */
     val tags: Map<String, String>
         get() = parsedTags ?: parseTags(line, tagsStart, tagsEnd).also { parsedTags = it }
 
-    // A field rather than `by lazy`, which would be one more object for every message only to
-    // build a map for the few that are ever asked for one.
+    // A field instead of `by lazy`, which would cost an extra object per message.
     @Volatile private var parsedTags: Map<String, String>? = null
 
     /** The value of the tag [name], or null if it is missing or empty. */
@@ -71,8 +67,8 @@ class IrcMessage private constructor(
 
     companion object {
         /**
-         * Parses the IRC line between [start] and [end] of [text] (without CR/LF). Returns null for
-         * empty or malformed lines.
+         * Parses the line between [start] and [end] of [text] (without CR/LF). Null for empty or
+         * malformed lines.
          */
         fun parse(text: String, start: Int = 0, end: Int = text.length): IrcMessage? {
             if (end <= start) return null

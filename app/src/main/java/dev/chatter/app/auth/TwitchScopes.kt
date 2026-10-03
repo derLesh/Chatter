@@ -1,13 +1,9 @@
 package dev.chatter.app.auth
 
 /**
- * What Chatter asks Twitch to be allowed to do for an account.
- *
- * All of it at the login, so that somebody who moderates a channel can moderate it the moment
- * they open it, without being sent through Twitch's page a second time. But only what Chatter
- * actually does: every scope here has a feature behind it, and one that loses its feature goes.
- * A token that can do more than the app ever asks of it is worth more to whoever gets hold of
- * it, and buys the user nothing.
+ * The scopes Chatter asks for, all at login so moderators can moderate right away. Each one is used
+ * by a feature; a token that can do more than the app needs is only more valuable to whoever steals
+ * it.
  */
 object TwitchScopes {
     val ALL = listOf(
@@ -17,15 +13,15 @@ object TwitchScopes {
         "user:read:emotes", "user:read:follows",
         // /color.
         "user:manage:chat_color",
-        // Whispers arrive over the chat connection, but only for a token that asked for them.
-        // Sending them goes through Helix, which wants the newer scope of the two.
+        // Whispers arrive over IRC only for tokens with whispers:read. Sending goes through Helix,
+        // which wants user:manage:whispers.
         "whispers:read", "user:manage:whispers",
         // The block list, and blocking from the user card.
         "user:read:blocked_users", "user:manage:blocked_users",
         // The chatter list for name suggestions; Twitch only answers where the user moderates.
         "moderator:read:chatters",
-        // The moderator commands and the user card's timeout, ban and delete; Twitch only lets
-        // them through where the user is moderator or broadcaster.
+        // Moderator commands and the user card's timeout, ban and delete; only where the user is
+        // moderator or broadcaster.
         "moderator:manage:banned_users", "moderator:manage:chat_messages", "moderator:manage:chat_settings",
         "moderator:manage:announcements", "moderator:manage:shoutouts",
         // /mod, /vip and /raid in the user's own channel.
@@ -33,14 +29,14 @@ object TwitchScopes {
     )
 
     /**
-     * Whether a token with [granted] may do what [scope] allows. An account stored before the
-     * app kept its scopes has [granted] null; it is let try, and Twitch's answer decides.
+     * Whether a token with [granted] may use [scope]. [granted] is null for accounts stored before
+     * scopes were kept; those may try and Twitch decides.
      */
     fun allows(granted: Set<String>?, scope: String): Boolean = granted == null || scope in granted
 
     /**
-     * What Chatter uses that a token with [granted] was not given — a login from a version that
-     * asked for less. Logging in again asks for it.
+     * Scopes Chatter uses that [granted] lacks, e.g. from a login by an older version. Logging in
+     * again asks for them.
      */
     fun missing(granted: Set<String>?): Set<String> = if (granted == null) emptySet() else ALL.toSet() - granted
 }

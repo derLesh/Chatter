@@ -30,7 +30,7 @@ import okhttp3.WebSocket
 import okhttp3.WebSocketListener
 import kotlin.random.Random
 
-/** A change to a 7TV emote set or user, pushed by the 7TV EventAPI. */
+/** A change to a 7TV emote set or user, pushed by the EventAPI. */
 sealed interface SevenTvEvent {
     val actor: String?
 
@@ -39,32 +39,30 @@ sealed interface SevenTvEvent {
         override val actor: String?,
         val added: List<SevenTvActiveEmote>,
         val removed: List<SevenTvActiveEmote>,
-        /** Old to new version of renamed emotes. */
+        /** Old and new version of each renamed emote. */
         val renamed: List<Pair<SevenTvActiveEmote, SevenTvActiveEmote>>,
     ) : SevenTvEvent
 
-    /** The user (channel) switched to a different emote set. */
+    /** The channel switched to another emote set. */
     data class ActiveSetChanged(val userId: String, override val actor: String?, val newSetId: String?) : SevenTvEvent
 
     /**
-     * A badge 7TV has just described, for somebody in one of the channels we listen to. It says
-     * what the badge is; an [EntitlementChanged] says who wears it.
+     * A badge 7TV described for someone in a joined channel. [EntitlementChanged] says who wears
+     * it.
      */
     data class BadgeCreated(val id: String, val name: String, val tooltip: String) : SevenTvEvent {
         override val actor: String? get() = null
     }
 
-    /** Somebody started or stopped wearing the cosmetic [refId]. */
+    /** Someone started or stopped wearing the cosmetic [refId]. */
     data class EntitlementChanged(val twitchUserId: String, val refId: String, val worn: Boolean) : SevenTvEvent {
         override val actor: String? get() = null
     }
 }
 
 /**
- * One thing to listen to at the EventAPI: an event type and the condition that narrows it down.
- *
- * Emote sets and users are named by their 7TV id; cosmetics are asked for per Twitch channel,
- * which is how 7TV hands out the badges of the people in it (the same way Chatterino does it).
+ * An EventAPI subscription: event type and condition. Emote sets and users are named by their 7TV
+ * id; cosmetics are subscribed per Twitch channel, like Chatterino does.
  */
 data class SevenTvSubscription(val type: String, val condition: Map<String, String>) {
     companion object {
@@ -78,14 +76,11 @@ data class SevenTvSubscription(val type: String, val condition: Map<String, Stri
 }
 
 /**
- * Connection to wss://events.7tv.io/v3. Subscriptions are kept in [subscriptions] and sent again
- * after every reconnect.
+ * Connection to wss://events.7tv.io/v3. [subscriptions] are sent again after every reconnect.
  *
- * The server sends its own heartbeats, and we only listen — but listening is how a dead socket is
- * noticed. The socket has no read timeout (a channel can go hours without an emote change), so a
- * network that changes silently under it leaves a connection that is never reported as failed and
- * never delivers anything again. [startWatchdog] gives up on one that has missed two heartbeats,
- * the same idea as the chat's watchdog.
+ * The server sends heartbeats. The socket has no read timeout, since a channel can go hours without
+ * an emote change, so a silent network change would leave a dead socket that never fails.
+ * [startWatchdog] reconnects after two missed heartbeats, like the chat's watchdog.
  */
 class SevenTvEventClient(
     private val http: OkHttpClient,
@@ -100,14 +95,14 @@ class SevenTvEventClient(
     private var watchdogJob: Job? = null
     private var subscriptions: Set<SevenTvSubscription> = emptySet()
 
-    /** What the server last said its heartbeat interval is; a guess until its hello says. */
+    /** The heartbeat interval from the last hello; a default until then. */
     @Volatile private var heartbeatMs = DEFAULT_HEARTBEAT_MS
     @Volatile private var lastActivity = 0L
 
-    /** Whether the phone has a network; retrying without one cannot succeed. See [setNetwork]. */
+    /** Retrying without a network cannot succeed; see [setNetwork]. */
     private var networkUp = true
 
-    /** Whether a connection since [start] has already said hello, so the next one is a reconnect. */
+    /** Whether a connection since [start] got a hello, which makes the next one a reconnect. */
     private var helloSinceStart = false
 
     private val _events = MutableSharedFlow<SevenTvEvent>(extraBufferCapacity = 32)
@@ -115,8 +110,8 @@ class SevenTvEventClient(
 
     private val _reconnected = MutableSharedFlow<Unit>(extraBufferCapacity = 1)
     /**
-     * A connection came back after one had been lost. Whatever changed in between was never
-     * pushed, so this is when to load the emote sets again.
+     * A lost connection came back. Changes in between were not pushed, so the emote sets should be
+     * reloaded.
      */
     val reconnected: SharedFlow<Unit> = _reconnected
 
@@ -136,9 +131,8 @@ class SevenTvEventClient(
     }
 
     /**
-     * Whether the phone has a network, as the chat connection is told. Going away stops the
-     * retries; coming back starts over at once on the new network, since a socket opened on the
-     * old one is most likely dead.
+     * Network changes, as the chat connection gets them. Losing it stops retries; when it comes
+     * back the connection starts over, since a socket from the old network is likely dead.
      */
     fun setNetwork(up: Boolean) = synchronized(lock) {
         val cameBack = up && !networkUp
@@ -159,7 +153,7 @@ class SevenTvEventClient(
         }
     }
 
-    /** Replaces the subscription set; only the difference is sent to the server. */
+    /** Replaces the subscriptions; only the difference is sent. */
     fun setSubscriptions(new: Set<SevenTvSubscription>) = synchronized(lock) {
         val old = subscriptions
         subscriptions = new
@@ -181,10 +175,9 @@ class SevenTvEventClient(
     }
 
     /**
-     * Reconnects once [ws] has said nothing — no heartbeat, no event — for two heartbeat
-     * intervals. Before the hello that is a guessed interval, which also covers a socket that
-     * opened and never got as far as greeting us. Sleeps exactly until the silence could be long
-     * enough, so a quiet connection costs one wakeup per heartbeat that was due anyway.
+     * Reconnects when [ws] has been silent for two heartbeat intervals (a default before the hello,
+     * which also covers a socket that never greets us). Sleeps until the silence could be long
+     * enough.
      */
     private fun startWatchdog(ws: WebSocket) {
         watchdogJob?.cancel()
@@ -207,7 +200,7 @@ class SevenTvEventClient(
         socket = null
         ready = false
         watchdogJob?.cancel()
-        // Without a network there is nothing to retry against; setNetwork brings us back.
+        // setNetwork reconnects once the network is back.
         if (!wanted || !networkUp || reconnectJob?.isActive == true) return@synchronized
         val delayMs = (1000L shl attempt.coerceAtMost(6)).coerceAtMost(60_000L) + Random.nextLong(0, 1000)
         attempt++
@@ -254,19 +247,18 @@ class SevenTvEventClient(
     companion object {
         private const val TAG = "SevenTvEvents"
 
-        /** What 7TV has sent as its heartbeat interval, for the time before it says so. */
+        /** 7TV's interval so far, used until the hello says otherwise. */
         private const val DEFAULT_HEARTBEAT_MS = 30_000L
 
         /**
-         * The heartbeat interval a hello (op 1) announces, in milliseconds. Kept within sensible
-         * bounds: a server saying 0 must not make the watchdog spin, nor one saying a day blind it.
-         * Internal for tests.
+         * The heartbeat interval from a hello (op 1) in milliseconds, clamped so 0 cannot make the
+         * watchdog spin and a huge value cannot disable it. Internal for tests.
          */
         internal fun heartbeatInterval(hello: JsonObject): Long =
             (hello["d"] as? JsonObject)?.get("heartbeat_interval")?.jsonPrimitive?.longOrNull
                 ?.coerceIn(5_000L, 5 * 60_000L) ?: DEFAULT_HEARTBEAT_MS
 
-        /** The one kind of cosmetic Chatter shows; 7TV also hands out paints. */
+        /** The only cosmetic Chatter shows; 7TV also has paints. */
         private const val BADGE = "BADGE"
 
         private fun subscriptionMessage(op: Int, subscription: SevenTvSubscription) = buildJsonObject {
@@ -281,7 +273,7 @@ class SevenTvEventClient(
         internal fun parseDispatch(d: JsonObject): SevenTvEvent? {
             val body = d["body"]?.jsonObject ?: return null
             val type = d["type"]?.jsonPrimitive?.contentOrNull
-            // Cosmetics are about a person, not about an emote set, and carry no id of their own.
+            // Cosmetics are about a person, not an emote set, and have no id of their own.
             when (type) {
                 "cosmetic.create" -> return badge(body)
                 "entitlement.create" -> return entitlement(body, worn = true)
@@ -320,7 +312,7 @@ class SevenTvEventClient(
             }
         }
 
-        /** `cosmetic.create` for a badge: what it looks like and what it is called. */
+        /** `cosmetic.create` for a badge: its picture and name. */
         private fun badge(body: JsonObject): SevenTvEvent? {
             val obj = body["object"]?.let { it as? JsonObject } ?: return null
             if (obj["kind"]?.jsonPrimitive?.contentOrNull != BADGE) return null
@@ -332,8 +324,8 @@ class SevenTvEventClient(
         }
 
         /**
-         * `entitlement.create` / `.delete`: who wears a cosmetic. 7TV names the wearer by their
-         * accounts on every platform, of which only the Twitch one says anything about a chatter.
+         * `entitlement.create` / `.delete`: who wears a cosmetic. 7TV lists the wearer's accounts
+         * on every platform; only the Twitch one matters here.
          */
         private fun entitlement(body: JsonObject, worn: Boolean): SevenTvEvent? {
             val obj = body["object"]?.let { it as? JsonObject } ?: return null

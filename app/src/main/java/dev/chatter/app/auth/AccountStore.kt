@@ -4,9 +4,8 @@ import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
 
 /**
- * One account the way it sits in the preferences: the two tokens encrypted (see [TokenCipher]),
- * everything else in the clear so the account switcher can show a name and a picture without
- * touching the keystore or the network.
+ * One account as stored: the tokens encrypted (see [TokenCipher]), the rest in the clear so the
+ * account switcher needs neither the keystore nor the network.
  */
 @Serializable
 data class StoredAccount(
@@ -14,30 +13,27 @@ data class StoredAccount(
     val userId: String,
     /** Encrypted. */
     val token: String,
-    /** Encrypted; only accounts from the older device code login have one. */
+    /** Encrypted; only accounts from the old device code login have one. */
     val refreshToken: String? = null,
     val expiresAt: Long = 0L,
     val displayName: String = "",
     val avatarUrl: String = "",
-    /** What Twitch lets the token do, as `/oauth2/validate` said; null for older entries. */
+    /** As `/oauth2/validate` reported them; null for entries from before scopes were stored. */
     val scopes: List<String>? = null,
 )
 
-/** What came of opening one stored account; see [AccountStore.readAll]. */
+/** Result of opening one stored account; see [AccountStore.readAll]. */
 sealed interface Opened<out T> {
     class Readable<T>(val value: T) : Opened<T>
 
     /** Its token can never be read again. */
     data object Lost : Opened<Nothing>
 
-    /** Its token could not be read this time; nothing is wrong with it. */
+    /** Its token could not be read this time. */
     data object Unavailable : Opened<Nothing>
 }
 
-/**
- * The stored list of accounts as one preference value, and the rules for changing it. Kept apart
- * from [AuthRepository] because none of it needs Android: this is what the tests get at.
- */
+/** The stored account list and the rules for changing it, kept free of Android for the tests. */
 object AccountStore {
     private val json = Json { ignoreUnknownKeys = true; encodeDefaults = true }
 
@@ -45,11 +41,9 @@ object AccountStore {
     class Read<T>(val readable: List<T>, val unreadable: List<StoredAccount>)
 
     /**
-     * Opens every stored account with [open], asking again for the ones it could not open this
-     * time: the keystore that decrypts the tokens is a system service, and what keeps it from
-     * answering is usually over within seconds. [wait] is called before each further attempt.
-     * Those still unopened after [attempts] tries are set aside rather than forgotten — and an
-     * account whose token is lost for good is in neither list.
+     * Opens every account with [open] and retries the [Opened.Unavailable] ones, calling [wait]
+     * before each further attempt; the keystore usually answers again within seconds. Accounts
+     * still unavailable after [attempts] tries end up in [Read.unreadable]; lost ones are dropped.
      */
     suspend fun <T> readAll(
         stored: List<StoredAccount>,
@@ -78,25 +72,24 @@ object AccountStore {
 
     fun encode(accounts: List<StoredAccount>): String = json.encodeToString(accounts)
 
-    /** Junk (a half-written file, a format from the future) reads as no accounts at all. */
+    /** Unreadable text reads as no accounts. */
     fun decode(text: String?): List<StoredAccount> {
         if (text.isNullOrBlank()) return emptyList()
         return runCatching { json.decodeFromString<List<StoredAccount>>(text) }.getOrDefault(emptyList())
     }
 
-    /** The tokens waiting to be revoked, each one still encrypted. */
+    /** The tokens waiting to be revoked, still encrypted. */
     fun encodeTokens(tokens: List<String>): String = json.encodeToString(tokens.distinct())
 
-    /** Junk reads as nothing queued: a token that cannot be read cannot be revoked either. */
+    /** Unreadable text reads as nothing queued. */
     fun decodeTokens(text: String?): List<String> {
         if (text.isNullOrBlank()) return emptyList()
         return runCatching { json.decodeFromString<List<String>>(text) }.getOrDefault(emptyList())
     }
 
     /**
-     * Which of [userIds] the app acts as, given the stored [active] one: that one while it is
-     * still there, and otherwise the first of the list — an account whose entry went missing
-     * leaves the app on another account rather than on the login screen.
+     * The stored [active] account if it is still there, otherwise the first one, so a missing entry
+     * does not end on the login screen.
      */
     fun activeIn(userIds: List<String>, active: String?): String? =
         userIds.firstOrNull { it == active } ?: userIds.firstOrNull()

@@ -12,14 +12,11 @@ import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
 
 /**
- * Keeps the channels' 7TV emotes and badges up to date via the 7TV EventAPI, and reports the emote
- * changes in the chat.
- *
- * This runs for every joined channel, not just the one on screen. Whether the changes are also
- * announced in the chat is a display choice and does not affect keeping the emotes current.
+ * Keeps the 7TV emotes and badges of every joined channel current via the EventAPI and reports
+ * emote changes in the chat (if enabled).
  *
  * To save battery the connection only runs while the app is on screen; coming back reloads the
- * emotes once to catch up on what was missed and on whatever failed to load earlier.
+ * emotes once.
  */
 class SevenTvLiveUpdates(
     private val context: Context,
@@ -31,7 +28,7 @@ class SevenTvLiveUpdates(
     private val scope: CoroutineScope,
 ) {
     fun start() {
-        // Subscribe to whatever sets/users the loaded channels have.
+        // Subscribe to the sets and users of the loaded channels.
         scope.launch {
             emotes.version.collect { client.setSubscriptions(subscriptions()) }
         }
@@ -39,8 +36,8 @@ class SevenTvLiveUpdates(
             chat.windows.anyVisible.collectLatest { active ->
                 if (active) {
                     client.start()
-                    // Catch up on anything missed while the socket was down, and on channels whose
-                    // first load failed: without this their set is never subscribed to at all.
+                    // Catches up on changes missed while away, and on channels whose first load
+                    // failed and so were never subscribed.
                     reloadAll()
                 } else {
                     client.stop()
@@ -50,18 +47,15 @@ class SevenTvLiveUpdates(
         scope.launch {
             client.events.collect { handle(it) }
         }
-        // A connection lost while the app was open missed whatever was pushed in between.
+        // A connection lost while the app was open missed the changes in between.
         scope.launch {
             client.reconnected.collect { reloadAll() }
         }
     }
 
     /**
-     * The emote sets of every channel, plus its cosmetics.
-     *
-     * Badges are the one thing 7TV no longer hands out as a list: since the cosmetics endpoint
-     * was retired they are pushed per channel, a description of the badge and the people wearing
-     * it arriving separately. Chatterino listens the same way.
+     * The emote sets of every channel plus its cosmetics. 7TV badges are only pushed per channel
+     * since the cosmetics endpoint was retired; Chatterino does the same.
      */
     private fun subscriptions(): Set<SevenTvSubscription> =
         emotes.sevenTvSubscriptions() + chat.rooms.knownIds().flatMap { roomId ->
@@ -73,9 +67,8 @@ class SevenTvLiveUpdates(
         }
 
     private suspend fun reloadAll() {
-        // The global emotes are loaded once at login and stay for the session, so a load that
-        // failed back then would never be tried again; this is the one place that comes back to
-        // it. It returns right away once they are there.
+        // Global emotes load once at login; this is the only retry if that failed. Returns at once
+        // if they are loaded.
         emotes.loadGlobal()
         chat.rooms.knownIds().forEach { id -> emotes.refreshChannel(id) }
     }
@@ -85,8 +78,8 @@ class SevenTvLiveUpdates(
         when (event) {
             is SevenTvEvent.EmoteSetUpdate -> {
                 val channelId = emotes.channelForSevenTvSet(event.setId) ?: return
-                // Take the emotes over first: they must land even when no channel name can be
-                // resolved to write a notice into, which would otherwise drop the change entirely.
+                // Applied first, so the emotes change even if no channel name is known for the
+                // notice.
                 val added = emotes.applySevenTvUpdate(channelId, event)
                 val channel = chat.rooms.channelOf(channelId)?.takeIf { settings.value.sevenTvEvents } ?: return
                 if (added.isNotEmpty()) {
@@ -106,7 +99,7 @@ class SevenTvLiveUpdates(
                 badges.sevenTvWearer(event.twitchUserId, event.refId, event.worn)
             is SevenTvEvent.ActiveSetChanged -> {
                 val channelId = emotes.channelForSevenTvUser(event.userId) ?: return
-                emotes.loadChannel(channelId, null) // new set id -> new subscriptions via version
+                emotes.loadChannel(channelId, null) // new set id leads to new subscriptions via version
                 val channel = chat.rooms.channelOf(channelId)?.takeIf { settings.value.sevenTvEvents } ?: return
                 chat.postNotice(channel, context.getString(R.string.seventv_set_changed, actor))
             }

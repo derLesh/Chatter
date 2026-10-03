@@ -13,7 +13,7 @@ data class BttvEmote(
     val animated: Boolean = false,
     val width: Int? = null,
     val height: Int? = null,
-    /** Uploader; only present for shared emotes. */
+    /** Uploader; only set for shared emotes. */
     val user: BttvUser? = null,
 )
 
@@ -102,24 +102,24 @@ data class ChatterinoBadge(
     val users: List<String> = emptyList(),
 )
 
-/** Who supports Chatter, fetched rather than baked in, so a new supporter needs no release. */
+/** Supporters of Chatter, fetched so a new supporter needs no release. */
 @Serializable
 data class ChatterSupporters(val supporters: List<ChatterSupporter> = emptyList())
 
 @Serializable
 data class ChatterSupporter(
     /**
-     * The Twitch user id the badge goes in front of. Empty until somebody says which Twitch
-     * account belongs to the sponsor — GitHub does not know, and nothing may be guessed here.
+     * Twitch user id the badge is shown for. Empty until filled in by hand; GitHub does not know a
+     * sponsor's Twitch account.
      */
     val twitch: String = "",
-    /** Their GitHub account, which is what the sponsorship is under. */
+    /** The GitHub account the sponsorship is under. */
     val github: String = "",
-    /** The day they first supported Chatter, in any way (ISO, e.g. 2026-09-21). */
+    /** First day of any support (ISO date, e.g. 2026-09-21). */
     val since: String = "",
-    /** How many one-time sponsorships they have made. Never goes down. */
+    /** Number of one-time sponsorships. Never decreases. */
     val oneTime: Int = 0,
-    /** The day their running monthly sponsorship started, or null while none is running. */
+    /** Start of the running monthly sponsorship, or null if none is running. */
     val monthlySince: String? = null,
 )
 
@@ -129,11 +129,8 @@ data class ChatterSupporter(
 data class RecentMessages(val messages: List<String> = emptyList(), val error: JsonElement? = null)
 
 /**
- * What the emote repository asks the three emote providers for.
- *
- * An interface rather than the class itself, so that everything the repository does with the
- * answers — which provider wins a name, what happens when one does not answer, when it is worth
- * asking again — can be tried out without a network. [ThirdPartyApi] is the one real answer to it.
+ * What the emote repository needs from the three emote providers. An interface so the repository's
+ * rules can be tested without a network.
  */
 interface ThirdPartyEmoteApi {
     suspend fun bttvGlobal(): List<BttvEmote>
@@ -144,7 +141,7 @@ interface ThirdPartyEmoteApi {
     suspend fun sevenTvChannel(channelId: String): SevenTvUser?
 }
 
-/** The badge lists other clients hand out, as the badge repository asks for them. */
+/** The badge lists of other clients, as the badge repository needs them. */
 interface ThirdPartyBadgeApi {
     suspend fun chatterinoBadges(): ChatterinoBadges
     suspend fun chatterSupporters(): ChatterSupporters
@@ -167,9 +164,8 @@ class ThirdPartyApi(private val http: OkHttpClient) : ThirdPartyEmoteApi, ThirdP
         http.getJson("https://api.chatterino.com/badges")
 
     /**
-     * Served from the project's GitHub Pages (`docs/` on master), not from the repository itself:
-     * raw.githubusercontent answers 404 for a private repo, so the list never loaded. It is
-     * fetched, never shipped — a new supporter must not need a new release.
+     * From GitHub Pages (`docs/` on master): raw.githubusercontent.com answers 404 for a private
+     * repo.
      */
     override suspend fun chatterSupporters(): ChatterSupporters =
         http.getJson("https://derlesh.github.io/Chatter/supporters.json")

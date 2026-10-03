@@ -7,18 +7,16 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
 /**
- * What Twitch's login page leaves in the app's WebView: its cookies and its storage, which is a
- * Twitch session of its own, apart from any token Chatter holds. While it is there, the login
- * page lets whoever opens it straight back in, without a password or a second factor.
+ * Cookies and storage Twitch's login page leaves in the WebView. They are a Twitch session of their
+ * own and let anyone open the login page straight into the account.
  */
 object WebSession {
-    /** Forgets that session. The WebView wants this on the main thread. */
+    /** Clears the session. The WebView requires the main thread. */
     suspend fun clear() = withContext(Dispatchers.Main) { clearNow() }
 
-    /** [clear] for a caller already on the main thread, such as the WebView's own factory. */
+    /** [clear] for callers already on the main thread. */
     fun clearNow() {
-        // A WebView that is being updated by the Play Store throws here; the session it would
-        // have cleared cannot be read either until it is back.
+        // Throws while the WebView is being updated by the Play Store.
         runCatching {
             CookieManager.getInstance().apply {
                 removeAllCookies(null)

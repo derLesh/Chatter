@@ -2,7 +2,7 @@ package dev.chatter.app.emotes
 
 enum class EmoteProvider { Twitch, SevenTv, Bttv, Ffz }
 
-/** What the provider is called where a message or a card names it. Product names, so untranslated. */
+/** The provider's name for messages and cards. Product names, not translated. */
 val EmoteProvider.label: String
     get() = when (this) {
         EmoteProvider.Twitch -> "Twitch"
@@ -16,20 +16,20 @@ data class Emote(
     val id: String,
     val url: String,
     val provider: EmoteProvider,
-    /** width / height, used to size the inline placeholder before the image is loaded. */
+    /** width / height, to size the placeholder before the image loads. */
     val aspectRatio: Float = 1f,
-    /** False if the provider does not tell the size (BTTV); it is then measured once loaded. */
+    /** False if the provider does not report the size (BTTV); it is measured once loaded. */
     val sizeKnown: Boolean = true,
-    /** Zero-width emotes are drawn on top of the previous emote instead of next to it. */
+    /** Drawn on top of the previous emote instead of next to it. */
     val zeroWidth: Boolean = false,
-    /** True for channel-specific emotes (as opposed to global ones). */
+    /** Channel emote rather than a global one. */
     val isChannel: Boolean = false,
-    /** 7TV emotes that are not publicly listed (not approved by 7TV moderators). */
+    /** 7TV emote not approved for public listing. */
     val unlisted: Boolean = false,
-    /** Who created / uploaded the emote, if the provider tells. */
+    /** Creator or uploader, if the provider reports one. */
     val author: String? = null,
 ) {
-    /** Largest available size, for the emote card. */
+    /** Largest size, for the emote card. */
     val largeUrl: String
         get() = when (provider) {
             EmoteProvider.Twitch -> url.replace("/2.0", "/3.0")
@@ -39,8 +39,8 @@ data class Emote(
         }
 
     /**
-     * Smallest available size, for saving data: a quarter of the pixels of [url], and on a
-     * sharp screen somewhat soft for it.
+     * Smallest size, for saving data: a quarter of the pixels of [url], slightly soft on sharp
+     * screens.
      */
     val smallUrl: String
         get() = when (provider) {
@@ -50,7 +50,7 @@ data class Emote(
             EmoteProvider.Ffz -> url.replace(Regex("/[24]$"), "/1")
         }
 
-    /** The emote's page on the provider's website (Twitch has none). */
+    /** The emote's page on the provider's website; Twitch has none. */
     val pageUrl: String?
         get() = when (provider) {
             EmoteProvider.Twitch -> null
