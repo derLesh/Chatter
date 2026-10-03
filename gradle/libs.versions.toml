@@ -4,7 +4,7 @@ kotlin = "2.3.21"
 composeBom = "2026.06.01"
 # The menus of Material 3 Expressive (grouped, with a selected entry) are only in the 1.5 alphas.
 material3 = "1.5.0-alpha29"
-coreKtx = "1.17.0"
+coreKtx = "1.19.1"
 activityCompose = "1.12.4"
 # The one activity-compose brings along; named here because the back handlers use it directly.
 navigationevent = "1.1.1"
