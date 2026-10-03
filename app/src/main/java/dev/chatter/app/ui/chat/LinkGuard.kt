@@ -1,5 +1,6 @@
 package dev.chatter.app.ui.chat
 
+import android.content.ClipData
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.material3.AlertDialog
@@ -10,16 +11,18 @@ import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
-import androidx.compose.ui.platform.LocalClipboardManager
+import androidx.compose.ui.platform.ClipEntry
+import androidx.compose.ui.platform.LocalClipboard
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.platform.UriHandler
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.unit.dp
 import dev.chatter.app.R
 import dev.chatter.app.chat.LinkText
+import kotlinx.coroutines.launch
 
 /**
  * Asks before a link that is dressed up as another site is opened (see [LinkText.isUnusual]),
@@ -43,7 +46,8 @@ fun LinkGuard(content: @Composable () -> Unit) {
     CompositionLocalProvider(LocalUriHandler provides guard) { content() }
 
     asking?.let { uri ->
-        val clipboard = LocalClipboardManager.current
+        val clipboard = LocalClipboard.current
+        val scope = rememberCoroutineScope()
         AlertDialog(
             onDismissRequest = { asking = null },
             title = { Text(stringResource(R.string.link_check_title)) },
@@ -62,7 +66,8 @@ fun LinkGuard(content: @Composable () -> Unit) {
             dismissButton = {
                 TextButton(onClick = {
                     asking = null
-                    clipboard.setText(AnnotatedString(LinkText.honest(uri)))
+                    val text = LinkText.honest(uri)
+                    scope.launch { clipboard.setClipEntry(ClipEntry(ClipData.newPlainText(text, text))) }
                 }) { Text(stringResource(R.string.action_copy)) }
             },
         )

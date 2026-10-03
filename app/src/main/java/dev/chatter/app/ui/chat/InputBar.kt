@@ -142,7 +142,7 @@ fun InputBar(
             modifier = Modifier.padding(horizontal = 4.dp, vertical = 4.dp),
         ) {
             if (choosing) {
-                SendChannelPicker(sendChannels, sendChannel!!, channelInfo, imageLoader, enabled, onSendChannel)
+                SendChannelPicker(sendChannels, sendChannel, channelInfo, imageLoader, enabled, onSendChannel)
             }
             IconButton(onClick = onEmotePicker, enabled = enabled) {
                 Icon(Icons.Default.Face, contentDescription = stringResource(R.string.emotes))
@@ -156,7 +156,7 @@ fun InputBar(
                         when {
                             !enabled -> stringResource(R.string.input_hint_disabled)
                             restriction != null -> stringResource(restriction.hint)
-                            choosing -> stringResource(R.string.input_hint_in, channelInfo[sendChannel]?.displayName ?: sendChannel!!)
+                            choosing -> stringResource(R.string.input_hint_in, channelInfo[sendChannel]?.displayName ?: sendChannel)
                             else -> stringResource(R.string.input_hint)
                         },
                         maxLines = 1,

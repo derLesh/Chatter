@@ -206,8 +206,6 @@ class ChatRepository(
                 previous = state
             }
         }
-
-
     }
 
     /** The messages of a channel, or of a combined chat by its key. */
@@ -443,7 +441,8 @@ class ChatRepository(
             withContext(worker) { sharedChats.failed(ids) }
             return
         }
-        sharedChats.described(users.map { ChatPartner(it.id, it.login, it.displayName, it.profileImageUrl.ifEmpty { null }) })
+        val partners = users.map { ChatPartner(it.id, it.login, it.displayName, it.profileImageUrl.ifEmpty { null }) }
+        withContext(worker) { sharedChats.described(partners) }
     }
 
     /** A mention, once [IncomingMessages] has built it: the inbox, the badge and the ringing. */

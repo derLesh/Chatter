@@ -133,6 +133,15 @@ private class BuiltLine(
     val images: List<String> = emptyList(),
 )
 
+/**
+ * The widths of the emotes in [line] whose real size is not known yet. Read while composing, it
+ * makes the row lay itself out again once a BTTV emote's width turns up.
+ */
+private fun pendingAspects(line: BuiltLine): List<Float> = line.inline.values.mapNotNull { data ->
+    (data as? InlineData.EmoteData)?.seg?.takeIf { s -> !s.emote.sizeKnown || s.overlays.any { !it.sizeKnown } }
+        ?.let { s -> (s.overlays + s.emote).maxOf { EmoteSizes.aspectRatio(it) } }
+}
+
 private sealed interface InlineData {
     data class ChannelData(val mark: ChannelMark) : InlineData
     data class BadgeData(val badge: Badge) : InlineData
@@ -178,11 +187,7 @@ fun MessageRow(
     // Stable wrapper, so a new callback instance doesn't rebuild the inline content.
     val currentEmoteClick by rememberUpdatedState(onEmoteClick)
     val emoteClick = remember { { seg: Segment.EmoteSeg -> currentEmoteClick?.invoke(seg); Unit } }
-    // Reading measured sizes here makes the row re-layout once a BTTV emote's real width is known.
-    val measured = built.inline.values.mapNotNull { data ->
-        (data as? InlineData.EmoteData)?.seg?.takeIf { s -> !s.emote.sizeKnown || s.overlays.any { !it.sizeKnown } }
-            ?.let { s -> (s.overlays + s.emote).maxOf { EmoteSizes.aspectRatio(it) } }
-    }
+    val measured = pendingAspects(built)
     val inlineContent = remember(built, imageLoader, measured, style.smallEmotes, style.emoteFrameRate) {
         built.inline.mapValues { (_, data) ->
             inlineFor(data, imageLoader, emoteClick.takeIf { onEmoteClick != null }, style.smallEmotes, style.emoteFrameRate)
@@ -194,7 +199,7 @@ fun MessageRow(
         // A rule's own color beats the general mention color: the user picked it for this message.
         item.highlight != null -> Color(item.highlight).copy(alpha = HIGHLIGHT_ALPHA)
         item.isMention -> style.mentionBackground
-        firstMessage -> style.firstMessageBackground!!
+        firstMessage -> style.firstMessageBackground
         item.kind == MessageKind.UserNotice -> style.noticeBackground
         item.alternate && style.alternateBackground != null -> style.alternateBackground
         else -> Color.Transparent
@@ -237,10 +242,7 @@ fun MessageRow(
             // name and the text in.
             val template = stringResource(R.string.reply_to, style.nameOf(reply.parentLogin, reply.parentDisplayName), QUOTE_MARK)
             val quote = remember(template, item, style) { buildQuote(template, item.quote, reply.parentBody, style) }
-            val quoteMeasured = quote.inline.values.mapNotNull { data ->
-                (data as? InlineData.EmoteData)?.seg?.takeIf { s -> !s.emote.sizeKnown || s.overlays.any { !it.sizeKnown } }
-                    ?.let { s -> (s.overlays + s.emote).maxOf { EmoteSizes.aspectRatio(it) } }
-            }
+            val quoteMeasured = pendingAspects(quote)
             val quoteContent = remember(quote, imageLoader, quoteMeasured, style.smallEmotes, style.emoteFrameRate) {
                 quote.inline.mapValues { (_, data) ->
                     inlineFor(data, imageLoader, null, style.smallEmotes, style.emoteFrameRate, QUOTE_EMOTE_EM)
