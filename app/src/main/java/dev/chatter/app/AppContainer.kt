@@ -154,7 +154,8 @@ class AppContainer(private val context: Context) {
         )
     }
 
-    private val sevenTvLive = SevenTvLiveUpdates(context, SevenTvEventClient(socketHttp, scope), emotes, badges, chat, settings.settings, scope)
+    private val sevenTvEvents = SevenTvEventClient(socketHttp, scope)
+    private val sevenTvLive = SevenTvLiveUpdates(context, sevenTvEvents, emotes, badges, chat, settings.settings, scope)
 
     val imageLoader: ImageLoader = imageLoader(animated = true)
     /**
@@ -396,6 +397,7 @@ class AppContainer(private val context: Context) {
         fun tellChat(network: Network?) {
             val caps = network?.let { cm.getNetworkCapabilities(it) }
             irc.setNetwork(up = network != null, validated = caps?.hasCapability(NetworkCapabilities.NET_CAPABILITY_VALIDATED) == true)
+            sevenTvEvents.setNetwork(up = network != null)
         }
         tellChat(cm.activeNetwork)
         cm.registerDefaultNetworkCallback(object : ConnectivityManager.NetworkCallback() {
@@ -410,6 +412,7 @@ class AppContainer(private val context: Context) {
             // be metered, or a hotspot stops being one.
             override fun onCapabilitiesChanged(network: Network, caps: NetworkCapabilities) {
                 irc.setNetwork(up = true, validated = caps.hasCapability(NetworkCapabilities.NET_CAPABILITY_VALIDATED))
+                sevenTvEvents.setNetwork(up = true)
                 dataSaving.networkChanged()
             }
         })

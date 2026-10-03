@@ -1,0 +1,1 @@
+patch: Keep 7TV emote changes arriving after the network changes while Chatter is open

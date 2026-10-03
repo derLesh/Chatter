@@ -76,4 +76,18 @@ class SevenTvEventTest {
         assertNull(parse("""{"type":"user.update","body":{"id":"U","updated":[{"key":"username","value":"x"}]}}"""))
         assertNull(parse("""{"type":"emote_set.update","body":{"id":"S","updated":[{"key":"name","value":"x"}]}}"""))
     }
+
+    private fun heartbeat(json: String) = SevenTvEventClient.heartbeatInterval(AppJson.parseToJsonElement(json).jsonObject)
+
+    @Test
+    fun theHelloSaysHowOftenAHeartbeatComes() {
+        assertEquals(25_000L, heartbeat("""{"op":1,"d":{"heartbeat_interval":25000,"session_id":"abc","subscription_limit":500}}"""))
+    }
+
+    @Test
+    fun aMissingOrSillyHeartbeatIntervalFallsBackToSomethingSensible() {
+        assertEquals("missing", 30_000L, heartbeat("""{"op":1,"d":{"session_id":"abc"}}"""))
+        assertEquals("zero would make the watchdog spin", 5_000L, heartbeat("""{"op":1,"d":{"heartbeat_interval":0}}"""))
+        assertEquals("a day would blind it", 300_000L, heartbeat("""{"op":1,"d":{"heartbeat_interval":86400000}}"""))
+    }
 }

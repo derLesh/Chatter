@@ -8,6 +8,7 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.SharedFlow
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonElement
@@ -19,6 +20,7 @@ import kotlinx.serialization.json.int
 import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
+import kotlinx.serialization.json.longOrNull
 import kotlinx.serialization.json.put
 import kotlinx.serialization.json.putJsonObject
 import okhttp3.OkHttpClient
@@ -77,7 +79,13 @@ data class SevenTvSubscription(val type: String, val condition: Map<String, Stri
 
 /**
  * Connection to wss://events.7tv.io/v3. Subscriptions are kept in [subscriptions] and sent again
- * after every reconnect. The server sends its own heartbeats; we only listen.
+ * after every reconnect.
+ *
+ * The server sends its own heartbeats, and we only listen — but listening is how a dead socket is
+ * noticed. The socket has no read timeout (a channel can go hours without an emote change), so a
+ * network that changes silently under it leaves a connection that is never reported as failed and
+ * never delivers anything again. [startWatchdog] gives up on one that has missed two heartbeats,
+ * the same idea as the chat's watchdog.
  */
 class SevenTvEventClient(
     private val http: OkHttpClient,
@@ -89,22 +97,66 @@ class SevenTvEventClient(
     private var ready = false
     private var attempt = 0
     private var reconnectJob: Job? = null
+    private var watchdogJob: Job? = null
     private var subscriptions: Set<SevenTvSubscription> = emptySet()
+
+    /** What the server last said its heartbeat interval is; a guess until its hello says. */
+    @Volatile private var heartbeatMs = DEFAULT_HEARTBEAT_MS
+    @Volatile private var lastActivity = 0L
+
+    /** Whether the phone has a network; retrying without one cannot succeed. See [setNetwork]. */
+    private var networkUp = true
+
+    /** Whether a connection since [start] has already said hello, so the next one is a reconnect. */
+    private var helloSinceStart = false
 
     private val _events = MutableSharedFlow<SevenTvEvent>(extraBufferCapacity = 32)
     val events: SharedFlow<SevenTvEvent> = _events
 
+    private val _reconnected = MutableSharedFlow<Unit>(extraBufferCapacity = 1)
+    /**
+     * A connection came back after one had been lost. Whatever changed in between was never
+     * pushed, so this is when to load the emote sets again.
+     */
+    val reconnected: SharedFlow<Unit> = _reconnected
+
     fun start() = synchronized(lock) {
         wanted = true
-        if (socket == null && subscriptions.isNotEmpty()) open()
+        helloSinceStart = false
+        if (socket == null && networkUp && subscriptions.isNotEmpty()) open()
     }
 
     fun stop() = synchronized(lock) {
         wanted = false
         reconnectJob?.cancel()
+        watchdogJob?.cancel()
         socket?.close(1000, null)
         socket = null
         ready = false
+    }
+
+    /**
+     * Whether the phone has a network, as the chat connection is told. Going away stops the
+     * retries; coming back starts over at once on the new network, since a socket opened on the
+     * old one is most likely dead.
+     */
+    fun setNetwork(up: Boolean) = synchronized(lock) {
+        val cameBack = up && !networkUp
+        networkUp = up
+        if (!wanted) return@synchronized
+        if (!up) {
+            reconnectJob?.cancel()
+            watchdogJob?.cancel()
+            socket?.cancel()
+            socket = null
+            ready = false
+        } else if (cameBack) {
+            attempt = 0
+            reconnectJob?.cancel()
+            socket?.cancel()
+            socket = null
+            if (subscriptions.isNotEmpty()) open()
+        }
     }
 
     /** Replaces the subscription set; only the difference is sent to the server. */
@@ -115,25 +167,53 @@ class SevenTvEventClient(
         if (ws != null && ready) {
             (old - new).forEach { ws.send(subscriptionMessage(36, it)) }
             (new - old).forEach { ws.send(subscriptionMessage(35, it)) }
-        } else if (wanted && socket == null && new.isNotEmpty()) {
+        } else if (wanted && networkUp && socket == null && new.isNotEmpty()) {
             open()
         }
     }
 
     private fun open() {
         ready = false
-        socket = http.newWebSocket(Request.Builder().url("wss://events.7tv.io/v3").build(), Listener())
+        lastActivity = System.currentTimeMillis()
+        val ws = http.newWebSocket(Request.Builder().url("wss://events.7tv.io/v3").build(), Listener())
+        socket = ws
+        startWatchdog(ws)
+    }
+
+    /**
+     * Reconnects once [ws] has said nothing — no heartbeat, no event — for two heartbeat
+     * intervals. Before the hello that is a guessed interval, which also covers a socket that
+     * opened and never got as far as greeting us. Sleeps exactly until the silence could be long
+     * enough, so a quiet connection costs one wakeup per heartbeat that was due anyway.
+     */
+    private fun startWatchdog(ws: WebSocket) {
+        watchdogJob?.cancel()
+        watchdogJob = scope.launch {
+            while (isActive) {
+                val limit = 2 * heartbeatMs
+                val silence = System.currentTimeMillis() - lastActivity
+                if (silence >= limit) {
+                    Log.i(TAG, "No heartbeat for ${silence / 1000}s, reconnecting")
+                    synchronized(lock) { if (socket === ws) scheduleReconnect() }
+                    break
+                }
+                delay(limit - silence)
+            }
+        }
     }
 
     private fun scheduleReconnect() = synchronized(lock) {
+        socket?.cancel()
         socket = null
         ready = false
-        if (!wanted || reconnectJob?.isActive == true) return@synchronized
+        watchdogJob?.cancel()
+        // Without a network there is nothing to retry against; setNetwork brings us back.
+        if (!wanted || !networkUp || reconnectJob?.isActive == true) return@synchronized
         val delayMs = (1000L shl attempt.coerceAtMost(6)).coerceAtMost(60_000L) + Random.nextLong(0, 1000)
         attempt++
         reconnectJob = scope.launch {
             delay(delayMs)
-            synchronized(lock) { if (wanted && socket == null && subscriptions.isNotEmpty()) open() }
+            synchronized(lock) { if (wanted && networkUp && socket == null && subscriptions.isNotEmpty()) open() }
         }
     }
 
@@ -142,12 +222,16 @@ class SevenTvEventClient(
 
         override fun onMessage(webSocket: WebSocket, text: String) {
             if (!isCurrent(webSocket)) return
+            lastActivity = System.currentTimeMillis()
             val msg = runCatching { AppJson.parseToJsonElement(text).jsonObject }.getOrNull() ?: return
             when (msg["op"]?.jsonPrimitive?.int) {
                 1 -> synchronized(lock) { // hello: (re)send all subscriptions
+                    heartbeatMs = heartbeatInterval(msg)
                     ready = true
                     attempt = 0
                     subscriptions.forEach { webSocket.send(subscriptionMessage(35, it)) }
+                    if (helloSinceStart) _reconnected.tryEmit(Unit)
+                    helloSinceStart = true
                 }
                 0 -> msg["d"]?.jsonObject?.let { parseDispatch(it) }?.let { _events.tryEmit(it) }
                 4, 7 -> { // reconnect requested / end of stream
@@ -169,6 +253,18 @@ class SevenTvEventClient(
 
     companion object {
         private const val TAG = "SevenTvEvents"
+
+        /** What 7TV has sent as its heartbeat interval, for the time before it says so. */
+        private const val DEFAULT_HEARTBEAT_MS = 30_000L
+
+        /**
+         * The heartbeat interval a hello (op 1) announces, in milliseconds. Kept within sensible
+         * bounds: a server saying 0 must not make the watchdog spin, nor one saying a day blind it.
+         * Internal for tests.
+         */
+        internal fun heartbeatInterval(hello: JsonObject): Long =
+            (hello["d"] as? JsonObject)?.get("heartbeat_interval")?.jsonPrimitive?.longOrNull
+                ?.coerceIn(5_000L, 5 * 60_000L) ?: DEFAULT_HEARTBEAT_MS
 
         /** The one kind of cosmetic Chatter shows; 7TV also hands out paints. */
         private const val BADGE = "BADGE"

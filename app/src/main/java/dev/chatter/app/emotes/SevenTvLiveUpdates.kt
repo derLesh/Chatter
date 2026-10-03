@@ -50,6 +50,10 @@ class SevenTvLiveUpdates(
         scope.launch {
             client.events.collect { handle(it) }
         }
+        // A connection lost while the app was open missed whatever was pushed in between.
+        scope.launch {
+            client.reconnected.collect { reloadAll() }
+        }
     }
 
     /**
