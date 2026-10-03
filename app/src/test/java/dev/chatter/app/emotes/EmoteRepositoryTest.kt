@@ -16,6 +16,7 @@ import dev.chatter.app.net.SevenTvUser
 import dev.chatter.app.net.SevenTvUserRef
 import dev.chatter.app.net.ThirdPartyEmoteApi
 import dev.chatter.app.net.TwitchEmoteApi
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
@@ -48,14 +49,19 @@ class EmoteRepositoryTest {
         var sevenTv: List<String>? = emptyList()
         var calls = 0
 
+        /** While set, BTTV's channel answer waits for it: a provider that takes its time. */
+        var bttvGate: CompletableDeferred<Unit>? = null
+
         private fun <T> answer(names: List<String>?, build: (List<String>) -> T): T {
             calls++
             return build(names ?: throw IOException("provider is down"))
         }
 
         override suspend fun bttvGlobal() = answer(bttv) { it.toBttv() }
-        override suspend fun bttvChannel(channelId: String) =
-            answer(bttv) { BttvChannel(channelEmotes = it.toBttv()) }
+        override suspend fun bttvChannel(channelId: String): BttvChannel {
+            bttvGate?.await()
+            return answer(bttv) { BttvChannel(channelEmotes = it.toBttv()) }
+        }
 
         override suspend fun ffzGlobal() =
             answer(ffz) { FfzGlobal(defaultSets = listOf(1), sets = mapOf("1" to FfzSet(it.toFfz()))) }
@@ -323,6 +329,34 @@ class EmoteRepositoryTest {
 
         assertEquals(EmoteProvider.Bttv, emotes.lookup(channel, "susge")?.provider)
         assertEquals(EmoteProvider.SevenTv, emotes.lookup(channel, "peepoHappy")?.provider)
+    }
+
+    @Test
+    fun aSevenTvChangeWhileAnotherProviderIsAskedAgainIsKept() = runTest {
+        providers.sevenTv = listOf("catJAM")
+        emotes.loadChannel(channel, userId = null)
+
+        // BTTV is asked again, and takes its time answering.
+        providers.bttv = listOf("susge")
+        providers.bttvGate = CompletableDeferred()
+        val retry = launch { emotes.loadChannel(channel, userId = null, wanted = setOf(EmoteProvider.Bttv)) }
+        runCurrent()
+
+        emotes.applySevenTvUpdate(
+            channel,
+            SevenTvEvent.EmoteSetUpdate(
+                setId = "set-$channel",
+                actor = "someone",
+                added = listOf(sevenTvEmote("peepoHappy")),
+                removed = emptyList(),
+                renamed = emptyList(),
+            ),
+        )
+        providers.bttvGate!!.complete(Unit)
+        retry.join()
+
+        assertEquals("pushed while BTTV was being asked", EmoteProvider.SevenTv, emotes.lookup(channel, "peepoHappy")?.provider)
+        assertEquals(EmoteProvider.Bttv, emotes.lookup(channel, "susge")?.provider)
     }
 
     @Test

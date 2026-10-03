@@ -134,11 +134,16 @@ class EmoteRepository(
         wanted: Set<EmoteProvider> = THIRD_PARTY,
     ) = coroutineScope {
         val follower = async { if (userId != null) loadFollowerEmotes(channelId, userId) }
-        val loaded = (channels[channelId] ?: ProviderEmotes()).merge(ask(wanted) { fetchChannel(channelId, it) })
-        channels[channelId] = loaded.emotes
+        val answers = ask(wanted) { fetchChannel(channelId, it) }
+        // Merged into what is there once the answers are in, not into what was there when the
+        // asking started: the providers take seconds, and a 7TV change pushed in the meantime, or
+        // a retry of another provider finishing first, would otherwise be written over.
+        var failed = emptySet<EmoteProvider>()
+        channels.compute(channelId) { _, current ->
+            (current ?: ProviderEmotes()).merge(answers).also { failed = it.failed }.emotes
+        }
         // Whoever was not asked this time is left however the last load left them.
-        val missing = channelMissing[channelId].orEmpty() - wanted + loaded.failed
-        channelMissing[channelId] = missing
+        val missing = channelMissing.compute(channelId) { _, before -> before.orEmpty() - wanted + failed }.orEmpty()
         if (missing.isEmpty()) lastFullLoad[channelId] = now() else lastFullLoad.remove(channelId)
         updateWaiting()
         follower.await()
@@ -206,18 +211,21 @@ class EmoteRepository(
 
     /** Applies a pushed 7TV set change to the channel's emotes. Returns the added emotes (converted). */
     fun applySevenTvUpdate(channelId: String, event: SevenTvEvent.EmoteSetUpdate): List<Emote> {
-        val current = channels[channelId] ?: ProviderEmotes()
-        // Only the channel's 7TV emotes change; a name another provider also has keeps resolving
-        // to that provider, exactly as it would after a fresh load.
-        val stv = HashMap(current.sevenTv)
-        event.removed.forEach { stv.remove(it.name) }
-        event.renamed.forEach { (old, new) ->
-            val existing = stv.remove(old.name)
-            (new.toEmote(true) ?: existing?.copy(name = new.name))?.let { stv[new.name] = it }
-        }
         val added = event.added.mapNotNull { it.toEmote(true) }
-        added.forEach { stv[it.name] = it }
-        channels[channelId] = current.withSevenTv(stv)
+        // In one step with whatever else changes the channel's emotes; see loadChannel.
+        channels.compute(channelId) { _, existing ->
+            val current = existing ?: ProviderEmotes()
+            // Only the channel's 7TV emotes change; a name another provider also has keeps resolving
+            // to that provider, exactly as it would after a fresh load.
+            val stv = HashMap(current.sevenTv)
+            event.removed.forEach { stv.remove(it.name) }
+            event.renamed.forEach { (old, new) ->
+                val before = stv.remove(old.name)
+                (new.toEmote(true) ?: before?.copy(name = new.name))?.let { stv[new.name] = it }
+            }
+            added.forEach { stv[it.name] = it }
+            current.withSevenTv(stv)
+        }
         _version.update { it + 1 }
         return added
     }
