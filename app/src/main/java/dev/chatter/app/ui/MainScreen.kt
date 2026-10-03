@@ -68,6 +68,7 @@ import dev.chatter.app.ui.channels.RenameChannelDialog
 import dev.chatter.app.ui.channels.ChannelPages
 import dev.chatter.app.ui.channels.ChannelTabBar
 import dev.chatter.app.ui.channels.ChannelTopBar
+import dev.chatter.app.ui.channels.OfferUndoRemoval
 import dev.chatter.app.ui.chat.ChannelMark
 import dev.chatter.app.ui.chat.ChatList
 import dev.chatter.app.ui.chat.MessageGesture
@@ -139,6 +140,7 @@ fun MainScreen(vm: MainViewModel, onInbox: () -> Unit, onSettings: () -> Unit) {
     val lifecycleOwner = LocalLifecycleOwner.current
     val scope = rememberCoroutineScope()
     val snackbar = remember { SnackbarHostState() }
+    OfferUndoRemoval(vm, snackbar)
     // Where the pages are: one per channel, or a great many of them with the channels repeating,
     // which is what lets a swipe carry on past the last one. Only the settings screen can turn
     // that on, and opening it takes this screen out of the composition, so the pager is always

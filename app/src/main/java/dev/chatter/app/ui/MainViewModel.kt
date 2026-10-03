@@ -14,6 +14,8 @@ import dev.chatter.app.R
 import dev.chatter.app.badges.Badge
 import dev.chatter.app.badges.BadgeProvider
 import dev.chatter.app.channels.ChannelGroup
+import dev.chatter.app.channels.RemovedPage
+import dev.chatter.app.channels.displayName
 import dev.chatter.app.chat.ChatCommand
 import dev.chatter.app.chat.ChatRole
 import dev.chatter.app.chat.ChatRule
@@ -56,6 +58,9 @@ import kotlinx.coroutines.withContext
  * happens on the screen and not here, so that a message already up follows a change of language.
  */
 data class UiMessage(val text: Int, val fill: String? = null)
+
+/** A channel or combined chat that was just removed, under the name it was shown by. */
+class Removal(val name: String, val removed: RemovedPage)
 
 sealed interface Suggestion {
     data class EmoteSuggestion(val emote: Emote) : Suggestion
@@ -170,6 +175,12 @@ class MainViewModel(private val c: AppContainer) : ViewModel() {
     private val _messages = Channel<UiMessage>(Channel.BUFFERED)
     /** One-off user feedback, shown as a snackbar. */
     val messages = _messages.receiveAsFlow()
+
+    // Only the latest: a snackbar for a removal that has been followed by another is not worth
+    // showing any more.
+    private val _removals = Channel<Removal>(Channel.CONFLATED)
+    /** Channels and combined chats just removed, each to be offered back once. */
+    val removals = _removals.receiveAsFlow()
 
     private var suggestionJob: Job? = null
 
@@ -694,9 +705,25 @@ class MainViewModel(private val c: AppContainer) : ViewModel() {
         }
     }
 
-    /** Removes a channel, or a combined chat by its key. */
+    /**
+     * Removes a channel, or a combined chat by its key, and offers to take it back: what went with
+     * it — its name, its settings, its places in the combined chats — is a lot to lose to a slip.
+     */
     fun removeChannel(page: String) {
-        viewModelScope.launch { c.channels.remove(page) }
+        val info = c.channels.info.value
+        val name = c.channels.groups.value[page]?.displayName(info) ?: info[page]?.displayName ?: page
+        viewModelScope.launch {
+            val removed = c.channels.remove(page) ?: return@launch
+            _removals.send(Removal(name, removed))
+        }
+    }
+
+    /** Puts back what [removal] took, and goes to it again. */
+    fun undoRemoval(removal: Removal) {
+        viewModelScope.launch {
+            c.channels.putBack(removal.removed)
+            requestedChannel.value = removal.removed.page
+        }
     }
 
     /**

@@ -65,6 +65,8 @@ import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.SegmentedButton
 import androidx.compose.material3.SegmentedButtonDefaults
 import androidx.compose.material3.SingleChoiceSegmentedButtonRow
@@ -142,6 +144,7 @@ import dev.chatter.app.ui.changelog.ChangelogPage
 import dev.chatter.app.ui.channels.AddChannelDialog
 import dev.chatter.app.ui.channels.CombineChannelsDialog
 import dev.chatter.app.ui.channels.ManageChannelsPage
+import dev.chatter.app.ui.channels.OfferUndoRemoval
 import dev.chatter.app.ui.channels.RenameChannelDialog
 import dev.chatter.app.ui.chat.ChatStyle
 import dev.chatter.app.ui.chat.MessageRow
@@ -335,6 +338,9 @@ fun SettingsScreen(vm: MainViewModel, onBack: () -> Unit) {
     val account = (auth as? AuthState.LoggedIn)?.account
     val update by vm.availableUpdate.collectAsStateWithLifecycle()
     val scope = rememberCoroutineScope()
+    // The channel page can remove a channel, and offers it back like the chat does.
+    val snackbar = remember { SnackbarHostState() }
+    OfferUndoRemoval(vm, snackbar)
 
     addFailed?.let { error ->
         AlertDialog(
@@ -392,7 +398,7 @@ fun SettingsScreen(vm: MainViewModel, onBack: () -> Unit) {
         }
         // Only the list of categories is searched from; a category is already where to look.
         val onSearch = if (current == null && currentSub == null) ({ searching = true }) else null
-        SettingsPageScaffold(title = title, onBack = goBack, onSearch = onSearch) {
+        SettingsPageScaffold(title = title, onBack = goBack, onSearch = onSearch, snackbar = snackbar) {
           CompositionLocalProvider(LocalSettingsTarget provides target.takeIf { currentSub == null }) {
             when (currentSub) {
                 SettingsSubPage.BlockedUsers -> BlockedUsersPage(vm)
@@ -538,7 +544,13 @@ private fun SearchPage(query: String, onQuery: (String) -> Unit, onOpen: (Search
 /** One settings page: its own collapsing large title bar and scrolling content. */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun SettingsPageScaffold(title: Int?, onBack: () -> Unit, onSearch: (() -> Unit)? = null, content: @Composable () -> Unit) {
+private fun SettingsPageScaffold(
+    title: Int?,
+    onBack: () -> Unit,
+    onSearch: (() -> Unit)? = null,
+    snackbar: SnackbarHostState? = null,
+    content: @Composable () -> Unit,
+) {
     val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior(rememberTopAppBarState())
     val back = @Composable {
         IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Filled.ArrowBack, stringResource(R.string.back)) }
@@ -548,6 +560,7 @@ private fun SettingsPageScaffold(title: Int?, onBack: () -> Unit, onSearch: (() 
         // connection to move, and it would swallow every scroll rather than pass it on.
         modifier = if (title != null) Modifier.nestedScroll(scrollBehavior.nestedScrollConnection) else Modifier,
         containerColor = MaterialTheme.colorScheme.surface,
+        snackbarHost = { snackbar?.let { SnackbarHost(it) } },
         topBar = {
             // Without a heading a large bar would just be empty space, so it shrinks to a plain one.
             if (title == null) {

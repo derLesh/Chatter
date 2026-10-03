@@ -92,6 +92,8 @@
     <string name="move_left">Move left</string>
     <string name="move_right">Move right</string>
     <string name="remove_channel">Remove</string>
+    <string name="page_removed">%1$s removed</string>
+    <string name="undo">Undo</string>
     <string name="rename_channel">Rename</string>
     <string name="rename_channel_hint">Give the channel a nickname</string>
     <string name="add_channel">Add channel</string>

@@ -1,0 +1,1 @@
+minor: Undo removing a channel or a combined chat, with its name, settings and places in combined chats

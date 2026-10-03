@@ -2,6 +2,7 @@ package dev.chatter.app.channels
 
 import android.util.Log
 import androidx.datastore.core.DataStore
+import androidx.datastore.preferences.core.MutablePreferences
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.stringPreferencesKey
@@ -156,22 +157,39 @@ class ChannelRepository(
         return login
     }
 
-    /** Takes a channel or a combined chat off the list, whichever [page] names. */
-    suspend fun remove(page: String) {
-        if (ChannelGroup.isKey(page)) return removeGroup(page)
-        val login = page
+    /**
+     * Takes a channel or a combined chat off the list, whichever [page] names, along with
+     * everything set on it. Returns what went, for [putBack]; null if it was not on the list.
+     */
+    suspend fun remove(page: String): RemovedPage? {
+        var removed: RemovedPage? = null
         store.edit { p ->
-            // A combined chat without the channel reads from the ones it has left, and goes
-            // when there are none.
-            val groups = decodeGroups(p[GROUPS]).map { g -> g.copy(channels = g.channels - login) }
-            val emptied = groups.filter { it.channels.isEmpty() }.map { it.key }.toSet()
-            p[GROUPS] = AppJson.encodeToString(groups.filter { it.key !in emptied })
-            p[CHANNELS] = split(p[CHANNELS]).filter { it != login && it !in emptied }.joinToString(",")
-            val names = decodeNames(p[CUSTOM_NAMES])
-            if (login in names) p[CUSTOM_NAMES] = AppJson.encodeToString(names - login)
-            p[MUTED] = p[MUTED].orEmpty().split(',').filter { it.isNotEmpty() && it != login }.joinToString(",")
-            p[NO_TITLE_BAR] = p[NO_TITLE_BAR].orEmpty().split(',').filter { it.isNotEmpty() && it != login }.joinToString(",")
+            val (lists, what) = p.lists().remove(page) ?: return@edit
+            p.write(lists)
+            removed = what
         }
+        return removed
+    }
+
+    /** Undoes a [remove]: the page, its settings and its places in the combined chats. */
+    suspend fun putBack(removed: RemovedPage) {
+        store.edit { p -> p.write(p.lists().putBack(removed)) }
+    }
+
+    private fun Preferences.lists() = ChannelLists(
+        pages = split(this[CHANNELS]),
+        groups = decodeGroups(this[GROUPS]),
+        names = decodeNames(this[CUSTOM_NAMES]),
+        muted = split(this[MUTED]).toSet(),
+        hiddenUnread = split(this[NO_TITLE_BAR]).toSet(),
+    )
+
+    private fun MutablePreferences.write(lists: ChannelLists) {
+        this[CHANNELS] = lists.pages.joinToString(",")
+        this[GROUPS] = AppJson.encodeToString(lists.groups)
+        this[CUSTOM_NAMES] = AppJson.encodeToString(lists.names)
+        this[MUTED] = lists.muted.joinToString(",")
+        this[NO_TITLE_BAR] = lists.hiddenUnread.joinToString(",")
     }
 
     /**
@@ -192,13 +210,6 @@ class ChannelRepository(
             if (group.key !in list) p[CHANNELS] = (list + group.key).joinToString(",")
         }
         return group.key
-    }
-
-    private suspend fun removeGroup(key: String) {
-        store.edit { p ->
-            p[GROUPS] = AppJson.encodeToString(decodeGroups(p[GROUPS]).filter { it.key != key })
-            p[CHANNELS] = split(p[CHANNELS]).filter { it != key }.joinToString(",")
-        }
     }
 
     /** Gives a channel a name of the user's choosing; a blank name restores the Twitch one. */
