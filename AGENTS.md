@@ -184,6 +184,10 @@ A change is not confirmed by compiling. Install it and open the screen it touche
 - **Comments say why, not what.** The codebase explains the reason a thing is the way it is —
   the Twitch quirk, the Compose limitation, the choice between two designs. KDoc goes on types and
   on any function whose purpose is not obvious from its name.
+- **Comments are short.** One line where one does, three at most for a single point. No history
+  ("used to", "before this change") — that is what the commit message is for. No retelling of
+  the code below, no story of what would go wrong without it beyond the one fact that matters,
+  and no rhetorical flourish. A comment that only repeats a name is deleted, not shortened.
 - **A new setting touches four places:** the `Settings` data class, a key and setter in
   `SettingsRepository`, a setter on `MainViewModel`, and a row in `SettingsScreen`.
 - **Parsing gets a test.** Anything that reads a format — IRC tags, 7TV events, the changelog —
