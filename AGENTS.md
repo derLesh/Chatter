@@ -181,6 +181,10 @@ A change is not confirmed by compiling. Install it and open the screen it touche
 
 - **Both locales.** Every user-visible string lives in `app/src/main/res/values/strings.xml` *and*
   `values-de/strings.xml`. Adding one and not the other leaves the app half-translated.
+- **Names explain what.** Variables, functions and types are named so the code reads without a
+  comment: `unreadMentions`, `markChannelRead`, `retryMissing` rather than `count`, `update`,
+  `handle`. If a name needs a comment to say what it holds or does, rename it first; a comment is
+  for what no name can carry.
 - **Comments say why, not what.** The codebase explains the reason a thing is the way it is —
   the Twitch quirk, the Compose limitation, the choice between two designs. KDoc goes on types and
   on any function whose purpose is not obvious from its name.
