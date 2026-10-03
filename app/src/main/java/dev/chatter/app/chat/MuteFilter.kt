@@ -1,13 +1,11 @@
 package dev.chatter.app.chat
 
 /**
- * Decides which messages never make it into the chat at all.
+ * Decides which messages never reach the chat.
  *
- * Keywords match as whole words, case-insensitive, just like [MentionMatcher] does, so muting
- * "sub" does not swallow every "subscribe". Both the message text and the name of whoever wrote
- * it are checked, which lets a keyword mute a bot by name.
- *
- * Blocked users come straight from the Twitch block list and are matched on their login.
+ * Keywords match whole words, case-insensitive, like [MentionMatcher], so muting "sub" does not
+ * hide "subscribe". Both text and author name are checked, so a keyword can mute a bot by name.
+ * Blocked users come from the Twitch block list and match by login.
  */
 class MuteFilter(keywords: List<String> = emptyList(), blocked: Set<String> = emptySet()) {
     private val blocked: Set<String> = blocked.mapTo(HashSet()) { it.lowercase() }
@@ -24,7 +22,7 @@ class MuteFilter(keywords: List<String> = emptyList(), blocked: Set<String> = em
     fun mutes(item: ChatItem): Boolean =
         if (item.isOwn) false else mutes(item.login, item.displayName, item.text)
 
-    /** The same test for something that never reaches a channel buffer, like a whisper. */
+    /** The same check for things outside the channel buffers, like whispers. */
     fun mutes(login: String?, displayName: String?, text: String): Boolean {
         val sender = login?.lowercase()
         if (sender != null && sender in blocked) return true

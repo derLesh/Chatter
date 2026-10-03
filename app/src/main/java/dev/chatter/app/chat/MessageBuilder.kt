@@ -7,34 +7,36 @@ import dev.chatter.app.emotes.twitchEmoteUrl
 import dev.chatter.app.irc.IrcMessage
 import java.util.UUID
 
-/** Where the builder gets emotes and badges from. Implemented by the repositories, faked in tests. */
+/** Where the builder gets emotes. Implemented by the repositories, faked in tests. */
 interface EmoteSource {
     fun lookup(channelId: String?, word: String): Emote?
-    /** Twitch emotes the user may use (their emote sets plus follower emotes of the channel). */
+    /** Twitch emotes the user may use: their emote sets plus the channel's follower emotes. */
     fun lookupOwnTwitch(channelId: String?, word: String): Emote?
 
     /**
-     * False while a provider still owes emotes here: a message built now may read differently
-     * once they arrive, so it is kept ready to be built again. See [MessageBody].
+     * False while a provider still owes emotes here; a message built now may change once they
+     * arrive, so it stays rebuildable. See [MessageBody].
      */
     fun complete(channelId: String?): Boolean = true
 }
 
-/** User preferences that change how emotes are recognized in new messages. */
+/** User settings that affect how emotes are recognized in new messages. */
 data class EmoteOptions(
     val enabled: Boolean = true,
     val zeroWidth: Boolean = true,
     val showUnlisted: Boolean = false,
-    /** Emotes from other providers are left as plain text. */
+    /** Emotes from other providers stay plain text. */
     val providers: Set<EmoteProvider> = EmoteProvider.entries.toSet(),
 )
 
 fun interface BadgeSource {
-    /** [userId] comes from the `user-id` tag: badges from other clients hang off it, not off the tag. */
+    /**
+     * [userId] from the `user-id` tag: other clients' badges belong to the user, not to the tag.
+     */
     fun resolve(channelId: String?, badgesTag: String?, userId: String?): List<Badge>
 }
 
-/** Turns raw IRC messages into [ChatItem]s. All the parsing work happens here, once per message. */
+/** Turns IRC messages into [ChatItem]s, once per message. */
 class MessageBuilder(
     private val emotes: EmoteSource,
     private val badges: BadgeSource,
@@ -60,7 +62,7 @@ class MessageBuilder(
         }
     }
 
-    /** Local echo for a message we just sent. Twitch never sends our own PRIVMSG back to us. */
+    /** Local echo of a message the user sent; Twitch does not send it back. */
     fun buildOwn(
         channel: String,
         text: String,
@@ -68,7 +70,7 @@ class MessageBuilder(
         selfLogin: String,
         channelId: String?,
         reply: ReplyInfo?,
-        /** The segments of the message answered, which the app has already worked out. */
+        /** The segments of the answered message, already built. */
         quote: List<Segment> = emptyList(),
     ): ChatItem {
         val (body, isAction) = splitAction(text)
@@ -92,12 +94,11 @@ class MessageBuilder(
     }
 
     /**
-     * The drawing half of a message, left for whoever draws it. Holds on to the few tag values it
-     * needs rather than to the whole [IrcMessage], so a buffered message keeps nothing alive that
-     * it would not have kept anyway.
+     * The drawing part of a message, built later. Keeps only the tag values it needs instead of the
+     * whole [IrcMessage].
      *
-     * [strippedPrefix] is the "@parent " a reply carries: the emote positions Twitch sends count
-     * from the untrimmed text, so they can only be shifted once they are parsed.
+     * [strippedPrefix] is the "@parent " of a reply: Twitch's emote positions count from the
+     * untrimmed text, so they are shifted after parsing.
      */
     private fun deferred(
         channel: String,
@@ -108,7 +109,10 @@ class MessageBuilder(
         channelId: String?,
         ownMessage: Boolean,
         strippedPrefix: Int = 0,
-        /** Where the badges were earned: a Shared Chat partner's message wears that channel's. */
+        /**
+         * Where the badges were earned: a Shared Chat partner's message shows that channel's
+         * badges.
+         */
         badgeChannelId: String? = channelId,
         quote: () -> List<Segment> = { emptyList() },
     ) = MessageBody.lazily(
@@ -125,8 +129,8 @@ class MessageBuilder(
         },
         badges = { badges.resolve(badgeChannelId, badgesTag, userId) },
         quote = quote,
-        // Asked after the message has been built: a provider that was unreachable may still turn
-        // up, and then this message is built once more with its emotes in it.
+        // Asked after building: if a provider still owes emotes, the message is rebuilt once they
+        // arrive.
         worthKeeping = { !emotes.complete(channelId) },
     )
 
@@ -138,10 +142,9 @@ class MessageBuilder(
         val (raw, isAction) = splitAction(msg.trailing.orEmpty())
         val reply = replyInfo(msg)
 
-        // Twitch prefixes replies with "@<display name> ", not with the login, and the reply header
-        // already shows who is addressed. A display name that is the login in other letters
-        // (Japanese, Cyrillic) would otherwise never match and stay in the text. The login is only
-        // the fallback for a message that carries no display name for the parent.
+        // Twitch prefixes replies with "@<display name> ", not the login. A display name in other
+        // letters (Japanese, Cyrillic) would never match the login, so the display name is tried
+        // first; the login is the fallback when the tag is missing.
         val stripped = reply?.let { r ->
             listOf(r.parentDisplayName, r.parentLogin)
                 .firstOrNull { it.isNotEmpty() && raw.startsWith("@$it ", ignoreCase = true) }
@@ -193,7 +196,7 @@ class MessageBuilder(
             login = login,
             displayName = msg.tag("display-name") ?: login,
             color = parseColor(msg.tag("color")),
-            // A notice without a message of its own (a plain sub, a raid) shows no badges either.
+            // A notice without a message of its own (a plain sub, a raid) shows no badges.
             body = if (body.isEmpty()) MessageBody.EMPTY else deferred(
                 channel, body, emotesTag = msg.tag("emotes"), badgesTag = badgesOf(msg),
                 userId = msg.tag("user-id"), channelId = roomId,
@@ -209,24 +212,23 @@ class MessageBuilder(
     }
 
     /**
-     * The channel a message was written in, when that is a Shared Chat partner rather than the
-     * channel it arrived in. During a session the channel's own messages carry the tag as well,
-     * naming the channel itself.
+     * The Shared Chat partner a message was written in, if not the channel it arrived in. During a
+     * session the channel's own messages carry the tag too, naming the channel itself.
      */
     private fun partnerRoom(msg: IrcMessage, roomId: String?): String? =
         msg.tag("source-room-id")?.takeIf { it != (msg.tag("room-id") ?: roomId) }
 
     /**
-     * The badges the sender wears where they wrote. In a Shared Chat `badges` are the ones for the
-     * channel the copy arrived in, which is not where somebody's sub or moderator badge was earned.
+     * The badges where the sender wrote. In Shared Chat `badges` refers to the channel the copy
+     * arrived in, not where a sub or moderator badge was earned.
      */
     private fun badgesOf(msg: IrcMessage): String? = msg.tag("source-badges") ?: msg.tag("badges")
 
     internal data class EmoteRange(val start: Int, val end: Int, val id: String, val name: String)
 
     /**
-     * Parses the `emotes` tag ("25:0-4,12-16/1902:6-10"). Twitch counts in Unicode code points,
-     * Kotlin strings in UTF-16 chars, so emoji before an emote shift the positions.
+     * Parses the `emotes` tag ("25:0-4,12-16/1902:6-10"). Twitch counts code points, Kotlin strings
+     * UTF-16 units, so an emoji before an emote shifts the positions.
      */
     internal fun twitchEmotes(text: String, tag: String?): List<EmoteRange> {
         if (tag.isNullOrEmpty()) return emptyList()
@@ -256,7 +258,7 @@ class MessageBuilder(
 
     internal fun segments(channel: String, text: String, twitchRanges: List<EmoteRange>, channelId: String?, ownMessage: Boolean): List<Segment> {
         val opts = options()
-        // With emotes turned off, every word (Twitch emotes included) stays plain text.
+        // With emotes off, every word stays text, Twitch emotes included.
         val twitch = if (opts.enabled && EmoteProvider.Twitch in opts.providers) twitchRanges else emptyList()
         val out = ArrayList<Segment>()
         val buf = StringBuilder()
@@ -324,8 +326,8 @@ class MessageBuilder(
     }
 
     /**
-     * "@name" plus the mentioned user's chat color, but only while they are chatting in this
-     * channel. Trailing punctuation ("@name," / "@name?") still has to find the user.
+     * "@name" with the mentioned user's chat color, only while they chat in this channel. Trailing
+     * punctuation ("@name," / "@name?") is ignored for the lookup.
      */
     private fun mention(channel: String, word: String): Segment.Mention {
         val login = word.drop(1).trimEnd { !it.isLetterOrDigit() && it != '_' }
@@ -335,9 +337,8 @@ class MessageBuilder(
     }
 
     /**
-     * The message a reply answers, as the line above the reply shows it. Twitch sends its text and
-     * nothing about where its Twitch emotes are, so it gets the emotes that are known by name —
-     * which are the ones that show up as a wall of codes otherwise. Internal for tests.
+     * The answered message for the line above a reply. Twitch sends its text without emote
+     * positions, so only emotes known by name are found. Internal for tests.
      */
     internal fun quoteSegments(channel: String, text: String, channelId: String?): List<Segment> =
         if (text.isEmpty()) emptyList() else segments(channel, text, emptyList(), channelId, ownMessage = false)
@@ -366,7 +367,7 @@ class MessageBuilder(
             word.startsWith("https://", ignoreCase = true) || word.startsWith("http://", ignoreCase = true) ||
                 (word.contains('.') && DOMAIN.matches(word))
 
-        /** "\u0001ACTION waves\u0001" (sent by /me) -> ("waves", true). */
+        /** "\u0001ACTION waves\u0001" (from /me) -> ("waves", true). */
         fun splitAction(text: String): Pair<String, Boolean> =
             if (text.startsWith("\u0001ACTION ") && text.endsWith("\u0001") && text.length >= 9) {
                 text.substring(8, text.length - 1) to true

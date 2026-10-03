@@ -7,16 +7,13 @@ import dev.chatter.app.net.HelixApi
 import dev.chatter.app.net.HttpException
 import kotlinx.coroutines.CancellationException
 
-/** What came of sending a whisper. [message] is always something worth showing the user. */
+/** Result of sending a whisper; [message] is always worth showing. */
 data class WhisperResult(val sent: Boolean, val message: String)
 
 /**
- * Sends whispers.
- *
- * Twitch took whispers out of chat, so they go over the API instead. That brings two conditions
- * the app cannot check beforehand — its token needs the whisper scope, and the Twitch account
- * needs a verified phone number — and both only ever show up as a refusal at send time. So every
- * failure here is turned into a sentence that says what to do about it.
+ * Sends whispers through Helix. Two conditions cannot be checked beforehand: the token needs the
+ * whisper scope and the account a verified phone number. Both only show up as a refusal, so every
+ * failure is turned into a sentence saying what to do.
  */
 class WhisperSender(
     private val context: Context,
@@ -24,8 +21,8 @@ class WhisperSender(
     private val auth: AuthRepository,
 ) {
     /**
-     * Whispers [message] to [login]. [userId] is their Twitch id where it is already known — a
-     * whisper carries the sender's — and saves the lookup that is otherwise needed first.
+     * Whispers [message] to [login]. [userId] saves the lookup where it is already known, e.g. from
+     * a received whisper.
      */
     suspend fun send(login: String, userId: String?, message: String): WhisperResult {
         val me = auth.account?.userId ?: return failed(R.string.error_not_connected)
@@ -46,11 +43,11 @@ class WhisperSender(
     }
 
     /**
-     * Twitch answers a refused whisper with the reason in the body, which is worth passing on:
-     * "recipient does not allow whispers" and "sender is not verified" look the same otherwise.
+     * Twitch puts the reason for a refusal in the body; "recipient does not allow whispers" and
+     * "sender is not verified" look the same otherwise.
      */
     private fun explain(e: HttpException): String = when {
-        // Logging in again is what fixes both a token without the scope and an expired one.
+        // Logging in again fixes both a missing scope and an expired token.
         e.code == 401 -> context.getString(R.string.whisper_error_scope)
         e.code == 403 -> context.getString(R.string.whisper_error_refused, e.apiMessage.orEmpty())
         e.code == 429 -> context.getString(R.string.whisper_error_rate)

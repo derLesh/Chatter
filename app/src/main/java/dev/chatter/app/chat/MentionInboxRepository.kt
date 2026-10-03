@@ -14,7 +14,7 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.serialization.Serializable
 
-/** One mention, kept after the message itself has long scrolled out of the buffer. */
+/** One mention, kept after the message has left the buffer. */
 @Serializable
 data class InboxMention(
     val id: String,
@@ -24,18 +24,14 @@ data class InboxMention(
     val text: String,
     val timestamp: Long,
     val read: Boolean = false,
-    /** The user id of the account that was mentioned; null for rows from before inboxes knew. */
+    /** The mentioned account's user id; null for rows from before owners were stored. */
     val owner: String? = null,
 )
 
-/**
- * Every mention the user has ever received, across all channels, in one list that survives
- * restarts. The chat buffers are short-lived and per channel, so this is the only place where
- * "who wanted something from me yesterday" can still be answered.
- */
+/** Every mention received, across channels, kept across restarts. */
 class MentionInboxRepository(
     private val store: DataStore<Preferences>,
-    /** The user id of the account the app acts as; its mentions are the only ones shown. */
+    /** The active account's user id; only its mentions are shown. */
     private val owner: StateFlow<String?>,
     scope: CoroutineScope,
 ) {
@@ -67,13 +63,13 @@ class MentionInboxRepository(
 
     suspend fun markRead(id: String) = markRead(setOf(id))
 
-    /** Leaves the store alone when all of [ids] are read already, as they usually are. */
+    /** Leaves the store alone when all [ids] are already read, the usual case. */
     suspend fun markRead(ids: Set<String>) = update { list ->
         if (list.none { !it.read && it.id in ids }) list
         else list.map { if (it.id in ids) it.copy(read = true) else it }
     }
 
-    /** Called when a channel is opened: its mentions have been seen by definition. */
+    /** Called when a channel is opened; its mentions count as seen. */
     suspend fun markChannelRead(channel: String) = update { list ->
         val me = owner.value
         if (list.none { it.owner == me && it.channel == channel && !it.read }) list
@@ -88,18 +84,18 @@ class MentionInboxRepository(
 
     suspend fun remove(id: String) = update { list -> list.filterNot { it.id == id } }
 
-    /** Empties the active account's inbox; the other accounts keep theirs. */
+    /** Empties the active account's inbox; other accounts keep theirs. */
     suspend fun clear() = update { list ->
         val me = owner.value
         if (list.none { it.owner == me }) list else list.filterNot { it.owner == me }
     }
 
-    /** Lets go of the mentions of every account that is not in [accounts]; see [InboxOwners]. */
+    /** Drops the mentions of accounts not in [accounts]; see [InboxOwners]. */
     suspend fun keepOnly(accounts: Collection<String>) = update { list ->
         InboxOwners.keepOnly(list, accounts, { it.owner }) { row, id -> row.copy(owner = id) }
     }
 
-    /** Leaves an inbox it cannot read alone rather than write over it; see [decodeStored]. */
+    /** Never writes over an inbox it cannot read; see [decodeStored]. */
     private suspend fun update(transform: (List<InboxMention>) -> List<InboxMention>) {
         store.edit { p ->
             val current = decode(p[MENTIONS]) ?: return@edit
@@ -110,7 +106,7 @@ class MentionInboxRepository(
 
     private companion object {
         val MENTIONS = stringPreferencesKey("inbox_mentions")
-        /** Enough to look back a few days without turning the store into a database. */
+        /** A few days' worth without turning the store into a database. */
         const val LIMIT = 300
 
         fun decode(raw: String?): List<InboxMention>? = decodeStored(raw, emptyList(), "mentions")

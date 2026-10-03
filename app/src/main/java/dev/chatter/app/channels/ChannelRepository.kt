@@ -36,39 +36,35 @@ data class ChannelInfo(
 )
 
 /**
- * A channel reduced to what an icon or a shortcut is made of. The live status is deliberately
- * left out: it changes every two minutes, and everything built from this would be rebuilt with it.
+ * What icons and shortcuts are built from. The live status is left out; it changes every two
+ * minutes and would rebuild them each time.
  */
 data class ChannelIdentity(val login: String, val name: String, val avatarUrl: String?)
 
-/**
- * The user's channel list (persisted, ordered) plus profile info and live status, and the
- * combined chats made of those channels.
- */
+/** The user's channel list (persisted, ordered), profile info, live status and combined chats. */
 class ChannelRepository(
     private val store: DataStore<Preferences>,
     private val helix: HelixApi,
     scope: CoroutineScope,
 ) {
     /**
-     * Every page of the chat in the order the user put them: channel logins, and the keys of
-     * combined chats wherever the user moved those to. Kept in one list so that a combined chat
-     * can sit between two channels, and is moved about the same way they are.
+     * All chat pages in the user's order: channel logins and combined chat keys, in one list so a
+     * combined chat can sit between channels and be moved like them.
      */
     val pages: StateFlow<List<String>> = store.data
         .map { p -> split(p[CHANNELS]).filter(::isPage) }
         .stateIn(scope, SharingStarted.Eagerly, emptyList())
 
     /**
-     * The channels alone: what is joined, notified about and given a shortcut. Only real logins,
-     * whatever the stored list holds — these names end up in IRC commands.
+     * The channels only: what is joined, notified and given a shortcut. Valid logins only, since
+     * these names go into IRC commands.
      */
     val channels: StateFlow<List<String>> = store.data
         .map { p -> split(p[CHANNELS]).filterNot(ChannelGroup::isKey).filter { VALID.matches(it) } }
         .distinctUntilChanged()
         .stateIn(scope, SharingStarted.Eagerly, emptyList())
 
-    /** The combined chats, by the key they are listed under in [pages]. */
+    /** Combined chats by their key in [pages]. */
     val groups: StateFlow<Map<String, ChannelGroup>> = store.data
         .map { p -> decodeGroups(p[GROUPS]).orEmpty().associateBy { it.key } }
         .distinctUntilChanged()
@@ -76,24 +72,20 @@ class ChannelRepository(
 
     private val _info = MutableStateFlow<Map<String, ChannelInfo>>(emptyMap())
 
-    /** Names the user gave channels themselves, by login. Empty unless one was renamed. */
+    /** Custom channel names by login. */
     val customNames: StateFlow<Map<String, String>> = store.data
         .map { p -> decodeNames(p[CUSTOM_NAMES]).orEmpty() }
         .stateIn(scope, SharingStarted.Eagerly, emptyMap())
 
-    /**
-     * Profile info with the user's own names already applied, so every screen showing a channel
-     * picks them up without knowing they exist.
-     */
+    /** Profile info with custom names applied. */
     val info: StateFlow<Map<String, ChannelInfo>> = combine(_info, customNames) { info, names ->
         if (names.isEmpty()) info
         else info.mapValues { (login, i) -> names[login]?.let { i.copy(displayName = it) } ?: i }
     }.stateIn(scope, SharingStarted.Eagerly, emptyMap())
 
     /**
-     * The channels in list order, with the name and picture they are shown under. What Android
-     * needs to hear about (shortcuts, notification channels) is built from this, so it is only
-     * told when something it can see has actually changed.
+     * The channels in order with their name and picture. Shortcuts and notification channels are
+     * built from this, so they only update when something visible changed.
      */
     val identities: StateFlow<List<ChannelIdentity>> = combine(channels, info) { list, info ->
         list.map { login ->
@@ -102,22 +94,19 @@ class ChannelRepository(
         }
     }.distinctUntilChanged().stateIn(scope, SharingStarted.Eagerly, emptyList())
 
-    /**
-     * The channel the user was last reading. Kept on disk because the chat screen cannot work it
-     * out on its own after Android has stopped the process.
-     */
+    /** The channel last read, stored so the chat screen can return to it after process death. */
     val lastChannel: StateFlow<String?> = store.data
         .map { p -> p[LAST_CHANNEL] }
         .stateIn(scope, SharingStarted.Eagerly, null)
 
     suspend fun setLastChannel(login: String) = store.edit { it[LAST_CHANNEL] = login }
 
-    /** Channels the user switched notifications off for. Absent means notifications are on. */
+    /** Channels with notifications off. */
     val mutedChannels: StateFlow<Set<String>> = store.data
         .map { p -> p[MUTED].orEmpty().split(',').filter { it.isNotEmpty() }.toSet() }
         .stateIn(scope, SharingStarted.Eagerly, emptySet())
 
-    /** Channels kept out of the unread strip in the title bar. Absent means they show up. */
+    /** Channels hidden from the unread strip in the title bar. */
     val hiddenUnread: StateFlow<Set<String>> = store.data
         .map { p -> p[NO_TITLE_BAR].orEmpty().split(',').filter { it.isNotEmpty() }.toSet() }
         .stateIn(scope, SharingStarted.Eagerly, emptySet())
@@ -138,7 +127,7 @@ class ChannelRepository(
         }
     }
 
-    /** Loads cached profile info so avatars show instantly on start. */
+    /** Loads cached profile info so avatars show right away. */
     suspend fun loadCache() {
         val raw = store.data.first()[INFO_CACHE] ?: return
         runCatching { AppJson.decodeFromString<List<ChannelInfo>>(raw) }
@@ -147,7 +136,7 @@ class ChannelRepository(
 
     suspend fun currentChannels(): List<String> = split(store.data.first()[CHANNELS]).filterNot(ChannelGroup::isKey)
 
-    /** Returns the normalized login, or null if the input is not a valid channel name. */
+    /** Returns the normalized login, or null if [input] is not a valid channel name. */
     suspend fun add(input: String): String? {
         val login = normalize(input) ?: return null
         store.edit { p ->
@@ -159,8 +148,8 @@ class ChannelRepository(
     }
 
     /**
-     * Takes a channel or a combined chat off the list, whichever [page] names, along with
-     * everything set on it. Returns what went, for [putBack]; null if it was not on the list.
+     * Removes a channel or combined chat with everything set on it. Returns what was removed, for
+     * [putBack]; null if it was not in the list.
      */
     suspend fun remove(page: String): RemovedPage? {
         var removed: RemovedPage? = null
@@ -172,14 +161,14 @@ class ChannelRepository(
         return removed
     }
 
-    /** Undoes a [remove]: the page, its settings and its places in the combined chats. */
+    /** Undoes a [remove]. */
     suspend fun putBack(removed: RemovedPage) {
         store.edit { p -> p.lists()?.let { p.write(it.putBack(removed)) } }
     }
 
     /**
-     * Everything set on the channels, or null while the combined chats or the names cannot be
-     * read: writing the lists back would put empty ones over them; see [decodeStored].
+     * Null while combined chats or names cannot be read; writing back would overwrite them. See
+     * [decodeStored].
      */
     private fun Preferences.lists(): ChannelLists? = ChannelLists(
         pages = split(this[CHANNELS]),
@@ -198,9 +187,8 @@ class ChannelRepository(
     }
 
     /**
-     * Creates a combined chat of [channels], or changes the one [key] names. Returns the key it is
-     * listed under. The channels are kept in the order of the channel list rather than the order
-     * they were ticked, so the chat lists them the way the user sorted them everywhere else.
+     * Creates a combined chat of [channels], or changes the one [key] names, and returns its key.
+     * The channels are kept in list order, not in the order they were ticked.
      */
     suspend fun saveGroup(key: String?, name: String, channels: Collection<String>): String {
         val id = key?.let(ChannelGroup::idOf) ?: UUID.randomUUID().toString().take(8)
@@ -217,7 +205,7 @@ class ChannelRepository(
         return group.key
     }
 
-    /** Gives a channel a name of the user's choosing; a blank name restores the Twitch one. */
+    /** Sets a custom channel name; blank restores the Twitch name. */
     suspend fun rename(login: String, name: String) {
         val chosen = name.trim()
         store.edit { p ->
@@ -226,7 +214,7 @@ class ChannelRepository(
         }
     }
 
-    /** The name Twitch reports, ignoring any renaming, for showing what a reset would restore. */
+    /** The Twitch name, ignoring custom names, to show what a reset restores. */
     fun twitchName(login: String): String = _info.value[login]?.displayName ?: login
 
     /** Moves a channel or a combined chat [delta] places along the list of pages. */
@@ -243,12 +231,12 @@ class ChannelRepository(
     }
 
     /**
-     * Replaces the whole channel list and everything the user set on it, for restoring a backup.
-     * Names that are not valid Twitch logins are dropped rather than joined and rejected later.
+     * Replaces the channel list and everything set on it, for restoring a backup. Invalid logins
+     * are dropped.
      *
-     * [logins] may name combined chats by their key, which is where in the list they go; one the
-     * list does not mention goes at the end. Channels a combined chat names that are not on the
-     * list are left out of it, and a combined chat left with none is not restored at all.
+     * [logins] may contain combined chat keys at their position; others go to the end. Channels of
+     * a combined chat that are not in the list are dropped, and combined chats left empty are not
+     * restored.
      */
     suspend fun restore(
         logins: List<String>,
@@ -292,7 +280,7 @@ class ChannelRepository(
         return users.associate { it.login to it.id }
     }
 
-    /** One batched Helix call for all channels. Only called while the app is in the foreground. */
+    /** One Helix call for all channels. Only while the app is in the foreground. */
     suspend fun refreshLive() {
         val logins = channels.value
         if (logins.isEmpty()) return
@@ -335,7 +323,7 @@ class ChannelRepository(
 
         private fun split(raw: String?): List<String> = raw.orEmpty().split(',').filter { it.isNotEmpty() }
 
-        /** A login, or the key of a combined chat with a well-formed id: nothing else is a page. */
+        /** A login, or the key of a combined chat with a valid id. */
         private fun isPage(page: String): Boolean =
             if (ChannelGroup.isKey(page)) ChannelGroup.isValidId(ChannelGroup.idOf(page)) else VALID.matches(page)
 

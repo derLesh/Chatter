@@ -1,18 +1,18 @@
 package dev.chatter.app.chat
 
-/** Chat modes of a channel, from the ROOMSTATE command. */
+/** A channel's chat modes, from ROOMSTATE. */
 data class RoomState(
     val emoteOnly: Boolean = false,
-    /** Minimum follow time in minutes; -1 = followers-only mode off. */
+    /** Minimum follow time in minutes; -1 means followers-only is off. */
     val followersOnly: Int = -1,
     val uniqueChat: Boolean = false,
-    /** Seconds between messages; 0 = slow mode off. */
+    /** Seconds between messages; 0 means slow mode is off. */
     val slow: Int = 0,
     val subsOnly: Boolean = false,
 ) {
     val isDefault: Boolean get() = this == RoomState()
 
-    /** ROOMSTATE may contain only the tags that changed, so apply it on top of the old state. */
+    /** ROOMSTATE may contain only the changed tags, so it is applied on top of the old state. */
     fun update(tags: Map<String, String>): RoomState = copy(
         emoteOnly = tags["emote-only"]?.let { it == "1" } ?: emoteOnly,
         followersOnly = tags["followers-only"]?.toIntOrNull() ?: followersOnly,
@@ -22,7 +22,7 @@ data class RoomState(
     )
 }
 
-/** The logged-in user's role in a channel, from the USERSTATE badges. */
+/** The user's role in a channel, from the USERSTATE badges. */
 enum class ChatRole(val badgeTag: String?) {
     Viewer(null), Vip("vip/1"), Moderator("moderator/1"), Broadcaster("broadcaster/1");
 

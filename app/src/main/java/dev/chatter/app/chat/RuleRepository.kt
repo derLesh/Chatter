@@ -30,10 +30,10 @@ class RuleRepository(private val store: DataStore<Preferences>, scope: Coroutine
         list.map { if (it.id == id) it.copy(enabled = enabled) else it }
     }
 
-    /** Replaces the whole set, for importing a backup. */
+    /** Replaces all rules, for restoring a backup. */
     suspend fun replaceAll(rules: List<ChatRule>) = store.edit { it[RULES] = AppJson.encodeToString(rules) }
 
-    /** Leaves rules it cannot read alone rather than write over them; see [decodeStored]. */
+    /** Never writes over rules it cannot read; see [decodeStored]. */
     private suspend fun update(transform: (List<ChatRule>) -> List<ChatRule>) {
         store.edit { p ->
             val current = decode(p[RULES]) ?: return@edit

@@ -13,17 +13,14 @@ import kotlinx.coroutines.withContext
 import java.util.concurrent.ConcurrentHashMap
 
 /**
- * The messages of every joined channel, on their way to the screen.
+ * The messages of every joined channel on their way to the screen.
  *
- * One buffer per channel, trimmed to the limit from the settings, and the ids in it beside them so
- * that the same message arriving twice — once from the history, once live — is only kept once.
+ * One buffer per channel, trimmed to the configured limit, with the ids next to it so a message
+ * that arrives twice (history and live) is kept once. A combined chat has no buffer; its list is
+ * assembled from its channels' buffers (see [setGroups]).
  *
- * A combined chat has no buffer of its own. It is a list like a channel's, published the same way
- * and under its own key, but put together from its channels' buffers whenever one of them changes
- * — see [setGroups].
- *
- * Everything here is touched on [worker], a single thread, so none of it needs a lock. The two
- * exceptions are [messages] and [unreadMessages], which the screen reads from wherever it likes.
+ * Everything runs on [worker], so no locks are needed, except [messages] and [unreadMessages],
+ * which the UI reads from any thread.
  */
 class MessageBuffers(
     private val scope: CoroutineScope,
@@ -31,7 +28,7 @@ class MessageBuffers(
     private val settings: StateFlow<Settings>,
 ) {
     private val buffers = HashMap<String, ArrayDeque<ChatItem>>()
-    /** The ids in each buffer; the UI list uses ids as keys, which must be unique. */
+    /** The ids in each buffer; the UI uses them as keys, so they must be unique. */
     private val ids = HashMap<String, HashSet<String>>()
     private val dirty = HashSet<String>()
     private var publishJob: Job? = null
@@ -39,37 +36,36 @@ class MessageBuffers(
     private val flows = ConcurrentHashMap<String, MutableStateFlow<List<ChatItem>>>()
     private val watchers = ConcurrentHashMap<String, Job>()
 
-    /** The channels of each combined chat, by the key it is published under. */
+    /** The channels of each combined chat, by its key. */
     private var groups: Map<String, List<String>> = emptyMap()
-    /** The other way round: the combined chats a channel is in, which a change to it concerns too. */
+    /** The combined chats each channel is part of. */
     private var groupsOf: Map<String, List<String>> = emptyMap()
-    /** What each combined chat showed last time, and from which messages; see [snapshotGroup]. */
+    /** What each combined chat showed last; see [snapshotGroup]. */
     private val groupStates = HashMap<String, GroupState>()
 
     /**
-     * Per channel, how many messages were ever added to its end, and how often it changed in any
-     * other way. A combined chat compares them with what it saw last time to know whether all it
-     * has to do is add what came in since.
+     * Per channel, how many messages were appended and how often it changed otherwise. A combined
+     * chat compares these with its last state to know whether it can just append.
      */
     private val appended = HashMap<String, Long>()
     private val reshaped = HashMap<String, Long>()
 
-    // New messages per channel since the user last looked at it. Counted here and published
-    // together with the message lists, rather than on every single message.
+    // New messages per channel since the user last looked. Published together with the message
+    // lists instead of per message.
     private val unreadCounts = HashMap<String, Int>()
     private var unreadDirty = false
     private val _unreadMessages = MutableStateFlow<Map<String, Int>>(emptyMap())
     val unreadMessages: StateFlow<Map<String, Int>> = _unreadMessages
 
-    /** The list one channel — or one combined chat, by its key — is drawn from. */
+    /** The list a channel, or a combined chat by its key, is drawn from. */
     fun messages(channel: String): StateFlow<List<ChatItem>> = flows.computeIfAbsent(channel) { ch ->
         MutableStateFlow<List<ChatItem>>(emptyList()).also { flow ->
-            // When the UI starts watching again, push the latest buffer immediately.
+            // When the UI starts collecting again, push the current buffer right away.
             watchers[ch] = scope.launch(worker) { flow.subscriptionCount.filter { it > 0 }.collect { markDirty(ch) } }
         }
     }
 
-    /** The channels that have a buffer right now. */
+    /** The channels that have a buffer. */
     fun channels(): List<String> = buffers.keys.toList()
 
     fun open(channel: String) {
@@ -87,8 +83,7 @@ class MessageBuffers(
     }
 
     /**
-     * Which combined chats there are and which channels each one reads from. A combined chat whose
-     * channels changed is put together again; one that is gone is let go of.
+     * Sets the combined chats and their channels. Changed ones are rebuilt, removed ones dropped.
      */
     fun setGroups(next: Map<String, List<String>>) {
         (groups.keys - next.keys).forEach { key ->
@@ -117,41 +112,38 @@ class MessageBuffers(
         _unreadMessages.value = emptyMap()
     }
 
-    /** Adds a message to its channel, unless the channel holds it already. */
+    /** Adds a message to its channel unless it is already there. */
     fun add(item: ChatItem) {
         val buffer = buffers[item.channel] ?: return
         if (!ids.getOrPut(item.channel) { HashSet() }.add(item.id)) return
         buffer.addLast(item.copy(alternate = !(buffer.lastOrNull()?.alternate ?: true)))
-        // Trimming only ever takes messages older than the newest the limit keeps, which a
-        // combined chat held to the same limit has let go of already: this stays an append.
+        // Trimming only removes messages older than the oldest a combined chat with the same limit
+        // still shows, so this stays an append.
         trim(item.channel, buffer)
         appended[item.channel] = (appended[item.channel] ?: 0) + 1
         markDirty(item.channel)
     }
 
-    /**
-     * Folds fetched history into a channel: whatever is not in it already, in the order it was
-     * written rather than the order it arrived.
-     */
+    /** Merges fetched history into a channel: what is new, in the order it was written. */
     fun merge(channel: String, items: List<ChatItem>) {
         val buffer = buffers[channel] ?: return
         val known = ids.getOrPut(channel) { HashSet() }
         val fresh = items.filter { known.add(it.id) }
         if (fresh.isEmpty()) return
-        // Stable sort: live messages and history end up in chronological order.
+        // Stable sort, so live messages and history end up in chronological order.
         val merged = ArrayList<ChatItem>(buffer.size + fresh.size).apply {
             addAll(buffer)
             addAll(fresh)
             sortBy { it.timestamp }
         }
         buffer.clear()
-        // Re-number the alternating backgrounds (only happens on join / reconnect).
+        // Renumber the alternating backgrounds (only on join and reconnect).
         merged.forEachIndexed { i, m -> buffer.addLast(if (m.alternate == (i % 2 == 1)) m else m.copy(alternate = i % 2 == 1)) }
         trim(channel, buffer)
         reshape(channel)
     }
 
-    /** Takes one message out again, by the id it went in under. */
+    /** Removes one message by the id it was added under. */
     fun remove(channel: String, id: String) {
         val buffer = buffers[channel] ?: return
         if (ids[channel]?.remove(id) != true) return
@@ -160,8 +152,8 @@ class MessageBuffers(
     }
 
     /**
-     * Gives a message the id Twitch knows it by, in place of the one it went in under. Only the
-     * user's own messages need this: they are shown before Twitch has named them.
+     * Gives a message the id Twitch knows it by. Only needed for the user's own messages, which are
+     * shown before Twitch confirms them.
      */
     fun rename(channel: String, from: String, to: String) {
         val buffer = buffers[channel] ?: return
@@ -169,17 +161,15 @@ class MessageBuffers(
         val index = buffer.indexOfFirst { it.id == from }
         if (index < 0) return
         known.remove(from)
-        // Already there under its real id, e.g. from a history that was quicker: one is enough.
+        // Already there under its real id, e.g. from a faster history load.
         if (!known.add(to)) buffer.removeAt(index) else buffer[index] = buffer[index].copy(id = to)
         reshape(channel)
     }
 
     /**
-     * Works every message out again, for emotes that arrived after they were drawn.
-     *
-     * The bodies are replaced rather than emptied, because the list on screen is compared with
-     * the one before it: a message whose body is the same object is the same message, and nothing
-     * would be redrawn. What cannot be built again (a line the app wrote itself) stays as it is.
+     * Rebuilds every message, for emotes that arrived later. Bodies are replaced, not emptied: the
+     * UI compares lists by identity, so the same body object would not be redrawn. Lines the app
+     * wrote itself cannot be rebuilt and stay.
      */
     fun rebuildAll() {
         buffers.forEach { (channel, buffer) ->
@@ -196,7 +186,7 @@ class MessageBuffers(
         }
     }
 
-    /** Strikes through whatever a moderator has taken back. */
+    /** Strikes through messages a moderator deleted. */
     fun markDeleted(channel: String, predicate: (ChatItem) -> Boolean) {
         val buffer = buffers[channel] ?: return
         var changed = false
@@ -210,7 +200,7 @@ class MessageBuffers(
         if (changed) reshape(channel)
     }
 
-    /** Throws out what the mute list covers now, e.g. after a word was added to it. */
+    /** Drops what the mute list covers now, e.g. after a word was added. */
     fun dropMuted(muted: MuteFilter) {
         buffers.forEach { (channel, buffer) ->
             val known = ids[channel]
@@ -230,13 +220,13 @@ class MessageBuffers(
         }
     }
 
-    /** Hands every channel to the screen again, for a change in the way they are drawn. */
+    /** Republishes every channel, for a change in how messages are drawn. */
     fun republishAll() = buffers.keys.forEach { markDirty(it) }
 
-    /** The latest messages of one user in a channel (oldest first), for the user card. */
+    /** The latest messages of one user in a channel, oldest first, for the user card. */
     suspend fun from(channel: String, login: String, limit: Int): List<ChatItem> = withContext(worker) {
         buffers[channel]?.filter { it.login.equals(login, ignoreCase = true) }?.takeLast(limit).orEmpty()
-            // The card draws these, so they have to be built here — see [snapshot].
+            // The card draws these, so they are built here; see [snapshot].
             .onEach { it.body.prepare() }
     }
 
@@ -259,14 +249,13 @@ class MessageBuffers(
         val buffer = buffers[channel] ?: return emptyList()
         val out = if (settings.value.showDeleted) buffer.toList()
         else buffer.filterTo(ArrayList(buffer.size)) { !it.deleted }
-        // Emotes and badges are worked out here rather than while drawing: the tables that takes
-        // reading are this worker's, and the main thread must not touch them. Everything but the
-        // messages that arrived since the last publish is built already, so this costs nothing.
+        // Built here rather than while drawing: the emote tables belong to this worker and the main
+        // thread must not read them. Everything but the newest messages is built already.
         out.forEach { it.body.prepare() }
         return out
     }
 
-    /** Any change to [channel] other than messages added to its end; see [snapshotGroup]. */
+    /** Any change to [channel] other than appending; see [snapshotGroup]. */
     private fun reshape(channel: String) {
         reshaped[channel] = (reshaped[channel] ?: 0) + 1
         markDirty(channel)
@@ -275,35 +264,31 @@ class MessageBuffers(
     /**
      * The messages of several channels as one list, in the order they were written.
      *
-     * Each channel's own order is left as it is — merging only ever decides which channel comes
-     * next — so a line the app put somewhere on purpose stays there. The list is held to the same
-     * limit a channel is: a combined chat of five would otherwise be five channels long to draw.
+     * Each channel's own order is kept; merging only picks which channel comes next. The list has
+     * the same limit as a channel, or a combined chat of five would be five times as long.
      *
-     * Every other row is shaded by the combined chat itself. Each channel counts its own rows,
-     * and mixed together those would come out in clumps. A row keeps the shade it was given for
-     * as long as it is on screen, just as a channel's does, so nothing flickers when the list
-     * moves on; and it keeps the copy it was given, so an unchanged message is the same object.
+     * The combined chat assigns the alternating backgrounds itself, since the channels' own
+     * patterns would clump when mixed. A row keeps its shade and its object while on screen, so
+     * nothing flickers and unchanged messages stay the same object.
      *
-     * Putting it all together is a merge of every channel and two sets the size of the list, and
-     * it would happen ten times a second while a busy combined chat is open, to add a handful of
-     * messages at the end. So when nothing but new messages came in since last time, and they
-     * belong after everything shown, only they are added ([appendToGroup]); anything else — a
-     * deletion, history folded in, a Shared Chat copy of a message already shown — puts the list
-     * together from scratch, and the result is the same either way.
+     * A full rebuild merges every channel and would run ten times a second in a busy combined chat.
+     * When only new messages arrived after everything shown, they are appended ([appendToGroup]);
+     * anything else (a deletion, merged history, a Shared Chat copy) rebuilds. The result is the
+     * same either way.
      */
     private fun snapshotGroup(key: String, channels: List<String>): List<ChatItem> =
         groupStates[key]?.let { appendToGroup(it, channels) } ?: rebuildGroup(key, channels)
 
-    /** The whole combined chat, put together from its channels. */
+    /** The whole combined chat, assembled from its channels. */
     private fun rebuildGroup(key: String, channels: List<String>): List<ChatItem> {
         val lists = channels.mapNotNull { buffers[it] }
         val showDeleted = settings.value.showDeleted
         val all = mergeByTime(lists)
         val merged = all.filter { showDeleted || !it.deleted }
 
-        // One message of a Shared Chat arrives in every channel of the session, each copy under an
-        // id of its own, and only the shared id says they are one. It is shown once, as the copy
-        // of the channel it was written in wherever that one is part of the combined chat.
+        // A Shared Chat message arrives in every channel of the session under different ids; only
+        // the shared id links them. It is shown once, as the copy from the channel it was written
+        // in if that channel is part of the combined chat.
         val native = merged.mapNotNullTo(HashSet()) { item -> item.sharedId.takeIf { item.sourceRoomId == null } }
         val seen = HashSet<String>(merged.size)
         val unique = merged.asReversed().filter { item ->
@@ -340,9 +325,9 @@ class MessageBuffers(
     }
 
     /**
-     * The combined chat with what its channels added since [state] was taken, or null if more
-     * than that happened and it has to be put together again. Checks everything before it
-     * changes anything, so that a null leaves [state] as it was.
+     * The combined chat plus what its channels appended since [state], or null if anything else
+     * changed and it needs a rebuild. Checks everything before changing anything, so null leaves
+     * [state] untouched.
      */
     private fun appendToGroup(state: GroupState, channels: List<String>): List<ChatItem>? {
         if (state.channels != channels || state.showDeleted != settings.value.showDeleted ||
@@ -361,23 +346,23 @@ class MessageBuffers(
         val all = mergeByTime(fresh)
         val added = all.filter { state.showDeleted || !it.deleted }
 
-        // Only what was written after everything so far can simply be added: a message written
-        // earlier belongs somewhere in the middle. A tie goes to whichever channel comes first,
-        // which may not be where it would be added, so that is left to a rebuild too.
+        // Only messages written after everything so far can be appended; earlier ones belong in the
+        // middle. Ties go to the first channel, which may not be the append position, so they
+        // rebuild.
         val latest = state.latest
         if (latest != null && all.minOf { it.timestamp } <= latest) return null
         val sharedAdded = HashSet<String>()
         val idsAdded = HashSet<String>()
         for (item in added) {
             val shared = item.sharedId
-            // A Shared Chat copy decides which copy of a message is shown, and where.
+            // A Shared Chat copy decides which copy is shown and where.
             if (shared != null && (shared in state.shared || !sharedAdded.add(shared))) return null
             if (shared == null && (item.id in state.byId || !idsAdded.add(item.id))) return null
         }
 
         channels.forEach { channel -> state.appended[channel] = appended[channel] ?: 0 }
         state.latest = maxOf(latest ?: Long.MIN_VALUE, all.maxOf { it.timestamp })
-        // The same start as a rebuild: the first row of an empty list is the unshaded one.
+        // Same start as a rebuild: the first row of an empty list is unshaded.
         var alternate = state.lastShown?.alternate ?: true
         for (item in added) {
             alternate = !alternate
@@ -388,8 +373,8 @@ class MessageBuffers(
     }
 
     /**
-     * [lists] as one, ordered by time. Each list's own order is kept, even where its times are
-     * not in order: merging only ever decides which list comes next, and a tie goes to the first.
+     * [lists] merged by time. Each list keeps its own order even where its times are out of order;
+     * merging only picks which list comes next, ties go to the first.
      */
     private fun mergeByTime(lists: List<List<ChatItem>>): List<ChatItem> {
         val merged = ArrayList<ChatItem>(lists.sumOf { it.size })
@@ -406,12 +391,12 @@ class MessageBuffers(
         return merged
     }
 
-    /** A message as a combined chat shows it, and the message in its channel it was made from. */
+    /** A message as the combined chat shows it, and the channel message it came from. */
     private class GroupRow(val source: ChatItem, val shown: ChatItem)
 
     /**
-     * A combined chat as it was last put on screen, and the state of its channels then — what
-     * [appendToGroup] needs to tell whether new messages can simply be added.
+     * A combined chat as last published and the state of its channels then; what [appendToGroup]
+     * needs to decide whether it can append.
      */
     private class GroupState(
         val channels: List<String>,
@@ -423,15 +408,15 @@ class MessageBuffers(
         val appended = HashMap(appended)
         private val rows = ArrayDeque<GroupRow>()
         val byId = HashMap<String, GroupRow>()
-        /** The shared ids of the Shared Chat messages shown. */
+        /** Shared ids of the Shared Chat messages shown. */
         val shared = HashSet<String>()
-        /** The list last handed to the screen. */
+        /** The list last published. */
         var published: List<ChatItem> = emptyList()
             private set
 
         /**
-         * The latest time among the channels' messages taken in so far, shown or not. Kept even
-         * when the oldest go, which can only ever make a rebuild more likely, never wrong.
+         * The latest message time seen across the channels, shown or not. Kept when old messages
+         * go, which can only cause extra rebuilds, never wrong results.
          */
         var latest: Long? = null
 
@@ -451,7 +436,7 @@ class MessageBuffers(
             }
         }
 
-        /** A new list for the screen, with the messages in it built; see [snapshot]. */
+        /** A new list for the UI with its messages built; see [snapshot]. */
         fun publish(): List<ChatItem> {
             val out = rows.map { it.shown }
             out.forEach { it.body.prepare() }
@@ -464,9 +449,8 @@ class MessageBuffers(
         dirty.add(channel)
         groupsOf[channel]?.let { dirty.addAll(it) }
         if (publishJob?.isActive == true) return
-        // With the UI gone there is nothing for a publish to do, and a busy channel would
-        // otherwise start a timer every interval just to find that out. Subscribing marks the
-        // channel dirty again (see [messages]), so nothing is lost by not scheduling now.
+        // With no UI collecting there is nothing to publish; subscribing marks the channel dirty
+        // again (see [messages]).
         if (flows.values.none { it.subscriptionCount.value > 0 }) return
         publishJob = scope.launch(worker) {
             delay(PUBLISH_INTERVAL_MS)
@@ -474,7 +458,7 @@ class MessageBuffers(
             while (iterator.hasNext()) {
                 val channel = iterator.next()
                 val flow = flows[channel]
-                // Nobody is looking: keep it dirty and publish once someone subscribes.
+                // Nobody is collecting: stay dirty and publish on subscription.
                 if (flow == null || flow.subscriptionCount.value == 0) continue
                 flow.value = snapshot(channel)
                 iterator.remove()
@@ -488,12 +472,9 @@ class MessageBuffers(
 
     private companion object {
         /**
-         * How often the message list a channel shows is replaced.
-         *
-         * Every publish copies the whole buffer and hands Compose a new list to tell apart, so a
-         * busy channel pays for this a lot. At a frame a go it was thirty times a second, which
-         * is thirty lists of up to five hundred messages — and a chat that moves faster than it
-         * can be read gains nothing from it. Ten times a second still looks continuous.
+         * How often a channel's list is replaced. Each publish copies the whole buffer and gives
+         * Compose a new list to diff; at every frame that was thirty lists of up to 500 messages a
+         * second. Ten times a second still looks continuous.
          */
         const val PUBLISH_INTERVAL_MS = 100L
     }

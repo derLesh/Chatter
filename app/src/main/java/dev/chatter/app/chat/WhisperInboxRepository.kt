@@ -15,12 +15,12 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.serialization.Serializable
 
-/** One whisper somebody sent the user, kept the same way a mention is. */
+/** A whisper the user received, kept like a mention. */
 @Serializable
 data class InboxWhisper(
     val id: String,
     val login: String,
-    /** The sender's Twitch id, which is what answering them needs. Null for older whispers. */
+    /** The sender's Twitch id, needed to answer. Null for older whispers. */
     val userId: String? = null,
     val displayName: String,
     val text: String,
@@ -28,16 +28,13 @@ data class InboxWhisper(
     /** ARGB color from the `color` tag, or null if the sender never picked one. */
     val color: Int? = null,
     val read: Boolean = false,
-    /** The user id of the account it was sent to; null for rows from before inboxes knew. */
+    /** The receiving account's user id; null for rows from before owners were stored. */
     val owner: String? = null,
 ) {
     companion object {
         /**
-         * Reads a `WHISPER` line. Whispers belong to no channel, so nothing about them fits the
-         * channel buffers — they are only ever a row in the inbox.
-         *
-         * Twitch numbers whispers per thread rather than globally, so the thread and the number
-         * together are what tells two of them apart.
+         * Reads a `WHISPER` line. Whispers belong to no channel and only go into the inbox. Twitch
+         * numbers whispers per thread, so thread and number together identify one.
          */
         fun from(msg: IrcMessage): InboxWhisper? {
             val login = msg.nick ?: return null
@@ -50,7 +47,7 @@ data class InboxWhisper(
                 userId = msg.tag("user-id"),
                 displayName = msg.tag("display-name") ?: login,
                 text = text,
-                // A whisper carries no send time of its own; it arrives the moment it is written.
+                // Whispers carry no send time; they arrive as they are written.
                 timestamp = System.currentTimeMillis(),
                 color = MessageBuilder.parseColor(msg.tag("color")),
             )
@@ -58,17 +55,14 @@ data class InboxWhisper(
     }
 }
 
-/**
- * Every whisper the user has received, newest first and surviving restarts. Chatter cannot send
- * whispers (Twitch dropped that from chat), so this is a mailbox to read, not a conversation.
- */
+/** Every whisper received, newest first, kept across restarts. */
 class WhisperInboxRepository(
     private val store: DataStore<Preferences>,
-    /** The user id of the account the app acts as; its whispers are the only ones shown. */
+    /** The active account's user id; only its whispers are shown. */
     private val owner: StateFlow<String?>,
     scope: CoroutineScope,
 ) {
-    /** The active account's whispers, newest first. See [InboxOwners]. */
+    /** The active account's whispers, newest first; see [InboxOwners]. */
     val whispers: StateFlow<List<InboxWhisper>> = combine(store.data, owner) { p, me ->
         if (me == null) emptyList() else decode(p[WHISPERS]).orEmpty().filter { it.owner == me }
     }.stateIn(scope, SharingStarted.Eagerly, emptyList())
@@ -79,7 +73,7 @@ class WhisperInboxRepository(
 
     /** [account] is the user id the whisper was sent to. */
     suspend fun add(whisper: InboxWhisper, account: String) = update { list ->
-        // Twitch numbers whispers per thread, so the same id can turn up for another account.
+        // Whisper ids are per thread, so the same id can occur for another account.
         if (list.any { it.id == whisper.id && it.owner == account }) list
         else (listOf(whisper.copy(owner = account)) + list).take(LIMIT)
     }
@@ -95,18 +89,18 @@ class WhisperInboxRepository(
         else list.map { if (it.owner == me) it.copy(read = true) else it }
     }
 
-    /** Empties the active account's inbox; the other accounts keep theirs. */
+    /** Empties the active account's inbox; other accounts keep theirs. */
     suspend fun clear() = update { list ->
         val me = owner.value
         if (list.none { it.owner == me }) list else list.filterNot { it.owner == me }
     }
 
-    /** Lets go of the whispers of every account that is not in [accounts]; see [InboxOwners]. */
+    /** Drops the whispers of accounts not in [accounts]; see [InboxOwners]. */
     suspend fun keepOnly(accounts: Collection<String>) = update { list ->
         InboxOwners.keepOnly(list, accounts, { it.owner }) { row, id -> row.copy(owner = id) }
     }
 
-    /** Leaves an inbox it cannot read alone rather than write over it; see [decodeStored]. */
+    /** Never writes over an inbox it cannot read; see [decodeStored]. */
     private suspend fun update(transform: (List<InboxWhisper>) -> List<InboxWhisper>) {
         store.edit { p ->
             val current = decode(p[WHISPERS]) ?: return@edit
@@ -117,7 +111,7 @@ class WhisperInboxRepository(
 
     private companion object {
         val WHISPERS = stringPreferencesKey("inbox_whispers")
-        /** Whispers are rare next to mentions; this is already months of them. */
+        /** Whispers are rare; this is months' worth. */
         const val LIMIT = 200
 
         fun decode(raw: String?): List<InboxWhisper>? = decodeStored(raw, emptyList(), "whispers")

@@ -48,13 +48,13 @@ class MainActivity : ComponentActivity() {
         super.onStop()
     }
 
-    /** What brought the app up: a mention notification names its channel, a shortcut the inbox. */
+    /** Handles a channel from a mention notification or the inbox from a shortcut. */
     private fun handleIntent(intent: Intent?) {
         intent ?: return
         intent.getStringExtra(EXTRA_CHANNEL)?.let { vm.requestedChannel.value = it }
         intent.getIntExtra(EXTRA_INBOX_TAB, -1).takeIf { it >= 0 }?.let { vm.requestedInbox.value = it }
-        // Any app on the phone may start this activity, and none of them should be adding
-        // channels to somebody's list, so no build anybody installs listens for this.
+        // Any app can start this activity and must not add channels, so only profiling builds
+        // listen.
         if (BuildConfig.PROFILING) intent.getStringExtra(EXTRA_PROFILING_CHANNEL)?.let(vm::readAsGuest)
     }
 }

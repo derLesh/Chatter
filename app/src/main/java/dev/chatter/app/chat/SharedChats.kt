@@ -4,38 +4,36 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.update
 
-/** A channel that shares its chat with one the user is in, as its messages are marked with it. */
+/** A channel sharing its chat with a joined one, as its messages are marked. */
 data class ChatPartner(val id: String, val login: String, val displayName: String, val avatarUrl: String?)
 
 /**
- * The Shared Chat sessions of the channels the user is in, and who the channels in them are.
+ * Shared Chat sessions of the joined channels and their partners.
  *
- * Twitch says nothing over IRC when a session starts or ends; only the messages change. While one
- * runs, every message carries `source-room-id` — the channel's own messages naming the channel
- * itself — and once it is over they stop. So the first live message with the tag is the start of
- * a session and the first one without it is the end.
+ * IRC says nothing when a session starts or ends. While one runs, every message carries
+ * `source-room-id` (the channel's own messages name the channel itself), so the first live message
+ * with the tag starts a session and the first without it ends it.
  *
- * Who else is in a session is asked of Helix once it starts, because a partner nobody has written
- * in yet has sent no message to be recognised by. Until Helix answers, and if it never does, the
- * partners are the channels whose messages have arrived.
+ * When a session starts, Helix is asked for the partners, since a partner nobody has written in yet
+ * sent no message. Until Helix answers, the partners are the channels whose messages arrived.
  *
- * Touched on the chat worker; [sessions] and [partners] are what the screen reads.
+ * Touched on the chat worker; the UI reads [sessions] and [partners].
  */
 class SharedChats {
     private val _sessions = MutableStateFlow<Map<String, List<String>>>(emptyMap())
-    /** The partners' ids of every channel sharing its chat right now. A channel not in it is not. */
+    /** Partner ids of every channel currently sharing its chat. */
     val sessions: StateFlow<Map<String, List<String>>> = _sessions
 
     private val _partners = MutableStateFlow<Map<String, ChatPartner>>(emptyMap())
-    /** Every partner described so far, by channel id. */
+    /** All partners described so far, by channel id. */
     val partners: StateFlow<Map<String, ChatPartner>> = _partners
 
-    /** Ids looked up already, so that a busy partner is not asked about once per message. */
+    /** Ids already looked up, so a busy partner is not looked up per message. */
     private val asked = HashSet<String>()
 
     /**
-     * A live message arrived in [channel], whose own id is [roomId], written in [sourceRoomId].
-     * True for the message that started a session, which is when to ask who is in it.
+     * A live message in [channel] (id [roomId]), written in [sourceRoomId]. True for the message
+     * that started a session, which is when to ask for the partners.
      */
     fun onLiveMessage(channel: String, roomId: String?, sourceRoomId: String?): Boolean {
         val current = _sessions.value[channel]
@@ -50,18 +48,17 @@ class SharedChats {
     }
 
     /**
-     * Who Helix says takes part in the session of [channel], the channel itself ([roomId]) among
-     * them. An empty answer changes nothing: the messages say there is a session, and Helix can
-     * be a moment behind them.
+     * The session participants Helix reports for [channel], including the channel itself
+     * ([roomId]). An empty answer changes nothing; Helix can lag behind the messages.
      */
     fun setParticipants(channel: String, roomId: String, ids: List<String>) {
         val others = ids.filter { it != roomId }
         if (others.isEmpty()) return
-        // Only while it lasts: the session may have ended while Helix was being asked.
+        // Only while the session lasts; it may have ended during the request.
         _sessions.update { if (channel in it) it + (channel to others) else it }
     }
 
-    /** Of [ids], the ones nobody has looked up yet. They count as looked up from now on. */
+    /** Those of [ids] not looked up yet; they count as looked up from now on. */
     fun unknown(ids: Collection<String>): List<String> =
         ids.filter { it !in _partners.value && asked.add(it) }
 
@@ -69,18 +66,15 @@ class SharedChats {
         if (partners.isNotEmpty()) _partners.update { it + partners.associateBy(ChatPartner::id) }
     }
 
-    /** A lookup that did not work out is tried again with the next message that needs it. */
+    /** A failed lookup is retried with the next message that needs it. */
     fun failed(ids: Collection<String>) {
         asked.removeAll(ids.toSet())
     }
 
-    /** The channel was left; whether it shares its chat is nothing to show any more. */
+    /** The channel was left. */
     fun forget(channel: String) = _sessions.update { it - channel }
 
-    /**
-     * Every session, e.g. after logout. The partners stay: they are facts about Twitch channels
-     * and do not change with who is logged in.
-     */
+    /** Clears the sessions, e.g. after logout. Partners stay; they do not depend on the login. */
     fun clear() {
         _sessions.value = emptyMap()
     }

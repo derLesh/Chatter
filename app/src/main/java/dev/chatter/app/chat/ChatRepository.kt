@@ -30,21 +30,18 @@ import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeoutOrNull
 import java.util.UUID
 
-/** A mention that just arrived, and whether the user had that channel open at the time. */
+/** A mention that just arrived, and whether its channel was open. */
 data class MentionEvent(val item: ChatItem, val seen: Boolean)
 
 enum class SendResult {
     Ok, Empty, NotConnected, RateLimited,
-    /** A command was not executed (unknown / wrong usage); the hint is shown in the chat. */
+    /** A command was not executed (unknown or wrong usage); the hint is shown in the chat. */
     CommandError,
 }
 
 /**
- * Owns the message buffers of all channels.
- *
- * Every mutation runs on one single-threaded dispatcher ([worker]), so no locks are needed.
- * The messages themselves live in [MessageBuffers], which is also what hands them to the
- * screen; this class is about what Twitch says and what the app makes of it.
+ * Owns the chat of all channels. Every mutation runs on the single-threaded [worker], so no locks
+ * are needed. Messages live in [MessageBuffers]; this class handles what Twitch sends.
  */
 @OptIn(ExperimentalCoroutinesApi::class)
 class ChatRepository(
@@ -68,16 +65,16 @@ class ChatRepository(
 ) {
     private val worker = Dispatchers.Default.limitedParallelism(1)
 
-    /** The messages themselves, and how they reach the screen. */
+    /** The messages and how they reach the screen. */
     private val buffers = MessageBuffers(scope, worker, settings)
 
-    /** What Twitch says about the channels and the user's place in them; see [Rooms]. */
+    /** Channel state and the user's role per channel; see [Rooms]. */
     val rooms = Rooms()
 
-    /** Which windows are on screen and what each of them shows; see [ChatWindows]. */
+    /** Windows on screen and what they show; see [ChatWindows]. */
     val windows = ChatWindows()
 
-    /** Which channels share their chat, and with whom; see [SharedChats]. */
+    /** Shared Chat sessions; see [SharedChats]. */
     val sharedChats = SharedChats()
 
     // --- state touched only on `worker` ---
@@ -86,13 +83,10 @@ class ChatRepository(
     private val loadedChannels = HashSet<String>()
     private var joinedChannels: List<String> = emptyList()
 
-    /**
-     * What the settings make of a message as it arrives. The rules are applied on arrival, so
-     * changing one paints what comes next — the messages already on screen stay as they were read.
-     */
+    /** The settings as applied to arriving messages. Rule changes affect new messages only. */
     @Volatile private var filters = ChatFilters()
 
-    /** What Twitch says, and what the app makes of it; see [IncomingMessages]. */
+    /** Handles what Twitch sends; see [IncomingMessages]. */
     private val incoming = IncomingMessages(
         builder = builder,
         buffers = buffers,
@@ -113,37 +107,36 @@ class ChatRepository(
     )
 
     private val _refused = MutableSharedFlow<String>(extraBufferCapacity = 8)
-    /** The channels Twitch just refused one of the user's messages in, one event per refusal. */
+    /** Channels where Twitch just refused one of the user's messages, one event per refusal. */
     val refused: SharedFlow<String> = _refused
 
     private val _mentionEvents = MutableSharedFlow<ChatItem>(extraBufferCapacity = 32)
-    /** Emitted for live (non-history) messages that mention the user in a channel they are not looking at. */
+    /** Live mentions in channels the user is not looking at. */
     val mentionEvents: SharedFlow<ChatItem> = _mentionEvents
 
     private val _allMentions = MutableSharedFlow<MentionEvent>(extraBufferCapacity = 32)
-    /** Every live mention, including the ones the user is watching happen. For the inbox. */
+    /** Every live mention, including those in the open channel. For the inbox. */
     val allMentions: SharedFlow<MentionEvent> = _allMentions
 
     private val _whispers = MutableSharedFlow<InboxWhisper>(extraBufferCapacity = 16)
     /**
-     * Whispers, which belong to no channel and so have nowhere else to go. Twitch only delivers
-     * them when the token carries the `whispers:read` scope, which older logins do not have.
+     * Whispers. Twitch only delivers them to tokens with `whispers:read`, which older logins lack.
      */
     val whispers: SharedFlow<InboxWhisper> = _whispers
 
     private val _whisperEvents = MutableSharedFlow<InboxWhisper>(extraBufferCapacity = 16)
-    /** The whispers that arrived while nobody was looking at them, for the notification. */
+    /** Whispers that arrived while the whisper tab was not open, for the notification. */
     val whisperEvents: SharedFlow<InboxWhisper> = _whisperEvents
 
     private val _unreadMentions = MutableStateFlow<Map<String, Int>>(emptyMap())
     val unreadMentions: StateFlow<Map<String, Int>> = _unreadMentions
 
-    /** New messages per channel since the user last looked at it. */
+    /** New messages per channel since the user last looked. */
     val unreadMessages: StateFlow<Map<String, Int>> get() = buffers.unreadMessages
 
     /**
-     * The page the chat screen is on: a channel, or the key of a combined chat. A bubble reads a
-     * channel of its own and leaves this alone.
+     * The chat screen's page: a channel or a combined chat key. A bubble reads its own channel and
+     * does not touch this.
      */
     val activePage = MutableStateFlow<String?>(null)
 
@@ -161,8 +154,8 @@ class ChatRepository(
                     )
                     buffers.dropMuted(muted)
                     buffers.trimAll(s.messageLimit)
-                    // Deleted messages are filtered out when publishing, so turning them back on
-                    // has to republish what is already buffered.
+                    // Deleted messages are filtered when publishing, so showing them again needs a
+                    // republish.
                     if (s.showDeleted != showedDeleted) {
                         showedDeleted = s.showDeleted
                         buffers.republishAll()
@@ -182,8 +175,7 @@ class ChatRepository(
             channelRepo.groups.collect { groups -> buffers.setGroups(groups.mapValues { it.value.channels }) }
         }
 
-        // A provider that was unreachable has come back: the messages on screen were built
-        // without its emotes, and are built again now that they are there.
+        // A provider came back: messages on screen were built without its emotes and are rebuilt.
         scope.launch(worker) {
             emotes.recovered.collect { buffers.rebuildAll() }
         }
@@ -195,10 +187,10 @@ class ChatRepository(
                 when (state) {
                     ConnectionState.Connected -> if (wasConnected) {
                         systemAll(R.string.chat_reconnected)
-                        // Fetch what was said while we were offline.
+                        // Fetch what was said while offline.
                         buffers.channels().forEach { ch -> scope.launch { loadHistory(ch, since = incoming.lastLive(ch)) } }
                     } else wasConnected = true
-                    // Said once when the connection drops, not again for every try after it.
+                    // Said once when the connection drops, not for every retry.
                     ConnectionState.Connecting, ConnectionState.WaitingForNetwork ->
                         if (previous == ConnectionState.Connected) systemAll(R.string.chat_disconnected)
                     else -> Unit
@@ -211,7 +203,7 @@ class ChatRepository(
     /** The messages of a channel, or of a combined chat by its key. */
     fun messages(page: String): StateFlow<List<ChatItem>> = buffers.messages(page)
 
-    /** Adds an informational line (e.g. 7TV activity), optionally followed by emotes/text segments. */
+    /** Adds an info line (e.g. 7TV activity), optionally followed by emote and text segments. */
     fun postNotice(channel: String, text: String, segments: List<Segment> = emptyList()) = scope.launch(worker) {
         buffers.add(
             ChatItem(id = UUID.randomUUID().toString(), channel = channel, kind = MessageKind.Notice,
@@ -225,7 +217,7 @@ class ChatRepository(
         scope.launch(worker) { buffers.clearUnread(channel) }
     }
 
-    /** The latest messages of one user in a channel (oldest first), for the user card. */
+    /** The latest messages of one user in a channel, oldest first, for the user card. */
     suspend fun messagesFrom(channel: String, login: String, limit: Int = 30): List<ChatItem> =
         buffers.from(channel, login, limit)
 
@@ -237,7 +229,7 @@ class ChatRepository(
     suspend fun send(channel: String, input: String, replyTo: ChatItem?): SendResult = withContext(worker) {
         var text = input.trim()
         if (text.isEmpty()) return@withContext SendResult.Empty
-        // A guest's connection reads and never writes, and every command goes through a login.
+        // A guest connection is read-only, and every command needs a login.
         if (auth.account == null) return@withContext SendResult.NotConnected
         CommandParser.parse(text)?.let { command ->
             system(channel, commands.execute(command, rooms.id(channel)))
@@ -260,7 +252,7 @@ class ChatRepository(
 
         lastSent[channel] = input.trim() to now
         val reply = replyParent?.let {
-            // Twitch puts the answer into the conversation the parent is part of; the echo too.
+            // Twitch files the answer under the parent's conversation; the echo does the same.
             ReplyInfo(it.id, it.login.orEmpty(), it.displayName.orEmpty(), it.text, threadId = it.reply?.threadId ?: it.id)
         }
         incoming.sent(
@@ -270,7 +262,9 @@ class ChatRepository(
         SendResult.Ok
     }
 
-    /** Runs a moderation command (e.g. from the message actions) and reports the result in the chat. */
+    /**
+     * Runs a moderation command (e.g. from the message actions) and reports the result in the chat.
+     */
     fun runCommand(channel: String, command: ChatCommand) = scope.launch(worker) {
         system(channel, commands.execute(command, rooms.id(channel)))
     }
@@ -287,7 +281,7 @@ class ChatRepository(
         _unreadMentions.value = emptyMap()
     }
 
-    /** Joins all channels of the list again. Called after login. */
+    /** Joins all channels again. Called after login. */
     fun resync() = scope.launch(worker) {
         joinedChannels = emptyList()
         syncChannels(channelRepo.channels.value)
@@ -317,17 +311,12 @@ class ChatRepository(
     }
 
     /**
-     * Emotes and badges first, then history, so old messages already render with emotes — but
-     * only for as long as that is worth waiting for.
-     *
-     * A provider that has gone away does not refuse, it says nothing, and the request sits there
-     * until it times out. Waiting all of that out meant an empty channel for twenty seconds
-     * because one of five services was down. So the history goes ahead after a moment either way;
-     * the emotes keep loading, and whatever they still bring is put into the messages afterwards.
+     * Emotes and badges first, then history, so old messages render with emotes. But only for a
+     * moment: an unreachable provider does not refuse, it times out, which once meant twenty
+     * seconds of empty channel. Emotes that arrive later are put into the messages afterwards.
      */
     private suspend fun loadChannelData(channel: String) {
-        // Before anything is asked of anybody: finding the channel id and waiting on the emotes
-        // takes seconds the user spends looking at an empty black screen otherwise.
+        // First, so the user does not look at an empty screen while the channel id and emotes load.
         announceHistory(channel)
         val id = rooms.id(channel)
             ?: channelRepo.info.value[channel]?.id
@@ -347,12 +336,12 @@ class ChatRepository(
     }
 
     /**
-     * The chatter list Twitch keeps for the channel. It only answers where the user is moderator
-     * or broadcaster, so a failure here is the normal case and stays quiet.
+     * Twitch's chatter list. It only answers where the user moderates, so failures are normal and
+     * not reported.
      */
     private suspend fun loadChatters(channel: String, channelId: String) {
         val account = auth.account ?: return
-        // A login without the scope would only collect a 401 on every join.
+        // Without the scope every join would just get a 401.
         if (!TwitchScopes.allows(account.scopes, "moderator:read:chatters")) return
         val userId = account.userId
         val users = try {
@@ -367,13 +356,11 @@ class ChatRepository(
     }
 
     /**
-     * Loads recent messages from the recent-messages service and merges them into the buffer by
-     * time. With [since], only messages newer than that timestamp are added (gap after reconnect).
+     * Loads recent messages from the recent-messages service and merges them by time. With [since],
+     * only messages after it (the gap after a reconnect).
      *
-     * The service is somebody else's side project and is away often enough that its silence needs
-     * explaining: a channel that opens empty and stays that way looks like a broken app. So the
-     * line [announceHistory] put up is taken away again here, or turned into one saying that the
-     * history never came.
+     * The service is often unavailable, and an empty channel looks broken, so the line
+     * [announceHistory] put up is removed here or replaced by one saying the history failed.
      */
     private suspend fun loadHistory(channel: String, since: Long? = null) {
         if (!settings.value.loadHistory) return
@@ -401,19 +388,19 @@ class ChatRepository(
             }
             buffers.merge(channel, items)
             if (announce) buffers.remove(channel, historyId(channel))
-            // Old messages from a Shared Chat partner are marked like new ones. Whether a session
-            // still runs is for the live messages to say, not for ones written an hour ago.
+            // Old partner messages are marked like new ones. Whether a session is running is
+            // decided by live messages only.
             sharedChats.unknown(items.mapNotNullTo(HashSet()) { it.sourceRoomId })
         }.let { describePartners(it) }
     }
 
-    /** Who the channel that has just started sharing its chat shares it with. */
+    /** Asks Helix who a channel that just started sharing its chat shares it with. */
     private suspend fun loadSharedChat(channel: String) {
         val roomId = rooms.id(channel) ?: return
         val session = try {
             helix.sharedChatSession(roomId)
         } catch (e: Exception) {
-            // The partners still turn up one by one, as their messages arrive.
+            // Partners still show up one by one as their messages arrive.
             Log.d(TAG, "No Shared Chat session for $channel: ${e.message}")
             return
         }
@@ -426,9 +413,8 @@ class ChatRepository(
     }
 
     /**
-     * Name, picture and badges of Shared Chat partners. The badges are what a partner's message
-     * is drawn with, since `source-badges` names the ones of the channel it was written in; a
-     * channel the user is in has them already.
+     * Name, picture and badges of Shared Chat partners. Their messages are drawn with the partner's
+     * badges, since `source-badges` refers to the channel they were written in.
      */
     private suspend fun describePartners(ids: List<String>) {
         if (ids.isEmpty()) return
@@ -445,33 +431,32 @@ class ChatRepository(
         withContext(worker) { sharedChats.described(partners) }
     }
 
-    /** A mention, once [IncomingMessages] has built it: the inbox, the badge and the ringing. */
+    /** A built mention: inbox, unread count and notification. */
     private fun onMention(item: ChatItem, watched: Boolean) {
-        // The inbox keeps every mention; one the user saw arrive is simply already read.
+        // The inbox gets every mention; one seen arriving is already read.
         _allMentions.tryEmit(MentionEvent(item, seen = watched))
         if (watched) return
         _unreadMentions.update { it + (item.channel to (it[item.channel] ?: 0) + 1) }
-        // A muted channel still counts its mentions, it just does not notify about them.
+        // Muted channels still count mentions, without notifying.
         if (item.channel in channelRepo.mutedChannels.value) return
         _mentionEvents.tryEmit(item)
     }
 
     private fun onWhisper(whisper: InboxWhisper, watched: Boolean) {
-        // One that arrived under the user's eyes is read already, and needs no notification.
+        // Read already if the whisper tab was open, and then no notification.
         _whispers.tryEmit(whisper.copy(read = watched))
         if (!watched) _whisperEvents.tryEmit(whisper)
     }
 
-    /** [id] is given where the line is to be taken away again, as the history status lines are. */
+    /** [id] is set for lines that are removed again later, like the history status lines. */
     private fun system(channel: String, text: String, id: String = UUID.randomUUID().toString()) = buffers.add(
         ChatItem(id = id, channel = channel, kind = MessageKind.Notice,
             timestamp = System.currentTimeMillis(), systemText = text, text = text)
     )
 
     /**
-     * Puts up the line that says the history is on its way, and takes away an older failure.
-     * Only [loadChannelData] does this: the load that fills the gap after a reconnect happens
-     * under a chat that is already there, and announcing that one would be noise.
+     * Shows that the history is loading and removes an older failure line. Only for the initial
+     * load; the gap fill after a reconnect is silent.
      */
     private suspend fun announceHistory(channel: String) {
         if (!settings.value.loadHistory) return
@@ -492,7 +477,7 @@ class ChatRepository(
     private companion object {
         const val TAG = "ChatRepository"
 
-        /** How long the history waits for the channel's emotes before it goes ahead without them. */
+        /** How long the history waits for the channel's emotes. */
         const val EMOTES_BEFORE_HISTORY_MS = 3_000L
 
         const val DUPLICATE_BYPASS = " \uDB40\uDC00"

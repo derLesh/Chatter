@@ -3,16 +3,14 @@ package dev.chatter.app.chat
 import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
 
 /**
- * Which links in a message are shown as pictures, and where the picture actually is.
+ * Which links are shown as pictures, and where the picture is.
  *
- * Showing a link means fetching it, and the site it goes to is chosen by whoever wrote the
- * message. So nothing is fetched unless its host is on the user's list: [DEFAULT_HOSTS] is what
- * that list starts out as, and they can add to it or throw any of it away.
+ * The sender chooses the site, so only hosts on the user's list are fetched; [DEFAULT_HOSTS] is the
+ * initial list.
  */
 object ImageLinks {
     /**
-     * The image hosts a fresh install trusts — the ones people actually paste in Twitch chat.
-     * They are matched with their subdomains too, so "imgur.com" covers "i.imgur.com".
+     * Hosts a fresh install trusts, the ones commonly pasted in Twitch chat. Subdomains match too.
      */
     val DEFAULT_HOSTS = listOf(
         "imgur.com",
@@ -25,30 +23,24 @@ object ImageLinks {
     )
 
     /**
-     * The only file types that are ever fetched as a picture: the plain raster formats Android
-     * knows how to decode. Nothing that could carry code of its own belongs here — an SVG is a
-     * document with scripts in it, not a photo — and anything the app cannot name is a link
-     * like any other.
+     * The only file types fetched as pictures: raster formats Android decodes. Nothing that can
+     * carry code (an SVG can contain scripts); anything else stays a link.
      */
     private val IMAGE_TYPES = setOf("png", "jpg", "jpeg", "gif", "webp", "bmp", "avif", "heic", "heif")
 
-    /** The longest id an Imgur or Gyazo link is believed to carry. */
+    /** Longest id an Imgur or Gyazo link is expected to have. */
     private const val MAX_ID = 64
 
     /**
-     * The picture [url] stands for, or null when it is not one this list allows.
-     *
-     * Everything has to line up: the link is plain http(s), its host is on [hosts], and it names
-     * a file of a type in [IMAGE_TYPES]. Anything else — another scheme, another host, another
-     * extension, a path this cannot make sense of — is left alone as a link, because the one
-     * thing that must not happen is the app fetching, or building, an address somebody else
-     * thought up.
+     * The picture [url] stands for, or null if not allowed: plain http(s), a host on [hosts], and a
+     * file type in [IMAGE_TYPES]. Everything else stays a link, so the app never fetches or builds
+     * an address someone else made up.
      */
     fun imageUrl(url: String, hosts: Collection<String>): String? {
-        // Read the way the image client will read it, OkHttp's own parser, and hand back the url
-        // it produced. Picking the host out by hand disagreed with it at the edges — a backslash
-        // ends the authority for OkHttp as it does in a browser, so `https://evil.example\@imgur.com/a.png`
-        // looked like imgur.com here and was fetched from evil.example there.
+        // Parsed with OkHttp, the client that fetches it, and the parsed URL is returned.
+        // Hand-picking the host disagreed at the edges: a backslash ends the authority for OkHttp
+        // as in browsers, so `https://evil.example\@imgur.com/a.png` looked like imgur.com but was
+        // fetched from evil.example.
         val parsed = url.toHttpUrlOrNull() ?: return null
         if (parsed.username.isNotEmpty() || parsed.password.isNotEmpty()) return null
         val host = parsed.host
@@ -56,10 +48,9 @@ object ImageLinks {
         val segments = parsed.pathSegments.filter { it.isNotEmpty() }
         val file = segments.lastOrNull().orEmpty()
         if (file.substringAfterLast('.', "").lowercase() in IMAGE_TYPES) return parsed.toString()
-        // Imgur and Gyazo hand out a page, not the picture; the picture sits on their image host
-        // under the same id. An album or a gallery is more than one picture, so it stays a link.
-        // The id goes into a url this builds, so it may be nothing but plain ASCII letters and
-        // digits — no dot, no slash, no escape, nothing that could steer the address elsewhere.
+        // Imgur and Gyazo links point to a page; the picture is on their image host under the same
+        // id. Albums and galleries stay links. The id goes into a URL built here, so only ASCII
+        // letters and digits are accepted.
         val id = segments.singleOrNull()?.takeIf { it.length in 1..MAX_ID && it.all(::isPlainAscii) } ?: return null
         return when {
             host == "imgur.com" || host.endsWith(".imgur.com") -> "https://i.imgur.com/$id.png"
@@ -71,9 +62,8 @@ object ImageLinks {
     private fun isPlainAscii(c: Char) = c in 'a'..'z' || c in 'A'..'Z' || c in '0'..'9'
 
     /**
-     * Takes every link that is a picture out of [segments], and hands back what is left of the
-     * line together with the pictures, in the order they were written. The space such a link
-     * leaves behind goes with it, so "look at <url> lol" does not keep a gap where the url was.
+     * Splits the picture links out of [segments]: returns the rest of the line and the pictures in
+     * order. The space a removed link leaves goes with it.
      */
     fun split(segments: List<Segment>, hosts: Collection<String>): Pair<List<Segment>, List<String>> {
         if (segments.none { it is Segment.Link && imageUrl(it.url, hosts) != null }) return segments to emptyList()
@@ -90,14 +80,14 @@ object ImageLinks {
             rest += if (dropped && seg is Segment.Text) Segment.Text(seg.text.trimStart(' ')) else seg
             dropped = false
         }
-        // A url at the end of the line leaves its space behind the last word instead.
+        // A link at the end of the line takes the space before it.
         if (dropped) (rest.lastOrNull() as? Segment.Text)?.let { rest[rest.lastIndex] = Segment.Text(it.text.trimEnd(' ')) }
         return rest.filterNot { it is Segment.Text && it.text.isEmpty() } to urls
     }
 
     /**
-     * What the user typed, as a bare host: they may well paste a whole url, and "www." in front
-     * of it would only make the entry match less than they meant.
+     * What the user typed as a bare host; they may paste a whole URL, and a leading "www." would
+     * match less than intended.
      */
     fun cleanHost(typed: String): String = typed.trim()
         .substringAfter("://")

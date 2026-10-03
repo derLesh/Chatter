@@ -13,27 +13,27 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 
 /**
- * Names the user gave other chatters. They are keyed by login and deliberately not by channel:
- * someone you know as "Bot" is that person in every channel they turn up in.
+ * Nicknames the user gave other chatters, by login and not per channel: a nickname applies wherever
+ * that person chats.
  */
 class NicknameRepository(private val store: DataStore<Preferences>, scope: CoroutineScope) {
-    /** Nickname by lowercase login. Empty unless the user renamed somebody. */
+    /** Nickname by lowercase login. */
     val nicknames: StateFlow<Map<String, String>> = store.data
         .map { p -> decode(p[NICKNAMES]).orEmpty() }
         .stateIn(scope, SharingStarted.Eagerly, emptyMap())
 
-    /** Gives a chatter a nickname; a blank one restores the name Twitch reports. */
+    /** Sets a nickname; blank restores the Twitch name. */
     suspend fun set(login: String, nickname: String) {
         val key = login.lowercase()
         val chosen = nickname.trim()
         store.edit { p ->
-            // Nicknames it cannot read are left alone rather than written over; see decodeStored.
+            // Never writes over nicknames it cannot read; see decodeStored.
             val all = decode(p[NICKNAMES]) ?: return@edit
             p[NICKNAMES] = AppJson.encodeToString(if (chosen.isEmpty()) all - key else all + (key to chosen))
         }
     }
 
-    /** Replaces every nickname, for restoring a backup. */
+    /** Replaces all nicknames, for restoring a backup. */
     suspend fun replaceAll(all: Map<String, String>) = store.edit { p ->
         p[NICKNAMES] = AppJson.encodeToString(all.mapKeys { it.key.lowercase() })
     }

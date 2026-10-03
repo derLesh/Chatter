@@ -3,7 +3,7 @@ package dev.chatter.app.chat
 import android.content.Context
 import dev.chatter.app.R
 
-/** The real [ChatNotices]: the same lines, in whichever language the phone is set to. */
+/** [ChatNotices] in the phone's language. */
 class AppChatNotices(private val context: Context) : ChatNotices {
     override fun chatCleared(): String = context.getString(R.string.chat_cleared)
 

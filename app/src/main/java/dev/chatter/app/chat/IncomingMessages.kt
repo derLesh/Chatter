@@ -3,7 +3,7 @@ package dev.chatter.app.chat
 import dev.chatter.app.irc.IrcMessage
 import java.util.UUID
 
-/** What the settings make of a message as it arrives. Replaced as a whole when they change. */
+/** The settings as applied to arriving messages; replaced as a whole when they change. */
 data class ChatFilters(
     val mentions: MentionMatcher = MentionMatcher("", emptyList()),
     val muted: MuteFilter = MuteFilter(),
@@ -11,12 +11,9 @@ data class ChatFilters(
 )
 
 /**
- * What Twitch says, and what the app makes of it.
- *
- * One message at a time, on the chat worker: build it, let the mute list and the user's rules have
- * their say, put it in its channel, and tell whoever needs to know. What it changes lives in
- * [MessageBuffers], [Rooms] and [ChatterRegistry]; what it cannot do itself — ringing a
- * notification, fetching a channel's emotes — it hands out through the callbacks it was given.
+ * Handles what Twitch sends, one message at a time on the chat worker: build it, apply the mute
+ * list and rules, put it in its channel, and notify the callbacks. State lives in [MessageBuffers],
+ * [Rooms] and [ChatterRegistry].
  */
 class IncomingMessages(
     private val builder: MessageBuilder,
@@ -28,52 +25,49 @@ class IncomingMessages(
     private val stats: ChatStats,
     private val filters: () -> ChatFilters,
     private val selfLogin: () -> String,
-    /** A mention, and whether the user was looking at its channel when it arrived. */
+    /** A mention, and whether its channel was on screen. */
     private val onMention: (item: ChatItem, watched: Boolean) -> Unit,
-    /** A whisper, and whether the whisper tab was in front of the user. */
+    /** A whisper, and whether the whisper tab was in front. */
     private val onWhisper: (whisper: InboxWhisper, watched: Boolean) -> Unit,
-    /** The first time a channel names its Twitch id: its emotes and badges can be fetched now. */
+    /**
+     * A channel reported its Twitch id for the first time; its emotes and badges can be fetched.
+     */
     private val onRoomFound: (channelId: String) -> Unit,
-    /** Which channels share their chat, and with whom; see [SharedChats]. */
+    /** See [SharedChats]. */
     private val sharedChats: SharedChats = SharedChats(),
-    /** A channel has just started sharing its chat: who with is worth asking now. */
+    /** A channel started sharing its chat. */
     private val onSharedChatStarted: (channel: String) -> Unit = {},
-    /** Shared Chat partners whose messages arrived before anybody knew who they are. */
+    /** Shared Chat partners whose messages arrived before they were known. */
     private val onPartnersFound: (ids: List<String>) -> Unit = {},
     /** Twitch refused a message the user sent in this channel. */
     private val onRefused: (channel: String) -> Unit = {},
 ) {
     /**
-     * The shared ids of the last mentions told about. In a Shared Chat one message arrives in
-     * every channel of the session, and with two of them open it would ring twice.
+     * Shared ids of recently reported mentions. A Shared Chat message arrives in every channel of
+     * the session and would otherwise notify once per open channel.
      */
     private val mentionedShared = LinkedHashSet<String>()
-    /**
-     * When the newest live message of each channel was written, so that a reconnect can ask the
-     * history service for the gap rather than for everything again.
-     */
+    /** Time of the newest live message per channel, so a reconnect only fetches the gap. */
     private val lastLive = HashMap<String, Long>()
 
     fun lastLive(channel: String): Long = lastLive[channel] ?: 0L
 
     /**
-     * The user's own messages that are on screen but not yet named by Twitch, oldest first, per
-     * channel. Twitch never sends them back; the only word of their real id is the USERSTATE that
-     * answers each PRIVMSG it accepted, or a NOTICE for one it refused. Both come in the order the
-     * messages were sent, so the oldest one waiting is always the one being answered.
+     * The user's sent messages not yet confirmed by Twitch, oldest first, per channel. Twitch never
+     * echoes them; their real id only comes with the USERSTATE answering each accepted PRIVMSG, or
+     * a NOTICE for a refused one. Both come in send order, so the oldest is the one being answered.
      */
     private val unconfirmed = HashMap<String, ArrayDeque<ChatItem>>()
 
-    /** A message the user just sent, shown under a stand-in id until Twitch names it. */
+    /** A message the user just sent, shown under a temporary id until Twitch confirms it. */
     fun sent(item: ChatItem) {
         buffers.add(item)
         unconfirmed.getOrPut(item.channel) { ArrayDeque() }.addLast(item)
     }
 
     /**
-     * The sent message an answer that arrives now is about. Twitch answers within a second; one
-     * still waiting after [ECHO_TIMEOUT_MS] lost its answer to a dropped connection, and handing
-     * it the id of a later message would put a reply under the wrong words.
+     * The sent message an answer arriving now refers to. Twitch answers within a second; one still
+     * waiting after [ECHO_TIMEOUT_MS] lost its answer to a dropped connection.
      */
     private fun answered(channel: String): ChatItem? {
         val waiting = unconfirmed[channel] ?: return null
@@ -87,7 +81,7 @@ class IncomingMessages(
 
     fun clear() {
         lastLive.clear()
-        // An answer from the connection before is not coming any more.
+        // Answers from the previous connection will not come any more.
         unconfirmed.clear()
         mentionedShared.clear()
     }
@@ -98,8 +92,8 @@ class IncomingMessages(
             "PRIVMSG", "USERNOTICE" -> if (channel != null) onChatMessage(channel, msg)
             "WHISPER" -> InboxWhisper.from(msg)?.let(::onWhisper)
             "NOTICE" -> if (channel != null) {
-                // Every refusal of a sent message has an id of this shape. The message on screen
-                // was never delivered, so it is struck out, and the notice below it says why.
+                // Every refusal of a sent message has a msg-id of this form. The message was never
+                // delivered, so it is struck out and the notice says why.
                 if (msg.tag("msg-id")?.startsWith("msg_") == true) answered(channel)?.let { refused ->
                     buffers.markDeleted(channel) { it.id == refused.id }
                     onRefused(channel)
@@ -111,12 +105,12 @@ class IncomingMessages(
                 msg.tag("target-msg-id")?.let { id -> buffers.markDeleted(channel) { it.id == id } }
             }
             "ROOMSTATE" -> if (channel != null) {
-                // The first time a channel names its id is when its emotes can be fetched.
+                // The first time a channel reports its id, its emotes can be fetched.
                 if (rooms.onRoomState(channel, msg.tags)) rooms.id(channel)?.let(onRoomFound)
             }
             "USERSTATE" -> if (channel != null) {
                 rooms.onUserState(channel, msg.tags)
-                // Only the USERSTATE that answers a PRIVMSG carries an id: that of the message.
+                // Only the USERSTATE answering a PRIVMSG carries an id: the message's.
                 msg.tag("id")?.let { id ->
                     answered(channel)?.let { buffers.rename(channel, it.id, id) }
                 }
@@ -128,9 +122,9 @@ class IncomingMessages(
     private fun onChatMessage(channel: String, msg: IrcMessage) {
         val (mentions, muted, rules) = filters()
         val built = builder.build(msg, selfLogin(), rooms.id(channel), mentions) ?: return
-        // Muted and hidden messages still count as "seen", so a reconnect does not fetch them again.
+        // Muted and hidden messages count as seen too, so a reconnect does not fetch them again.
         lastLive[channel] = built.timestamp
-        // Before the mute list: a muted message says just as much about whether a session runs.
+        // Before the mute list: muted messages also show whether a session is running.
         if (sharedChats.onLiveMessage(channel, msg.tag("room-id") ?: rooms.id(channel), msg.tag("source-room-id"))) {
             onSharedChatStarted(channel)
         }
@@ -141,7 +135,7 @@ class IncomingMessages(
         val item = rules.apply(built) ?: return
         rememberChatter(channel, item)
         buffers.add(item)
-        // Only live messages: the history fetched on join was received long ago.
+        // Live messages only; the history was received long ago.
         if (!item.isOwn) stats.countReceived(channel)
         val watched = windows.isWatching(channel)
         if (!item.isOwn && !watched) buffers.countUnread(channel)
@@ -151,7 +145,7 @@ class IncomingMessages(
         }
     }
 
-    /** False for a Shared Chat message already told about through another channel of the session. */
+    /** False for a Shared Chat message already reported through another channel of the session. */
     private fun firstSighting(item: ChatItem): Boolean {
         val shared = item.sharedId ?: return true
         if (!mentionedShared.add(shared)) return false
@@ -179,7 +173,7 @@ class IncomingMessages(
         )
     }
 
-    /** Everyone who writes is somebody an "@" can be completed to and coloured like. */
+    /** Everyone who writes can be completed and colored after an "@". */
     fun rememberChatter(channel: String, item: ChatItem) {
         val login = item.login ?: return
         chatters.remember(channel, login, item.displayName, item.color)
@@ -193,10 +187,10 @@ class IncomingMessages(
     )
 
     private companion object {
-        /** How long a sent message waits for Twitch to name it before it is given up on. */
+        /** How long a sent message waits for Twitch's confirmation. */
         const val ECHO_TIMEOUT_MS = 10_000L
 
-        /** The copies of one message arrive within moments of each other; a few are plenty. */
+        /** The copies of a message arrive within moments; a few are enough. */
         const val MENTIONS_REMEMBERED = 64
     }
 }

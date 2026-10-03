@@ -3,14 +3,14 @@ package dev.chatter.app.chat
 import dev.chatter.app.badges.Badge
 import dev.chatter.app.emotes.Emote
 
-/** A piece of a chat message, pre-computed once when the message arrives. */
+/** A piece of a chat message, computed once when the message arrives. */
 sealed interface Segment {
     data class Text(val text: String) : Segment
     data class EmoteSeg(val emote: Emote, val overlays: List<Emote> = emptyList()) : Segment
     data class Link(val text: String, val url: String) : Segment
     /**
-     * "@name". [login] and [color] are set only while that user is chatting in the channel,
-     * so unknown names stay in the default text color.
+     * "@name". [login] and [color] are only set while that user is chatting in the channel, so
+     * unknown names keep the default color.
      */
     data class Mention(val name: String, val login: String? = null, val color: Int? = null) : Segment
 }
@@ -18,18 +18,13 @@ sealed interface Segment {
 enum class MessageKind { Chat, Action, UserNotice, Notice }
 
 /**
- * The parts of a message that only drawing it needs: its emote, link and mention segments, the
- * sender's badges, and the segments of the message it answers, for the line above it. They are worked out the first time something asks for them, because
- * everything the app *decides* about a message — is it muted, is it a mention, does a rule paint
- * it — reads nothing but its plain text.
- *
- * That is what makes a chat cheap to keep open in the background: messages nobody is watching
- * arrive, are counted, and go into the buffer without ever being turned into emotes. The same
- * goes for the hundred lines of history fetched on join, of which a screenful is ever seen.
+ * The parts of a message only drawing needs: emote, link and mention segments, the sender's badges,
+ * and the segments of the message a reply answers. Built on first use, because filtering, mentions
+ * and rules only read the plain text; messages nobody looks at, in the background or in the
+ * history, are never parsed for emotes.
  *
  * Building reads the emote tables and the chatter registry, which belong to [ChatRepository]'s
- * worker. The repository therefore builds a message before handing it to the UI (see its
- * `snapshot`), so nothing is ever built on the main thread.
+ * worker, so the repository builds messages before handing them to the UI (see `snapshot`).
  */
 class MessageBody private constructor(
     private var build: (() -> Parts)?,
@@ -42,16 +37,14 @@ class MessageBody private constructor(
     val badges: List<Badge> get() = parts().badges
     val quote: List<Segment> get() = parts().quote
 
-    /** Builds the parts now, on the calling thread, if they are not built already. */
+    /** Builds the parts now on the calling thread, if not built yet. */
     fun prepare() {
         parts()
     }
 
     /**
-     * The same message, to be worked out again — for when emotes turned up after it was drawn.
-     *
-     * A body nobody has drawn yet is itself already: it will be built with whatever is there when
-     * something first asks for it. So is one that has let go of how it was built.
+     * The same message, to be built again for emotes that arrived later. A body that was never
+     * built, or no longer knows how it was built, is returned as is.
      */
     fun rebuilt(): MessageBody =
         if (parts == null) this else build?.let { MessageBody(it, null, worthKeeping) } ?: this
@@ -59,9 +52,8 @@ class MessageBody private constructor(
     private fun parts(): Parts = parts ?: synchronized(this) {
         parts ?: build!!().also {
             parts = it
-            // Lets go of whatever the lambda was holding on to — unless the message could still
-            // come out differently, which it can while a provider owes the app its emotes. Then
-            // the lambda is what [rebuilt] uses to put them in once they arrive.
+            // Drops the builder lambda unless the message could still change, i.e. while a provider
+            // owes emotes; [rebuilt] needs it then.
             if (!worthKeeping()) build = null
         }
     }
@@ -69,13 +61,13 @@ class MessageBody private constructor(
     companion object {
         val EMPTY = of(emptyList())
 
-        /** For messages the app writes itself, which have nothing to work out. */
+        /** For lines the app writes itself. */
         fun of(segments: List<Segment>, badges: List<Badge> = emptyList()) =
             MessageBody(null, Parts(segments, badges, emptyList()))
 
         /**
-         * [worthKeeping] is asked once the parts are built: true holds on to how they were built,
-         * so [rebuilt] can do it over. [quote] is the message a reply answers, empty for any other.
+         * [worthKeeping] is asked after building: true keeps the builder for [rebuilt]. [quote] is
+         * the message a reply answers, empty otherwise.
          */
         fun lazily(
             segments: () -> List<Segment>,
@@ -92,13 +84,13 @@ data class ReplyInfo(
     val parentDisplayName: String,
     val parentBody: String,
     /**
-     * The message the whole conversation started with, from `reply-thread-parent-msg-id`. The
-     * same as [parentId] for an answer to that first message.
+     * The first message of the conversation, from `reply-thread-parent-msg-id`. Equals [parentId]
+     * for a direct answer to it.
      */
     val threadId: String = parentId,
 )
 
-/** Immutable, render-ready chat line. */
+/** An immutable, render-ready chat line. */
 data class ChatItem(
     val id: String,
     val channel: String,
@@ -108,33 +100,32 @@ data class ChatItem(
     val displayName: String? = null,
     /** ARGB color from the `color` tag, or null if the user never picked one. */
     val color: Int? = null,
-    /** Everything only the drawing of this message needs — see [MessageBody]. */
+    /** What only drawing needs; see [MessageBody]. */
     val body: MessageBody = MessageBody.EMPTY,
-    /** Header for sub/raid notices, or the whole text for NOTICE/system lines. */
+    /** Header of sub/raid notices, or the whole text of NOTICE and system lines. */
     val systemText: String? = null,
-    /** The plain message text (for copy / reply preview). */
+    /** Plain text, for copying and reply previews. */
     val text: String = "",
     val isMention: Boolean = false,
-    /** ARGB background a highlight rule painted this message with, if one matched. */
+    /** ARGB background from a matching highlight rule. */
     val highlight: Int? = null,
-    /** Twitch's `first-msg`: the user's very first message in this channel, ever. */
+    /** Twitch's `first-msg`: the user's first message in this channel ever. */
     val isFirstMessage: Boolean = false,
     val isOwn: Boolean = false,
     val reply: ReplyInfo? = null,
     val deleted: Boolean = false,
     val historical: Boolean = false,
     /**
-     * Every other message in a channel buffer, fixed when the message is added. Stored on the
-     * item (instead of using the list position) so the pattern doesn't flip when old messages
-     * are dropped from the top.
+     * Every other message in a channel, fixed when added. Stored on the item so the pattern does
+     * not flip when old messages are dropped from the top.
      */
     val alternate: Boolean = false,
     /**
-     * Twitch's `source-id`, set while the channel shares its chat: every channel of the session
-     * gets a copy of the message under an id of its own, and this is the one they have in common.
+     * Twitch's `source-id` during Shared Chat: each channel of the session gets a copy under its
+     * own id, and this one is common to all copies.
      */
     val sharedId: String? = null,
-    /** The id of the Shared Chat partner this was written in; null for a message written here. */
+    /** The Shared Chat partner this was written in; null for messages written here. */
     val sourceRoomId: String? = null,
 ) {
     val canReply: Boolean get() = kind == MessageKind.Chat || kind == MessageKind.Action
@@ -142,6 +133,6 @@ data class ChatItem(
     val segments: List<Segment> get() = body.segments
     val badges: List<Badge> get() = body.badges
 
-    /** The message this one answers, as segments; empty for one that answers nothing. */
+    /** The message this one answers, as segments; empty if it answers nothing. */
     val quote: List<Segment> get() = body.quote
 }

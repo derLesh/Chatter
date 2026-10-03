@@ -13,7 +13,7 @@ class ChatterApp : Application(), SingletonImageLoader.Factory {
 
     override fun onCreate() {
         super.onCreate()
-        // First of all, so that a crash while everything else is built is written down too.
+        // First, so crashes while building the rest are recorded too.
         val crashes = CrashLog(filesDir.resolve("crashes"), DeviceInfo.current(BuildConfig.VERSION_NAME, BuildConfig.VERSION_CODE))
         crashes.install()
         container = AppContainer(this, crashes)
@@ -21,8 +21,8 @@ class ChatterApp : Application(), SingletonImageLoader.Factory {
     }
 
     /**
-     * Android wants memory back from a process it may end next. The statistics wait up to ten
-     * minutes between saves in the background, and this is the last good moment for them.
+     * Android may end the process next. Background stats are saved only every ten minutes, so save
+     * them now.
      */
     override fun onTrimMemory(level: Int) {
         super.onTrimMemory(level)

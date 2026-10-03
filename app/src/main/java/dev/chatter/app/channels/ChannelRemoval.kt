@@ -1,9 +1,8 @@
 package dev.chatter.app.channels
 
 /**
- * Everything the user set on their channels, as [ChannelRepository] stores it: the pages in their
- * order, the combined chats, the names given to channels, and which channels do not notify or stay
- * out of the title bar.
+ * Everything set on the channels as [ChannelRepository] stores it: page order, combined chats,
+ * custom names, and which channels are muted or hidden from the title bar.
  */
 internal data class ChannelLists(
     val pages: List<String>,
@@ -14,25 +13,22 @@ internal data class ChannelLists(
 )
 
 /**
- * What removing a page took with it, so that it can be put back.
- *
- * Removing a channel takes more than the channel: its name, its notification and title-bar
- * settings, its place in every combined chat — and a combined chat it leaves empty goes too. A
- * slip in the menu should cost none of that, so all of it is kept here until the undo has passed.
+ * What a removal took, so it can be undone: besides the page, a channel's name, its notification
+ * and title-bar settings, its places in combined chats, and combined chats it left empty.
  */
 class RemovedPage internal constructor(
-    /** The channel login or the combined chat's key that was removed. */
+    /** The removed channel login or combined chat key. */
     val page: String,
-    /** Every page that went: the one asked for, and the combined chats it left empty. */
+    /** All removed pages: the requested one and combined chats it left empty. */
     internal val gone: Set<String>,
-    /** The pages as they stood before, to find each one's neighbour again. */
+    /** The page order before, to find each page's neighbour again. */
     internal val before: List<String>,
     internal val name: String?,
     internal val muted: Boolean,
     internal val hiddenUnread: Boolean,
-    /** The combined chats that kept going without the channel, by id, with its place in each. */
+    /** Combined chats that remain without the channel, by id, with its position in each. */
     internal val memberships: Map<String, Int>,
-    /** Combined chats that went as a whole: the one asked for, or those the channel left empty. */
+    /** Combined chats removed entirely: the requested one, or those the channel left empty. */
     internal val groups: List<ChannelGroup>,
 )
 
@@ -51,8 +47,7 @@ internal fun ChannelLists.remove(page: String): Pair<ChannelLists, RemovedPage>?
         )
         return copy(pages = pages - page, groups = groups.filter { it.key != page }) to removed
     }
-    // A combined chat without the channel reads from the ones it has left, and goes when there
-    // are none.
+    // A combined chat without the channel keeps the others, and goes when none are left.
     val (emptied, kept) = groups.filter { page in it.channels }.partition { it.channels.size == 1 }
     val emptiedKeys = emptied.map { it.key }.toSet()
     val removed = RemovedPage(
@@ -76,13 +71,12 @@ internal fun ChannelLists.remove(page: String): Pair<ChannelLists, RemovedPage>?
 }
 
 /**
- * Puts back what [removed] took, as close to where it was as the lists still allow. Whatever the
- * user did in between stays: a page added since keeps its place, a combined chat deleted since is
- * not brought back to life only to hold the channel again.
+ * Puts back what [removed] took, as close to its old place as possible. Changes made in between
+ * stay: added pages keep their place, combined chats deleted since are not recreated.
  */
 internal fun ChannelLists.putBack(removed: RemovedPage): ChannelLists {
-    // Each goes back behind the page it last stood behind that is still there, rather than at
-    // its old index: pages added or removed since would make that a different place.
+    // Each page goes back behind the neighbour it had, if that is still there; old indices would be
+    // wrong after other changes.
     val list = pages.toMutableList()
     removed.before.forEachIndexed { index, page ->
         if (page !in removed.gone || page in list) return@forEachIndexed

@@ -4,14 +4,14 @@ import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
 
-/** A slash command typed into the input. Executed via the Helix API (see CommandExecutor). */
+/** A slash command typed into the input, executed through Helix (see CommandExecutor). */
 sealed interface ChatCommand {
     data class Ban(val user: String, val reason: String?) : ChatCommand
     data class Unban(val user: String) : ChatCommand
     data class Timeout(val user: String, val seconds: Int, val reason: String?) : ChatCommand
     data class Delete(val messageId: String) : ChatCommand
     data object Clear : ChatCommand
-    /** Chat settings change like slow mode; [settings] is the Helix PATCH body. */
+    /** A chat settings change like slow mode; [settings] is the Helix PATCH body. */
     data class Settings(val settings: JsonObject) : ChatCommand
     data class Mod(val user: String, val add: Boolean) : ChatCommand
     data class Vip(val user: String, val add: Boolean) : ChatCommand
@@ -20,16 +20,16 @@ sealed interface ChatCommand {
     data class Raid(val user: String) : ChatCommand
     data object Unraid : ChatCommand
     data class Color(val color: String) : ChatCommand
-    /** A whisper, the one command that goes to a person instead of into a channel. */
+    /** The only command addressed to a person instead of a channel. */
     data class Whisper(val user: String, val message: String) : ChatCommand
 
-    /** Known command with wrong arguments; [usage] shows the correct syntax. */
+    /** A known command with wrong arguments; [usage] shows the syntax. */
     data class Usage(val usage: String) : ChatCommand
     data class Unknown(val name: String) : ChatCommand
 }
 
 object CommandParser {
-    /** Commands with their syntax, for autocomplete and usage hints. */
+    /** Commands and their syntax, for autocomplete and usage hints. */
     val COMMANDS: Map<String, String> = linkedMapOf(
         "me" to "/me <message>",
         "w" to "/w <user> <message>",
@@ -60,7 +60,7 @@ object CommandParser {
         "color" to "/color <color>",
     )
 
-    /** Returns null for normal messages and `/me` (which is sent as a chat message). */
+    /** Null for normal messages and `/me`, which is sent as a chat message. */
     fun parse(input: String): ChatCommand? {
         val text = input.trim()
         if (!text.startsWith("/") || text.startsWith("/me ")) return null
@@ -122,8 +122,8 @@ object CommandParser {
     }
 
     /**
-     * "30", "30s", "10m", "2h", "1d", "1w" -> seconds. A number without unit is multiplied by
-     * [defaultUnit] (seconds by default). Returns null for invalid input.
+     * "30", "30s", "10m", "2h", "1d", "1w" -> seconds. A bare number is multiplied by
+     * [defaultUnit]. Null for invalid input.
      */
     fun parseDuration(text: String, defaultUnit: Int = 1): Int? {
         val match = Regex("^(\\d+)([smhdw]?)$").matchEntire(text.lowercase()) ?: return null

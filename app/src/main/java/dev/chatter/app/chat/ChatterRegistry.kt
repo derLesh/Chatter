@@ -1,21 +1,20 @@
 package dev.chatter.app.chat
 
 /**
- * The users known in a channel: those seen chatting recently, plus the chatter list Twitch
- * reports for channels the user moderates. Feeds the name autocomplete and lets [MessageBuilder]
- * color an "@name" in the mentioned user's own chat color.
+ * Users known in a channel: recent chatters plus Twitch's chatter list where the user moderates.
+ * Feeds name autocomplete and lets [MessageBuilder] color "@name" in that user's color.
  *
- * Only touched from [ChatRepository]'s single worker dispatcher, so no locks are needed.
+ * Only touched on [ChatRepository]'s worker.
  */
 class ChatterRegistry {
-    /** Display name and chat color of one chatter; the color is null when they never picked one. */
+    /** Display name and chat color; the color is null if they never picked one. */
     data class Chatter(val displayName: String, val color: Int?)
 
     private val perChannel = HashMap<String, LinkedHashMap<String, Chatter>>()
 
     /**
-     * Everyone Twitch lists as present, by lowercase login. These have no color yet (Twitch does
-     * not report one), so a mention of them is colored from their login until they chat.
+     * Everyone Twitch lists as present, by lowercase login. Twitch reports no color, so mentions of
+     * them are colored from the login until they chat.
      */
     private val present = HashMap<String, Map<String, String>>()
 
@@ -26,14 +25,14 @@ class ChatterRegistry {
         if (map.size > MAX_CHATTERS) map.remove(map.keys.first())
     }
 
-    /** Replaces the channel's Twitch chatter list ([login] to display name). */
+    /** Replaces the channel's Twitch chatter list (login to display name). */
     fun setPresent(channel: String, users: Map<String, String>) {
         if (users.isEmpty()) present.remove(channel) else present[channel] = users
     }
 
     /**
-     * The chatter if they are known in this channel, else null. Someone from the Twitch list who
-     * has not written yet is known by name but has no color of their own.
+     * The chatter if known in this channel. Someone from Twitch's list who has not written yet has
+     * no color.
      */
     fun find(channel: String, login: String): Chatter? {
         val key = login.lowercase()
@@ -41,10 +40,7 @@ class ChatterRegistry {
             ?: present[channel]?.get(key)?.let { Chatter(it, null) }
     }
 
-    /**
-     * Names for the autocomplete: recently active chatters first (they are who one usually wants
-     * to reply to), then everyone else Twitch lists as present.
-     */
+    /** Names for autocomplete: recent chatters first, then everyone else Twitch lists. */
     fun names(channel: String): List<String> {
         val recent = perChannel[channel]?.values?.map { it.displayName }?.reversed().orEmpty()
         val rest = present[channel] ?: return recent

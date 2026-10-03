@@ -84,12 +84,8 @@ private val Context.statsStore by store("stats")
 private val Context.healthStore by store("background_health")
 
 /**
- * One of the app's preference files, started over empty if it cannot be read at all.
- *
- * Without the handler a file that cannot be parsed throws on every read, and the first read is
- * at start: the app would crash each time it is opened, and only clearing its storage in
- * Android's settings — everything, not just the broken file — would get it going again. What
- * was in that file is lost either way; this loses nothing else, and says so in the log.
+ * A preference store that starts over empty if its file cannot be parsed. Without the handler every
+ * read would throw and the app would crash on each start until all its data was cleared.
  */
 private fun store(name: String) = preferencesDataStore(
     name,
@@ -100,12 +96,12 @@ private fun store(name: String) = preferencesDataStore(
 )
 
 /**
- * Creates and wires every long-lived object of the app (manual dependency injection).
- * Lives as long as the process; get it via `(application as ChatterApp).container`.
+ * Creates and wires all long-lived objects (manual dependency injection). Lives as long as the
+ * process; reach it via `(application as ChatterApp).container`.
  */
 class AppContainer(
     private val context: Context,
-    /** The last few crashes, for a bug report; see [CrashLog]. */
+    /** The last few crashes, for bug reports; see [CrashLog]. */
     val crashLog: CrashLog,
 ) {
     val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
@@ -113,20 +109,19 @@ class AppContainer(
     val http: OkHttpClient = OkHttpClient.Builder()
         .connectTimeout(10, TimeUnit.SECONDS)
         .readTimeout(20, TimeUnit.SECONDS)
-        // The emote and badge lists of a channel are a few hundred kilobytes each and are asked
-        // for again on every start and every join. All three providers answer with an ETag, so
-        // the second ask costs a 304 and no download at all.
+        // Emote and badge lists are a few hundred kilobytes and requested on every start and join.
+        // All providers send an ETag, so a repeat request is a 304.
         .cache(Cache(context.cacheDir.resolve("http"), HTTP_CACHE_BYTES))
         .build()
 
-    // Same connection pool, but no read timeout: the chat socket may be silent for minutes.
+    // Same pool, no read timeout: the chat socket may be silent for minutes.
     private val socketHttp: OkHttpClient = http.newBuilder().readTimeout(0, TimeUnit.MILLISECONDS).build()
 
-    // Coil keeps a disk cache of its own, so the response cache above would hold every emote a
-    // second time — and a few busy channels of images would crowd out the very lists it is for.
+    // Coil has its own disk cache; images in the response cache would be stored twice and push out
+    // the lists it is meant for.
     private val imageHttp: OkHttpClient = http.newBuilder().cache(null).build()
 
-    /** Where a service outside the app says it could not be reached; the screen shows it once. */
+    /** Collects unreachable services so the screen can report each once. */
     val trouble = ServiceTrouble()
 
     val settings = SettingsRepository(context.settingsStore, scope)
@@ -138,7 +133,7 @@ class AppContainer(
     val channels = ChannelRepository(context.channelStore, helix, scope)
     val blocked = BlockedUsersRepository(helix, scope)
     val nicknames = NicknameRepository(context.nicknameStore, scope)
-    /** The user id of the account the app acts as, or null for a guest or nobody. */
+    /** The active account's user id; null for a guest or nobody. */
     private val activeUserId: StateFlow<String?> =
         auth.state.map { (it as? AuthState.LoggedIn)?.account?.userId }.stateIn(scope, SharingStarted.Eagerly, null)
     val inbox = MentionInboxRepository(context.inboxStore, activeUserId, scope)
@@ -148,7 +143,7 @@ class AppContainer(
     val backgroundHealth = BackgroundHealth(context, context.healthStore, scope)
     val backup = BackupManager(settings, rules, nicknames, channels)
     val changelog = ChangelogRepository(context, settings, BuildConfig.VERSION_NAME, scope)
-    /** True while Chatter should spend as little data as it can; see [DataSaving]. */
+    /** True while Chatter saves data; see [DataSaving]. */
     val dataSaving = DataSaving(context, settings.settings.map { it.mobileData }, scope)
     val updates = UpdateRepository(http, settings, BuildConfig.VERSION_NAME, BuildConfig.UPDATE_CHECK, dataSaving.active, scope)
     val irc = IrcConnection(socketHttp, scope, ::joinRank)
@@ -161,7 +156,7 @@ class AppContainer(
         rules.rules, settings.settings, scope,
     )
 
-    // One disk cache shared by both loaders (two caches on the same directory would corrupt it).
+    // One disk cache for both loaders; two caches on one directory would corrupt it.
     private val diskCache by lazy {
         DiskCache.Builder()
             .directory(context.cacheDir.resolve("images"))
@@ -183,12 +178,12 @@ class AppContainer(
 
     val imageLoader: ImageLoader = imageLoader(animated = true)
     /**
-     * Used when animated emotes are turned off: decodes only the first frame. Built on demand,
-     * because it carries a memory cache of its own and most people never turn them off.
+     * For animated emotes turned off: decodes the first frame only. Lazy, since it has its own
+     * memory cache and is rarely needed.
      */
     val staticImageLoader: ImageLoader by lazy { imageLoader(animated = false) }
 
-    // After the image loader: mention notifications carry the channel avatar as their icon.
+    // Needs the image loader: mention notifications use the channel avatar as icon.
     private val channelIcons = ChannelIcons(context, channels, imageLoader)
     val notifier = ChatNotifier(context, channels, helix, settings.settings, channelIcons, dataSaving.active, activeUserId)
     private val shortcuts = ChannelShortcuts(context, channels.identities, channelIcons, scope)
@@ -203,15 +198,14 @@ class AppContainer(
         stats.start(chat.windows.anyVisible)
         backgroundHealth.start()
         changelog.start()
-        // Read on every message, so it is mirrored onto the repository instead of passed around.
+        // Read for every message, so mirrored onto the repository.
         scope.launch { settings.settings.collect { badges.enabled = it.badgeProviders } }
         sevenTvLive.start()
         shortcuts.start()
-        // One notification channel per Twitch channel, so each can be given its own sound.
+        // One notification channel per Twitch channel, so each can have its own sound.
         scope.launch { channels.identities.collect { notifier.syncChannels(it) } }
-        // Every mention lands in the inbox, whether or not it was worth a notification.
-        // Each row is kept for the account it was addressed to. What arrives while nobody is
-        // logged in — a guest gets neither — has nobody to go to.
+        // Every mention goes into the inbox of the account it was addressed to. Guests have no
+        // inbox.
         scope.launch {
             chat.allMentions.collect { m -> activeUserId.value?.let { inbox.add(m.item, read = m.seen, account = it) } }
         }
@@ -219,10 +213,9 @@ class AppContainer(
         scope.launch {
             channels.loadCache()
             auth.restore()
-            // Only from here on is the account list the real one rather than the empty start.
-            // Whatever an account that is gone received goes with it, however it went: logged
-            // out, ended by Twitch, or unreadable after the keystore key was replaced.
-            // An account the keystore could not be asked about at start is still one of them.
+            // Collected after restore(), so the list is the real one. Inbox and whispers of
+            // accounts that are gone (logged out, ended by Twitch, key lost) are dropped; accounts
+            // the keystore could not read at start still count.
             auth.knownUserIds.collect { ids ->
                 inbox.keepOnly(ids)
                 whisperInbox.keepOnly(ids)
@@ -233,13 +226,11 @@ class AppContainer(
             auth.state.collect { state ->
                 when (state) {
                     is AuthState.LoggedIn -> {
-                        // Also runs after every token refresh: hands the new token to the connection.
+                        // Also after every token refresh, to hand the new token to the connection.
                         connect()
                         if (state.account.userId != userId) {
-                            // Switching accounts, not the first login: what is loaded belongs to
-                            // the account before it, and a block list that stays would go on
-                            // hiding people this account never blocked.
-                            // The same goes for the mentions and whispers in the shade.
+                            // An account switch: the loaded block list, mentions and whispers
+                            // belong to the previous account.
                             if (userId != null) {
                                 blocked.clear()
                                 notifier.clearConversations()
@@ -254,9 +245,8 @@ class AppContainer(
                         }
                     }
                     AuthState.Guest -> {
-                        // Only ever reached from the login screen, so there is no account's
-                        // state to undo: the channels are joined anonymously, and what loads
-                        // without an account is loaded.
+                        // Only reachable from the login screen, so there is no account state to
+                        // undo.
                         userId = null
                         connect()
                         chat.resync()
@@ -275,7 +265,7 @@ class AppContainer(
                 }
             }
         }
-        // Renew the access token shortly before it expires.
+        // Renews the access token shortly before it expires.
         scope.launch {
             auth.state.collectLatest { state ->
                 if (state is AuthState.LoggedIn && state.account.refreshToken != null) {
@@ -287,39 +277,35 @@ class AppContainer(
         scope.launch {
             irc.state.collect { state ->
                 if (state == ConnectionState.AuthFailed) {
-                    // Most likely an expired or revoked token: renew it and reconnect. Without a
-                    // refresh token (WebView login) or if Twitch rejects it, refresh() logs out.
+                    // Usually an expired or revoked token: refresh and reconnect. Without a refresh
+                    // token (WebView login), or if Twitch rejects it, refresh() logs out.
                     val acc = auth.account
                     if (acc != null && auth.refresh(acc)) {
                         auth.account?.let { irc.connect(it.login, it.token) }
                         delay(5_000)
                         if (irc.state.value == ConnectionState.AuthFailed) auth.logout(expired = true)
                     }
-                    // Being logged out here is not something the user asked for: the token ran
-                    // out or was revoked. Without a word about it the app would simply go quiet
-                    // until somebody opens it and finds the login screen.
+                    // The user did not ask for this logout; without a notification the app would
+                    // just go quiet.
                     if (auth.account == null) notifier.notifyNotListening(R.string.notif_not_listening_login)
                 }
             }
         }
-        // Badge lists that were unreachable at start would otherwise stay missing for the whole
-        // session — there are no badges at all without the global set. Coming back to the app is
-        // when to try again; whatever is already there is left alone.
+        // Lists that failed at start are retried when the app comes back; without the global set
+        // there are no badges at all. Loaded data is left alone.
         scope.launch {
             chat.windows.anyVisible.collect { visible ->
-                // Somebody looking at "Connecting…" should not wait out a long backoff.
+                // Someone looking at "Connecting…" should not wait out a long backoff.
                 if (visible) irc.retryNow()
-                // The global set comes from Helix, so there is no point before a login is there.
+                // The global set comes from Helix, which needs a login.
                 if (visible && auth.account != null) {
                     badges.retryMissing(supporterTitles())
                     emotes.retryMissing(auth.account?.userId)
                 }
             }
         }
-        // And the same for emotes, without waiting for the app to be picked up again: a provider
-        // that is down usually comes back within the hour, and the chat is being read the whole
-        // time. Asking stops the moment nobody is missing any more, so an app whose providers all
-        // answered makes no request at all.
+        // Emotes are retried in the background with a growing interval, since a provider that is
+        // down usually returns within the hour. Stops as soon as nothing is missing.
         scope.launch {
             emotes.waitingForProvider.collectLatest { waiting ->
                 if (!waiting) return@collectLatest
@@ -335,7 +321,7 @@ class AppContainer(
         watchPowerSaveMode()
     }
 
-    /** Null while supporting Chatter is not a thing yet; see `sponsoring` in build.gradle.kts. */
+    /** Null while sponsoring is off; see `sponsoring` in build.gradle.kts. */
     private fun supporterTitles() = if (!BuildConfig.SPONSORING) null else SupporterTitles(
         once = context.getString(R.string.badge_supporter),
         monthly = context.getString(R.string.badge_supporter_monthly),
@@ -345,9 +331,9 @@ class AppContainer(
     )
 
     /**
-     * Which channels get their JOIN first when there are more than Twitch takes at once: the one
-     * on screen (or, before a window has said, the one last read), then those whose mentions
-     * notify, then the rest. Only asked once the connection stands, so [chat] is there by then.
+     * JOIN priority when there are more channels than Twitch takes at once: the one on screen (or
+     * the last read before a window reported), then notifying ones, then the rest. Only called once
+     * connected, when [chat] exists.
      */
     private fun joinRank(channel: String): Int = when {
         chat.windows.isWatching(channel) || channel == channels.lastChannel.value -> 0
@@ -355,7 +341,7 @@ class AppContainer(
         else -> 2
     }
 
-    /** Opens the chat connection for whoever reads, an account or a guest. Safe to call repeatedly. */
+    /** Opens the chat connection for an account or a guest. Safe to call repeatedly. */
     fun connect() {
         when (val state = auth.state.value) {
             is AuthState.LoggedIn -> irc.connect(state.account.login, state.account.token)
@@ -365,9 +351,8 @@ class AppContainer(
     }
 
     /**
-     * Sends a reply typed into a notification. The broadcast that brings it may have started the
-     * process, in which case the token is still being restored and nothing is connected yet — so
-     * this waits for the connection for a moment rather than reporting failure right away.
+     * Sends a reply typed into a notification. The broadcast may have started the process, so this
+     * waits a moment for login and connection instead of failing right away.
      */
     suspend fun sendFromNotification(account: String?, channel: String, text: String): Boolean {
         val loggedIn = withTimeoutOrNull(NOTIFICATION_SEND_TIMEOUT_MS) { auth.state.first { it is AuthState.LoggedIn } } != null
@@ -381,15 +366,15 @@ class AppContainer(
     }
 
     /**
-     * Sends a whisper typed into a notification. Like a channel reply, the broadcast may be what
-     * started the process, so this waits for the stored login to come back before giving up.
+     * Sends a whisper typed into a notification, waiting for the stored login like
+     * [sendFromNotification].
      */
     suspend fun whisperFromNotification(account: String?, login: String, userId: String?, text: String): WhisperResult {
         val ready = withTimeoutOrNull(NOTIFICATION_SEND_TIMEOUT_MS) {
             auth.state.first { it is AuthState.LoggedIn }
         } != null
         if (!ready) return WhisperResult(sent = false, message = context.getString(R.string.error_not_connected))
-        // A whisper answered as another account would tell a stranger who else the user is.
+        // A whisper sent as another account would reveal that account to a stranger.
         if (auth.account?.userId != account) {
             return WhisperResult(sent = false, message = context.getString(R.string.notif_reply_other_account))
         }
@@ -399,8 +384,8 @@ class AppContainer(
     fun disconnect() = irc.disconnect()
 
     /**
-     * Android's battery saver. Someone who turned it on has asked the whole phone to do less, so
-     * the chat draws its emotes as stills for as long as it lasts, whatever the setting says.
+     * Android's battery saver. While it is on, emotes are drawn as stills regardless of the
+     * setting.
      */
     private fun watchPowerSaveMode() {
         val power = context.getSystemService(PowerManager::class.java)
@@ -417,7 +402,7 @@ class AppContainer(
 
     private fun registerNetworkCallback() {
         val cm = context.getSystemService(ConnectivityManager::class.java)
-        /** Tells the chat whether there is a network now, and whether it reaches the internet. */
+        /** Tells the chat whether there is a network and whether it reaches the internet. */
         fun tellChat(network: Network?) {
             val caps = network?.let { cm.getNetworkCapabilities(it) }
             irc.setNetwork(up = network != null, validated = caps?.hasCapability(NetworkCapabilities.NET_CAPABILITY_VALIDATED) == true)
@@ -426,14 +411,13 @@ class AppContainer(
         tellChat(cm.activeNetwork)
         cm.registerDefaultNetworkCallback(object : ConnectivityManager.NetworkCallback() {
             override fun onAvailable(network: Network) = tellChat(network)
-            // A switch from Wi-Fi to mobile can report the loss after the arrival, so this asks
-            // what is there now rather than trusting the order the two callbacks come in.
+            // A switch from Wi-Fi to mobile can report the loss after the new network, so the
+            // current state is read instead of trusting the callback order.
             override fun onLost(network: Network) {
                 tellChat(cm.activeNetwork)
                 dataSaving.networkChanged()
             }
-            // Where a network turns out to reach the internet, or not, and where it turns out to
-            // be metered, or a hotspot stops being one.
+            // Validation, metering or hotspot state changed.
             override fun onCapabilitiesChanged(network: Network, caps: NetworkCapabilities) {
                 irc.setNetwork(up = true, validated = caps.hasCapability(NetworkCapabilities.NET_CAPABILITY_VALIDATED))
                 sevenTvEvents.setNetwork(up = true)
@@ -443,17 +427,14 @@ class AppContainer(
     }
 
     private companion object {
-        /**
-         * How long after a provider was found unreachable it is asked again, and the ceiling the
-         * wait doubles up to.
-         */
+        /** First retry delay for an unreachable provider, and the ceiling it doubles up to. */
         const val EMOTE_RETRY_FIRST_MS = 30_000L
         const val EMOTE_RETRY_MAX_MS = 5 * 60_000L
 
-        /** How long a notification reply waits for login and join before giving up. */
+        /** How long a notification reply waits for login and join. */
         const val NOTIFICATION_SEND_TIMEOUT_MS = 15_000L
 
-        /** Room for the emote and badge lists of a good number of channels, and little else. */
+        /** Enough for the emote and badge lists of many channels. */
         const val HTTP_CACHE_BYTES = 20L * 1024 * 1024
     }
 
