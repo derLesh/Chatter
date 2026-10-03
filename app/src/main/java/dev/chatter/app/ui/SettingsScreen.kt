@@ -183,7 +183,7 @@ import java.util.Date
 import java.util.Locale
 import kotlin.math.roundToInt
 
-/** Top level of the settings, like the Android settings app: categories that open a page. */
+/** Top level of the settings: categories that open a page, like Android's settings app. */
 private enum class SettingsPage(val title: Int, val summary: Int, val icon: ImageVector) {
     Appearance(R.string.settings_appearance, R.string.settings_appearance_summary, Icons.Default.Edit),
     Chat(R.string.settings_chat, R.string.settings_chat_summary, Icons.AutoMirrored.Filled.List),
@@ -201,7 +201,7 @@ private enum class SettingsPage(val title: Int, val summary: Int, val icon: Imag
     val shown: Boolean get() = this != Support || BuildConfig.SPONSOR_LINK
 }
 
-/** A page opened from inside a category, one level below [SettingsPage]. */
+/** A page opened from within a category. */
 private enum class SettingsSubPage(val title: Int) {
     BlockedUsers(R.string.settings_blocked_users),
     MentionKeywords(R.string.settings_keywords),
@@ -214,8 +214,8 @@ private enum class SettingsSubPage(val title: Int) {
 }
 
 /**
- * One setting as the search finds it: the title it is shown under, the page it is on, and what
- * else it may be looked for by. [key] is the tile or group it opens to — null for a page itself.
+ * One searchable setting: its title, its page, and other terms it may be found by. [key] is the
+ * tile or group it opens at; null for a page itself.
  */
 private class SearchEntry(
     val title: Int,
@@ -226,9 +226,8 @@ private class SearchEntry(
 )
 
 /**
- * Everything the search finds, in the order the pages show it. A setting is found by the title
- * its tile is keyed with (`item(R.string.x)`), so a new setting that should be found needs both:
- * the key on its tile and a line here.
+ * Everything the search finds, in page order. A setting is found by its tile key
+ * (`item(R.string.x)`), so a new searchable setting needs the key on its tile and a line here.
  */
 private val SEARCH_INDEX: List<SearchEntry> by lazy {
     buildList {
@@ -292,25 +291,25 @@ private val SEARCH_INDEX: List<SearchEntry> by lazy {
         add(SearchEntry(R.string.settings_report_issue, about, R.string.settings_report_issue_summary))
         add(SearchEntry(R.string.settings_privacy, about, R.string.settings_privacy_summary))
         add(SearchEntry(R.string.settings_credits, about, R.string.settings_credits_summary))
-        // Only the APK from GitHub has the switch; see the about page.
+        // Only the GitHub APK has this switch.
         if (BuildConfig.UPDATE_CHECK) add(SearchEntry(R.string.settings_update_check, about, R.string.settings_update_check_hint))
     }
 }
 
 /**
- * Twitch's login page over the settings. [signedOut] starts it without Twitch's session, which
- * adding an account needs and logging the active account in again does not.
+ * Twitch's login page over the settings. [signedOut] starts without Twitch's session, needed for
+ * adding an account but not for logging the active one in again.
  */
 private data class TwitchLogin(val url: String, val signedOut: Boolean)
 
-/** Where in the settings the user is: the search, a category, a page inside it. */
+/** The current position in the settings: search, category, sub-page. */
 private data class SettingsPlace(
     val page: SettingsPage? = null,
     val subPage: SettingsSubPage? = null,
-    /** The search is open; a category opened from it goes back to it. */
+    /** The search is open; a category opened from it returns to it. */
     val searching: Boolean = false,
 ) {
-    /** How deep this is, which is what says whether a move is forward or back. */
+    /** Decides whether a transition goes forward or back. */
     val depth: Int get() = (if (searching) 1 else 0) + (if (page != null) 1 else 0) + (if (subPage != null) 1 else 0)
 }
 
@@ -320,10 +319,9 @@ fun SettingsScreen(vm: MainViewModel, onBack: () -> Unit) {
     var subPage by rememberSaveable { mutableStateOf<SettingsSubPage?>(null) }
     var searching by rememberSaveable { mutableStateOf(false) }
     var query by rememberSaveable { mutableStateOf("") }
-    // The setting a search result opened its page at, lit up there until the page is left.
+    // The setting a search result opened, highlighted until the page is left.
     var target by rememberSaveable { mutableStateOf<Int?>(null) }
-    // Twitch's login page, shown over the settings while an account is added or logged in
-    // again.
+    // Twitch's login page over the settings, while adding an account or logging in again.
     var addAccount by remember { mutableStateOf<TwitchLogin?>(null) }
     var addFailed by remember { mutableStateOf<String?>(null) }
     val goBack = {
@@ -343,7 +341,7 @@ fun SettingsScreen(vm: MainViewModel, onBack: () -> Unit) {
     val account = (auth as? AuthState.LoggedIn)?.account
     val update by vm.availableUpdate.collectAsStateWithLifecycle()
     val scope = rememberCoroutineScope()
-    // The channel page can remove a channel, and offers it back like the chat does.
+    // The channel page can remove channels and offers undo like the chat does.
     val snackbar = remember { SnackbarHostState() }
     OfferUndoRemoval(vm, snackbar)
 
@@ -372,8 +370,7 @@ fun SettingsScreen(vm: MainViewModel, onBack: () -> Unit) {
     }
 
     val place = SettingsPlace(page, subPage, searching)
-    // One step up. On the list of categories there is none left: leaving the settings is the
-    // screen around them's to animate.
+    // One step up. From the category list, leaving the settings is animated by the parent screen.
     val backTo = when {
         subPage != null -> place.copy(subPage = null)
         page != null -> place.copy(page = null)
@@ -395,13 +392,13 @@ fun SettingsScreen(vm: MainViewModel, onBack: () -> Unit) {
             )
             return@AnimatedContent
         }
-        // The about page carries its own icon and app name, so it gets no title bar heading.
+        // The about page shows its own icon and name, so no title bar heading.
         val title = when {
             currentSub != null -> currentSub.title
             current == SettingsPage.About -> null
             else -> current?.title ?: R.string.settings
         }
-        // Only the list of categories is searched from; a category is already where to look.
+        // Search is only offered on the category list.
         val onSearch = if (current == null && currentSub == null) ({ searching = true }) else null
         SettingsPageScaffold(title = title, onBack = goBack, onSearch = onSearch, snackbar = snackbar) {
           CompositionLocalProvider(LocalSettingsTarget provides target.takeIf { currentSub == null }) {
@@ -430,7 +427,7 @@ fun SettingsScreen(vm: MainViewModel, onBack: () -> Unit) {
                     val releases by vm.releases.collectAsStateWithLifecycle()
                     ChangelogPage(releases, BuildConfig.VERSION_NAME)
                 }
-                // Gone once the new version is installed, which leaves nothing to show here.
+                // Gone once the new version is installed.
                 SettingsSubPage.Update -> update?.let { UpdatePage(it) }
                 null -> when (current) {
                     null -> {
@@ -448,7 +445,8 @@ fun SettingsScreen(vm: MainViewModel, onBack: () -> Unit) {
                         AccountPage(
                             vm,
                             onAddAccount = { addAccount = TwitchLogin(vm.addAccountUrl(), signedOut = true) },
-                            // The same account again: Twitch's session can stay, it only asks to allow the rest.
+                            // Same account: Twitch's session can stay, it only asks to grant the
+                            // rest.
                             onReauthorize = { addAccount = TwitchLogin(vm.reauthorizeUrl(), signedOut = false) },
                         )
                         BackupGroup(vm)
@@ -463,8 +461,8 @@ fun SettingsScreen(vm: MainViewModel, onBack: () -> Unit) {
 }
 
 /**
- * The search over every setting: a field in the title bar, and underneath whatever matches, each
- * with the category it is in. A result opens its category at the setting.
+ * Search over all settings: a field in the title bar and the matches below, each with its category.
+ * A result opens its category at the setting.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -477,7 +475,7 @@ private fun SearchPage(query: String, onQuery: (String) -> Unit, onOpen: (Search
         val matching = SEARCH_INDEX.filter { e ->
             SettingsSearch.matches(query, (listOfNotNull(e.title, e.hint, e.page.title) + e.also).map(::text))
         }
-        // What is called what was typed comes before what only mentions it.
+        // Titles matching the query come before entries that only mention it.
         val (named, mentioned) = matching.partition { SettingsSearch.matches(query, listOf(text(it.title))) }
         (named + mentioned).map { it to text(it.title) }
     }
@@ -532,7 +530,7 @@ private fun SearchPage(query: String, onQuery: (String) -> Unit, onOpen: (Search
                     item {
                         ListItem(
                             headlineContent = { Text(title) },
-                            // A category found as itself needs no category underneath.
+                            // A category found as itself needs no category below.
                             supportingContent = if (entry.key == null) null else ({ Text(stringResource(entry.page.title)) }),
                             leadingContent = { CategoryIcon(entry.page.icon) },
                             colors = transparentItem(),
@@ -546,7 +544,7 @@ private fun SearchPage(query: String, onQuery: (String) -> Unit, onOpen: (Search
     }
 }
 
-/** One settings page: its own collapsing large title bar and scrolling content. */
+/** One settings page with a collapsing large title bar and scrolling content. */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun SettingsPageScaffold(
@@ -561,13 +559,13 @@ private fun SettingsPageScaffold(
         IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Filled.ArrowBack, stringResource(R.string.back)) }
     }
     Scaffold(
-        // Only the large bar collapses. A page without one (the about page) has nothing for this
-        // connection to move, and it would swallow every scroll rather than pass it on.
+        // Only the large bar collapses. On a page without one (about) the connection would swallow
+        // every scroll.
         modifier = if (title != null) Modifier.nestedScroll(scrollBehavior.nestedScrollConnection) else Modifier,
         containerColor = MaterialTheme.colorScheme.surface,
         snackbarHost = { snackbar?.let { SnackbarHost(it) } },
         topBar = {
-            // Without a heading a large bar would just be empty space, so it shrinks to a plain one.
+            // Without a heading the large bar would be empty space, so a plain bar is used.
             if (title == null) {
                 TopAppBar(title = {}, navigationIcon = back)
             } else {
@@ -611,8 +609,7 @@ private fun Home(account: Account?, imageLoader: ImageLoader, open: (SettingsPag
                     supportingContent = {
                         Text(if (isAccount) account.name else stringResource(p.summary))
                     },
-                    // The account the app is chatting as says more with its own face on it than
-                    // any icon could, and it is the one row here that is about a person.
+                    // The active account's avatar instead of an icon.
                     leadingContent = {
                         if (isAccount) AccountRowIcon(account, imageLoader) else CategoryIcon(p.icon)
                     },
@@ -625,9 +622,8 @@ private fun Home(account: Account?, imageLoader: ImageLoader, open: (SettingsPag
 }
 
 /**
- * Supporting Chatter, which happens outside the app: GitHub Sponsors takes the money, and there
- * is no way for it to know which Twitch account a sponsor has — so the second row is how somebody
- * says so, with their Twitch id already filled in by the app that knows it.
+ * Supporting Chatter. GitHub Sponsors handles the money but cannot know a sponsor's Twitch account,
+ * so the second row lets them tell us, with the Twitch id filled in.
  */
 @Composable
 private fun SupportPage(vm: MainViewModel) {
@@ -650,9 +646,8 @@ private fun SupportPage(vm: MainViewModel) {
 }
 
 /**
- * A new issue on the repository with the Twitch account already in it — the one field GitHub
- * Sponsors cannot tell anybody. Whoever opens it is who GitHub says they are, which is what lets
- * the badge be handed out without a person in the middle.
+ * A new issue with the Twitch account filled in. GitHub vouches for who opens it, so the badge can
+ * be granted automatically.
  */
 private fun claimUrl(twitchId: String?, login: String): String =
     "$REPO_URL/issues/new".toUri().buildUpon()
@@ -669,9 +664,8 @@ private fun AppearancePage(settings: Settings, vm: MainViewModel) {
     SettingsGroup(R.string.settings_group_colors) {
         item(R.string.settings_theme) {
             ListItem(
-                // The buttons are the row. Three options of one word each say at a glance what a
-                // sheet would only say once it is open, and "System / Light / Dark" under the
-                // "Colors" heading needs no second word above it saying that it is the theme.
+                // The buttons are the row: three one-word options are clearer than a sheet, and
+                // need no extra label under the "Colors" heading.
                 headlineContent = {
                     SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth()) {
                         THEME_MODES.forEachIndexed { i, (mode, label) ->
@@ -687,8 +681,7 @@ private fun AppearancePage(settings: Settings, vm: MainViewModel) {
             )
         }
         item(R.string.settings_dynamic_color) { SwitchItem(R.string.settings_dynamic_color, settings.dynamicColor, vm::setDynamicColor, R.string.settings_dynamic_color_hint) }
-        // A light theme has no black to turn anything to, so the switch is only there while the
-        // app is dark — whether the user chose Dark or the phone is dark under System.
+        // Only while the app is dark (chosen, or dark via System); a light theme has no black.
         if (dark) {
             item(R.string.settings_pure_black) {
                 SwitchItem(R.string.settings_pure_black, settings.pureBlack, vm::setPureBlack, R.string.settings_pure_black_hint)
@@ -704,8 +697,7 @@ private fun AppearancePage(settings: Settings, vm: MainViewModel) {
         item(R.string.settings_timestamps) { TimestampPicker(settings.timestamps, vm::setTimestamps) }
     }
 
-    // How a message itself is drawn, which is what somebody looking for "the chat looks wrong"
-    // comes here for — the emotes in it have a category of their own.
+    // How a message is drawn. Emotes have their own category.
     SettingsGroup(R.string.settings_group_messages) {
         item(R.string.settings_alternate_background) {
             SwitchItem(
@@ -728,7 +720,7 @@ private fun AppearancePage(settings: Settings, vm: MainViewModel) {
         }
     }
 
-    // The two that are about the phone rather than the chat, together instead of one group each.
+    // The two phone-related settings, in one group.
     SettingsGroup(R.string.settings_group_device) {
         item(R.string.settings_keep_screen_on) {
             SwitchItem(
@@ -745,17 +737,13 @@ private fun AppearancePage(settings: Settings, vm: MainViewModel) {
     }
 }
 
-/**
- * Everything about emotes and badges in one place. They used to be split down the middle — the
- * emotes under the appearance, the providers they come from under the chat — which meant
- * turning one provider off was never where anybody looked for it.
- */
+/** Emotes and badges in one place, providers included. */
 @Composable
 private fun EmotesPage(settings: Settings, vm: MainViewModel) {
     SettingsGroup(R.string.settings_group_emotes) {
         item(R.string.settings_emotes_enabled) { SwitchItem(R.string.settings_emotes_enabled, settings.emotesEnabled, vm::setEmotesEnabled, R.string.settings_emotes_new_messages_hint) }
         item(R.string.settings_animated_emotes) { SwitchItem(R.string.settings_animated_emotes, settings.animatedEmotes, vm::setAnimatedEmotes) }
-        // Only says something while they move at all.
+        // Only relevant while they animate.
         if (settings.animatedEmotes) {
             item(R.string.settings_slow_idle_emotes) {
                 SwitchItem(R.string.settings_slow_idle_emotes, settings.slowIdleEmotes, vm::setSlowIdleEmotes, R.string.settings_slow_idle_emotes_hint)
@@ -777,10 +765,7 @@ private fun EmotesPage(settings: Settings, vm: MainViewModel) {
     }
 }
 
-/**
- * Everything that keeps something out of the chat, including the Twitch block list — which sat
- * under the account, where nobody hiding a chatter would have gone looking.
- */
+/** Everything that keeps something out of the chat, the Twitch block list included. */
 @Composable
 private fun FiltersPage(settings: Settings, vm: MainViewModel, open: (SettingsSubPage) -> Unit) {
     val blocked by vm.blockedUsers.collectAsStateWithLifecycle()
@@ -825,7 +810,7 @@ private fun FiltersPage(settings: Settings, vm: MainViewModel, open: (SettingsSu
     }
 }
 
-/** Chat text size with a live preview of a chat line at that size. */
+/** Chat text size with a live preview line. */
 @Composable
 private fun TextSizeItem(settings: Settings, vm: MainViewModel) {
     var size by remember(settings.fontSize) { mutableFloatStateOf(settings.fontSize) }
@@ -925,13 +910,13 @@ private fun ChatPage(settings: Settings, vm: MainViewModel, open: (SettingsSubPa
         item(R.string.settings_full_links) { SwitchItem(R.string.settings_full_links, settings.fullLinks, vm::setFullLinks, R.string.settings_full_links_hint) }
         item(R.string.settings_mobile_data) { MobileDataPicker(settings.mobileData, vm) }
     }
-    // What the app offers while typing.
+    // Input assistance.
     SettingsGroup(R.string.settings_group_input) {
         item(R.string.settings_emote_suggestions) { SwitchItem(R.string.settings_emote_suggestions, settings.emoteSuggestions, vm::setEmoteSuggestions, R.string.settings_emote_suggestions_hint) }
         item(R.string.settings_user_suggestions) { SwitchItem(R.string.settings_user_suggestions, settings.userSuggestions, vm::setUserSuggestions, R.string.settings_user_suggestions_hint) }
         item(R.string.settings_mention_with_at) { SwitchItem(R.string.settings_mention_with_at, settings.mentionWithAt, vm::setMentionWithAt, R.string.settings_mention_with_at_hint) }
     }
-    // What a tap or a swipe on the chat does.
+    // What a tap or swipe on the chat does.
     SettingsGroup(R.string.settings_group_controls) {
         item(R.string.settings_message_tap) { TapActionPicker(R.string.settings_message_tap, settings.messageTap, vm::setMessageTap) }
         item(R.string.settings_name_tap) { TapActionPicker(R.string.settings_name_tap, settings.nameTap, vm::setNameTap) }
@@ -952,7 +937,7 @@ private fun NotificationsPage(settings: Settings, vm: MainViewModel, open: (Sett
     val context = LocalContext.current
     val stop by vm.backgroundStop.collectAsStateWithLifecycle()
     val battery by vm.batteryRestrictions.collectAsStateWithLifecycle()
-    // The card's button leads into the system settings; coming back is when to look again.
+    // The card's button leads into the system settings; check again on return.
     LifecycleResumeEffect(Unit) {
         vm.refreshBatteryRestrictions()
         onPauseOrDispose { }
@@ -995,8 +980,7 @@ private fun NotificationsPage(settings: Settings, vm: MainViewModel, open: (Sett
 }
 
 /**
- * The Twitch block list: everyone here is hidden from the chat until they are unblocked. Blocking
- * is a deliberate act, so undoing it asks for confirmation.
+ * The Twitch block list: everyone here is hidden until unblocked. Unblocking asks for confirmation.
  */
 @Composable
 private fun BlockedUsersPage(vm: MainViewModel) {
@@ -1062,8 +1046,7 @@ private fun BlockedUsersPage(vm: MainViewModel) {
 }
 
 /**
- * The user's highlight rules. Order matters — a hide beats everything below it — so they are
- * listed the way they are applied.
+ * The user's highlight rules, listed in the order they apply, since a hide beats everything below.
  */
 @Composable
 private fun RulesPage(vm: MainViewModel) {
@@ -1166,7 +1149,7 @@ private fun ChannelsPage(vm: MainViewModel, settings: Settings) {
     val hiddenUnread by vm.hiddenUnread.collectAsStateWithLifecycle()
     var renameTarget by remember { mutableStateOf<String?>(null) }
     var showAdd by remember { mutableStateOf(false) }
-    // Null while no dialog is open; the key of the combined chat being changed, or "" for a new one.
+    // Null while no dialog is open; the key of the combined chat being edited, or "" for a new one.
     var combineTarget by remember { mutableStateOf<String?>(null) }
 
     ManageChannelsPage(
@@ -1240,10 +1223,7 @@ private fun ChannelsPage(vm: MainViewModel, settings: Settings) {
     }
 }
 
-/**
- * What the user has done in chat so far. Everything shown here was counted on this device and
- * never leaves it, which is also why it can be thrown away in one go at the bottom.
- */
+/** The user's chat stats, counted on this device and never sent; can be reset at the bottom. */
 @Composable
 private fun StatsPage(vm: MainViewModel, onChannels: () -> Unit) {
     val context = LocalContext.current
@@ -1300,8 +1280,8 @@ private fun StatsPage(vm: MainViewModel, onChannels: () -> Unit) {
             }
         }
     }
-    // What staying joined costs while the app is closed: which channel brings in how much, so that
-    // whether to keep a very busy one overnight is a choice the user can actually make.
+    // What staying joined costs while the app is closed, per channel, so the user can decide
+    // whether to keep a very busy one overnight.
     SettingsGroup(R.string.settings_stats_group_background) {
         if (week.isEmpty()) {
             item {
@@ -1402,19 +1382,18 @@ private fun StatRow(label: Int, value: String) {
     )
 }
 
-/** How many channels the background figures list; the ones further down cost little by then. */
+/** How many channels the background figures list; the rest cost little. */
 private const val BACKGROUND_CHANNELS_SHOWN = 8
 
-/** Grouped the way the phone's language groups them, so six digits stay readable. */
+/** Grouped per the phone's locale, so large numbers stay readable. */
 private fun formatNumber(n: Long): String = NumberFormat.getIntegerInstance().format(n)
 
 private fun formatDay(at: Long): String = DateFormat.getDateInstance(DateFormat.MEDIUM).format(Date(at))
 
 /**
- * Opens the bug report form with what Chatter knows already filled in: its version, Android's and
- * the phone's. If Chatter has crashed, it first offers to copy what it wrote down about that, to
- * be pasted into the form — the form takes it as a field, but a stack trace is too long for a
- * link, and nothing of it should leave the phone without the user putting it there themselves.
+ * Opens the bug report form with version, Android and device filled in. After a crash it first
+ * offers to copy the crash report for pasting: a stack trace is too long for a URL, and nothing
+ * should leave the phone unless the user pastes it.
  */
 @Composable
 private fun ReportIssueItem(vm: MainViewModel) {
@@ -1461,7 +1440,7 @@ private fun ReportIssueItem(vm: MainViewModel) {
     }
 }
 
-/** The bug report template, its fields about the app and the phone filled in. */
+/** The bug report template URL with app and device fields filled in. */
 private fun bugReportUrl(device: DeviceInfo): String =
     "$REPO_URL/issues/new".toUri().buildUpon()
         .appendQueryParameter("template", "bug.yml")
@@ -1473,7 +1452,7 @@ private fun bugReportUrl(device: DeviceInfo): String =
 
 @Composable
 private fun AboutPage(settings: Settings, vm: MainViewModel, open: (SettingsSubPage) -> Unit) {
-    // The wordmark, which already says the name, so no heading repeats it underneath.
+    // The wordmark already shows the name, so no heading below.
     Column(
         horizontalAlignment = Alignment.CenterHorizontally,
         modifier = Modifier.fillMaxWidth().padding(top = 16.dp),
@@ -1514,7 +1493,7 @@ private fun AboutPage(settings: Settings, vm: MainViewModel, open: (SettingsSubP
             )
         }
     }
-    // Only the APK from GitHub has anything to switch here; Play keeps its installs up to date.
+    // Only the GitHub APK has this; Play updates its own installs.
     if (BuildConfig.UPDATE_CHECK) SettingsGroup {
         item(R.string.settings_update_check) {
             SwitchItem(
@@ -1525,7 +1504,7 @@ private fun AboutPage(settings: Settings, vm: MainViewModel, open: (SettingsSubP
             )
         }
     }
-    // Twitch's branding rules ask every third-party client to say it is not one of theirs.
+    // Twitch's branding rules require third-party clients to say they are not Twitch's.
     Text(
         stringResource(R.string.settings_twitch_disclaimer),
         style = MaterialTheme.typography.bodySmall,
@@ -1535,11 +1514,7 @@ private fun AboutPage(settings: Settings, vm: MainViewModel, open: (SettingsSubP
     )
 }
 
-/**
- * Who Chatter is built on: the services it talks to and the libraries it is made of. Two long
- * lists that are read once out of curiosity, which is a page of their own rather than the tail
- * end of everything else the about page has to say.
- */
+/** The services Chatter uses and the libraries it ships, on a page of their own. */
 @Composable
 private fun CreditsPage() {
     var shownLicense by remember { mutableStateOf<Dependency?>(null) }
@@ -1566,11 +1541,7 @@ private fun CreditsPage() {
     }
 }
 
-/**
- * Writing the whole configuration to a file and reading it back. The format is Chatter's own —
- * it is for moving to a new phone or keeping a copy before experimenting, not for importing
- * another client's settings.
- */
+/** Exporting the configuration to a file and importing it, in Chatter's own format. */
 @Composable
 private fun BackupGroup(vm: MainViewModel) {
     val context = LocalContext.current
@@ -1594,7 +1565,7 @@ private fun BackupGroup(vm: MainViewModel) {
     val import = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
         if (uri != null) {
             scope.launch {
-                // Null when it could not be opened; empty when it is too large to be a backup.
+                // Null if it could not be opened; empty if it is too large to be a backup.
                 val text = withContext(Dispatchers.IO) {
                     runCatching {
                         context.contentResolver.openInputStream(uri)?.use { BackupCheck.readLimited(it) ?: "" }
@@ -1604,7 +1575,7 @@ private fun BackupGroup(vm: MainViewModel) {
                     status = R.string.backup_failed
                     return@launch
                 }
-                // Nothing is written until the user has seen what the file would change.
+                // Nothing is written until the user has seen the changes.
                 pending = vm.readBackup(text)
                 if (pending == null) status = R.string.backup_invalid
             }
@@ -1627,8 +1598,8 @@ private fun BackupGroup(vm: MainViewModel) {
                             backup.channels?.logins?.size ?: 0,
                         ),
                     )
-                    // Which sites the app will fetch from is the one thing a backup decides that
-                    // reaches outside the phone, so it is spelled out.
+                    // The image hosts are the one backup setting that reaches outside the phone, so
+                    // they are listed.
                     if (hosts != null) {
                         Text(
                             if (hosts.isEmpty()) stringResource(R.string.backup_confirm_no_hosts)
@@ -1688,11 +1659,11 @@ private fun BackupGroup(vm: MainViewModel) {
 
 private const val BACKUP_MIME = "application/json"
 
-/** "chatter-2026-09-20.json": dated, so several backups sit next to each other. */
+/** "chatter-2026-09-20.json", dated so several backups can coexist. */
 private fun backupFileName(): String =
     "chatter-" + SimpleDateFormat("yyyy-MM-dd", Locale.US).format(Date()) + ".json"
 
-/** One of the libraries Chatter ships, for the license listing, with the name and text of its license. */
+/** A shipped library for the license list, with its license name and text. */
 private data class Dependency(
     val name: String,
     val url: String,
@@ -1700,7 +1671,7 @@ private data class Dependency(
     val text: Int = R.raw.license_apache_2_0,
 )
 
-/** The libraries Chatter ships. Most are Apache 2.0 and share that license text. */
+/** The shipped libraries. Most share the Apache 2.0 text. */
 private val DEPENDENCIES = listOf(
     Dependency("Kotlin", "https://kotlinlang.org"),
     Dependency("Kotlin Coroutines", "https://github.com/Kotlin/kotlinx.coroutines"),
@@ -1712,13 +1683,13 @@ private val DEPENDENCIES = listOf(
     Dependency("RE2/J", "https://github.com/google/re2j", R.string.license_bsd3, R.raw.license_re2j),
 )
 
-/** The full license text of one dependency, plus a way to its project page. */
+/** The full license text of a dependency and a link to its project. */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun LicenseSheet(dependency: Dependency, onDismiss: () -> Unit) {
     val context = LocalContext.current
     val resources = LocalResources.current
-    // ~11 kB read once per sheet; kept out of the first frame so opening stays instant.
+    // About 11 kB, read off the first frame so the sheet opens instantly.
     var text by remember { mutableStateOf("") }
     LaunchedEffect(Unit) {
         text = withContext(Dispatchers.IO) {
@@ -1744,7 +1715,7 @@ private fun LicenseSheet(dependency: Dependency, onDismiss: () -> Unit) {
                 onClick = { context.startActivity(Intent(Intent.ACTION_VIEW, dependency.url.toUri())) },
                 modifier = Modifier.padding(top = 12.dp),
             ) { Text(stringResource(R.string.license_open_project)) }
-            // Monospace keeps the license's own indentation and line breaks intact.
+            // Monospace keeps the license's indentation and line breaks.
             Text(
                 text = text,
                 style = MaterialTheme.typography.bodySmall,
@@ -1755,7 +1726,7 @@ private fun LicenseSheet(dependency: Dependency, onDismiss: () -> Unit) {
     }
 }
 
-/** The services Chatter builds on, each linking to where it comes from. */
+/** The services Chatter uses, each linking to its source. */
 private val CREDITS = listOf(
     Triple(R.string.settings_credits_twitch, R.string.settings_credits_twitch_summary, "https://twitch.tv"),
     Triple(R.string.settings_credits_seventv, R.string.settings_credits_seventv_summary, "https://7tv.app"),
@@ -1774,8 +1745,8 @@ private val MOBILE_DATA = listOf(
 )
 
 /**
- * What Chatter does on mobile data. With Data Saver on, the phone saves data whatever is picked
- * here, which the row says, so that "Normal" is not taken for a promise it cannot keep.
+ * Behaviour on mobile data. The row says when Data Saver is on, since the phone saves data then
+ * regardless of the choice here.
  */
 @Composable
 private fun MobileDataPicker(selected: MobileData, vm: MainViewModel) {
@@ -1800,13 +1771,11 @@ private val THEME_MODES = listOf(
 )
 
 /**
- * A choice that lives on one row: what it is, the value it has now, and the options in a sheet
- * behind it. Spelled out as radio buttons, a choice costs a row per option even when the answer
- * is one word — the name colors alone were six rows with a preview each. A choice of two or
- * three short options is better off spelled out, and stays that way.
+ * A choice on one row: label, current value, and the options in a sheet. Radio buttons cost a row
+ * per option; the name colors alone were six rows with previews. Choices of two or three short
+ * options stay spelled out.
  *
- * [preview] draws whatever a name cannot say next to an option — and next to the value on the
- * row itself, the way the name colors have to show themselves to be told apart.
+ * [preview] draws what a label cannot say, next to each option and next to the current value.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -1825,8 +1794,7 @@ private fun <T> ChoiceItem(
 
     ListItem(
         headlineContent = { Text(stringResource(title)) },
-        // The row carries the same preview as the options do: what a palette does to a name is
-        // the thing being chosen, so the closed row has to show it too, not just name it.
+        // The row shows the preview too; for a palette the look is the thing being chosen.
         supportingContent = {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text(label(value))
@@ -1842,7 +1810,7 @@ private fun <T> ChoiceItem(
     )
     if (!open) return
 
-    // Picked is done: the sheet slides away by itself rather than waiting to be dismissed.
+    // Picking closes the sheet.
     val pick = { option: T ->
         onPick(option)
         scope.launch { sheet.hide() }.invokeOnCompletion { if (!sheet.isVisible) open = false }
@@ -1901,7 +1869,7 @@ private fun SwitchItem(res: Int, checked: Boolean, onChange: (Boolean) -> Unit, 
     )
 }
 
-/** The way into a word list: what it is for, and how many words are on it. */
+/** Entry to a word list: what it is for and how many words it has. */
 @Composable
 private fun KeywordListItem(title: Int, summary: Int, words: List<String>, onClick: () -> Unit) {
     ListItem(
@@ -1918,10 +1886,7 @@ private fun KeywordListItem(title: Int, summary: Int, words: List<String>, onCli
     )
 }
 
-/**
- * A list of words the user builds up one at a time, like the block list: every word is its own
- * row with its own way out, instead of one line of comma-separated text to edit by hand.
- */
+/** A list of words built one at a time, each a row with its own remove button. */
 @Composable
 private fun KeywordsPage(
     words: List<String>,
@@ -1974,8 +1939,8 @@ private fun KeywordsPage(
 }
 
 /**
- * The sites whose pictures the app will fetch. Nothing outside this list is ever requested, so
- * the page says what the list is for before it says what is in it.
+ * The sites linked images are loaded from. Nothing else is ever requested, so the page explains the
+ * list first.
  */
 @Composable
 private fun ImageHostsPage(hosts: List<String>, vm: MainViewModel) {
@@ -2068,7 +2033,7 @@ private fun SliderItem(
     )
 }
 
-/** The badge providers, in the order their badges appear in front of a name. */
+/** Badge providers in the order their badges appear before a name. */
 private val BADGE_PROVIDERS = listOf(
     BadgeProvider.Twitch to R.string.settings_provider_twitch,
     BadgeProvider.SevenTv to R.string.settings_provider_seventv,
@@ -2076,7 +2041,7 @@ private val BADGE_PROVIDERS = listOf(
     BadgeProvider.Chatter to R.string.settings_provider_chatter,
 )
 
-/** The emote providers, in the order their emotes take precedence over each other. */
+/** Emote providers in order of precedence. */
 private val PROVIDERS = listOf(
     EmoteProvider.Twitch to R.string.settings_provider_twitch,
     EmoteProvider.SevenTv to R.string.settings_provider_seventv,
@@ -2085,8 +2050,8 @@ private val PROVIDERS = listOf(
 )
 
 /**
- * What a tap does, on a message or on its name. The hint says what no choice here can change:
- * holding keeps the user card in reach, and with it blocking, reporting and moderating.
+ * What a tap on a message or its name does. The hint points out that holding always opens the user
+ * card, with blocking, reporting and moderating.
  */
 @Composable
 private fun TapActionPicker(title: Int, selected: TapAction, onSelect: (TapAction) -> Unit) {
@@ -2109,7 +2074,7 @@ private fun TapActionPicker(title: Int, selected: TapAction, onSelect: (TapActio
     )
 }
 
-/** How the time in front of a message is written, each option showing the current time in it. */
+/** Timestamp format; each option shows the current time in that format. */
 @Composable
 private fun TimestampPicker(selected: TimestampFormat, onSelect: (TimestampFormat) -> Unit) {
     val now = remember { System.currentTimeMillis() }
@@ -2117,8 +2082,7 @@ private fun TimestampPicker(selected: TimestampFormat, onSelect: (TimestampForma
         title = R.string.settings_timestamps,
         value = selected,
         options = TimestampFormat.entries,
-        // Every option writes the current time the way it would write it, which says more than
-        // "HH:mm" ever could.
+        // Each option shows the current time in its format.
         label = { format ->
             format.pattern?.let { SimpleDateFormat(it, Locale.getDefault()).format(Date(now)) }
                 ?: stringResource(R.string.settings_timestamps_off)
@@ -2128,7 +2092,7 @@ private fun TimestampPicker(selected: TimestampFormat, onSelect: (TimestampForma
 }
 
 
-/** Choice of launcher icon: black C on white or white C on black. */
+/** Launcher icon: black C on white or white C on black. */
 @Composable
 private fun AppIconPicker() {
     val context = LocalContext.current
@@ -2190,7 +2154,7 @@ private fun AppIconPicker() {
     )
 }
 
-/** The name colors of a handful of sample chatters, so each palette can be compared at a glance. */
+/** Sample chatters' name colors, to compare the palettes. */
 private val NAME_COLOR_LABELS = listOf(
     NameColorPalette.None to R.string.name_colors_none,
     NameColorPalette.Twitch to R.string.name_colors_twitch,
@@ -2200,12 +2164,12 @@ private val NAME_COLOR_LABELS = listOf(
     NameColorPalette.RgbLoop to R.string.name_colors_rgb_loop,
 )
 
-// Deliberately hard cases: very dark blue, dark red and dark green are what needs fixing.
+// Hard cases on purpose: very dark blue, red and green are what needs adjusting.
 private val NAME_COLOR_SAMPLES = listOf(
     0xFF0000FF.toInt(), 0xFF8B0000.toInt(), 0xFF006400.toInt(), 0xFFFF69B4.toInt(), 0xFF00FF7F.toInt(),
 )
 
-/** Picks how name colors are adjusted; every option previews the same names in its own palette. */
+/** How name colors are adjusted; each option previews the same names in its palette. */
 @Composable
 private fun NameColorPicker(selected: NameColorPalette, onSelect: (NameColorPalette) -> Unit) {
     val dark = isAppInDarkTheme()
@@ -2216,8 +2180,7 @@ private fun NameColorPicker(selected: NameColorPalette, onSelect: (NameColorPale
         label = { palette -> stringResource(NAME_COLOR_LABELS.first { it.first == palette }.second) },
         onPick = onSelect,
         hint = R.string.settings_name_colors_hint,
-        // The same five names in every palette: the difference between them is the whole point,
-        // and it is not something a name can describe.
+        // The same names in every palette, to compare them.
         preview = { palette ->
             NAME_COLOR_SAMPLES.forEach { argb ->
                 val color = readableNameColor(argb, null, dark, palette)
@@ -2234,7 +2197,7 @@ private fun NameColorPicker(selected: NameColorPalette, onSelect: (NameColorPale
 }
 
 
-/** Swatches for the mention highlight, plus a preview of a highlighted message. */
+/** Mention highlight swatches and a preview line. */
 @Composable
 private fun HighlightColorPicker(selected: Int, onSelect: (Int) -> Unit) {
     val scheme = MaterialTheme.colorScheme
@@ -2248,7 +2211,8 @@ private fun HighlightColorPicker(selected: Int, onSelect: (Int) -> Unit) {
         supportingContent = {
             Column {
                 Text(stringResource(R.string.settings_highlight_color_hint))
-                // A plain scrolling Row: ListItem measures intrinsically, which lazy lists don't support.
+                // A plain scrolling Row: ListItem measures intrinsically, which lazy lists do not
+                // support.
                 Row(
                     horizontalArrangement = Arrangement.spacedBy(10.dp),
                     modifier = Modifier.padding(top = 12.dp).horizontalScroll(rememberScrollState()),

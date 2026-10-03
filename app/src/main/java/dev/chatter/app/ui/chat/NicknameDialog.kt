@@ -21,10 +21,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.ImeAction
 import dev.chatter.app.R
 
-/**
- * Gives one chatter a name of the user's choosing. Clearing the field restores the name Twitch
- * reports, which is shown as the placeholder so the empty field's fallback is obvious.
- */
+/** Sets a chatter's nickname. An empty field restores the Twitch name, shown as placeholder. */
 @Composable
 fun NicknameDialog(
     login: String,

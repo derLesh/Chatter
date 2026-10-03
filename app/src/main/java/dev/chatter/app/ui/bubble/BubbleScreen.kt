@@ -45,8 +45,8 @@ import dev.chatter.app.ui.chat.InputBar
 import dev.chatter.app.ui.chat.rememberChatStyle
 
 /**
- * The chat of a single channel, sized for a bubble: a one-line header instead of the channel
- * bar, the message list, and the same input as the main window.
+ * A single channel's chat sized for a bubble: a one-line header, the message list and the same
+ * input as the main window.
  */
 @Composable
 fun BubbleScreen(vm: MainViewModel, channel: String?) {
@@ -64,7 +64,7 @@ fun BubbleScreen(vm: MainViewModel, channel: String?) {
         chatPartners.mapValues { (_, p) -> ChannelMark(p.avatarUrl, p.displayName) }
     }
 
-    // Same rule as the chat screen: either saver stills the emotes and stops linked images.
+    // Same as the chat screen: either saver stills emotes and stops linked images.
     val powerSave by vm.powerSaveMode.collectAsStateWithLifecycle()
     val saveData by vm.saveData.collectAsStateWithLifecycle()
     val style = rememberChatStyle(settings, nicknames, powerSave, saveData)
@@ -72,8 +72,8 @@ fun BubbleScreen(vm: MainViewModel, channel: String?) {
     var emoteCard by remember { mutableStateOf<Segment.EmoteSeg?>(null) }
     var showPicker by remember { mutableStateOf(false) }
 
-    // A Surface, not just a background color: it is what sets the content color for everything
-    // inside. Without it the text keeps Compose's default black and vanishes in a dark theme.
+    // A Surface, not just a background color: it sets the content color, otherwise text stays black
+    // and disappears in a dark theme.
     Surface(color = MaterialTheme.colorScheme.background, modifier = Modifier.fillMaxSize()) {
         Column(
             Modifier
@@ -122,8 +122,8 @@ fun BubbleScreen(vm: MainViewModel, channel: String?) {
                 messages = remember(channel) { vm.chat(channel) },
                 style = style,
                 imageLoader = loader,
-                // No user card in here: a bubble is too small for a sheet, and what one wants from a
-                // message in a bubble is to answer it.
+                // No user card: a bubble is too small for the sheet, and answering is what one does
+                // there.
                 onGesture = { item, _ -> vm.startReply(item) },
                 modifier = Modifier.weight(1f),
                 smoothScrolling = settings.smoothScrolling,

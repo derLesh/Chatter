@@ -57,12 +57,12 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
 /**
- * A one-off line for the snackbar: the text, and what it has to have filled in. The filling in
- * happens on the screen and not here, so that a message already up follows a change of language.
+ * A snackbar message: a string resource and its argument. Resolved on screen, so a message that is
+ * up follows a language change.
  */
 data class UiMessage(val text: Int, val fill: String? = null)
 
-/** A channel or combined chat that was just removed, under the name it was shown by. */
+/** A just removed channel or combined chat, with the name it was shown under. */
 class Removal(val name: String, val removed: RemovedPage)
 
 sealed interface Suggestion {
@@ -74,19 +74,21 @@ sealed interface Suggestion {
 class MainViewModel(private val c: AppContainer) : ViewModel() {
     val authState = c.auth.state
 
-    /** Whether the last login ended on its own, so the login screen can say why it is back. */
+    /**
+     * Whether the last login ended without the user logging out, so the login screen can say why.
+     */
     val sessionExpired = c.auth.sessionExpired
 
-    /** Who the user is on Twitch, for the one thing GitHub Sponsors cannot know about a sponsor. */
+    /** The user's Twitch id, for the supporter claim; GitHub Sponsors does not know it. */
     val ownTwitchId: String? get() = c.auth.account?.userId
     val ownLogin: String get() = c.auth.account?.login.orEmpty()
 
-    /** Every logged-in account, for the switcher on the account page. */
+    /** All logged-in accounts, for the account switcher. */
     val accounts = c.auth.accounts
     val channels = c.channels.channels
-    /** Channels and combined chats, in the order the pager shows them. */
+    /** Channels and combined chats in pager order. */
     val pages = c.channels.pages
-    /** The combined chats, by the key they are listed under in [pages]. */
+    /** Combined chats by their key in [pages]. */
     val groups = c.channels.groups
     val channelInfo = c.channels.info
     val customNames = c.channels.customNames
@@ -106,9 +108,9 @@ class MainViewModel(private val c: AppContainer) : ViewModel() {
     val roomStates = c.chat.rooms.states
     val roles = c.chat.rooms.roles
     val subscribedChannels = c.chat.rooms.subscribed
-    /** The Shared Chat partners of every channel that shares its chat right now, by channel. */
+    /** Shared Chat partners of every channel currently sharing its chat. */
     val sharedChats = c.chat.sharedChats.sessions
-    /** Name and picture of every Shared Chat partner met so far, by channel id. */
+    /** Name and picture of every Shared Chat partner seen so far, by channel id. */
     val chatPartners = c.chat.sharedChats.partners
     val emoteVersion = c.emotes.version
     val blockedUsers = c.blocked.blocked
@@ -120,19 +122,19 @@ class MainViewModel(private val c: AppContainer) : ViewModel() {
     val mentionUnread = c.inbox.unreadCount
     val whisperUnread = c.whisperInbox.unreadCount
 
-    /** What the badge on the inbox button counts: both of its tabs together. */
+    /** The inbox button's badge: both tabs together. */
     val inboxUnread: StateFlow<Int> = combine(mentionUnread, whisperUnread) { m, w -> m + w }
         .stateIn(viewModelScope, SharingStarted.Eagerly, 0)
     /**
-     * The counters, worked out only while the page showing them is open: away from it they are
-     * two numbers being added up, which is what a message arriving should cost.
+     * Computed only while the stats page is open; otherwise counting stays two additions per
+     * message.
      */
     val stats: StateFlow<Stats> = c.stats.live()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), c.stats.stats.value)
     val releases = c.changelog.releases
-    /** Every mention as it arrives, for the feedback the chat screen gives while it is open. */
+    /** Every mention as it arrives, for feedback while the chat screen is open. */
     val mentions = c.chat.allMentions
-    /** The releases the user has not read yet, shown once after an update. */
+    /** Releases not read yet, shown once after an update. */
     val unreadReleases = c.changelog.unread
 
     val imageLoader get() = c.imageLoader
@@ -144,81 +146,77 @@ class MainViewModel(private val c: AppContainer) : ViewModel() {
         private set
 
     /**
-     * How many answers the user has begun. The field brings the keyboard up for each one, and only
-     * for those: an answer that comes back with its page's draft was not just begun.
+     * Number of replies started. The input opens the keyboard for each new one, but not for a reply
+     * restored with its page's draft.
      */
     var replyStarts by mutableIntStateOf(0)
         private set
 
-    /** The pages left with something unsent in the field, for the mark beside their name. */
+    /** Pages with an unsent draft, marked next to their name. */
     var draftPages by mutableStateOf<Set<String>>(emptySet())
         private set
     var suggestions by mutableStateOf<List<Suggestion>>(emptyList())
         private set
 
     /**
-     * True for the view model behind a chat bubble. A bubble lives inside its notification, so
-     * cancelling that notification would take the bubble down with it — which is why a bubble
-     * never clears one, however much of the channel the user reads in it.
+     * True for a bubble's view model. A bubble lives in its notification, so it never clears that
+     * notification, or it would close itself.
      */
     var inBubble = false
 
     /**
-     * The page the pager should scroll to: a channel asked for from outside (a notification tap),
-     * or one the user has just added or combined.
+     * The page the pager should scroll to: one requested from outside (a notification tap), or one
+     * just added or combined.
      */
     val requestedChannel = MutableStateFlow<String?>(null)
 
     /**
-     * The inbox tab something outside the app asked for (its shortcut, a whisper notification),
-     * or null when nothing did. Cleared by the inbox once it has gone there.
+     * The inbox tab requested from outside (shortcut, whisper notification), or null. Cleared by
+     * the inbox after switching.
      */
     val requestedInbox = MutableStateFlow<Int?>(null)
 
     private val _messages = Channel<UiMessage>(Channel.BUFFERED)
-    /** One-off user feedback, shown as a snackbar. */
+    /** One-off feedback for the snackbar. */
     val messages = _messages.receiveAsFlow()
 
-    // Only the latest: a snackbar for a removal that has been followed by another is not worth
-    // showing any more.
+    // Only the latest; an undo for an earlier removal is not worth showing any more.
     private val _removals = Channel<Removal>(Channel.CONFLATED)
-    /** Channels and combined chats just removed, each to be offered back once. */
+    /** Just removed channels and combined chats, each offered for undo once. */
     val removals = _removals.receiveAsFlow()
 
     private var suggestionJob: Job? = null
 
     init {
-        // Something outside the app did not answer. Said once, and then not again.
+        // An outside service did not answer; reported once.
         viewModelScope.launch {
             c.trouble.unreachable.collect { _messages.send(UiMessage(R.string.error_service_down, it)) }
         }
         viewModelScope.launch { c.chat.refused.collect(::onRefused) }
     }
 
-    /** A message this window sent: where from, and when, in case Twitch gives it back. */
+    /** A message this window sent: page and time, in case Twitch refuses it. */
     private class Sent(val text: String, val page: String?, val at: Long)
 
-    /** The last message this window sent in each channel, by channel. */
+    /** The last message this window sent per channel. */
     private val sent = HashMap<String, Sent>()
 
     /**
-     * Until when each channel's slow mode keeps the user from writing again, by channel. Only
-     * what this window sent counts: that is all it can know about.
+     * When slow mode lets the user write again, per channel. Only this window's messages are known.
      */
     private val slowUntil = mutableStateMapOf<String, Long>()
 
-    /** When the user may write in the channel they are writing in; 0 when they may now. */
+    /** When the user may write in [sendChannel] again; 0 if now. */
     val sendWaitUntil: Long get() = sendChannel?.let { slowUntil[it] } ?: 0L
 
     /**
-     * Twitch did not take the last message sent in [channel]. It goes back into the field it was
-     * written in, so that nothing has to be typed again — unless something new is being written
-     * there by now, which is not to be overwritten.
+     * Twitch refused the last message sent in [channel]. It goes back into the input of its page so
+     * nothing has to be retyped, unless something new is being written there.
      */
     private fun onRefused(channel: String) {
         val refused = sent.remove(channel) ?: return
         if (System.currentTimeMillis() - refused.at > REFUSAL_WINDOW_MS) return
-        // A message Twitch did not take started no slow mode either.
+        // A refused message started no slow mode.
         slowUntil.remove(channel)
         val restored = TextFieldValue(refused.text, TextRange(refused.text.length))
         if (refused.page == shownPage) {
@@ -233,36 +231,34 @@ class MainViewModel(private val c: AppContainer) : ViewModel() {
     }
 
     /**
-     * The page this window is showing: a channel, or the key of a combined chat. Not the same
-     * thing as [activePage] once a bubble is open: that one is the chat screen's, this one is
-     * whatever window this view model belongs to.
+     * The page this window shows: a channel or a combined chat key. Differs from [activePage] while
+     * a bubble is open; that one belongs to the chat screen.
      */
     private var shownPage: String? = null
 
-    /** The channels on [shownPage]: the one channel, or every channel of the combined chat. */
+    /** The channels of [shownPage]: one, or all channels of the combined chat. */
     private var shownChannels: List<String> = emptyList()
 
     /**
-     * The channel whatever is typed goes to. On a channel's own page that is the channel; on a
-     * combined chat it is whichever of its channels the user picked, or the one of the message
-     * they are answering.
+     * Where typed messages go. On a channel's page that channel; on a combined chat the channel the
+     * user picked, or the one of the message being answered.
      */
     var sendChannel by mutableStateOf<String?>(null)
         private set
 
-    /** The channel last written in on each combined chat, so coming back to one writes there again. */
+    /** The channel last written in per combined chat. */
     private val sendChannels = HashMap<String, String>()
 
-    /** What was being written on a page the user left: the text, and the message it answers. */
+    /** Unsent input on a page the user left: the text and the message it answers. */
     private class Draft(val input: TextFieldValue, val replyTo: ChatItem?)
 
     /**
-     * The drafts of the pages not on screen. One field for every page would carry whatever was
-     * typed along to the next one, and a swipe in the middle of a sentence would send it there.
+     * Drafts of pages not on screen. A single shared input would carry text to the next page, and a
+     * swipe mid-sentence would send it there.
      */
     private val drafts = HashMap<String, Draft>()
 
-    /** Puts what the field holds away under [from], and takes out what [to] was left with. */
+    /** Stores the input under [from] and restores the draft of [to]. */
     private fun swapDraft(from: String?, to: String?) {
         if (from != null) {
             if (input.text.isNotBlank() || replyTo != null) drafts[from] = Draft(input, replyTo)
@@ -274,24 +270,24 @@ class MainViewModel(private val c: AppContainer) : ViewModel() {
         draftPages = drafts.keys.toSet()
     }
 
-    /** The newest message each page had on screen, as its list last said; see [onSeen]. */
+    /** The newest message each page had on screen; see [onSeen]. */
     private val seen = HashMap<String, ReadMark>()
 
     /**
-     * How far each page had been read when the user last left it. Fixed from then until they
-     * leave it again, so the line it draws stays put while they catch up.
+     * How far each page had been read when the user last left it. Fixed until they leave again, so
+     * the line stays put while they catch up.
      */
     private val readMarks = mutableStateMapOf<String, ReadMark>()
 
-    /** The list on screen has [mark] as its newest message on screen now. */
+    /** [mark] is now the newest message on screen for [page]. */
     fun onSeen(page: String, mark: ReadMark) {
         seen[page] = mark
     }
 
-    /** Where the line above the unseen messages of [page] goes; null for a page never left. */
+    /** Where the unread line of [page] goes; null for a page never left. */
     fun readMark(page: String): ReadMark? = readMarks[page]
 
-    /** The user is leaving [page], for another one or for another app. */
+    /** The user is leaving [page], for another page or app. */
     private fun leave(page: String) {
         seen[page]?.let { readMarks[page] = it }
     }
@@ -304,8 +300,8 @@ class MainViewModel(private val c: AppContainer) : ViewModel() {
         if (ChannelGroup.isKey(page)) groups.value[page]?.channels.orEmpty() else listOf(page)
 
     /**
-     * Moves this window to a page. Asking again for the page already shown is how a combined chat
-     * whose channels were changed is read afresh.
+     * Moves this window to [page]. Selecting the current page again reloads a combined chat whose
+     * channels changed.
      */
     fun selectChannel(page: String?) {
         val channels = page?.let(::channelsOf).orEmpty()
@@ -318,47 +314,41 @@ class MainViewModel(private val c: AppContainer) : ViewModel() {
         shownPage = page
         shownChannels = channels
         c.chat.windows.setChannels(this, channels.toSet())
-        // What the app around the chat follows. A bubble is a window of its own and must not
-        // move it: the chat screen is still wherever the user left it.
+        // The chat screen follows this; a bubble must not move it.
         if (!inBubble) c.chat.activePage.value = page
         channels.forEach {
             if (!inBubble) c.notifier.clear(it)
             c.chat.clearUnread(it)
-            // Reading a channel is reading its mentions, so the inbox must not claim otherwise.
+            // Reading a channel reads its mentions.
             viewModelScope.launch { c.inbox.markChannelRead(it) }
         }
-        // Where to come back to after a restart — the chat screen's page, not a channel the user
-        // happens to be reading in a bubble on the side.
+        // Remembered for after a restart: the chat screen's page, not a bubble's channel.
         if (page != null && !inBubble) rememberLastChannel(page)
         sendChannel = page?.let { sendChannels[it] }?.takeIf { it in channels } ?: channels.firstOrNull()
-        // A combined chat that lost the channel of the message being answered cannot answer it.
+        // A combined chat that lost the answered message's channel cannot answer it.
         if (replyTo?.channel !in channels) replyTo = null
         suggestions = emptyList()
     }
 
-    /** Writes in [channel] from now on, which has to be one of the channels on the page. */
+    /** Writes in [channel] from now on; it must be one of the page's channels. */
     fun selectSendChannel(channel: String) {
         if (channel !in shownChannels || channel == sendChannel) return
         sendChannel = channel
         shownPage?.let { sendChannels[it] = channel }
-        // An answer goes to the channel of the message it answers; it cannot follow to another.
+        // A reply goes to the channel of the message it answers.
         if (replyTo?.channel != channel) replyTo = null
         updateSuggestions()
     }
 
-    /**
-     * Tells the chat that the whisper tab is in front, which is what keeps a whisper arriving
-     * there from also ringing.
-     */
+    /** Tells the chat that the whisper tab is in front, so arriving whispers do not notify. */
     fun setWhispersVisible(visible: Boolean) {
         c.chat.windows.whispersVisible.value = visible
         if (visible) c.notifier.clearWhispers()
     }
 
     /**
-     * Writing down where to come back to, once the swiping has settled. Every write is a file
-     * rewritten and every flow on that store parsed again, which is a lot of ceremony for a
-     * channel the user is only passing through on the way to the next one.
+     * The last channel is written after swiping settles. Each write rewrites the file and reparses
+     * every flow on that store, too much for channels the user only passes through.
      */
     private var pendingLastChannel: String? = null
     private var lastChannelJob: Job? = null
@@ -381,7 +371,7 @@ class MainViewModel(private val c: AppContainer) : ViewModel() {
 
     fun setUiVisible(visible: Boolean) {
         c.chat.windows.setVisible(this, visible, shownChannels.toSet())
-        // Leaving may come before the delay is up, and then it is the last chance to write it.
+        // Leaving may come before the delay ends; then this is the last chance to write it.
         if (!visible) {
             writeLastChannel()
             shownPage?.let(::leave)
@@ -395,7 +385,7 @@ class MainViewModel(private val c: AppContainer) : ViewModel() {
         }
     }
 
-    /** The window is gone for good; it is not reading anything any more. */
+    /** The window is gone; it reads nothing any more. */
     override fun onCleared() {
         c.chat.windows.setVisible(this, visible = false, channels = emptySet())
         super.onCleared()
@@ -416,8 +406,8 @@ class MainViewModel(private val c: AppContainer) : ViewModel() {
             suggestions = emptyList()
             return
         }
-        // Off the main thread: ranking runs on every keystroke and reads through every emote the
-        // user has, which with a well subscribed account is a few thousand of them.
+        // Off the main thread: ranking runs per keystroke over every emote the account has, a few
+        // thousand for a well subscribed one.
         suggestionJob = viewModelScope.launch {
             suggestions = withContext(Dispatchers.Default) { rank(channel, word) }
         }
@@ -433,8 +423,8 @@ class MainViewModel(private val c: AppContainer) : ViewModel() {
                 else Autocomplete.rankUsers(word.text, c.chat.chatters(channel)).map { Suggestion.UserSuggestion(it) }
             } else if (word.text.length >= 2) {
                 val s = settings.value
-                // A plain word can be either, so offer both: emotes first, as they are what one
-                // usually types without an "@", with the names behind them.
+                // A plain word can be either: emotes first, since they are typed without "@", names
+                // after.
                 val emotes = if (!s.emoteSuggestions) emptyList() else {
                     Autocomplete.rankEmotes(word.text, emotesFor(channel)).map { Suggestion.EmoteSuggestion(it) }
                 }
@@ -449,7 +439,7 @@ class MainViewModel(private val c: AppContainer) : ViewModel() {
         val word = Autocomplete.currentWord(input.text, input.selection.start) ?: return
         val value = when (s) {
             is Suggestion.EmoteSuggestion -> s.emote.name.also { rememberEmote(it) }
-            // An "@" the user typed themselves is kept either way: they asked for it.
+            // An "@" the user typed stays either way.
             is Suggestion.UserSuggestion ->
                 if (settings.value.mentionWithAt || word.text.startsWith("@")) "@${s.name}" else s.name
             is Suggestion.CommandSuggestion -> "/${s.name}"
@@ -465,7 +455,7 @@ class MainViewModel(private val c: AppContainer) : ViewModel() {
         rememberEmote(emote.name)
     }
 
-    /** Mentions whoever wrote [item] — in the channel they wrote it in, on a combined chat. */
+    /** Mentions the author of [item], in the channel it was written in on a combined chat. */
     fun mention(item: ChatItem) {
         val name = item.displayName ?: item.login ?: return
         selectSendChannel(item.channel)
@@ -477,7 +467,7 @@ class MainViewModel(private val c: AppContainer) : ViewModel() {
         viewModelScope.launch { c.settings.addRecentEmote(name) }
     }
 
-    /** What [emotesFor] last worked out, and what it was worked out from. */
+    /** What [emotesFor] last returned and its inputs. */
     private class EmoteList(
         val channel: String?,
         val version: Int,
@@ -489,10 +479,8 @@ class MainViewModel(private val c: AppContainer) : ViewModel() {
     @Volatile private var lastEmoteList: EmoteList? = null
 
     /**
-     * Emotes the user can type in [channel]; unlisted 7TV emotes only if enabled in settings.
-     *
-     * Kept until something about it changes. Building it walks every global, channel and Twitch
-     * emote the account has, and the autocomplete asks for it on every keystroke.
+     * Emotes the user can type in [channel]; unlisted 7TV emotes only if enabled. Cached until an
+     * input changes, since building it walks every emote and autocomplete asks per keystroke.
      */
     fun emotesFor(channel: String?): List<Emote> {
         val s = settings.value
@@ -509,13 +497,13 @@ class MainViewModel(private val c: AppContainer) : ViewModel() {
         return emotes
     }
 
-    /** What the writer of [item] said in its channel lately, oldest first. Read from memory. */
+    /** What the author of [item] said in its channel lately, oldest first. From memory. */
     suspend fun recentMessagesOf(item: ChatItem): List<ChatItem> {
         val login = item.login ?: return emptyList()
         return c.chat.messagesFrom(item.channel, login)
     }
 
-    /** The Twitch profile of whoever wrote [item]; null if Twitch is unreachable. */
+    /** The Twitch profile of [item]'s author; null if Twitch is unreachable. */
     suspend fun profileOf(item: ChatItem): HelixUser? {
         val login = item.login ?: return null
         return runCatching { c.helix.users(listOf(login)).firstOrNull() }.getOrNull()
@@ -526,8 +514,8 @@ class MainViewModel(private val c: AppContainer) : ViewModel() {
         role.badgeTag?.let { c.badges.resolve(c.chat.rooms.id(channel), it, userId = null).firstOrNull() }
 
     /**
-     * Blocks or unblocks on Twitch. Needs the user card's profile for the Twitch id, so it is
-     * only offered once that has loaded.
+     * Blocks or unblocks on Twitch. Needs the Twitch id from the user card's profile, so it is
+     * offered once that loaded.
      */
     fun setBlocked(user: HelixUser, blocked: Boolean) {
         viewModelScope.launch {
@@ -542,10 +530,7 @@ class MainViewModel(private val c: AppContainer) : ViewModel() {
         }
     }
 
-    /**
-     * Blocks someone typed by name rather than picked from a chat message, so the login has to be
-     * looked up first: Twitch only takes ids.
-     */
+    /** Blocks someone by typed name; Twitch only takes ids, so the login is looked up first. */
     fun blockByLogin(login: String) {
         viewModelScope.launch {
             val clean = login.trim().removePrefix("@").lowercase()
@@ -561,14 +546,13 @@ class MainViewModel(private val c: AppContainer) : ViewModel() {
 
     // ---- Backup ------------------------------------------------------------------------------
 
-    /** The whole configuration as a Chatter backup file. */
+    /** The whole configuration as a backup file. */
     fun exportBackup(): String = c.backup.export()
 
-    /** Restores a backup. False means the file was not one of ours. */
-    /** The backup in [text], checked and not yet applied; null if it is not one of ours. */
+    /** The backup in [text], checked but not applied; null if it is not a Chatter backup. */
     fun readBackup(text: String): SettingsBackup? = c.backup.read(text)
 
-    /** Restores a backup [readBackup] returned, once the user has seen what it changes. */
+    /** Restores a backup from [readBackup] after the user has seen what it changes. */
     suspend fun applyBackup(backup: SettingsBackup) = c.backup.apply(backup)
 
     // ---- Highlight rules ---------------------------------------------------------------------
@@ -593,13 +577,12 @@ class MainViewModel(private val c: AppContainer) : ViewModel() {
     }
 
     /**
-     * Mentions the chat has on screen right now. Opening a channel reads all of its mentions, but
-     * coming back to the app on the channel it was left on is no opening, and the ones that
-     * arrived meanwhile would otherwise stay unread in the inbox while the user looks at them.
+     * Mentions currently on screen. Opening a channel reads its mentions, but returning to the app
+     * on the same channel is not an opening, and mentions that arrived meanwhile would stay unread.
      */
     fun onMentionsSeen(ids: Set<String>) {
-        // Called on every scroll that changes which mentions are visible, nearly always about
-        // ones read long ago; only an unread one is worth a write.
+        // Called on every scroll that changes visible mentions, almost always read ones; only
+        // unread ones are worth a write.
         if (c.inbox.mentions.value.none { !it.read && it.id in ids }) return
         viewModelScope.launch { c.inbox.markRead(ids) }
     }
@@ -612,11 +595,11 @@ class MainViewModel(private val c: AppContainer) : ViewModel() {
         viewModelScope.launch { c.inbox.clear() }
     }
 
-    /** Whispers to a chatter from their card. Returns the sentence to show about it, sent or not. */
+    /** Whispers a chatter from their card. Returns the line to show, sent or not. */
     suspend fun whisperTo(login: String, userId: String?, text: String): String =
         c.whisperSender.send(login, userId, text).message
 
-    /** Answers a whisper. Returns the sentence to show about it, sent or not. */
+    /** Answers a whisper. Returns the line to show, sent or not. */
     suspend fun sendWhisper(whisper: InboxWhisper, text: String): String =
         c.whisperSender.send(whisper.login, whisper.userId, text).message
 
@@ -633,7 +616,7 @@ class MainViewModel(private val c: AppContainer) : ViewModel() {
         viewModelScope.launch { c.whisperInbox.clear() }
     }
 
-    /** Gives a chatter a nickname, in every channel they show up in. A blank one clears it. */
+    /** Sets a nickname for a chatter in every channel. Blank clears it. */
     fun setNickname(login: String, nickname: String) {
         viewModelScope.launch { c.nicknames.set(login, nickname) }
     }
@@ -653,9 +636,8 @@ class MainViewModel(private val c: AppContainer) : ViewModel() {
     }
 
     /**
-     * Answers [item] with the next message sent. False for one that cannot be answered: a notice,
-     * the user's own message before Twitch has said what it is called, or anything at all for a
-     * guest, who cannot write.
+     * Answers [item] with the next message. False if it cannot be answered: a notice, the user's
+     * own message before Twitch confirmed it, or anything for a guest.
      */
     fun startReply(item: ChatItem): Boolean {
         if (c.auth.account == null || !item.canReply || item.id.startsWith("local-")) return false
@@ -676,7 +658,7 @@ class MainViewModel(private val c: AppContainer) : ViewModel() {
         viewModelScope.launch {
             when (c.chat.send(channel, text, reply)) {
                 SendResult.Ok -> {
-                    // A command is not a message: no slow mode, and nothing to give back.
+                    // A command is not a message: no slow mode, nothing to restore.
                     if (CommandParser.parse(text.trim()) == null) {
                         val now = System.currentTimeMillis()
                         sent[channel] = Sent(text.trim(), shownPage, now)
@@ -697,10 +679,10 @@ class MainViewModel(private val c: AppContainer) : ViewModel() {
 
     // ---- Bug reports -------------------------------------------------------------------------
 
-    /** The last crash written down, read off the disk; null when there is none. */
+    /** The last recorded crash; null if there is none. */
     suspend fun lastCrash(): Crash? = withContext(Dispatchers.IO) { c.crashLog.latest() }
 
-    /** Where Chatter runs, for the fields of a bug report. */
+    /** App and device details for bug reports. */
     val device: DeviceInfo = DeviceInfo.current(BuildConfig.VERSION_NAME, BuildConfig.VERSION_CODE)
 
     // ---- Channels ----------------------------------------------------------------------------
@@ -717,8 +699,8 @@ class MainViewModel(private val c: AppContainer) : ViewModel() {
     }
 
     /**
-     * Removes a channel, or a combined chat by its key, and offers to take it back: what went with
-     * it — its name, its settings, its places in the combined chats — is a lot to lose to a slip.
+     * Removes a channel or combined chat (by key) and offers undo; its name, settings and places in
+     * combined chats are a lot to lose to a slip.
      */
     fun removeChannel(page: String) {
         val info = c.channels.info.value
@@ -729,7 +711,7 @@ class MainViewModel(private val c: AppContainer) : ViewModel() {
         }
     }
 
-    /** Puts back what [removal] took, and goes to it again. */
+    /** Puts back what [removal] took and scrolls to it. */
     fun undoRemoval(removal: Removal) {
         viewModelScope.launch {
             c.channels.putBack(removal.removed)
@@ -739,7 +721,7 @@ class MainViewModel(private val c: AppContainer) : ViewModel() {
 
     /**
      * Creates a combined chat of [channels], or changes the one [key] names. A new one is opened
-     * right away, the same way a channel that was just added is.
+     * right away, like a newly added channel.
      */
     fun saveGroup(key: String?, name: String, channels: Collection<String>) {
         viewModelScope.launch {
@@ -828,17 +810,17 @@ class MainViewModel(private val c: AppContainer) : ViewModel() {
         viewModelScope.launch { c.channels.rename(login, name) }
     }
 
-    /** The name Twitch reports, for showing what clearing a custom name restores. */
+    /** The Twitch name, to show what clearing a custom name restores. */
     fun twitchName(login: String): String = c.channels.twitchName(login)
 
-    /** Moves a channel, or a combined chat by its key. */
+    /** Moves a channel or combined chat (by key). */
     fun moveChannel(page: String, delta: Int) {
         viewModelScope.launch { c.channels.move(page, delta) }
     }
 
     suspend fun searchChannels(query: String): List<HelixChannelSearch> = c.channels.search(query)
 
-    /** Polls live status while the UI is visible. Cancelled automatically when it goes away. */
+    /** Polls live status while the UI is visible; cancelled when it goes away. */
     suspend fun pollLiveStatus() {
         while (true) {
             c.channels.refreshLive()
@@ -850,12 +832,12 @@ class MainViewModel(private val c: AppContainer) : ViewModel() {
 
     fun loginUrl(): String = c.auth.authorizeUrl()
 
-    /** Twitch's login page for a second account, which has to ask who is logging in. */
+    /** Twitch's login page for another account; it has to ask who logs in. */
     fun addAccountUrl(): String = c.auth.authorizeUrl(forceVerify = true)
 
     /**
-     * Twitch's page for logging the active account in again, for a login that was given less
-     * than Chatter uses. The old token is revoked once the new one is in.
+     * Twitch's login page to log the active account in again, for a login that lacks scopes. The
+     * old token is revoked once the new one is in.
      */
     fun reauthorizeUrl(): String = c.auth.authorizeUrl(forceVerify = true)
 
@@ -866,12 +848,12 @@ class MainViewModel(private val c: AppContainer) : ViewModel() {
         viewModelScope.launch { c.auth.continueAsGuest() }
     }
 
-    /** From reading as a guest back to the login screen. */
+    /** From guest mode back to the login screen. */
     fun leaveGuest() {
         viewModelScope.launch { c.auth.leaveGuest() }
     }
 
-    /** The profiling builds' way past the login screen: reads [channel] as a guest. */
+    /** Profiling builds' way past the login: reads [channel] as a guest. */
     fun readAsGuest(channel: String) {
         viewModelScope.launch {
             if (c.auth.account == null) c.auth.continueAsGuest()
@@ -883,7 +865,7 @@ class MainViewModel(private val c: AppContainer) : ViewModel() {
         viewModelScope.launch {
             c.disconnect()
             c.auth.logout()
-            // Another account may have taken over; it needs the connection the logout closed.
+            // Another account may have taken over and needs the connection the logout closed.
             c.connect()
         }
     }
@@ -893,7 +875,7 @@ class MainViewModel(private val c: AppContainer) : ViewModel() {
         viewModelScope.launch { c.auth.switchTo(userId) }
     }
 
-    /** Logs one account out, whether or not it is the one the app is currently acting as. */
+    /** Logs one account out, active or not. */
     fun removeAccount(userId: String) {
         viewModelScope.launch {
             if (userId == c.auth.account?.userId) c.disconnect()
@@ -902,12 +884,12 @@ class MainViewModel(private val c: AppContainer) : ViewModel() {
         }
     }
 
-    /** Brings the stored names and pictures of every account up to date. */
+    /** Refreshes the stored names and pictures of all accounts. */
     fun refreshAccounts() {
         viewModelScope.launch { c.auth.refreshProfiles() }
     }
 
-    /** The Twitch profile of the account the app is acting as; null if Twitch is unreachable. */
+    /** The active account's Twitch profile; null if Twitch is unreachable. */
     suspend fun ownProfile(): HelixUser? {
         val login = c.auth.account?.login ?: return null
         return runCatching { c.helix.users(listOf(login)).firstOrNull() }.getOrNull()
@@ -927,10 +909,7 @@ class MainViewModel(private val c: AppContainer) : ViewModel() {
         viewModelScope.launch { c.settings.setMessageLimit(v) }
     }
 
-    /**
-     * Adds a word to highlight on. A comma still splits, so a list pasted in one go lands as
-     * separate words instead of one unmatchable one.
-     */
+    /** Adds highlight words. Commas split, so a pasted list becomes separate words. */
     fun addMentionKeyword(input: String) {
         viewModelScope.launch { c.settings.updateMentionKeywords { withWords(it, input) ?: it } }
     }
@@ -967,7 +946,7 @@ class MainViewModel(private val c: AppContainer) : ViewModel() {
         viewModelScope.launch { c.settings.setDynamicColor(v) }
     }
 
-    /** Reads the battery settings again, for a screen the user may have left to change them. */
+    /** Reads the battery settings again, e.g. after the user changed them. */
     fun refreshBatteryRestrictions() = c.backgroundHealth.refresh()
 
     fun dismissBackgroundStop() = c.backgroundHealth.dismiss()
@@ -1008,7 +987,7 @@ class MainViewModel(private val c: AppContainer) : ViewModel() {
         viewModelScope.launch { c.settings.setFullLinks(v) }
     }
 
-    /** Whatever they pasted, turned into the bare host it names. */
+    /** Turns whatever was pasted into bare hosts. */
     fun addImageHost(input: String) {
         val added = input.split(',').map { ImageLinks.cleanHost(it) }.filter { it.isNotEmpty() }.distinct()
         if (added.isEmpty()) return
@@ -1019,7 +998,7 @@ class MainViewModel(private val c: AppContainer) : ViewModel() {
         viewModelScope.launch { c.settings.updateImageHosts { it - host } }
     }
 
-    /** [old] changed in place, so the list keeps the order the user put it in. */
+    /** Edits [old] in place, keeping the user's order. */
     fun editImageHost(old: String, input: String) {
         val host = ImageLinks.cleanHost(input)
         if (host.isEmpty() || host == old) return
@@ -1028,7 +1007,7 @@ class MainViewModel(private val c: AppContainer) : ViewModel() {
                 val at = current.indexOf(old)
                 when {
                     at < 0 -> current
-                    // Already further down the list: changing this one into it would only say it twice.
+                    // Already in the list further down; would be listed twice.
                     host in current -> current - old
                     else -> current.toMutableList().also { it[at] = host }
                 }
@@ -1036,7 +1015,7 @@ class MainViewModel(private val c: AppContainer) : ViewModel() {
         }
     }
 
-    /** Back to the hosts a fresh install trusts, for a list that was pruned too far. */
+    /** Back to the default hosts. */
     fun resetImageHosts() {
         viewModelScope.launch { c.settings.updateImageHosts { ImageLinks.DEFAULT_HOSTS } }
     }
@@ -1077,10 +1056,10 @@ class MainViewModel(private val c: AppContainer) : ViewModel() {
         viewModelScope.launch { c.stats.reset() }
     }
 
-    /** The update notes have been seen, so they should not come back. */
+    /** The update notes were seen and should not come back. */
     fun markChangelogRead() = c.changelog.markRead()
 
-    /** A newer release on GitHub, for the APK installed from there; null otherwise. */
+    /** A newer GitHub release, for the GitHub APK; null otherwise. */
     val availableUpdate = c.updates.available
 
     fun checkForUpdate() = c.updates.checkIfDue()
@@ -1088,18 +1067,18 @@ class MainViewModel(private val c: AppContainer) : ViewModel() {
     fun setUpdateCheck(v: Boolean) {
         viewModelScope.launch {
             c.settings.setUpdateCheck(v)
-            // Switched back on after a long while off, the answer it still holds may be stale.
+            // After a long time off, the stored answer may be stale.
             if (v) c.updates.checkIfDue()
         }
     }
 
     private companion object {
-        /** How long a channel has to stay on screen before it is remembered as the last one. */
+        /** How long a channel must stay on screen to be remembered as the last one. */
         const val LAST_CHANNEL_DELAY_MS = 1_500L
 
         /**
-         * How long after sending a refusal can still be about that message. Twitch answers within
-         * a second; the same window the chat gives it to name a sent message.
+         * How long after sending a refusal may still refer to that message. Twitch answers within a
+         * second; the chat uses the same window to confirm sent messages.
          */
         const val REFUSAL_WINDOW_MS = 10_000L
     }

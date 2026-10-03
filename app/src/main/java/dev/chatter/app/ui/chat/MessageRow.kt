@@ -67,7 +67,7 @@ import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 
-/** Everything a message row needs besides the message itself. Changes rarely. */
+/** What a message row needs besides the message. Changes rarely. */
 @Immutable
 data class ChatStyle(
     val fontSize: Float,
@@ -79,48 +79,44 @@ data class ChatStyle(
     /** Background of every other message, or null when alternating backgrounds are off. */
     val alternateBackground: Color?,
     val noticeBackground: Color,
-    /** Background of a chatter's first message, or null when they are not highlighted. */
+    /** Background of a chatter's first message, or null when not highlighted. */
     val firstMessageBackground: Color?,
     val accent: Color,
     /** How name colors are adjusted for readability. */
     val nameColors: NameColorPalette,
-    /** Names the user gave chatters, by lowercase login. Usually empty. */
+    /** Nicknames by lowercase login. */
     val nicknames: Map<String, String>,
-    /** Whether holding a message is answered with a short vibration. */
+    /** Whether holding a message vibrates. */
     val haptics: Boolean,
-    /**
-     * The hosts whose image links are shown as the image itself. Empty when the user turned
-     * linked images off, which is the same thing as allowing nobody.
-     */
+    /** Hosts whose image links are shown as images. Empty when linked images are off. */
     val imageHosts: List<String>,
-    /** Whether a long link is written as its site and the start of its path; see [LinkText]. */
+    /** Whether long links are shortened to site and path start; see [LinkText]. */
     val shortLinks: Boolean = true,
-    /** Emotes in their smallest size, to save data; see [dev.chatter.app.net.DataSaving]. */
+    /** Smallest emote size, to save data; see [dev.chatter.app.net.DataSaving]. */
     val smallEmotes: Boolean = false,
-    /** What animated emotes ask the display for; see [EmoteFrameRate]. */
+    /** Frame rate animated emotes ask for; see [EmoteFrameRate]. */
     val emoteFrameRate: Float = EmoteFrameRate.ACTIVE,
 )
 
 /**
- * Which channel a message was written in, for a list that mixes several: the picture in front of
- * the line, and the name that stands in for it where a picture cannot be seen.
+ * The channel a message was written in, for lists that mix channels: its picture, and its name for
+ * accessibility.
  */
 @Immutable
 data class ChannelMark(val avatarUrl: String?, val name: String)
 
 private const val BADGE_EM = 1.35f
-/** How strongly a rule's highlight color tints the message background. */
+/** How strongly a rule's highlight color tints the background. */
 private const val HIGHLIGHT_ALPHA = 0.2f
-/** Messages loaded from history are clearly dimmed so live chat stands out. */
+/** History is dimmed so live chat stands out. */
 private const val HISTORICAL_ALPHA = 0.5f
 private const val EMOTE_EM = 2.1f
-/** Big enough to see what was linked, small enough that one picture is not the whole screen. */
+/** Large enough to recognize the picture, small enough not to fill the screen. */
 private val IMAGE_MAX_WIDTH = 220.dp
 private val IMAGE_MAX_HEIGHT = 180.dp
 /**
- * What a picture may take up when it is not the only one in the line. Small enough that two of
- * them fit beside each other on the narrowest phone, which is what makes the row wrap only when
- * the pictures really do not fit.
+ * Size of a picture that shares the row. Two fit side by side on the narrowest phone, so the row
+ * only wraps when they really do not fit.
  */
 private val IMAGE_SHARED_MAX_WIDTH = 150.dp
 private val IMAGE_SHARED_MAX_HEIGHT = 130.dp
@@ -129,13 +125,13 @@ private val IMAGE_GAP = 4.dp
 private class BuiltLine(
     val text: AnnotatedString,
     val inline: Map<String, InlineData>,
-    /** Urls of the images that were taken out of the line and are drawn under it. */
+    /** URLs of images taken out of the line and drawn below it. */
     val images: List<String> = emptyList(),
 )
 
 /**
- * The widths of the emotes in [line] whose real size is not known yet. Read while composing, it
- * makes the row lay itself out again once a BTTV emote's width turns up.
+ * Aspect ratios of emotes in [line] whose size is not known yet. Reading them while composing
+ * relayouts the row once a BTTV emote's size is known.
  */
 private fun pendingAspects(line: BuiltLine): List<Float> = line.inline.values.mapNotNull { data ->
     (data as? InlineData.EmoteData)?.seg?.takeIf { s -> !s.emote.sizeKnown || s.overlays.any { !it.sizeKnown } }
@@ -148,7 +144,7 @@ private sealed interface InlineData {
     data class EmoteData(val seg: Segment.EmoteSeg) : InlineData
 }
 
-// One formatter per pattern and thread: they are not safe to share across threads.
+// SimpleDateFormat is not thread-safe: one per pattern and thread.
 private val timeFormats = object : ThreadLocal<MutableMap<String, SimpleDateFormat>>() {
     override fun initialValue() = mutableMapOf<String, SimpleDateFormat>()
 }
@@ -157,15 +153,14 @@ private fun formatTime(pattern: String, at: Long): String =
     timeFormats.get()!!.getOrPut(pattern) { SimpleDateFormat(pattern, Locale.getDefault()) }.format(Date(at))
 
 /**
- * How a message was touched. What each of them does is the screen's to decide. [Thread] is a tap
- * on the line saying which message this one answers.
+ * How a message was touched; the screen decides what each does. [Thread] is a tap on the reply
+ * line.
  */
 enum class MessageGesture { Tap, NameTap, Hold, Thread }
 
 /**
- * One message. [onGesture] hears about taps and holds, and about a tap on the name as a gesture
- * of its own; without it the row is only something to look at, as in the user card. [channel]
- * puts the picture of the channel in front, for a list that mixes several.
+ * One message. [onGesture] receives taps, holds and name taps; without it the row is display only,
+ * as in the user card. [channel] shows the channel's picture in front, for mixed lists.
  */
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
@@ -179,12 +174,12 @@ fun MessageRow(
 ) {
     val currentItem by rememberUpdatedState(item)
     val currentGesture by rememberUpdatedState(onGesture)
-    // The name is a link inside the text, so that a tap on it is told apart from one on the words.
-    // Kept the same object for good: a new one would build the line again on every recomposition.
+    // The name is a link inside the text, so a tap on it is distinguishable from one on the
+    // message. Kept stable; a new instance would rebuild the line on every recomposition.
     val nameTap = remember { LinkInteractionListener { currentGesture?.invoke(currentItem, MessageGesture.NameTap) } }
     val nameClickable = onGesture != null && item.login != null
     val built = remember(item, style, nameClickable, channel) { buildLine(item, style, nameTap.takeIf { nameClickable }, channel) }
-    // Stable wrapper, so a new callback instance doesn't rebuild the inline content.
+    // Stable wrapper, so a new callback instance does not rebuild the inline content.
     val currentEmoteClick by rememberUpdatedState(onEmoteClick)
     val emoteClick = remember { { seg: Segment.EmoteSeg -> currentEmoteClick?.invoke(seg); Unit } }
     val measured = pendingAspects(built)
@@ -196,7 +191,7 @@ fun MessageRow(
 
     val firstMessage = item.isFirstMessage && style.firstMessageBackground != null
     val background = when {
-        // A rule's own color beats the general mention color: the user picked it for this message.
+        // A rule's own color beats the mention color.
         item.highlight != null -> Color(item.highlight).copy(alpha = HIGHLIGHT_ALPHA)
         item.isMention -> style.mentionBackground
         firstMessage -> style.firstMessageBackground
@@ -217,9 +212,9 @@ fun MessageRow(
                 ),
             )
             .padding(horizontal = 8.dp, vertical = 2.dp)
-            // Modulating every draw instead of Modifier.alpha, which composites each dimmed row in
-            // an offscreen layer of its own: with the history dimmed that was tens of thousands of
-            // saveLayers while scrolling. Text and emotes never overlap, so both look the same.
+            // Modulated per draw instead of Modifier.alpha, which renders each dimmed row into an
+            // offscreen layer: tens of thousands of saveLayers while scrolling dimmed history. Text
+            // and emotes never overlap, so the result looks the same.
             .graphicsLayer {
                 alpha = when {
                     item.deleted -> 0.4f
@@ -238,8 +233,7 @@ fun MessageRow(
             )
         }
         item.reply?.let { reply ->
-            // The quote goes where the string has its place, whichever order a language puts the
-            // name and the text in.
+            // The quote is inserted where the string puts it, whatever order a language uses.
             val template = stringResource(R.string.reply_to, style.nameOf(reply.parentLogin, reply.parentDisplayName), QUOTE_MARK)
             val quote = remember(template, item, style) { buildQuote(template, item.quote, reply.parentBody, style) }
             val quoteMeasured = pendingAspects(quote)
@@ -255,15 +249,15 @@ fun MessageRow(
                 fontSize = (style.fontSize - 2).sp,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
-                // Its own target, so that reading the conversation is not the same tap as answering.
+                // Its own tap target, so opening the conversation is not the same tap as answering.
                 modifier = if (onGesture == null) Modifier else Modifier
                     .fillMaxWidth()
                     .clickable { onGesture(item, MessageGesture.Thread) },
             )
         }
         if (item.kind == MessageKind.UserNotice && item.systemText != null) {
-            // The channel goes in front of the header here: a sub or a raid often comes without a
-            // message of its own, and then the header is all there is to the line.
+            // The channel goes in front of the header, since subs and raids often have no message
+            // of their own.
             Text(
                 text = remember(item.systemText, channel) {
                     buildAnnotatedString {
@@ -288,8 +282,7 @@ fun MessageRow(
             )
         }
         if (built.images.isNotEmpty()) {
-            // Beside each other while they fit, and only then onto a line of their own: two
-            // pictures in one message are usually meant to be looked at together.
+            // Side by side while they fit; two pictures in a message usually belong together.
             FlowRow(
                 horizontalArrangement = Arrangement.spacedBy(IMAGE_GAP),
                 verticalArrangement = Arrangement.spacedBy(IMAGE_GAP),
@@ -303,9 +296,8 @@ fun MessageRow(
 }
 
 /**
- * An image somebody linked, in place of its url. Tapping it opens the link — which is also all
- * that is left when the picture cannot be fetched: a url the app cannot show is still one the
- * browser might. [alone] is the only picture in its message, and may take the width for it.
+ * A linked image shown in place of its URL. Tapping opens the link, which is also the fallback when
+ * the image fails to load. [alone]: the only picture in the message, which may use more width.
  */
 @Composable
 private fun LinkedImage(url: String, style: ChatStyle, loader: ImageLoader, alone: Boolean) {
@@ -367,7 +359,7 @@ private fun inlineFor(
     }
     is InlineData.EmoteData -> {
         val base = data.seg.emote
-        // Wide zero-width overlays should not be clipped: use the widest aspect ratio.
+        // Wide zero-width overlays should not be clipped, so the widest aspect ratio is used.
         val aspect = (data.seg.overlays + base).maxOf { EmoteSizes.aspectRatio(it) }
         InlineTextContent(
             Placeholder((emoteEm * aspect).em, emoteEm.em, PlaceholderVerticalAlign.Center),
@@ -387,10 +379,10 @@ private fun inlineFor(
     }
 }
 
-/** Where the channel's picture goes in a line; see [appendChannel]. */
+/** Placeholder id of the channel picture; see [appendChannel]. */
 private const val CHANNEL_ID = "c"
 
-/** The picture of the channel a message was written in, in front of everything else in its line. */
+/** The picture of the message's channel, at the start of the line. */
 private fun AnnotatedString.Builder.appendChannel(channel: ChannelMark) {
     appendInlineContent(CHANNEL_ID, channel.name)
     append(' ')
@@ -398,7 +390,7 @@ private fun AnnotatedString.Builder.appendChannel(channel: ChannelMark) {
 
 private fun buildLine(item: ChatItem, style: ChatStyle, onName: LinkInteractionListener?, channel: ChannelMark?): BuiltLine {
     val inline = HashMap<String, InlineData>()
-    // A sub or a raid has the channel in front of its header instead, the line under it included.
+    // Subs and raids have the channel in front of their header instead.
     val lineChannel = channel.takeIf { item.kind != MessageKind.UserNotice }
     lineChannel?.let { inline[CHANNEL_ID] = InlineData.ChannelData(it) }
     val (segments, images) = ImageLinks.split(item.segments, style.imageHosts)
@@ -436,8 +428,7 @@ private fun buildLine(item: ChatItem, style: ChatStyle, onName: LinkInteractionL
         }
         withStyle(SpanStyle(color = nameColor, fontWeight = FontWeight.Bold)) {
             if (onName == null) append(displayName(item, style))
-            // Looks no different from a name that cannot be tapped: every name can be, so marking
-            // them would only be noise.
+            // Styled like any name: every name can be tapped, so marking them would only add noise.
             else withLink(LinkAnnotation.Clickable("name", TextLinkStyles(SpanStyle()), onName)) {
                 append(displayName(item, style))
             }
@@ -456,10 +447,9 @@ private fun buildLine(item: ChatItem, style: ChatStyle, onName: LinkInteractionL
 
 /**
  * The line above a reply: [template] is the localized "Replying to @name: …" with [QUOTE_MARK]
- * where the answered message goes. That message comes as segments, emotes and all, or as the
- * plain [fallback] text where nobody worked any out. A link is written short whatever the
- * setting, and is no link here: the line is one tap target, the conversation, and it has room
- * for one line only, which a whole url would fill on its own.
+ * where the answered message goes, given as [quote] segments or as plain [fallback] text. Links are
+ * always shortened and not clickable: the whole line opens the conversation and has room for one
+ * line only.
  */
 private fun buildQuote(template: String, quote: List<Segment>, fallback: String, style: ChatStyle): BuiltLine {
     val inline = HashMap<String, InlineData>()
@@ -488,10 +478,10 @@ private fun buildQuote(template: String, quote: List<Segment>, fallback: String,
     return BuiltLine(text, inline)
 }
 
-/** Stands in for the answered message in the reply template; a character no message contains. */
+/** Placeholder for the answered message in the reply template; never part of a message. */
 private const val QUOTE_MARK = "\uE000"
 
-/** Emotes in the line above a reply: smaller, so that one line stays one line of its height. */
+/** Smaller emotes in the reply line, so it keeps its line height. */
 private const val QUOTE_EMOTE_EM = 1.5f
 
 private fun AnnotatedString.Builder.appendSegments(segments: List<Segment>, inline: MutableMap<String, InlineData>, style: ChatStyle) {
@@ -514,13 +504,13 @@ private fun AnnotatedString.Builder.appendSegments(segments: List<Segment>, inli
     }
 }
 
-/** The nickname the user gave [login], or [fallback] when they gave none. */
+/** The nickname for [login], or [fallback]. */
 fun ChatStyle.nameOf(login: String?, fallback: String): String =
     login?.let { nicknames[it.lowercase()] } ?: fallback
 
 /**
  * "Name" or "Name (login)" for localized display names like Japanese or Korean ones. A nickname
- * the user picked replaces both: they already know who they meant by it.
+ * replaces both.
  */
 private fun displayName(item: ChatItem, style: ChatStyle): String {
     val display = item.displayName ?: item.login ?: ""

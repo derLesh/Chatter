@@ -66,11 +66,7 @@ import dev.chatter.app.util.INBOX_TAB_MENTIONS
 import dev.chatter.app.util.INBOX_TAB_WHISPERS
 import kotlinx.coroutines.launch
 
-/**
- * Everything written to the user personally, in two tabs: mentions out of the channels, and
- * whispers, which belong to no channel at all. The chat buffers forget, this does not — it is
- * where they find out who wanted something from them while the app was closed.
- */
+/** Mentions and whispers in two tabs. Unlike the chat buffers this keeps them across restarts. */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun InboxScreen(vm: MainViewModel, onOpenChannel: (String) -> Unit, onBack: () -> Unit) {
@@ -85,11 +81,11 @@ fun InboxScreen(vm: MainViewModel, onOpenChannel: (String) -> Unit, onBack: () -
     val scope = rememberCoroutineScope()
     val snackbar = remember { SnackbarHostState() }
     var replyTo by remember { mutableStateOf<InboxWhisper?>(null) }
-    // The actions in the bar belong to whichever tab is in front, not to the inbox as a whole.
+    // The bar's actions belong to the tab in front.
     val onMentions = pager.currentPage == INBOX_TAB_MENTIONS
     val hasItems = if (onMentions) mentions.isNotEmpty() else whispers.isNotEmpty()
 
-    // A whisper notification asks for its tab; the shortcut for the other one.
+    // Requested by a whisper notification or the shortcut.
     val requestedTab by vm.requestedInbox.collectAsStateWithLifecycle()
     LaunchedEffect(requestedTab) {
         val tab = requestedTab ?: return@LaunchedEffect
@@ -97,8 +93,8 @@ fun InboxScreen(vm: MainViewModel, onOpenChannel: (String) -> Unit, onBack: () -
         vm.requestedInbox.value = null
     }
 
-    // While the whisper tab is the thing being read, a whisper arriving in it needs no
-    // notification, and the ones already posted have been answered by opening this.
+    // While the whisper tab is open, arriving whispers need no notification and the posted ones are
+    // cleared.
     DisposableEffect(onMentions) {
         vm.setWhispersVisible(!onMentions)
         onDispose { vm.setWhispersVisible(false) }
@@ -167,8 +163,7 @@ fun InboxScreen(vm: MainViewModel, onOpenChannel: (String) -> Unit, onBack: () -
             name = nicknames[whisper.login.lowercase()] ?: whisper.displayName,
             quoted = whisper.text,
             onSend = { text ->
-                // Twitch may refuse a whisper for reasons only it knows, so the answer is not
-                // over until it says so - which is what lands in the snackbar.
+                // Twitch may refuse a whisper; the snackbar shows its answer.
                 scope.launch { snackbar.showSnackbar(vm.sendWhisper(whisper, text)) }
             },
             onDismiss = { replyTo = null },
@@ -247,7 +242,7 @@ private fun WhisperList(
     }
 }
 
-/** A whisper has no picture to show, so the sender's initial in their own color stands in. */
+/** Whispers have no picture; the sender's initial in their color stands in. */
 @Composable
 private fun InitialAvatar(name: String, color: Color) {
     Box(

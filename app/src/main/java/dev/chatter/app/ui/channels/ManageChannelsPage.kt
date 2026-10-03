@@ -56,13 +56,12 @@ import dev.chatter.app.channels.ChannelInfo
 import dev.chatter.app.channels.displayName
 import kotlin.math.roundToInt
 
-/** Fixed row height, which is what turns a drag distance into a number of positions moved. */
+/** Fixed row height, to turn a drag distance into a number of positions. */
 private val ROW_HEIGHT = 64.dp
 
 /**
- * Manages the channel list in one place: reorder by dragging the handle, rename, remove, and
- * add a new one. Combined chats are in the same list, where they can be moved between the
- * channels, changed and taken apart again.
+ * Manages the channel list: reorder by dragging, rename, remove, add. Combined chats are in the
+ * same list and can be moved, edited and removed.
  */
 @Composable
 fun ManageChannelsPage(
@@ -82,15 +81,14 @@ fun ManageChannelsPage(
     onCombine: () -> Unit,
     onEditGroup: (String) -> Unit,
 ) {
-    // A combined chat whose channels are not loaded yet has nothing to show; it is left out
-    // rather than drawn as an empty row.
+    // Combined chats whose channels are not loaded yet are left out instead of shown empty.
     val channels = pages.filter { !ChannelGroup.isKey(it) || it in groups }
     val density = LocalDensity.current
     val rowHeightPx = with(density) { ROW_HEIGHT.toPx() }
     var dragging by remember { mutableStateOf<String?>(null) }
     var dragOffset by remember { mutableFloatStateOf(0f) }
-    // Moving counts places in the stored list, where a combined chat that is not shown yet still
-    // takes one. Converting here keeps a drag landing where the rows said it would.
+    // Moves count positions in the stored list, where a hidden combined chat still takes a place;
+    // converting here keeps a drag landing where the rows showed.
     val move = { page: String, moved: Int ->
         val to = channels[(channels.indexOf(page) + moved).coerceIn(0, channels.lastIndex)]
         onMove(page, pages.indexOf(to) - pages.indexOf(page))
@@ -117,7 +115,7 @@ fun ManageChannelsPage(
     Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
         channels.forEachIndexed { index, login ->
             val held = dragging == login
-            // While one row is held, the others slide out of its way to show where it would land.
+            // While a row is held, the others slide aside to show where it would land.
             val shift = if (dragging == null || held) 0f else {
                 val from = channels.indexOf(dragging)
                 val to = (from + (dragOffset / rowHeightPx).roundToInt()).coerceIn(0, channels.lastIndex)
@@ -175,9 +173,9 @@ fun ManageChannelsPage(
     }
 }
 
-/** A combined chat in the list: the pictures and names of its channels, and a menu to change it. */
+/** A combined chat row: its channels' pictures and names, and a menu. */
 @Composable
-// The handle is a part of the row, not the row, and is named for what it goes on.
+// The modifier is for the drag handle, not the row.
 @Suppress("ModifierParameter")
 private fun GroupRow(
     group: ChannelGroup,
@@ -207,7 +205,7 @@ private fun GroupRow(
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
             )
-            // With a name of its own the channels are no longer in it, so they are spelled out.
+            // With a custom name, the channels are listed below it.
             if (group.name.isNotBlank()) {
                 Text(
                     group.channels.joinToString(" \u00B7 ") { info[it]?.displayName ?: it },
@@ -238,7 +236,7 @@ private fun GroupRow(
 }
 
 @Composable
-// The handle is a part of the row, not the row, and is named for what it goes on.
+// The modifier is for the drag handle, not the row.
 @Suppress("ModifierParameter")
 private fun ChannelRow(
     login: String,
@@ -268,7 +266,7 @@ private fun ChannelRow(
         Column(Modifier.weight(1f)) {
             val name = info?.displayName ?: login
             Text(name, style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.Medium, maxLines = 1)
-            // Only worth spelling out the login when a rename made it unrecognizable.
+            // The login is only shown when a custom name hides it.
             if (!name.equals(login, ignoreCase = true)) {
                 Text(
                     login,
@@ -278,7 +276,7 @@ private fun ChannelRow(
                 )
             }
         }
-        // Lit means mentions here notify; dimmed means they only count towards the badge.
+        // Lit: mentions here notify. Dimmed: they only count towards the badge.
         RowAction(
             icon = Icons.Default.Notifications,
             label = if (notify) R.string.channel_notify_on else R.string.channel_notify_off,
@@ -286,8 +284,8 @@ private fun ChannelRow(
             else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.38f),
             onClick = { onNotify(!notify) },
         )
-        // Renaming, removing and the title bar option share a menu: four icons in a row would
-        // leave no room for the name on a narrow screen.
+        // Rename, remove and the title bar option share a menu; four icons would leave no room for
+        // the name.
         var menu by remember { mutableStateOf(false) }
         Box {
             RowAction(Icons.Default.MoreVert, R.string.channel_options, { menu = true })
@@ -335,7 +333,7 @@ private fun RowAction(
     }
 }
 
-/** Rounded like the settings tiles: strong corners outside, slight ones between rows. */
+/** Rounded like the settings tiles: strong outer corners, slight ones between rows. */
 private fun tileShape(index: Int, count: Int): RoundedCornerShape {
     val outer = 24.dp
     val inner = 4.dp

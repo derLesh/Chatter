@@ -94,7 +94,7 @@ import kotlinx.coroutines.launch
 @Composable
 fun MainScreen(vm: MainViewModel, onInbox: () -> Unit, onSettings: () -> Unit) {
     val channels by vm.channels.collectAsStateWithLifecycle()
-    // What the pager swipes through: the channels, and the combined chats wherever the user put them.
+    // The pager's pages: channels and combined chats in the user's order.
     val pageKeys by vm.pages.collectAsStateWithLifecycle()
     val groups by vm.groups.collectAsStateWithLifecycle()
     val info by vm.channelInfo.collectAsStateWithLifecycle()
@@ -102,12 +102,11 @@ fun MainScreen(vm: MainViewModel, onInbox: () -> Unit, onSettings: () -> Unit) {
     val unreadMessages by vm.unreadMessages.collectAsStateWithLifecycle()
     val connection by vm.connection.collectAsStateWithLifecycle()
     val settings by vm.settings.collectAsStateWithLifecycle()
-    // Reading without an account: no field to write in, no service, no notifications to allow.
+    // Guests have no input, no service and no notifications to allow.
     val guest = vm.authState.collectAsStateWithLifecycle().value is AuthState.Guest
     val active by vm.activePage.collectAsStateWithLifecycle()
     val activeGroup = active?.let { groups[it] }
-    // The channel the chat modes and the user's role in the title bar are about. A combined chat
-    // is several, and one line of modes cannot say which of them it describes.
+    // The channel the title bar's chat modes and role describe; a combined chat has several.
     val activeChannel = active?.takeIf { activeGroup == null }
     val customNames by vm.customNames.collectAsStateWithLifecycle()
     val hiddenUnread by vm.hiddenUnread.collectAsStateWithLifecycle()
@@ -125,29 +124,27 @@ fun MainScreen(vm: MainViewModel, onInbox: () -> Unit, onSettings: () -> Unit) {
     val partnerMarks = remember(chatPartners) {
         chatPartners.mapValues { (_, p) -> ChannelMark(p.avatarUrl, p.displayName) }
     }
-    // Null while the channel on screen shares its chat with nobody; the partners Chatter can name.
+    // The nameable Shared Chat partners of the channel on screen; null if it shares with nobody.
     val sharedWith = activeChannel?.let { sharedChats[it] }?.map { id ->
         chatPartners[id]?.displayName ?: info.values.firstOrNull { it.id == id }?.displayName
     }?.filterNotNull()
 
-    // What may keep the user from writing where the next message goes, for the field to say.
+    // What may keep the user from writing where the next message goes, shown in the input.
     val restriction = vm.sendChannel?.let { ch -> SendLimits.restriction(roomStates[ch], roles[ch], ch in subscribed) }
 
     val context = LocalContext.current
-    // Not context.resources: only this one follows a configuration change, so a snackbar shown
-    // after the language was switched is still in the language on screen.
+    // Not context.resources: only this follows configuration changes, so a snackbar after a
+    // language switch uses the new language.
     val resources = LocalResources.current
     val lifecycleOwner = LocalLifecycleOwner.current
     val scope = rememberCoroutineScope()
     val snackbar = remember { SnackbarHostState() }
     OfferUndoRemoval(vm, snackbar)
-    // Where the pages are: one per channel, or a great many of them with the channels repeating,
-    // which is what lets a swipe carry on past the last one. Only the settings screen can turn
-    // that on, and opening it takes this screen out of the composition, so the pager is always
-    // built knowing which of the two it is.
+    // One page per channel, or many with the channels repeating so swiping wraps around. Only the
+    // settings can change that, and opening them removes this screen from composition, so the pager
+    // is always created with the current mode.
     val pages = ChannelPages(pageKeys.size, settings.carouselChannels)
-    // Opening the settings takes this screen out of the composition, so the pager starts over.
-    // Anchoring it to the channel the user was last on keeps them there when they come back.
+    // Opening the settings recreates the pager, so it starts at the channel the user was on.
     val pagerState = rememberPagerState(initialPage = pages.pageOf(pageKeys.indexOf(active).coerceAtLeast(0))) { pages.count }
 
     var actionItem by remember { mutableStateOf<ChatItem?>(null) }
@@ -155,54 +152,52 @@ fun MainScreen(vm: MainViewModel, onInbox: () -> Unit, onSettings: () -> Unit) {
     var showPicker by remember { mutableStateOf(false) }
     var showAdd by remember { mutableStateOf(false) }
     var renameTarget by remember { mutableStateOf<String?>(null) }
-    // Null while no dialog is open; the key of the combined chat being changed, or "" for a new one.
+    // Null while no dialog is open; the key of the combined chat being edited, or "" for a new one.
     var combineTarget by remember { mutableStateOf<String?>(null) }
-    // The channel a new combined chat was asked for from, ticked when the dialog opens.
+    // The channel a new combined chat was started from, pre-ticked in the dialog.
     var combineWith by remember { mutableStateOf<String?>(null) }
     var nicknameTarget by remember { mutableStateOf<ChatItem?>(null) }
-    // Whom a whisper is being written to from their card: the message, and their id if known.
+    // Whisper recipient from a user card: their message and their id if known.
     var whisperTo by remember { mutableStateOf<Pair<ChatItem, String?>?>(null) }
-    // The message whose conversation is open, or null while none is.
+    // The message whose conversation is open, or null.
     var threadOf by remember { mutableStateOf<ChatItem?>(null) }
 
-    // Animated emotes are the most expensive thing on the screen, and the battery saver is the
-    // phone being asked to do less — so it stills them, the same way the setting does. Saving
-    // data does too, since every frame is bytes. Both stop linked images from being fetched at
-    // all; see rememberChatStyle.
+    // Animated emotes are the most expensive part of the screen; battery saver and data saving
+    // still them like the setting does, and also stop linked images (see rememberChatStyle).
     val powerSave by vm.powerSaveMode.collectAsStateWithLifecycle()
     val saveData by vm.saveData.collectAsStateWithLifecycle()
     val loader = if (settings.animatedEmotes && !powerSave && !saveData) vm.imageLoader else vm.staticImageLoader
-    // A chat left alone next to the stream keeps its emotes moving, just with fewer frames.
+    // An idle chat next to a stream keeps animating, at a lower frame rate.
     val activity = remember { ChatActivity() }
     val emoteFrameRate = rememberEmoteFrameRate(activity, settings.slowIdleEmotes)
     val style = rememberChatStyle(settings, nicknames, powerSave, saveData, emoteFrameRate)
-    // Only while this screen is in front: the bubble draws the same shared emotes, and it is not
-    // the main window going untouched that should slow them down there.
+    // Only while this screen is in front: the bubble draws the same shared emotes, and the main
+    // window being idle should not slow them there.
     LifecycleStartEffect(emoteFrameRate) {
         SharedEmotes.setFrameRate(emoteFrameRate)
         onStopOrDispose { SharedEmotes.setFrameRate(EmoteFrameRate.ACTIVE) }
     }
 
-    // Only while the chat is on screen; leaving it (or the settings) lets the screen sleep again.
+    // Only while the chat is on screen.
     val view = LocalView.current
     DisposableEffect(settings.keepScreenOn) {
         view.keepScreenOn = settings.keepScreenOn
         onDispose { view.keepScreenOn = false }
     }
 
-    // Keep the chat service (and with it the connection) running while there are channels.
+    // Keeps the chat service and connection running while there are channels.
     LifecycleStartEffect(channels.isNotEmpty(), guest) {
         if (channels.isNotEmpty() && !guest) ChatService.start(context)
         onStopOrDispose { }
     }
 
-    // Whenever the chat comes on screen; the repository itself keeps it to once a day.
+    // Each time the chat comes on screen; the repository limits it to once a day.
     LifecycleStartEffect(Unit) {
         vm.checkForUpdate()
         onStopOrDispose { }
     }
 
-    // Poll live status only while the app is on screen.
+    // Polls live status only while the app is on screen.
     LaunchedEffect(lifecycleOwner) {
         lifecycleOwner.repeatOnLifecycle(Lifecycle.State.STARTED) { vm.pollLiveStatus() }
     }
@@ -218,7 +213,7 @@ fun MainScreen(vm: MainViewModel, onInbox: () -> Unit, onSettings: () -> Unit) {
     val focusManager = LocalFocusManager.current
     LaunchedEffect(resources, settings.haptics) {
         vm.messages.collect { message ->
-            // Everything that reaches the snackbar is something that did not work out.
+            // Everything in the snackbar is a failure.
             if (settings.haptics) haptics.performHapticFeedback(HapticFeedbackType.Reject)
             val text = message.fill
                 ?.let { resources.getString(message.text, it) }
@@ -227,8 +222,7 @@ fun MainScreen(vm: MainViewModel, onInbox: () -> Unit, onSettings: () -> Unit) {
         }
     }
 
-    // Only the mentions that arrive under the user's eyes. The others buzz through their
-    // notification, and both at once would be one buzz too many.
+    // Only mentions that arrive on screen; others vibrate through their notification.
     LaunchedEffect(lifecycleOwner, settings.haptics) {
         if (!settings.haptics) return@LaunchedEffect
         lifecycleOwner.repeatOnLifecycle(Lifecycle.State.STARTED) {
@@ -238,45 +232,42 @@ fun MainScreen(vm: MainViewModel, onInbox: () -> Unit, onSettings: () -> Unit) {
         }
     }
 
-    // Back to the channel the user was reading. The pager cannot do this itself: when the screen
-    // is rebuilt after Android stopped the process, the channel list is still empty, and the page
-    // it remembered is clamped to the first channel before the list arrives.
+    // Restores the channel the user was reading. The pager cannot: after process death the channel
+    // list is empty at first and its remembered page gets clamped to the first channel.
     var restored by remember { mutableStateOf(false) }
     LaunchedEffect(pageKeys) {
         if (restored || pageKeys.isEmpty()) return@LaunchedEffect
         val index = pageKeys.indexOf(active ?: vm.lastChannel.value).coerceAtLeast(0)
-        // From the origin, not from wherever the pager clamped itself to while the list was
-        // still empty: a carousel has to start in the middle to have room to wrap both ways.
+        // From the origin, not from where the pager clamped itself: a carousel starts in the middle
+        // to wrap both ways.
         val page = pages.pageOf(index)
         if (page != pagerState.currentPage) pagerState.scrollToPage(page)
         restored = true
     }
 
-    // Which channel a page shows is its distance from the origin modulo the number of channels,
-    // so adding or removing one would slide a different channel under the user. Anchoring the
-    // pager back on the one they were reading keeps it in front of them.
+    // A page's channel is its offset from the origin modulo the channel count, so adding or
+    // removing one would shift channels; re-anchor on the one being read.
     LaunchedEffect(pageKeys.size) {
         if (!restored || !pages.wrapping) return@LaunchedEffect
         val index = pageKeys.indexOf(active)
         if (index >= 0) pagerState.scrollToPage(pages.pageOf(index, pagerState.currentPage))
     }
 
-    // A bubble reads a channel of its own and says so while it is open. Once the chat screen is
-    // back in front, the page on screen is the channel again — otherwise the title bar would keep
-    // naming whatever the bubble was showing.
+    // A bubble shows its own channel in the title bar while open; when the chat screen is back, the
+    // page on screen is the channel again.
     LifecycleStartEffect(pageKeys, restored, pages) {
         if (restored) vm.selectChannel(pages.channelAt(pagerState.currentPage)?.let(pageKeys::getOrNull))
         onStopOrDispose { }
     }
 
-    // The page on screen defines the active channel — once it is the page the user expects. The
-    // combined chats are a key as well: the one on screen may have been given other channels.
+    // The page on screen sets the active channel, once it is the expected page. Combined chats are
+    // keys too, since the one on screen may have new channels.
     LaunchedEffect(pagerState, pageKeys, groups, restored, pages) {
         if (!restored) return@LaunchedEffect
         snapshotFlow { pages.channelAt(pagerState.currentPage) }
             .collect { vm.selectChannel(it?.let(pageKeys::getOrNull)) }
     }
-    // Jump to a page requested by a notification tap or right after adding or combining it.
+    // Scrolls to a page requested by a notification, or just added or combined.
     LaunchedEffect(pageKeys, pages) {
         vm.requestedChannel.filterNotNull().collect { ch ->
             val index = pageKeys.indexOf(ch)
@@ -367,14 +358,14 @@ fun MainScreen(vm: MainViewModel, onInbox: () -> Unit, onSettings: () -> Unit) {
             } else {
                 HorizontalPager(
                     state = pagerState,
-                    // A wrapping pager shows the same channel on many pages, so only the page
-                    // itself tells them apart. Without one, keying on the channel is what keeps
-                    // a channel's place in the list with it when the channels are reordered.
+                    // A wrapping pager shows a channel on many pages, so only the page index
+                    // identifies them. Otherwise keying on the channel keeps its state when
+                    // channels are reordered.
                     key = { if (pages.wrapping) it else pageKeys.getOrElse(it) { "" } },
                     modifier = Modifier.weight(1f),
                 ) { page ->
                     val channel = pages.channelAt(page)?.let(pageKeys::getOrNull) ?: return@HorizontalPager
-                    // Which channel each message is from is only worth showing where they mix.
+                    // The channel of each message is only shown where channels mix.
                     val members = groups[channel]?.channels
                     val marks = remember(members, info) {
                         members?.associateWith { ChannelMark(info[it]?.avatarUrl, info[it]?.displayName ?: it) }
@@ -389,24 +380,23 @@ fun MainScreen(vm: MainViewModel, onInbox: () -> Unit, onSettings: () -> Unit) {
                         style = style,
                         imageLoader = loader,
                         onGesture = { item, gesture ->
-                            // Holding is not up to the settings: it is the one way to the user
-                            // card that stays whatever the taps were given to.
+                            // Holding always opens the user card, whatever taps are set to.
                             val action = when (gesture) {
                                 MessageGesture.Tap -> settings.messageTap
                                 MessageGesture.NameTap -> settings.nameTap
                                 MessageGesture.Hold -> TapAction.UserCard
-                                // Reading the conversation, which is the one thing it can be.
+                                // A tap on the reply line opens the conversation.
                                 MessageGesture.Thread -> {
-                                    // Otherwise the field keeps its focus under the sheet, and
-                                    // Android hands it the keyboard back once the sheet is gone.
+                                    // Otherwise the input keeps focus under the sheet and gets the
+                                    // keyboard back when it closes.
                                     focusManager.clearFocus()
                                     threadOf = item
                                     vm.startReply(item)
                                     return@ChatList
                                 }
                             }
-                            // What cannot be answered or named (a notice, a message Twitch has
-                            // not confirmed yet) opens the card instead, as every tap used to.
+                            // Messages that cannot be answered or mentioned (a notice, an
+                            // unconfirmed message) open the card.
                             when (action) {
                                 TapAction.Reply -> if (!vm.startReply(item)) actionItem = item
                                 TapAction.Mention -> if (item.login != null) vm.mention(item) else actionItem = item
@@ -425,8 +415,8 @@ fun MainScreen(vm: MainViewModel, onInbox: () -> Unit, onSettings: () -> Unit) {
                 value = vm.input,
                 onValueChange = { activity.note(); vm.onInputChange(it) },
                 enabled = vm.sendChannel != null && connection == ConnectionState.Connected,
-                // The conversation has a field of its own, and two asking for the keyboard at once
-                // would fight over it.
+                // The conversation sheet has its own input; two inputs would fight over the
+                // keyboard.
                 replyTo = vm.replyTo.takeIf { threadOf == null },
                 suggestions = vm.suggestions,
                 imageLoader = loader,
@@ -470,8 +460,8 @@ fun MainScreen(vm: MainViewModel, onInbox: () -> Unit, onSettings: () -> Unit) {
         )
     }
     threadOf?.let { opened ->
-        // Answering is what the sheet is for: a sent answer leaves nothing to answer, so the next
-        // one goes to the message answered last, and with it into the same conversation.
+        // After an answer is sent, the next one goes to the last answered message, in the same
+        // conversation.
         var target by remember(opened) { mutableStateOf(opened) }
         LaunchedEffect(target, vm.replyTo) { if (vm.replyTo == null) vm.startReply(target) }
         ThreadSheet(
@@ -512,7 +502,7 @@ fun MainScreen(vm: MainViewModel, onInbox: () -> Unit, onSettings: () -> Unit) {
                 name = nicknames[login.lowercase()] ?: item.displayName ?: login,
                 quoted = null,
                 onSend = { text ->
-                    // Twitch may refuse a whisper for reasons only it knows; the snackbar says which.
+                    // Twitch refuses whispers for various reasons; the snackbar says which.
                     scope.launch { snackbar.showSnackbar(vm.whisperTo(login, userId, text)) }
                 },
                 onDismiss = { whisperTo = null },
@@ -599,7 +589,7 @@ private fun EmptyState(onAdd: () -> Unit, modifier: Modifier) {
     }
 }
 
-/** The screens the app moves between once logged in: the chat, and the two it opens over itself. */
+/** The screens after login: the chat and the two it opens over itself. */
 private enum class Screen { Chat, Inbox, Settings }
 
 @Composable
@@ -608,16 +598,16 @@ fun AppRoot(vm: MainViewModel) {
     var showSettings by remember { mutableStateOf(false) }
     var showInbox by remember { mutableStateOf(false) }
 
-    // Asked for from outside (the shortcut, a whisper notification). The inbox itself clears it
-    // once it has scrolled to the tab, so it is only opened here.
+    // Requested from outside (shortcut, whisper notification). The inbox clears it after scrolling
+    // to the tab.
     val requestedInbox by vm.requestedInbox.collectAsStateWithLifecycle()
     LaunchedEffect(requestedInbox) {
         if (requestedInbox == null) return@LaunchedEffect
         showSettings = false
         showInbox = true
     }
-    // Logging the last account out leaves the settings underneath the login screen, and whoever
-    // logs in next would land on the page they were last on rather than in the chat.
+    // After the last logout the settings would stay underneath the login screen, and the next login
+    // would land there instead of in the chat.
     LaunchedEffect(auth) {
         if (auth is AuthState.LoggedOut) {
             showSettings = false
@@ -637,8 +627,8 @@ fun AppRoot(vm: MainViewModel) {
                 showSettings = false
                 showInbox = false
             }
-            // The chat leaves the composition while another screen is fully over it, as it always
-            // has; it is only there underneath while one slides, or is dragged away by the gesture.
+            // The chat leaves composition while another screen covers it, and is only underneath
+            // while one slides or is dragged away.
             rememberPredictiveTransition(
                 current = screen,
                 backTo = Screen.Chat.takeIf { screen != Screen.Chat },
@@ -660,7 +650,7 @@ fun AppRoot(vm: MainViewModel) {
                     Screen.Chat -> MainScreen(vm, onInbox = { showInbox = true }, onSettings = { showSettings = true })
                 }
             }
-            // Shows itself only right after an update, and only for more than a fix release.
+            // Shows itself only right after an update to a minor or major version.
             UpdateNotesSheet(vm)
         }
     }

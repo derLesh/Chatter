@@ -36,11 +36,8 @@ import dev.chatter.app.channels.ChannelInfo
 import dev.chatter.app.channels.displayName
 
 /**
- * Picks the channels of a combined chat and what it is called — a new one, or [group] changed.
- * A new one starts with [preselected] ticked: the channel it was asked for from.
- *
- * The name may stay empty; the chat is then called after the channels ticked, which the field
- * shows as its placeholder while it is empty, so it is clear what leaving it empty means.
+ * Picks a combined chat's channels and name, for a new one or for [group]. A new one starts with
+ * [preselected] ticked. An empty name falls back to the channels' names, shown as placeholder.
  */
 @Composable
 fun CombineChannelsDialog(

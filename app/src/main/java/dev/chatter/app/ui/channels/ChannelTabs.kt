@@ -67,16 +67,11 @@ import dev.chatter.app.irc.ConnectionState
 import dev.chatter.app.ui.theme.barColor
 
 /**
- * The bar above the chat when the pages are tabs: every page in the order a swipe goes through
- * them, the way to add one, the inbox and the settings — all in one row. A swipe lands on the tab
- * next to the marked one, so the user can see where it is going before they make it, which a
- * title naming only the page on screen cannot say.
+ * The bar above the chat in tab mode: every page in swipe order, the add button, inbox and settings
+ * in one row. The user sees where a swipe will go before making it.
  *
- * The tab already names the page, so the line under it carries only what the title's second line
- * did: the connection, the user's role, a Shared Chat and the chat modes. A channel with none of
- * them has no line.
- *
- * Holding a tab opens what the channel menu of the other bar holds for that page.
+ * The line under the tabs only shows the connection, role, Shared Chat and chat modes; a channel
+ * with none of them has no line. Holding a tab opens the same options as the channel menu.
  */
 @Composable
 fun ChannelTabBar(
@@ -88,7 +83,7 @@ fun ChannelTabBar(
     unreadMessages: Map<String, Int>,
     roomState: RoomState?,
     roleBadge: Badge?,
-    /** The Shared Chat partners of [active], or null while it shares its chat with nobody. */
+    /** Shared Chat partners of [active], or null if it shares with nobody. */
     sharedWith: List<String>?,
     connection: ConnectionState,
     showUnread: Boolean,
@@ -105,7 +100,7 @@ fun ChannelTabBar(
     inboxUnread: Int,
     onSettings: () -> Unit,
     settingsBadge: Boolean = false,
-    /** The pages left with an unsent message in the field. */
+    /** Pages with an unsent draft. */
     drafts: Set<String> = emptySet(),
 ) {
     val activeGroup = active?.let { groups[it] }
@@ -138,14 +133,13 @@ fun ChannelTabBar(
                     }
                 }
                 IconButton(onClick = onSettings) {
-                    // A newer version waits in the settings; the dot is all that says so out here.
+                    // The dot is the only hint out here that an update is waiting.
                     BadgedBox(badge = { if (settingsBadge) Badge() }) {
                         Icon(Icons.Default.Settings, contentDescription = stringResource(R.string.settings))
                     }
                 }
             }
-            // Asked here rather than left to the status line, which would still take its padding
-            // while it has nothing to say.
+            // Decided here, since an empty status line would still take its padding.
             val hasStatus = when {
                 active == null -> false
                 connection != ConnectionState.Connected -> true
@@ -184,14 +178,14 @@ private fun ChannelTabs(
     onMove: (String, Int) -> Unit,
     modifier: Modifier,
 ) {
-    // A combined chat's channels are not known for a moment after start; a tab for it then would
-    // have neither a name nor a picture.
+    // A combined chat's channels are unknown for a moment after start; its tab would have neither
+    // name nor picture.
     val shown = pages.filter { !ChannelGroup.isKey(it) || groups[it] != null }
     val selected = shown.indexOf(active)
     val channelCount = pages.count { !ChannelGroup.isKey(it) }
     PrimaryScrollableTabRow(
-        // The row cannot be told that no tab is selected, which is the case for a moment after
-        // start and whenever there are no channels at all; it then draws no indicator instead.
+        // The row cannot show "no tab selected" (briefly after start, or with no channels); it
+        // draws no indicator then.
         selectedTabIndex = selected.coerceAtLeast(0),
         containerColor = MaterialTheme.colorScheme.barColor,
         edgePadding = 4.dp,
@@ -209,8 +203,7 @@ private fun ChannelTabs(
             val group = groups[page]
             val members = (group?.channels ?: listOf(page)).filter { it !in hiddenUnread }
             val isSelected = index == selected
-            // What the user is reading has nothing new by definition, whatever the count still
-            // says in the moment before it is cleared.
+            // The page being read has nothing new, whatever the count says before it is cleared.
             val mentions = if (showUnread && !isSelected) members.sumOf { unread[it] ?: 0 } else 0
             val hasNew = showUnread && !isSelected && members.any { (unreadMessages[it] ?: 0) > 0 }
             val position = pages.indexOf(page)
@@ -225,7 +218,7 @@ private fun ChannelTabs(
                 hasNew = hasNew,
                 hasDraft = page in drafts,
                 onClick = { onSelect(page) },
-                // Grouped by what they do to the tab: where it stands, what it is, and whether it stays.
+                // Grouped by effect: position, identity, removal.
                 actions = listOf(
                     listOfNotNull(
                         TabAction(stringResource(R.string.move_left), { Icon(Icons.AutoMirrored.Filled.KeyboardArrowLeft, null) }) {
@@ -238,7 +231,7 @@ private fun ChannelTabs(
                     if (group != null) listOf(
                         TabAction(stringResource(R.string.edit), { Icon(Icons.Default.Edit, null) }) { onEditGroup(page) },
                     ) else listOfNotNull(
-                        // Combining takes two channels; with fewer the dialog has nothing to pick.
+                        // Combining needs at least two channels.
                         TabAction(stringResource(R.string.combine_channels), { Icon(painterResource(R.drawable.ic_combine_chats), null) }) {
                             onCombine(page)
                         }.takeIf { channelCount >= 2 },
@@ -250,19 +243,19 @@ private fun ChannelTabs(
                 ).filter { it.isNotEmpty() },
             )
         }
-        // At the end of the row, where the next channel will appear once it is added.
+        // At the end, where the new channel will appear.
         IconButton(onClick = onAdd) {
             Icon(Icons.Default.Add, contentDescription = stringResource(R.string.add_channel))
         }
     }
 }
 
-/** One entry of the menu a tab opens when it is held. */
+/** One entry of a held tab's menu. */
 private class TabAction(val label: String, val icon: @Composable () -> Unit, val onClick: () -> Unit)
 
 /**
- * One page as a tab. Not Material's own Tab, which has no way to be held: holding is what opens
- * the page's options, [actions], one menu group per list.
+ * One page as a tab. Not Material's Tab, which cannot be held; holding opens the page's options
+ * ([actions]), one menu group per list.
  */
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
@@ -304,7 +297,7 @@ private fun ChannelTab(
                 Text(
                     text = name,
                     style = MaterialTheme.typography.titleSmall,
-                    // Bold is the quiet half of "something is new here"; the dot beside it is the other.
+                    // Bold together with the dot marks new messages.
                     fontWeight = if (hasNew || mentions > 0) FontWeight.Bold else null,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,

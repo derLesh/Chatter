@@ -56,21 +56,19 @@ import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.launch
 
-/** The message list as UI Automator finds it. The benchmark module spells the same name out. */
+/** The message list for UI Automator. The benchmark module repeats the name. */
 const val CHAT_LIST_TAG = "chat"
 
 /**
- * The message list of one channel, or of a combined chat. Newest message at the bottom
- * (reverseLayout), follows new messages automatically unless the user scrolled up to read.
+ * The message list of a channel or combined chat. Newest at the bottom (reverseLayout); follows new
+ * messages unless the user scrolled up.
  *
- * [channels] marks every message with the channel it came from, by login; only a combined chat
- * passes it, where that is not obvious from the page. [partners] marks the messages a Shared Chat
- * partner sent over, by channel id, on every page: there it is never obvious.
+ * [channels] marks messages with their channel, by login; only combined chats pass it. [partners]
+ * marks Shared Chat partner messages, by channel id, on every page.
  *
- * [readMark] is how far the page had been read when the user last left it. What arrived since
- * gets a line above it and a chip that jumps there; see [ReadMark]. [onSeen] hears which message
- * is the newest on screen, and only the page in front passes it: the others are not being read.
- * [onMentionsSeen] hears the mentions on screen, by id, under the same rule.
+ * [readMark] is how far the page was read when the user last left it; newer messages get a line and
+ * a chip that jumps there (see [ReadMark]). Only the page in front passes [onSeen], which receives
+ * the newest message on screen, and [onMentionsSeen], which receives the visible mentions by id.
  */
 @Composable
 fun ChatList(
@@ -87,21 +85,21 @@ fun ChatList(
     onSeen: ((ReadMark) -> Unit)? = null,
     onMentionsSeen: ((Set<String>) -> Unit)? = null,
 ) {
-    // Already filtered for deleted messages by the repository, which had to copy the buffer anyway.
+    // Deleted messages are already filtered by the repository.
     val items by messages.collectAsStateWithLifecycle()
     val listState = rememberLazyListState()
     val scope = rememberCoroutineScope()
     var follow by remember { mutableStateOf(true) }
-    // Only the user's own drags decide whether we keep following new messages. Our own
-    // (possibly interrupted) scroll animations must not switch following off.
+    // Only the user's own drags decide whether to follow new messages; our scroll animations must
+    // not turn it off.
     var userScrolling by remember { mutableStateOf(false) }
 
     LaunchedEffect(listState) {
         listState.interactionSource.interactions.collect { if (it is DragInteraction.Start) userScrolling = true }
     }
     val unseen = remember(items, readMark) { readMark?.unseenIn(items) }
-    // The chip is for finding the line. Once the line has been on screen, or the user has
-    // scrolled back down to the newest message, it has done its job.
+    // The chip helps find the line; once the line was on screen or the user scrolled to the bottom,
+    // it is done.
     var chipDone by remember(readMark) { mutableStateOf(false) }
     val lineIndex = unseen?.let { items.size - 1 - it.first }
     val lineShown by remember(listState, lineIndex) {
@@ -120,7 +118,7 @@ fun ChatList(
     }
     val currentOnSeen by rememberUpdatedState(onSeen)
     if (onSeen != null) LaunchedEffect(listState) {
-        // reverseLayout: the first visible row is the newest one on screen.
+        // reverseLayout: the first visible row is the newest on screen.
         snapshotFlow { items.getOrNull(items.size - 1 - listState.firstVisibleItemIndex) }
             .filterNotNull()
             .distinctUntilChanged { a, b -> a.id == b.id }
@@ -129,8 +127,7 @@ fun ChatList(
     val currentOnMentionsSeen by rememberUpdatedState(onMentionsSeen)
     if (onMentionsSeen != null) LaunchedEffect(listState) {
         snapshotFlow {
-            // Checked against the row's key: a message that just arrived shifts every index by
-            // one before the layout has caught up, and a mention a row below the screen is not seen.
+            // Checked by key: a new message shifts every index before the layout catches up.
             listState.layoutInfo.visibleItemsInfo.mapNotNullTo(HashSet()) { row ->
                 items.getOrNull(items.size - 1 - row.index)?.takeIf { it.isMention && it.id == row.key }?.id
             }
@@ -139,11 +136,10 @@ fun ChatList(
             .distinctUntilChanged()
             .collect { currentOnMentionsSeen?.invoke(it) }
     }
-    // Always a straight jump to the newest message, never an animated one. A new message is
-    // inserted at index 0, which pushes the list's anchor up by a row, and the viewport has to
-    // come back down. Animating that while the rows themselves are animating into their new
-    // places means two motions of the same distance at different speeds - which is the jolt.
-    // With smooth scrolling on, the rows do the visible moving (see animateItem below).
+    // Always a jump to the newest message, never animated. A new message at index 0 pushes the
+    // anchor up a row; animating the viewport while the rows animate into place gives two motions
+    // of the same distance at different speeds, which jolts. With smooth scrolling on, the rows do
+    // the moving (see animateItem below).
     LaunchedEffect(items) {
         if (follow && items.isNotEmpty() && !userScrolling) listState.scrollToItem(0)
     }
@@ -153,14 +149,14 @@ fun ChatList(
             state = listState,
             reverseLayout = true,
             contentPadding = PaddingValues(vertical = 4.dp),
-            // How the baseline profile and the macrobenchmark find the list to scroll: UI Automator
-            // only sees a Compose test tag where it is handed over as a resource id.
+            // UI Automator only sees a Compose test tag when exposed as a resource id; the baseline
+            // profile and the macrobenchmark use it to find the list.
             modifier = Modifier
                 .fillMaxSize()
                 .semantics { testTagsAsResourceId = true }
                 .testTag(CHAT_LIST_TAG),
         ) {
-            // reverseLayout puts index 0 at the bottom, so index i shows the i-th newest message.
+            // reverseLayout: index i is the i-th newest message.
             val count = items.size
             items(
                 count = count,
@@ -168,9 +164,8 @@ fun ChatList(
                 contentType = { items[count - 1 - it].kind },
             ) { index ->
                 val rowModifier = if (smoothScrolling) {
-                    // Quick and without overshoot on purpose. A soft spring never settles while
-                    // a busy chat keeps pushing rows up, and a list permanently in motion is
-                    // exactly what makes it hard to read along.
+                    // Quick and without overshoot: a soft spring never settles while a busy chat
+                    // keeps pushing rows up.
                     Modifier.animateItem(
                         fadeInSpec = tween(120),
                         placementSpec = spring(
@@ -181,11 +176,11 @@ fun ChatList(
                     )
                 } else Modifier
                 val item = items[count - 1 - index]
-                // Where it was written, which for a partner's message is not the channel it came in.
+                // Where it was written; for a partner's message not the channel it arrived in.
                 val mark = item.sourceRoomId?.let(partners::get) ?: channels?.get(item.channel)
                 if (index == lineIndex) {
-                    // Part of the row rather than a row of its own: the keys stay those of the
-                    // messages, and the line cannot end up anywhere but above its message.
+                    // Part of the row, not its own row: the keys stay the messages' and the line
+                    // stays above its message.
                     Column(rowModifier) {
                         UnseenLine()
                         MessageRow(item, style, imageLoader, onGesture, onEmoteClick, mark)
@@ -201,8 +196,8 @@ fun ChatList(
                 onClick = {
                     scope.launch {
                         follow = false
-                        // reverseLayout puts the row scrolled to at the bottom; pulled back up a
-                        // screen, the line is at the top with everything new under it.
+                        // reverseLayout puts the target row at the bottom; scrolled back a screen,
+                        // the line is at the top with the new messages below.
                         listState.scrollToItem(lineIndex)
                         val row = listState.layoutInfo.visibleItemsInfo.firstOrNull { it.index == lineIndex }?.size ?: 0
                         listState.scrollBy(-(listState.layoutInfo.viewportSize.height - row).coerceAtLeast(0).toFloat())
@@ -233,7 +228,7 @@ fun ChatList(
     }
 }
 
-/** The thin line above the first message that arrived while the user was away. */
+/** The line above the first message that arrived while the user was away. */
 @Composable
 private fun UnseenLine() {
     val color = MaterialTheme.colorScheme.error
@@ -251,7 +246,7 @@ private fun UnseenLine() {
     }
 }
 
-/** How much arrived while the user was away; tapping it goes to where that starts. */
+/** How much arrived while away; tapping jumps to the start of it. */
 @Composable
 private fun UnseenChip(unseen: Unseen, onClick: () -> Unit, modifier: Modifier) {
     Surface(

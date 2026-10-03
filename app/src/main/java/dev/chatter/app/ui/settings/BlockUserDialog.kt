@@ -41,9 +41,8 @@ import dev.chatter.app.net.HelixChannelSearch
 import kotlinx.coroutines.delay
 
 /**
- * Blocks someone who is not on screen to be long-pressed. Twitch has no user search, so the
- * channel search stands in for one: it finds anyone who streams, and a name typed in full works
- * for everyone else.
+ * Blocks someone who is not on screen. Twitch has no user search, so the channel search stands in;
+ * a full name typed works for everyone else.
  */
 @Composable
 fun BlockUserDialog(
@@ -109,7 +108,7 @@ fun BlockUserDialog(
     )
 }
 
-/** Unblocking is easy to hit by accident and undoes a deliberate decision, so it asks first. */
+/** Unblocking is easy to hit by accident, so it asks first. */
 @Composable
 fun ConfirmUnblockDialog(name: String, onConfirm: () -> Unit, onDismiss: () -> Unit) {
     AlertDialog(

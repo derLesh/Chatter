@@ -25,9 +25,8 @@ import dev.chatter.app.R
 import dev.chatter.app.ui.MainViewModel
 
 /**
- * Greets an update with what it brought. It puts itself on screen only when there is something
- * unread, which the repository works out — a fix release never gets in the way, and a fresh
- * install has no news to catch up on.
+ * What an update brought. Only shows when the repository reports unread releases, which excludes
+ * patch releases and fresh installs.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -35,7 +34,7 @@ fun UpdateNotesSheet(vm: MainViewModel) {
     val releases by vm.unreadReleases.collectAsStateWithLifecycle()
     if (releases.isEmpty()) return
 
-    // Swiping it away counts as having read it, the same as the button does.
+    // Swiping it away counts as read, like the button.
     ModalBottomSheet(
         onDismissRequest = vm::markChangelogRead,
         containerColor = MaterialTheme.colorScheme.surfaceContainerLow,

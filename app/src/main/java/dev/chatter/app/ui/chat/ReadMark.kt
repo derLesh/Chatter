@@ -4,21 +4,20 @@ import androidx.compose.runtime.Immutable
 import dev.chatter.app.chat.ChatItem
 
 /**
- * How far a page had been read when the user left it: the newest message they had on screen. The
- * time is kept beside the id for when that message is gone — trimmed away by the limit, or hidden
- * once a moderator deleted it — and only the time can still say what came after it.
+ * How far a page was read when left: the newest message on screen. The time is kept for when that
+ * message is gone (trimmed, or hidden after deletion), since only the time still says what came
+ * after.
  */
 @Immutable
 data class ReadMark(val id: String, val timestamp: Long)
 
 /**
- * The part of a list that arrived after a [ReadMark]: it starts at [first], oldest first, and is
- * [count] messages long. [cutOff] says that more arrived than the list holds, so the start of it
- * has been trimmed away already.
+ * The part of a list newer than a [ReadMark]: [count] messages from [first], oldest first.
+ * [cutOff]: more arrived than the list holds, so the start was already trimmed.
  */
 data class Unseen(val first: Int, val count: Int, val cutOff: Boolean)
 
-/** What of [items] is new since this mark, or null when nothing is. */
+/** What of [items] is newer than this mark, or null. */
 fun ReadMark.unseenIn(items: List<ChatItem>): Unseen? {
     val at = items.indexOfLast { it.id == id }
     val first = if (at >= 0) at + 1 else items.indexOfFirst { it.timestamp > timestamp }.let { if (it < 0) items.size else it }

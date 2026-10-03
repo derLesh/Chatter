@@ -15,10 +15,9 @@ import dev.chatter.app.ui.theme.ChatterTheme
 import dev.chatter.app.util.EXTRA_CHANNEL
 
 /**
- * One channel's chat, floating over whatever the user is doing, as an Android chat bubble.
- *
- * It is its own activity (and its own [MainViewModel]) on purpose: the bubble has a draft, a
- * reply and a scroll position of its own, and closing it must not disturb the main window.
+ * One channel's chat as an Android chat bubble. A separate activity with its own [MainViewModel],
+ * since the bubble has its own draft, reply and scroll position, and closing it must not affect the
+ * main window.
  */
 class BubbleActivity : ComponentActivity() {
     private val vm: MainViewModel by viewModels {
@@ -40,8 +39,8 @@ class BubbleActivity : ComponentActivity() {
 
     override fun onStart() {
         super.onStart()
-        // The bubble is a chat window like any other: while it is open the channel is the one
-        // being read, so its mentions stop piling up and its notification goes away.
+        // While open, the bubble's channel counts as read: its mentions stop accumulating and its
+        // notification goes away.
         channel?.let { vm.selectChannel(it) }
         vm.setUiVisible(true)
     }

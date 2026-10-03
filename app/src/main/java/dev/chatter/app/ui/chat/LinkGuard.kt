@@ -25,12 +25,9 @@ import dev.chatter.app.chat.LinkText
 import kotlinx.coroutines.launch
 
 /**
- * Asks before a link that is dressed up as another site is opened (see [LinkText.isUnusual]),
- * showing where it really goes. Every other link opens on a tap, as before.
- *
- * It takes the place of [LocalUriHandler] around [content], which is what Compose opens a tapped
- * link in a message with — so every link in the app goes through it, not only the ones a screen
- * remembered to check.
+ * Asks before opening a link disguised as another site (see [LinkText.isUnusual]) and shows where
+ * it really goes; other links open directly. Replaces [LocalUriHandler] around [content], so every
+ * link in the app passes through it.
  */
 @Composable
 fun LinkGuard(content: @Composable () -> Unit) {

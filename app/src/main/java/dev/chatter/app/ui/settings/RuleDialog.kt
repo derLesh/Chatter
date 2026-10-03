@@ -48,7 +48,7 @@ import dev.chatter.app.chat.RuleEngine
 import dev.chatter.app.chat.RuleTarget
 import java.util.UUID
 
-/** The colors a rule can paint a message with; the first one means "use the mention color". */
+/** Colors a rule can use; the first means "use the mention color". */
 private val RULE_COLORS = listOf(
     null,
     0xFFFF9800.toInt(), 0xFFFFC107.toInt(), 0xFF4CAF50.toInt(), 0xFF00BCD4.toInt(),
@@ -56,8 +56,8 @@ private val RULE_COLORS = listOf(
 )
 
 /**
- * Writes one rule: what to look for, where to look, and what to do about it. A new rule starts
- * from [ChatRule]'s defaults, an existing one is edited in place (same id).
+ * Edits one rule: what to look for, where, and what to do. A new rule starts from [ChatRule]'s
+ * defaults; an existing one keeps its id.
  */
 @Composable
 fun RuleDialog(rule: ChatRule?, onSave: (ChatRule) -> Unit, onDismiss: () -> Unit) {
@@ -115,7 +115,7 @@ fun RuleDialog(rule: ChatRule?, onSave: (ChatRule) -> Unit, onDismiss: () -> Uni
                     onSelect = { draft = draft.copy(action = it) },
                 )
 
-                // A hidden message is never drawn, so its color would be a promise nobody keeps.
+                // Hidden messages are never drawn, so no color.
                 if (draft.action != RuleAction.Hide) {
                     Label(R.string.rule_color)
                     ColorRow(draft.color) { draft = draft.copy(color = it) }

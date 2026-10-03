@@ -14,25 +14,24 @@ import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.delay
 
 /**
- * How many frames a second animated emotes are put on screen with. Above [ACTIVE] and at it, the
- * RenderThread animates them at the pace their files set; below it, [SharedEmotes] steps them and
- * puts them on screen at the lower rate, which is also what they ask the display for through
- * `preferredFrameRate`. See [rememberEmoteFrameRate] for when it is lowered.
+ * Frames per second for animated emotes. At or above [ACTIVE] the RenderThread animates them at
+ * their own pace; below, [SharedEmotes] steps them at the lower rate, which is also requested via
+ * `preferredFrameRate`. See [rememberEmoteFrameRate].
  */
 object EmoteFrameRate {
-    /** Smooth enough for any emote, and a quarter of what a 120 Hz screen would otherwise draw. */
+    /** Smooth for any emote, a quarter of what a 120 Hz screen would draw. */
     const val ACTIVE = 30f
 
     /** Still clearly moving, at a third of the frames. */
     const val IDLE = 10f
 
-    /** How long the chat goes untouched before its emotes slow down. */
+    /** Idle time before emotes slow down. */
     const val IDLE_AFTER_MS = 3 * 60_000L
 }
 
 /**
- * When the chat was last touched or typed into. A plain holder rather than state: a touch must
- * not recompose the screen, only wake up [rememberEmoteFrameRate] if it is waiting for one.
+ * When the chat was last touched. Not state: a touch must not recompose, only wake
+ * [rememberEmoteFrameRate].
  */
 class ChatActivity {
     @Volatile var last: Long = System.currentTimeMillis()
@@ -45,17 +44,16 @@ class ChatActivity {
     }
 
     internal suspend fun awaitTouch() {
-        // A touch from before the chat went idle is not one that ends it.
+        // Touches from before the chat went idle do not end it.
         while (touched.tryReceive().isSuccess) Unit
         touched.receive()
     }
 }
 
 /**
- * The frame rate for the chat's emotes: [EmoteFrameRate.ACTIVE], and [EmoteFrameRate.IDLE] once
- * nobody has touched the chat for [EmoteFrameRate.IDLE_AFTER_MS] — a phone next to the stream, the
- * screen kept on, where nobody looks closely at a GIF that went by a minute ago. The next touch
- * brings the full rate back at once. Off, when [enabled] is.
+ * [EmoteFrameRate.ACTIVE], or [EmoteFrameRate.IDLE] once the chat was not touched for
+ * [EmoteFrameRate.IDLE_AFTER_MS], e.g. a phone next to the stream. The next touch restores the full
+ * rate. Always active when [enabled] is false.
  */
 @Composable
 fun rememberEmoteFrameRate(activity: ChatActivity, enabled: Boolean): Float {
@@ -77,7 +75,7 @@ fun rememberEmoteFrameRate(activity: ChatActivity, enabled: Boolean): Float {
     return if (idle) EmoteFrameRate.IDLE else EmoteFrameRate.ACTIVE
 }
 
-/** Notes every touch anywhere inside, without taking it from whatever it was meant for. */
+/** Notes every touch inside without consuming it. */
 fun Modifier.noteTouches(activity: ChatActivity): Modifier = pointerInput(activity) {
     awaitPointerEventScope {
         while (true) {

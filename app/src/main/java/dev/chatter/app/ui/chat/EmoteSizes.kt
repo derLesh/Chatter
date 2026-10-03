@@ -6,26 +6,23 @@ import coil3.compose.AsyncImagePainter
 import dev.chatter.app.emotes.Emote
 
 /**
- * Aspect ratios measured from loaded images, for emotes whose provider does not report a size
- * (BTTV). Compose state, so rows showing such an emote re-layout once the real width is known.
+ * Aspect ratios measured from loaded images, for emotes without a reported size (BTTV). Compose
+ * state, so rows relayout once the width is known.
  */
 object EmoteSizes {
-    /** Beyond this many emotes the least recently drawn one is dropped and measured again later. */
+    /** Beyond this the least recently drawn emote is dropped and measured again later. */
     private const val KEEP = 512
 
     /**
-     * One piece of state per emote, rather than one map holding all of them. A snapshot state map
-     * is a single piece of state however many keys it has, so measuring one emote would redraw
-     * every row on screen that is still waiting on any other.
-     *
-     * Access ordered and bounded: someone who reads chat all day walks past far more emotes than
-     * are ever on screen, and none of them would otherwise be let go of again.
+     * One state per emote rather than a snapshot state map, which is a single state: measuring one
+     * emote would redraw every row waiting on any other. Access-ordered and bounded, since a day of
+     * chat shows far more emotes than are ever on screen.
      */
     private val measured = object : LinkedHashMap<String, MutableState<Float?>>(64, 0.75f, true) {
         override fun removeEldestEntry(eldest: Map.Entry<String, MutableState<Float?>>) = size > KEEP
     }
 
-    /** Both reads and writes reorder the map, so every access is behind the same lock. */
+    /** Reads and writes reorder the map, so every access takes the lock. */
     private fun slot(url: String): MutableState<Float?> =
         synchronized(measured) { measured.getOrPut(url) { mutableStateOf(null) } }
 

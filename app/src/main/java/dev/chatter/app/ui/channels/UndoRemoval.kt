@@ -11,15 +11,14 @@ import dev.chatter.app.ui.MainViewModel
 import kotlinx.coroutines.flow.collectLatest
 
 /**
- * Offers every channel or combined chat removed while this screen is up back through [snackbar].
- *
- * Both the chat and the channel settings can remove one, and only one of them is ever on screen,
- * so whichever it is says so. A second removal replaces the snackbar of the first: cancelling
- * [SnackbarHostState.showSnackbar] takes it away.
+ * Offers undo through [snackbar] for every channel or combined chat removed while this screen is
+ * up. The chat and the channel settings can both remove, and only one is on screen. A second
+ * removal replaces the first snackbar, since cancelling [SnackbarHostState.showSnackbar] dismisses
+ * it.
  */
 @Composable
 fun OfferUndoRemoval(vm: MainViewModel, snackbar: SnackbarHostState) {
-    // Not context.resources, which does not follow a change of language.
+    // Not context.resources, which does not follow a language change.
     val resources = LocalResources.current
     LaunchedEffect(vm, resources) {
         vm.removals.collectLatest { removal ->

@@ -71,11 +71,9 @@ import java.time.format.DateTimeFormatter
 import java.time.format.FormatStyle
 
 /**
- * Opens on tap / long press of a message: who wrote it (avatar, badges, account age, bio),
- * what you can do with it, and the user's recent messages in this channel.
- *
- * [onWhisper] gets their Twitch id where the card has loaded it, which saves the whisper a lookup.
- * A [guest] cannot write, so the card offers nothing that would: no reply, mention or whisper.
+ * Opened from a message: the author (avatar, badges, account age, bio), actions, and their recent
+ * messages in this channel. [onWhisper] receives the Twitch id once loaded, saving a lookup. A
+ * [guest] gets no actions that write.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -88,7 +86,7 @@ fun UserCardSheet(
     recentMessages: suspend () -> List<ChatItem>,
     profile: suspend () -> HelixUser?,
     blocked: Boolean,
-    /** Copy in front and Reply at the end of the row, instead of the other way round. */
+    /** Copy first and Reply last in the row, instead of the reverse. */
     copyFirst: Boolean,
     onBlock: (HelixUser, Boolean) -> Unit,
     onBlockLogin: (String) -> Unit,
@@ -113,10 +111,8 @@ fun UserCardSheet(
     val isUserMessage = item.login != null
     val canReply = !guest && item.canReply && !item.id.startsWith("local-")
 
-    // The sheet waits for the recent messages, which come from memory and take no time. Opened
-    // before them it would find itself short and open all the way, and a sheet that is open all
-    // the way stays so when the messages then make it tall. Opened with them, a long card opens
-    // half-way like a short one does, and the rest is a swipe up.
+    // Waits for the recent messages, which come from memory. Opened earlier the sheet would be
+    // short, expand fully and stay so; opened with them, a long card opens half-way.
     val messages = recent ?: return
     ModalBottomSheet(onDismissRequest = onDismiss, containerColor = MaterialTheme.colorScheme.surfaceContainerLow) {
         LazyColumn(Modifier.fillMaxWidth()) {
@@ -136,7 +132,7 @@ fun UserCardSheet(
                 }
             }
 
-            // The message that was tapped.
+            // The tapped message.
             item {
                 Surface(
                     color = MaterialTheme.colorScheme.surfaceContainerHigh,
@@ -163,17 +159,15 @@ fun UserCardSheet(
                             onDismiss()
                         }
                     }
-                    // The two swap places and Mention stays in the middle, so the one the user
-                    // reaches for most is always the first button.
+                    // They swap places, Mention stays in the middle.
                     if (copyFirst) copy() else reply()
                     if (isUserMessage && !guest) ActionButton(Icons.Default.Person, R.string.action_mention) { onMention(); onDismiss() }
                     if (copyFirst) reply() else copy()
                 }
             }
 
-            // Doing something about the person rather than with the message. Blocking needs the
-            // profile (for the Twitch id), so it waits for the card to load; reporting does not,
-            // and a card that fails to load is no reason to be unable to report.
+            // Actions on the person. Blocking needs the profile's Twitch id; reporting works even
+            // if the card fails to load.
             if (isUserMessage && !item.isOwn) {
                 item {
                     Row(
@@ -245,7 +239,7 @@ fun UserCardSheet(
     }
 
     if (avatarOpen) user?.profileImageUrl?.takeIf { it.isNotEmpty() }?.let { url ->
-        // Twitch hands out 300 px pictures; bigger than that they would only be blurred.
+        // Twitch avatars are 300 px; larger would only blur.
         Dialog(onDismissRequest = { avatarOpen = false }) {
             AsyncImage(
                 model = url,
@@ -311,7 +305,7 @@ private fun Header(
                 IconButton(onClick = onNickname) {
                     Icon(Icons.Default.Edit, contentDescription = stringResource(R.string.nickname_title))
                 }
-                // Their channel page, which the Twitch app opens itself where it is installed.
+                // Their channel page, opened by the Twitch app if installed.
                 item.login?.let { login ->
                     IconButton(onClick = { uriHandler.openUri("https://www.twitch.tv/$login") }) {
                         Icon(
@@ -344,7 +338,7 @@ private fun Header(
     }
 }
 
-/** Badges in a single line below the name; scrolls sideways if there are many. */
+/** Badges in one line below the name, scrolling sideways if needed. */
 @Composable
 private fun BadgeRow(item: ChatItem, imageLoader: ImageLoader) {
     Row(
@@ -372,7 +366,7 @@ private fun BadgeRow(item: ChatItem, imageLoader: ImageLoader) {
     }
 }
 
-/** Buttons share one row equally; labels are cut off rather than wrapping to a second line. */
+/** Buttons share the row; labels are cut instead of wrapping. */
 private val CompactPadding = PaddingValues(horizontal = 8.dp, vertical = 8.dp)
 
 @Composable

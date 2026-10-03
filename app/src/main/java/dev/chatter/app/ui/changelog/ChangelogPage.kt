@@ -22,7 +22,7 @@ import dev.chatter.app.R
 import dev.chatter.app.changelog.Level
 import dev.chatter.app.changelog.Release
 
-/** What each level is called for someone reading the changelog, rather than releasing it. */
+/** Level labels for readers of the changelog. */
 private val LEVEL_LABELS = mapOf(
     Level.Major to R.string.changelog_major,
     Level.Minor to R.string.changelog_minor,
@@ -30,8 +30,8 @@ private val LEVEL_LABELS = mapOf(
 )
 
 /**
- * Every release Chatter has had, newest first, as one card each. Reached from the about page, and
- * the same cards make up the sheet that greets an update.
+ * All releases, newest first, one card each. Reached from the about page; the update sheet uses the
+ * same cards.
  */
 @Composable
 fun ChangelogPage(releases: List<Release>, currentVersion: String) {
@@ -54,7 +54,7 @@ fun ChangelogPage(releases: List<Release>, currentVersion: String) {
     }
 }
 
-/** One release: which version it was, when it landed, and what it changed. */
+/** One release: version, date and changes. */
 @Composable
 fun ReleaseCard(release: Release, isCurrent: Boolean = false) {
     Surface(
@@ -69,7 +69,7 @@ fun ReleaseCard(release: Release, isCurrent: Boolean = false) {
                     style = MaterialTheme.typography.titleLarge,
                     fontWeight = FontWeight.Bold,
                 )
-                // Says which of the releases is the one running, so the list has a "you are here".
+                // Marks the running version.
                 if (isCurrent) {
                     Spacer(Modifier.width(8.dp))
                     Surface(
@@ -93,7 +93,7 @@ fun ReleaseCard(release: Release, isCurrent: Boolean = false) {
                 )
             }
             release.groups.forEach { group ->
-                // A group whose entries never named a level has no heading to put above them.
+                // Entries without a level get no heading.
                 val label = LEVEL_LABELS[group.level]
                 if (label != null) {
                     Text(

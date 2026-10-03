@@ -6,11 +6,9 @@ import kotlin.math.abs
 import kotlin.math.pow
 
 /**
- * How the name colors users picked on Twitch are made readable on the chat background.
- *
- * Dark blue on a black background is unreadable, so the color is pushed towards the background's
- * opposite. Which way that happens changes how the palette feels, so the choice is the user's
- * (the same modes FrankerFaceZ offers).
+ * How user-picked Twitch name colors are made readable on the chat background. Dark blue on black
+ * is unreadable, so the color is pushed towards the background's opposite; the method is the user's
+ * choice (the same modes FrankerFaceZ offers).
  */
 enum class NameColorPalette {
     /** Names stay in the normal text color. */
@@ -19,30 +17,30 @@ enum class NameColorPalette {
     /** Exactly the color Twitch reports, however unreadable it is. */
     Twitch,
 
-    /** Brightens/darkens in HSL until the color is readable. Keeps hue and saturation. */
+    /** Lightens or darkens in HSL until readable, keeping hue and saturation. */
     HslLuma,
 
-    /** Like [HslLuma], but the lightness wraps around instead of running into white/black. */
+    /** Like [HslLuma], but lightness wraps around instead of reaching white or black. */
     HslLoop,
 
-    /** Like [HslLuma] in CIELUV, which keeps the perceived hue better than HSL does. */
+    /** Like [HslLuma] in CIELUV, which preserves the perceived hue better. */
     LuvLuma,
 
-    /** Shifts the RGB channels and wraps what runs over, which also changes the hue. */
+    /** Shifts the RGB channels with wraparound, which also changes the hue. */
     RgbLoop,
 }
 
-// Contrast targets against the chat background, in relative (WCAG) luminance.
+// Contrast targets against the chat background, as relative (WCAG) luminance.
 private const val MIN_LUMA_ON_DARK = 0.18f
 private const val MAX_LUMA_ON_LIGHT = 0.40f
 
-/** True if [color] is already readable on this background and needs no adjustment at all. */
+/** True if [color] is readable on this background as it is. */
 private fun readable(color: Color, dark: Boolean): Boolean =
     if (dark) color.luminance() >= MIN_LUMA_ON_DARK else color.luminance() <= MAX_LUMA_ON_LIGHT
 
 /**
- * Applies the palette to a name color. Returns [Color.Unspecified] for [NameColorPalette.None],
- * which leaves the name in the surrounding text color.
+ * Applies the palette. [Color.Unspecified] for [NameColorPalette.None], which keeps the surrounding
+ * text color.
  */
 fun NameColorPalette.adjust(base: Color, dark: Boolean): Color = when {
     this == NameColorPalette.None -> Color.Unspecified
@@ -65,14 +63,13 @@ fun NameColorPalette.adjust(base: Color, dark: Boolean): Color = when {
 }
 
 /**
- * Finds the smallest lightness change (in whatever space [build] works in) that makes the color
- * readable. On a dark background the lightness only goes up, on a light one only down, so the
- * color never jumps past the one the user picked.
+ * The smallest lightness change (in [build]'s color space) that makes the color readable. Only up
+ * on dark backgrounds and only down on light ones, so the result stays close to the picked color.
  */
 private inline fun solveLightness(dark: Boolean, current: Float, build: (Float) -> Color): Color {
     var lo = if (dark) current else 0f
     var hi = if (dark) 1f else current
-    // The extreme end is the fallback: if even white is too dark, nothing else will do better.
+    // The extreme is the fallback: if white is not enough, nothing is.
     var best = build(if (dark) hi else lo)
     repeat(STEPS) {
         val mid = (lo + hi) / 2f
@@ -87,13 +84,13 @@ private inline fun solveLightness(dark: Boolean, current: Float, build: (Float) 
     return best
 }
 
-/** Walks the color around its space in fixed steps and stops at the first readable one. */
+/** Steps the color around its space and stops at the first readable one. */
 private inline fun loop(dark: Boolean, build: (Float) -> Color): Color {
     var fallback = build(LOOP_STEP)
     for (i in 1..LOOP_COUNT) {
         val color = build(i * LOOP_STEP)
         if (readable(color, dark)) return color
-        // Nothing fits: keep whichever came closest to the background's opposite.
+        // Nothing fits: keep the one closest to the background's opposite.
         if (if (dark) color.luminance() > fallback.luminance() else color.luminance() < fallback.luminance()) {
             fallback = color
         }
@@ -140,7 +137,7 @@ internal fun hslColor(hue: Float, saturation: Float, lightness: Float): Color {
     return Color((r + m).coerceIn(0f, 1f), (g + m).coerceIn(0f, 1f), (b + m).coerceIn(0f, 1f))
 }
 
-// CIELUV around the D65 white point, the same reference sRGB uses.
+// CIELUV with the D65 white point, as used by sRGB.
 private const val WHITE_X = 95.047f
 private const val WHITE_Y = 100f
 private const val WHITE_Z = 108.883f
@@ -172,7 +169,7 @@ internal fun luvColor(lStar: Float, u: Float, v: Float): Color {
     val l = lStar.coerceIn(0f, 100f)
     if (l <= 0f) return Color.Black
     val y = if (l > 8f) WHITE_Y * ((l + 16f) / 116f).pow(3) else WHITE_Y * l / 903.3f
-    // Grays have no chroma to preserve, and the formulas below would divide by zero.
+    // Grays have no chroma to keep, and the formulas below would divide by zero.
     if (abs(u) < 1e-4f && abs(v) < 1e-4f) {
         val gray = linearToGamma((y / 100f).coerceIn(0f, 1f)).coerceIn(0f, 1f)
         return Color(gray, gray, gray)

@@ -20,15 +20,12 @@ import androidx.navigationevent.compose.rememberNavigationEventState
 import kotlinx.coroutines.launch
 
 /**
- * A move between screens that the back gesture can hold halfway. While the user drags, the
- * transition is seeked from [current] towards [backTo] as far as their finger has gone, so the
- * screen underneath shows before they let go; letting go calls [onBack] and the move finishes
- * from where the finger left it, calling it off slides everything back.
+ * A screen transition the back gesture can hold halfway. While the user drags, the transition is
+ * seeked from [current] towards [backTo]; releasing calls [onBack] and finishes the move,
+ * cancelling slides back.
  *
- * Without [backTo] there is nowhere to go back to here, and the gesture is left to whoever
- * handles it further out — in the end, Android, which leaves the app.
- *
- * Every other change of [current] (a tap on a button, a notification) animates on its own.
+ * Without [backTo] the gesture is left to outer handlers, ultimately Android, which leaves the app.
+ * Other changes of [current] animate normally.
  */
 @Composable
 fun <T> rememberPredictiveTransition(current: T, backTo: T?, onBack: () -> Unit, label: String): Transition<T> {
@@ -54,9 +51,8 @@ fun <T> rememberPredictiveTransition(current: T, backTo: T?, onBack: () -> Unit,
 }
 
 /**
- * Like Android: the screen being opened (title bar included) slides in over the one it opens
- * from, which moves a little aside and dims; going back, it slides out on top again. Screens are
- * opaque, so nothing shows through.
+ * Like Android: the opened screen slides in over the previous one, which shifts aside and dims;
+ * going back it slides out on top again.
  */
 fun slideBetweenScreens(forward: Boolean): ContentTransform {
     val transform = if (forward) {

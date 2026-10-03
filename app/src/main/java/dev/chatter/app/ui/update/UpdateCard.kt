@@ -33,9 +33,8 @@ import dev.chatter.app.ui.changelog.ReleaseCard
 import dev.chatter.app.update.AvailableUpdate
 
 /**
- * That a newer Chatter is out, at the top of the settings. Deliberately a card and not a dialog:
- * it waits there until the user has a moment, and the dot on the settings icon is what says it
- * is there at all.
+ * A newer Chatter is out, shown at the top of the settings. A card instead of a dialog, so it waits
+ * until the user has time; the dot on the settings icon points to it.
  */
 @Composable
 fun UpdateCard(update: AvailableUpdate, installed: String, onWhatsNew: () -> Unit) {
@@ -73,7 +72,7 @@ fun UpdateCard(update: AvailableUpdate, installed: String, onWhatsNew: () -> Uni
     }
 }
 
-/** What the new version changes, and the way to it. Opened from [UpdateCard]. */
+/** What the new version changes and how to install it. Opened from [UpdateCard]. */
 @Composable
 fun UpdatePage(update: AvailableUpdate) {
     val context = LocalContext.current
@@ -83,8 +82,7 @@ fun UpdatePage(update: AvailableUpdate) {
             Spacer(Modifier.width(ButtonDefaults.IconSpacing))
             Text(stringResource(R.string.update_download_version, update.version))
         }
-        // Somebody who has never sideloaded an update may well wonder what installing it does to
-        // what they have set up.
+        // Reassures users new to sideloaded updates that their settings stay.
         Text(
             stringResource(R.string.update_download_hint),
             style = MaterialTheme.typography.bodySmall,
@@ -96,8 +94,8 @@ fun UpdatePage(update: AvailableUpdate) {
 }
 
 /**
- * Hands the APK to the browser, which downloads it and offers to install it. The app itself
- * installs nothing, so it needs no permission to install packages.
+ * Hands the APK to the browser, which downloads it and offers to install it, so the app needs no
+ * install permission.
  */
 private fun download(context: Context, update: AvailableUpdate) {
     context.startActivity(Intent(Intent.ACTION_VIEW, update.url.toUri()))

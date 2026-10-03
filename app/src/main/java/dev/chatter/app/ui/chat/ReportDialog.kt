@@ -30,15 +30,13 @@ import androidx.compose.ui.unit.dp
 import androidx.core.net.toUri
 import dev.chatter.app.R
 
-/** Twitch's own help on what reporting does and how it is handled. */
+/** Twitch's help on reporting. */
 private const val REPORT_HELP_URL = "https://link.twitch.tv/HowToFileUserReport"
 
 /**
- * Reporting a chatter. Chatter only displays Twitch's chat, so nothing here can take a message
- * down — the report itself belongs to Twitch, and Twitch has no report URL to link straight to:
- * the form lives behind the "..." menu on a channel page. So this does the two things it can:
- * blocks the user right away, which is the part that takes effect immediately, and hands the
- * message over on the clipboard so it can be pasted into Twitch's form on the page it opens.
+ * Reporting a chatter. Reports belong to Twitch, which has no direct report URL (the form is in a
+ * channel page's "..." menu). So this blocks the user right away and copies the message to the
+ * clipboard for pasting into Twitch's form.
  */
 @Composable
 fun ReportDialog(

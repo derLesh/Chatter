@@ -23,8 +23,8 @@ import java.util.concurrent.ConcurrentHashMap
 
 val LiveRed = Color(0xFFEB0400)
 
-// Complete Material 3 schemes built around Twitch purple (tonal palette, hue ~265).
-// Used when Material You is off; every surface level is defined so containers look consistent.
+// Full Material 3 schemes around Twitch purple (hue ~265), used when Material You is off. Every
+// surface level is defined so containers are consistent.
 private val DarkColors = darkColorScheme(
     primary = Color(0xFFD3BBFF),
     onPrimary = Color(0xFF3F0090),
@@ -107,7 +107,7 @@ fun ChatterTheme(
     }
     val context = LocalContext.current
     val base = when {
-        // Material You (Android 12+, always available with minSdk 33).
+        // Material You, always available with minSdk 33.
         dynamicColor && dark -> dynamicDarkColorScheme(context)
         dynamicColor -> dynamicLightColorScheme(context)
         dark -> DarkColors
@@ -115,7 +115,7 @@ fun ChatterTheme(
     }
     val colors = if (pureBlack && dark) pureBlack(base) else base
 
-    // Status/navigation bar icons must follow the app theme, not the system theme.
+    // Status and navigation bar icons follow the app theme, not the system theme.
     val view = LocalView.current
     if (!view.isInEditMode) {
         SideEffect {
@@ -131,13 +131,12 @@ fun ChatterTheme(
 }
 
 /**
- * [dark] with black behind everything that fills the screen for hours — the chat, the bars above
- * and below it — because on an OLED screen a black pixel is one that is switched off.
+ * [dark] with black behind everything that is on screen for hours (chat and bars), since black OLED
+ * pixels are off.
  *
- * Only the neutral surfaces change. Every accent comes from [dark] as it is, so Material You keeps
- * the wallpaper's colors. The containers each move one step down the same tonal ladder instead of
- * being made up: tiles, sheets and cards stay lighter than the black around them and keep the
- * faint tint the palette gave them.
+ * Only neutral surfaces change; accents stay, so Material You keeps the wallpaper colors.
+ * Containers move one step down the same tonal palette, so tiles, sheets and cards stay lighter
+ * than the black and keep their tint.
  */
 fun pureBlack(dark: ColorScheme): ColorScheme = dark.copy(
     background = Color.Black,
@@ -151,15 +150,14 @@ fun pureBlack(dark: ColorScheme): ColorScheme = dark.copy(
 )
 
 /**
- * Whether this is a [pureBlack] scheme. Nothing else puts pure black behind the app — Material's
- * darkest background is a grey — so the scheme can say so itself, and whatever has a color scheme
- * at hand does not need a second thing passed along to know.
+ * Whether this is a [pureBlack] scheme. Material's darkest background is grey, so pure black
+ * identifies it without passing a flag around.
  */
 val ColorScheme.isPureBlack: Boolean get() = background == Color.Black
 
 /**
- * The title bar and the channel tabs. A container everywhere else, so that they stand apart from
- * the chat below; black on a [pureBlack] scheme, because they are on screen as long as the chat.
+ * Title bar and channel tabs: a container color to stand apart from the chat, black on a
+ * [pureBlack] scheme since they are on screen as long as the chat.
  */
 val ColorScheme.barColor: Color get() = if (isPureBlack) background else surfaceContainer
 
@@ -171,13 +169,12 @@ fun highlightColor(setting: Int, scheme: ColorScheme): Color = when (setting) {
 }
 
 /**
- * Background tint of highlighted (mention) messages. Over black the same tint comes out a good
- * deal darker than over grey, so it is laid on thicker there to be seen at a glance all the same.
+ * Background tint of highlighted messages. Stronger over black, where the same tint looks darker.
  */
 fun highlightBackground(setting: Int, scheme: ColorScheme): Color =
     highlightColor(setting, scheme).copy(alpha = if (scheme.isPureBlack) 0.3f else 0.2f)
 
-/** True if the current color scheme is dark (whatever the system setting says). */
+/** True if the current color scheme is dark, whatever the system setting says. */
 @Composable
 @ReadOnlyComposable
 fun isAppInDarkTheme(): Boolean = MaterialTheme.colorScheme.background.luminance() < 0.5f
@@ -189,8 +186,8 @@ private val DefaultNameColors = listOf(
 ).map { Color(it) }
 
 /**
- * The name color to paint a user in: the one they picked on Twitch (or one derived from their
- * login if they never did), run through the [palette] so it stays readable on the background.
+ * A user's name color: their Twitch color, or one derived from the login if they have none,
+ * adjusted by [palette] for readability.
  */
 fun readableNameColor(
     argb: Int?,
@@ -203,19 +200,16 @@ fun readableNameColor(
 }
 
 /**
- * Which of [size] fallback colors [login] gets. Not `abs(hash) % size`: the absolute value of
- * Int.MIN_VALUE is Int.MIN_VALUE again, and a login with that hash — "polygenelubricants" is
- * one, and a valid Twitch name — would index below zero and crash every chat it writes in.
+ * Which of [size] fallback colors [login] gets. Not `abs(hash) % size`: abs(Int.MIN_VALUE) is
+ * negative, and a login with that hash ("polygenelubricants", a valid Twitch name) would crash
+ * every chat it writes in.
  */
 internal fun fallbackColorIndex(login: String?, size: Int): Int = Math.floorMod((login ?: "").hashCode(), size)
 
 /**
- * Remembers what [NameColorPalette.adjust] worked out for a color, because working it out is a
- * twelve-step search whose every step converts a color space and measures luminance. A message
- * row rebuilds its text whenever it scrolls back into view, so without this the same handful of
- * colors is solved again on every screenful.
- *
- * The keys are colors, not users: everyone who never picked one shares a palette of fifteen.
+ * Caches [NameColorPalette.adjust] results; each is a twelve-step search with color space
+ * conversions, and message rows rebuild their text whenever they scroll back into view. Keyed by
+ * color, not user: users without a color share a palette of fifteen.
  */
 private object NameColorCache {
     private val entries = ConcurrentHashMap<Long, Color>()
@@ -225,8 +219,8 @@ private object NameColorCache {
             (palette.ordinal.toLong() shl 32) or
             (if (dark) 1L shl 40 else 0L)
         entries[key]?.let { return it }
-        // A channel full of custom colors could otherwise grow this without end. Starting over
-        // costs one solve per color still on screen, which nobody can see happen.
+        // Bounded, since a channel full of custom colors could grow it forever; refilling costs one
+        // solve per visible color.
         if (entries.size >= MAX_ENTRIES) entries.clear()
         return palette.adjust(base, dark).also { entries[key] = it }
     }

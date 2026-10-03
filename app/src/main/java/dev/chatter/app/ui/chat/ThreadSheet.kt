@@ -32,12 +32,9 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.filter
 
 /**
- * One conversation out of a busy chat: the message it started with and every answer to it that is
- * still in the channel, oldest at the top. It is read from the channel's own list, so an answer
- * arriving while the sheet is open turns up at the bottom of it.
- *
- * Tapping a message makes it the one [onAnswer] answers; whatever it is, Twitch files the answer
- * under the same conversation. [input] is the field to write it in.
+ * One conversation: its first message and all answers still in the channel, oldest at the top. Read
+ * from the channel's list, so new answers appear while it is open. Tapping a message makes it the
+ * target of [onAnswer]; Twitch files the answer under the same conversation. [input] is the field.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -53,26 +50,26 @@ fun ThreadSheet(
 ) {
     val all by messages.collectAsStateWithLifecycle()
     val thread = remember(all, threadId) { all.filter { it.id == threadId || it.reply?.threadId == threadId } }
-    // The first message may have left the buffer already. Every direct answer still quotes it.
+    // The first message may have left the buffer; every direct answer still quotes it.
     val lostRoot = remember(thread, threadId) {
         if (thread.firstOrNull()?.id == threadId) null
         else thread.firstNotNullOfOrNull { item -> item.reply?.takeIf { it.parentId == threadId } }
     }
     val gesture = remember(onAnswer) { { item: ChatItem, _: MessageGesture -> onAnswer(item) } }
 
-    // Straight up to full height: the field sits at the bottom, and a half-open sheet would put
-    // it under the keyboard.
+    // Full height right away: the input is at the bottom, and a half-open sheet would put it under
+    // the keyboard.
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     ModalBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = sheetState,
         containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
     ) {
-        // The sheet's own window: read out here, these would be the chat's behind it.
+        // Read inside the sheet's window; outside they would be the chat's.
         val keyboard = LocalSoftwareKeyboardController.current
         val focus = LocalFocusManager.current
-        // The keyboard goes with the sheet, the moment it is on its way out. Left to itself it
-        // outlives the sheet by a moment, over the chat, and the chat jumps when it finally goes.
+        // Hides the keyboard as soon as the sheet starts closing; otherwise it outlives the sheet
+        // and the chat jumps when it goes.
         LaunchedEffect(sheetState) {
             snapshotFlow { sheetState.currentValue == SheetValue.Expanded && sheetState.targetValue == SheetValue.Hidden }
                 .filter { it }
@@ -87,7 +84,7 @@ fun ThreadSheet(
                 style = MaterialTheme.typography.titleMedium,
                 modifier = Modifier.padding(start = 20.dp, end = 20.dp, bottom = 8.dp),
             )
-            // Reversed like the chat, so that the list stays at its newest end as answers come in.
+            // Reversed like the chat, so the list stays at the newest end.
             LazyColumn(reverseLayout = true, modifier = Modifier.weight(1f, fill = false).fillMaxWidth()) {
                 val count = thread.size
                 items(count = count, key = { thread[count - 1 - it].id }) { index ->
@@ -101,7 +98,7 @@ fun ThreadSheet(
     }
 }
 
-/** What is left of a first message that is no longer in the buffer: the quote its answers carry. */
+/** A first message no longer in the buffer, shown from the quote its answers carry. */
 @Composable
 private fun LostRoot(root: ReplyInfo, style: ChatStyle) {
     Text(

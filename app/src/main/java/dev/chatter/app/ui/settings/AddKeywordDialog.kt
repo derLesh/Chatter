@@ -24,11 +24,8 @@ import androidx.compose.ui.text.input.TextFieldValue
 import dev.chatter.app.R
 
 /**
- * Asks for one entry to put on a list. [title] and [hint] say which list, so the same dialog
- * serves the highlight words, the muted ones and the image sites.
- *
- * Starting from [initial] turns it into the same dialog for changing an entry that is already
- * there — the same field, filled in, with [confirmLabel] saying so.
+ * Asks for one list entry; [title] and [hint] name the list (highlight words, muted words, image
+ * sites). With [initial] it edits an existing entry, and [confirmLabel] says so.
  */
 @Composable
 fun AddKeywordDialog(
@@ -40,8 +37,7 @@ fun AddKeywordDialog(
     label: Int = R.string.keyword_word,
     confirmLabel: Int = R.string.add,
 ) {
-    // The cursor belongs behind what is already there: an entry opened for changing is one the
-    // user wants to carry on typing at, not one to type in front of.
+    // Cursor at the end, to continue typing.
     var word by remember { mutableStateOf(TextFieldValue(initial, TextRange(initial.length))) }
     val focus = remember { FocusRequester() }
     LaunchedEffect(Unit) { focus.requestFocus() }

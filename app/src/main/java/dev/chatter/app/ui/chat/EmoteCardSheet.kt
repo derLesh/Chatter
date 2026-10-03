@@ -48,9 +48,9 @@ import dev.chatter.app.emotes.Emote
 import dev.chatter.app.emotes.label
 
 /**
- * Details of a tapped emote: big image, name, provider, channel/global, author and flags, with
- * actions to insert it, copy its name or open its page. For stacked (zero-width) emotes every
- * layer can be selected.
+ * Details of a tapped emote: large image, name, provider, scope, author and flags, with actions to
+ * insert it, copy its name or open its page. Every layer of a stacked (zero-width) emote can be
+ * selected.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -71,7 +71,7 @@ fun EmoteCardSheet(
             horizontalAlignment = Alignment.CenterHorizontally,
             modifier = Modifier.fillMaxWidth().navigationBarsPadding().padding(horizontal = 20.dp).padding(bottom = 16.dp),
         ) {
-            // Large image; falls back to the normal size if the provider has no large one.
+            // Large image, falling back to the normal size if there is none.
             var model by remember(emote) { mutableStateOf(emote.largeUrl) }
             Box(
                 contentAlignment = Alignment.Center,
@@ -160,7 +160,7 @@ fun EmoteCardSheet(
                             try {
                                 context.startActivity(Intent(Intent.ACTION_VIEW, url.toUri()))
                             } catch (e: ActivityNotFoundException) {
-                                // No browser: nothing to open.
+                                // No browser installed.
                             }
                         },
                         modifier = Modifier.weight(1f),

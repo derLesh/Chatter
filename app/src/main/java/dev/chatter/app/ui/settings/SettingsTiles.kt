@@ -39,31 +39,29 @@ import androidx.compose.ui.unit.dp
 import androidx.core.net.toUri
 import kotlinx.coroutines.delay
 
-// The tiles every settings page is built from. They live here rather than next to the pages
-// because the pages are spread over more than one file and all of them look the same.
+// The tiles all settings pages are built from, shared because the pages span several files.
 
 internal class GroupScope {
     val items = mutableListOf<Pair<Int?, @Composable () -> Unit>>()
 
-    /** One tile. [key] is the title a search result names it by; see [LocalSettingsTarget]. */
+    /** One tile. [key] is the title a search result refers to; see [LocalSettingsTarget]. */
     fun item(key: Int? = null, content: @Composable () -> Unit) {
         items += key to content
     }
 }
 
 /**
- * The setting a search result led to, by its title: when its page opens, the page scrolls to it
- * and it lights up for a moment, so the eye lands on it among the others. A group is found by its
- * heading, a single tile by the key it was given.
+ * The setting a search result led to, by title: its page scrolls to it and highlights it briefly.
+ * Groups are found by their heading, tiles by their key.
  */
 internal val LocalSettingsTarget = compositionLocalOf<Int?> { null }
 
-/** Long enough for the page to have slid in: scrolling while it moves would miss the target. */
+/** Long enough for the page to finish sliding in; scrolling during the slide would miss. */
 private const val REVEAL_DELAY_MS = 350L
 
 /**
- * Related settings as separate tiles with a small gap (Android 16 style): the outer corners
- * of the group are strongly rounded, the corners between tiles only slightly.
+ * Related settings as separate tiles with small gaps (Android 16 style): strong outer corners,
+ * slight ones between tiles.
  */
 @Composable
 internal fun SettingsGroup(title: Int? = null, build: GroupScope.() -> Unit) {
@@ -99,8 +97,8 @@ internal fun SettingsGroup(title: Int? = null, build: GroupScope.() -> Unit) {
 }
 
 /**
- * Scrolls to what it is put on once, when [active], and lights it up: the modifier to put on it,
- * and how strongly it glows right now, from 1 fading to 0.
+ * Scrolls to the element once when [active] and highlights it: returns the modifier and the current
+ * glow from 1 fading to 0.
  */
 @Composable
 private fun reveal(active: Boolean): Pair<Modifier, Float> {
@@ -147,7 +145,7 @@ internal fun transparentItem() = ListItemDefaults.colors(containerColor = Color.
 internal fun LinkItem(title: Int, summary: Int, url: String) =
     LinkItem(stringResource(title), stringResource(summary), url)
 
-/** A settings row that hands the link to the browser. */
+/** A settings row that opens a link in the browser. */
 @Composable
 internal fun LinkItem(title: String, summary: String, url: String) {
     val context = LocalContext.current

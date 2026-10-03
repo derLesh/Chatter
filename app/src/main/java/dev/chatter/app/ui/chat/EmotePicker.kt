@@ -33,7 +33,7 @@ import dev.chatter.app.R
 import dev.chatter.app.emotes.Emote
 import dev.chatter.app.emotes.EmoteProvider
 
-/** Bottom sheet with tabs: recently used, then one tab per provider (channel emotes first). */
+/** Bottom sheet with tabs: recently used, then one per provider, channel emotes first. */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun EmotePickerSheet(

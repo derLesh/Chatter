@@ -74,21 +74,15 @@ import dev.chatter.app.ui.channels.ChannelAvatar
 import kotlinx.coroutines.delay
 
 /**
- * The field a message is written in, with the emote picker, the suggestions and the reply strip.
+ * The message input with emote picker, suggestions and reply strip.
  *
- * On a combined chat [sendChannels] are its channels, and a picture in front of the field says
- * which of them [sendChannel] the message goes to; tapping it picks another. With a single channel
- * there is nothing to pick, and the field looks as it always did.
+ * On a combined chat [sendChannels] are its channels, and a picture in front of the input shows
+ * [sendChannel]; tapping it picks another. Without [onCancelReply] the reply strip cannot be
+ * closed, as in a conversation. Each increment of [replyStarts] opens the keyboard; the reply
+ * itself cannot signal that, since it also returns with a page's draft.
  *
- * Without [onCancelReply] the reply strip has no way to be closed: in a conversation, answering
- * into it is the point.
- *
- * [replyStarts] counts the answers the user began, and each one brings the keyboard up. The
- * answer itself cannot say so: it also comes back with the draft of a page swiped back to.
- *
- * What Twitch would refuse is said here first: the characters left once a message gets long,
- * the seconds of slow mode on the send button, and a [restriction] in place of the placeholder.
- * [waitUntil] is when slow mode lets the user write again.
+ * Twitch's limits are shown before sending: remaining characters for long messages, slow mode
+ * seconds on the send button ([waitUntil]), and a [restriction] instead of the placeholder.
  */
 @Composable
 fun InputBar(
@@ -113,8 +107,7 @@ fun InputBar(
 ) {
     val choosing = sendChannels.size > 1 && sendChannel != null
     val focus = remember { FocusRequester() }
-    // Picking a message to answer is only half of answering it: the keyboard comes up with it,
-    // so that one tap on a message is all it takes to start typing.
+    // Starting a reply opens the keyboard, so one tap on a message is enough to start typing.
     LaunchedEffect(replyStarts) { if (replyTo != null && enabled) focus.requestFocus() }
     var waitLeft by remember { mutableIntStateOf(0) }
     LaunchedEffect(waitUntil) {
@@ -128,8 +121,7 @@ fun InputBar(
     val length = remember(value.text) { SendLimits.length(value.text) }
     val tooLong = length > SendLimits.MAX_LENGTH
     val canSend = enabled && value.text.isNotBlank() && !tooLong && waitLeft == 0
-    // No bar of its own: the input sits straight on the chat background, so only the rounded
-    // field, the chips and the reply strip stand out.
+    // No bar of its own: the input sits on the chat background.
     Column(modifier) {
         if (suggestions.isNotEmpty()) {
             SuggestionRow(suggestions, imageLoader, onSuggestion)
@@ -209,7 +201,7 @@ fun InputBar(
     }
 }
 
-/** The channel a combined chat's message goes to, as its picture, with the others a tap away. */
+/** A combined chat's target channel as its picture, with the others a tap away. */
 @Composable
 private fun SendChannelPicker(
     channels: List<String>,
@@ -251,9 +243,8 @@ private fun SendChannelPicker(
 }
 
 /**
- * Sets a menu straight on top of what opened it. Material's own positioning keeps every menu 48dp
- * clear of the window's edges, and the send picker sits closer to the bottom than that, so its
- * menu would float a good way above the field it belongs to.
+ * Places a menu right on top of its anchor. Material keeps menus 48dp from the window edges, which
+ * would float the send picker's menu far above the input.
  */
 private class OnTopOfAnchor : DropdownMenuPopupPositionProvider {
     override var transformOrigin by mutableStateOf(TransformOrigin(0f, 1f))
@@ -266,7 +257,7 @@ private class OnTopOfAnchor : DropdownMenuPopupPositionProvider {
         popupContentSize: IntSize,
     ): IntOffset {
         val ltr = layoutDirection == LayoutDirection.Ltr
-        // Opening from the anchor's corner, so it grows out of the picture that was tapped.
+        // Grows out of the tapped picture's corner.
         transformOrigin = TransformOrigin(if (ltr) 0f else 1f, 1f)
         val x = if (ltr) anchorBounds.left else anchorBounds.right - popupContentSize.width
         return IntOffset(
@@ -276,7 +267,7 @@ private class OnTopOfAnchor : DropdownMenuPopupPositionProvider {
     }
 }
 
-/** What the field says in place of its placeholder while this is in the way. */
+/** Shown instead of the placeholder while this restriction applies. */
 private val ChatRestriction.hint: Int
     get() = when (this) {
         ChatRestriction.SubsOnly -> R.string.input_hint_subs_only
@@ -351,8 +342,8 @@ private fun ReplyBar(item: ChatItem, onCancel: (() -> Unit)?) {
 }
 
 /**
- * Where the field sits for a guest. Reading needs no account and writing does, so instead of a
- * field that could never send, this says so and leads to the login.
+ * The input area for guests: reading needs no account, writing does, so this explains that and
+ * links to the login.
  */
 @Composable
 fun GuestBar(onLogIn: () -> Unit, modifier: Modifier = Modifier) {

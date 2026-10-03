@@ -67,18 +67,16 @@ import java.time.format.DateTimeFormatter
 import java.time.format.FormatStyle
 
 /**
- * Who the app is chatting as, and who else it could be chatting as. Chatter holds several Twitch
- * logins at once — a main account and a bot, two streamers sharing a phone — and only one of them
- * is connected at a time; the rest wait in the row of faces until one is tapped.
+ * The active account and the others to switch to. Chatter holds several Twitch logins at once (a
+ * main account and a bot, two streamers sharing a phone); one is connected at a time.
  *
- * What is shown about the account comes from two places: the name and the picture are stored with
- * the login and are there offline, the rest is asked of Twitch while the page is open.
+ * Name and picture are stored with the login and work offline; the rest is fetched while the page
+ * is open.
  */
 @Composable
 fun AccountPage(vm: MainViewModel, onAddAccount: () -> Unit, onReauthorize: () -> Unit) {
     val accounts by vm.accounts.collectAsStateWithLifecycle()
-    // The state, not the account list: switching swaps which account is the active one without
-    // changing the list at all, and this page is mostly about which one that is.
+    // The state, not the list: switching changes the active account without changing the list.
     val auth by vm.authState.collectAsStateWithLifecycle()
     val active = (auth as? AuthState.LoggedIn)?.account ?: run {
         if (auth is AuthState.Guest) GuestCard(onLogIn = vm::leaveGuest)
@@ -88,8 +86,7 @@ fun AccountPage(vm: MainViewModel, onAddAccount: () -> Unit, onReauthorize: () -
     var following by remember(active.userId) { mutableStateOf<Int?>(null) }
     var loggingOut by remember { mutableStateOf<Account?>(null) }
 
-    // Everything but the name and the picture is asked for fresh, because an account page is
-    // where somebody looks to find out what is true right now.
+    // Fetched fresh, since this page is where the user checks the current facts.
     LaunchedEffect(active.userId) {
         vm.refreshAccounts()
         profile = vm.ownProfile()
@@ -127,7 +124,7 @@ fun AccountPage(vm: MainViewModel, onAddAccount: () -> Unit, onReauthorize: () -
     }
 }
 
-/** In place of the account for a guest: what reading without one leaves out, and the way to one. */
+/** Shown to guests instead of an account: what reading without one lacks, and the way to log in. */
 @Composable
 private fun GuestCard(onLogIn: () -> Unit) {
     Surface(
@@ -154,10 +151,8 @@ private fun GuestCard(onLogIn: () -> Unit) {
 }
 
 /**
- * The account in one card: its picture, its name with the Twitch id beside it, and the two
- * things Twitch knows that a chatter cannot see anywhere else — how old the account is and
- * whether it is an affiliate or a partner. Holding it copies the id, which is what a bug report
- * or a supporter claim asks for.
+ * The account card: picture, name with Twitch id, account age and affiliate/partner status. Holding
+ * it copies the id, which bug reports and supporter claims ask for.
  */
 @Composable
 private fun ProfileCard(account: Account, profile: HelixUser?, following: Int?, imageLoader: ImageLoader) {
@@ -179,8 +174,8 @@ private fun ProfileCard(account: Account, profile: HelixUser?, following: Int?, 
             verticalAlignment = Alignment.CenterVertically,
             modifier = Modifier
                 .fillMaxWidth()
-                // Held, not tapped: the id is worth copying and nothing else on the card is
-                // worth opening, and a card that ripples under every tap promises otherwise.
+                // Held, not tapped: copying the id is the only action, and a ripple on every tap
+                // would suggest more.
                 .pointerInput(account.userId) { detectTapGestures(onLongPress = { copyId() }) }
                 .semantics { onLongClick(copyLabel) { copyId(); true } }
                 .padding(horizontal = 20.dp, vertical = 18.dp),
@@ -232,9 +227,8 @@ private fun broadcasterType(profile: HelixUser?): String? = when (profile?.broad
 }
 
 /**
- * Every login the app holds as a row of faces, the way the app icon is picked: which one is in
- * use is a ring around it rather than a word, so switching is one tap on a face the user knows.
- * Holding one logs it out; the row scrolls sideways once there are more than fit.
+ * All logins as a row of avatars; a ring marks the active one, a tap switches. Holding logs out;
+ * the row scrolls when it does not fit.
  */
 @Composable
 private fun AccountsGroup(
@@ -278,9 +272,8 @@ private fun AccountsGroup(
 }
 
 /**
- * Said only when the active login was given less than Chatter uses — one from a version that
- * asked for less. Twitch cannot add a scope to a token, so the way to the rest is logging in
- * again; see [dev.chatter.app.auth.TwitchScopes].
+ * Shown when the active login lacks scopes Chatter uses (a login from an older version). Tokens
+ * cannot gain scopes, so the user has to log in again; see [dev.chatter.app.auth.TwitchScopes].
  */
 @Composable
 private fun MissingScopesCard(onReauthorize: () -> Unit) {
@@ -307,7 +300,7 @@ private fun MissingScopesCard(onReauthorize: () -> Unit) {
     }
 }
 
-/** One account in the switcher: the face, a ring when it is the one in use, and its name. */
+/** One account in the switcher: avatar, a ring when active, and its name. */
 @Composable
 private fun AccountFace(
     account: Account,
@@ -353,7 +346,7 @@ private fun AccountFace(
     }
 }
 
-/** The last face in the row, which is not a face yet: one more Twitch login. */
+/** The last entry in the row: add another Twitch login. */
 @Composable
 private fun AddFace(onAdd: () -> Unit) {
     Column(
@@ -386,7 +379,7 @@ private fun AddFace(onAdd: () -> Unit) {
     }
 }
 
-/** An account's Twitch picture, or a stand-in until Twitch has said what it is. */
+/** An account's Twitch avatar, or a placeholder until it is known. */
 @Composable
 private fun Avatar(
     account: Account,
@@ -426,7 +419,7 @@ private fun formatDate(iso: String?): String? = iso?.takeIf { it.isNotEmpty() }?
     }.getOrNull()
 }
 
-/** The row on the settings home, which wears the account's own picture instead of an icon. */
+/** The settings home row, showing the account's avatar instead of an icon. */
 @Composable
 fun AccountRowIcon(account: Account?, imageLoader: ImageLoader) {
     if (account == null) CategoryIcon(Icons.Default.AccountCircle)

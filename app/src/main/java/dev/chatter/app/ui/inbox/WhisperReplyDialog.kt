@@ -25,10 +25,8 @@ import androidx.compose.ui.unit.dp
 import dev.chatter.app.R
 
 /**
- * Answers one whisper. What was written is quoted above the field: the inbox is the only place
- * the conversation exists, so without it the answer would be written into thin air.
- *
- * Without [quoted] it starts a conversation instead, as from the user card.
+ * Answers a whisper, with the original quoted above the input since the inbox is the only place the
+ * conversation exists. Without [quoted] it starts a new conversation, as from the user card.
  */
 @Composable
 fun WhisperReplyDialog(

@@ -21,10 +21,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.ImeAction
 import dev.chatter.app.R
 
-/**
- * Renames one channel to whatever the user likes. Clearing the field restores the name Twitch
- * reports, which is shown as the placeholder so it is clear what the empty field falls back to.
- */
+/** Sets a custom channel name. An empty field restores the Twitch name, shown as placeholder. */
 @Composable
 fun RenameChannelDialog(
     login: String,

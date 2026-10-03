@@ -22,12 +22,11 @@ import dev.chatter.app.auth.LoginUrls
 import dev.chatter.app.auth.WebSession
 
 /**
- * Twitch's login page. Hands the redirect to `http://localhost#access_token=...` to [onRedirect],
- * and lets the page go nowhere but Twitch (see [LoginUrls]).
+ * Twitch's login page. Passes the `http://localhost#access_token=...` redirect to [onRedirect] and
+ * lets the page navigate only within Twitch (see [LoginUrls]).
  *
- * [signedOut] throws away whatever Twitch left in the WebView first. Adding a second account is
- * the reason: Twitch remembers who was last logged in, and the page would offer that account
- * again rather than ask which one this is meant to be.
+ * [signedOut] clears Twitch's WebView session first, for adding another account; otherwise Twitch
+ * offers the last logged-in account again.
  */
 @SuppressLint("SetJavaScriptEnabled")
 @Composable
@@ -42,8 +41,7 @@ fun LoginWebView(url: String, modifier: Modifier, signedOut: Boolean = false, on
                     layoutParams = ViewGroup.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT)
                     settings.javaScriptEnabled = true
                     settings.setSupportZoom(true)
-                    // Twitch's page has no business with the phone's files; said here rather
-                    // than left to whatever the platform's default is.
+                    // Set explicitly instead of relying on platform defaults.
                     settings.allowFileAccess = false
                     settings.allowContentAccess = false
                     clearCache(true)
@@ -55,10 +53,10 @@ fun LoginWebView(url: String, modifier: Modifier, signedOut: Boolean = false, on
                                 onRedirect(target)
                                 return true
                             }
-                            // Frames inside the page — the captcha is one — are part of it.
+                            // Frames inside the page (e.g. the captcha) belong to it.
                             if (!request.isForMainFrame || LoginUrls.staysInLogin(target)) return false
-                            // Anything else leaves the login: in here it would be a browser with no
-                            // address bar, where nobody can see which site they are typing into.
+                            // Anything else opens in the browser: the WebView has no address bar
+                            // showing which site the user is typing into.
                             val scheme = request.url.scheme?.lowercase()
                             if (scheme == "https" || scheme == "http") {
                                 runCatching { ctx.startActivity(Intent(Intent.ACTION_VIEW, request.url)) }

@@ -70,10 +70,9 @@ import dev.chatter.app.ui.theme.LiveRed
 import dev.chatter.app.ui.theme.barColor
 
 /**
- * The bar above the chat: the page on screen with the menu of all of them behind it, the other
- * channels that have something new, and the way to the inbox and the settings.
- *
- * [pages] are channels and combined chats in the user's order; [active] is one of them.
+ * The bar above the chat: the current page with a menu of all pages, other channels with news, and
+ * buttons for the inbox and settings. [pages] are channels and combined chats in the user's order;
+ * [active] is one of them.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -86,7 +85,7 @@ fun ChannelTopBar(
     unreadMessages: Map<String, Int>,
     roomState: RoomState?,
     roleBadge: Badge?,
-    /** The Shared Chat partners of [active], or null while it shares its chat with nobody. */
+    /** Shared Chat partners of [active], or null if it shares with nobody. */
     sharedWith: List<String>?,
     connection: ConnectionState,
     showUnread: Boolean,
@@ -103,12 +102,12 @@ fun ChannelTopBar(
     inboxUnread: Int,
     onSettings: () -> Unit,
     settingsBadge: Boolean = false,
-    /** The pages left with an unsent message in the field. */
+    /** Pages with an unsent draft. */
     drafts: Set<String> = emptySet(),
 ) {
     var expanded by remember { mutableStateOf(false) }
     val activeGroup = active?.let { groups[it] }
-    // Where the title sits, so the full-width menu below it can be centered on the screen.
+    // The title's position, to center the full-width menu below it.
     var anchorX by remember { mutableStateOf(0.dp) }
     val density = LocalDensity.current
 
@@ -171,8 +170,8 @@ fun ChannelTopBar(
             }
         },
         actions = {
-            // The unread counts arrive as a fresh map on every publish, so the bar runs again
-            // with every message in a channel off screen; this list must not be rebuilt each time.
+            // The unread counts arrive as a new map on every publish; this list must not be rebuilt
+            // each time.
             val withUnread = remember(pages, hiddenUnread) { pages.filterNot(ChannelGroup::isKey) - hiddenUnread }
             if (showUnread) UnreadStrip(
                 channels = withUnread,
@@ -191,7 +190,7 @@ fun ChannelTopBar(
                 }
             }
             IconButton(onClick = onSettings) {
-                // A newer version waits in the settings; the dot is all that says so out here.
+                // The dot is the only hint out here that an update is waiting.
                 BadgedBox(badge = { if (settingsBadge) Badge() }) {
                     Icon(Icons.Default.Settings, contentDescription = stringResource(R.string.settings))
                 }
@@ -201,8 +200,8 @@ fun ChannelTopBar(
 }
 
 /**
- * The other channels that have something new, as tappable avatars: a red count for mentions,
- * a plain dot for ordinary messages. Channels the user has caught up on are not shown at all.
+ * Other channels with something new, as tappable avatars: a red count for mentions, a dot for
+ * messages. Caught-up channels are hidden.
  */
 @Composable
 private fun UnreadStrip(
@@ -248,14 +247,11 @@ private fun UnreadStrip(
     }
 }
 
-/**
- * The user's role badge, a Shared Chat that is running and the active chat modes, as the line
- * under the channel's name.
- */
+/** The line under the channel name: the user's role, a running Shared Chat, and the chat modes. */
 @Composable
 private fun ChannelModes(state: RoomState?, roleBadge: Badge?, sharedWith: List<String>?, imageLoader: ImageLoader) {
     val modes = buildList {
-        // First: it changes whose messages the chat is full of, which no mode does.
+        // First, because it changes whose messages fill the chat.
         if (sharedWith != null) add(
             if (sharedWith.isEmpty()) stringResource(R.string.shared_chat)
             else stringResource(R.string.shared_chat_with, sharedWith.joinToString(", ")),
@@ -268,16 +264,15 @@ private fun ChannelModes(state: RoomState?, roleBadge: Badge?, sharedWith: List<
         if (state.emoteOnly) add(stringResource(R.string.mode_emotes))
         if (state.uniqueChat) add(stringResource(R.string.mode_unique))
     }
-    // A normal chatter in an unrestricted channel has nothing to read here, and an empty row
-    // under the name would still take the height of one.
+    // Nothing to show for a normal chatter in an unrestricted channel; an empty row would still
+    // take space.
     if (modes.isEmpty() && roleBadge == null) return
     Row(
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(6.dp),
     ) {
-        // Who the user is here comes first, then what the chat is set to. Both are background
-        // information under the name the user came for, so they are written the way a subtitle
-        // is rather than as chips that compete with it for attention.
+        // Role first, then modes, styled as a subtitle rather than chips so they do not compete
+        // with the name.
         if (roleBadge != null) {
             AsyncImage(
                 model = roleBadge.url,
@@ -313,8 +308,7 @@ internal fun ChannelStatus(
     sharedWith: List<String>?,
     imageLoader: ImageLoader,
 ) {
-    // A dropped connection is the one thing worth saying in words; it also makes the role and
-    // the modes stale, so it takes the line for itself.
+    // A dropped connection takes the line, since it also makes role and modes stale.
     if (connection != ConnectionState.Connected) {
         Text(
             text = stringResource(connectionStatus(connection)),
@@ -327,13 +321,13 @@ internal fun ChannelStatus(
     ChannelModes(state, roleBadge, sharedWith, imageLoader)
 }
 
-/** What the title bar says while the chat is not connected. */
+/** Title bar text while not connected. */
 internal fun connectionStatus(connection: ConnectionState): Int =
     if (connection == ConnectionState.WaitingForNetwork) R.string.status_waiting_network else R.string.status_connecting
 
 /**
- * What is under a combined chat's name: that the connection is down, or — when the user gave it a
- * name of its own, which hides them — the channels it reads.
+ * The line under a combined chat's name: a dropped connection, or its channels when it has a custom
+ * name.
  */
 @Composable
 internal fun GroupStatus(connection: ConnectionState, group: ChannelGroup, info: Map<String, ChannelInfo>) {
@@ -372,24 +366,22 @@ private fun ChannelDropdown(
     onRename: (String) -> Unit,
     onMove: (String, Int) -> Unit,
 ) {
-    // The window's width, not the screen's: in split screen or on an unfolded foldable the two
-    // are different, and the menu has to fit the window it opens in.
+    // The window's width, not the screen's: they differ in split screen and on foldables.
     val width = with(LocalDensity.current) { LocalWindowInfo.current.containerSize.width.toDp() } - DROPDOWN_MARGIN * 2
     DropdownMenu(
         expanded = expanded,
         onDismissRequest = onDismiss,
-        // The menu is wider than the space right of the title, so it would be flushed against the
-        // right edge. Pulling it back to the title's own inset leaves an even margin on both sides.
+        // The menu is wider than the space right of the title; offset back to the title's inset for
+        // even margins.
         offset = DpOffset(DROPDOWN_MARGIN - anchorX, 0.dp),
         modifier = Modifier.width(width),
     ) {
         pages.forEachIndexed { index, page ->
             val group = groups[page]
-            // A combined chat's channels are not known for a moment after start; until they are,
-            // there is nothing to show for it.
+            // A combined chat's channels are unknown for a moment after start.
             if (ChannelGroup.isKey(page) && group == null) return@forEachIndexed
             val i = info[page]
-            // What a combined chat has new is what its channels have new, added up.
+            // A combined chat's news is the sum of its channels'.
             val members = group?.channels ?: listOf(page)
             val messages = members.sumOf { unreadMessages[it] ?: 0 }
             val mentions = members.sumOf { unread[it] ?: 0 }
@@ -485,7 +477,7 @@ private fun ChannelDropdown(
             text = { Text(stringResource(R.string.add_channel)) },
             onClick = onAdd,
         )
-        // Combining takes two channels; with fewer there would be nothing to pick in the dialog.
+        // Combining needs at least two channels.
         if (pages.count { !ChannelGroup.isKey(it) } >= 2) DropdownMenuItem(
             leadingIcon = { Icon(painterResource(R.drawable.ic_combine_chats), contentDescription = null) },
             text = { Text(stringResource(R.string.combine_channels)) },
@@ -494,8 +486,7 @@ private fun ChannelDropdown(
     }
 }
 
-/** Round profile picture with a red ring and dot while the channel is live. */
-/** Beside a page's name: something is typed there and not sent yet. */
+/** Next to a page's name: it has an unsent draft. */
 @Composable
 internal fun DraftMark() {
     Icon(
@@ -506,6 +497,7 @@ internal fun DraftMark() {
     )
 }
 
+/** Round avatar with a red ring and dot while the channel is live. */
 @Composable
 fun ChannelAvatar(info: ChannelInfo?, imageLoader: ImageLoader, size: Dp) {
     Box(Modifier.size(size)) {
@@ -517,15 +509,15 @@ fun ChannelAvatar(info: ChannelInfo?, imageLoader: ImageLoader, size: Dp) {
                 .size(size)
                 .clip(CircleShape)
                 .background(MaterialTheme.colorScheme.surfaceContainerHighest)
-                // The red ring is the whole of "this channel is live", wherever a picture shows up.
+                // The red ring means "live" wherever an avatar appears.
                 .then(if (info?.isLive == true) Modifier.border(2.dp, LiveRed, CircleShape) else Modifier),
         )
     }
 }
 
 /**
- * The pictures of a combined chat's first two channels, the second one overlapping the first. Two
- * is as many as stay recognizable at the size of a title bar; the name says the rest.
+ * Avatars of a combined chat's first two channels, overlapping. More would not be recognizable at
+ * title bar size.
  */
 @Composable
 fun GroupAvatar(channels: List<String>, info: Map<String, ChannelInfo>, imageLoader: ImageLoader, size: Dp) {
@@ -538,14 +530,14 @@ fun GroupAvatar(channels: List<String>, info: Map<String, ChannelInfo>, imageLoa
             Box(
                 Modifier
                     .align(Alignment.BottomEnd)
-                    // A ring in the colour behind it sets it off from the picture it lies on.
+                    // A ring in the background color separates it from the avatar below.
                     .border(2.dp, MaterialTheme.colorScheme.surfaceContainer, CircleShape),
             ) { ChannelAvatar(info[second], imageLoader, part) }
         }
     }
 }
 
-/** Left over on each side once the channel menu is opened up to the full screen width. */
+/** Margin on each side of the full-width channel menu. */
 private val DROPDOWN_MARGIN = 8.dp
 
 internal fun formatCount(n: Int): String = if (n > 999) "999+" else n.toString()

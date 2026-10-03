@@ -38,12 +38,9 @@ import java.text.DateFormat
 import java.util.Date
 
 /**
- * That Android is keeping mentions from arriving: the app's battery use is restricted, or the
- * background connection was ended from outside since the user last looked. Shown at the top of
- * the notification settings, which is where somebody missing their mentions goes looking.
- *
- * It says what happened and where to change it; what it cannot do is change it itself, because
- * only the system settings may.
+ * Tells the user that Android keeps mentions from arriving: restricted battery use, or the
+ * background connection was ended from outside since they last looked. Shown at the top of the
+ * notification settings. Only the system settings can change it, so it links there.
  */
 @Composable
 fun BackgroundCard(stop: BackgroundStop?, battery: BatteryRestrictions, onDismiss: () -> Unit) {
@@ -74,8 +71,7 @@ fun BackgroundCard(stop: BackgroundStop?, battery: BatteryRestrictions, onDismis
                             stringResource(R.string.background_stopped_text, date, stringResource(reasonText(it.reason))),
                             style = MaterialTheme.typography.bodyMedium,
                         )
-                        // Force-stopping is the user's own doing; the battery settings do not
-                        // come into it, and saying they do would only confuse.
+                        // Force stops are the user's own doing, not a battery setting.
                         if (!battery.restricted && battery.optimized && it.reason != StopReason.UserRequest) {
                             Text(stringResource(R.string.background_unrestricted_hint), style = MaterialTheme.typography.bodyMedium)
                         }
@@ -102,8 +98,8 @@ private fun reasonText(reason: StopReason) = when (reason) {
 }
 
 /**
- * The app's page in the system settings. There is no public way straight to its battery page, but
- * that is one tap from here on every phone, where the list of all apps' battery use would be many.
+ * The app's page in the system settings. There is no public intent for its battery page, which is
+ * one tap from here.
  */
 private fun openAppSettings(context: Context) {
     runCatching {
@@ -118,8 +114,8 @@ private fun open(context: Context, url: String) {
 }
 
 /**
- * dontkillmyapp.com has a page for each maker that stops apps its own way, with the steps for
- * their settings. A maker it has no page for gets the front page rather than a missing one.
+ * dontkillmyapp.com has a page per vendor with the steps for its settings; unknown vendors get the
+ * front page.
  */
 private fun dontKillMyAppUrl(): String {
     val maker = Build.MANUFACTURER.lowercase().trim()

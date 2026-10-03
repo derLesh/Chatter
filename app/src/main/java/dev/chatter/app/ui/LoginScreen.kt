@@ -76,7 +76,7 @@ import kotlinx.coroutines.launch
 import kotlin.math.cos
 import kotlin.math.sin
 
-/** Login like DankChat: Twitch's login page in a WebView, the token is taken from the redirect. */
+/** Login through Twitch's page in a WebView; the token comes from the redirect. */
 @Composable
 fun LoginScreen(vm: MainViewModel) {
     var webLoginUrl by rememberSaveable { mutableStateOf<String?>(null) }
@@ -118,8 +118,8 @@ fun LoginScreen(vm: MainViewModel) {
                 )
                 Spacer(Modifier.weight(1f))
 
-                // Being asked to log in again out of nowhere needs a reason: the token ran out or
-                // was revoked, and the notification that said so may be long gone.
+                // Explains an unexpected logout (expired or revoked token); the notification may be
+                // long gone.
                 if (sessionExpired) {
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
@@ -162,8 +162,8 @@ fun LoginScreen(vm: MainViewModel) {
                         }
                     }
                 }
-                // Reading needs no account and no Client ID, so this is there even when the login
-                // is not.
+                // Reading needs neither an account nor a Client ID, so this shows even without
+                // login.
                 Spacer(Modifier.height(8.dp))
                 TextButton(onClick = vm::continueAsGuest, modifier = Modifier.fillMaxWidth()) {
                     Text(stringResource(R.string.login_guest))
@@ -173,10 +173,7 @@ fun LoginScreen(vm: MainViewModel) {
     }
 }
 
-/**
- * The wordmark, which says the name itself — so nothing spells "Chatter" out underneath it. Only
- * the width is given: the drawable keeps its own proportions and works out the height from it.
- */
+/** The wordmark. Only the width is set; the drawable keeps its proportions. */
 @Composable
 private fun AppMark() {
     Image(
@@ -188,8 +185,8 @@ private fun AppMark() {
 }
 
 /**
- * What sits behind the onboarding: colour blobs and outlined shapes in the theme's own colors, and
- * a chat scrolling past so the screen shows what the app is for. Both are slow and heavily faded.
+ * The onboarding backdrop: color blobs and outlined shapes in theme colors, and a scrolling chat
+ * showing what the app is for. Slow and heavily faded.
  */
 @Composable
 private fun OnboardingBackdrop(modifier: Modifier) {
@@ -197,7 +194,7 @@ private fun OnboardingBackdrop(modifier: Modifier) {
     Box(modifier) {
         ColorShapes(Modifier.fillMaxSize())
         ScrollingChat(Modifier.fillMaxSize())
-        // Dims the chat towards the middle, where the logo and the buttons sit.
+        // Dims the chat towards the middle, behind the logo and buttons.
         Box(
             Modifier.fillMaxSize().background(
                 Brush.verticalGradient(
@@ -211,7 +208,7 @@ private fun OnboardingBackdrop(modifier: Modifier) {
     }
 }
 
-/** Colour blobs and outlined shapes, drifting slowly. */
+/** Color blobs and outlined shapes, drifting slowly. */
 @Composable
 private fun ColorShapes(modifier: Modifier) {
     val scheme = MaterialTheme.colorScheme
@@ -224,13 +221,13 @@ private fun ColorShapes(modifier: Modifier) {
     )
 
     Canvas(modifier) {
-        // Blobs: centre as a fraction of the canvas, radius as a fraction of its width.
+        // Blobs: center as a fraction of the canvas, radius as a fraction of its width.
         blob(scheme.primary, 0.14f, 0.10f, 0.95f, 0.55f, drift, 0f)
         blob(scheme.tertiary, 0.92f, 0.20f, 0.75f, 0.50f, drift, 2.1f)
         blob(scheme.secondary, 0.80f, 0.78f, 0.90f, 0.45f, drift, 4.2f)
         blob(scheme.primary, 0.06f, 0.94f, 0.70f, 0.40f, drift, 5.4f)
 
-        // Outlined shapes, kept clear of the title and the buttons at the bottom.
+        // Outlined shapes, kept clear of the title and the buttons.
         val outline = scheme.outline.copy(alpha = 0.30f)
         val stroke = Stroke(width = 2.dp.toPx())
         val w = size.width
@@ -254,7 +251,7 @@ private fun ColorShapes(modifier: Modifier) {
     }
 }
 
-/** One soft radial blob, nudged along a small circle by [drift] so the background never sits still. */
+/** A soft radial blob, moved along a small circle by [drift]. */
 private fun DrawScope.blob(color: Color, x: Float, y: Float, radius: Float, alpha: Float, drift: Float, phase: Float) {
     val wander = size.width * 0.06f
     val center = Offset(
@@ -274,8 +271,7 @@ private fun DrawScope.blob(color: Color, x: Float, y: Float, radius: Float, alph
 }
 
 /**
- * Decorative chat lines for the onboarding backdrop. Emote-heavy and language-neutral, so they read
- * the same in every locale; the logins are made up.
+ * Decorative chat lines for the backdrop. Emote-heavy and language-neutral; the logins are made up.
  */
 private val FauxChat = listOf(
     "kappakiosk" to "LUL LUL LUL",
@@ -300,7 +296,7 @@ private val FauxChat = listOf(
     "chatterlover" to "this app goes hard",
 )
 
-/** The faux chat, scrolling upwards forever. Two copies stacked make the loop seamless. */
+/** The faux chat scrolling up endlessly; two stacked copies make the loop seamless. */
 @Composable
 private fun ScrollingChat(modifier: Modifier) {
     var blockHeight by remember { mutableIntStateOf(0) }
