@@ -1,0 +1,1 @@
+patch: Never write over stored rules, nicknames, inbox or combined chats that could not be read

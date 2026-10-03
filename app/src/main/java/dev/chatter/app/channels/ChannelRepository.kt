@@ -7,6 +7,7 @@ import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.stringPreferencesKey
 import dev.chatter.app.net.AppJson
+import dev.chatter.app.net.decodeStored
 import dev.chatter.app.net.HelixApi
 import dev.chatter.app.net.HelixChannelSearch
 import kotlinx.coroutines.CoroutineScope
@@ -69,7 +70,7 @@ class ChannelRepository(
 
     /** The combined chats, by the key they are listed under in [pages]. */
     val groups: StateFlow<Map<String, ChannelGroup>> = store.data
-        .map { p -> decodeGroups(p[GROUPS]).associateBy { it.key } }
+        .map { p -> decodeGroups(p[GROUPS]).orEmpty().associateBy { it.key } }
         .distinctUntilChanged()
         .stateIn(scope, SharingStarted.Eagerly, emptyMap())
 
@@ -77,7 +78,7 @@ class ChannelRepository(
 
     /** Names the user gave channels themselves, by login. Empty unless one was renamed. */
     val customNames: StateFlow<Map<String, String>> = store.data
-        .map { p -> decodeNames(p[CUSTOM_NAMES]) }
+        .map { p -> decodeNames(p[CUSTOM_NAMES]).orEmpty() }
         .stateIn(scope, SharingStarted.Eagerly, emptyMap())
 
     /**
@@ -164,7 +165,7 @@ class ChannelRepository(
     suspend fun remove(page: String): RemovedPage? {
         var removed: RemovedPage? = null
         store.edit { p ->
-            val (lists, what) = p.lists().remove(page) ?: return@edit
+            val (lists, what) = p.lists()?.remove(page) ?: return@edit
             p.write(lists)
             removed = what
         }
@@ -173,13 +174,17 @@ class ChannelRepository(
 
     /** Undoes a [remove]: the page, its settings and its places in the combined chats. */
     suspend fun putBack(removed: RemovedPage) {
-        store.edit { p -> p.write(p.lists().putBack(removed)) }
+        store.edit { p -> p.lists()?.let { p.write(it.putBack(removed)) } }
     }
 
-    private fun Preferences.lists() = ChannelLists(
+    /**
+     * Everything set on the channels, or null while the combined chats or the names cannot be
+     * read: writing the lists back would put empty ones over them; see [decodeStored].
+     */
+    private fun Preferences.lists(): ChannelLists? = ChannelLists(
         pages = split(this[CHANNELS]),
-        groups = decodeGroups(this[GROUPS]),
-        names = decodeNames(this[CUSTOM_NAMES]),
+        groups = decodeGroups(this[GROUPS]) ?: return null,
+        names = decodeNames(this[CUSTOM_NAMES]) ?: return null,
         muted = split(this[MUTED]).toSet(),
         hiddenUnread = split(this[NO_TITLE_BAR]).toSet(),
     )
@@ -203,7 +208,7 @@ class ChannelRepository(
         store.edit { p ->
             val list = split(p[CHANNELS])
             val chosen = group.copy(channels = list.filter { it in channels && !ChannelGroup.isKey(it) })
-            val groups = decodeGroups(p[GROUPS])
+            val groups = decodeGroups(p[GROUPS]) ?: return@edit
             p[GROUPS] = AppJson.encodeToString(
                 if (groups.any { it.id == id }) groups.map { if (it.id == id) chosen else it } else groups + chosen
             )
@@ -216,7 +221,7 @@ class ChannelRepository(
     suspend fun rename(login: String, name: String) {
         val chosen = name.trim()
         store.edit { p ->
-            val names = decodeNames(p[CUSTOM_NAMES])
+            val names = decodeNames(p[CUSTOM_NAMES]) ?: return@edit
             p[CUSTOM_NAMES] = AppJson.encodeToString(if (chosen.isEmpty()) names - login else names + (login to chosen))
         }
     }
@@ -334,12 +339,11 @@ class ChannelRepository(
         private fun isPage(page: String): Boolean =
             if (ChannelGroup.isKey(page)) ChannelGroup.isValidId(ChannelGroup.idOf(page)) else VALID.matches(page)
 
-        private fun decodeGroups(raw: String?): List<ChannelGroup> =
-            raw?.let { runCatching { AppJson.decodeFromString<List<ChannelGroup>>(it) }.getOrNull() }.orEmpty()
-                .filter { ChannelGroup.isValidId(it.id) }
+        private fun decodeGroups(raw: String?): List<ChannelGroup>? =
+            decodeStored<List<ChannelGroup>>(raw, emptyList(), "combined chats")?.filter { ChannelGroup.isValidId(it.id) }
 
-        private fun decodeNames(raw: String?): Map<String, String> =
-            raw?.let { runCatching { AppJson.decodeFromString<Map<String, String>>(it) }.getOrNull() }.orEmpty()
+        private fun decodeNames(raw: String?): Map<String, String>? = decodeStored(raw, emptyMap(), "channel names")
+
         private val VALID = Regex("^[a-z0-9_]{1,25}$")
 
         fun normalize(input: String): String? {

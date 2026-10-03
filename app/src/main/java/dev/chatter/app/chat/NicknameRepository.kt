@@ -5,6 +5,7 @@ import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.stringPreferencesKey
 import dev.chatter.app.net.AppJson
+import dev.chatter.app.net.decodeStored
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -18,7 +19,7 @@ import kotlinx.coroutines.flow.stateIn
 class NicknameRepository(private val store: DataStore<Preferences>, scope: CoroutineScope) {
     /** Nickname by lowercase login. Empty unless the user renamed somebody. */
     val nicknames: StateFlow<Map<String, String>> = store.data
-        .map { p -> decode(p[NICKNAMES]) }
+        .map { p -> decode(p[NICKNAMES]).orEmpty() }
         .stateIn(scope, SharingStarted.Eagerly, emptyMap())
 
     /** Gives a chatter a nickname; a blank one restores the name Twitch reports. */
@@ -26,7 +27,8 @@ class NicknameRepository(private val store: DataStore<Preferences>, scope: Corou
         val key = login.lowercase()
         val chosen = nickname.trim()
         store.edit { p ->
-            val all = decode(p[NICKNAMES])
+            // Nicknames it cannot read are left alone rather than written over; see decodeStored.
+            val all = decode(p[NICKNAMES]) ?: return@edit
             p[NICKNAMES] = AppJson.encodeToString(if (chosen.isEmpty()) all - key else all + (key to chosen))
         }
     }
@@ -41,7 +43,6 @@ class NicknameRepository(private val store: DataStore<Preferences>, scope: Corou
     private companion object {
         val NICKNAMES = stringPreferencesKey("chatter_nicknames")
 
-        fun decode(raw: String?): Map<String, String> =
-            raw?.let { runCatching { AppJson.decodeFromString<Map<String, String>>(it) }.getOrNull() }.orEmpty()
+        fun decode(raw: String?): Map<String, String>? = decodeStored(raw, emptyMap(), "nicknames")
     }
 }

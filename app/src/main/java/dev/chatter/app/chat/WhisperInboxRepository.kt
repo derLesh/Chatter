@@ -6,6 +6,7 @@ import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.stringPreferencesKey
 import dev.chatter.app.irc.IrcMessage
 import dev.chatter.app.net.AppJson
+import dev.chatter.app.net.decodeStored
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -69,7 +70,7 @@ class WhisperInboxRepository(
 ) {
     /** The active account's whispers, newest first. See [InboxOwners]. */
     val whispers: StateFlow<List<InboxWhisper>> = combine(store.data, owner) { p, me ->
-        if (me == null) emptyList() else decode(p[WHISPERS]).filter { it.owner == me }
+        if (me == null) emptyList() else decode(p[WHISPERS]).orEmpty().filter { it.owner == me }
     }.stateIn(scope, SharingStarted.Eagerly, emptyList())
 
     val unreadCount: StateFlow<Int> = whispers
@@ -105,9 +106,10 @@ class WhisperInboxRepository(
         InboxOwners.keepOnly(list, accounts, { it.owner }) { row, id -> row.copy(owner = id) }
     }
 
+    /** Leaves an inbox it cannot read alone rather than write over it; see [decodeStored]. */
     private suspend fun update(transform: (List<InboxWhisper>) -> List<InboxWhisper>) {
         store.edit { p ->
-            val current = decode(p[WHISPERS])
+            val current = decode(p[WHISPERS]) ?: return@edit
             val next = transform(current)
             if (next !== current) p[WHISPERS] = AppJson.encodeToString(next)
         }
@@ -118,7 +120,6 @@ class WhisperInboxRepository(
         /** Whispers are rare next to mentions; this is already months of them. */
         const val LIMIT = 200
 
-        fun decode(raw: String?): List<InboxWhisper> =
-            raw?.let { runCatching { AppJson.decodeFromString<List<InboxWhisper>>(it) }.getOrNull() }.orEmpty()
+        fun decode(raw: String?): List<InboxWhisper>? = decodeStored(raw, emptyList(), "whispers")
     }
 }

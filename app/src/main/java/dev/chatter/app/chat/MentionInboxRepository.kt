@@ -5,6 +5,7 @@ import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.stringPreferencesKey
 import dev.chatter.app.net.AppJson
+import dev.chatter.app.net.decodeStored
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -40,7 +41,7 @@ class MentionInboxRepository(
 ) {
     /** The active account's mentions, newest first. See [InboxOwners]. */
     val mentions: StateFlow<List<InboxMention>> = combine(store.data, owner) { p, me ->
-        if (me == null) emptyList() else decode(p[MENTIONS]).filter { it.owner == me }
+        if (me == null) emptyList() else decode(p[MENTIONS]).orEmpty().filter { it.owner == me }
     }.stateIn(scope, SharingStarted.Eagerly, emptyList())
 
     val unreadCount: StateFlow<Int> = mentions
@@ -98,9 +99,10 @@ class MentionInboxRepository(
         InboxOwners.keepOnly(list, accounts, { it.owner }) { row, id -> row.copy(owner = id) }
     }
 
+    /** Leaves an inbox it cannot read alone rather than write over it; see [decodeStored]. */
     private suspend fun update(transform: (List<InboxMention>) -> List<InboxMention>) {
         store.edit { p ->
-            val current = decode(p[MENTIONS])
+            val current = decode(p[MENTIONS]) ?: return@edit
             val next = transform(current)
             if (next !== current) p[MENTIONS] = AppJson.encodeToString(next)
         }
@@ -111,7 +113,6 @@ class MentionInboxRepository(
         /** Enough to look back a few days without turning the store into a database. */
         const val LIMIT = 300
 
-        fun decode(raw: String?): List<InboxMention> =
-            raw?.let { runCatching { AppJson.decodeFromString<List<InboxMention>>(it) }.getOrNull() }.orEmpty()
+        fun decode(raw: String?): List<InboxMention>? = decodeStored(raw, emptyList(), "mentions")
     }
 }

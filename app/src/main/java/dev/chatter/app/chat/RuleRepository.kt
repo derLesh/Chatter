@@ -5,6 +5,7 @@ import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.stringPreferencesKey
 import dev.chatter.app.net.AppJson
+import dev.chatter.app.net.decodeStored
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -14,7 +15,7 @@ import kotlinx.coroutines.flow.stateIn
 /** The user's [ChatRule]s, in the order they are applied. */
 class RuleRepository(private val store: DataStore<Preferences>, scope: CoroutineScope) {
     val rules: StateFlow<List<ChatRule>> = store.data
-        .map { p -> decode(p[RULES]) }
+        .map { p -> decode(p[RULES]).orEmpty() }
         .stateIn(scope, SharingStarted.Eagerly, emptyList())
 
     /** Adds a rule, or replaces the one with the same id. */
@@ -30,16 +31,19 @@ class RuleRepository(private val store: DataStore<Preferences>, scope: Coroutine
     }
 
     /** Replaces the whole set, for importing a backup. */
-    suspend fun replaceAll(rules: List<ChatRule>) = update { rules }
+    suspend fun replaceAll(rules: List<ChatRule>) = store.edit { it[RULES] = AppJson.encodeToString(rules) }
 
+    /** Leaves rules it cannot read alone rather than write over them; see [decodeStored]. */
     private suspend fun update(transform: (List<ChatRule>) -> List<ChatRule>) {
-        store.edit { p -> p[RULES] = AppJson.encodeToString(transform(decode(p[RULES]))) }
+        store.edit { p ->
+            val current = decode(p[RULES]) ?: return@edit
+            p[RULES] = AppJson.encodeToString(transform(current))
+        }
     }
 
     private companion object {
         val RULES = stringPreferencesKey("chat_rules")
 
-        fun decode(raw: String?): List<ChatRule> =
-            raw?.let { runCatching { AppJson.decodeFromString<List<ChatRule>>(it) }.getOrNull() }.orEmpty()
+        fun decode(raw: String?): List<ChatRule>? = decodeStored(raw, emptyList(), "rules")
     }
 }
