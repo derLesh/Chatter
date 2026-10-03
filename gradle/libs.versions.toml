@@ -1,5 +1,5 @@
 [versions]
-agp = "9.1.1"
+agp = "9.4.1"
 kotlin = "2.3.21"
 composeBom = "2026.06.01"
 # The menus of Material 3 Expressive (grouped, with a selected entry) are only in the 1.5 alphas.
