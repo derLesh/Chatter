@@ -145,8 +145,8 @@ class SettingsRepository(
             timestamps = p[TIMESTAMP_FORMAT]?.let { v -> TimestampFormat.entries.firstOrNull { it.name == v } }
                 ?: if (p[TIMESTAMPS] == false) TimestampFormat.Off else TimestampFormat.Short,
             messageLimit = p[LIMIT] ?: 500,
-            mentionKeywords = p[KEYWORDS].orEmpty().split(',').map { it.trim() }.filter { it.isNotEmpty() },
-            muteKeywords = p[MUTE_KEYWORDS].orEmpty().split(',').map { it.trim() }.filter { it.isNotEmpty() },
+            mentionKeywords = words(p[KEYWORDS]),
+            muteKeywords = words(p[MUTE_KEYWORDS]),
             animatedEmotes = p[ANIMATED] ?: true,
             slowIdleEmotes = p[SLOW_IDLE_EMOTES] ?: true,
             recentEmotes = p[RECENT_EMOTES].orEmpty().split(' ').filter { it.isNotEmpty() },
@@ -169,9 +169,7 @@ class SettingsRepository(
             showDeleted = p[SHOW_DELETED] ?: true,
             updateCheck = p[UPDATE_CHECK] ?: true,
             inlineImages = p[INLINE_IMAGES] ?: true,
-            // Only an absent key falls back to the defaults: a list the user emptied stays empty.
-            imageHosts = p[IMAGE_HOSTS]?.split(',')?.map { it.trim() }?.filter { it.isNotEmpty() }
-                ?: ImageLinks.DEFAULT_HOSTS,
+            imageHosts = hosts(p[IMAGE_HOSTS]),
             fullLinks = p[FULL_LINKS] ?: false,
             mobileData = p[MOBILE_DATA]?.let { v -> MobileData.entries.firstOrNull { it.name == v } } ?: MobileData.Normal,
             carouselChannels = p[CAROUSEL_CHANNELS] ?: false,
@@ -185,12 +183,8 @@ class SettingsRepository(
             messageTap = p[MESSAGE_TAP]?.let { v -> TapAction.entries.firstOrNull { it.name == v } } ?: TapAction.Reply,
             copyFirst = p[COPY_FIRST] ?: false,
             nameTap = p[NAME_TAP]?.let { v -> TapAction.entries.firstOrNull { it.name == v } } ?: TapAction.UserCard,
-            badgeProviders = p[BADGE_PROVIDERS]
-                ?.split(',')?.mapNotNull { v -> BadgeProvider.entries.firstOrNull { it.name == v } }?.toSet()
-                ?: BadgeProvider.entries.toSet(),
-            emoteProviders = p[EMOTE_PROVIDERS]
-                ?.split(',')?.mapNotNull { v -> EmoteProvider.entries.firstOrNull { it.name == v } }?.toSet()
-                ?: EmoteProvider.entries.toSet(),
+            badgeProviders = badgeProviders(p[BADGE_PROVIDERS]),
+            emoteProviders = emoteProviders(p[EMOTE_PROVIDERS]),
         )
     }.stateIn(scope, SharingStarted.Eagerly, Settings())
 
@@ -200,9 +194,14 @@ class SettingsRepository(
     suspend fun setNameTap(v: TapAction) = store.edit { it[NAME_TAP] = v.name }
     suspend fun setCopyFirst(v: Boolean) = store.edit { it[COPY_FIRST] = v }
     suspend fun setMessageLimit(v: Int) = store.edit { it[LIMIT] = v }
+    // The lists are changed from what is stored, inside the one edit. Worked out from [settings]
+    // instead, two changes in quick succession each started from the same list, and the second
+    // put back what the first had just taken away.
     // Stored as one comma-separated line, the way they always were, so nothing has to migrate.
-    suspend fun setMentionKeywords(v: List<String>) = store.edit { it[KEYWORDS] = v.joinToString(",") }
-    suspend fun setMuteKeywords(v: List<String>) = store.edit { it[MUTE_KEYWORDS] = v.joinToString(",") }
+    suspend fun updateMentionKeywords(change: (List<String>) -> List<String>) =
+        store.edit { it[KEYWORDS] = change(words(it[KEYWORDS])).joinToString(",") }
+    suspend fun updateMuteKeywords(change: (List<String>) -> List<String>) =
+        store.edit { it[MUTE_KEYWORDS] = change(words(it[MUTE_KEYWORDS])).joinToString(",") }
     suspend fun setAnimatedEmotes(v: Boolean) = store.edit { it[ANIMATED] = v }
     suspend fun setSlowIdleEmotes(v: Boolean) = store.edit { it[SLOW_IDLE_EMOTES] = v }
     suspend fun setThemeMode(v: ThemeMode) = store.edit { it[THEME_MODE] = v.name }
@@ -224,7 +223,8 @@ class SettingsRepository(
     suspend fun setShowDeleted(v: Boolean) = store.edit { it[SHOW_DELETED] = v }
     suspend fun setUpdateCheck(v: Boolean) = store.edit { it[UPDATE_CHECK] = v }
     suspend fun setInlineImages(v: Boolean) = store.edit { it[INLINE_IMAGES] = v }
-    suspend fun setImageHosts(v: List<String>) = store.edit { p -> p[IMAGE_HOSTS] = v.joinToString(",") }
+    suspend fun updateImageHosts(change: (List<String>) -> List<String>) =
+        store.edit { it[IMAGE_HOSTS] = change(hosts(it[IMAGE_HOSTS])).joinToString(",") }
     suspend fun setFullLinks(v: Boolean) = store.edit { it[FULL_LINKS] = v }
     suspend fun setMobileData(v: MobileData) = store.edit { it[MOBILE_DATA] = v.name }
     suspend fun setCarouselChannels(v: Boolean) = store.edit { it[CAROUSEL_CHANNELS] = v }
@@ -234,8 +234,10 @@ class SettingsRepository(
     suspend fun setSenderAvatars(v: Boolean) = store.edit { it[SENDER_AVATARS] = v }
     suspend fun setHighlightFirstMessages(v: Boolean) = store.edit { it[FIRST_MESSAGES] = v }
     suspend fun setNameColors(v: NameColorPalette) = store.edit { it[NAME_COLORS] = v.name }
-    suspend fun setBadgeProviders(v: Set<BadgeProvider>) = store.edit { p -> p[BADGE_PROVIDERS] = v.joinToString(",") { it.name } }
-    suspend fun setEmoteProviders(v: Set<EmoteProvider>) = store.edit { p -> p[EMOTE_PROVIDERS] = v.joinToString(",") { it.name } }
+    suspend fun updateBadgeProviders(change: (Set<BadgeProvider>) -> Set<BadgeProvider>) =
+        store.edit { p -> p[BADGE_PROVIDERS] = change(badgeProviders(p[BADGE_PROVIDERS])).joinToString(",") { it.name } }
+    suspend fun updateEmoteProviders(change: (Set<EmoteProvider>) -> Set<EmoteProvider>) =
+        store.edit { p -> p[EMOTE_PROVIDERS] = change(emoteProviders(p[EMOTE_PROVIDERS])).joinToString(",") { it.name } }
 
     /**
      * The version whose changelog the user has read, which is what the app compares against to
@@ -313,6 +315,20 @@ class SettingsRepository(
     }
 
     private companion object {
+        fun words(raw: String?): List<String> = raw.orEmpty().split(',').map { it.trim() }.filter { it.isNotEmpty() }
+
+        // Only an absent key falls back to the defaults: a list the user emptied stays empty.
+        fun hosts(raw: String?): List<String> =
+            raw?.split(',')?.map { it.trim() }?.filter { it.isNotEmpty() } ?: ImageLinks.DEFAULT_HOSTS
+
+        fun badgeProviders(raw: String?): Set<BadgeProvider> =
+            raw?.split(',')?.mapNotNull { v -> BadgeProvider.entries.firstOrNull { it.name == v } }?.toSet()
+                ?: BadgeProvider.entries.toSet()
+
+        fun emoteProviders(raw: String?): Set<EmoteProvider> =
+            raw?.split(',')?.mapNotNull { v -> EmoteProvider.entries.firstOrNull { it.name == v } }?.toSet()
+                ?: EmoteProvider.entries.toSet()
+
         val FONT_SIZE = floatPreferencesKey("font_size")
         val TIMESTAMPS = booleanPreferencesKey("timestamps")
         val TIMESTAMP_FORMAT = stringPreferencesKey("timestamp_format")
