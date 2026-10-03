@@ -66,6 +66,15 @@ Read what it adds before committing it — a checksum that changed for a version
 exactly what the file is there to catch. The release job builds without a Gradle cache from earlier
 runs, so nothing another run wrote ends up in a signed build.
 
+Dependabot does the same for the libraries and Gradle plugins in `gradle/libs.versions.toml`, once
+a week, grouped so that what is released together arrives together: Compose with its BOM, Kotlin
+with its plugins, the Android Gradle plugin, the other AndroidX libraries, and every other minor
+or patch update in one. Such a pull request would fail on the missing checksums, so
+`.github/workflows/dependabot-checksums.yml` runs the command above on it, adds the file and starts
+CI again. It only ever adds checksums: if one that was there changes, it stops and leaves it to
+you. It pushes to Dependabot's branch, after which Dependabot no longer rebases it on its own —
+comment `@dependabot recreate` to start the pull request over.
+
 Supporting Chatter is **switched off** everywhere until GitHub Sponsors is set up: `sponsoring`
 in `app/build.gradle.kts` takes the settings category out of every build and keeps the app from
 asking for a supporter list nobody serves, and the two workflows below have their triggers

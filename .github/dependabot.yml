@@ -2,6 +2,10 @@
 # controls the action, and the release job hands such actions the upload key and the Play
 # credentials. Pinning means nothing moves on its own, so this is what keeps the pins from going
 # stale — it opens a pull request for a new version, with the release notes, to be read and merged.
+#
+# The libraries and Gradle plugins in gradle/libs.versions.toml go the same way. CI builds, tests
+# and lints every pull request, so an update that breaks something is caught there; what a new
+# version needs in gradle/verification-metadata.xml is added by dependabot-checksums.yml.
 version: 2
 updates:
   - package-ecosystem: github-actions
@@ -11,3 +15,29 @@ updates:
     groups:
       actions:
         patterns: ["*"]
+
+  - package-ecosystem: gradle
+    directory: /
+    schedule:
+      interval: weekly
+    # The first group a dependency matches is the one it goes into.
+    groups:
+      # The BOM and everything built on it are released together and tested together, and one of
+      # them without the others is a build nobody at Google ran. Material 3 is in here too: it is
+      # pinned to a 1.5 alpha for the grouped menus of Material 3 Expressive, so this offers the
+      # next alpha, and 1.5.0 itself once it is out — which is when it should go to stable.
+      compose:
+        patterns: ["androidx.compose*"]
+      # The Kotlin compiler and its compose and serialization plugins share one version.
+      kotlin:
+        patterns: ["org.jetbrains.kotlin:*", "org.jetbrains.kotlin.*"]
+      # The Android Gradle plugin, and the test plugin that has to be the same version.
+      android-gradle-plugin:
+        patterns: ["com.android*"]
+      androidx:
+        patterns: ["androidx.*"]
+      # Everything else in one pull request a week, as long as nothing in it is a major version;
+      # those come one by one, since they are the ones that take reading.
+      libraries:
+        patterns: ["*"]
+        update-types: [minor, patch]
