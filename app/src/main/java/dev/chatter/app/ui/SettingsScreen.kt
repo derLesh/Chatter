@@ -137,6 +137,7 @@ import android.text.format.Formatter
 import dev.chatter.app.settings.MobileData
 import dev.chatter.app.stats.Stats
 import dev.chatter.app.ui.settings.BackgroundCard
+import dev.chatter.app.settings.BackupCheck
 import dev.chatter.app.settings.Settings
 import dev.chatter.app.settings.SettingsBackup
 import dev.chatter.app.settings.ThemeMode
@@ -1593,9 +1594,10 @@ private fun BackupGroup(vm: MainViewModel) {
     val import = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
         if (uri != null) {
             scope.launch {
+                // Null when it could not be opened; empty when it is too large to be a backup.
                 val text = withContext(Dispatchers.IO) {
                     runCatching {
-                        context.contentResolver.openInputStream(uri)?.bufferedReader()?.use { it.readText() }
+                        context.contentResolver.openInputStream(uri)?.use { BackupCheck.readLimited(it) ?: "" }
                     }.getOrNull()
                 }
                 if (text == null) {

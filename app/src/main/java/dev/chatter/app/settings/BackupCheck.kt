@@ -2,6 +2,7 @@ package dev.chatter.app.settings
 
 import dev.chatter.app.channels.ChannelGroup
 import dev.chatter.app.chat.ImageLinks
+import java.io.InputStream
 
 /**
  * What a backup is allowed to bring in.
@@ -27,6 +28,19 @@ object BackupCheck {
     const val MAX_NICKNAMES = 2000
     const val MAX_NICKNAME = 50
     const val MAX_CHANNELS = 200
+
+    /**
+     * More than everything above at its limits takes up. The file is whatever the user picked,
+     * and reading a video into a String to find out it is not a backup would end in running out
+     * of memory rather than in a message saying so.
+     */
+    const val MAX_FILE_BYTES = 2 * 1024 * 1024
+
+    /** The text of a backup file, or null when it is larger than any backup could be. */
+    fun readLimited(input: InputStream): String? {
+        val bytes = input.readNBytes(MAX_FILE_BYTES + 1)
+        return if (bytes.size > MAX_FILE_BYTES) null else bytes.decodeToString()
+    }
 
     private val LOGIN = Regex("^[a-z0-9_]{1,25}$")
     private val HOST_LABEL = Regex("^[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?$")

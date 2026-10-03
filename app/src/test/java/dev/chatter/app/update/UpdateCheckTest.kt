@@ -78,4 +78,26 @@ class UpdateCheckTest {
         // The clock was set back: waiting for it to catch up could take any amount of time.
         assertTrue(UpdateCheck.isDue(1_000 + day, 1_000))
     }
+
+    @Test
+    fun `only ever points at GitHub`() {
+        assertTrue(UpdateCheck.isGitHub("https://github.com/derLesh/Chatter/releases/tag/v0.6.0"))
+        assertTrue(UpdateCheck.isGitHub("https://objects.githubusercontent.com/release-assets/1/chatter.apk"))
+        listOf(
+            "http://github.com/derLesh/Chatter/releases/download/v1/chatter.apk",
+            "https://github.com.example.com/chatter.apk",
+            "https://evilgithub.com/chatter.apk",
+            "https://user@github.com/chatter.apk",
+            "intent://github.com/#Intent;end",
+            "not a url",
+        ).forEach { assertFalse(it, UpdateCheck.isGitHub(it)) }
+    }
+
+    @Test
+    fun `an apk somewhere else falls back to the release page, and a release with neither is no update`() {
+        val elsewhere = latest.replace("https://github.com/derLesh/Chatter/releases/download/v0.6.0/chatter-0.6.0.apk\"", "https://example.com/chatter.apk\"")
+        assertEquals("https://github.com/derLesh/Chatter/releases/tag/v0.6.0", UpdateCheck.parse(elsewhere)!!.url)
+        val nowhere = elsewhere.replace("https://github.com/derLesh/Chatter/releases/tag/v0.6.0", "https://example.com/release")
+        assertNull(UpdateCheck.parse(nowhere))
+    }
 }

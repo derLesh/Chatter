@@ -6,6 +6,7 @@ import dev.chatter.app.changelog.Version
 import dev.chatter.app.net.AppJson
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
+import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
 
 /**
  * A release on GitHub, as much of it as telling the user about it takes. It is kept on the device
@@ -56,14 +57,29 @@ object UpdateCheck {
         val release = runCatching { AppJson.decodeFromString<GitHubRelease>(json) }.getOrNull() ?: return null
         // The release workflow tags "v0.5.0"; the version is what follows the v.
         val version = Version.parse(release.tag.removePrefix("v")) ?: return null
-        val apk = release.assets.firstOrNull { it.name.endsWith(".apk") }?.url
+        val apk = release.assets.firstOrNull { it.name.endsWith(".apk") }?.url?.takeIf(::isGitHub)
         return AvailableUpdate(
             version = version.toString(),
             date = release.publishedAt?.take(10).orEmpty(),
             notes = release.body.orEmpty(),
-            url = apk ?: release.page,
+            url = apk ?: release.page.takeIf(::isGitHub) ?: return null,
         )
     }
+
+    /**
+     * Whether [url] is somewhere on GitHub, over https. It is what the update button hands to the
+     * browser, and what the browser then downloads and offers to install: whatever answered in
+     * GitHub's place — a captive portal, a proxy that rewrites JSON — must not get to pick that.
+     */
+    internal fun isGitHub(url: String): Boolean {
+        val parsed = url.toHttpUrlOrNull() ?: return false
+        val host = parsed.host
+        return parsed.isHttps && parsed.username.isEmpty() &&
+            GITHUB_HOSTS.any { host == it || host.endsWith(".$it") }
+    }
+
+    /** Release pages are on github.com; their files are handed out from githubusercontent.com. */
+    private val GITHUB_HOSTS = listOf("github.com", "githubusercontent.com")
 
     /** Whether [update] is worth telling somebody running [installed] about. */
     fun isNewer(update: AvailableUpdate, installed: Version?): Boolean {

@@ -62,4 +62,12 @@ class BackupCheckTest {
         val backup = SettingsBackup(settings = Settings(), rules = listOf(ChatRule("1", "giveaway")), nicknames = mapOf("forsen" to "F"))
         assertEquals(backup, BackupCheck.clean(backup))
     }
+
+    @Test
+    fun aFileTooLargeToBeABackupIsNotReadIntoMemory() {
+        val huge = java.io.ByteArrayInputStream(ByteArray(BackupCheck.MAX_FILE_BYTES + 1) { 'x'.code.toByte() })
+        assertEquals(null, BackupCheck.readLimited(huge))
+        val small = java.io.ByteArrayInputStream("{\"app\":\"Chatter\"}".toByteArray())
+        assertEquals("{\"app\":\"Chatter\"}", BackupCheck.readLimited(small))
+    }
 }
