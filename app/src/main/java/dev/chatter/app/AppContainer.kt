@@ -8,6 +8,9 @@ import android.net.ConnectivityManager
 import android.net.Network
 import android.net.NetworkCapabilities
 import android.os.PowerManager
+import android.util.Log
+import androidx.datastore.core.handlers.ReplaceFileCorruptionHandler
+import androidx.datastore.preferences.core.emptyPreferences
 import androidx.datastore.preferences.preferencesDataStore
 import coil3.ImageLoader
 import coil3.disk.DiskCache
@@ -71,14 +74,30 @@ import okhttp3.Cache
 import okhttp3.OkHttpClient
 import java.util.concurrent.TimeUnit
 
-private val Context.authStore by preferencesDataStore("auth")
-private val Context.channelStore by preferencesDataStore("channels")
-private val Context.settingsStore by preferencesDataStore("settings")
-private val Context.nicknameStore by preferencesDataStore("nicknames")
-private val Context.inboxStore by preferencesDataStore("inbox")
-private val Context.ruleStore by preferencesDataStore("rules")
-private val Context.statsStore by preferencesDataStore("stats")
-private val Context.healthStore by preferencesDataStore("background_health")
+private val Context.authStore by store("auth")
+private val Context.channelStore by store("channels")
+private val Context.settingsStore by store("settings")
+private val Context.nicknameStore by store("nicknames")
+private val Context.inboxStore by store("inbox")
+private val Context.ruleStore by store("rules")
+private val Context.statsStore by store("stats")
+private val Context.healthStore by store("background_health")
+
+/**
+ * One of the app's preference files, started over empty if it cannot be read at all.
+ *
+ * Without the handler a file that cannot be parsed throws on every read, and the first read is
+ * at start: the app would crash each time it is opened, and only clearing its storage in
+ * Android's settings — everything, not just the broken file — would get it going again. What
+ * was in that file is lost either way; this loses nothing else, and says so in the log.
+ */
+private fun store(name: String) = preferencesDataStore(
+    name,
+    corruptionHandler = ReplaceFileCorruptionHandler { e ->
+        Log.e("AppContainer", "The $name store could not be read and starts over empty", e)
+        emptyPreferences()
+    },
+)
 
 /**
  * Creates and wires every long-lived object of the app (manual dependency injection).
