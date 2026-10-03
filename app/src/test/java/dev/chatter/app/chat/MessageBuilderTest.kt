@@ -239,4 +239,25 @@ class MessageBuilderTest {
         assertEquals(null, MessageBuilder.parseColor(""))
         assertEquals(null, MessageBuilder.parseColor("#XYZ"))
     }
+
+    @Test
+    fun theAnsweredMessageIsQuotedWithItsEmotesAndLinks() {
+        val tags = "reply-parent-msg-id=p;reply-parent-user-login=ole;reply-parent-display-name=ole;" +
+            "reply-parent-msg-body=ole\\sOMEGALUL\\shttps://i.imgur.com/abc.png"
+        val item = build(privmsg("@ole nice", tags))
+        assertEquals(
+            listOf(
+                Segment.Text("ole "),
+                Segment.EmoteSeg(thirdParty.getValue("OMEGALUL")),
+                Segment.Text(" "),
+                Segment.Link("https://i.imgur.com/abc.png", "https://i.imgur.com/abc.png"),
+            ),
+            item.quote,
+        )
+    }
+
+    @Test
+    fun aMessageThatAnswersNothingQuotesNothing() {
+        assertTrue(build(privmsg("OMEGALUL")).quote.isEmpty())
+    }
 }

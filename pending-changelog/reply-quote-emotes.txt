@@ -1,0 +1,1 @@
+minor: Show emotes and short links in the line a reply quotes, instead of their codes and whole URLs

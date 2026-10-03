@@ -68,6 +68,8 @@ class MessageBuilder(
         selfLogin: String,
         channelId: String?,
         reply: ReplyInfo?,
+        /** The segments of the message answered, which the app has already worked out. */
+        quote: List<Segment> = emptyList(),
     ): ChatItem {
         val (body, isAction) = splitAction(text)
         return ChatItem(
@@ -81,6 +83,7 @@ class MessageBuilder(
             body = deferred(
                 channel, body, emotesTag = null, badgesTag = userState["badges"],
                 userId = userState["user-id"], channelId = channelId, ownMessage = true,
+                quote = { quote },
             ),
             text = body,
             isOwn = true,
@@ -107,6 +110,7 @@ class MessageBuilder(
         strippedPrefix: Int = 0,
         /** Where the badges were earned: a Shared Chat partner's message wears that channel's. */
         badgeChannelId: String? = channelId,
+        quote: () -> List<Segment> = { emptyList() },
     ) = MessageBody.lazily(
         segments = {
             val text = if (strippedPrefix == 0) rawBody else rawBody.substring(strippedPrefix)
@@ -120,6 +124,7 @@ class MessageBuilder(
             segments(channel, text, ranges, channelId, ownMessage)
         },
         badges = { badges.resolve(badgeChannelId, badgesTag, userId) },
+        quote = quote,
         // Asked after the message has been built: a provider that was unreachable may still turn
         // up, and then this message is built once more with its emotes in it.
         worthKeeping = { !emotes.complete(channelId) },
@@ -159,6 +164,7 @@ class MessageBuilder(
                 channel, raw, emotesTag = msg.tag("emotes"), badgesTag = badgesOf(msg),
                 userId = msg.tag("user-id"), channelId = roomId,
                 ownMessage = false, strippedPrefix = stripped, badgeChannelId = partner ?: roomId,
+                quote = { reply?.let { quoteSegments(channel, it.parentBody, roomId) }.orEmpty() },
             ),
             text = body,
             isMention = !isOwn && (mentions.matches(body) || reply?.parentLogin.equals(selfLogin, ignoreCase = true)),
@@ -327,6 +333,14 @@ class MessageBuilder(
             ?: return Segment.Mention(word)
         return Segment.Mention(word, login = login, color = chatter.color)
     }
+
+    /**
+     * The message a reply answers, as the line above the reply shows it. Twitch sends its text and
+     * nothing about where its Twitch emotes are, so it gets the emotes that are known by name —
+     * which are the ones that show up as a wall of codes otherwise. Internal for tests.
+     */
+    internal fun quoteSegments(channel: String, text: String, channelId: String?): List<Segment> =
+        if (text.isEmpty()) emptyList() else segments(channel, text, emptyList(), channelId, ownMessage = false)
 
     private fun replyInfo(msg: IrcMessage): ReplyInfo? {
         val id = msg.tag("reply-parent-msg-id") ?: return null

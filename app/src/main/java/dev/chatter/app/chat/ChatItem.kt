@@ -18,8 +18,8 @@ sealed interface Segment {
 enum class MessageKind { Chat, Action, UserNotice, Notice }
 
 /**
- * The parts of a message that only drawing it needs: its emote, link and mention segments, and
- * the sender's badges. They are worked out the first time something asks for them, because
+ * The parts of a message that only drawing it needs: its emote, link and mention segments, the
+ * sender's badges, and the segments of the message it answers, for the line above it. They are worked out the first time something asks for them, because
  * everything the app *decides* about a message — is it muted, is it a mention, does a rule paint
  * it — reads nothing but its plain text.
  *
@@ -36,10 +36,11 @@ class MessageBody private constructor(
     @Volatile private var parts: Parts?,
     private val worthKeeping: () -> Boolean = { false },
 ) {
-    private class Parts(val segments: List<Segment>, val badges: List<Badge>)
+    private class Parts(val segments: List<Segment>, val badges: List<Badge>, val quote: List<Segment>)
 
     val segments: List<Segment> get() = parts().segments
     val badges: List<Badge> get() = parts().badges
+    val quote: List<Segment> get() = parts().quote
 
     /** Builds the parts now, on the calling thread, if they are not built already. */
     fun prepare() {
@@ -70,14 +71,18 @@ class MessageBody private constructor(
 
         /** For messages the app writes itself, which have nothing to work out. */
         fun of(segments: List<Segment>, badges: List<Badge> = emptyList()) =
-            MessageBody(null, Parts(segments, badges))
+            MessageBody(null, Parts(segments, badges, emptyList()))
 
         /**
          * [worthKeeping] is asked once the parts are built: true holds on to how they were built,
-         * so [rebuilt] can do it over.
+         * so [rebuilt] can do it over. [quote] is the message a reply answers, empty for any other.
          */
-        fun lazily(segments: () -> List<Segment>, badges: () -> List<Badge>, worthKeeping: () -> Boolean = { false }) =
-            MessageBody({ Parts(segments(), badges()) }, null, worthKeeping)
+        fun lazily(
+            segments: () -> List<Segment>,
+            badges: () -> List<Badge>,
+            quote: () -> List<Segment> = { emptyList() },
+            worthKeeping: () -> Boolean = { false },
+        ) = MessageBody({ Parts(segments(), badges(), quote()) }, null, worthKeeping)
     }
 }
 
@@ -136,4 +141,7 @@ data class ChatItem(
 
     val segments: List<Segment> get() = body.segments
     val badges: List<Badge> get() = body.badges
+
+    /** The message this one answers, as segments; empty for one that answers nothing. */
+    val quote: List<Segment> get() = body.quote
 }

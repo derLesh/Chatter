@@ -233,8 +233,22 @@ fun MessageRow(
             )
         }
         item.reply?.let { reply ->
+            // The quote goes where the string has its place, whichever order a language puts the
+            // name and the text in.
+            val template = stringResource(R.string.reply_to, style.nameOf(reply.parentLogin, reply.parentDisplayName), QUOTE_MARK)
+            val quote = remember(template, item, style) { buildQuote(template, item.quote, reply.parentBody, style) }
+            val quoteMeasured = quote.inline.values.mapNotNull { data ->
+                (data as? InlineData.EmoteData)?.seg?.takeIf { s -> !s.emote.sizeKnown || s.overlays.any { !it.sizeKnown } }
+                    ?.let { s -> (s.overlays + s.emote).maxOf { EmoteSizes.aspectRatio(it) } }
+            }
+            val quoteContent = remember(quote, imageLoader, quoteMeasured, style.smallEmotes, style.emoteFrameRate) {
+                quote.inline.mapValues { (_, data) ->
+                    inlineFor(data, imageLoader, null, style.smallEmotes, style.emoteFrameRate, QUOTE_EMOTE_EM)
+                }
+            }
             Text(
-                text = stringResource(R.string.reply_to, style.nameOf(reply.parentLogin, reply.parentDisplayName), reply.parentBody),
+                text = quote.text,
+                inlineContent = quoteContent,
                 color = style.secondaryText,
                 fontSize = (style.fontSize - 2).sp,
                 maxLines = 1,
@@ -332,6 +346,7 @@ private fun inlineFor(
     onEmoteClick: ((Segment.EmoteSeg) -> Unit)?,
     smallEmotes: Boolean = false,
     frameRate: Float = EmoteFrameRate.ACTIVE,
+    emoteEm: Float = EMOTE_EM,
 ): InlineTextContent = when (data) {
     is InlineData.ChannelData -> InlineTextContent(
         Placeholder(BADGE_EM.em, BADGE_EM.em, PlaceholderVerticalAlign.Center),
@@ -353,7 +368,7 @@ private fun inlineFor(
         // Wide zero-width overlays should not be clipped: use the widest aspect ratio.
         val aspect = (data.seg.overlays + base).maxOf { EmoteSizes.aspectRatio(it) }
         InlineTextContent(
-            Placeholder((EMOTE_EM * aspect).em, EMOTE_EM.em, PlaceholderVerticalAlign.Center),
+            Placeholder((emoteEm * aspect).em, emoteEm.em, PlaceholderVerticalAlign.Center),
         ) {
             Box(Modifier.fillMaxSize().preferredFrameRate(frameRate).then(if (onEmoteClick != null) Modifier.clickable { onEmoteClick(data.seg) } else Modifier)) {
                 (listOf(base) + data.seg.overlays).forEach { e ->
@@ -436,6 +451,46 @@ private fun buildLine(item: ChatItem, style: ChatStyle, onName: LinkInteractionL
     }
     return BuiltLine(text, inline, images)
 }
+
+/**
+ * The line above a reply: [template] is the localized "Replying to @name: …" with [QUOTE_MARK]
+ * where the answered message goes. That message comes as segments, emotes and all, or as the
+ * plain [fallback] text where nobody worked any out. A link is written short whatever the
+ * setting, and is no link here: the line is one tap target, the conversation, and it has room
+ * for one line only, which a whole url would fill on its own.
+ */
+private fun buildQuote(template: String, quote: List<Segment>, fallback: String, style: ChatStyle): BuiltLine {
+    val inline = HashMap<String, InlineData>()
+    val at = template.indexOf(QUOTE_MARK)
+    val text = buildAnnotatedString {
+        if (at < 0) {
+            append(template)
+            return@buildAnnotatedString
+        }
+        append(template, 0, at)
+        if (quote.isEmpty()) append(fallback)
+        else quote.forEachIndexed { i, seg ->
+            when (seg) {
+                is Segment.Text -> append(seg.text)
+                is Segment.EmoteSeg -> {
+                    val id = "q$i"
+                    inline[id] = InlineData.EmoteData(seg)
+                    appendInlineContent(id, seg.emote.name)
+                }
+                is Segment.Link -> withStyle(SpanStyle(color = style.linkColor)) { append(LinkText.display(seg.text, short = true)) }
+                is Segment.Mention -> append(seg.name)
+            }
+        }
+        append(template, at + QUOTE_MARK.length, template.length)
+    }
+    return BuiltLine(text, inline)
+}
+
+/** Stands in for the answered message in the reply template; a character no message contains. */
+private const val QUOTE_MARK = "\uE000"
+
+/** Emotes in the line above a reply: smaller, so that one line stays one line of its height. */
+private const val QUOTE_EMOTE_EM = 1.5f
 
 private fun AnnotatedString.Builder.appendSegments(segments: List<Segment>, inline: MutableMap<String, InlineData>, style: ChatStyle) {
     segments.forEachIndexed { i, seg ->
