@@ -29,6 +29,7 @@ import androidx.compose.ui.graphics.drawscope.drawIntoCanvas
 import androidx.compose.ui.graphics.drawscope.withTransform
 import androidx.compose.ui.graphics.nativeCanvas
 import androidx.compose.ui.platform.LocalContext
+import androidx.core.graphics.createBitmap
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import coil3.ImageLoader
@@ -133,7 +134,7 @@ object SharedEmotes {
         shown.frame?.let { return it }
         val width = drawable.intrinsicWidth.coerceAtLeast(1)
         val height = drawable.intrinsicHeight.coerceAtLeast(1)
-        val frame = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888)
+        val frame = createBitmap(width, height)
         shown.frame = frame
         drawFrame(shown, frame)
         if (!mainHandler.hasCallbacks(tick)) mainHandler.postDelayed(tick, frameIntervalMs)

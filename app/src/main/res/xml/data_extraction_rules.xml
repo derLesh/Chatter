@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    Nothing of Chatter goes into a cloud backup or moves to a new phone on its own.
+
+    allowBackup="false" in the manifest only ever covered the cloud: since Android 12 a transfer
+    from one phone to the next ignores it and takes the app's storage along unless told otherwise.
+    The login could not be read there anyway — its key is in the old phone's Keystore — and the
+    rest moves the way the user chooses, with the backup under Settings → Account.
+-->
+<data-extraction-rules>
+    <cloud-backup>
+        <exclude domain="root" path="." />
+        <exclude domain="device_root" path="." />
+        <exclude domain="external" path="." />
+    </cloud-backup>
+    <device-transfer>
+        <exclude domain="root" path="." />
+        <exclude domain="device_root" path="." />
+        <exclude domain="external" path="." />
+    </device-transfer>
+</data-extraction-rules>

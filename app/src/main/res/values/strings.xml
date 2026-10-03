@@ -25,7 +25,10 @@
     <string name="chat_reconnected">Reconnected.</string>
     <string name="chat_disconnected">Disconnected. Reconnecting…</string>
     <string name="chat_cleared">Chat has been cleared by a moderator.</string>
-    <string name="chat_timeout">%1$s has been timed out for %2$d seconds.</string>
+    <plurals name="chat_timeout">
+        <item quantity="one">%1$s has been timed out for %2$d second.</item>
+        <item quantity="other">%1$s has been timed out for %2$d seconds.</item>
+    </plurals>
     <string name="chat_ban">%1$s has been banned.</string>
     <string name="chat_history_loading">Loading the recent messages…</string>
     <string name="chat_history_failed">The recent messages could not be loaded.</string>
@@ -298,7 +301,6 @@
     <string name="account_switch_to">Chat as %1$s</string>
     <string name="account_add">Add account</string>
     <string name="account_add_short">Add</string>
-    <string name="account_add_hint">Log in with another Twitch account and switch whenever you like</string>
     <string name="account_logout_title">Log %1$s out?</string>
     <string name="account_logout_text">Chatter signs it out at Twitch too and carries on with your other account.</string>
     <string name="account_logout_last_text">Chatter signs it out at Twitch too. It is your last account, so the login screen comes next and asks for the password again.</string>

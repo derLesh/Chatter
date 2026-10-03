@@ -177,6 +177,8 @@ fun ManageChannelsPage(
 
 /** A combined chat in the list: the pictures and names of its channels, and a menu to change it. */
 @Composable
+// The handle is a part of the row, not the row, and is named for what it goes on.
+@Suppress("ModifierParameter")
 private fun GroupRow(
     group: ChannelGroup,
     info: Map<String, ChannelInfo>,
@@ -236,6 +238,8 @@ private fun GroupRow(
 }
 
 @Composable
+// The handle is a part of the row, not the row, and is named for what it goes on.
+@Suppress("ModifierParameter")
 private fun ChannelRow(
     login: String,
     info: ChannelInfo?,

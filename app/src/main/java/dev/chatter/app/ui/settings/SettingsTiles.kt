@@ -1,7 +1,6 @@
 package dev.chatter.app.ui.settings
 
 import android.content.Intent
-import android.net.Uri
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -38,6 +37,7 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
+import androidx.core.net.toUri
 
 // The tiles every settings page is built from. They live here rather than next to the pages
 // because the pages are spread over more than one file and all of them look the same.
@@ -156,6 +156,6 @@ internal fun LinkItem(title: String, summary: String, url: String) {
         supportingContent = { Text(summary) },
         trailingContent = { Icon(Icons.AutoMirrored.Filled.ArrowForward, contentDescription = null) },
         colors = transparentItem(),
-        modifier = Modifier.clickable { context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url))) },
+        modifier = Modifier.clickable { context.startActivity(Intent(Intent.ACTION_VIEW, url.toUri())) },
     )
 }

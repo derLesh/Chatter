@@ -5,11 +5,15 @@
     One monochrome path, so whoever draws it picks the colour.
 -->
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
     android:width="195.7dp"
     android:height="47.8dp"
     android:viewportWidth="1956.9"
     android:viewportHeight="477.9">
+    <!-- Long still, but drawn once, at the top of the about page: simplifying it further would
+         show in the letters, and a bitmap would not follow the theme's colour. -->
     <path
+        tools:ignore="VectorPath"
         android:fillColor="@android:color/white"
         android:fillType="evenOdd"
         android:pathData="

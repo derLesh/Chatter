@@ -1,0 +1,3 @@
+patch: Fit the channel menu to the window in split screen and on foldables
+patch: Keep a new phone from copying Chatter's storage over on its own; the settings backup does that
+patch: Say "1 second" rather than "1 seconds" when somebody is timed out for one second

@@ -23,7 +23,10 @@
     <string name="chat_reconnected">Wieder verbunden.</string>
     <string name="chat_disconnected">Verbindung getrennt. Verbinde neu…</string>
     <string name="chat_cleared">Der Chat wurde von einem Moderator geleert.</string>
-    <string name="chat_timeout">%1$s wurde für %2$d Sekunden stummgeschaltet.</string>
+    <plurals name="chat_timeout">
+        <item quantity="one">%1$s wurde für %2$d Sekunde stummgeschaltet.</item>
+        <item quantity="other">%1$s wurde für %2$d Sekunden stummgeschaltet.</item>
+    </plurals>
     <string name="chat_ban">%1$s wurde gebannt.</string>
     <string name="chat_history_loading">Chatverlauf wird geladen…</string>
     <string name="chat_history_failed">Der Chatverlauf konnte nicht geladen werden.</string>
@@ -292,7 +295,6 @@
     <string name="account_switch_to">Als %1$s chatten</string>
     <string name="account_add">Konto hinzufügen</string>
     <string name="account_add_short">Hinzufügen</string>
-    <string name="account_add_hint">Mit einem weiteren Twitch Konto anmelden und jederzeit wechseln</string>
     <string name="account_logout_title">%1$s abmelden?</string>
     <string name="account_logout_text">Chatter meldet es auch bei Twitch ab und macht mit deinem anderen Konto weiter.</string>
     <string name="account_logout_last_text">Chatter meldet es auch bei Twitch ab. Es ist dein letztes Konto — danach kommt der Anmeldebildschirm und fragt wieder nach dem Passwort.</string>

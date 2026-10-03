@@ -6,6 +6,7 @@ import android.app.Service
 import android.content.Context
 import android.content.Intent
 import android.content.pm.ServiceInfo
+import android.os.Build
 import android.os.IBinder
 import android.util.Log
 import androidx.core.app.NotificationCompat
@@ -37,7 +38,14 @@ class ChatService : Service() {
     override fun onCreate() {
         super.onCreate()
         try {
-            startForeground(NOTIFICATION_ID, buildNotification(0, ConnectionState.Connecting), ServiceInfo.FOREGROUND_SERVICE_TYPE_SPECIAL_USE)
+            val notification = buildNotification(0, ConnectionState.Connecting)
+            // The special-use type came with Android 14. Android 13 does not know it and takes
+            // the service without one, the way it took every foreground service.
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
+                startForeground(NOTIFICATION_ID, notification, ServiceInfo.FOREGROUND_SERVICE_TYPE_SPECIAL_USE)
+            } else {
+                startForeground(NOTIFICATION_ID, notification)
+            }
         } catch (e: Exception) {
             // Starting from the background is not allowed in some situations (e.g. sticky restart).
             // Nothing else would ever say so: the app is not on screen, and the only sign would be

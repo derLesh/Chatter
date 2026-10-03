@@ -47,8 +47,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.positionInWindow
-import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalWindowInfo
 import androidx.compose.ui.unit.DpOffset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.painterResource
@@ -372,7 +372,9 @@ private fun ChannelDropdown(
     onRename: (String) -> Unit,
     onMove: (String, Int) -> Unit,
 ) {
-    val width = LocalConfiguration.current.screenWidthDp.dp - DROPDOWN_MARGIN * 2
+    // The window's width, not the screen's: in split screen or on an unfolded foldable the two
+    // are different, and the menu has to fit the window it opens in.
+    val width = with(LocalDensity.current) { LocalWindowInfo.current.containerSize.width.toDp() } - DROPDOWN_MARGIN * 2
     DropdownMenu(
         expanded = expanded,
         onDismissRequest = onDismiss,

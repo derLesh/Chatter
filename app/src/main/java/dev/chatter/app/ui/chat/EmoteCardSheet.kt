@@ -2,7 +2,6 @@ package dev.chatter.app.ui.chat
 
 import android.content.ActivityNotFoundException
 import android.content.Intent
-import android.net.Uri
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -41,6 +40,7 @@ import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.core.net.toUri
 import coil3.ImageLoader
 import coil3.compose.AsyncImage
 import dev.chatter.app.R
@@ -158,7 +158,7 @@ fun EmoteCardSheet(
                     OutlinedButton(
                         onClick = {
                             try {
-                                context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url)))
+                                context.startActivity(Intent(Intent.ACTION_VIEW, url.toUri()))
                             } catch (e: ActivityNotFoundException) {
                                 // No browser: nothing to open.
                             }

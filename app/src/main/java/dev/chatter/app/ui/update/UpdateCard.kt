@@ -2,7 +2,6 @@ package dev.chatter.app.ui.update
 
 import android.content.Context
 import android.content.Intent
-import android.net.Uri
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -28,6 +27,7 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.core.net.toUri
 import dev.chatter.app.R
 import dev.chatter.app.ui.changelog.ReleaseCard
 import dev.chatter.app.update.AvailableUpdate
@@ -100,5 +100,5 @@ fun UpdatePage(update: AvailableUpdate) {
  * installs nothing, so it needs no permission to install packages.
  */
 private fun download(context: Context, update: AvailableUpdate) {
-    context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(update.url)))
+    context.startActivity(Intent(Intent.ACTION_VIEW, update.url.toUri()))
 }

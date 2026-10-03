@@ -82,6 +82,9 @@ android {
     defaultConfig {
         applicationId = "dev.chatter.app"
         minSdk = 33
+        // Moving to 37 brings Android 17's behaviour changes, which want trying on a phone rather
+        // than following a warning; it gets a change of its own.
+        //noinspection OldTargetApi
         targetSdk = 36
         versionCode = versionProps.getProperty("versionCode").toInt()
         versionName = versionProps.getProperty("version")
@@ -173,6 +176,15 @@ android {
     buildFeatures {
         compose = true
         buildConfig = true
+    }
+
+    lint {
+        // A warning is an error, so the count stays where it is: at none. One that does not apply
+        // is suppressed where it is raised, with the reason next to it.
+        warningsAsErrors = true
+        // Newer versions are Dependabot's to offer (.github/dependabot.yml), as a pull request
+        // that CI builds. As lint warnings they would fail every build the day a release is out.
+        disable += setOf("NewerVersionAvailable", "GradleDependency", "AndroidGradlePluginVersion")
     }
 
     testOptions {

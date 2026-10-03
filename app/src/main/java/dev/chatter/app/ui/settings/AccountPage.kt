@@ -392,8 +392,8 @@ private fun Avatar(
     account: Account,
     imageLoader: ImageLoader,
     size: Dp,
-    contentDescription: String? = null,
     modifier: Modifier = Modifier,
+    contentDescription: String? = null,
 ) {
     val shape = Modifier
         .size(size)

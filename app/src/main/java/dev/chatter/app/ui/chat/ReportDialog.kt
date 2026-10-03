@@ -1,7 +1,6 @@
 package dev.chatter.app.ui.chat
 
 import android.content.Intent
-import android.net.Uri
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -28,6 +27,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.dp
+import androidx.core.net.toUri
 import dev.chatter.app.R
 
 /** Twitch's own help on what reporting does and how it is handled. */
@@ -81,7 +81,7 @@ fun ReportDialog(
                     color = MaterialTheme.colorScheme.primary,
                     textDecoration = TextDecoration.Underline,
                     modifier = Modifier.clickable {
-                        context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(REPORT_HELP_URL)))
+                        context.startActivity(Intent(Intent.ACTION_VIEW, REPORT_HELP_URL.toUri()))
                     },
                 )
             }
@@ -90,7 +90,7 @@ fun ReportDialog(
             TextButton(onClick = {
                 if (alsoBlock && !alreadyBlocked) onBlock()
                 if (message.isNotBlank()) clipboard.setText(AnnotatedString(message))
-                context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse("https://www.twitch.tv/$login")))
+                context.startActivity(Intent(Intent.ACTION_VIEW, "https://www.twitch.tv/$login".toUri()))
                 onDismiss()
             }) {
                 Text(stringResource(R.string.report_open_twitch))

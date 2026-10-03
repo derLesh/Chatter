@@ -1,6 +1,6 @@
 package dev.chatter.app.auth
 
-import android.net.Uri
+import androidx.core.net.toUri
 import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.booleanPreferencesKey
@@ -186,7 +186,7 @@ class AuthRepository(
     fun authorizeUrl(forceVerify: Boolean = false): String {
         val state = UUID.randomUUID().toString()
         pendingState = state
-        return Uri.parse("https://id.twitch.tv/oauth2/authorize").buildUpon()
+        return "https://id.twitch.tv/oauth2/authorize".toUri().buildUpon()
             .appendQueryParameter("response_type", "token")
             .appendQueryParameter("client_id", BuildConfig.TWITCH_CLIENT_ID)
             .appendQueryParameter("redirect_uri", REDIRECT_URI)

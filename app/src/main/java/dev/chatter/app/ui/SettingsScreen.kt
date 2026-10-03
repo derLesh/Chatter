@@ -3,11 +3,11 @@ package dev.chatter.app.ui
 import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Intent
-import android.net.Uri
 import android.provider.Settings as AndroidSettings
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedContent
+import androidx.core.net.toUri
 import androidx.navigationevent.NavigationEventInfo
 import androidx.navigationevent.compose.NavigationBackHandler
 import androidx.navigationevent.compose.rememberNavigationEventState
@@ -654,7 +654,7 @@ private fun SupportPage(vm: MainViewModel) {
  * the badge be handed out without a person in the middle.
  */
 private fun claimUrl(twitchId: String?, login: String): String =
-    Uri.parse("$REPO_URL/issues/new").buildUpon()
+    "$REPO_URL/issues/new".toUri().buildUpon()
         .appendQueryParameter("template", "supporter.yml")
         .appendQueryParameter("title", "Supporter badge for $login")
         .appendQueryParameter("twitch-id", twitchId.orEmpty())
@@ -1420,7 +1420,7 @@ private fun ReportIssueItem(vm: MainViewModel) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     var crash by remember { mutableStateOf<Crash?>(null) }
-    val open = { context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(bugReportUrl(vm.device)))) }
+    val open = { context.startActivity(Intent(Intent.ACTION_VIEW, bugReportUrl(vm.device).toUri())) }
     ListItem(
         headlineContent = { Text(stringResource(R.string.settings_report_issue)) },
         supportingContent = { Text(stringResource(R.string.settings_report_issue_summary)) },
@@ -1462,7 +1462,7 @@ private fun ReportIssueItem(vm: MainViewModel) {
 
 /** The bug report template, its fields about the app and the phone filled in. */
 private fun bugReportUrl(device: DeviceInfo): String =
-    Uri.parse("$REPO_URL/issues/new").buildUpon()
+    "$REPO_URL/issues/new".toUri().buildUpon()
         .appendQueryParameter("template", "bug.yml")
         .appendQueryParameter("version", "${device.appVersion} (${device.versionCode})")
         .appendQueryParameter("android", "${device.android} (API ${device.sdk})")
@@ -1715,12 +1715,13 @@ private val DEPENDENCIES = listOf(
 @Composable
 private fun LicenseSheet(dependency: Dependency, onDismiss: () -> Unit) {
     val context = LocalContext.current
+    val resources = LocalResources.current
     // ~11 kB read once per sheet; kept out of the first frame so opening stays instant.
     var text by remember { mutableStateOf("") }
     LaunchedEffect(Unit) {
         text = withContext(Dispatchers.IO) {
             runCatching {
-                context.resources.openRawResource(dependency.text).bufferedReader().use { it.readText() }
+                resources.openRawResource(dependency.text).bufferedReader().use { it.readText() }
             }.getOrDefault("")
         }
     }
@@ -1738,7 +1739,7 @@ private fun LicenseSheet(dependency: Dependency, onDismiss: () -> Unit) {
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
             OutlinedButton(
-                onClick = { context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(dependency.url))) },
+                onClick = { context.startActivity(Intent(Intent.ACTION_VIEW, dependency.url.toUri())) },
                 modifier = Modifier.padding(top = 12.dp),
             ) { Text(stringResource(R.string.license_open_project)) }
             // Monospace keeps the license's own indentation and line breaks intact.
