@@ -1,10 +1,6 @@
 package dev.chatter.app.settings
 
 import androidx.datastore.core.DataStore
-import dev.chatter.app.badges.BadgeProvider
-import dev.chatter.app.chat.ImageLinks
-import dev.chatter.app.emotes.EmoteProvider
-import dev.chatter.app.ui.theme.NameColorPalette
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
@@ -12,6 +8,10 @@ import androidx.datastore.preferences.core.floatPreferencesKey
 import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.datastore.preferences.core.longPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
+import dev.chatter.app.badges.BadgeProvider
+import dev.chatter.app.chat.ImageLinks
+import dev.chatter.app.emotes.EmoteProvider
+import dev.chatter.app.ui.theme.NameColorPalette
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.SharingStarted

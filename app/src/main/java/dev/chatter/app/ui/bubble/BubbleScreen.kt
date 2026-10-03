@@ -29,10 +29,10 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import dev.chatter.app.chat.SendLimits
 import dev.chatter.app.R
 import dev.chatter.app.auth.AuthState
 import dev.chatter.app.chat.Segment
+import dev.chatter.app.chat.SendLimits
 import dev.chatter.app.irc.ConnectionState
 import dev.chatter.app.ui.MainViewModel
 import dev.chatter.app.ui.channels.ChannelAvatar

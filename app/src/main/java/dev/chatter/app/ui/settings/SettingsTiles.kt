@@ -1,6 +1,8 @@
 package dev.chatter.app.ui.settings
 
 import android.content.Intent
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -9,6 +11,8 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.relocation.BringIntoViewRequester
+import androidx.compose.foundation.relocation.bringIntoViewRequester
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -20,24 +24,20 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import kotlinx.coroutines.delay
-import androidx.compose.ui.graphics.lerp
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.compositionLocalOf
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.foundation.relocation.bringIntoViewRequester
-import androidx.compose.foundation.relocation.BringIntoViewRequester
-import androidx.compose.animation.core.tween
-import androidx.compose.animation.core.Animatable
+import androidx.compose.runtime.compositionLocalOf
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.core.net.toUri
+import kotlinx.coroutines.delay
 
 // The tiles every settings page is built from. They live here rather than next to the pages
 // because the pages are spread over more than one file and all of them look the same.

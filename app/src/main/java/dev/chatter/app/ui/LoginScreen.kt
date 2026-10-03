@@ -1,8 +1,5 @@
 package dev.chatter.app.ui
 
-import androidx.navigationevent.NavigationEventInfo
-import androidx.navigationevent.compose.NavigationBackHandler
-import androidx.navigationevent.compose.rememberNavigationEventState
 import android.net.Uri
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.animateFloat
@@ -42,7 +39,6 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
-import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
@@ -68,13 +64,17 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.navigationevent.NavigationEventInfo
+import androidx.navigationevent.compose.NavigationBackHandler
+import androidx.navigationevent.compose.rememberNavigationEventState
 import dev.chatter.app.BuildConfig
 import dev.chatter.app.R
 import dev.chatter.app.ui.theme.isAppInDarkTheme
 import dev.chatter.app.ui.theme.readableNameColor
+import kotlinx.coroutines.launch
 import kotlin.math.cos
 import kotlin.math.sin
-import kotlinx.coroutines.launch
 
 /** Login like DankChat: Twitch's login page in a WebView, the token is taken from the redirect. */
 @Composable

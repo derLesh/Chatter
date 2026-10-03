@@ -1,5 +1,6 @@
 package dev.chatter.app.auth
 
+import android.util.Log
 import androidx.core.net.toUri
 import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
@@ -7,7 +8,6 @@ import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.longPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
-import android.util.Log
 import dev.chatter.app.BuildConfig
 import dev.chatter.app.net.HelixApi
 import dev.chatter.app.net.HttpException

@@ -7,9 +7,9 @@ import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.stringPreferencesKey
 import dev.chatter.app.net.AppJson
-import dev.chatter.app.net.decodeStored
 import dev.chatter.app.net.HelixApi
 import dev.chatter.app.net.HelixChannelSearch
+import dev.chatter.app.net.decodeStored
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
