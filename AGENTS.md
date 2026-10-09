@@ -112,7 +112,8 @@ application id of its own, because a connected test uninstalls what it tested af
 picks a version there either — it runs `releaseVersion`, so the pending entries decide it. It then
 builds and signs both the APK and the Play bundle, pushes the release commit and the `v<version>`
 tag, and publishes a GitHub release carrying that version's changelog section, the APK and its
-SHA-256. The build comes before the push, so a failed one leaves the repository untouched, and
+SHA-256. GitHub attests the APK and the bundle as built by that run, and the README lists the
+signing certificate's SHA-256; a new upload key means a new line there. The build comes before the push, so a failed one leaves the repository untouched, and
 `dry_run` does everything except push and publish — and is the only run allowed off `master`.
 
 It is three jobs: `preflight` and `verify` side by side, then `release`. Everything that could be

@@ -62,9 +62,20 @@
 
 ## Install
 
-Download the APK from the [latest release](https://github.com/derLesh/Chatter/releases/latest) and
-compare it with the SHA-256 published next to it. Chatter needs Android 13 or newer and a Twitch
-account.
+Download the APK from the [latest release](https://github.com/derLesh/Chatter/releases/latest).
+Chatter needs Android 13 or newer and a Twitch account.
+
+Three ways to check the download:
+
+- The SHA-256 next to the APK says it arrived whole.
+- `gh attestation verify chatter-<version>.apk --repo derLesh/Chatter` says GitHub saw the release
+  workflow build it from this repository.
+- `apksigner verify --print-certs chatter-<version>.apk` names the certificate it is signed with,
+  and every APK released here is signed with this one:
+
+  ```text
+  dc53f30003ee71b0bbbdbd910dd92ce22da1bd346f4da59d985fc6133b29390e
+  ```
 
 ## License
 
