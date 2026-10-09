@@ -16,7 +16,7 @@ import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
-import androidx.compose.material3.PrimaryScrollableTabRow
+import androidx.compose.material3.PrimaryTabRow
 import androidx.compose.material3.Tab
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -95,13 +95,23 @@ fun EmotePickerSheet(
 
     ModalBottomSheet(onDismissRequest = onDismiss) {
         Column(Modifier.height(420.dp)) {
-            PrimaryScrollableTabRow(selectedTabIndex = selected, edgePadding = 8.dp) {
+            // Fixed, not scrolling: with six tabs a scrolling row hid the last ones off screen,
+            // with nothing to show they were there.
+            PrimaryTabRow(selectedTabIndex = selected) {
                 tabs.forEachIndexed { i, tab ->
                     Tab(
                         selected = selected == i,
                         onClick = { selected = i },
-                        text = { Text("${stringResource(tab.title)} (${tab.items.size})") },
-                    )
+                        modifier = Modifier.padding(vertical = 8.dp),
+                    ) {
+                        Text(stringResource(tab.title), style = MaterialTheme.typography.labelLarge, maxLines = 1)
+                        Text(
+                            "${tab.items.size}",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            maxLines = 1,
+                        )
+                    }
                 }
             }
             val tab = tabs[selected]

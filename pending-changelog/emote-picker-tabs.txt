@@ -1,0 +1,1 @@
+patch: Show every tab of the emote picker at once, with the number of emotes under its name
