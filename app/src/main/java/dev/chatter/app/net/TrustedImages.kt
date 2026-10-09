@@ -15,6 +15,8 @@ object TrustedImages {
     val HOSTS = listOf(
         // Twitch's CDN, for its badges and emotes.
         "jtvnw.net",
+        // Twitch's cheermotes; the host alone, since the rest of cloudfront.net is anybody's.
+        "d3aqoihi2n8ty8.cloudfront.net",
         "betterttv.net",
         "frankerfacez.com",
         "7tv.app", "7tv.io",

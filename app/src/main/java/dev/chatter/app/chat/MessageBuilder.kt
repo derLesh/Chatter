@@ -1,6 +1,7 @@
 package dev.chatter.app.chat
 
 import dev.chatter.app.badges.Badge
+import dev.chatter.app.emotes.Cheermote
 import dev.chatter.app.emotes.Emote
 import dev.chatter.app.emotes.EmoteProvider
 import dev.chatter.app.emotes.twitchEmoteUrl
@@ -18,6 +19,15 @@ interface EmoteSource {
      * arrive, so it stays rebuildable. See [MessageBody].
      */
     fun complete(channelId: String?): Boolean = true
+}
+
+/** Where the builder finds cheermotes, by channel and prefix ("Cheer" of "Cheer100"). */
+fun interface CheerSource {
+    fun lookup(channelId: String?, prefix: String): Cheermote?
+
+    companion object {
+        val NONE = CheerSource { _, _ -> null }
+    }
 }
 
 /** User settings that affect how emotes are recognized in new messages. */
@@ -41,6 +51,7 @@ class MessageBuilder(
     private val emotes: EmoteSource,
     private val badges: BadgeSource,
     private val chatters: ChatterRegistry = ChatterRegistry(),
+    private val cheers: CheerSource = CheerSource.NONE,
     private val options: () -> EmoteOptions = { EmoteOptions() },
 ) {
     fun build(
@@ -115,6 +126,8 @@ class MessageBuilder(
          */
         badgeChannelId: String? = channelId,
         quote: () -> List<Segment> = { emptyList() },
+        /** Only a message that carries bits turns "Cheer100" into a cheermote. */
+        cheered: Boolean = false,
     ) = MessageBody.lazily(
         segments = {
             val text = if (strippedPrefix == 0) rawBody else rawBody.substring(strippedPrefix)
@@ -125,7 +138,7 @@ class MessageBuilder(
                     else r.copy(start = r.start - strippedPrefix, end = r.end - strippedPrefix)
                 }
             }
-            segments(channel, text, ranges, channelId, ownMessage)
+            segments(channel, text, ranges, channelId, ownMessage, cheered)
         },
         badges = { badges.resolve(badgeChannelId, badgesTag, userId) },
         quote = quote,
@@ -155,6 +168,7 @@ class MessageBuilder(
         val isOwn = login.equals(selfLogin, ignoreCase = true)
         val roomId = channelId ?: msg.tag("room-id")
         val partner = partnerRoom(msg, roomId)
+        val bits = msg.tag("bits")?.toIntOrNull()?.coerceAtLeast(0) ?: 0
         return ChatItem(
             id = msg.tag("id") ?: UUID.randomUUID().toString(),
             channel = channel,
@@ -168,6 +182,7 @@ class MessageBuilder(
                 userId = msg.tag("user-id"), channelId = roomId,
                 ownMessage = false, strippedPrefix = stripped, badgeChannelId = partner ?: roomId,
                 quote = { reply?.let { quoteSegments(channel, it.parentBody, roomId) }.orEmpty() },
+                cheered = bits > 0,
             ),
             text = body,
             isMention = !isOwn && (mentions.matches(body) || reply?.parentLogin.equals(selfLogin, ignoreCase = true)),
@@ -177,6 +192,7 @@ class MessageBuilder(
             historical = historical,
             sharedId = msg.tag("source-id"),
             sourceRoomId = partner,
+            bits = bits,
         )
     }
 
@@ -256,7 +272,14 @@ class MessageBuilder(
         return result
     }
 
-    internal fun segments(channel: String, text: String, twitchRanges: List<EmoteRange>, channelId: String?, ownMessage: Boolean): List<Segment> {
+    internal fun segments(
+        channel: String,
+        text: String,
+        twitchRanges: List<EmoteRange>,
+        channelId: String?,
+        ownMessage: Boolean,
+        cheered: Boolean = false,
+    ): List<Segment> {
         val opts = options()
         // With emotes off, every word stays text, Twitch emotes included.
         val twitch = if (opts.enabled && EmoteProvider.Twitch in opts.providers) twitchRanges else emptyList()
@@ -302,6 +325,13 @@ class MessageBuilder(
             var end = text.indexOf(' ', i)
             if (end == -1) end = len
             val word = text.substring(i, end)
+            val cheer = if (cheered) cheer(channelId, word) else null
+            if (cheer != null) {
+                flush()
+                out += cheer
+                i = end
+                continue
+            }
             val emote = if (!opts.enabled) null else {
                 ((if (ownMessage) emotes.lookupOwnTwitch(channelId, word) else null) ?: emotes.lookup(channelId, word))
                     ?.takeIf { it.provider in opts.providers }
@@ -323,6 +353,20 @@ class MessageBuilder(
         }
         flush()
         return out
+    }
+
+    /**
+     * [word] as a cheer, if it is a known prefix followed by an amount: "Cheer100", "4Head50". The
+     * amount is the trailing digits, so a prefix may contain digits of its own.
+     */
+    private fun cheer(channelId: String?, word: String): Segment.Cheer? {
+        val digits = word.takeLastWhile { it.isDigit() }
+        if (digits.isEmpty() || digits.length == word.length || digits.length > 9) return null
+        val amount = digits.toInt().takeIf { it > 0 } ?: return null
+        val prefix = word.dropLast(digits.length)
+        val tier = cheers.lookup(channelId, prefix)?.tierFor(amount) ?: return null
+        fun image(url: String) = Emote(word, "cheer:$prefix:${tier.minBits}", url, EmoteProvider.Twitch)
+        return Segment.Cheer(image(tier.darkUrl), image(tier.lightUrl), amount, tier.color)
     }
 
     /**

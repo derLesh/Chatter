@@ -60,6 +60,7 @@ import dev.chatter.app.chat.ImageLinks
 import dev.chatter.app.chat.LinkText
 import dev.chatter.app.chat.MessageKind
 import dev.chatter.app.chat.Segment
+import dev.chatter.app.emotes.Emote
 import dev.chatter.app.settings.TimestampFormat
 import dev.chatter.app.ui.theme.NameColorPalette
 import dev.chatter.app.ui.theme.readableNameColor
@@ -142,6 +143,8 @@ private sealed interface InlineData {
     data class ChannelData(val mark: ChannelMark) : InlineData
     data class BadgeData(val badge: Badge) : InlineData
     data class EmoteData(val seg: Segment.EmoteSeg) : InlineData
+    /** Not clickable: the emote card would offer to type "Cheer100" into the input. */
+    data class CheerData(val picture: Emote) : InlineData
 }
 
 // SimpleDateFormat is not thread-safe: one per pattern and thread.
@@ -195,7 +198,8 @@ fun MessageRow(
         item.highlight != null -> Color(item.highlight).copy(alpha = HIGHLIGHT_ALPHA)
         item.isMention -> style.mentionBackground
         firstMessage -> style.firstMessageBackground
-        item.kind == MessageKind.UserNotice -> style.noticeBackground
+        // Cheers stand out a little, like subs.
+        item.kind == MessageKind.UserNotice || item.bits > 0 -> style.noticeBackground
         item.alternate && style.alternateBackground != null -> style.alternateBackground
         else -> Color.Transparent
     }
@@ -357,6 +361,17 @@ private fun inlineFor(
     ) {
         AsyncImage(model = data.badge.url, contentDescription = data.badge.title, imageLoader = loader, modifier = Modifier.fillMaxSize())
     }
+    is InlineData.CheerData -> InlineTextContent(
+        Placeholder(emoteEm.em, emoteEm.em, PlaceholderVerticalAlign.Center),
+    ) {
+        SharedEmoteImage(
+            url = data.picture.url,
+            contentDescription = data.picture.name,
+            loader = loader,
+            onLoaded = EmoteSizes.onSize(data.picture),
+            modifier = Modifier.fillMaxSize().preferredFrameRate(frameRate),
+        )
+    }
     is InlineData.EmoteData -> {
         val base = data.seg.emote
         // Wide zero-width overlays should not be clipped, so the widest aspect ratio is used.
@@ -471,6 +486,7 @@ private fun buildQuote(template: String, quote: List<Segment>, fallback: String,
                 }
                 is Segment.Link -> withStyle(SpanStyle(color = style.linkColor)) { append(LinkText.display(seg.text, short = true)) }
                 is Segment.Mention -> append(seg.name)
+                is Segment.Cheer -> appendCheer(seg, "q$i", inline, style)
             }
         }
         append(template, at + QUOTE_MARK.length, template.length)
@@ -500,8 +516,17 @@ private fun AnnotatedString.Builder.appendSegments(segments: List<Segment>, inli
                 val color = seg.login?.let { readableNameColor(seg.color, it, style.dark, style.nameColors) } ?: Color.Unspecified
                 withStyle(SpanStyle(color = color, fontWeight = FontWeight.Bold)) { append(seg.name) }
             }
+            is Segment.Cheer -> appendCheer(seg, "e$i", inline, style)
         }
     }
+}
+
+/** The cheermote in the theme's variant, then the amount in its tier's color. */
+private fun AnnotatedString.Builder.appendCheer(seg: Segment.Cheer, id: String, inline: MutableMap<String, InlineData>, style: ChatStyle) {
+    val picture = if (style.dark) seg.dark else seg.light
+    inline[id] = InlineData.CheerData(picture)
+    appendInlineContent(id, picture.name)
+    withStyle(SpanStyle(color = Color(seg.color), fontWeight = FontWeight.Bold)) { append(seg.amount.toString()) }
 }
 
 /** The nickname for [login], or [fallback]. */

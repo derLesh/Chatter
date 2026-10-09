@@ -13,6 +13,11 @@ sealed interface Segment {
      * unknown names keep the default color.
      */
     data class Mention(val name: String, val login: String? = null, val color: Int? = null) : Segment
+    /**
+     * "Cheer100" in a message with bits: the cheermote's picture in both themes and the amount in
+     * its tier's [color].
+     */
+    data class Cheer(val dark: Emote, val light: Emote, val amount: Int, val color: Int) : Segment
 }
 
 enum class MessageKind { Chat, Action, UserNotice, Notice }
@@ -127,6 +132,8 @@ data class ChatItem(
     val sharedId: String? = null,
     /** The Shared Chat partner this was written in; null for messages written here. */
     val sourceRoomId: String? = null,
+    /** Bits cheered with this message, from the `bits` tag. */
+    val bits: Int = 0,
 ) {
     val canReply: Boolean get() = kind == MessageKind.Chat || kind == MessageKind.Action
 

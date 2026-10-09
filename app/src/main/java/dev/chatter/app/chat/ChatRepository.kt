@@ -8,6 +8,7 @@ import dev.chatter.app.auth.TwitchScopes
 import dev.chatter.app.badges.BadgeRepository
 import dev.chatter.app.channels.BlockedUsersRepository
 import dev.chatter.app.channels.ChannelRepository
+import dev.chatter.app.emotes.CheermoteRepository
 import dev.chatter.app.emotes.EmoteRepository
 import dev.chatter.app.irc.ConnectionState
 import dev.chatter.app.irc.IrcMessage
@@ -50,6 +51,7 @@ class ChatRepository(
     private val builder: MessageBuilder,
     private val emotes: EmoteRepository,
     private val badges: BadgeRepository,
+    private val cheermotes: CheermoteRepository,
     private val channelRepo: ChannelRepository,
     private val thirdParty: ThirdPartyApi,
     private val helix: HelixApi,
@@ -333,6 +335,7 @@ class ChatRepository(
     private suspend fun loadEmotesAndBadges(channelId: String) = coroutineScope {
         launch { emotes.loadChannel(channelId, auth.account?.userId) }
         launch { badges.loadChannel(channelId) }
+        launch { cheermotes.loadChannel(channelId) }
     }
 
     /**

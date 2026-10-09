@@ -1,0 +1,1 @@
+minor: Show cheers as animated cheermotes in their tier's color, and set messages with bits apart like a sub

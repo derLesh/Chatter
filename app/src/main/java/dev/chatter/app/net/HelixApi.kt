@@ -1,6 +1,7 @@
 package dev.chatter.app.net
 
 import dev.chatter.app.BuildConfig
+import dev.chatter.app.emotes.TwitchCheermoteApi
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.JsonObject
@@ -35,7 +36,7 @@ class HelixApi(
     private val http: OkHttpClient,
     /** A currently valid access token, refreshed if needed. */
     private val token: suspend () -> String?,
-) : TwitchEmoteApi, TwitchBadgeApi {
+) : TwitchEmoteApi, TwitchBadgeApi, TwitchCheermoteApi {
     private suspend fun headers() = mapOf(
         "Client-Id" to BuildConfig.TWITCH_CLIENT_ID,
         "Authorization" to "Bearer ${token() ?: throw NotLoggedInException()}",
@@ -82,6 +83,9 @@ class HelixApi(
 
     override suspend fun channelBadges(channelId: String): List<HelixBadgeSet> =
         http.getJson<HelixList<HelixBadgeSet>>(url("chat/badges", "broadcaster_id" to channelId), headers()).data
+
+    override suspend fun cheermotes(channelId: String): List<HelixCheermote> =
+        http.getJson<HelixList<HelixCheermote>>(url("bits/cheermotes", "broadcaster_id" to channelId), headers()).data
 
     /** Every emote the user may use anywhere (subs, follower, globals, ...). Paginated. */
     override suspend fun userEmotes(userId: String): List<HelixEmote> {
@@ -295,6 +299,21 @@ data class HelixBadgeVersion(
     @SerialName("image_url_1x") val url1x: String = "",
     @SerialName("image_url_2x") val url2x: String = "",
     @SerialName("image_url_4x") val url4x: String = "",
+)
+
+@Serializable
+data class HelixCheermote(
+    val prefix: String = "",
+    val tiers: List<HelixCheermoteTier> = emptyList(),
+)
+
+@Serializable
+data class HelixCheermoteTier(
+    @SerialName("min_bits") val minBits: Int = 0,
+    /** "#9c3ee8". */
+    val color: String = "",
+    /** Theme ("dark", "light"), then "animated" or "static", then scale ("1" to "4") to URL. */
+    val images: Map<String, Map<String, Map<String, String>>> = emptyMap(),
 )
 
 @Serializable

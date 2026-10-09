@@ -40,6 +40,7 @@ import dev.chatter.app.chat.WhisperInboxRepository
 import dev.chatter.app.chat.WhisperResult
 import dev.chatter.app.chat.WhisperSender
 import dev.chatter.app.crash.CrashLog
+import dev.chatter.app.emotes.CheermoteRepository
 import dev.chatter.app.emotes.EmojiRepository
 import dev.chatter.app.emotes.EmoteRepository
 import dev.chatter.app.emotes.SevenTvEventClient
@@ -132,6 +133,7 @@ class AppContainer(
     val emotes = EmoteRepository(helix, thirdParty, trouble)
     val emoji = EmojiRepository(context)
     val badges = BadgeRepository(helix, thirdParty, trouble)
+    private val cheermotes = CheermoteRepository(helix, trouble)
     val channels = ChannelRepository(context.channelStore, helix, scope)
     val blocked = BlockedUsersRepository(helix, scope)
     val nicknames = NicknameRepository(context.nicknameStore, scope)
@@ -153,7 +155,8 @@ class AppContainer(
     private val chatters = ChatterRegistry()
 
     val chat = ChatRepository(
-        context, irc, MessageBuilder(emotes, badges, chatters, ::emoteOptions), emotes, badges, channels, thirdParty, helix, auth,
+        context, irc, MessageBuilder(emotes, badges, chatters, cheermotes, ::emoteOptions), emotes, badges, cheermotes, channels,
+        thirdParty, helix, auth,
         CommandExecutor(context, helix, auth, whisperSender), AppChatNotices(context), chatters, blocked, stats,
         rules.rules, settings.settings, scope,
     )
@@ -302,6 +305,7 @@ class AppContainer(
                 // The global set comes from Helix, which needs a login.
                 if (visible && auth.account != null) {
                     badges.retryMissing(supporterTitles())
+                    cheermotes.retryMissing()
                     emotes.retryMissing(auth.account?.userId)
                 }
             }
