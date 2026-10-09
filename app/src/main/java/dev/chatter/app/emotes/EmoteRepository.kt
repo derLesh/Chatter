@@ -9,6 +9,7 @@ import dev.chatter.app.net.SevenTvActiveEmote
 import dev.chatter.app.net.ThirdPartyEmoteApi
 import dev.chatter.app.net.TrustedImages
 import dev.chatter.app.net.TwitchEmoteApi
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
@@ -272,8 +273,8 @@ class EmoteRepository(
     private suspend fun <T> answer(provider: EmoteProvider, block: suspend () -> T): T? = try {
         block().also { trouble.reachable(provider.label) }
     } catch (e: Exception) {
-        if (e is kotlinx.coroutines.CancellationException) throw e
-        Log.w("EmoteRepository", "Loading ${provider.label} failed: ${e.message}")
+        if (e is CancellationException) throw e
+        Log.w(TAG, "Loading ${provider.label} failed: ${e.message}")
         trouble.report(provider.label)
         null
     }
@@ -286,8 +287,8 @@ class EmoteRepository(
     private suspend fun <T> safe(what: String, block: suspend () -> T): T? = try {
         block()
     } catch (e: Exception) {
-        if (e is kotlinx.coroutines.CancellationException) throw e
-        Log.w("EmoteRepository", "Loading $what failed: ${e.message}")
+        if (e is CancellationException) throw e
+        Log.w(TAG, "Loading $what failed: ${e.message}")
         null
     }
 
@@ -334,6 +335,8 @@ class EmoteRepository(
     }
 
     private companion object {
+        const val TAG = "EmoteRepository"
+
         /** The providers asked for emotes. Twitch is not one of them. */
         val THIRD_PARTY = setOf(EmoteProvider.Ffz, EmoteProvider.Bttv, EmoteProvider.SevenTv)
 
