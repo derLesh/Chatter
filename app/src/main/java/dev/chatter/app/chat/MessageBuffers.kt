@@ -44,15 +44,25 @@ class MessageBuffers(
     private val groupStates = HashMap<String, GroupState>()
 
     /**
-     * Per channel, how many messages were appended and how often it changed otherwise. A combined
-     * chat compares these with its last state to know whether it can just append.
+     * Per channel: how many messages were appended and how often it changed otherwise, which a
+     * combined chat compares with its last state to know whether it can just append; and the new
+     * messages since the user last looked. Plain fields, since a map of boxed numbers would
+     * allocate on every message.
      */
-    private val appended = HashMap<String, Long>()
-    private val reshaped = HashMap<String, Long>()
+    private class Counts {
+        var appended = 0L
+        var reshaped = 0L
+        var unread = 0
+    }
 
-    // New messages per channel since the user last looked. Published together with the message
-    // lists instead of per message.
-    private val unreadCounts = HashMap<String, Int>()
+    private val counts = HashMap<String, Counts>()
+
+    private fun counts(channel: String) = counts.getOrPut(channel) { Counts() }
+
+    private fun appended(channel: String) = counts[channel]?.appended ?: 0L
+    private fun reshaped(channel: String) = counts[channel]?.reshaped ?: 0L
+
+    // Unread counts are published together with the message lists instead of per message.
     private var unreadDirty = false
     private val _unreadMessages = MutableStateFlow<Map<String, Int>>(emptyMap())
     val unreadMessages: StateFlow<Map<String, Int>> = _unreadMessages
@@ -106,7 +116,7 @@ class MessageBuffers(
         dirty.clear()
         groupStates.clear()
         flows.values.forEach { it.value = emptyList() }
-        unreadCounts.clear()
+        counts.values.forEach { it.unread = 0 }
         unreadDirty = false
         _unreadMessages.value = emptyMap()
     }
@@ -120,7 +130,7 @@ class MessageBuffers(
         // Trimming only removes messages older than the oldest a combined chat with the same limit
         // still shows, so this stays an append.
         trim(item.channel, buffer)
-        appended[item.channel] = (appended[item.channel] ?: 0) + 1
+        counts(item.channel).appended++
         markDirty(item.channel)
     }
 
@@ -231,12 +241,15 @@ class MessageBuffers(
     }
 
     fun countUnread(channel: String) {
-        unreadCounts[channel] = (unreadCounts[channel] ?: 0) + 1
+        counts(channel).unread++
         unreadDirty = true
     }
 
     fun clearUnread(channel: String) {
-        if (unreadCounts.remove(channel) != null) _unreadMessages.value = HashMap(unreadCounts)
+        val channelCounts = counts[channel] ?: return
+        if (channelCounts.unread == 0) return
+        channelCounts.unread = 0
+        _unreadMessages.value = unreadCounts()
     }
 
     private fun trim(channel: String, buffer: ArrayDeque<ChatItem>, limit: Int = settings.value.messageLimit) {
@@ -257,7 +270,7 @@ class MessageBuffers(
 
     /** Any change to [channel] other than appending; see [snapshotGroup]. */
     private fun reshape(channel: String) {
-        reshaped[channel] = (reshaped[channel] ?: 0) + 1
+        counts(channel).reshaped++
         markDirty(channel)
     }
 
@@ -305,8 +318,8 @@ class MessageBuffers(
             channels = channels,
             showDeleted = showDeleted,
             limit = settings.value.messageLimit,
-            appended = channels.associateWith { appended[it] ?: 0 },
-            reshaped = channels.associateWith { reshaped[it] ?: 0 },
+            appended = channels.associateWith(::appended),
+            reshaped = channels.associateWith(::reshaped),
         )
         state.latest = all.maxOfOrNull { it.timestamp }
         var alternate = true
@@ -335,8 +348,8 @@ class MessageBuffers(
         ) return null
         val fresh = ArrayList<List<ChatItem>>(channels.size)
         for (channel in channels) {
-            if ((reshaped[channel] ?: 0) != state.reshaped[channel]) return null
-            val count = (appended[channel] ?: 0) - (state.appended[channel] ?: 0)
+            if (reshaped(channel) != state.reshaped[channel]) return null
+            val count = appended(channel) - (state.appended[channel] ?: 0)
             if (count == 0L) continue
             val buffer = buffers[channel] ?: return null
             if (count > buffer.size) return null
@@ -360,7 +373,7 @@ class MessageBuffers(
             if (shared == null && (item.id in state.byId || !idsAdded.add(item.id))) return null
         }
 
-        channels.forEach { channel -> state.appended[channel] = appended[channel] ?: 0 }
+        channels.forEach { channel -> state.appended[channel] = appended(channel) }
         state.latest = maxOf(latest ?: Long.MIN_VALUE, all.maxOf { it.timestamp })
         // Same start as a rebuild: the first row of an empty list is unshaded.
         var alternate = state.lastShown?.alternate ?: true
@@ -445,6 +458,9 @@ class MessageBuffers(
         }
     }
 
+    private fun unreadCounts(): Map<String, Int> =
+        counts.entries.filter { it.value.unread > 0 }.associate { it.key to it.value.unread }
+
     private fun markDirty(channel: String) {
         dirty.add(channel)
         groupsOf[channel]?.let { dirty.addAll(it) }
@@ -465,7 +481,7 @@ class MessageBuffers(
             }
             if (unreadDirty) {
                 unreadDirty = false
-                _unreadMessages.value = HashMap(unreadCounts)
+                _unreadMessages.value = unreadCounts()
             }
         }
     }

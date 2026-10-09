@@ -28,6 +28,20 @@ class IrcMessageTest {
     }
 
     @Test
+    fun readsTagsInPlace() {
+        val msg = IrcMessage.parse("@first-msg=1;tmi-sent-ts=1700000000123;bits=;turbo;id=x :u!u@u PRIVMSG #a :hi")!!
+        assertEquals(true, msg.tagIs("first-msg", "1"))
+        assertEquals(false, msg.tagIs("first-msg", "10"))
+        assertEquals(false, msg.tagIs("missing", "1"))
+        assertEquals(1700000000123L, msg.tagLong("tmi-sent-ts"))
+        assertNull(msg.tagLong("bits"))
+        assertNull(msg.tagLong("turbo"))
+        assertNull(msg.tagLong("id"))
+        // A name that is only the start of another tag's name is not that tag.
+        assertNull(msg.tagLong("tmi"))
+    }
+
+    @Test
     fun parsesMessagesWithoutTagsOrPrefix() {
         val ping = IrcMessage.parse("PING :tmi.twitch.tv")!!
         assertEquals("PING", ping.command)

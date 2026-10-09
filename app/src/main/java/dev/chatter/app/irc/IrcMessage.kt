@@ -21,9 +21,11 @@ class IrcMessage private constructor(
     val command: String,
     val params: List<String>,
 ) {
-    /** "#channel" -> "channel" for commands whose first parameter is a channel. */
-    val channel: String?
-        get() = params.firstOrNull()?.takeIf { it.startsWith("#") }?.substring(1)
+    /**
+     * "#channel" -> "channel" for commands whose first parameter is a channel. Cut once: the chat
+     * and the builder both ask for every message.
+     */
+    val channel: String? = params.firstOrNull()?.takeIf { it.startsWith("#") }?.substring(1)
 
     /** The trailing parameter (the chat text for PRIVMSG). */
     val trailing: String?
@@ -50,22 +52,56 @@ class IrcMessage private constructor(
 
     /** The value of the tag [name], or null if it is missing or empty. */
     fun tag(name: String): String? {
+        val start = valueStart(name)
+        if (start < 0) return null
+        val end = valueEnd(start)
+        return if (start >= end) null else unescapeTagValue(line, start, end)
+    }
+
+    /** Whether the tag [name] is exactly [value]; compared in place, without cutting it out. */
+    fun tagIs(name: String, value: String): Boolean {
+        val start = valueStart(name)
+        return start >= 0 && valueEnd(start) - start == value.length && line.regionMatches(start, value, 0, value.length)
+    }
+
+    /** The tag [name] as a number, read in place; null if it is missing or not a number. */
+    fun tagLong(name: String): Long? {
+        val start = valueStart(name)
+        if (start < 0) return null
+        val end = valueEnd(start)
+        if (start >= end || end - start > MAX_DIGITS) return null
+        var value = 0L
+        for (i in start until end) {
+            val digit = line[i] - '0'
+            if (digit !in 0..9) return null
+            value = value * 10 + digit
+        }
+        return value
+    }
+
+    /** Where the value of the tag [name] starts in [line], or -1 if there is no such tag. */
+    private fun valueStart(name: String): Int {
         var pos = tagsStart
         while (pos < tagsEnd) {
-            var sep = line.indexOf(';', pos)
-            if (sep == -1 || sep > tagsEnd) sep = tagsEnd
+            val sep = valueEnd(pos)
             val keyEnd = pos + name.length
             if (keyEnd <= sep && line.regionMatches(pos, name, 0, name.length) && (keyEnd == sep || line[keyEnd] == '=')) {
-                return if (keyEnd + 1 >= sep) null else unescapeTagValue(line, keyEnd + 1, sep)
+                return if (keyEnd == sep) sep else keyEnd + 1
             }
             pos = sep + 1
         }
-        return null
+        return -1
     }
+
+    /** The end of the tag that runs through [pos]. */
+    private fun valueEnd(pos: Int): Int = line.indexOf(';', pos).let { if (it == -1 || it > tagsEnd) tagsEnd else it }
 
     override fun toString(): String = "IrcMessage($command $params)"
 
     companion object {
+        /** More digits than a Long holds; Twitch's numbers are timestamps and counts. */
+        private const val MAX_DIGITS = 18
+
         /**
          * Parses the line between [start] and [end] of [text] (without CR/LF). Null for empty or
          * malformed lines.

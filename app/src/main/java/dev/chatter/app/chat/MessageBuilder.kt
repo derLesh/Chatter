@@ -173,7 +173,7 @@ class MessageBuilder(
         val isOwn = login.equals(selfLogin, ignoreCase = true)
         val roomId = channelId ?: msg.tag("room-id")
         val partner = partnerRoom(msg, roomId)
-        val bits = msg.tag("bits")?.toIntOrNull()?.coerceAtLeast(0) ?: 0
+        val bits = msg.tagLong("bits")?.coerceAtMost(Int.MAX_VALUE.toLong())?.toInt() ?: 0
         return ChatItem(
             id = msg.tag("id") ?: UUID.randomUUID().toString(),
             channel = channel,
@@ -191,7 +191,7 @@ class MessageBuilder(
             ),
             text = body,
             isMention = !isOwn && (mentions.matches(body) || reply?.parentLogin.equals(selfLogin, ignoreCase = true)),
-            isFirstMessage = !isOwn && msg.tag("first-msg") == "1",
+            isFirstMessage = !isOwn && msg.tagIs("first-msg", "1"),
             isOwn = isOwn,
             reply = reply,
             historical = historical,
@@ -405,8 +405,8 @@ class MessageBuilder(
     }
 
     private fun timestamp(msg: IrcMessage, historical: Boolean): Long =
-        (if (historical) msg.tag("rm-received-ts") else null)?.toLongOrNull()
-            ?: msg.tag("tmi-sent-ts")?.toLongOrNull()
+        (if (historical) msg.tagLong("rm-received-ts") else null)
+            ?: msg.tagLong("tmi-sent-ts")
             ?: System.currentTimeMillis()
 
     companion object {
@@ -422,9 +422,16 @@ class MessageBuilder(
                 text.substring(8, text.length - 1) to true
             } else text to false
 
+        /** "#1E90FF" as an opaque ARGB color, read in place for every message. */
         fun parseColor(hex: String?): Int? {
             if (hex == null || hex.length != 7 || hex[0] != '#') return null
-            return hex.substring(1).toIntOrNull(16)?.let { it or 0xFF000000.toInt() }
+            var rgb = 0
+            for (i in 1..6) {
+                val digit = Character.digit(hex[i], 16)
+                if (digit < 0) return null
+                rgb = rgb shl 4 or digit
+            }
+            return rgb or 0xFF000000.toInt()
         }
     }
 }

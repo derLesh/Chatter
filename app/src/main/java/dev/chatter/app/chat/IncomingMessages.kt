@@ -47,10 +47,15 @@ class IncomingMessages(
      * the session and would otherwise notify once per open channel.
      */
     private val mentionedShared = LinkedHashSet<String>()
-    /** Time of the newest live message per channel, so a reconnect only fetches the gap. */
-    private val lastLive = HashMap<String, Long>()
+    /**
+     * Time of the newest live message per channel, so a reconnect only fetches the gap. In a holder,
+     * since a boxed Long per message would be garbage.
+     */
+    private class Newest(var at: Long)
 
-    fun lastLive(channel: String): Long = lastLive[channel] ?: 0L
+    private val lastLive = HashMap<String, Newest>()
+
+    fun lastLive(channel: String): Long = lastLive[channel]?.at ?: 0L
 
     /**
      * The user's sent messages not yet confirmed by Twitch, oldest first, per channel. Twitch never
@@ -123,7 +128,7 @@ class IncomingMessages(
         val (mentions, muted, rules) = filters()
         val built = builder.build(msg, selfLogin(), rooms.id(channel), mentions) ?: return
         // Muted and hidden messages count as seen too, so a reconnect does not fetch them again.
-        lastLive[channel] = built.timestamp
+        lastLive.getOrPut(channel) { Newest(0L) }.at = built.timestamp
         // Before the mute list: muted messages also show whether a session is running.
         if (sharedChats.onLiveMessage(channel, msg.tag("room-id") ?: rooms.id(channel), msg.tag("source-room-id"))) {
             onSharedChatStarted(channel)
