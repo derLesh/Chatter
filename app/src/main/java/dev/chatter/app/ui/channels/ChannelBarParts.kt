@@ -1,5 +1,7 @@
 package dev.chatter.app.ui.channels
 
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.size
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Edit
@@ -7,16 +9,16 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.SpanStyle
-import androidx.compose.ui.text.buildAnnotatedString
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
-import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
+import coil3.ImageLoader
+import coil3.compose.AsyncImage
 import dev.chatter.app.R
+import dev.chatter.app.badges.Badge
 import dev.chatter.app.channels.ChannelGroup
 import dev.chatter.app.channels.ChannelInfo
 import dev.chatter.app.channels.displayName
@@ -43,11 +45,11 @@ internal val ChatRole.label: Int?
     }
 
 /**
- * The line under the channel name: the user's [role] in its color, a running Shared Chat, and the
- * chat modes. The tab bar shows the role in its tab instead and passes none.
+ * The line under the channel name: the user's role as its badge, a running Shared Chat, and the
+ * chat modes. The tab bar shows the role in its tab instead and passes no badge.
  */
 @Composable
-private fun ChannelModes(state: RoomState?, role: ChatRole?, sharedWith: List<String>?) {
+private fun ChannelModes(state: RoomState?, roleBadge: Badge?, sharedWith: List<String>?, imageLoader: ImageLoader) {
     val modes = buildList {
         // First, because it changes whose messages fill the chat.
         if (sharedWith != null) add(
@@ -64,24 +66,31 @@ private fun ChannelModes(state: RoomState?, role: ChatRole?, sharedWith: List<St
     }
     // Nothing to show for a normal chatter in an unrestricted channel; an empty row would still
     // take space.
-    val roleName = role?.label?.let { stringResource(it) }
-    if (modes.isEmpty() && roleName == null) return
-    // Role first, then modes, styled as a subtitle rather than chips so they do not compete with
-    // the name.
-    val separator = " · "
-    Text(
-        text = buildAnnotatedString {
-            if (roleName != null) {
-                withStyle(SpanStyle(color = role.color ?: Color.Unspecified, fontWeight = FontWeight.Medium)) { append(roleName) }
-                if (modes.isNotEmpty()) append(separator)
-            }
-            append(modes.joinToString(separator))
-        },
-        style = MaterialTheme.typography.labelMedium,
-        color = MaterialTheme.colorScheme.onSurfaceVariant,
-        maxLines = 1,
-        overflow = TextOverflow.Ellipsis,
-    )
+    if (modes.isEmpty() && roleBadge == null) return
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(6.dp),
+    ) {
+        // Role first, then modes, styled as a subtitle rather than chips so they do not compete
+        // with the name.
+        if (roleBadge != null) {
+            AsyncImage(
+                model = roleBadge.url,
+                contentDescription = roleBadge.title,
+                imageLoader = imageLoader,
+                modifier = Modifier.size(16.dp),
+            )
+        }
+        if (modes.isNotEmpty()) {
+            Text(
+                text = modes.joinToString(" · "),
+                style = MaterialTheme.typography.labelMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+        }
+    }
 }
 
 private fun formatMinutes(minutes: Int): String = when {
@@ -95,8 +104,9 @@ private fun formatMinutes(minutes: Int): String = when {
 internal fun ChannelStatus(
     connection: ConnectionState,
     state: RoomState?,
-    role: ChatRole?,
+    roleBadge: Badge?,
     sharedWith: List<String>?,
+    imageLoader: ImageLoader,
 ) {
     // A dropped connection takes the line, since it also makes role and modes stale.
     if (connection != ConnectionState.Connected) {
@@ -108,7 +118,7 @@ internal fun ChannelStatus(
         )
         return
     }
-    ChannelModes(state, role, sharedWith)
+    ChannelModes(state, roleBadge, sharedWith, imageLoader)
 }
 
 /** Title bar text while not connected. */

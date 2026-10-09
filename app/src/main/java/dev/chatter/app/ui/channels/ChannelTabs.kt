@@ -153,7 +153,7 @@ fun ChannelTabBar(
             // A little room above, so the line does not stick to the tab underline.
             if (hasStatus) Box(Modifier.padding(start = 16.dp, end = 16.dp, top = 4.dp, bottom = 6.dp)) {
                 if (activeGroup != null) GroupStatus(connection, activeGroup, info)
-                else ChannelStatus(connection, roomState, role = null, sharedWith)
+                else ChannelStatus(connection, roomState, roleBadge = null, sharedWith, imageLoader)
             }
         }
     }

@@ -250,6 +250,8 @@ fun MainScreen(vm: MainViewModel, onInbox: () -> Unit, onSettings: () -> Unit) {
             }
             val roomState = activeChannel?.let { roomStates[it] }
             val role = activeChannel?.let { roles[it] }
+            // The tabs show the role as the color of the tab's underline, the menu bar as its badge.
+            val roleBadge = activeChannel?.let { ch -> role?.let { vm.roleBadge(ch, it) } }
             if (settings.channelTabs) ChannelTabBar(
                 pages = pageKeys,
                 groups = groups,
@@ -284,7 +286,7 @@ fun MainScreen(vm: MainViewModel, onInbox: () -> Unit, onSettings: () -> Unit) {
                 unread = unread,
                 unreadMessages = unreadMessages,
                 roomState = roomState,
-                role = role,
+                roleBadge = roleBadge,
                 sharedWith = sharedWith,
                 connection = connection,
                 showUnread = settings.unreadInTitleBar,
