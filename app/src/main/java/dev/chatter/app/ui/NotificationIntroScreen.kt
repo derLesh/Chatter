@@ -36,7 +36,10 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -70,14 +73,14 @@ fun NotificationIntroScreen(onDone: () -> Unit) {
     val context = LocalContext.current
     // Android answers without asking once the user has refused twice; an answer that fast means no
     // dialog was shown, so the system setting is the only way left.
-    val askedAt = remember { longArrayOf(0L) }
+    var askedAt by remember { mutableLongStateOf(0L) }
     val permission = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
-        if (!granted && SystemClock.elapsedRealtime() - askedAt[0] < SILENT_REFUSAL_MS) openNotificationSettings(context)
+        if (!granted && SystemClock.elapsedRealtime() - askedAt < SILENT_REFUSAL_MS) openNotificationSettings(context)
         onDone()
     }
     BoxWithConstraints(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.surface).safeDrawingPadding()) {
-        // At least the screen's height, so the explanation sits in the middle and the buttons at the
-        // bottom; a small screen scrolls instead.
+        // At least the screen's height, so the explanation sits in the middle and the buttons at
+        // the bottom; a small screen scrolls instead.
         Column(
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.SpaceBetween,
@@ -91,7 +94,7 @@ fun NotificationIntroScreen(onDone: () -> Unit) {
             Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.padding(top = 28.dp)) {
                 Button(
                     onClick = {
-                        askedAt[0] = SystemClock.elapsedRealtime()
+                        askedAt = SystemClock.elapsedRealtime()
                         permission.launch(Manifest.permission.POST_NOTIFICATIONS)
                     },
                     modifier = Modifier.fillMaxWidth(),

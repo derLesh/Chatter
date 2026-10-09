@@ -46,7 +46,8 @@ internal fun namePaintStyle(paint: NamePaint, nameBounds: Rect?, image: ImageBit
             blurRadius = it.radius * density.density,
         )
     }
-    val placed = nameBounds?.takeIf { it.width > 0f && it.height > 0f && (paint.kind != NamePaint.Kind.Image || image != null) }
+    val ready = paint.kind != NamePaint.Kind.Image || image != null
+    val placed = nameBounds?.takeIf { ready && it.width > 0f && it.height > 0f }
     return if (placed != null) {
         SpanStyle(brush = PlacedPaint(paint, placed, image), shadow = shadow)
     } else {
@@ -54,12 +55,17 @@ internal fun namePaintStyle(paint: NamePaint, nameBounds: Rect?, image: ImageBit
     }
 }
 
-/** Where the characters [range] were laid out, or null if the range is not in [layout]. */
+/** Where the characters [range] were laid out, or null if they are not in this layout. */
 internal fun TextLayoutResult.boundsOf(range: IntRange): Rect? {
     if (range.isEmpty() || range.last >= layoutInput.text.length) return null
     val first = getBoundingBox(range.first)
     val last = getBoundingBox(range.last)
-    return Rect(minOf(first.left, last.left), minOf(first.top, last.top), max(first.right, last.right), max(first.bottom, last.bottom))
+    return Rect(
+        left = minOf(first.left, last.left),
+        top = minOf(first.top, last.top),
+        right = max(first.right, last.right),
+        bottom = max(first.bottom, last.bottom),
+    )
 }
 
 /** An image paint's picture, as a bitmap a shader can use; null until it has loaded. */
@@ -74,10 +80,7 @@ internal fun rememberPaintImage(url: String, loader: ImageLoader): ImageBitmap? 
     return image
 }
 
-/**
- * A data class, so the same paint over the same bounds is the same brush and the text is not laid
- * out again for nothing.
- */
+/** A data class: the same paint over the same bounds is equal, so the text is not laid out again. */
 private data class PlacedPaint(val paint: NamePaint, val bounds: Rect, val image: ImageBitmap?) : ShaderBrush() {
     override fun createShader(size: Size): Shader = when (paint.kind) {
         NamePaint.Kind.Linear -> linear()
@@ -87,34 +90,40 @@ private data class PlacedPaint(val paint: NamePaint, val bounds: Rect, val image
 
     private val colors get() = paint.stops.map { Color(it.color) }
 
-    /**
-     * The stops' positions, and the share of the gradient they cover. A repeating gradient repeats
-     * the stretch from its first stop to its last, not the whole length.
-     */
-    private fun stretch(): Triple<List<Float>, Float, Float> {
-        if (!paint.repeat) return Triple(paint.stops.map { it.at }, 0f, 1f)
-        val from = paint.stops.first().at
-        val to = paint.stops.last().at.coerceAtLeast(from + 0.01f)
-        return Triple(paint.stops.map { (it.at - from) / (to - from) }, from, to)
-    }
-
     private val tileMode get() = if (paint.repeat) TileMode.Repeated else TileMode.Clamp
 
-    /** CSS's linear-gradient: the line through the centre at [NamePaint.angle], long enough to reach the corners. */
+    /** Where the stops sit within the share [from] to [to] of the gradient's length. */
+    private class Stretch(val positions: List<Float>, val from: Float, val to: Float)
+
+    /** A repeating gradient repeats from its first stop to its last, not its whole length. */
+    private fun stretch(): Stretch {
+        if (!paint.repeat) return Stretch(paint.stops.map { it.at }, 0f, 1f)
+        val from = paint.stops.first().at
+        val to = paint.stops.last().at.coerceAtLeast(from + 0.01f)
+        return Stretch(paint.stops.map { (it.at - from) / (to - from) }, from, to)
+    }
+
+    /** CSS's linear-gradient: through the centre at [NamePaint.angle], reaching both corners. */
     private fun linear(): Shader {
         val radians = Math.toRadians(paint.angle.toDouble())
         val direction = Offset(sin(radians).toFloat(), -cos(radians).toFloat())
         val length = abs(bounds.width * direction.x) + abs(bounds.height * direction.y)
         val start = bounds.center - direction * (length / 2)
-        val (positions, from, to) = stretch()
-        return LinearGradientShader(start + direction * (length * from), start + direction * (length * to), colors, positions, tileMode)
+        val stretch = stretch()
+        return LinearGradientShader(
+            from = start + direction * (length * stretch.from),
+            to = start + direction * (length * stretch.to),
+            colors = colors,
+            colorStops = stretch.positions,
+            tileMode = tileMode,
+        )
     }
 
     /** CSS's radial-gradient from the centre out to the farthest corner. */
     private fun radial(): Shader {
-        val (positions, _, to) = stretch()
-        val radius = (hypot(bounds.width / 2, bounds.height / 2) * to).coerceAtLeast(1f)
-        return RadialGradientShader(bounds.center, radius, colors, positions, tileMode)
+        val stretch = stretch()
+        val radius = (hypot(bounds.width / 2, bounds.height / 2) * stretch.to).coerceAtLeast(1f)
+        return RadialGradientShader(bounds.center, radius, colors, stretch.positions, tileMode)
     }
 
     /** The picture covering the name, like CSS's background-size: cover. */

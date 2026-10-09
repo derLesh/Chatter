@@ -1004,10 +1004,7 @@ private fun NotificationsPage(settings: Settings, vm: MainViewModel, open: (Sett
     }
 }
 
-/**
- * Which channels notify when they go live: those in the list unless turned off, the other followed
- * channels only when turned on.
- */
+/** Which channels notify when they go live; see [dev.chatter.app.channels.LiveAlertChoices]. */
 @Composable
 private fun LiveChannelsPage(vm: MainViewModel) {
     val channels by vm.channels.collectAsStateWithLifecycle()
@@ -1017,21 +1014,13 @@ private fun LiveChannelsPage(vm: MainViewModel) {
     var follows by remember { mutableStateOf<List<HelixFollowedChannel>?>(null) }
     LaunchedEffect(Unit) { follows = vm.followedChannelList().orEmpty().sortedBy { it.displayName.lowercase() } }
 
-    @Composable
-    fun ChannelSwitch(login: String, name: String, inList: Boolean) {
-        val on = choices.wanted(login, inList)
-        ListItem(
-            headlineContent = { Text(name) },
-            leadingContent = if (inList) ({ ChannelAvatar(info[login], vm.imageLoader, 40.dp) }) else null,
-            trailingContent = { Switch(checked = on, onCheckedChange = { vm.setLiveAlert(login, it) }) },
-            colors = transparentItem(),
-            modifier = Modifier.clickable { vm.setLiveAlert(login, !on) },
-        )
-    }
-
     if (channels.isNotEmpty()) SettingsGroup(R.string.live_channels_in_list) {
         channels.forEach { login ->
-            item { ChannelSwitch(login, info[login]?.displayName ?: login, inList = true) }
+            item {
+                LiveAlertSwitch(info[login]?.displayName ?: login, choices.wanted(login, inList = true), { vm.setLiveAlert(login, it) }) {
+                    ChannelAvatar(info[login], vm.imageLoader, 40.dp)
+                }
+            }
         }
     }
     SettingsGroup(R.string.live_channels_followed) {
@@ -1044,10 +1033,26 @@ private fun LiveChannelsPage(vm: MainViewModel) {
                 ListItem(headlineContent = { Text(stringResource(R.string.live_channels_none)) }, colors = transparentItem())
             }
             else -> others.forEach { follow ->
-                item { ChannelSwitch(follow.login, follow.displayName.ifEmpty { follow.login }, inList = false) }
+                item {
+                    LiveAlertSwitch(follow.displayName.ifEmpty { follow.login }, choices.wanted(follow.login, inList = false), {
+                        vm.setLiveAlert(follow.login, it)
+                    })
+                }
             }
         }
     }
+}
+
+/** A channel on the live notification page; followed channels come without a picture. */
+@Composable
+private fun LiveAlertSwitch(name: String, on: Boolean, onChange: (Boolean) -> Unit, avatar: (@Composable () -> Unit)? = null) {
+    ListItem(
+        headlineContent = { Text(name) },
+        leadingContent = avatar,
+        trailingContent = { Switch(checked = on, onCheckedChange = onChange) },
+        colors = transparentItem(),
+        modifier = Modifier.clickable { onChange(!on) },
+    )
 }
 
 /**

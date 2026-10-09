@@ -7,7 +7,6 @@ import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.booleanOrNull
 import kotlinx.serialization.json.contentOrNull
 import kotlinx.serialization.json.floatOrNull
-import kotlinx.serialization.json.jsonPrimitive
 import kotlinx.serialization.json.longOrNull
 
 /**
@@ -16,7 +15,6 @@ import kotlinx.serialization.json.longOrNull
  */
 data class NamePaint(
     val id: String,
-    val name: String,
     val kind: Kind,
     /** The stops along the gradient, by position from 0 to 1; empty for an image. */
     val stops: List<Stop>,
@@ -28,7 +26,7 @@ data class NamePaint(
     val imageUrl: String? = null,
     /** Drop shadows behind the name, in the order 7TV lists them. */
     val shadows: List<Shadow> = emptyList(),
-    /** What to draw while the gradient's place or the image is not known yet. */
+    /** What to draw until the gradient's place or the image is known. */
     val fallbackColor: Int? = null,
 ) {
     enum class Kind { Linear, Radial, Image }
@@ -40,53 +38,54 @@ data class NamePaint(
 
     companion object {
         /**
-         * The `data` of a 7TV `cosmetic.create` for a paint, or null if it is nothing Chatter can
-         * draw. Images are only taken from 7TV's own hosts; see [TrustedImages].
+         * The `data` of a 7TV `cosmetic.create` for a paint, or null if Chatter cannot draw it.
+         * Pictures are only taken from 7TV's own hosts; see [TrustedImages].
          */
         fun parse(data: JsonObject): NamePaint? {
             val id = data.string("id") ?: return null
-            val stops = (data["stops"] as? JsonArray).orEmpty().mapNotNull { stop ->
-                val obj = stop as? JsonObject ?: return@mapNotNull null
-                val at = obj["at"]?.jsonPrimitive?.floatOrNull ?: return@mapNotNull null
-                val color = obj["color"]?.jsonPrimitive?.longOrNull ?: return@mapNotNull null
-                Stop(at.coerceIn(0f, 1f), rgbaToArgb(color))
-            }.sortedBy { it.at }
             val kind = when (data.string("function")) {
                 "LINEAR_GRADIENT" -> Kind.Linear
                 "RADIAL_GRADIENT" -> Kind.Radial
                 "URL" -> Kind.Image
                 else -> return null
             }
+            val stops = data.objects("stops").mapNotNull { stop ->
+                val at = stop.primitive("at")?.floatOrNull ?: return@mapNotNull null
+                val color = stop.primitive("color")?.longOrNull ?: return@mapNotNull null
+                Stop(at.coerceIn(0f, 1f), rgbaToArgb(color))
+            }.sortedBy { it.at }
             val imageUrl = if (kind == Kind.Image) TrustedImages.url(data.string("image_url").orEmpty()) ?: return null else null
             if (kind != Kind.Image && stops.size < 2) return null
-            val shadows = (data["shadows"] as? JsonArray).orEmpty().mapNotNull { shadow ->
-                val obj = shadow as? JsonObject ?: return@mapNotNull null
+            val shadows = data.objects("shadows").mapNotNull { shadow ->
                 Shadow(
-                    x = obj["x_offset"]?.jsonPrimitive?.floatOrNull ?: 0f,
-                    y = obj["y_offset"]?.jsonPrimitive?.floatOrNull ?: 0f,
-                    radius = obj["radius"]?.jsonPrimitive?.floatOrNull ?: 0f,
-                    color = rgbaToArgb(obj["color"]?.jsonPrimitive?.longOrNull ?: return@mapNotNull null),
+                    x = shadow.primitive("x_offset")?.floatOrNull ?: 0f,
+                    y = shadow.primitive("y_offset")?.floatOrNull ?: 0f,
+                    radius = shadow.primitive("radius")?.floatOrNull ?: 0f,
+                    color = rgbaToArgb(shadow.primitive("color")?.longOrNull ?: return@mapNotNull null),
                 )
             }
             return NamePaint(
                 id = id,
-                name = data.string("name").orEmpty(),
                 kind = kind,
                 stops = stops,
-                angle = data["angle"]?.jsonPrimitive?.floatOrNull ?: 0f,
-                repeat = data["repeat"]?.jsonPrimitive?.booleanOrNull ?: false,
+                angle = data.primitive("angle")?.floatOrNull ?: 0f,
+                repeat = data.primitive("repeat")?.booleanOrNull ?: false,
                 imageUrl = imageUrl,
                 shadows = shadows,
-                fallbackColor = data["color"]?.jsonPrimitive?.longOrNull?.let(::rgbaToArgb) ?: stops.firstOrNull()?.color,
+                fallbackColor = data.primitive("color")?.longOrNull?.let(::rgbaToArgb) ?: stops.firstOrNull()?.color,
             )
         }
 
         /** 7TV packs colors as a signed 32-bit RGBA number. */
-        fun rgbaToArgb(rgba: Long): Int {
+        private fun rgbaToArgb(rgba: Long): Int {
             val bits = rgba and 0xFFFFFFFFL
             return (((bits and 0xFF) shl 24) or (bits ushr 8)).toInt()
         }
 
-        private fun JsonObject.string(key: String) = (this[key] as? JsonPrimitive)?.contentOrNull
+        // 7TV's answers are not checked against a schema, so a field of the wrong kind is skipped
+        // instead of throwing.
+        private fun JsonObject.primitive(key: String) = this[key] as? JsonPrimitive
+        private fun JsonObject.string(key: String) = primitive(key)?.contentOrNull
+        private fun JsonObject.objects(key: String) = (this[key] as? JsonArray).orEmpty().filterIsInstance<JsonObject>()
     }
 }

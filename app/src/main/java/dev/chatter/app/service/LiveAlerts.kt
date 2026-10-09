@@ -5,12 +5,15 @@ import dev.chatter.app.auth.AuthRepository
 import dev.chatter.app.auth.TwitchScopes
 import dev.chatter.app.channels.ChannelRepository
 import dev.chatter.app.net.HelixApi
-import dev.chatter.app.net.HelixStream
 import dev.chatter.app.settings.Settings
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 import java.util.concurrent.ConcurrentHashMap
 
@@ -37,37 +40,39 @@ class LiveAlerts(
     fun wasNotified(login: String): Boolean = login in notified
 
     fun start() {
+        val wanted = settings.map { it.liveNotifications }.distinctUntilChanged()
         scope.launch {
-            activeUserId.collectLatest { userId ->
+            combine(activeUserId, wanted) { userId, on -> userId.takeIf { on } }.collectLatest { userId ->
                 if (userId == null) return@collectLatest
-                // A new account starts without knowing what was live, so nothing that is already
-                // live counts as going live.
+                // Starting over knows nothing of what was live, so what already is does not count
+                // as going live.
                 var live: Set<String>? = null
                 while (true) {
-                    live = if (settings.value.liveNotifications) poll(userId, live) else null
+                    live = poll(userId, live)
                     delay(POLL_MS)
                 }
             }
         }
     }
 
-    /** Asks what is live now, notifies about what went live since [before], returns what is live. */
+    /** Notifies about what went live since [before], and returns what is live now. */
     private suspend fun poll(userId: String, before: Set<String>?): Set<String>? {
         val list = channels.channels.value
         val streams = try {
-            val followed = if (TwitchScopes.allows(auth.account?.scopes, "user:read:follows")) helix.followedStreams(userId) else emptyList()
-            followed + helix.liveStreams(list)
+            val followsReadable = TwitchScopes.allows(auth.account?.scopes, "user:read:follows")
+            (if (followsReadable) helix.followedStreams(userId) else emptyList()) + helix.liveStreams(list)
+        } catch (e: CancellationException) {
+            throw e
         } catch (e: Exception) {
             Log.w(TAG, "Live status failed: ${e.message}")
-            // Unknown, not offline: whatever was live is still taken as live.
+            // Unknown is not offline: what was live still counts as live.
             return before
         }.filter { it.userId != userId }.associateBy { it.userLogin }
-        val alerts = channels.liveAlerts.value
+        val choices = channels.liveAlerts.value
         for (login in wentLive(before, streams.keys)) {
-            if (!alerts.wanted(login, inList = login in list)) continue
-            val stream = streams.getValue(login)
+            if (!choices.wanted(login, inList = login in list)) continue
             notified += login
-            notifier.notifyLive(stream)
+            notifier.notifyLive(streams.getValue(login))
         }
         return streams.keys
     }
@@ -76,10 +81,7 @@ class LiveAlerts(
         private const val TAG = "LiveAlerts"
         private const val POLL_MS = 3 * 60_000L
 
-        /** Channels live now that were not before; nothing on the first look, when [before] is null. */
+        /** Channels live now that were not before; none on the first look, with [before] null. */
         fun wentLive(before: Set<String>?, now: Set<String>): Set<String> = if (before == null) emptySet() else now - before
     }
 }
-
-/** For the notification: the stream's channel name, falling back to the login. */
-val HelixStream.channelName: String get() = userName.ifEmpty { userLogin }

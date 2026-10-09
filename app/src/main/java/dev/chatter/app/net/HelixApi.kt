@@ -47,6 +47,18 @@ class HelixApi(
             params.forEach { (k, v) -> if (v != null) addQueryParameter(k, v) }
         }.build().toString()
 
+    /** Every page of a list Twitch hands out in pages, following its cursor. */
+    private suspend inline fun <reified T> allPages(path: String, vararg params: Pair<String, String?>): List<T> {
+        val all = ArrayList<T>()
+        var cursor: String? = null
+        do {
+            val page = http.getJson<HelixPagedList<T>>(url(path, *params, "after" to cursor), headers())
+            all += page.data
+            cursor = page.pagination?.cursor
+        } while (!cursor.isNullOrEmpty())
+        return all
+    }
+
     suspend fun validate(accessToken: String): ValidateResponse =
         http.getJson("https://id.twitch.tv/oauth2/validate", mapOf("Authorization" to "OAuth $accessToken"))
 
@@ -76,32 +88,12 @@ class HelixApi(
     }
 
     /** The live streams of the channels [userId] follows. Paginated; needs user:read:follows. */
-    suspend fun followedStreams(userId: String): List<HelixStream> {
-        val all = ArrayList<HelixStream>()
-        var cursor: String? = null
-        do {
-            val page = http.getJson<HelixPagedList<HelixStream>>(
-                url("streams/followed", "user_id" to userId, "first" to "100", "after" to cursor), headers(),
-            )
-            all += page.data
-            cursor = page.pagination?.cursor
-        } while (!cursor.isNullOrEmpty())
-        return all
-    }
+    suspend fun followedStreams(userId: String): List<HelixStream> =
+        allPages("streams/followed", "user_id" to userId, "first" to "100")
 
     /** Every channel [userId] follows. Paginated; needs user:read:follows. */
-    suspend fun followedChannels(userId: String): List<HelixFollowedChannel> {
-        val all = ArrayList<HelixFollowedChannel>()
-        var cursor: String? = null
-        do {
-            val page = http.getJson<HelixPagedList<HelixFollowedChannel>>(
-                url("channels/followed", "user_id" to userId, "first" to "100", "after" to cursor), headers(),
-            )
-            all += page.data
-            cursor = page.pagination?.cursor
-        } while (!cursor.isNullOrEmpty())
-        return all
-    }
+    suspend fun followedChannels(userId: String): List<HelixFollowedChannel> =
+        allPages("channels/followed", "user_id" to userId, "first" to "100")
 
     suspend fun searchChannels(query: String): List<HelixChannelSearch> =
         http.getJson<HelixList<HelixChannelSearch>>(url("search/channels", "query" to query, "first" to "10"), headers()).data
@@ -116,18 +108,8 @@ class HelixApi(
         http.getJson<HelixList<HelixCheermote>>(url("bits/cheermotes", "broadcaster_id" to channelId), headers()).data
 
     /** Every emote the user may use anywhere (subs, follower, globals, ...). Paginated. */
-    override suspend fun userEmotes(userId: String): List<HelixEmote> {
-        val all = ArrayList<HelixEmote>()
-        var cursor: String? = null
-        do {
-            val page = http.getJson<HelixPagedList<HelixEmote>>(
-                url("chat/emotes/user", "user_id" to userId, "after" to cursor), headers(),
-            )
-            all += page.data
-            cursor = page.pagination?.cursor
-        } while (!cursor.isNullOrEmpty())
-        return all
-    }
+    override suspend fun userEmotes(userId: String): List<HelixEmote> =
+        allPages("chat/emotes/user", "user_id" to userId)
 
     suspend fun globalEmotes(): List<HelixEmote> =
         http.getJson<HelixList<HelixEmote>>(url("chat/emotes/global"), headers()).data
@@ -158,18 +140,8 @@ class HelixApi(
     }
 
     /** The users the logged-in user blocked on Twitch. Paginated. */
-    suspend fun blockedUsers(userId: String): List<HelixBlockedUser> {
-        val all = ArrayList<HelixBlockedUser>()
-        var cursor: String? = null
-        do {
-            val page = http.getJson<HelixPagedList<HelixBlockedUser>>(
-                url("users/blocks", "broadcaster_id" to userId, "first" to "100", "after" to cursor), headers(),
-            )
-            all += page.data
-            cursor = page.pagination?.cursor
-        } while (!cursor.isNullOrEmpty())
-        return all
-    }
+    suspend fun blockedUsers(userId: String): List<HelixBlockedUser> =
+        allPages("users/blocks", "broadcaster_id" to userId, "first" to "100")
 
     suspend fun setBlocked(targetUserId: String, blocked: Boolean) {
         http.send(

@@ -330,11 +330,14 @@ class SevenTvEventClient(
         private fun cosmetic(body: JsonObject): SevenTvEvent? {
             val obj = body["object"]?.let { it as? JsonObject } ?: return null
             val data = obj["data"]?.let { it as? JsonObject } ?: return null
-            when (COSMETICS[obj["kind"]?.jsonPrimitive?.contentOrNull]) {
-                SevenTvEvent.Cosmetic.Badge -> Unit
-                SevenTvEvent.Cosmetic.Paint -> return NamePaint.parse(data)?.let { SevenTvEvent.PaintCreated(it) }
-                null -> return null
+            return when (COSMETICS[obj["kind"]?.jsonPrimitive?.contentOrNull]) {
+                SevenTvEvent.Cosmetic.Badge -> badge(data)
+                SevenTvEvent.Cosmetic.Paint -> NamePaint.parse(data)?.let { SevenTvEvent.PaintCreated(it) }
+                null -> null
             }
+        }
+
+        private fun badge(data: JsonObject): SevenTvEvent? {
             val id = data["id"]?.jsonPrimitive?.contentOrNull ?: return null
             val name = data["name"]?.jsonPrimitive?.contentOrNull.orEmpty()
             val tooltip = data["tooltip"]?.jsonPrimitive?.contentOrNull?.ifEmpty { null } ?: name

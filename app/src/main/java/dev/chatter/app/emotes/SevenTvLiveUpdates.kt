@@ -12,8 +12,8 @@ import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
 
 /**
- * Keeps the 7TV emotes, badges and paints of every joined channel current via the EventAPI and reports
- * emote changes in the chat (if enabled).
+ * Keeps the 7TV emotes, badges and paints of every joined channel current via the EventAPI and
+ * reports emote changes in the chat (if enabled).
  *
  * To save battery the connection only runs while the app is on screen; coming back reloads the
  * emotes once.

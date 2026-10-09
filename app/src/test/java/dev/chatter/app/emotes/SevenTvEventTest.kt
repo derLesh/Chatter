@@ -87,7 +87,8 @@ class SevenTvEventTest {
             """{"type":"cosmetic.create","body":{"object":{"kind":"PAINT","data":{
               "id":"P2","function":"URL","image_url":"$url","stops":[],"shadows":[]}}}}"""
         )
-        assertEquals("https://cdn.7tv.app/paint/P2/layer/1x.webp", ((image("https://cdn.7tv.app/paint/P2/layer/1x.webp")) as SevenTvEvent.PaintCreated).paint.imageUrl)
+        val url = "https://cdn.7tv.app/paint/P2/layer/1x.webp"
+        assertEquals(url, (image(url) as SevenTvEvent.PaintCreated).paint.imageUrl)
         assertNull(image("https://tracker.example/pixel.webp"))
     }
 

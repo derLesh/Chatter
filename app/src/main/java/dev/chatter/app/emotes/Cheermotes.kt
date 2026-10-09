@@ -2,6 +2,7 @@ package dev.chatter.app.emotes
 
 import android.util.Log
 import dev.chatter.app.chat.CheerSource
+import dev.chatter.app.chat.MessageBuilder
 import dev.chatter.app.net.HelixCheermote
 import dev.chatter.app.net.NotLoggedInException
 import dev.chatter.app.net.ServiceTrouble
@@ -14,22 +15,22 @@ fun interface TwitchCheermoteApi {
     suspend fun cheermotes(channelId: String): List<HelixCheermote>
 }
 
-/** One step of a cheermote: from [minBits] on it has this picture and color. */
+/** From [minBits] on, a cheermote has this picture and color. */
 data class CheermoteTier(val minBits: Int, val color: Int, val darkUrl: String, val lightUrl: String)
 
-/** A word like "Cheer" that, followed by an amount, stands for bits; [tiers] by ascending [CheermoteTier.minBits]. */
+/** A prefix like "Cheer" that stands for bits when an amount follows; [tiers] ascending. */
 data class Cheermote(val prefix: String, val tiers: List<CheermoteTier>) {
     /** The highest tier [amount] reaches, or null below the first. */
     fun tierFor(amount: Int): CheermoteTier? = tiers.lastOrNull { amount >= it.minBits }
 
     companion object {
-        /** Twitch's answer as cheermotes. Tiers without a picture on Twitch's hosts are left out. */
+        /** Twitch's answer as a cheermote, without tiers whose picture is not on Twitch's hosts. */
         fun from(helix: HelixCheermote): Cheermote? {
             val tiers = helix.tiers.mapNotNull { tier ->
-                val dark = TrustedImages.url(tier.images["dark"]?.get("animated")?.get("2").orEmpty()) ?: return@mapNotNull null
-                val light = TrustedImages.url(tier.images["light"]?.get("animated")?.get("2").orEmpty()) ?: dark
-                val color = tier.color.removePrefix("#").toIntOrNull(16)?.let { it or 0xFF000000.toInt() } ?: return@mapNotNull null
-                CheermoteTier(tier.minBits, color, dark, light)
+                fun animated(theme: String) = TrustedImages.url(tier.images[theme]?.get("animated")?.get("2").orEmpty())
+                val dark = animated("dark") ?: return@mapNotNull null
+                val color = MessageBuilder.parseColor(tier.color) ?: return@mapNotNull null
+                CheermoteTier(tier.minBits, color, dark, animated("light") ?: dark)
             }.sortedBy { it.minBits }
             return if (helix.prefix.isEmpty() || tiers.isEmpty()) null else Cheermote(helix.prefix, tiers)
         }
@@ -65,7 +66,7 @@ class CheermoteRepository(
             }
     }
 
-    /** Channels whose cheermotes failed to load; fetched again when the app comes back. */
+    /** Fetches again what failed to load; called when the app comes back. */
     suspend fun retryMissing() {
         failedChannels.toList().forEach { loadChannel(it) }
     }

@@ -140,10 +140,11 @@ class ChatNotifier(
     /** [stream] went live: its title and category, and a tap opens its chat. */
     suspend fun notifyLive(stream: HelixStream) {
         if (!manager.areNotificationsEnabled()) return
-        val title = context.getString(R.string.notif_live_title, stream.channelName)
+        val title = context.getString(R.string.notif_live_title, stream.userName.ifEmpty { stream.userLogin })
         val notification = NotificationCompat.Builder(context, CHANNEL_LIVE)
             .setSmallIcon(R.drawable.ic_notification)
-            .setLargeIcon(channels.info.value[stream.userLogin]?.let { icons.channel(stream.userLogin) }?.toIcon(context))
+            // Only channels in the list have a known picture; the app icon would add nothing.
+            .setLargeIcon(if (stream.userLogin in channels.info.value) icons.channel(stream.userLogin).toIcon(context) else null)
             .setContentTitle(title)
             .setContentText(stream.title)
             .setSubText(stream.gameName.ifEmpty { null })

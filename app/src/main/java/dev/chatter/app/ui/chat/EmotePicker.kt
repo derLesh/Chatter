@@ -56,8 +56,17 @@ private sealed interface PickerItem {
     }
 }
 
-/** One tab: its title and what it lists, emoji in their groups. */
-private class PickerTab(val title: Int, val items: List<PickerItem>, val grouped: Boolean = false)
+/** A run of the grid, under a [header] if it has one. */
+private class PickerSection(val header: Int?, val items: List<PickerItem>)
+
+private class PickerTab(val title: Int, val sections: List<PickerSection>) {
+    val isEmpty: Boolean get() = sections.all { it.items.isEmpty() }
+
+    companion object {
+        /** A tab without headers. */
+        fun plain(title: Int, items: List<PickerItem>) = PickerTab(title, listOf(PickerSection(null, items)))
+    }
+}
 
 /**
  * Bottom sheet with tabs: recently used, then one per provider with channel emotes first, then
@@ -80,25 +89,28 @@ fun EmotePickerSheet(
         val sorted = compareByDescending<Emote> { it.isChannel }.thenBy { it.name.lowercase() }
         fun provider(p: EmoteProvider) = emotes.filter { it.provider == p }.sortedWith(sorted).map { PickerItem.EmoteItem(it) }
         listOf(
-            PickerTab(
+            PickerTab.plain(
                 R.string.emotes_recent,
                 recent.mapNotNull { name ->
                     byName[name]?.let { PickerItem.EmoteItem(it) } ?: emojiByValue[name]?.let { PickerItem.EmojiItem(it) }
                 },
             ),
-            PickerTab(R.string.emotes_twitch, provider(EmoteProvider.Twitch)),
-            PickerTab(R.string.emotes_7tv, provider(EmoteProvider.SevenTv)),
-            PickerTab(R.string.emotes_bttv, provider(EmoteProvider.Bttv)),
-            PickerTab(R.string.emotes_ffz, provider(EmoteProvider.Ffz)),
-            PickerTab(R.string.emoji, emoji.map { PickerItem.EmojiItem(it) }, grouped = true),
+            PickerTab.plain(R.string.emotes_twitch, provider(EmoteProvider.Twitch)),
+            PickerTab.plain(R.string.emotes_7tv, provider(EmoteProvider.SevenTv)),
+            PickerTab.plain(R.string.emotes_bttv, provider(EmoteProvider.Bttv)),
+            PickerTab.plain(R.string.emotes_ffz, provider(EmoteProvider.Ffz)),
+            PickerTab(
+                R.string.emoji,
+                emoji.groupBy { it.group }.map { (group, list) -> PickerSection(group.title, list.map { PickerItem.EmojiItem(it) }) },
+            ),
         )
     }
     var selected by rememberSaveable { mutableIntStateOf(if (recent.isEmpty()) 1 else 0) }
 
     ModalBottomSheet(onDismissRequest = onDismiss) {
         Column(Modifier.height(420.dp)) {
-            // Fixed, not scrolling: a scrolling row hid the last tabs off screen with nothing to
-            // show they were there. The smaller label fits six; transparent takes the sheet's color.
+            // Fixed: a scrolling row hid the last tabs with nothing to show they were there. The
+            // smaller label fits six, and transparent takes the sheet's color.
             PrimaryTabRow(selectedTabIndex = selected, containerColor = Color.Transparent) {
                 tabs.forEachIndexed { i, tab ->
                     Tab(
@@ -116,7 +128,7 @@ fun EmotePickerSheet(
                 }
             }
             val tab = tabs[selected]
-            if (tab.items.isEmpty()) {
+            if (tab.isEmpty) {
                 Box(Modifier.fillMaxWidth().padding(32.dp), contentAlignment = Alignment.Center) {
                     Text(stringResource(R.string.emotes_empty), color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
@@ -127,20 +139,18 @@ fun EmotePickerSheet(
                         columns = GridCells.Adaptive(52.dp),
                         contentPadding = PaddingValues(8.dp),
                     ) {
-                        if (tab.grouped) {
-                            tab.items.groupBy { (it as PickerItem.EmojiItem).emoji.group }.forEach { (group, items) ->
-                                item(key = "g:" + group.name, span = { GridItemSpan(maxLineSpan) }) {
+                        tab.sections.forEach { section ->
+                            section.header?.let { header ->
+                                item(key = "h:$header", span = { GridItemSpan(maxLineSpan) }) {
                                     Text(
-                                        stringResource(group.title),
+                                        stringResource(header),
                                         style = MaterialTheme.typography.titleSmall,
                                         color = MaterialTheme.colorScheme.primary,
                                         modifier = Modifier.padding(start = 8.dp, top = 12.dp, bottom = 4.dp),
                                     )
                                 }
-                                pickerItems(items, imageLoader, onPick, onPickEmoji)
                             }
-                        } else {
-                            pickerItems(tab.items, imageLoader, onPick, onPickEmoji)
+                            pickerItems(section.items, imageLoader, onPick, onPickEmoji)
                         }
                     }
                 }
