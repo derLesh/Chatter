@@ -39,6 +39,7 @@ import dev.chatter.app.net.HelixFollowedChannel
 import dev.chatter.app.net.HelixUser
 import dev.chatter.app.settings.MobileData
 import dev.chatter.app.settings.SettingsBackup
+import dev.chatter.app.settings.SettingsRepository
 import dev.chatter.app.settings.TapAction
 import dev.chatter.app.settings.ThemeMode
 import dev.chatter.app.settings.TimestampFormat
@@ -487,7 +488,7 @@ class MainViewModel(private val c: AppContainer) : ViewModel() {
     }
 
     private fun rememberEmote(name: String) {
-        viewModelScope.launch { c.settings.addRecentEmote(name) }
+        saveSetting { addRecentEmote(name) }
     }
 
     /** What [emotesFor] last returned and its inputs. */
@@ -753,29 +754,12 @@ class MainViewModel(private val c: AppContainer) : ViewModel() {
         }
     }
 
-    fun setUnreadInTitleBar(v: Boolean) {
-        viewModelScope.launch { c.settings.setUnreadInTitleBar(v) }
-    }
-
-    fun setChannelTabs(v: Boolean) {
-        viewModelScope.launch { c.settings.setChannelTabs(v) }
-    }
-
-    fun setHaptics(v: Boolean) {
-        viewModelScope.launch { c.settings.setHaptics(v) }
-    }
-
-    fun setKeepScreenOn(v: Boolean) {
-        viewModelScope.launch { c.settings.setKeepScreenOn(v) }
-    }
-
-    fun setBubbles(v: Boolean) {
-        viewModelScope.launch { c.settings.setBubbles(v) }
-    }
-
-    fun setLiveNotifications(v: Boolean) {
-        viewModelScope.launch { c.settings.setLiveNotifications(v) }
-    }
+    fun setUnreadInTitleBar(v: Boolean) = saveSetting { setUnreadInTitleBar(v) }
+    fun setChannelTabs(v: Boolean) = saveSetting { setChannelTabs(v) }
+    fun setHaptics(v: Boolean) = saveSetting { setHaptics(v) }
+    fun setKeepScreenOn(v: Boolean) = saveSetting { setKeepScreenOn(v) }
+    fun setBubbles(v: Boolean) = saveSetting { setBubbles(v) }
+    fun setLiveNotifications(v: Boolean) = saveSetting { setLiveNotifications(v) }
 
     val liveAlerts = c.channels.liveAlerts
 
@@ -800,53 +784,24 @@ class MainViewModel(private val c: AppContainer) : ViewModel() {
         }
     }
 
-    fun setSenderAvatars(v: Boolean) {
-        viewModelScope.launch { c.settings.setSenderAvatars(v) }
-    }
+    fun setSenderAvatars(v: Boolean) = saveSetting { setSenderAvatars(v) }
 
     fun setBadgeProvider(provider: BadgeProvider, enabled: Boolean) {
-        viewModelScope.launch {
-            c.settings.updateBadgeProviders { if (enabled) it + provider else it - provider }
-        }
+        saveSetting { updateBadgeProviders { if (enabled) it + provider else it - provider } }
     }
 
     fun setEmoteProvider(provider: EmoteProvider, enabled: Boolean) {
-        viewModelScope.launch {
-            c.settings.updateEmoteProviders { if (enabled) it + provider else it - provider }
-        }
+        saveSetting { updateEmoteProviders { if (enabled) it + provider else it - provider } }
     }
 
-    fun setTimestamps(v: TimestampFormat) {
-        viewModelScope.launch { c.settings.setTimestamps(v) }
-    }
-
-    fun setMessageTap(v: TapAction) {
-        viewModelScope.launch { c.settings.setMessageTap(v) }
-    }
-
-    fun setNameTap(v: TapAction) {
-        viewModelScope.launch { c.settings.setNameTap(v) }
-    }
-
-    fun setCopyFirst(v: Boolean) {
-        viewModelScope.launch { c.settings.setCopyFirst(v) }
-    }
-
-    fun setShowDeleted(v: Boolean) {
-        viewModelScope.launch { c.settings.setShowDeleted(v) }
-    }
-
-    fun setEmoteSuggestions(v: Boolean) {
-        viewModelScope.launch { c.settings.setEmoteSuggestions(v) }
-    }
-
-    fun setMentionWithAt(v: Boolean) {
-        viewModelScope.launch { c.settings.setMentionWithAt(v) }
-    }
-
-    fun setUserSuggestions(v: Boolean) {
-        viewModelScope.launch { c.settings.setUserSuggestions(v) }
-    }
+    fun setTimestamps(v: TimestampFormat) = saveSetting { setTimestamps(v) }
+    fun setMessageTap(v: TapAction) = saveSetting { setMessageTap(v) }
+    fun setNameTap(v: TapAction) = saveSetting { setNameTap(v) }
+    fun setCopyFirst(v: Boolean) = saveSetting { setCopyFirst(v) }
+    fun setShowDeleted(v: Boolean) = saveSetting { setShowDeleted(v) }
+    fun setEmoteSuggestions(v: Boolean) = saveSetting { setEmoteSuggestions(v) }
+    fun setMentionWithAt(v: Boolean) = saveSetting { setMentionWithAt(v) }
+    fun setUserSuggestions(v: Boolean) = saveSetting { setUserSuggestions(v) }
 
     fun setChannelUnreadVisible(login: String, visible: Boolean) {
         viewModelScope.launch { c.channels.setUnreadVisible(login, visible) }
@@ -879,6 +834,11 @@ class MainViewModel(private val c: AppContainer) : ViewModel() {
     }
 
     // ---- Login / settings ----------------------------------------------------------------------
+
+    /** Writes a setting off the main thread; the screen follows through [settings]. */
+    private fun saveSetting(write: suspend SettingsRepository.() -> Unit) {
+        viewModelScope.launch { c.settings.write() }
+    }
 
     fun loginUrl(): String = c.auth.authorizeUrl()
 
@@ -951,33 +911,20 @@ class MainViewModel(private val c: AppContainer) : ViewModel() {
         return runCatching { c.helix.followedCount(userId) }.getOrNull()
     }
 
-    fun setFontSize(v: Float) {
-        viewModelScope.launch { c.settings.setFontSize(v) }
-    }
-
-    fun setMessageLimit(v: Int) {
-        viewModelScope.launch { c.settings.setMessageLimit(v) }
-    }
+    fun setFontSize(v: Float) = saveSetting { setFontSize(v) }
+    fun setMessageLimit(v: Int) = saveSetting { setMessageLimit(v) }
 
     /** Adds highlight words. Commas split, so a pasted list becomes separate words. */
-    fun addMentionKeyword(input: String) {
-        viewModelScope.launch { c.settings.updateMentionKeywords { withWords(it, input) ?: it } }
-    }
+    fun addMentionKeyword(input: String) = saveSetting { updateMentionKeywords { withWords(it, input) ?: it } }
 
     fun removeMentionKeyword(word: String) {
-        viewModelScope.launch {
-            c.settings.updateMentionKeywords { list -> list.filterNot { it.equals(word, ignoreCase = true) } }
-        }
+        saveSetting { updateMentionKeywords { list -> list.filterNot { it.equals(word, ignoreCase = true) } } }
     }
 
-    fun addMuteKeyword(input: String) {
-        viewModelScope.launch { c.settings.updateMuteKeywords { withWords(it, input) ?: it } }
-    }
+    fun addMuteKeyword(input: String) = saveSetting { updateMuteKeywords { withWords(it, input) ?: it } }
 
     fun removeMuteKeyword(word: String) {
-        viewModelScope.launch {
-            c.settings.updateMuteKeywords { list -> list.filterNot { it.equals(word, ignoreCase = true) } }
-        }
+        saveSetting { updateMuteKeywords { list -> list.filterNot { it.equals(word, ignoreCase = true) } } }
     }
 
     /** The list with [input] added, or null if it holds nothing new. */
@@ -988,65 +935,32 @@ class MainViewModel(private val c: AppContainer) : ViewModel() {
         return if (added.isEmpty()) null else current + added
     }
 
-    fun setThemeMode(v: ThemeMode) {
-        viewModelScope.launch { c.settings.setThemeMode(v) }
-    }
-
-    fun setDynamicColor(v: Boolean) {
-        viewModelScope.launch { c.settings.setDynamicColor(v) }
-    }
+    fun setThemeMode(v: ThemeMode) = saveSetting { setThemeMode(v) }
+    fun setDynamicColor(v: Boolean) = saveSetting { setDynamicColor(v) }
 
     /** Reads the battery settings again, e.g. after the user changed them. */
     fun refreshBatteryRestrictions() = c.backgroundHealth.refresh()
 
     fun dismissBackgroundStop() = c.backgroundHealth.dismiss()
 
-    fun setMobileData(v: MobileData) {
-        viewModelScope.launch { c.settings.setMobileData(v) }
-    }
-
-    fun setPureBlack(v: Boolean) {
-        viewModelScope.launch { c.settings.setPureBlack(v) }
-    }
-
-    fun setHighlightFirstMessages(v: Boolean) {
-        viewModelScope.launch { c.settings.setHighlightFirstMessages(v) }
-    }
-
-    fun setNameColors(v: NameColorPalette) {
-        viewModelScope.launch { c.settings.setNameColors(v) }
-    }
-
-    fun setAlternateBackground(v: Boolean) {
-        viewModelScope.launch { c.settings.setAlternateBackground(v) }
-    }
-
-    fun setHighlightColor(v: Int) {
-        viewModelScope.launch { c.settings.setHighlightColor(v) }
-    }
-
-    fun setSmoothScrolling(v: Boolean) {
-        viewModelScope.launch { c.settings.setSmoothScrolling(v) }
-    }
-
-    fun setInlineImages(v: Boolean) {
-        viewModelScope.launch { c.settings.setInlineImages(v) }
-    }
-
-    fun setFullLinks(v: Boolean) {
-        viewModelScope.launch { c.settings.setFullLinks(v) }
-    }
+    fun setMobileData(v: MobileData) = saveSetting { setMobileData(v) }
+    fun setPureBlack(v: Boolean) = saveSetting { setPureBlack(v) }
+    fun setHighlightFirstMessages(v: Boolean) = saveSetting { setHighlightFirstMessages(v) }
+    fun setNameColors(v: NameColorPalette) = saveSetting { setNameColors(v) }
+    fun setAlternateBackground(v: Boolean) = saveSetting { setAlternateBackground(v) }
+    fun setHighlightColor(v: Int) = saveSetting { setHighlightColor(v) }
+    fun setSmoothScrolling(v: Boolean) = saveSetting { setSmoothScrolling(v) }
+    fun setInlineImages(v: Boolean) = saveSetting { setInlineImages(v) }
+    fun setFullLinks(v: Boolean) = saveSetting { setFullLinks(v) }
 
     /** Turns whatever was pasted into bare hosts. */
     fun addImageHost(input: String) {
         val added = input.split(',').map { ImageLinks.cleanHost(it) }.filter { it.isNotEmpty() }.distinct()
         if (added.isEmpty()) return
-        viewModelScope.launch { c.settings.updateImageHosts { current -> current + added.filter { it !in current } } }
+        saveSetting { updateImageHosts { current -> current + added.filter { it !in current } } }
     }
 
-    fun removeImageHost(host: String) {
-        viewModelScope.launch { c.settings.updateImageHosts { it - host } }
-    }
+    fun removeImageHost(host: String) = saveSetting { updateImageHosts { it - host } }
 
     /** Edits [old] in place, keeping the user's order. */
     fun editImageHost(old: String, input: String) {
@@ -1066,45 +980,17 @@ class MainViewModel(private val c: AppContainer) : ViewModel() {
     }
 
     /** Back to the default hosts. */
-    fun resetImageHosts() {
-        viewModelScope.launch { c.settings.updateImageHosts { ImageLinks.DEFAULT_HOSTS } }
-    }
+    fun resetImageHosts() = saveSetting { updateImageHosts { ImageLinks.DEFAULT_HOSTS } }
 
-    fun setCarouselChannels(v: Boolean) {
-        viewModelScope.launch { c.settings.setCarouselChannels(v) }
-    }
-
-    fun setEmotesEnabled(v: Boolean) {
-        viewModelScope.launch { c.settings.setEmotesEnabled(v) }
-    }
-
-    fun setZeroWidthEmotes(v: Boolean) {
-        viewModelScope.launch { c.settings.setZeroWidthEmotes(v) }
-    }
-
-    fun setShowUnlisted7tv(v: Boolean) {
-        viewModelScope.launch { c.settings.setShowUnlisted7tv(v) }
-    }
-
-    fun setSevenTvEvents(v: Boolean) {
-        viewModelScope.launch { c.settings.setSevenTvEvents(v) }
-    }
-
-    fun setSevenTvPaints(v: Boolean) {
-        viewModelScope.launch { c.settings.setSevenTvPaints(v) }
-    }
-
-    fun setLoadHistory(v: Boolean) {
-        viewModelScope.launch { c.settings.setLoadHistory(v) }
-    }
-
-    fun setAnimatedEmotes(v: Boolean) {
-        viewModelScope.launch { c.settings.setAnimatedEmotes(v) }
-    }
-
-    fun setSlowIdleEmotes(v: Boolean) {
-        viewModelScope.launch { c.settings.setSlowIdleEmotes(v) }
-    }
+    fun setCarouselChannels(v: Boolean) = saveSetting { setCarouselChannels(v) }
+    fun setEmotesEnabled(v: Boolean) = saveSetting { setEmotesEnabled(v) }
+    fun setZeroWidthEmotes(v: Boolean) = saveSetting { setZeroWidthEmotes(v) }
+    fun setShowUnlisted7tv(v: Boolean) = saveSetting { setShowUnlisted7tv(v) }
+    fun setSevenTvEvents(v: Boolean) = saveSetting { setSevenTvEvents(v) }
+    fun setSevenTvPaints(v: Boolean) = saveSetting { setSevenTvPaints(v) }
+    fun setLoadHistory(v: Boolean) = saveSetting { setLoadHistory(v) }
+    fun setAnimatedEmotes(v: Boolean) = saveSetting { setAnimatedEmotes(v) }
+    fun setSlowIdleEmotes(v: Boolean) = saveSetting { setSlowIdleEmotes(v) }
 
     fun resetStats() {
         viewModelScope.launch { c.stats.reset() }
@@ -1113,9 +999,7 @@ class MainViewModel(private val c: AppContainer) : ViewModel() {
     /** The update notes were seen and should not come back. */
     fun markChangelogRead() = c.changelog.markRead()
 
-    fun markNotificationIntroSeen() {
-        viewModelScope.launch { c.settings.setNotificationIntroSeen() }
-    }
+    fun markNotificationIntroSeen() = saveSetting { setNotificationIntroSeen() }
 
     /** A newer GitHub release, for the GitHub APK; null otherwise. */
     val availableUpdate = c.updates.available
