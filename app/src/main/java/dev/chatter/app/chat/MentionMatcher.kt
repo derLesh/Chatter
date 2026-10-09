@@ -1,17 +1,8 @@
 package dev.chatter.app.chat
 
-/**
- * Finds the user's name or keywords as whole words, case-insensitive: "@lukas", "lukas:" and
- * "Lukas" match, "lukasz" does not.
- */
+/** Finds the user's name or keywords as whole words; see [WordMatcher]. */
 class MentionMatcher(login: String, keywords: List<String>) {
-    private val regex: Regex? = (listOf(login) + keywords)
-        .map { it.trim().removePrefix("@") }
-        .filter { it.isNotEmpty() }
-        .distinct()
-        .takeIf { it.isNotEmpty() }
-        ?.joinToString("|") { Regex.escape(it) }
-        ?.let { Regex("(?<![\\p{L}\\p{N}_])(?:$it)(?![\\p{L}\\p{N}_])", RegexOption.IGNORE_CASE) }
+    private val words = WordMatcher.of((listOf(login) + keywords).map { it.trim().removePrefix("@") })
 
-    fun matches(text: String): Boolean = regex?.containsMatchIn(text) == true
+    fun matches(text: String): Boolean = words?.containsIn(text) == true
 }

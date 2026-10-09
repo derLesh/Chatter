@@ -105,7 +105,6 @@ class MessageBuffers(
         ids.clear()
         dirty.clear()
         groupStates.clear()
-        buffers.keys.forEach { reshape(it) }
         flows.values.forEach { it.value = emptyList() }
         unreadCounts.clear()
         unreadDirty = false
@@ -116,7 +115,8 @@ class MessageBuffers(
     fun add(item: ChatItem) {
         val buffer = buffers[item.channel] ?: return
         if (!ids.getOrPut(item.channel) { HashSet() }.add(item.id)) return
-        buffer.addLast(item.copy(alternate = !(buffer.lastOrNull()?.alternate ?: true)))
+        val alternate = !(buffer.lastOrNull()?.alternate ?: true)
+        buffer.addLast(if (item.alternate == alternate) item else item.copy(alternate = alternate))
         // Trimming only removes messages older than the oldest a combined chat with the same limit
         // still shows, so this stays an append.
         trim(item.channel, buffer)

@@ -21,7 +21,11 @@ class ChatterRegistry {
     fun remember(channel: String, login: String, displayName: String?, color: Int?) {
         val map = perChannel.getOrPut(channel) { LinkedHashMap(64, 0.75f, true) }
         val key = login.lowercase()
-        map[key] = Chatter(displayName ?: login, color)
+        val name = displayName ?: login
+        // The get already moves a regular to the end; a new entry only when something changed.
+        val known = map[key]
+        if (known != null && known.displayName == name && known.color == color) return
+        map[key] = Chatter(name, color)
         if (map.size > MAX_CHATTERS) map.remove(map.keys.first())
     }
 

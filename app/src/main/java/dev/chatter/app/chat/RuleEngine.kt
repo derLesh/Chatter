@@ -49,7 +49,9 @@ class RuleEngine(rules: List<ChatRule> = emptyList()) {
 
     private fun matches(c: Compiled, item: ChatItem): Boolean {
         val m = c.matcher
-        val author = { m.containsIn(item.login.orEmpty()) || m.containsIn(item.displayName.orEmpty()) }
+        // Most display names are the login in other case, which needs no second look.
+        fun author() = m.containsIn(item.login.orEmpty()) ||
+            item.displayName?.takeUnless { it.equals(item.login, ignoreCase = true) }?.let(m::containsIn) == true
         return when (c.rule.target) {
             RuleTarget.Message -> m.containsIn(item.text)
             RuleTarget.Author -> author()
@@ -78,15 +80,13 @@ class RuleEngine(rules: List<ChatRule> = emptyList()) {
         private fun compile(rule: ChatRule): TextMatcher? {
             if (!rule.regex) {
                 // Plain patterns match whole words like a mention, so "sub" does not match
-                // "subscribe". Escaped, so nothing in them repeats.
-                val word = Regex(
-                    "(?<![\\p{L}\\p{N}_])(?:${Regex.escape(rule.pattern.trim())})(?![\\p{L}\\p{N}_])",
-                    RegexOption.IGNORE_CASE,
-                )
-                return TextMatcher { word.containsMatchIn(it.take(MAX_TEXT)) }
+                // "subscribe". Quoted, so nothing in them repeats.
+                val word = WordMatcher.of(listOf(rule.pattern)) ?: return null
+                return TextMatcher { word.containsIn(it.take(MAX_TEXT)) }
             }
-            val p = re2(rule.pattern) ?: return null
-            return TextMatcher { p.matcher(it.take(MAX_TEXT)).find() }
+            // Kept and reset, like WordMatcher's, instead of a new one per message.
+            val matcher = (re2(rule.pattern) ?: return null).matcher("")
+            return TextMatcher { text -> synchronized(matcher) { matcher.reset(text.take(MAX_TEXT)).find() } }
         }
     }
 }

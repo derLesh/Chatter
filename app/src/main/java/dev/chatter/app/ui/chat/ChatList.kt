@@ -1,6 +1,7 @@
 package dev.chatter.app.ui.chat
 
 import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.VisibilityThreshold
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.gestures.scrollBy
@@ -44,6 +45,7 @@ import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.testTagsAsResourceId
+import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil3.ImageLoader
@@ -164,16 +166,7 @@ fun ChatList(
                 contentType = { items[count - 1 - it].kind },
             ) { index ->
                 val rowModifier = if (smoothScrolling) {
-                    // Quick and without overshoot: a soft spring never settles while a busy chat
-                    // keeps pushing rows up.
-                    Modifier.animateItem(
-                        fadeInSpec = tween(120),
-                        placementSpec = spring(
-                            dampingRatio = Spring.DampingRatioNoBouncy,
-                            stiffness = Spring.StiffnessMedium,
-                        ),
-                        fadeOutSpec = null,
-                    )
+                    Modifier.animateItem(fadeInSpec = ROW_FADE_IN, placementSpec = ROW_PLACEMENT, fadeOutSpec = null)
                 } else Modifier
                 val item = items[count - 1 - index]
                 // Where it was written; for a partner's message not the channel it arrived in.
@@ -227,6 +220,16 @@ fun ChatList(
         }
     }
 }
+
+/** Shared by every row instead of built per row and frame. */
+private val ROW_FADE_IN = tween<Float>(120)
+
+/** Quick and without overshoot: a soft spring never settles while a busy chat pushes rows up. */
+private val ROW_PLACEMENT = spring(
+    dampingRatio = Spring.DampingRatioNoBouncy,
+    stiffness = Spring.StiffnessMedium,
+    visibilityThreshold = IntOffset.VisibilityThreshold,
+)
 
 /** The line above the first message that arrived while the user was away. */
 @Composable
