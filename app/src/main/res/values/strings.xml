@@ -389,6 +389,8 @@
     <!-- 7TV activity -->
     <string name="settings_seventv_events">7TV activity</string>
     <string name="settings_seventv_events_hint">Show in the chat when 7TV emotes are added, removed or renamed</string>
+    <string name="settings_seventv_paints">7TV paints</string>
+    <string name="settings_seventv_paints_hint">Names in the colors and patterns their owners picked on 7TV. Some are hard to read</string>
     <string name="seventv_added">7TV: %1$s added</string>
     <string name="seventv_removed">7TV: %1$s removed %2$s</string>
     <string name="seventv_renamed">7TV: %1$s renamed %2$s to</string>

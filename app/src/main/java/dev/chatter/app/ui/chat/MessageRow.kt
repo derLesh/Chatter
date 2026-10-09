@@ -27,10 +27,12 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.CompositingStrategy
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.preferredFrameRate
 import androidx.compose.ui.res.stringResource
@@ -55,6 +57,7 @@ import coil3.ImageLoader
 import coil3.compose.AsyncImage
 import dev.chatter.app.R
 import dev.chatter.app.badges.Badge
+import dev.chatter.app.badges.NamePaint
 import dev.chatter.app.chat.ChatItem
 import dev.chatter.app.chat.ImageLinks
 import dev.chatter.app.chat.LinkText
@@ -97,6 +100,8 @@ data class ChatStyle(
     val smallEmotes: Boolean = false,
     /** Frame rate animated emotes ask for; see [EmoteFrameRate]. */
     val emoteFrameRate: Float = EmoteFrameRate.ACTIVE,
+    /** Whether names are drawn with their 7TV paint. */
+    val paints: Boolean = true,
 )
 
 /**
@@ -128,6 +133,8 @@ private class BuiltLine(
     val inline: Map<String, InlineData>,
     /** URLs of images taken out of the line and drawn below it. */
     val images: List<String> = emptyList(),
+    /** Where the sender's name is in [text], for drawing a paint over it. */
+    val nameRange: IntRange? = null,
 )
 
 /**
@@ -278,12 +285,17 @@ fun MessageRow(
             )
         }
         if (built.text.isNotEmpty()) {
-            Text(
-                text = built.text,
-                inlineContent = inlineContent,
-                fontSize = style.fontSize.sp,
-                lineHeight = (style.fontSize * 1.45f).sp,
-            )
+            val paint = item.paint?.takeIf { style.paints && built.nameRange != null }
+            if (paint == null) {
+                Text(
+                    text = built.text,
+                    inlineContent = inlineContent,
+                    fontSize = style.fontSize.sp,
+                    lineHeight = (style.fontSize * 1.45f).sp,
+                )
+            } else {
+                PaintedLine(built, paint, inlineContent, style, imageLoader)
+            }
         }
         if (built.images.isNotEmpty()) {
             // Side by side while they fit; two pictures in a message usually belong together.
@@ -297,6 +309,39 @@ fun MessageRow(
             }
         }
     }
+}
+
+/**
+ * A line whose name has a 7TV paint. The paint is placed once the line is laid out and the name's
+ * bounds are known; see [namePaintStyle].
+ */
+@Composable
+private fun PaintedLine(
+    built: BuiltLine,
+    paint: NamePaint,
+    inlineContent: Map<String, InlineTextContent>,
+    style: ChatStyle,
+    imageLoader: ImageLoader,
+) {
+    val range = built.nameRange ?: return
+    var nameBounds by remember(built) { mutableStateOf<Rect?>(null) }
+    val image = paint.imageUrl?.let { rememberPaintImage(it, imageLoader) }
+    val density = LocalDensity.current
+    val text = remember(built, paint, nameBounds, image, density) {
+        AnnotatedString.Builder(built.text).apply {
+            addStyle(namePaintStyle(paint, nameBounds, image, density), range.first, range.last + 1)
+        }.toAnnotatedString()
+    }
+    Text(
+        text = text,
+        inlineContent = inlineContent,
+        fontSize = style.fontSize.sp,
+        lineHeight = (style.fontSize * 1.45f).sp,
+        onTextLayout = { layout ->
+            val bounds = layout.boundsOf(range)
+            if (bounds != nameBounds) nameBounds = bounds
+        },
+    )
 }
 
 /**
@@ -427,6 +472,8 @@ private fun buildLine(item: ChatItem, style: ChatStyle, onName: LinkInteractionL
 
     val nameColor = readableNameColor(item.color, item.login, style.dark, style.nameColors)
     val isAction = item.kind == MessageKind.Action
+    var nameStart = 0
+    var nameEnd = 0
     val text = buildAnnotatedString {
         lineChannel?.let { appendChannel(it) }
         style.timestamps.pattern?.let { pattern ->
@@ -441,6 +488,7 @@ private fun buildLine(item: ChatItem, style: ChatStyle, onName: LinkInteractionL
             appendInlineContent(id, badge.title)
             append(' ')
         }
+        nameStart = length
         withStyle(SpanStyle(color = nameColor, fontWeight = FontWeight.Bold)) {
             if (onName == null) append(displayName(item, style))
             // Styled like any name: every name can be tapped, so marking them would only add noise.
@@ -448,6 +496,7 @@ private fun buildLine(item: ChatItem, style: ChatStyle, onName: LinkInteractionL
                 append(displayName(item, style))
             }
         }
+        nameEnd = length
         append(if (isAction) " " else ": ")
 
         val body = SpanStyle(
@@ -457,7 +506,7 @@ private fun buildLine(item: ChatItem, style: ChatStyle, onName: LinkInteractionL
         )
         withStyle(body) { appendSegments(segments, inline, style) }
     }
-    return BuiltLine(text, inline, images)
+    return BuiltLine(text, inline, images, (nameStart until nameEnd).takeIf { !it.isEmpty() })
 }
 
 /**

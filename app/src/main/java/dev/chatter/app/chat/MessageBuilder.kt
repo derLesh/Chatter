@@ -1,6 +1,7 @@
 package dev.chatter.app.chat
 
 import dev.chatter.app.badges.Badge
+import dev.chatter.app.badges.NamePaint
 import dev.chatter.app.emotes.Cheermote
 import dev.chatter.app.emotes.Emote
 import dev.chatter.app.emotes.EmoteProvider
@@ -44,6 +45,9 @@ fun interface BadgeSource {
      * [userId] from the `user-id` tag: other clients' badges belong to the user, not to the tag.
      */
     fun resolve(channelId: String?, badgesTag: String?, userId: String?): List<Badge>
+
+    /** The 7TV paint [userId] wears, if any. */
+    fun paint(userId: String?): NamePaint? = null
 }
 
 /** Turns IRC messages into [ChatItem]s, once per message. */
@@ -141,6 +145,7 @@ class MessageBuilder(
             segments(channel, text, ranges, channelId, ownMessage, cheered)
         },
         badges = { badges.resolve(badgeChannelId, badgesTag, userId) },
+        paint = { badges.paint(userId) },
         quote = quote,
         // Asked after building: if a provider still owes emotes, the message is rebuilt once they
         // arrive.

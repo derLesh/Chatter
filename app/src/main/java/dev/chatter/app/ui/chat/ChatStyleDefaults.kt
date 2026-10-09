@@ -28,7 +28,7 @@ fun rememberChatStyle(
     return remember(
         settings.fontSize, settings.timestamps, settings.highlightColor, settings.alternateBackground,
         settings.nameColors, settings.highlightFirstMessages, settings.haptics,
-        settings.inlineImages, settings.imageHosts, settings.fullLinks, powerSave, saveData, emoteFrameRate, nicknames, dark, colors,
+        settings.inlineImages, settings.imageHosts, settings.fullLinks, settings.sevenTvPaints, powerSave, saveData, emoteFrameRate, nicknames, dark, colors,
     ) {
         ChatStyle(
             fontSize = settings.fontSize,
@@ -54,6 +54,7 @@ fun rememberChatStyle(
             shortLinks = !settings.fullLinks,
             smallEmotes = saveData,
             emoteFrameRate = emoteFrameRate,
+            paints = settings.sevenTvPaints,
         )
     }
 }

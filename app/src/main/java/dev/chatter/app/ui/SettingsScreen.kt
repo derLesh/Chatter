@@ -269,6 +269,7 @@ private val SEARCH_INDEX: List<SearchEntry> by lazy {
         add(SearchEntry(R.string.settings_zero_width, emotes, R.string.settings_zero_width_hint))
         add(SearchEntry(R.string.settings_unlisted_7tv, emotes, R.string.settings_unlisted_7tv_hint))
         add(SearchEntry(R.string.settings_seventv_events, emotes, R.string.settings_seventv_events_hint))
+        add(SearchEntry(R.string.settings_seventv_paints, emotes, R.string.settings_seventv_paints_hint))
         add(SearchEntry(R.string.settings_emote_providers, emotes, also = PROVIDERS.map { it.second }))
         add(SearchEntry(R.string.settings_badge_providers, emotes, also = BADGE_PROVIDERS.map { it.second }))
         val filters = SettingsPage.Filters
@@ -754,6 +755,7 @@ private fun EmotesPage(settings: Settings, vm: MainViewModel) {
         item(R.string.settings_zero_width) { SwitchItem(R.string.settings_zero_width, settings.zeroWidthEmotes, vm::setZeroWidthEmotes, R.string.settings_zero_width_hint) }
         item(R.string.settings_unlisted_7tv) { SwitchItem(R.string.settings_unlisted_7tv, settings.showUnlisted7tv, vm::setShowUnlisted7tv, R.string.settings_unlisted_7tv_hint) }
         item(R.string.settings_seventv_events) { SwitchItem(R.string.settings_seventv_events, settings.sevenTvEvents, vm::setSevenTvEvents, R.string.settings_seventv_events_hint) }
+        item(R.string.settings_seventv_paints) { SwitchItem(R.string.settings_seventv_paints, settings.sevenTvPaints, vm::setSevenTvPaints, R.string.settings_seventv_paints_hint) }
     }
     SettingsGroup(R.string.settings_emote_providers) {
         PROVIDERS.forEach { (provider, label) ->

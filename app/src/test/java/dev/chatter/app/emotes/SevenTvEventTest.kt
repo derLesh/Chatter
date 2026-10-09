@@ -1,5 +1,6 @@
 package dev.chatter.app.emotes
 
+import dev.chatter.app.badges.NamePaint
 import dev.chatter.app.net.AppJson
 import kotlinx.serialization.json.jsonObject
 import org.junit.Assert.assertEquals
@@ -61,7 +62,49 @@ class SevenTvEventTest {
     }
 
     @Test
+    fun paintIsDescribedByACosmetic() {
+        val event = parse(
+            """
+            {"type":"cosmetic.create","body":{"object":{"id":"P1","kind":"PAINT","data":{
+              "id":"P1","name":"Sunset","color":null,"function":"LINEAR_GRADIENT","angle":90,"repeat":false,
+              "stops":[{"at":1,"color":-16776961},{"at":0,"color":-65281}],
+              "shadows":[{"x_offset":1,"y_offset":2,"radius":0.5,"color":255}]}}}}
+            """
+        ) as SevenTvEvent.PaintCreated
+        val paint = event.paint
+        assertEquals("P1", paint.id)
+        assertEquals(NamePaint.Kind.Linear, paint.kind)
+        assertEquals(90f, paint.angle)
+        // RGBA as 7TV sends it: -65281 is 0xFFFF00FF, yellow; -16776961 is 0xFF0000FF, red.
+        assertEquals(listOf(0f to 0xFFFFFF00.toInt(), 1f to 0xFFFF0000.toInt()), paint.stops.map { it.at to it.color })
+        assertEquals(0xFFFFFF00.toInt(), paint.fallbackColor)
+        assertEquals(NamePaint.Shadow(1f, 2f, 0.5f, 0xFF000000.toInt()), paint.shadows.single())
+    }
+
+    @Test
+    fun imagePaintsOnlyComeFromSevenTv() {
+        fun image(url: String) = parse(
+            """{"type":"cosmetic.create","body":{"object":{"kind":"PAINT","data":{
+              "id":"P2","function":"URL","image_url":"$url","stops":[],"shadows":[]}}}}"""
+        )
+        assertEquals("https://cdn.7tv.app/paint/P2/layer/1x.webp", ((image("https://cdn.7tv.app/paint/P2/layer/1x.webp")) as SevenTvEvent.PaintCreated).paint.imageUrl)
+        assertNull(image("https://tracker.example/pixel.webp"))
+    }
+
+    @Test
+    fun aPaintEntitlementIsToldApartFromABadge() {
+        val event = parse(
+            """
+            {"type":"entitlement.create","body":{"object":{"kind":"PAINT","ref_id":"P1",
+              "user":{"connections":[{"platform":"TWITCH","id":"12345"}]}}}}
+            """
+        )
+        assertEquals(SevenTvEvent.EntitlementChanged("12345", "P1", worn = true, SevenTvEvent.Cosmetic.Paint), event)
+    }
+
+    @Test
     fun paintsAndUsersWithoutTwitchAreIgnored() {
+        // A paint without a known function cannot be drawn.
         assertNull(parse("""{"type":"cosmetic.create","body":{"object":{"kind":"PAINT","data":{"id":"P1"}}}}"""))
         assertNull(
             parse(

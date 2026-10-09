@@ -71,6 +71,8 @@ data class Settings(
     val showUnlisted7tv: Boolean = false,
     /** Live 7TV emote changes as notices in the chat. */
     val sevenTvEvents: Boolean = true,
+    /** Names drawn with the gradient or picture their owner picked on 7TV. */
+    val sevenTvPaints: Boolean = true,
     /** Avatars of channels with unread messages in the title bar. */
     val unreadInTitleBar: Boolean = true,
     /** Every channel as a tab in the title bar instead of a menu. */
@@ -157,6 +159,7 @@ class SettingsRepository(
             zeroWidthEmotes = p[ZERO_WIDTH] ?: true,
             showUnlisted7tv = p[UNLISTED_7TV] ?: false,
             sevenTvEvents = p[SEVENTV_EVENTS] ?: true,
+            sevenTvPaints = p[SEVENTV_PAINTS] ?: true,
             unreadInTitleBar = p[UNREAD_TITLE_BAR] ?: true,
             channelTabs = p[CHANNEL_TABS] ?: true,
             emoteSuggestions = p[EMOTE_SUGGESTIONS] ?: true,
@@ -209,6 +212,7 @@ class SettingsRepository(
     suspend fun setZeroWidthEmotes(v: Boolean) = store.edit { it[ZERO_WIDTH] = v }
     suspend fun setShowUnlisted7tv(v: Boolean) = store.edit { it[UNLISTED_7TV] = v }
     suspend fun setSevenTvEvents(v: Boolean) = store.edit { it[SEVENTV_EVENTS] = v }
+    suspend fun setSevenTvPaints(v: Boolean) = store.edit { it[SEVENTV_PAINTS] = v }
     suspend fun setUnreadInTitleBar(v: Boolean) = store.edit { it[UNREAD_TITLE_BAR] = v }
     suspend fun setChannelTabs(v: Boolean) = store.edit { it[CHANNEL_TABS] = v }
     suspend fun setEmoteSuggestions(v: Boolean) = store.edit { it[EMOTE_SUGGESTIONS] = v }
@@ -279,6 +283,7 @@ class SettingsRepository(
         p[ZERO_WIDTH] = s.zeroWidthEmotes
         p[UNLISTED_7TV] = s.showUnlisted7tv
         p[SEVENTV_EVENTS] = s.sevenTvEvents
+        p[SEVENTV_PAINTS] = s.sevenTvPaints
         p[UNREAD_TITLE_BAR] = s.unreadInTitleBar
         p[CHANNEL_TABS] = s.channelTabs
         p[EMOTE_SUGGESTIONS] = s.emoteSuggestions
@@ -344,6 +349,7 @@ class SettingsRepository(
         val ZERO_WIDTH = booleanPreferencesKey("zero_width_emotes")
         val UNLISTED_7TV = booleanPreferencesKey("show_unlisted_7tv")
         val SEVENTV_EVENTS = booleanPreferencesKey("seventv_events")
+        val SEVENTV_PAINTS = booleanPreferencesKey("seventv_paints")
         val UNREAD_TITLE_BAR = booleanPreferencesKey("unread_title_bar")
         val CHANNEL_TABS = booleanPreferencesKey("channel_tabs")
         val EMOTE_SUGGESTIONS = booleanPreferencesKey("emote_suggestions")

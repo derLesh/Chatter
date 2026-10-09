@@ -65,6 +65,10 @@ class BadgeRepository(
     /** Twitch user id to the cosmetic they wear; 7TV shows one badge per person. */
     private val sevenTvWearers = ConcurrentHashMap<String, String>()
 
+    /** 7TV paints by id, and who wears which, arriving like the badges. */
+    private val sevenTvPaints = ConcurrentHashMap<String, NamePaint>()
+    private val sevenTvPaintWearers = ConcurrentHashMap<String, String>()
+
     /** Channels whose badges failed to load, retried when the app comes back. */
     private val failedChannels = ConcurrentHashMap.newKeySet<String>()
 
@@ -86,6 +90,21 @@ class BadgeRepository(
             sevenTv == null -> twitch + extra
             else -> twitch + extra + sevenTv
         }
+    }
+
+    override fun paint(userId: String?): NamePaint? =
+        if (userId == null || BadgeProvider.SevenTv !in enabled) null
+        else sevenTvPaintWearers[userId]?.let { sevenTvPaints[it] }
+
+    /** A paint 7TV described over the EventAPI. */
+    fun sevenTvPaint(paint: NamePaint) {
+        sevenTvPaints[paint.id] = paint
+    }
+
+    /** Someone started or stopped wearing a paint, by Twitch user id. */
+    fun sevenTvPaintWearer(userId: String, paintId: String, worn: Boolean) {
+        if (worn) sevenTvPaintWearers[userId] = paintId
+        else sevenTvPaintWearers.remove(userId, paintId)
     }
 
     private fun sevenTvBadgeOf(userId: String): Badge? =

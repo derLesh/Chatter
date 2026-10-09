@@ -1,6 +1,7 @@
 package dev.chatter.app.chat
 
 import dev.chatter.app.badges.Badge
+import dev.chatter.app.badges.NamePaint
 import dev.chatter.app.emotes.Emote
 
 /** A piece of a chat message, computed once when the message arrives. */
@@ -36,10 +37,11 @@ class MessageBody private constructor(
     @Volatile private var parts: Parts?,
     private val worthKeeping: () -> Boolean = { false },
 ) {
-    private class Parts(val segments: List<Segment>, val badges: List<Badge>, val quote: List<Segment>)
+    private class Parts(val segments: List<Segment>, val badges: List<Badge>, val quote: List<Segment>, val paint: NamePaint?)
 
     val segments: List<Segment> get() = parts().segments
     val badges: List<Badge> get() = parts().badges
+    val paint: NamePaint? get() = parts().paint
     val quote: List<Segment> get() = parts().quote
 
     /** Builds the parts now on the calling thread, if not built yet. */
@@ -68,18 +70,19 @@ class MessageBody private constructor(
 
         /** For lines the app writes itself. */
         fun of(segments: List<Segment>, badges: List<Badge> = emptyList()) =
-            MessageBody(null, Parts(segments, badges, emptyList()))
+            MessageBody(null, Parts(segments, badges, emptyList(), null))
 
         /**
          * [worthKeeping] is asked after building: true keeps the builder for [rebuilt]. [quote] is
-         * the message a reply answers, empty otherwise.
+         * the message a reply answers, empty otherwise; [paint] is the sender's 7TV paint.
          */
         fun lazily(
             segments: () -> List<Segment>,
             badges: () -> List<Badge>,
+            paint: () -> NamePaint? = { null },
             quote: () -> List<Segment> = { emptyList() },
             worthKeeping: () -> Boolean = { false },
-        ) = MessageBody({ Parts(segments(), badges(), quote()) }, null, worthKeeping)
+        ) = MessageBody({ Parts(segments(), badges(), quote(), paint()) }, null, worthKeeping)
     }
 }
 
@@ -139,6 +142,8 @@ data class ChatItem(
 
     val segments: List<Segment> get() = body.segments
     val badges: List<Badge> get() = body.badges
+    /** The sender's 7TV paint, drawn on the name. */
+    val paint: NamePaint? get() = body.paint
 
     /** The message this one answers, as segments; empty if it answers nothing. */
     val quote: List<Segment> get() = body.quote

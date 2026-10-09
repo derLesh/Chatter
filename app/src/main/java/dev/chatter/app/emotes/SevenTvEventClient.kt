@@ -1,6 +1,7 @@
 package dev.chatter.app.emotes
 
 import android.util.Log
+import dev.chatter.app.badges.NamePaint
 import dev.chatter.app.net.AppJson
 import dev.chatter.app.net.SevenTvActiveEmote
 import kotlinx.coroutines.CoroutineScope
@@ -54,10 +55,23 @@ sealed interface SevenTvEvent {
         override val actor: String? get() = null
     }
 
-    /** Someone started or stopped wearing the cosmetic [refId]. */
-    data class EntitlementChanged(val twitchUserId: String, val refId: String, val worn: Boolean) : SevenTvEvent {
+    /** A paint 7TV described; like a badge, [EntitlementChanged] says who wears it. */
+    data class PaintCreated(val paint: NamePaint) : SevenTvEvent {
         override val actor: String? get() = null
     }
+
+    /** Someone started or stopped wearing the [cosmetic] [refId]. */
+    data class EntitlementChanged(
+        val twitchUserId: String,
+        val refId: String,
+        val worn: Boolean,
+        val cosmetic: Cosmetic = Cosmetic.Badge,
+    ) : SevenTvEvent {
+        override val actor: String? get() = null
+    }
+
+    /** The cosmetics Chatter draws. */
+    enum class Cosmetic { Badge, Paint }
 }
 
 /**
@@ -258,8 +272,8 @@ class SevenTvEventClient(
             (hello["d"] as? JsonObject)?.get("heartbeat_interval")?.jsonPrimitive?.longOrNull
                 ?.coerceIn(5_000L, 5 * 60_000L) ?: DEFAULT_HEARTBEAT_MS
 
-        /** The only cosmetic Chatter shows; 7TV also has paints. */
-        private const val BADGE = "BADGE"
+        /** The kinds 7TV gives its cosmetics, as Chatter draws them. */
+        private val COSMETICS = mapOf("BADGE" to SevenTvEvent.Cosmetic.Badge, "PAINT" to SevenTvEvent.Cosmetic.Paint)
 
         private fun subscriptionMessage(op: Int, subscription: SevenTvSubscription) = buildJsonObject {
             put("op", op)
@@ -275,7 +289,7 @@ class SevenTvEventClient(
             val type = d["type"]?.jsonPrimitive?.contentOrNull
             // Cosmetics are about a person, not an emote set, and have no id of their own.
             when (type) {
-                "cosmetic.create" -> return badge(body)
+                "cosmetic.create" -> return cosmetic(body)
                 "entitlement.create" -> return entitlement(body, worn = true)
                 "entitlement.delete" -> return entitlement(body, worn = false)
             }
@@ -312,11 +326,15 @@ class SevenTvEventClient(
             }
         }
 
-        /** `cosmetic.create` for a badge: its picture and name. */
-        private fun badge(body: JsonObject): SevenTvEvent? {
+        /** `cosmetic.create`: a badge's picture and name, or how a paint is drawn. */
+        private fun cosmetic(body: JsonObject): SevenTvEvent? {
             val obj = body["object"]?.let { it as? JsonObject } ?: return null
-            if (obj["kind"]?.jsonPrimitive?.contentOrNull != BADGE) return null
             val data = obj["data"]?.let { it as? JsonObject } ?: return null
+            when (COSMETICS[obj["kind"]?.jsonPrimitive?.contentOrNull]) {
+                SevenTvEvent.Cosmetic.Badge -> Unit
+                SevenTvEvent.Cosmetic.Paint -> return NamePaint.parse(data)?.let { SevenTvEvent.PaintCreated(it) }
+                null -> return null
+            }
             val id = data["id"]?.jsonPrimitive?.contentOrNull ?: return null
             val name = data["name"]?.jsonPrimitive?.contentOrNull.orEmpty()
             val tooltip = data["tooltip"]?.jsonPrimitive?.contentOrNull?.ifEmpty { null } ?: name
@@ -329,14 +347,14 @@ class SevenTvEventClient(
          */
         private fun entitlement(body: JsonObject, worn: Boolean): SevenTvEvent? {
             val obj = body["object"]?.let { it as? JsonObject } ?: return null
-            if (obj["kind"]?.jsonPrimitive?.contentOrNull != BADGE) return null
+            val cosmetic = COSMETICS[obj["kind"]?.jsonPrimitive?.contentOrNull] ?: return null
             val refId = obj["ref_id"]?.jsonPrimitive?.contentOrNull ?: return null
             val twitchId = obj["user"]?.let { it as? JsonObject }
                 ?.get("connections")?.let { it as? JsonArray }.orEmpty()
                 .map { it.jsonObject }
                 .firstOrNull { it["platform"]?.jsonPrimitive?.contentOrNull == "TWITCH" }
                 ?.get("id")?.jsonPrimitive?.contentOrNull ?: return null
-            return SevenTvEvent.EntitlementChanged(twitchId, refId, worn)
+            return SevenTvEvent.EntitlementChanged(twitchId, refId, worn, cosmetic)
         }
 
         private fun emote(e: JsonElement?): SevenTvActiveEmote? =

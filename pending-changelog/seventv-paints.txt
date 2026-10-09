@@ -1,0 +1,1 @@
+minor: Draw 7TV paints on names, gradients and pictures with their shadows, with a setting to turn them off

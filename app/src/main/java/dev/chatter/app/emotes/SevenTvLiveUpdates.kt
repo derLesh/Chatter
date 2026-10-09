@@ -12,7 +12,7 @@ import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
 
 /**
- * Keeps the 7TV emotes and badges of every joined channel current via the EventAPI and reports
+ * Keeps the 7TV emotes, badges and paints of every joined channel current via the EventAPI and reports
  * emote changes in the chat (if enabled).
  *
  * To save battery the connection only runs while the app is on screen; coming back reloads the
@@ -95,8 +95,11 @@ class SevenTvLiveUpdates(
                 }
             }
             is SevenTvEvent.BadgeCreated -> badges.sevenTvBadge(event.id, event.name, event.tooltip)
-            is SevenTvEvent.EntitlementChanged ->
-                badges.sevenTvWearer(event.twitchUserId, event.refId, event.worn)
+            is SevenTvEvent.PaintCreated -> badges.sevenTvPaint(event.paint)
+            is SevenTvEvent.EntitlementChanged -> when (event.cosmetic) {
+                SevenTvEvent.Cosmetic.Badge -> badges.sevenTvWearer(event.twitchUserId, event.refId, event.worn)
+                SevenTvEvent.Cosmetic.Paint -> badges.sevenTvPaintWearer(event.twitchUserId, event.refId, event.worn)
+            }
             is SevenTvEvent.ActiveSetChanged -> {
                 val channelId = emotes.channelForSevenTvUser(event.userId) ?: return
                 emotes.loadChannel(channelId, null) // new set id leads to new subscriptions via version

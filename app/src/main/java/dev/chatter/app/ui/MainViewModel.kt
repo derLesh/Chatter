@@ -1062,6 +1062,10 @@ class MainViewModel(private val c: AppContainer) : ViewModel() {
         viewModelScope.launch { c.settings.setSevenTvEvents(v) }
     }
 
+    fun setSevenTvPaints(v: Boolean) {
+        viewModelScope.launch { c.settings.setSevenTvPaints(v) }
+    }
+
     fun setLoadHistory(v: Boolean) {
         viewModelScope.launch { c.settings.setLoadHistory(v) }
     }
