@@ -289,6 +289,7 @@ private val SEARCH_INDEX: List<SearchEntry> by lazy {
         add(SearchEntry(R.string.settings_changelog, about, R.string.settings_changelog_summary))
         add(SearchEntry(R.string.settings_source_code, about, R.string.settings_source_code_summary))
         add(SearchEntry(R.string.settings_report_issue, about, R.string.settings_report_issue_summary))
+        add(SearchEntry(R.string.settings_security, about, R.string.settings_security_summary))
         add(SearchEntry(R.string.settings_privacy, about, R.string.settings_privacy_summary))
         add(SearchEntry(R.string.settings_credits, about, R.string.settings_credits_summary))
         // Only the GitHub APK has this switch.
@@ -1482,6 +1483,8 @@ private fun AboutPage(settings: Settings, vm: MainViewModel, open: (SettingsSubP
         }
         item(R.string.settings_source_code) { LinkItem(R.string.settings_source_code, R.string.settings_source_code_summary, REPO_URL) }
         item(R.string.settings_report_issue) { ReportIssueItem(vm) }
+        // A security hole goes to a private report, not into a public issue like the row above.
+        item(R.string.settings_security) { LinkItem(R.string.settings_security, R.string.settings_security_summary, SECURITY_URL) }
         item(R.string.settings_privacy) { LinkItem(R.string.settings_privacy, R.string.settings_privacy_summary, PRIVACY_URL) }
         item(R.string.settings_credits) {
             ListItem(
@@ -1737,6 +1740,7 @@ private val CREDITS = listOf(
 
 private const val REPO_URL = "https://github.com/derLesh/Chatter"
 private const val SPONSOR_URL = "https://github.com/sponsors/derLesh"
+private const val SECURITY_URL = "$REPO_URL/security/policy"
 private const val PRIVACY_URL = "https://derlesh.github.io/Chatter/privacy-policy.html"
 
 private val MOBILE_DATA = listOf(

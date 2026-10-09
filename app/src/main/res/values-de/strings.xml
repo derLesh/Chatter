@@ -327,6 +327,8 @@
     <string name="settings_source_code_summary">github.com/derLesh/Chatter</string>
     <string name="settings_report_issue">Problem melden</string>
     <string name="settings_report_issue_summary">Öffnet einen Fehlerbericht auf GitHub, App- und Android-Version schon eingetragen</string>
+    <string name="settings_security">Sicherheitslücke melden</string>
+    <string name="settings_security_summary">Wie du uns eine Lücke in Chatter vertraulich meldest, bevor sie jeder lesen kann</string>
     <string name="crash_attach_title">Letzten Absturz anhängen?</string>
     <string name="crash_attach_text">Chatter ist am %1$s abgestürzt. Kopieren, was es dazu notiert hat, um es in den Bericht einzufügen? Nichts davon verlässt das Handy, solange du es nicht selbst einfügst.</string>
     <string name="crash_attach_copy">Kopieren und weiter</string>

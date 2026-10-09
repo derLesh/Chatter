@@ -1,0 +1,1 @@
+patch: Add a way to report a security problem privately, under Settings → About
