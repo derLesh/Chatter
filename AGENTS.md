@@ -194,7 +194,8 @@ A change is not confirmed by compiling. Install it and open the screen it touche
   the code below, no story of what would go wrong without it beyond the one fact that matters,
   and no rhetorical flourish. A comment that only repeats a name is deleted, not shortened.
 - **A new setting touches four places:** the `Settings` data class, a key and setter in
-  `SettingsRepository`, a setter on `MainViewModel`, and a row in `SettingsScreen`.
+  `SettingsRepository`, a setter on `MainViewModel`, and a row on its page in `ui/settings/`
+  (plus a line in `SEARCH_INDEX` in `SettingsScreen`, so the search finds it).
 - **Parsing gets a test.** Anything that reads a format — IRC tags, 7TV events, the changelog —
   belongs in `app/src/test/`, where the existing tests show the style.
 - **Commit subjects describe the change to the app**, in the imperative and without a prefix:
