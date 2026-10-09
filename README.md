@@ -35,6 +35,8 @@
 - Open several chats and switch seamlessly between them
 - Combine multiple chats into one
 - 7TV, BetterTTV and FrankerFaceZ emotes, animated, with a picker and autocomplete
+- Emoji in the picker too, or typed by shortcode: `:smi` offers 😄
+- 7TV badges and paints on names, and cheers as animated cheermotes in their tier's colour
 - [Recent messages](https://recent-messages.robotty.de/) loaded as you join, so you never walk into an empty room
 - Text size, density, timestamps and name colours under your control
 - Choose between light and dark themes, Material You, and different app icons
@@ -46,6 +48,8 @@
 - An inbox collecting everything addressed to you across all your channels
 - Your own highlight words and rules for what deserves an alert, with a sound and vibration per
   channel
+- A notification when a channel goes live, with its title and category: your channels, and any
+  followed channel you pick
 
 **Stay in the conversation**
 
@@ -76,6 +80,11 @@ Three ways to check the download:
   ```text
   dc53f30003ee71b0bbbdbd910dd92ce22da1bd346f4da59d985fc6133b29390e
   ```
+
+## Security
+
+Found a way to get at somebody's Twitch login, or a hole in a release or a workflow? Please report
+it privately, as the [security policy](SECURITY.md) describes, not in a public issue.
 
 ## License
 
