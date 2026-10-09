@@ -23,8 +23,8 @@ data class RoomState(
 }
 
 /** The user's role in a channel, from the USERSTATE badges. */
-enum class ChatRole(val badgeTag: String?) {
-    Viewer(null), Vip("vip/1"), Moderator("moderator/1"), Broadcaster("broadcaster/1");
+enum class ChatRole {
+    Viewer, Vip, Moderator, Broadcaster;
 
     companion object {
         fun fromBadges(badges: String): ChatRole = when {

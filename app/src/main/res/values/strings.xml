@@ -359,6 +359,9 @@
     <string name="mode_subs">Subs</string>
     <string name="mode_emotes">Emotes only</string>
     <string name="mode_unique">Unique</string>
+    <string name="role_broadcaster">Broadcaster</string>
+    <string name="role_moderator">Moderator</string>
+    <string name="role_vip">VIP</string>
     <string name="shared_chat">Shared Chat</string>
     <string name="shared_chat_with">Shared Chat with %1$s</string>
     <string name="settings_group_text">Text</string>

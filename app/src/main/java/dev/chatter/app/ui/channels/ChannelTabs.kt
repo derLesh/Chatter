@@ -52,6 +52,7 @@ import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
@@ -62,6 +63,7 @@ import dev.chatter.app.badges.Badge
 import dev.chatter.app.channels.ChannelGroup
 import dev.chatter.app.channels.ChannelInfo
 import dev.chatter.app.channels.displayName
+import dev.chatter.app.chat.ChatRole
 import dev.chatter.app.chat.RoomState
 import dev.chatter.app.irc.ConnectionState
 import dev.chatter.app.ui.theme.barColor
@@ -82,7 +84,8 @@ fun ChannelTabBar(
     unread: Map<String, Int>,
     unreadMessages: Map<String, Int>,
     roomState: RoomState?,
-    roleBadge: Badge?,
+    /** The user's role in [active]; the line under its tab takes the role's color. */
+    role: ChatRole?,
     /** Shared Chat partners of [active], or null if it shares with nobody. */
     sharedWith: List<String>?,
     connection: ConnectionState,
@@ -117,6 +120,7 @@ fun ChannelTabBar(
                     showUnread = showUnread,
                     hiddenUnread = hiddenUnread,
                     drafts = drafts,
+                    role = role,
                     imageLoader = imageLoader,
                     onSelect = onSelect,
                     onAdd = onAdd,
@@ -144,11 +148,12 @@ fun ChannelTabBar(
                 active == null -> false
                 connection != ConnectionState.Connected -> true
                 activeGroup != null -> activeGroup.name.isNotBlank()
-                else -> roleBadge != null || sharedWith != null || roomState?.hasModes() == true
+                else -> sharedWith != null || roomState?.hasModes() == true
             }
-            if (hasStatus) Box(Modifier.padding(start = 16.dp, end = 16.dp, bottom = 6.dp)) {
+            // A little room above, so the line does not stick to the tab underline.
+            if (hasStatus) Box(Modifier.padding(start = 16.dp, end = 16.dp, top = 4.dp, bottom = 6.dp)) {
                 if (activeGroup != null) GroupStatus(connection, activeGroup, info)
-                else ChannelStatus(connection, roomState, roleBadge, sharedWith, imageLoader)
+                else ChannelStatus(connection, roomState, role = null, sharedWith)
             }
         }
     }
@@ -168,6 +173,7 @@ private fun ChannelTabs(
     showUnread: Boolean,
     hiddenUnread: Set<String>,
     drafts: Set<String>,
+    role: ChatRole?,
     imageLoader: ImageLoader,
     onSelect: (String) -> Unit,
     onAdd: () -> Unit,
@@ -194,6 +200,7 @@ private fun ChannelTabs(
             if (selected >= 0) TabRowDefaults.PrimaryIndicator(
                 Modifier.tabIndicatorOffset(selected, matchContentSize = false).padding(horizontal = 12.dp),
                 width = Dp.Unspecified,
+                color = role?.color ?: MaterialTheme.colorScheme.primary,
             )
         },
         divider = {},
@@ -214,6 +221,8 @@ private fun ChannelTabs(
                     else ChannelAvatar(info[page], imageLoader, 24.dp)
                 },
                 selected = isSelected,
+                // Said aloud for the tab whose underline shows it.
+                roleName = role?.label?.takeIf { isSelected }?.let { stringResource(it) },
                 mentions = mentions,
                 hasNew = hasNew,
                 hasDraft = page in drafts,
@@ -263,6 +272,7 @@ private fun ChannelTab(
     name: String,
     avatar: @Composable () -> Unit,
     selected: Boolean,
+    roleName: String?,
     mentions: Int,
     hasNew: Boolean,
     hasDraft: Boolean,
@@ -282,6 +292,7 @@ private fun ChannelTab(
             .semantics {
                 role = Role.Tab
                 this.selected = selected
+                roleName?.let { stateDescription = it }
             }
             .combinedClickable(
                 onLongClickLabel = stringResource(R.string.channel_options),

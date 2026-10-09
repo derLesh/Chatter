@@ -63,6 +63,7 @@ import dev.chatter.app.badges.Badge
 import dev.chatter.app.channels.ChannelGroup
 import dev.chatter.app.channels.ChannelInfo
 import dev.chatter.app.channels.displayName
+import dev.chatter.app.chat.ChatRole
 import dev.chatter.app.chat.RoomState
 import dev.chatter.app.irc.ConnectionState
 import dev.chatter.app.ui.theme.LiveRed
@@ -83,7 +84,8 @@ fun ChannelTopBar(
     unread: Map<String, Int>,
     unreadMessages: Map<String, Int>,
     roomState: RoomState?,
-    roleBadge: Badge?,
+    /** The user's role in [active], shown in its color under the name. */
+    role: ChatRole?,
     /** Shared Chat partners of [active], or null if it shares with nobody. */
     sharedWith: List<String>?,
     connection: ConnectionState,
@@ -139,7 +141,7 @@ fun ChannelTopBar(
                         Spacer(Modifier.width(10.dp))
                         Column(Modifier.weight(1f, fill = false)) {
                             Text(i?.displayName ?: active, style = MaterialTheme.typography.titleMedium, maxLines = 1)
-                            ChannelStatus(connection, roomState, roleBadge, sharedWith, imageLoader)
+                            ChannelStatus(connection, roomState, role, sharedWith)
                         }
                     } else {
                         Text(stringResource(R.string.no_channels_title), style = MaterialTheme.typography.titleMedium)

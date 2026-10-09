@@ -1,0 +1,1 @@
+patch: Show your role in a channel as the color of its tab's underline, with a little more room for the chat modes

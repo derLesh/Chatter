@@ -249,7 +249,7 @@ fun MainScreen(vm: MainViewModel, onInbox: () -> Unit, onSettings: () -> Unit) {
                 Unit
             }
             val roomState = activeChannel?.let { roomStates[it] }
-            val roleBadge = activeChannel?.let { ch -> roles[ch]?.let { vm.roleBadge(ch, it) } }
+            val role = activeChannel?.let { roles[it] }
             if (settings.channelTabs) ChannelTabBar(
                 pages = pageKeys,
                 groups = groups,
@@ -258,7 +258,7 @@ fun MainScreen(vm: MainViewModel, onInbox: () -> Unit, onSettings: () -> Unit) {
                 unread = unread,
                 unreadMessages = unreadMessages,
                 roomState = roomState,
-                roleBadge = roleBadge,
+                role = role,
                 sharedWith = sharedWith,
                 connection = connection,
                 showUnread = settings.unreadInTitleBar,
@@ -284,7 +284,7 @@ fun MainScreen(vm: MainViewModel, onInbox: () -> Unit, onSettings: () -> Unit) {
                 unread = unread,
                 unreadMessages = unreadMessages,
                 roomState = roomState,
-                roleBadge = roleBadge,
+                role = role,
                 sharedWith = sharedWith,
                 connection = connection,
                 showUnread = settings.unreadInTitleBar,
