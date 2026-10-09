@@ -2,11 +2,59 @@ package dev.chatter.app.ui.chat
 
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.remember
+import androidx.compose.ui.graphics.Color
 import dev.chatter.app.settings.Settings
+import dev.chatter.app.settings.TimestampFormat
+import dev.chatter.app.ui.theme.NameColorPalette
 import dev.chatter.app.ui.theme.highlightBackground
 import dev.chatter.app.ui.theme.isAppInDarkTheme
 import dev.chatter.app.ui.theme.isPureBlack
+
+/** What a message row needs besides the message. Changes rarely. */
+@Immutable
+data class ChatStyle(
+    val fontSize: Float,
+    val timestamps: TimestampFormat,
+    val dark: Boolean,
+    val secondaryText: Color,
+    val linkColor: Color,
+    val mentionBackground: Color,
+    /** Background of every other message, or null when alternating backgrounds are off. */
+    val alternateBackground: Color?,
+    val noticeBackground: Color,
+    /** Background of a chatter's first message, or null when not highlighted. */
+    val firstMessageBackground: Color?,
+    val accent: Color,
+    /** How name colors are adjusted for readability. */
+    val nameColors: NameColorPalette,
+    /** Nicknames by lowercase login. */
+    val nicknames: Map<String, String>,
+    /** Whether holding a message vibrates. */
+    val haptics: Boolean,
+    /** Hosts whose image links are shown as images. Empty when linked images are off. */
+    val imageHosts: List<String>,
+    /** Whether long links are shortened to site and path start; see [LinkText]. */
+    val shortLinks: Boolean = true,
+    /** Smallest emote size, to save data; see [dev.chatter.app.net.DataSaving]. */
+    val smallEmotes: Boolean = false,
+    /** Frame rate animated emotes ask for; see [EmoteFrameRate]. */
+    val emoteFrameRate: Float = EmoteFrameRate.ACTIVE,
+    /** Whether names are drawn with their 7TV paint. */
+    val paints: Boolean = true,
+)
+
+/**
+ * The channel a message was written in, for lists that mix channels: its picture, and its name for
+ * accessibility.
+ */
+@Immutable
+data class ChannelMark(val avatarUrl: String?, val name: String)
+
+/** The nickname for [login], or [fallback]. */
+fun ChatStyle.nameOf(login: String?, fallback: String): String =
+    login?.let { nicknames[it.lowercase()] } ?: fallback
 
 /**
  * The chat style from the settings, shared by the chat screen and the bubble.
