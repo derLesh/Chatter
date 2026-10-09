@@ -33,10 +33,27 @@ enum class MessageKind { Chat, Action, UserNotice, Notice }
  * worker, so the repository builds messages before handing them to the UI (see `snapshot`).
  */
 class MessageBody private constructor(
-    private var build: (() -> Parts)?,
+    private var source: Source?,
     @Volatile private var parts: Parts?,
-    private val worthKeeping: () -> Boolean = { false },
 ) {
+    /**
+     * What a body is built from on first use. One object per message rather than a lambda per
+     * part: this is made for every message in every channel.
+     */
+    interface Source {
+        fun segments(): List<Segment>
+        fun badges(): List<Badge>
+
+        /** The sender's 7TV paint. */
+        fun paint(): NamePaint? = null
+
+        /** The message a reply answers; empty otherwise. */
+        fun quote(): List<Segment> = emptyList()
+
+        /** Asked after building: true keeps the source for [rebuilt]. */
+        fun worthKeeping(): Boolean = false
+    }
+
     private class Parts(val segments: List<Segment>, val badges: List<Badge>, val quote: List<Segment>, val paint: NamePaint?)
 
     val segments: List<Segment> get() = parts().segments
@@ -54,14 +71,16 @@ class MessageBody private constructor(
      * built, or no longer knows how it was built, is returned as is.
      */
     fun rebuilt(): MessageBody =
-        if (parts == null) this else build?.let { MessageBody(it, null, worthKeeping) } ?: this
+        if (parts == null) this else source?.let { MessageBody(it, null) } ?: this
 
     private fun parts(): Parts = parts ?: synchronized(this) {
-        parts ?: build!!().also {
-            parts = it
-            // Drops the builder lambda unless the message could still change, i.e. while a provider
-            // owes emotes; [rebuilt] needs it then.
-            if (!worthKeeping()) build = null
+        parts ?: source!!.let { from ->
+            Parts(from.segments(), from.badges(), from.quote(), from.paint()).also {
+                parts = it
+                // Drops the source unless the message could still change, i.e. while a provider
+                // owes emotes; [rebuilt] needs it then.
+                if (!from.worthKeeping()) source = null
+            }
         }
     }
 
@@ -72,17 +91,18 @@ class MessageBody private constructor(
         fun of(segments: List<Segment>, badges: List<Badge> = emptyList()) =
             MessageBody(null, Parts(segments, badges, emptyList(), null))
 
-        /**
-         * [worthKeeping] is asked after building: true keeps the builder for [rebuilt]. [quote] is
-         * the message a reply answers, empty otherwise; [paint] is the sender's 7TV paint.
-         */
+        fun from(source: Source) = MessageBody(source, null)
+
+        /** A body from one lambda per part, where the extra objects do not matter, as in tests. */
         fun lazily(
             segments: () -> List<Segment>,
             badges: () -> List<Badge>,
-            paint: () -> NamePaint? = { null },
-            quote: () -> List<Segment> = { emptyList() },
             worthKeeping: () -> Boolean = { false },
-        ) = MessageBody({ Parts(segments(), badges(), quote(), paint()) }, null, worthKeeping)
+        ) = from(object : Source {
+            override fun segments() = segments()
+            override fun badges() = badges()
+            override fun worthKeeping() = worthKeeping()
+        })
     }
 }
 

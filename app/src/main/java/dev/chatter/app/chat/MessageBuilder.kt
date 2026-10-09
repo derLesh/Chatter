@@ -88,7 +88,8 @@ class MessageBuilder(
         /** The segments of the answered message, already built. */
         quote: List<Segment> = emptyList(),
     ): ChatItem {
-        val (body, isAction) = splitAction(text)
+        val isAction = isAction(text)
+        val body = if (isAction) actionText(text) else text
         return ChatItem(
             id = "local-" + UUID.randomUUID(),
             channel = channel,
@@ -97,10 +98,12 @@ class MessageBuilder(
             login = selfLogin,
             displayName = userState["display-name"]?.ifEmpty { null } ?: selfLogin,
             color = parseColor(userState["color"]),
-            body = deferred(
-                channel, body, emotesTag = null, badgesTag = userState["badges"],
-                userId = userState["user-id"], channelId = channelId, ownMessage = true,
-                quote = { quote },
+            body = MessageBody.from(
+                DeferredBody(
+                    channel, body, emotesTag = null, badgesTag = userState["badges"],
+                    userId = userState["user-id"], channelId = channelId, ownMessage = true,
+                    builtQuote = quote,
+                ),
             ),
             text = body,
             isOwn = true,
@@ -109,31 +112,31 @@ class MessageBuilder(
     }
 
     /**
-     * The drawing part of a message, built later. Keeps only the tag values it needs instead of the
-     * whole [IrcMessage].
+     * The drawing part of a message, built on first use. Keeps only the tag values it needs instead
+     * of the whole [IrcMessage].
      *
      * [strippedPrefix] is the "@parent " of a reply: Twitch's emote positions count from the
      * untrimmed text, so they are shifted after parsing.
      */
-    private fun deferred(
-        channel: String,
-        rawBody: String,
-        emotesTag: String?,
-        badgesTag: String?,
-        userId: String?,
-        channelId: String?,
-        ownMessage: Boolean,
-        strippedPrefix: Int = 0,
-        /**
-         * Where the badges were earned: a Shared Chat partner's message shows that channel's
-         * badges.
-         */
-        badgeChannelId: String? = channelId,
-        quote: () -> List<Segment> = { emptyList() },
+    private inner class DeferredBody(
+        private val channel: String,
+        private val rawBody: String,
+        private val emotesTag: String?,
+        private val badgesTag: String?,
+        private val userId: String?,
+        private val channelId: String?,
+        private val ownMessage: Boolean,
+        private val strippedPrefix: Int = 0,
+        /** Where the badges were earned: a Shared Chat partner's message shows that channel's. */
+        private val badgeChannelId: String? = channelId,
+        /** The answered message, already built for the user's own reply. */
+        private val builtQuote: List<Segment>? = null,
+        /** The answered message of a reply that arrived, built from its text. */
+        private val reply: ReplyInfo? = null,
         /** Only a message that carries bits turns "Cheer100" into a cheermote. */
-        cheered: Boolean = false,
-    ) = MessageBody.lazily(
-        segments = {
+        private val cheered: Boolean = false,
+    ) : MessageBody.Source {
+        override fun segments(): List<Segment> {
             val text = if (strippedPrefix == 0) rawBody else rawBody.substring(strippedPrefix)
             var ranges = twitchEmotes(rawBody, emotesTag)
             if (strippedPrefix > 0) {
@@ -142,22 +145,27 @@ class MessageBuilder(
                     else r.copy(start = r.start - strippedPrefix, end = r.end - strippedPrefix)
                 }
             }
-            segments(channel, text, ranges, channelId, ownMessage, cheered)
-        },
-        badges = { badges.resolve(badgeChannelId, badgesTag, userId) },
-        paint = { badges.paint(userId) },
-        quote = quote,
-        // Asked after building: if a provider still owes emotes, the message is rebuilt once they
-        // arrive.
-        worthKeeping = { !emotes.complete(channelId) },
-    )
+            return segments(channel, text, ranges, channelId, ownMessage, cheered)
+        }
+
+        override fun badges() = this@MessageBuilder.badges.resolve(badgeChannelId, badgesTag, userId)
+
+        override fun paint() = this@MessageBuilder.badges.paint(userId)
+
+        override fun quote() = builtQuote ?: reply?.let { quoteSegments(channel, it.parentBody, channelId) }.orEmpty()
+
+        // A provider that still owes emotes would change the message once it answers.
+        override fun worthKeeping() = !emotes.complete(channelId)
+    }
 
     private fun buildPrivmsg(
         msg: IrcMessage, channel: String, selfLogin: String, channelId: String?,
         mentions: MentionMatcher, historical: Boolean,
     ): ChatItem {
         val login = msg.nick.orEmpty()
-        val (raw, isAction) = splitAction(msg.trailing.orEmpty())
+        val trailing = msg.trailing.orEmpty()
+        val isAction = isAction(trailing)
+        val raw = if (isAction) actionText(trailing) else trailing
         val reply = replyInfo(msg)
 
         // Twitch prefixes replies with "@<display name> ", not the login. A display name in other
@@ -182,12 +190,13 @@ class MessageBuilder(
             login = login,
             displayName = msg.tag("display-name") ?: login,
             color = parseColor(msg.tag("color")),
-            body = deferred(
-                channel, raw, emotesTag = msg.tag("emotes"), badgesTag = badgesOf(msg),
-                userId = msg.tag("user-id"), channelId = roomId,
-                ownMessage = false, strippedPrefix = stripped, badgeChannelId = partner ?: roomId,
-                quote = { reply?.let { quoteSegments(channel, it.parentBody, roomId) }.orEmpty() },
-                cheered = bits > 0,
+            body = MessageBody.from(
+                DeferredBody(
+                    channel, raw, emotesTag = msg.tag("emotes"), badgesTag = badgesOf(msg),
+                    userId = msg.tag("user-id"), channelId = roomId,
+                    ownMessage = false, strippedPrefix = stripped, badgeChannelId = partner ?: roomId,
+                    reply = reply, cheered = bits > 0,
+                ),
             ),
             text = body,
             isMention = !isOwn && (mentions.matches(body) || reply?.parentLogin.equals(selfLogin, ignoreCase = true)),
@@ -218,10 +227,12 @@ class MessageBuilder(
             displayName = msg.tag("display-name") ?: login,
             color = parseColor(msg.tag("color")),
             // A notice without a message of its own (a plain sub, a raid) shows no badges.
-            body = if (body.isEmpty()) MessageBody.EMPTY else deferred(
-                channel, body, emotesTag = msg.tag("emotes"), badgesTag = badgesOf(msg),
-                userId = msg.tag("user-id"), channelId = roomId,
-                ownMessage = false, badgeChannelId = partner ?: roomId,
+            body = if (body.isEmpty()) MessageBody.EMPTY else MessageBody.from(
+                DeferredBody(
+                    channel, body, emotesTag = msg.tag("emotes"), badgesTag = badgesOf(msg),
+                    userId = msg.tag("user-id"), channelId = roomId,
+                    ownMessage = false, badgeChannelId = partner ?: roomId,
+                ),
             ),
             systemText = msg.tag("system-msg"),
             text = body,
@@ -416,11 +427,12 @@ class MessageBuilder(
             word.startsWith("https://", ignoreCase = true) || word.startsWith("http://", ignoreCase = true) ||
                 (word.contains('.') && DOMAIN.matches(word))
 
-        /** "\u0001ACTION waves\u0001" (from /me) -> ("waves", true). */
-        fun splitAction(text: String): Pair<String, Boolean> =
-            if (text.startsWith("\u0001ACTION ") && text.endsWith("\u0001") && text.length >= 9) {
-                text.substring(8, text.length - 1) to true
-            } else text to false
+        /** Whether [text] is a /me line: "\u0001ACTION waves\u0001". */
+        fun isAction(text: String): Boolean =
+            text.length >= 9 && text.startsWith("\u0001ACTION ") && text.endsWith("\u0001")
+
+        /** "waves" of a /me line; see [isAction]. */
+        fun actionText(text: String): String = text.substring(8, text.length - 1)
 
         /** "#1E90FF" as an opaque ARGB color, read in place for every message. */
         fun parseColor(hex: String?): Int? {
