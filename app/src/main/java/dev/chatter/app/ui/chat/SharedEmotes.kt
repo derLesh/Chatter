@@ -60,7 +60,15 @@ object SharedEmotes {
     private const val KEEP = 64
 
     private class Shown(val drawable: Drawable) {
-        val listeners = LinkedHashSet<() -> Unit>()
+        val listeners = ArrayList<() -> Unit>(2)
+
+        /**
+         * Tells every place to redraw, once per animation frame. By index instead of over a copy:
+         * a listener only bumps a counter, so the list cannot change meanwhile.
+         */
+        fun invalidate() {
+            for (i in listeners.indices) listeners[i]()
+        }
 
         /** While stepped: the current frame, drawn in software. */
         var frame: Bitmap? = null
@@ -119,7 +127,7 @@ object SharedEmotes {
             shown.frame = null
             shown.changed = false
             // Drawn once more either way: into its bitmap, or by the RenderThread again.
-            shown.listeners.toList().forEach { it() }
+            shown.invalidate()
         }
     }
 
@@ -171,7 +179,7 @@ object SharedEmotes {
             any = true
             if (shown.changed) {
                 shown.changed = false
-                shown.listeners.toList().forEach { it() }
+                shown.invalidate()
             }
         }
         // Nothing stepped on screen: no tick until the next one starts.
@@ -183,7 +191,7 @@ object SharedEmotes {
     // A drawable has a single callback, so invalidations are forwarded to every place drawing it.
     private val fanOut = object : Drawable.Callback {
         override fun invalidateDrawable(who: Drawable) {
-            byDrawable[who]?.listeners?.toList()?.forEach { it() }
+            byDrawable[who]?.invalidate()
         }
 
         override fun scheduleDrawable(who: Drawable, what: Runnable, `when`: Long) {
