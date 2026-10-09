@@ -53,6 +53,7 @@ import dev.chatter.app.net.ServiceTrouble
 import dev.chatter.app.net.ThirdPartyApi
 import dev.chatter.app.service.BackgroundHealth
 import dev.chatter.app.service.ChatNotifier
+import dev.chatter.app.service.LiveAlerts
 import dev.chatter.app.settings.BackupManager
 import dev.chatter.app.settings.SettingsRepository
 import dev.chatter.app.stats.StatsRepository
@@ -192,6 +193,7 @@ class AppContainer(
     private val channelIcons = ChannelIcons(context, channels, imageLoader)
     val notifier = ChatNotifier(context, channels, helix, settings.settings, channelIcons, dataSaving.active, activeUserId)
     private val shortcuts = ChannelShortcuts(context, channels.identities, channelIcons, scope)
+    val liveAlerts = LiveAlerts(helix, auth, channels, settings.settings, activeUserId, notifier, scope)
 
     private val _powerSaveMode = MutableStateFlow(false)
     /** True while Android's battery saver is on. */
@@ -207,6 +209,7 @@ class AppContainer(
         scope.launch { settings.settings.collect { badges.enabled = it.badgeProviders } }
         sevenTvLive.start()
         shortcuts.start()
+        liveAlerts.start()
         // One notification channel per Twitch channel, so each can have its own sound.
         scope.launch { channels.identities.collect { notifier.syncChannels(it) } }
         // Every mention goes into the inbox of the account it was addressed to. Guests have no

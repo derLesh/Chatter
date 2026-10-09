@@ -106,6 +106,22 @@ class ChannelRepository(
         .map { p -> p[MUTED].orEmpty().split(',').filter { it.isNotEmpty() }.toSet() }
         .stateIn(scope, SharingStarted.Eagerly, emptySet())
 
+    /** Which channels notify when they go live; see [LiveAlertChoices]. */
+    val liveAlerts: StateFlow<LiveAlertChoices> = store.data
+        .map { p -> LiveAlertChoices(on = split(p[LIVE_ON]).toSet(), off = split(p[LIVE_OFF]).toSet()) }
+        .distinctUntilChanged()
+        .stateIn(scope, SharingStarted.Eagerly, LiveAlertChoices())
+
+    suspend fun setLiveAlert(login: String, enabled: Boolean) {
+        store.edit { p ->
+            val inList = login in split(p[CHANNELS])
+            val choices = LiveAlertChoices(on = split(p[LIVE_ON]).toSet(), off = split(p[LIVE_OFF]).toSet())
+                .with(login, inList, enabled)
+            p[LIVE_ON] = choices.on.joinToString(",")
+            p[LIVE_OFF] = choices.off.joinToString(",")
+        }
+    }
+
     /** Channels hidden from the unread strip in the title bar. */
     val hiddenUnread: StateFlow<Set<String>> = store.data
         .map { p -> p[NO_TITLE_BAR].orEmpty().split(',').filter { it.isNotEmpty() }.toSet() }
@@ -317,6 +333,8 @@ class ChannelRepository(
         private val INFO_CACHE = stringPreferencesKey("channel_info")
         private val CUSTOM_NAMES = stringPreferencesKey("channel_names")
         private val MUTED = stringPreferencesKey("channels_muted")
+        private val LIVE_ON = stringPreferencesKey("live_alerts_on")
+        private val LIVE_OFF = stringPreferencesKey("live_alerts_off")
         private val NO_TITLE_BAR = stringPreferencesKey("channels_no_title_bar")
         private val LAST_CHANNEL = stringPreferencesKey("last_channel")
         private val GROUPS = stringPreferencesKey("channel_groups")

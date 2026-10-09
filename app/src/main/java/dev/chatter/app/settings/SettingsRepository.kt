@@ -108,6 +108,8 @@ data class Settings(
     val haptics: Boolean = true,
     /** Keep the screen awake while the chat is on screen. */
     val keepScreenOn: Boolean = false,
+    /** A notification when a channel goes live; which channels is chosen per channel. */
+    val liveNotifications: Boolean = true,
     /** Offer mention notifications as a floating chat bubble over other apps. */
     val bubbles: Boolean = false,
     /** The sender's Twitch avatar in notifications. */
@@ -175,6 +177,7 @@ class SettingsRepository(
             haptics = p[HAPTICS] ?: true,
             keepScreenOn = p[KEEP_SCREEN_ON] ?: false,
             bubbles = p[BUBBLES] ?: false,
+            liveNotifications = p[LIVE_NOTIFICATIONS] ?: true,
             senderAvatars = p[SENDER_AVATARS] ?: true,
             highlightFirstMessages = p[FIRST_MESSAGES] ?: true,
             nameColors = p[NAME_COLORS]?.let { v -> NameColorPalette.entries.firstOrNull { it.name == v } }
@@ -229,6 +232,7 @@ class SettingsRepository(
     suspend fun setHaptics(v: Boolean) = store.edit { it[HAPTICS] = v }
     suspend fun setKeepScreenOn(v: Boolean) = store.edit { it[KEEP_SCREEN_ON] = v }
     suspend fun setBubbles(v: Boolean) = store.edit { it[BUBBLES] = v }
+    suspend fun setLiveNotifications(v: Boolean) = store.edit { it[LIVE_NOTIFICATIONS] = v }
     suspend fun setSenderAvatars(v: Boolean) = store.edit { it[SENDER_AVATARS] = v }
     suspend fun setHighlightFirstMessages(v: Boolean) = store.edit { it[FIRST_MESSAGES] = v }
     suspend fun setNameColors(v: NameColorPalette) = store.edit { it[NAME_COLORS] = v.name }
@@ -299,6 +303,7 @@ class SettingsRepository(
         p[HAPTICS] = s.haptics
         p[KEEP_SCREEN_ON] = s.keepScreenOn
         p[BUBBLES] = s.bubbles
+        p[LIVE_NOTIFICATIONS] = s.liveNotifications
         p[SENDER_AVATARS] = s.senderAvatars
         p[FIRST_MESSAGES] = s.highlightFirstMessages
         p[NAME_COLORS] = s.nameColors.name
@@ -365,6 +370,7 @@ class SettingsRepository(
         val HAPTICS = booleanPreferencesKey("haptics")
         val KEEP_SCREEN_ON = booleanPreferencesKey("keep_screen_on")
         val BUBBLES = booleanPreferencesKey("chat_bubbles")
+        val LIVE_NOTIFICATIONS = booleanPreferencesKey("live_notifications")
         val SENDER_AVATARS = booleanPreferencesKey("notification_sender_avatars")
         val EMOTE_PROVIDERS = stringPreferencesKey("emote_providers")
         val BADGE_PROVIDERS = stringPreferencesKey("badge_providers")

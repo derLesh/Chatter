@@ -135,6 +135,7 @@ import dev.chatter.app.crash.Crash
 import dev.chatter.app.crash.DeviceInfo
 import dev.chatter.app.emotes.EmoteProvider
 import dev.chatter.app.net.HelixBlockedUser
+import dev.chatter.app.net.HelixFollowedChannel
 import dev.chatter.app.service.ChatNotifier
 import dev.chatter.app.settings.BackupCheck
 import dev.chatter.app.settings.MobileData
@@ -146,6 +147,7 @@ import dev.chatter.app.settings.TimestampFormat
 import dev.chatter.app.stats.Stats
 import dev.chatter.app.ui.changelog.ChangelogPage
 import dev.chatter.app.ui.channels.AddChannelDialog
+import dev.chatter.app.ui.channels.ChannelAvatar
 import dev.chatter.app.ui.channels.CombineChannelsDialog
 import dev.chatter.app.ui.channels.ManageChannelsPage
 import dev.chatter.app.ui.channels.OfferUndoRemoval
@@ -208,6 +210,7 @@ private enum class SettingsSubPage(val title: Int) {
     MentionKeywords(R.string.settings_keywords),
     MuteKeywords(R.string.settings_mute_keywords),
     ImageHosts(R.string.settings_image_hosts),
+    LiveChannels(R.string.settings_live_channels),
     Rules(R.string.settings_rules),
     Changelog(R.string.settings_changelog),
     Update(R.string.update_page_title),
@@ -281,6 +284,8 @@ private val SEARCH_INDEX: List<SearchEntry> by lazy {
         add(SearchEntry(R.string.settings_sender_avatars, notifications, R.string.settings_sender_avatars_hint))
         add(SearchEntry(R.string.settings_system_notifications, notifications, R.string.settings_notifications_hint))
         add(SearchEntry(R.string.settings_bubbles, notifications, R.string.settings_bubbles_hint))
+        add(SearchEntry(R.string.settings_live_notifications, notifications, R.string.settings_live_notifications_hint))
+        add(SearchEntry(R.string.settings_live_channels, notifications, R.string.settings_live_channels_summary))
         val channels = SettingsPage.Channels
         add(SearchEntry(R.string.settings_channel_tabs, channels, R.string.settings_channel_tabs_hint))
         add(SearchEntry(R.string.settings_unread_title_bar, channels, R.string.settings_unread_title_bar_hint))
@@ -424,6 +429,7 @@ fun SettingsScreen(vm: MainViewModel, onBack: () -> Unit) {
                     onRemove = vm::removeMuteKeyword,
                 )
                 SettingsSubPage.ImageHosts -> ImageHostsPage(settings.imageHosts, vm)
+                SettingsSubPage.LiveChannels -> LiveChannelsPage(vm)
                 SettingsSubPage.Rules -> RulesPage(vm)
                 SettingsSubPage.Credits -> CreditsPage()
                 SettingsSubPage.Changelog -> {
@@ -976,8 +982,71 @@ private fun NotificationsPage(settings: Settings, vm: MainViewModel, open: (Sett
             )
         }
     }
+    SettingsGroup(R.string.settings_group_live) {
+        item(R.string.settings_live_notifications) {
+            SwitchItem(R.string.settings_live_notifications, settings.liveNotifications, vm::setLiveNotifications, R.string.settings_live_notifications_hint)
+        }
+        // Without the switch the choice per channel changes nothing.
+        if (settings.liveNotifications) {
+            item(R.string.settings_live_channels) {
+                ListItem(
+                    headlineContent = { Text(stringResource(R.string.settings_live_channels)) },
+                    supportingContent = { Text(stringResource(R.string.settings_live_channels_summary)) },
+                    trailingContent = { Icon(Icons.AutoMirrored.Filled.ArrowForward, contentDescription = null) },
+                    colors = transparentItem(),
+                    modifier = Modifier.clickable { open(SettingsSubPage.LiveChannels) },
+                )
+            }
+        }
+    }
     SettingsGroup(R.string.settings_group_bubbles) {
         item(R.string.settings_bubbles) { SwitchItem(R.string.settings_bubbles, settings.bubbles, vm::setBubbles, R.string.settings_bubbles_hint) }
+    }
+}
+
+/**
+ * Which channels notify when they go live: those in the list unless turned off, the other followed
+ * channels only when turned on.
+ */
+@Composable
+private fun LiveChannelsPage(vm: MainViewModel) {
+    val channels by vm.channels.collectAsStateWithLifecycle()
+    val info by vm.channelInfo.collectAsStateWithLifecycle()
+    val choices by vm.liveAlerts.collectAsStateWithLifecycle()
+    // Null while loading; empty if Twitch did not answer or the account follows nobody.
+    var follows by remember { mutableStateOf<List<HelixFollowedChannel>?>(null) }
+    LaunchedEffect(Unit) { follows = vm.followedChannelList().orEmpty().sortedBy { it.displayName.lowercase() } }
+
+    @Composable
+    fun ChannelSwitch(login: String, name: String, inList: Boolean) {
+        val on = choices.wanted(login, inList)
+        ListItem(
+            headlineContent = { Text(name) },
+            leadingContent = if (inList) ({ ChannelAvatar(info[login], vm.imageLoader, 40.dp) }) else null,
+            trailingContent = { Switch(checked = on, onCheckedChange = { vm.setLiveAlert(login, it) }) },
+            colors = transparentItem(),
+            modifier = Modifier.clickable { vm.setLiveAlert(login, !on) },
+        )
+    }
+
+    if (channels.isNotEmpty()) SettingsGroup(R.string.live_channels_in_list) {
+        channels.forEach { login ->
+            item { ChannelSwitch(login, info[login]?.displayName ?: login, inList = true) }
+        }
+    }
+    SettingsGroup(R.string.live_channels_followed) {
+        val others = follows?.filter { it.login !in channels }
+        when {
+            others == null -> item {
+                ListItem(headlineContent = { Text(stringResource(R.string.live_channels_loading)) }, colors = transparentItem())
+            }
+            others.isEmpty() -> item {
+                ListItem(headlineContent = { Text(stringResource(R.string.live_channels_none)) }, colors = transparentItem())
+            }
+            else -> others.forEach { follow ->
+                item { ChannelSwitch(follow.login, follow.displayName.ifEmpty { follow.login }, inList = false) }
+            }
+        }
     }
 }
 

@@ -75,6 +75,34 @@ class HelixApi(
         http.getJson<HelixList<HelixStream>>(u, headers()).data
     }
 
+    /** The live streams of the channels [userId] follows. Paginated; needs user:read:follows. */
+    suspend fun followedStreams(userId: String): List<HelixStream> {
+        val all = ArrayList<HelixStream>()
+        var cursor: String? = null
+        do {
+            val page = http.getJson<HelixPagedList<HelixStream>>(
+                url("streams/followed", "user_id" to userId, "first" to "100", "after" to cursor), headers(),
+            )
+            all += page.data
+            cursor = page.pagination?.cursor
+        } while (!cursor.isNullOrEmpty())
+        return all
+    }
+
+    /** Every channel [userId] follows. Paginated; needs user:read:follows. */
+    suspend fun followedChannels(userId: String): List<HelixFollowedChannel> {
+        val all = ArrayList<HelixFollowedChannel>()
+        var cursor: String? = null
+        do {
+            val page = http.getJson<HelixPagedList<HelixFollowedChannel>>(
+                url("channels/followed", "user_id" to userId, "first" to "100", "after" to cursor), headers(),
+            )
+            all += page.data
+            cursor = page.pagination?.cursor
+        } while (!cursor.isNullOrEmpty())
+        return all
+    }
+
     suspend fun searchChannels(query: String): List<HelixChannelSearch> =
         http.getJson<HelixList<HelixChannelSearch>>(url("search/channels", "query" to query, "first" to "10"), headers()).data
 
@@ -271,10 +299,18 @@ data class HelixSharedChatParticipant(@SerialName("broadcaster_id") val broadcas
 
 @Serializable
 data class HelixStream(
+    @SerialName("user_id") val userId: String = "",
     @SerialName("user_login") val userLogin: String,
+    @SerialName("user_name") val userName: String = "",
     @SerialName("viewer_count") val viewerCount: Int = 0,
     val title: String = "",
     @SerialName("game_name") val gameName: String = "",
+)
+
+@Serializable
+data class HelixFollowedChannel(
+    @SerialName("broadcaster_login") val login: String,
+    @SerialName("broadcaster_name") val displayName: String = "",
 )
 
 @Serializable

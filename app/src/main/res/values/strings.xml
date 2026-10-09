@@ -645,4 +645,17 @@
     <string name="notifications_off_text">Android shows none of Chatter\'s notifications, so mentions, whispers and your highlighted words only reach you while the app is open.</string>
     <string name="notifications_off_connection">Chatter still stays connected in the background. Android only hides the notification that says so.</string>
     <string name="notifications_off_allow">Turn on</string>
+
+    <!-- Going live -->
+    <string name="notif_channel_live">Going live</string>
+    <string name="notif_live_title">%1$s is live</string>
+    <string name="settings_group_live">Going live</string>
+    <string name="settings_live_notifications">Live notifications</string>
+    <string name="settings_live_notifications_hint">A notification when a channel goes live, with its title and category</string>
+    <string name="settings_live_channels">Which channels</string>
+    <string name="settings_live_channels_summary">Your channels notify, other followed channels when you turn them on</string>
+    <string name="live_channels_in_list">Your channels</string>
+    <string name="live_channels_followed">Other followed channels</string>
+    <string name="live_channels_loading">Asking Twitch whom you follow…</string>
+    <string name="live_channels_none">No other followed channels</string>
 </resources>

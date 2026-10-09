@@ -33,6 +33,12 @@ const val EXTRA_ACCOUNT = "account"
 const val EXTRA_CHANNEL = "channel"
 
 /**
+ * A channel from a live notification. Unlike [EXTRA_CHANNEL] it may add the channel to the list,
+ * but only one Chatter notified about; see LiveAlerts.
+ */
+const val EXTRA_LIVE_CHANNEL = "live_channel"
+
+/**
  * The channel the baseline profile and the macrobenchmark read as a guest to get past the login.
  * Only the profiling builds listen; see `profilingBuildTypes` in build.gradle.kts. The benchmark
  * module repeats the name, it cannot see this constant.

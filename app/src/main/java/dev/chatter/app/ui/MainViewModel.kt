@@ -35,6 +35,7 @@ import dev.chatter.app.emotes.Emote
 import dev.chatter.app.emotes.EmoteProvider
 import dev.chatter.app.net.HelixBlockedUser
 import dev.chatter.app.net.HelixChannelSearch
+import dev.chatter.app.net.HelixFollowedChannel
 import dev.chatter.app.net.HelixUser
 import dev.chatter.app.settings.MobileData
 import dev.chatter.app.settings.SettingsBackup
@@ -770,6 +771,34 @@ class MainViewModel(private val c: AppContainer) : ViewModel() {
 
     fun setBubbles(v: Boolean) {
         viewModelScope.launch { c.settings.setBubbles(v) }
+    }
+
+    fun setLiveNotifications(v: Boolean) {
+        viewModelScope.launch { c.settings.setLiveNotifications(v) }
+    }
+
+    /** Which channels notify when they go live. */
+    val liveAlerts = c.channels.liveAlerts
+
+    fun setLiveAlert(login: String, enabled: Boolean) {
+        viewModelScope.launch { c.channels.setLiveAlert(login, enabled) }
+    }
+
+    /** Every channel the account follows, for choosing which notify when they go live; null if Twitch did not answer. */
+    suspend fun followedChannelList(): List<HelixFollowedChannel>? {
+        val userId = c.auth.account?.userId ?: return null
+        return runCatching { c.helix.followedChannels(userId) }.getOrNull()
+    }
+
+    /**
+     * Opens a channel from a live notification. One that is not in the list is added, but only if
+     * Chatter notified about it: any app can start Chatter with this extra.
+     */
+    fun openLiveChannel(login: String) {
+        when {
+            login in c.channels.channels.value -> requestedChannel.value = login
+            c.liveAlerts.wasNotified(login) -> addChannel(login)
+        }
     }
 
     fun setSenderAvatars(v: Boolean) {

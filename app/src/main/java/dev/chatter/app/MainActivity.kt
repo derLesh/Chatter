@@ -16,6 +16,7 @@ import dev.chatter.app.ui.chat.LinkGuard
 import dev.chatter.app.ui.theme.ChatterTheme
 import dev.chatter.app.util.EXTRA_CHANNEL
 import dev.chatter.app.util.EXTRA_INBOX_TAB
+import dev.chatter.app.util.EXTRA_LIVE_CHANNEL
 import dev.chatter.app.util.EXTRA_PROFILING_CHANNEL
 
 class MainActivity : ComponentActivity() {
@@ -48,13 +49,14 @@ class MainActivity : ComponentActivity() {
         super.onStop()
     }
 
-    /** Handles a channel from a mention notification or the inbox from a shortcut. */
+    /** Handles a channel from a mention or live notification, or the inbox from a shortcut. */
     private fun handleIntent(intent: Intent?) {
         intent ?: return
         intent.getStringExtra(EXTRA_CHANNEL)?.let { vm.requestedChannel.value = it }
+        intent.getStringExtra(EXTRA_LIVE_CHANNEL)?.let(vm::openLiveChannel)
         intent.getIntExtra(EXTRA_INBOX_TAB, -1).takeIf { it >= 0 }?.let { vm.requestedInbox.value = it }
-        // Any app can start this activity and must not add channels, so only profiling builds
-        // listen.
+        // Any app can start this activity and must not add channels (a live notification only adds
+        // the channel it was posted for), so only profiling builds listen.
         if (BuildConfig.PROFILING) intent.getStringExtra(EXTRA_PROFILING_CHANNEL)?.let(vm::readAsGuest)
     }
 }

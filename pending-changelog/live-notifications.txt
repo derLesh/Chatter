@@ -1,0 +1,1 @@
+minor: Get a notification when a channel goes live, for your channels and any followed ones you pick

@@ -26,12 +26,14 @@ import dev.chatter.app.chat.ChatItem
 import dev.chatter.app.chat.InboxWhisper
 import dev.chatter.app.chat.MessageKind
 import dev.chatter.app.net.HelixApi
+import dev.chatter.app.net.HelixStream
 import dev.chatter.app.settings.Settings
 import dev.chatter.app.ui.bubble.BubbleActivity
 import dev.chatter.app.util.ChannelIcons
 import dev.chatter.app.util.EXTRA_ACCOUNT
 import dev.chatter.app.util.EXTRA_CHANNEL
 import dev.chatter.app.util.EXTRA_INBOX_TAB
+import dev.chatter.app.util.EXTRA_LIVE_CHANNEL
 import dev.chatter.app.util.EXTRA_WHISPER
 import dev.chatter.app.util.EXTRA_WHISPER_USER_ID
 import dev.chatter.app.util.INBOX_TAB_WHISPERS
@@ -78,6 +80,10 @@ class ChatNotifier(
         // Whispers come from anyone, so they share one channel.
         nm.createNotificationChannel(
             NotificationChannel(CHANNEL_WHISPERS, context.getString(R.string.notif_channel_whispers), NotificationManager.IMPORTANCE_HIGH)
+        )
+        // Its own channel, so going live can be silenced without silencing mentions.
+        nm.createNotificationChannel(
+            NotificationChannel(CHANNEL_LIVE, context.getString(R.string.notif_channel_live), NotificationManager.IMPORTANCE_DEFAULT)
         )
         nm.createNotificationChannel(
             NotificationChannel(CHANNEL_PROBLEMS, context.getString(R.string.notif_channel_problems), NotificationManager.IMPORTANCE_DEFAULT)
@@ -126,6 +132,28 @@ class ChatNotifier(
             .build()
         try {
             manager.notify(NOT_LISTENING_ID, notification)
+        } catch (e: SecurityException) {
+            // Permission revoked in the meantime.
+        }
+    }
+
+    /** [stream] went live: its title and category, and a tap opens its chat. */
+    suspend fun notifyLive(stream: HelixStream) {
+        if (!manager.areNotificationsEnabled()) return
+        val title = context.getString(R.string.notif_live_title, stream.channelName)
+        val notification = NotificationCompat.Builder(context, CHANNEL_LIVE)
+            .setSmallIcon(R.drawable.ic_notification)
+            .setLargeIcon(channels.info.value[stream.userLogin]?.let { icons.channel(stream.userLogin) }?.toIcon(context))
+            .setContentTitle(title)
+            .setContentText(stream.title)
+            .setSubText(stream.gameName.ifEmpty { null })
+            .setStyle(NotificationCompat.BigTextStyle().bigText(stream.title))
+            .setCategory(NotificationCompat.CATEGORY_RECOMMENDATION)
+            .setAutoCancel(true)
+            .setContentIntent(openLiveIntent(context, stream.userLogin))
+            .build()
+        try {
+            manager.notify(LIVE_TAG_PREFIX + stream.userLogin, LIVE_NOTIFICATION_ID, notification)
         } catch (e: SecurityException) {
             // Permission revoked in the meantime.
         }
@@ -447,6 +475,10 @@ class ChatNotifier(
         /** Whisper notifications are told apart by their tag (the sender's login), not by id. */
         private const val WHISPER_NOTIFICATION_ID = 2
         const val CHANNEL_PROBLEMS = "problems"
+        const val CHANNEL_LIVE = "live"
+        private const val LIVE_NOTIFICATION_ID = 4
+        /** One live notification per channel, told apart by tag. */
+        private const val LIVE_TAG_PREFIX = "live:"
         private const val NOT_LISTENING_ID = 3
 
         /** The notification channel for mentions in [channel]. */
@@ -467,6 +499,13 @@ class ChatNotifier(
          */
         internal fun replyUri(kind: String, target: String): Uri =
             Uri.Builder().scheme("chatter").authority("reply").appendPath(kind).appendPath(target).build()
+
+        /** Opens [channel]'s chat, adding it to the list if it is not there; see LiveAlerts. */
+        fun openLiveIntent(context: Context, channel: String): PendingIntent = PendingIntent.getActivity(
+            context, (LIVE_TAG_PREFIX + channel).hashCode(),
+            appLaunchIntent(context, null).putExtra(EXTRA_LIVE_CHANNEL, channel),
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
+        )
 
         fun openChannelIntent(context: Context, channel: String?): PendingIntent {
             val intent = appLaunchIntent(context, channel)

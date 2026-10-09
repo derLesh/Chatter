@@ -636,4 +636,17 @@
     <string name="notifications_off_text">Android zeigt keine Benachrichtigungen von Chatter, deshalb erreichen dich Erwähnungen, Flüsternachrichten und deine hervorgehobenen Wörter nur bei geöffneter App.</string>
     <string name="notifications_off_connection">Chatter bleibt trotzdem im Hintergrund verbunden. Android blendet nur die Benachrichtigung aus, die das anzeigt.</string>
     <string name="notifications_off_allow">Einschalten</string>
+
+    <!-- Going live -->
+    <string name="notif_channel_live">Live gehen</string>
+    <string name="notif_live_title">%1$s ist live</string>
+    <string name="settings_group_live">Live gehen</string>
+    <string name="settings_live_notifications">Live-Benachrichtigungen</string>
+    <string name="settings_live_notifications_hint">Eine Benachrichtigung, wenn ein Kanal live geht, mit Titel und Kategorie</string>
+    <string name="settings_live_channels">Welche Kanäle</string>
+    <string name="settings_live_channels_summary">Deine Kanäle benachrichtigen, andere gefolgte Kanäle, wenn du sie einschaltest</string>
+    <string name="live_channels_in_list">Deine Kanäle</string>
+    <string name="live_channels_followed">Andere gefolgte Kanäle</string>
+    <string name="live_channels_loading">Frage Twitch, wem du folgst…</string>
+    <string name="live_channels_none">Keine weiteren gefolgten Kanäle</string>
 </resources>
