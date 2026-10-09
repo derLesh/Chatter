@@ -40,6 +40,7 @@ import dev.chatter.app.chat.WhisperInboxRepository
 import dev.chatter.app.chat.WhisperResult
 import dev.chatter.app.chat.WhisperSender
 import dev.chatter.app.crash.CrashLog
+import dev.chatter.app.emotes.EmojiRepository
 import dev.chatter.app.emotes.EmoteRepository
 import dev.chatter.app.emotes.SevenTvEventClient
 import dev.chatter.app.emotes.SevenTvLiveUpdates
@@ -129,6 +130,7 @@ class AppContainer(
     val helix = HelixApi(http) { auth.freshToken() }.also { auth.helix = it }
     val thirdParty = ThirdPartyApi(http)
     val emotes = EmoteRepository(helix, thirdParty, trouble)
+    val emoji = EmojiRepository(context)
     val badges = BadgeRepository(helix, thirdParty, trouble)
     val channels = ChannelRepository(context.channelStore, helix, scope)
     val blocked = BlockedUsersRepository(helix, scope)

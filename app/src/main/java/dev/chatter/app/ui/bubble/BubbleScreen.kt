@@ -21,6 +21,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -160,11 +161,14 @@ fun BubbleScreen(vm: MainViewModel, channel: String?) {
     }
     if (showPicker) {
         val emotes = remember(channel, emoteVersion) { vm.emotesFor(channel) }
+        val emoji by produceState(emptyList()) { value = vm.emoji() }
         EmotePickerSheet(
             emotes = emotes,
+            emoji = emoji,
             recent = settings.recentEmotes,
             imageLoader = loader,
             onPick = vm::insertEmote,
+            onPickEmoji = vm::insertEmoji,
             onDismiss = { showPicker = false },
         )
     }

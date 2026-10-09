@@ -1683,6 +1683,8 @@ private val DEPENDENCIES = listOf(
     Dependency("OkHttp", "https://square.github.io/okhttp/"),
     Dependency("Coil", "https://coil-kt.github.io/coil/"),
     Dependency("RE2/J", "https://github.com/google/re2j", R.string.license_bsd3, R.raw.license_re2j),
+    // The emoji list and its shortcodes; see assets/emoji.tsv.
+    Dependency("gemoji", "https://github.com/github/gemoji", R.string.license_mit, R.raw.license_gemoji),
 )
 
 /** The full license text of a dependency and a link to its project. */

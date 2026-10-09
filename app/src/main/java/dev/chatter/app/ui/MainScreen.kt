@@ -28,6 +28,7 @@ import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
@@ -519,11 +520,14 @@ fun MainScreen(vm: MainViewModel, onInbox: () -> Unit, onSettings: () -> Unit) {
     }
     if (showPicker) {
         val emotes = remember(vm.sendChannel, emoteVersion) { vm.emotesFor(vm.sendChannel) }
+        val emoji by produceState(emptyList()) { value = vm.emoji() }
         EmotePickerSheet(
             emotes = emotes,
+            emoji = emoji,
             recent = settings.recentEmotes,
             imageLoader = loader,
             onPick = vm::insertEmote,
+            onPickEmoji = vm::insertEmoji,
             onDismiss = { showPicker = false },
         )
     }

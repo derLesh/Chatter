@@ -80,6 +80,16 @@
     <string name="emotes_bttv" translatable="false">BTTV</string>
     <string name="emotes_ffz" translatable="false">FFZ</string>
     <string name="emotes_empty">No emotes here yet</string>
+    <string name="emoji">Emoji</string>
+    <string name="emoji_smileys">Smileys &amp; emotion</string>
+    <string name="emoji_people">People &amp; body</string>
+    <string name="emoji_animals">Animals &amp; nature</string>
+    <string name="emoji_food">Food &amp; drink</string>
+    <string name="emoji_travel">Travel &amp; places</string>
+    <string name="emoji_activities">Activities</string>
+    <string name="emoji_objects">Objects</string>
+    <string name="emoji_symbols">Symbols</string>
+    <string name="emoji_flags">Flags</string>
 
     <!-- Channels -->
     <string name="no_channels_title">No channels</string>
@@ -265,7 +275,7 @@
     <string name="settings_carousel">Swipe in a circle</string>
     <string name="settings_carousel_hint">Swipe through the channels endlessly</string>
     <string name="settings_emote_suggestions">Emote suggestions</string>
-    <string name="settings_emote_suggestions_hint">Suggest emotes while typing</string>
+    <string name="settings_emote_suggestions_hint">Suggest emotes while typing, and emoji after a colon, as in :smile</string>
     <string name="settings_user_suggestions">Name suggestions</string>
     <string name="settings_user_suggestions_hint">Suggest names from the chat</string>
     <string name="settings_mention_with_at">Insert names with @</string>
@@ -322,6 +332,7 @@
     <string name="license_open_project">Project page</string>
     <string name="license_apache2">Apache License 2.0</string>
     <string name="license_bsd3">BSD 3-Clause License</string>
+    <string name="license_mit">MIT License</string>
     <string name="settings_sponsor">Support Chatter</string>
     <string name="settings_sponsor_summary">Through GitHub Sponsors, once or every month. Supporters get a badge in chat.</string>
     <string name="settings_support">Support</string>

@@ -62,6 +62,7 @@ import androidx.compose.ui.unit.IntRect
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import coil3.ImageLoader
 import coil3.compose.AsyncImage
 import dev.chatter.app.R
@@ -287,6 +288,7 @@ private fun SuggestionRow(suggestions: List<Suggestion>, imageLoader: ImageLoade
                 is Suggestion.EmoteSuggestion -> "e:" + it.emote.name
                 is Suggestion.UserSuggestion -> "u:" + it.name
                 is Suggestion.CommandSuggestion -> "c:" + it.name
+                is Suggestion.EmojiSuggestion -> "j:" + it.emoji.value
             }
         }) { s ->
             Row(
@@ -312,6 +314,11 @@ private fun SuggestionRow(suggestions: List<Suggestion>, imageLoader: ImageLoade
                     }
                     is Suggestion.UserSuggestion -> Text("@" + s.name, style = MaterialTheme.typography.bodyMedium)
                     is Suggestion.CommandSuggestion -> Text(s.usage, style = MaterialTheme.typography.bodyMedium)
+                    is Suggestion.EmojiSuggestion -> {
+                        Text(s.emoji.value, fontSize = 20.sp)
+                        Spacer(Modifier.width(6.dp))
+                        Text(":${s.shortcode}:", style = MaterialTheme.typography.bodyMedium)
+                    }
                 }
             }
         }

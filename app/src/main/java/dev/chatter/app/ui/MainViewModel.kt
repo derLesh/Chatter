@@ -29,6 +29,8 @@ import dev.chatter.app.chat.SendLimits
 import dev.chatter.app.chat.SendResult
 import dev.chatter.app.crash.Crash
 import dev.chatter.app.crash.DeviceInfo
+import dev.chatter.app.emotes.Emoji
+import dev.chatter.app.emotes.EmojiCatalog
 import dev.chatter.app.emotes.Emote
 import dev.chatter.app.emotes.EmoteProvider
 import dev.chatter.app.net.HelixBlockedUser
@@ -69,6 +71,8 @@ sealed interface Suggestion {
     data class EmoteSuggestion(val emote: Emote) : Suggestion
     data class UserSuggestion(val name: String) : Suggestion
     data class CommandSuggestion(val name: String, val usage: String) : Suggestion
+    /** [shortcode] is the one that matched what was typed. */
+    data class EmojiSuggestion(val emoji: Emoji, val shortcode: String) : Suggestion
 }
 
 class MainViewModel(private val c: AppContainer) : ViewModel() {
@@ -416,27 +420,32 @@ class MainViewModel(private val c: AppContainer) : ViewModel() {
         }
     }
 
-    private suspend fun rank(channel: String, word: Autocomplete.Word): List<Suggestion> =
-            if (word.start == 0 && word.text.startsWith("/")) {
-                val typed = word.text.substring(1).lowercase()
-                CommandParser.COMMANDS.filterKeys { it.startsWith(typed) }
-                    .map { (name, usage) -> Suggestion.CommandSuggestion(name, usage) }
-            } else if (word.text.startsWith("@")) {
-                if (!settings.value.userSuggestions) emptyList()
-                else Autocomplete.rankUsers(word.text, c.chat.chatters(channel)).map { Suggestion.UserSuggestion(it) }
-            } else if (word.text.length >= 2) {
-                val s = settings.value
-                // A plain word can be either: emotes first, since they are typed without "@", names
-                // after.
-                val emotes = if (!s.emoteSuggestions) emptyList() else {
-                    Autocomplete.rankEmotes(word.text, emotesFor(channel)).map { Suggestion.EmoteSuggestion(it) }
-                }
-                val users = if (!s.userSuggestions) emptyList() else {
-                    Autocomplete.rankUsers(word.text, c.chat.chatters(channel), limit = 15)
-                        .map { Suggestion.UserSuggestion(it) }
-                }
-                emotes + users
-            } else emptyList()
+    private suspend fun rank(channel: String, word: Autocomplete.Word): List<Suggestion> {
+        val shortcode = EmojiCatalog.typedShortcode(word.text)
+        return if (word.start == 0 && word.text.startsWith("/")) {
+            val typed = word.text.substring(1).lowercase()
+            CommandParser.COMMANDS.filterKeys { it.startsWith(typed) }
+                .map { (name, usage) -> Suggestion.CommandSuggestion(name, usage) }
+        } else if (shortcode != null) {
+            if (!settings.value.emoteSuggestions) emptyList()
+            else EmojiCatalog.search(shortcode, c.emoji.all()).map { (emoji, code) -> Suggestion.EmojiSuggestion(emoji, code) }
+        } else if (word.text.startsWith("@")) {
+            if (!settings.value.userSuggestions) emptyList()
+            else Autocomplete.rankUsers(word.text, c.chat.chatters(channel)).map { Suggestion.UserSuggestion(it) }
+        } else if (word.text.length >= 2) {
+            val s = settings.value
+            // A plain word can be either: emotes first, since they are typed without "@", names
+            // after.
+            val emotes = if (!s.emoteSuggestions) emptyList() else {
+                Autocomplete.rankEmotes(word.text, emotesFor(channel)).map { Suggestion.EmoteSuggestion(it) }
+            }
+            val users = if (!s.userSuggestions) emptyList() else {
+                Autocomplete.rankUsers(word.text, c.chat.chatters(channel), limit = 15)
+                    .map { Suggestion.UserSuggestion(it) }
+            }
+            emotes + users
+        } else emptyList()
+    }
 
     fun applySuggestion(s: Suggestion) {
         val word = Autocomplete.currentWord(input.text, input.selection.start) ?: return
@@ -446,6 +455,7 @@ class MainViewModel(private val c: AppContainer) : ViewModel() {
             is Suggestion.UserSuggestion ->
                 if (settings.value.mentionWithAt || word.text.startsWith("@")) "@${s.name}" else s.name
             is Suggestion.CommandSuggestion -> "/${s.name}"
+            is Suggestion.EmojiSuggestion -> s.emoji.value.also { rememberEmote(it) }
         }
         val (text, cursor) = Autocomplete.replace(input.text, word, value)
         input = TextFieldValue(text, TextRange(cursor))
@@ -457,6 +467,15 @@ class MainViewModel(private val c: AppContainer) : ViewModel() {
         input = TextFieldValue(text, TextRange(cursor))
         rememberEmote(emote.name)
     }
+
+    fun insertEmoji(emoji: Emoji) {
+        val (text, cursor) = Autocomplete.insert(input.text, input.selection.start, emoji.value)
+        input = TextFieldValue(text, TextRange(cursor))
+        rememberEmote(emoji.value)
+    }
+
+    /** Every emoji the phone can draw, for the picker. */
+    suspend fun emoji(): List<Emoji> = c.emoji.all()
 
     /** Mentions the author of [item], in the channel it was written in on a combined chat. */
     fun mention(item: ChatItem) {

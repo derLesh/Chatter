@@ -74,6 +74,16 @@
     <string name="ok">OK</string>
     <string name="emotes_recent">Zuletzt</string>
     <string name="emotes_empty">Hier gibt es noch keine Emotes</string>
+    <string name="emoji">Emoji</string>
+    <string name="emoji_smileys">Smileys &amp; Emotionen</string>
+    <string name="emoji_people">Menschen &amp; Körper</string>
+    <string name="emoji_animals">Tiere &amp; Natur</string>
+    <string name="emoji_food">Essen &amp; Trinken</string>
+    <string name="emoji_travel">Reisen &amp; Orte</string>
+    <string name="emoji_activities">Aktivitäten</string>
+    <string name="emoji_objects">Objekte</string>
+    <string name="emoji_symbols">Symbole</string>
+    <string name="emoji_flags">Flaggen</string>
 
     <!-- Channels -->
     <string name="no_channels_title">Keine Channels</string>
@@ -259,7 +269,7 @@
     <string name="settings_carousel">Im Kreis wischen</string>
     <string name="settings_carousel_hint">Wische endlos durch die Channels</string>
     <string name="settings_emote_suggestions">Emote Vorschläge</string>
-    <string name="settings_emote_suggestions_hint">Emotes beim Tippen vorschlagen</string>
+    <string name="settings_emote_suggestions_hint">Emotes beim Tippen vorschlagen, und Emoji nach einem Doppelpunkt, wie bei :smile</string>
     <string name="settings_user_suggestions">Namensvorschläge</string>
     <string name="settings_user_suggestions_hint">Namen aus dem Chat vorschlagen</string>
     <string name="settings_mention_with_at">Namen mit @ einfügen</string>
@@ -316,6 +326,7 @@
     <string name="license_open_project">Projektseite</string>
     <string name="license_apache2">Apache-Lizenz 2.0</string>
     <string name="license_bsd3">BSD-Lizenz (3 Klauseln)</string>
+    <string name="license_mit">MIT-Lizenz</string>
     <string name="settings_sponsor">Chatter unterstützen</string>
     <string name="settings_sponsor_summary">Über GitHub Sponsors, einmalig oder monatlich. Unterstützer erhalten ein Badge im Chat.</string>
     <string name="settings_support">Unterstützen</string>
