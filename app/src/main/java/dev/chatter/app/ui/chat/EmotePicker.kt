@@ -28,9 +28,11 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil3.ImageLoader
@@ -95,23 +97,22 @@ fun EmotePickerSheet(
 
     ModalBottomSheet(onDismissRequest = onDismiss) {
         Column(Modifier.height(420.dp)) {
-            // Fixed, not scrolling: with six tabs a scrolling row hid the last ones off screen,
-            // with nothing to show they were there.
-            PrimaryTabRow(selectedTabIndex = selected) {
+            // Fixed, not scrolling: a scrolling row hid the last tabs off screen with nothing to
+            // show they were there. The smaller label fits six; transparent takes the sheet's color.
+            PrimaryTabRow(selectedTabIndex = selected, containerColor = Color.Transparent) {
                 tabs.forEachIndexed { i, tab ->
                     Tab(
                         selected = selected == i,
                         onClick = { selected = i },
-                        modifier = Modifier.padding(vertical = 8.dp),
-                    ) {
-                        Text(stringResource(tab.title), style = MaterialTheme.typography.labelLarge, maxLines = 1)
-                        Text(
-                            "${tab.items.size}",
-                            style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            maxLines = 1,
-                        )
-                    }
+                        text = {
+                            Text(
+                                stringResource(tab.title),
+                                style = MaterialTheme.typography.labelMedium,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
+                            )
+                        },
+                    )
                 }
             }
             val tab = tabs[selected]
