@@ -609,4 +609,18 @@
     <string name="backup_confirm_hosts">Verlinkte Bilder werden geladen von: %1$s</string>
     <string name="backup_confirm_no_hosts">Verlinkte Bilder werden von keiner Seite geladen</string>
     <string name="backup_restore">Wiederherstellen</string>
+
+    <!-- Notification permission -->
+    <string name="notification_intro_title">Erfahre, wenn dich jemand meint</string>
+    <string name="notification_intro_text">Chatter kann dir sofort Bescheid geben, auch wenn die App geschlossen ist. Android fragt gleich, ob es das darf.</string>
+    <string name="notification_intro_mentions">Wenn dich jemand erwähnt, eine Nachricht eines deiner hervorgehobenen Wörter enthält oder zu einer Regel passt, die benachrichtigt</string>
+    <string name="notification_intro_whispers">Wenn dir jemand flüstert, mit einem Antwortfeld direkt in der Benachrichtigung</string>
+    <string name="notification_intro_connection">Eine stille Benachrichtigung, solange Chatter im Hintergrund verbunden bleibt. Ohne Erlaubnis blendet Android sie aus, Chatter hört aber weiter mit</string>
+    <string name="notification_intro_allow">Benachrichtigungen erlauben</string>
+    <string name="notification_intro_later">Nicht jetzt</string>
+    <string name="notification_intro_settings_hint">Das lässt sich jederzeit unter Einstellungen → Benachrichtigungen ändern</string>
+    <string name="notifications_off_title">Benachrichtigungen sind aus</string>
+    <string name="notifications_off_text">Android zeigt keine Benachrichtigungen von Chatter, deshalb erreichen dich Erwähnungen, Flüsternachrichten und deine hervorgehobenen Wörter nur bei geöffneter App.</string>
+    <string name="notifications_off_connection">Chatter bleibt trotzdem im Hintergrund verbunden. Android blendet nur die Benachrichtigung aus, die das anzeigt.</string>
+    <string name="notifications_off_allow">Einschalten</string>
 </resources>

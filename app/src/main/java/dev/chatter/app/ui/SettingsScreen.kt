@@ -161,6 +161,7 @@ import dev.chatter.app.ui.settings.CategoryIcon
 import dev.chatter.app.ui.settings.ConfirmUnblockDialog
 import dev.chatter.app.ui.settings.LinkItem
 import dev.chatter.app.ui.settings.LocalSettingsTarget
+import dev.chatter.app.ui.settings.NotificationsOffCard
 import dev.chatter.app.ui.settings.RuleDialog
 import dev.chatter.app.ui.settings.SettingsGroup
 import dev.chatter.app.ui.settings.SettingsSearch
@@ -938,11 +939,14 @@ private fun NotificationsPage(settings: Settings, vm: MainViewModel, open: (Sett
     val context = LocalContext.current
     val stop by vm.backgroundStop.collectAsStateWithLifecycle()
     val battery by vm.batteryRestrictions.collectAsStateWithLifecycle()
-    // The card's button leads into the system settings; check again on return.
+    var notificationsOn by remember { mutableStateOf(notificationsAllowed(context)) }
+    // The cards' buttons lead into the system settings; check again on return.
     LifecycleResumeEffect(Unit) {
         vm.refreshBatteryRestrictions()
+        notificationsOn = notificationsAllowed(context)
         onPauseOrDispose { }
     }
+    if (!notificationsOn) NotificationsOffCard()
     BackgroundCard(stop, battery, vm::dismissBackgroundStop)
     SettingsGroup(R.string.settings_group_mentions) {
         item(R.string.settings_keywords) {
@@ -964,12 +968,7 @@ private fun NotificationsPage(settings: Settings, vm: MainViewModel, open: (Sett
                 headlineContent = { Text(stringResource(R.string.settings_system_notifications)) },
                 supportingContent = { Text(stringResource(R.string.settings_notifications_hint)) },
                 trailingContent = {
-                    OutlinedButton(onClick = {
-                        context.startActivity(
-                            Intent(AndroidSettings.ACTION_APP_NOTIFICATION_SETTINGS)
-                                .putExtra(AndroidSettings.EXTRA_APP_PACKAGE, context.packageName)
-                        )
-                    }) { Text(stringResource(R.string.open)) }
+                    OutlinedButton(onClick = { openNotificationSettings(context) }) { Text(stringResource(R.string.open)) }
                 },
                 colors = transparentItem(),
             )

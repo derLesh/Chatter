@@ -136,6 +136,9 @@ class MainViewModel(private val c: AppContainer) : ViewModel() {
     val mentions = c.chat.allMentions
     /** Releases not read yet, shown once after an update. */
     val unreadReleases = c.changelog.unread
+    /** Null until read, so the intro does not flash up for somebody who has seen it. */
+    val notificationIntroSeen: StateFlow<Boolean?> = c.settings.notificationIntroSeen
+        .stateIn(viewModelScope, SharingStarted.Eagerly, null)
 
     val imageLoader get() = c.imageLoader
     val staticImageLoader get() = c.staticImageLoader
@@ -1058,6 +1061,10 @@ class MainViewModel(private val c: AppContainer) : ViewModel() {
 
     /** The update notes were seen and should not come back. */
     fun markChangelogRead() = c.changelog.markRead()
+
+    fun markNotificationIntroSeen() {
+        viewModelScope.launch { c.settings.setNotificationIntroSeen() }
+    }
 
     /** A newer GitHub release, for the GitHub APK; null otherwise. */
     val availableUpdate = c.updates.available

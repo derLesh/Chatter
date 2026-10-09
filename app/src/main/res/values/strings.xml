@@ -618,4 +618,18 @@
     <string name="backup_confirm_hosts">Pictures linked in chat will be loaded from: %1$s</string>
     <string name="backup_confirm_no_hosts">Pictures linked in chat will not be loaded from any site</string>
     <string name="backup_restore">Restore</string>
+
+    <!-- Notification permission -->
+    <string name="notification_intro_title">Know when somebody means you</string>
+    <string name="notification_intro_text">Chatter can tell you right away, even while it is closed. Android asks next whether it may.</string>
+    <string name="notification_intro_mentions">When somebody mentions you, or a message has one of your highlighted words or matches a rule that notifies</string>
+    <string name="notification_intro_whispers">When somebody whispers to you, with a reply field right in the notification</string>
+    <string name="notification_intro_connection">A quiet notification while Chatter stays connected in the background. Without permission Android hides it, but Chatter keeps listening</string>
+    <string name="notification_intro_allow">Allow notifications</string>
+    <string name="notification_intro_later">Not now</string>
+    <string name="notification_intro_settings_hint">You can change this any time under Settings → Notifications</string>
+    <string name="notifications_off_title">Notifications are off</string>
+    <string name="notifications_off_text">Android shows none of Chatter\'s notifications, so mentions, whispers and your highlighted words only reach you while the app is open.</string>
+    <string name="notifications_off_connection">Chatter still stays connected in the background. Android only hides the notification that says so.</string>
+    <string name="notifications_off_allow">Turn on</string>
 </resources>

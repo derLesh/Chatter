@@ -1,9 +1,5 @@
 package dev.chatter.app.ui
 
-import android.Manifest
-import android.content.pm.PackageManager
-import androidx.activity.compose.rememberLauncherForActivityResult
-import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
@@ -47,7 +43,6 @@ import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
-import androidx.core.content.ContextCompat
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LifecycleStartEffect
 import androidx.lifecycle.compose.LocalLifecycleOwner
@@ -200,13 +195,6 @@ fun MainScreen(vm: MainViewModel, onInbox: () -> Unit, onSettings: () -> Unit) {
     // Polls live status only while the app is on screen.
     LaunchedEffect(lifecycleOwner) {
         lifecycleOwner.repeatOnLifecycle(Lifecycle.State.STARTED) { vm.pollLiveStatus() }
-    }
-
-    val notificationPermission = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { }
-    LaunchedEffect(guest) {
-        if (!guest && ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) {
-            notificationPermission.launch(Manifest.permission.POST_NOTIFICATIONS)
-        }
     }
 
     val haptics = LocalHapticFeedback.current
@@ -618,6 +606,13 @@ fun AppRoot(vm: MainViewModel) {
         AuthState.Loading -> Box(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background))
         AuthState.LoggedOut -> LoginScreen(vm)
         is AuthState.LoggedIn, AuthState.Guest -> {
+            // Once, right after the first login; guests get no notifications to allow.
+            val introSeen by vm.notificationIntroSeen.collectAsStateWithLifecycle()
+            val context = LocalContext.current
+            if (auth is AuthState.LoggedIn && introSeen == false && !notificationsAllowed(context)) {
+                NotificationIntroScreen(onDone = vm::markNotificationIntroSeen)
+                return
+            }
             val screen = when {
                 showSettings -> Screen.Settings
                 showInbox -> Screen.Inbox

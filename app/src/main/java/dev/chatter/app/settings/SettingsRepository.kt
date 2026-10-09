@@ -238,6 +238,11 @@ class SettingsRepository(
 
     suspend fun setSeenVersion(v: String) = store.edit { it[SEEN_VERSION] = v }
 
+    /** Whether the screen explaining notifications was shown after the first login. */
+    val notificationIntroSeen: Flow<Boolean> = store.data.map { it[NOTIFICATION_INTRO_SEEN] ?: false }
+
+    suspend fun setNotificationIntroSeen() = store.edit { it[NOTIFICATION_INTRO_SEEN] = true }
+
     /**
      * The release GitHub reported at the last check (JSON) and when that was. Not part of
      * [Settings]: it is not a user choice and must not travel with a backup.
@@ -363,6 +368,7 @@ class SettingsRepository(
         val NAME_TAP = stringPreferencesKey("name_tap")
         val COPY_FIRST = booleanPreferencesKey("copy_first")
         val SEEN_VERSION = stringPreferencesKey("seen_changelog_version")
+        val NOTIFICATION_INTRO_SEEN = booleanPreferencesKey("notification_intro_seen")
         val AVAILABLE_UPDATE = stringPreferencesKey("available_update")
         val UPDATE_CHECKED_AT = longPreferencesKey("update_checked_at")
         const val MAX_RECENT = 40
