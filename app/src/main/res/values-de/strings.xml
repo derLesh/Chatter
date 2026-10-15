@@ -169,10 +169,10 @@
     <string name="theme_system">System</string>
     <string name="theme_light">Hell</string>
     <string name="theme_dark">Dunkel</string>
-    <string name="settings_dynamic_color">Systemfarben</string>
+    <string name="settings_dynamic_color">Material-You Farben</string>
     <string name="settings_dynamic_color_hint">Die Farben deines Hintergrundbilds verwenden</string>
     <string name="settings_pure_black">Reines Schwarz</string>
-    <string name="settings_pure_black_hint">Schwarzer Hintergrund, spart auf vielen Handys Akku</string>
+    <string name="settings_pure_black_hint">Schwarzer Hintergrund für OLED-Bildschirme</string>
     <string name="cmd_usage">Verwendung: %1$s</string>
     <string name="cmd_banned">%1$s wurde gebannt.</string>
     <string name="cmd_timed_out">%1$s wurde für %2$s stummgeschaltet.</string>
@@ -328,7 +328,7 @@
     <string name="settings_system_notifications">Benachrichtigungseinstellungen</string>
     <string name="settings_group_accounts">Konten</string>
     <string name="account_scopes_title">Melde dich neu an, um alles zu nutzen</string>
-    <string name="account_scopes_text">Deine Anmeldung stammt aus einer älteren Version von Chatter. Melde dich neu an und erlaube den Rest, zum Beispiel das Moderieren</string>
+    <string name="account_scopes_text">Deine Anmeldung stammt aus einer älteren Version von Chatter. Melde dich neu an</string>
     <string name="account_reauthorize">Erneut anmelden</string>
     <string name="account_id">%1$s</string>
     <string name="account_copy_id">Twitch-ID kopieren</string>
@@ -538,7 +538,7 @@
     <string name="update_whats_new">Was ist neu</string>
     <string name="update_download">Herunterladen</string>
     <string name="update_download_version">%1$s herunterladen</string>
-    <string name="update_download_hint">Öffnet die neue Version auf GitHub. Installiere sie über diese, deine Kanäle und Einstellungen bleiben.</string>
+    <string name="update_download_hint">Dein Browser lädt die neue Version von GitHub herunter. Öffne die Datei, um sie über diese App zu installieren. Deine Kanäle und Einstellungen bleiben erhalten.</string>
     <string name="update_page_title">Neue Version</string>
     <string name="changelog_major">Änderungen</string>
     <string name="changelog_minor">Neu</string>

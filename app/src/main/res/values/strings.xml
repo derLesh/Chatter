@@ -175,10 +175,10 @@
     <string name="theme_system">System</string>
     <string name="theme_light">Light</string>
     <string name="theme_dark">Dark</string>
-    <string name="settings_dynamic_color">System colors</string>
+    <string name="settings_dynamic_color">Material You colors</string>
     <string name="settings_dynamic_color_hint">Use the colors of your wallpaper</string>
     <string name="settings_pure_black">Pure black</string>
-    <string name="settings_pure_black_hint">Black background, saves battery on many phones</string>
+    <string name="settings_pure_black_hint">Black background for OLED screens</string>
     <string name="cmd_usage">Usage: %1$s</string>
     <string name="cmd_banned">%1$s has been banned.</string>
     <string name="cmd_timed_out">%1$s has been timed out for %2$s.</string>
@@ -336,7 +336,7 @@
     <string name="settings_system_notifications">Notification settings</string>
     <string name="settings_group_accounts">Accounts</string>
     <string name="account_scopes_title">Log in again to use everything</string>
-    <string name="account_scopes_text">Your login is from an older version of Chatter. Log in again and allow the rest, such as moderating</string>
+    <string name="account_scopes_text">Your login is from an older version of Chatter. Log in again</string>
     <string name="account_reauthorize">Log in again</string>
     <string name="account_id">%1$s</string>
     <string name="account_copy_id">Copy Twitch ID</string>
@@ -546,7 +546,7 @@
     <string name="update_whats_new">What\'s new</string>
     <string name="update_download">Download</string>
     <string name="update_download_version">Download %1$s</string>
-    <string name="update_download_hint">Opens the new version on GitHub. Install it over this one, and your channels and settings stay.</string>
+    <string name="update_download_hint">Your browser downloads the new version from GitHub. Open the file to install it over this app. Your channels and settings stay as they are.</string>
     <string name="update_page_title">New version</string>
     <string name="changelog_major">Changed</string>
     <string name="changelog_minor">New</string>
