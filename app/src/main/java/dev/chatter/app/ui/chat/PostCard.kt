@@ -46,70 +46,79 @@ import androidx.compose.ui.unit.sp
 import coil3.ImageLoader
 import coil3.compose.AsyncImage
 import dev.chatter.app.R
-import dev.chatter.app.chat.Tweet
-import dev.chatter.app.chat.TweetLink
-import dev.chatter.app.chat.TweetMedia
-import dev.chatter.app.chat.TweetRepository
+import dev.chatter.app.chat.Post
+import dev.chatter.app.chat.PostLink
+import dev.chatter.app.chat.PostMedia
+import dev.chatter.app.chat.PostRepository
+import dev.chatter.app.chat.PostSite
+import dev.chatter.app.settings.PostPictureSize
+import dev.chatter.app.settings.PostTextLines
 import dev.chatter.app.settings.Settings
-import dev.chatter.app.settings.TweetPictureSize
-import dev.chatter.app.settings.TweetTextLines
 import java.text.DateFormat
 import java.util.Date
 import java.util.Locale
 
 /** Where post cards get their posts. Without one, as in the settings preview, links stay links. */
-val LocalTweets = staticCompositionLocalOf<TweetRepository?> { null }
+val LocalPosts = staticCompositionLocalOf<PostRepository?> { null }
 
-/** Which parts of a post its card shows, from the settings. */
+/** Which links become post cards and which parts of a post they show, from the settings. */
 @Immutable
-data class TweetCardStyle(
+data class PostCardStyle(
+    val sites: Set<PostSite> = emptySet(),
     val avatar: Boolean = true,
     val date: Boolean = true,
     val media: Boolean = true,
     val counts: Boolean = true,
     /** 0 hides the text; [Int.MAX_VALUE] shows all of it. */
-    val textLines: Int = TweetTextLines.DEFAULT,
-    val pictureHeight: Dp = pictureHeight(TweetPictureSize.Medium),
-    val blurSensitive: Boolean = true,
+    val textLines: Int = PostTextLines.DEFAULT,
+    val pictureHeight: Dp = pictureHeight(PostPictureSize.Medium),
+    val blurNsfw: Boolean = true,
 )
 
-fun tweetCardStyle(settings: Settings) = TweetCardStyle(
-    avatar = settings.tweetAvatar,
-    date = settings.tweetDate,
-    media = settings.tweetMedia,
-    counts = settings.tweetCounts,
-    textLines = if (settings.tweetTextLines >= TweetTextLines.ALL) Int.MAX_VALUE else settings.tweetTextLines,
-    pictureHeight = pictureHeight(settings.tweetPictureSize),
-    blurSensitive = settings.blurSensitiveTweets,
+fun postCardStyle(settings: Settings) = PostCardStyle(
+    sites = settings.postSites,
+    avatar = settings.postAvatar,
+    date = settings.postDate,
+    media = settings.postMedia,
+    counts = settings.postCounts,
+    textLines = if (settings.postTextLines >= PostTextLines.ALL) Int.MAX_VALUE else settings.postTextLines,
+    pictureHeight = pictureHeight(settings.postPictureSize),
+    blurNsfw = settings.blurNsfwPosts,
 )
 
-fun pictureHeight(size: TweetPictureSize): Dp = when (size) {
-    TweetPictureSize.Small -> 100.dp
-    TweetPictureSize.Medium -> 160.dp
-    TweetPictureSize.Large -> 260.dp
+fun pictureHeight(size: PostPictureSize): Dp = when (size) {
+    PostPictureSize.Small -> 100.dp
+    PostPictureSize.Medium -> 160.dp
+    PostPictureSize.Large -> 260.dp
+}
+
+/** How a site is named on its cards and in the settings. */
+fun siteName(site: PostSite): Int = when (site) {
+    PostSite.X -> R.string.post_site_x
+    PostSite.Bluesky -> R.string.post_site_bluesky
 }
 
 /** Draws a picture of the card; the settings preview draws its own instead of fetching. */
-typealias TweetPicture = @Composable (url: String, description: String?, modifier: Modifier) -> Unit
+typealias PostPicture = @Composable (url: String, description: String?, modifier: Modifier) -> Unit
 
 private val AVATAR_SIZE = 20.dp
 private const val PICTURE_MIN_ASPECT = 0.5f
 private const val PICTURE_MAX_ASPECT = 4f
 private const val PICTURE_DEFAULT_ASPECT = 16f / 9f
-private val SENSITIVE_BLUR = 24.dp
+private val NSFW_BLUR = 24.dp
 
 /**
- * A post on X in place of its link. Tapping opens the post. Shows the link while the post loads,
- * and for good if it cannot be read.
+ * A post in place of its link. Tapping opens the post. Shows the link while the post loads, and for
+ * good if it cannot be read.
  */
 @Composable
-internal fun TweetCard(link: TweetLink, card: TweetCardStyle, style: ChatStyle, loader: ImageLoader) {
-    val repository = LocalTweets.current
+internal fun PostCard(link: PostLink, card: PostCardStyle, style: ChatStyle, loader: ImageLoader) {
+    val repository = LocalPosts.current
     // Starts from the cache, so a card scrolled back into view does not shrink to a link for a frame.
-    val tweet by produceState(repository?.known(link.id), link.id, repository) {
-        if (value == null) value = repository?.tweet(link.id)
+    val fetched by produceState(repository?.known(link), link, repository) {
+        if (value == null) value = repository?.post(link)
     }
-    val post = tweet
+    val post = fetched
     if (post == null) {
         Text(
             text = remember(link.url, style.linkColor) { linkText(link.url, style) },
@@ -119,14 +128,14 @@ internal fun TweetCard(link: TweetLink, card: TweetCardStyle, style: ChatStyle, 
         return
     }
     val uriHandler = LocalUriHandler.current
-    TweetCardContent(post, card, style, open = { uriHandler.openUri(link.url) }) { url, description, modifier ->
+    PostCardContent(post, link.site, card, style, open = { uriHandler.openUri(link.url) }) { url, description, modifier ->
         AsyncImage(url, description, loader, modifier, contentScale = ContentScale.Crop)
     }
 }
 
-/** The card for [post], with the parts [card] asks for. */
+/** The card for [post] from [site], with the parts [card] asks for. */
 @Composable
-internal fun TweetCardContent(post: Tweet, card: TweetCardStyle, style: ChatStyle, open: () -> Unit, picture: TweetPicture) {
+internal fun PostCardContent(post: Post, site: PostSite, card: PostCardStyle, style: ChatStyle, open: () -> Unit, picture: PostPicture) {
     val shape = RoundedCornerShape(12.dp)
     val secondarySize = (style.fontSize - 2).sp
     Column(
@@ -149,9 +158,11 @@ internal fun TweetCardContent(post: Tweet, card: TweetCardStyle, style: ChatStyl
                 overflow = TextOverflow.Ellipsis,
                 modifier = Modifier.weight(1f, fill = false),
             )
-            val posted = remember(post.postedAt) { DateFormat.getDateInstance(DateFormat.MEDIUM).format(Date(post.postedAt)) }
+            val posted = remember(post.postedAt) {
+                post.postedAt.takeIf { it > 0 }?.let { DateFormat.getDateInstance(DateFormat.MEDIUM).format(Date(it)) }
+            }
             Text(
-                text = if (card.date) "@${post.handle} · $posted" else "@${post.handle}",
+                text = if (card.date && posted != null) "@${post.handle} · $posted" else "@${post.handle}",
                 color = style.secondaryText,
                 fontSize = secondarySize,
                 maxLines = 1,
@@ -168,22 +179,30 @@ internal fun TweetCardContent(post: Tweet, card: TweetCardStyle, style: ChatStyl
             )
         }
         post.media?.takeIf { card.media }?.let { media ->
-            TweetMediaBox(media, post.sensitive && card.blurSensitive, card.pictureHeight, open, picture)
+            PostMediaBox(media, post.nsfw && card.blurNsfw, card.pictureHeight, open, picture)
         }
-        if (card.counts) {
-            counts(post).takeIf { it.isNotEmpty() }?.let {
-                Text(it, color = style.secondaryText, fontSize = secondarySize, maxLines = 1, overflow = TextOverflow.Ellipsis)
-            }
+        // The site is always named: with the link taken out of the line, nothing else says where the post is.
+        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            val counts = if (card.counts) counts(post) else ""
+            Text(
+                counts,
+                color = style.secondaryText,
+                fontSize = secondarySize,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.weight(1f),
+            )
+            Text(stringResource(siteName(site)), color = style.secondaryText, fontSize = secondarySize, maxLines = 1)
         }
     }
 }
 
 /**
  * The post's first picture, or a still of its video, across the card and at most [maxHeight] tall.
- * A sensitive one stays blurred until the first tap; after that a tap opens the post.
+ * An NSFW one stays blurred until the first tap; after that a tap opens the post.
  */
 @Composable
-private fun TweetMediaBox(media: TweetMedia, blurred: Boolean, maxHeight: Dp, open: () -> Unit, picture: TweetPicture) {
+private fun PostMediaBox(media: PostMedia, blurred: Boolean, maxHeight: Dp, open: () -> Unit, picture: PostPicture) {
     var hidden by remember(media.pictureUrl, blurred) { mutableStateOf(blurred) }
     val aspect = (media.aspectRatio ?: PICTURE_DEFAULT_ASPECT).coerceIn(PICTURE_MIN_ASPECT, PICTURE_MAX_ASPECT)
     BoxWithConstraints(Modifier.fillMaxWidth()) {
@@ -197,14 +216,14 @@ private fun TweetMediaBox(media: TweetMedia, blurred: Boolean, maxHeight: Dp, op
         ) {
             picture(
                 media.pictureUrl,
-                stringResource(R.string.tweet_picture),
-                Modifier.matchParentSize().then(if (hidden) Modifier.blur(SENSITIVE_BLUR) else Modifier),
+                stringResource(R.string.post_picture),
+                Modifier.matchParentSize().then(if (hidden) Modifier.blur(NSFW_BLUR) else Modifier),
             )
             when {
-                hidden -> Overlay(stringResource(R.string.tweet_sensitive))
+                hidden -> Overlay(stringResource(R.string.post_nsfw))
                 media.video -> Icon(
                     Icons.Default.PlayArrow,
-                    contentDescription = stringResource(R.string.tweet_video),
+                    contentDescription = stringResource(R.string.post_video),
                     tint = Color.White,
                     modifier = Modifier.background(Color.Black.copy(alpha = 0.5f), CircleShape).padding(6.dp).size(28.dp),
                 )
@@ -230,12 +249,12 @@ private fun Overlay(text: String, modifier: Modifier = Modifier) {
 
 /** "12K replies · 3K reposts · 40K likes", leaving out what nobody did. */
 @Composable
-private fun counts(post: Tweet): String {
+private fun counts(post: Post): String {
     val compact = remember { CompactDecimalFormat.getInstance(Locale.getDefault(), CompactDecimalFormat.CompactStyle.SHORT) }
     return listOfNotNull(
-        count(R.plurals.tweet_replies, post.replies, compact),
-        count(R.plurals.tweet_reposts, post.reposts, compact),
-        count(R.plurals.tweet_likes, post.likes, compact),
+        count(R.plurals.post_replies, post.replies, compact),
+        count(R.plurals.post_reposts, post.reposts, compact),
+        count(R.plurals.post_likes, post.likes, compact),
     ).joinToString(" · ")
 }
 

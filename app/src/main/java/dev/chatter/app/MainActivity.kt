@@ -14,7 +14,7 @@ import androidx.lifecycle.viewmodel.viewModelFactory
 import dev.chatter.app.ui.AppRoot
 import dev.chatter.app.ui.MainViewModel
 import dev.chatter.app.ui.chat.LinkGuard
-import dev.chatter.app.ui.chat.LocalTweets
+import dev.chatter.app.ui.chat.LocalPosts
 import dev.chatter.app.ui.theme.ChatterTheme
 import dev.chatter.app.util.EXTRA_CHANNEL
 import dev.chatter.app.util.EXTRA_INBOX_TAB
@@ -33,7 +33,7 @@ class MainActivity : ComponentActivity() {
         setContent {
             val settings by vm.settings.collectAsStateWithLifecycle()
             ChatterTheme(settings.themeMode, settings.dynamicColor, settings.pureBlack) {
-                LinkGuard { CompositionLocalProvider(LocalTweets provides vm.tweets) { AppRoot(vm) } }
+                LinkGuard { CompositionLocalProvider(LocalPosts provides vm.posts) { AppRoot(vm) } }
             }
         }
     }

@@ -27,6 +27,7 @@ import dev.chatter.app.changelog.ChangelogRepository
 import dev.chatter.app.channels.BlockedUsersRepository
 import dev.chatter.app.channels.ChannelRepository
 import dev.chatter.app.chat.AppChatNotices
+import dev.chatter.app.chat.BlueskyPostSource
 import dev.chatter.app.chat.ChatRepository
 import dev.chatter.app.chat.ChatterRegistry
 import dev.chatter.app.chat.CommandExecutor
@@ -34,12 +35,13 @@ import dev.chatter.app.chat.EmoteOptions
 import dev.chatter.app.chat.MentionInboxRepository
 import dev.chatter.app.chat.MessageBuilder
 import dev.chatter.app.chat.NicknameRepository
+import dev.chatter.app.chat.PostRepository
 import dev.chatter.app.chat.RuleRepository
-import dev.chatter.app.chat.TweetRepository
 import dev.chatter.app.chat.SendResult
 import dev.chatter.app.chat.WhisperInboxRepository
 import dev.chatter.app.chat.WhisperResult
 import dev.chatter.app.chat.WhisperSender
+import dev.chatter.app.chat.XPostSource
 import dev.chatter.app.crash.CrashLog
 import dev.chatter.app.emotes.CheermoteRepository
 import dev.chatter.app.emotes.EmojiRepository
@@ -48,6 +50,7 @@ import dev.chatter.app.emotes.SevenTvEventClient
 import dev.chatter.app.emotes.SevenTvLiveUpdates
 import dev.chatter.app.irc.ConnectionState
 import dev.chatter.app.irc.IrcConnection
+import dev.chatter.app.net.BlueskyApi
 import dev.chatter.app.net.DataSaving
 import dev.chatter.app.net.FxTwitterApi
 import dev.chatter.app.net.HelixApi
@@ -133,8 +136,8 @@ class AppContainer(
     val auth = AuthRepository(context.authStore, http)
     val helix = HelixApi(http) { auth.freshToken() }.also { auth.helix = it }
     val thirdParty = ThirdPartyApi(http)
-    /** Posts on X for the cards that replace their links; see [TweetRepository]. */
-    val tweets = TweetRepository(FxTwitterApi(http), scope)
+    /** Posts for the cards that replace their links, one source per site. */
+    val posts = PostRepository(listOf(XPostSource(FxTwitterApi(http)), BlueskyPostSource(BlueskyApi(http))), scope)
     val emotes = EmoteRepository(helix, thirdParty, trouble)
     val emoji = EmojiRepository(context)
     val badges = BadgeRepository(helix, thirdParty, trouble)

@@ -8,8 +8,39 @@ import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
-class TweetTest {
-    private fun parse(json: String) = AppJson.decodeFromString<FxTweetResponse>(json).tweet?.let(Tweet::from)
+class XPostsTest {
+    private fun parse(json: String) = AppJson.decodeFromString<FxTweetResponse>(json).tweet?.let(XPosts::post)
+
+    private fun key(url: String) = PostLinks.find(url, setOf(PostSite.X))?.key
+
+    @Test
+    fun aPostOnXUnderAnyOfItsNamesIsItsId() {
+        assertEquals("20", key("https://x.com/jack/status/20"))
+        assertEquals("20", key("https://twitter.com/jack/status/20"))
+        assertEquals("20", key("https://mobile.twitter.com/jack/status/20"))
+        assertEquals("20", key("https://www.x.com/jack/status/20?s=46&t=abc"))
+        assertEquals("20", key("https://fxtwitter.com/jack/status/20"))
+        assertEquals("20", key("https://vxtwitter.com/jack/status/20"))
+        assertEquals("20", key("https://fixupx.com/jack/status/20"))
+        assertEquals("20", key("https://x.com/i/web/status/20"))
+        assertEquals("1585341984679469056", key("https://x.com/elonmusk/status/1585341984679469056/video/1"))
+    }
+
+    @Test
+    fun everythingElseOnXStaysALink() {
+        assertNull(key("https://x.com/jack"))
+        assertNull(key("https://x.com/home"))
+        assertNull(key("https://x.com/search?q=status/20"))
+        assertNull(key("https://x.com/a/b/status/20"))
+        assertNull(key("https://x.com/jack/status/"))
+    }
+
+    @Test
+    fun onlyDigitsBecomeAnId() {
+        assertNull(key("https://x.com/jack/status/20abc"))
+        assertNull(key("https://x.com/jack/status/..%2F..%2Fadmin"))
+        assertNull(key("https://x.com/jack/status/123456789012345678901"))
+    }
 
     /** Shortened from a real answer of api.fxtwitter.com. */
     private val photoPost = """
@@ -32,7 +63,7 @@ class TweetTest {
         assertEquals("https://pbs.twimg.com/profile_images/1/a_200x200.jpg", tweet.avatarUrl)
         assertEquals(800000L, tweet.reposts)
         assertEquals(1352261778000L, tweet.postedAt)
-        assertFalse(tweet.sensitive)
+        assertFalse(tweet.nsfw)
         val media = tweet.media!!
         assertFalse(media.video)
         assertEquals(0, media.more)
@@ -56,7 +87,7 @@ class TweetTest {
               {"type":"video","url":"https://video.twimg.com/v.mp4","thumbnail_url":"https://pbs.twimg.com/thumb.jpg"},
               {"type":"photo","url":"https://pbs.twimg.com/media/b.jpg"}]}}}""",
         )!!
-        assertTrue(tweet.sensitive)
+        assertTrue(tweet.nsfw)
         assertTrue(tweet.media!!.video)
         assertEquals("https://pbs.twimg.com/thumb.jpg", tweet.media!!.pictureUrl)
         assertEquals(1, tweet.media!!.more)

@@ -1,24 +1,24 @@
 package dev.chatter.app.chat
 
 /** A message's line without the links drawn below it, and those links in order. */
-class PulledLinks(val rest: List<Segment>, val images: List<String>, val tweets: List<TweetLink>)
+class PulledLinks(val rest: List<Segment>, val images: List<String>, val posts: List<PostLink>)
 
 /** Takes the links that are shown as a picture or a post card out of a message. */
 object LinkPreviews {
     /** More posts in one message stay links; a wall of cards would push the chat off the screen. */
-    const val MAX_TWEETS = 2
+    const val MAX_POSTS = 2
 
     /**
-     * Pictures on [imageHosts] and, if [tweets], posts on X, taken out of [segments]. The space a
-     * removed link leaves goes with it.
+     * Pictures on [imageHosts] and posts on [postSites], taken out of [segments]. The space a removed
+     * link leaves goes with it.
      */
-    fun pull(segments: List<Segment>, imageHosts: Collection<String>, tweets: Boolean): PulledLinks {
+    fun pull(segments: List<Segment>, imageHosts: Collection<String>, postSites: Set<PostSite>): PulledLinks {
         val images = ArrayList<String>(0)
-        val posts = ArrayList<TweetLink>(0)
+        val posts = ArrayList<PostLink>(0)
         fun take(link: Segment.Link): Boolean {
             ImageLinks.imageUrl(link.url, imageHosts)?.let { images += it; return true }
-            if (!tweets || posts.size >= MAX_TWEETS) return false
-            TweetLinks.tweetId(link.url)?.let { posts += TweetLink(it, link.url); return true }
+            if (posts.size >= MAX_POSTS) return false
+            PostLinks.find(link.url, postSites)?.let { posts += it; return true }
             return false
         }
         if (segments.none { it is Segment.Link }) return PulledLinks(segments, images, posts)

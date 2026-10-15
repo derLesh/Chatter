@@ -97,13 +97,13 @@ import dev.chatter.app.ui.settings.LocalSettingsTarget
 import dev.chatter.app.ui.settings.MOBILE_DATA
 import dev.chatter.app.ui.settings.NotificationsPage
 import dev.chatter.app.ui.settings.PROVIDERS
+import dev.chatter.app.ui.settings.PostsPage
 import dev.chatter.app.ui.settings.RulesPage
 import dev.chatter.app.ui.settings.SettingsGroup
 import dev.chatter.app.ui.settings.SettingsSearch
 import dev.chatter.app.ui.settings.StatsPage
 import dev.chatter.app.ui.settings.SupportPage
 import dev.chatter.app.ui.settings.THEME_MODES
-import dev.chatter.app.ui.settings.TweetsPage
 import dev.chatter.app.ui.settings.transparentItem
 import dev.chatter.app.ui.update.UpdateCard
 import dev.chatter.app.ui.update.UpdatePage
@@ -133,7 +133,7 @@ internal enum class SettingsSubPage(val title: Int) {
     MentionKeywords(R.string.settings_keywords),
     MuteKeywords(R.string.settings_mute_keywords),
     ImageHosts(R.string.settings_image_hosts),
-    Tweets(R.string.settings_tweets),
+    Posts(R.string.settings_posts),
     LiveChannels(R.string.settings_live_channels),
     Rules(R.string.settings_rules),
     Changelog(R.string.settings_changelog),
@@ -182,10 +182,10 @@ private val SEARCH_INDEX: List<SearchEntry> by lazy {
         add(SearchEntry(R.string.settings_image_hosts, chat))
         add(
             SearchEntry(
-                R.string.settings_tweets, chat, R.string.settings_tweet_previews_hint,
+                R.string.settings_posts, chat,
                 also = listOf(
-                    R.string.settings_tweet_previews, R.string.settings_tweet_avatar, R.string.settings_tweet_media,
-                    R.string.settings_tweet_counts, R.string.settings_tweet_picture_size, R.string.settings_blur_sensitive_tweets,
+                    R.string.post_site_x, R.string.post_site_bluesky, R.string.settings_post_avatar, R.string.settings_post_media,
+                    R.string.settings_post_counts, R.string.settings_post_picture_size, R.string.settings_blur_nsfw_posts,
                 ),
             ),
         )
@@ -362,7 +362,7 @@ fun SettingsScreen(vm: MainViewModel, onBack: () -> Unit) {
                     onRemove = vm::removeMuteKeyword,
                 )
                 SettingsSubPage.ImageHosts -> ImageHostsPage(settings.imageHosts, vm)
-                SettingsSubPage.Tweets -> TweetsPage(settings, vm)
+                SettingsSubPage.Posts -> PostsPage(settings, vm)
                 SettingsSubPage.LiveChannels -> LiveChannelsPage(vm)
                 SettingsSubPage.Rules -> RulesPage(vm)
                 SettingsSubPage.Credits -> CreditsPage()

@@ -23,6 +23,7 @@ import dev.chatter.app.chat.ChatRole
 import dev.chatter.app.chat.ChatRule
 import dev.chatter.app.chat.CommandParser
 import dev.chatter.app.chat.ImageLinks
+import dev.chatter.app.chat.PostSite
 import dev.chatter.app.chat.InboxMention
 import dev.chatter.app.chat.InboxWhisper
 import dev.chatter.app.chat.SendLimits
@@ -38,12 +39,12 @@ import dev.chatter.app.net.HelixChannelSearch
 import dev.chatter.app.net.HelixFollowedChannel
 import dev.chatter.app.net.HelixUser
 import dev.chatter.app.settings.MobileData
+import dev.chatter.app.settings.PostPictureSize
 import dev.chatter.app.settings.SettingsBackup
 import dev.chatter.app.settings.SettingsRepository
 import dev.chatter.app.settings.TapAction
 import dev.chatter.app.settings.ThemeMode
 import dev.chatter.app.settings.TimestampFormat
-import dev.chatter.app.settings.TweetPictureSize
 import dev.chatter.app.stats.Stats
 import dev.chatter.app.ui.chat.ReadMark
 import dev.chatter.app.ui.theme.NameColorPalette
@@ -149,7 +150,7 @@ class MainViewModel(private val c: AppContainer) : ViewModel() {
 
     val imageLoader get() = c.imageLoader
     val staticImageLoader get() = c.staticImageLoader
-    val tweets get() = c.tweets
+    val posts get() = c.posts
 
     var input by mutableStateOf(TextFieldValue(""))
         private set
@@ -954,14 +955,14 @@ class MainViewModel(private val c: AppContainer) : ViewModel() {
     fun setHighlightColor(v: Int) = saveSetting { setHighlightColor(v) }
     fun setSmoothScrolling(v: Boolean) = saveSetting { setSmoothScrolling(v) }
     fun setInlineImages(v: Boolean) = saveSetting { setInlineImages(v) }
-    fun setTweetPreviews(v: Boolean) = saveSetting { setTweetPreviews(v) }
-    fun setBlurSensitiveTweets(v: Boolean) = saveSetting { setBlurSensitiveTweets(v) }
-    fun setTweetAvatar(v: Boolean) = saveSetting { setTweetAvatar(v) }
-    fun setTweetDate(v: Boolean) = saveSetting { setTweetDate(v) }
-    fun setTweetMedia(v: Boolean) = saveSetting { setTweetMedia(v) }
-    fun setTweetCounts(v: Boolean) = saveSetting { setTweetCounts(v) }
-    fun setTweetTextLines(v: Int) = saveSetting { setTweetTextLines(v) }
-    fun setTweetPictureSize(v: TweetPictureSize) = saveSetting { setTweetPictureSize(v) }
+    fun setPostSite(site: PostSite, on: Boolean) = saveSetting { setPostSite(site, on) }
+    fun setBlurNsfwPosts(v: Boolean) = saveSetting { setBlurNsfwPosts(v) }
+    fun setPostAvatar(v: Boolean) = saveSetting { setPostAvatar(v) }
+    fun setPostDate(v: Boolean) = saveSetting { setPostDate(v) }
+    fun setPostMedia(v: Boolean) = saveSetting { setPostMedia(v) }
+    fun setPostCounts(v: Boolean) = saveSetting { setPostCounts(v) }
+    fun setPostTextLines(v: Int) = saveSetting { setPostTextLines(v) }
+    fun setPostPictureSize(v: PostPictureSize) = saveSetting { setPostPictureSize(v) }
     fun setFullLinks(v: Boolean) = saveSetting { setFullLinks(v) }
 
     /** Turns whatever was pasted into bare hosts. */

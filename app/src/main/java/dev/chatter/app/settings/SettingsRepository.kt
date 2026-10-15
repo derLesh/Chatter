@@ -10,6 +10,7 @@ import androidx.datastore.preferences.core.longPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import dev.chatter.app.badges.BadgeProvider
 import dev.chatter.app.chat.ImageLinks
+import dev.chatter.app.chat.PostSite
 import dev.chatter.app.emotes.EmoteProvider
 import dev.chatter.app.ui.theme.NameColorPalette
 import kotlinx.coroutines.CoroutineScope
@@ -37,10 +38,10 @@ enum class TimestampFormat(val pattern: String?) {
 enum class MobileData { Normal, SaveData }
 
 /** How tall the picture on a post card may get. */
-enum class TweetPictureSize { Small, Medium, Large }
+enum class PostPictureSize { Small, Medium, Large }
 
 /** Lines of a post's text on its card; the highest step shows all of it. */
-object TweetTextLines {
+object PostTextLines {
     const val NONE = 0
     const val ALL = 11
     const val DEFAULT = 6
@@ -102,18 +103,18 @@ data class Settings(
     val inlineImages: Boolean = true,
     /** The only hosts linked images are loaded from. */
     val imageHosts: List<String> = ImageLinks.DEFAULT_HOSTS,
-    /** Show links to posts on X as a card; fetches each post from FxTwitter. */
-    val tweetPreviews: Boolean = false,
-    /** Blur the picture of a post X marks as sensitive until it is tapped. */
-    val blurSensitiveTweets: Boolean = true,
+    /** Sites whose links to a post are shown as a card; each post is fetched from that site. */
+    val postSites: Set<PostSite> = emptySet(),
+    /** Blur the picture of a post marked NSFW until it is tapped. */
+    val blurNsfwPosts: Boolean = true,
     /** What a post card shows. */
-    val tweetAvatar: Boolean = true,
-    val tweetDate: Boolean = true,
-    val tweetMedia: Boolean = true,
-    val tweetCounts: Boolean = true,
-    /** See [TweetTextLines]. */
-    val tweetTextLines: Int = TweetTextLines.DEFAULT,
-    val tweetPictureSize: TweetPictureSize = TweetPictureSize.Medium,
+    val postAvatar: Boolean = true,
+    val postDate: Boolean = true,
+    val postMedia: Boolean = true,
+    val postCounts: Boolean = true,
+    /** See [PostTextLines]. */
+    val postTextLines: Int = PostTextLines.DEFAULT,
+    val postPictureSize: PostPictureSize = PostPictureSize.Medium,
     /** Write links in full instead of shortening them. */
     val fullLinks: Boolean = false,
     /** Leave out linked images, animation and sharp emotes on metered networks. */
@@ -194,15 +195,15 @@ class SettingsRepository(
             updateCheck = p[UPDATE_CHECK] ?: true,
             inlineImages = p[INLINE_IMAGES] ?: true,
             imageHosts = hosts(p[IMAGE_HOSTS]),
-            tweetPreviews = p[TWEET_PREVIEWS] ?: false,
-            blurSensitiveTweets = p[BLUR_SENSITIVE_TWEETS] ?: true,
-            tweetAvatar = p[TWEET_AVATAR] ?: true,
-            tweetDate = p[TWEET_DATE] ?: true,
-            tweetMedia = p[TWEET_MEDIA] ?: true,
-            tweetCounts = p[TWEET_COUNTS] ?: true,
-            tweetTextLines = p[TWEET_TEXT_LINES]?.coerceIn(TweetTextLines.RANGE) ?: TweetTextLines.DEFAULT,
-            tweetPictureSize = p[TWEET_PICTURE_SIZE]?.let { v -> TweetPictureSize.entries.firstOrNull { it.name == v } }
-                ?: TweetPictureSize.Medium,
+            postSites = postSites(p[POST_SITES]),
+            blurNsfwPosts = p[BLUR_NSFW_POSTS] ?: true,
+            postAvatar = p[POST_AVATAR] ?: true,
+            postDate = p[POST_DATE] ?: true,
+            postMedia = p[POST_MEDIA] ?: true,
+            postCounts = p[POST_COUNTS] ?: true,
+            postTextLines = p[POST_TEXT_LINES]?.coerceIn(PostTextLines.RANGE) ?: PostTextLines.DEFAULT,
+            postPictureSize = p[POST_PICTURE_SIZE]?.let { v -> PostPictureSize.entries.firstOrNull { it.name == v } }
+                ?: PostPictureSize.Medium,
             fullLinks = p[FULL_LINKS] ?: false,
             mobileData = p[MOBILE_DATA]?.let { v -> MobileData.entries.firstOrNull { it.name == v } } ?: MobileData.Normal,
             carouselChannels = p[CAROUSEL_CHANNELS] ?: false,
@@ -258,14 +259,17 @@ class SettingsRepository(
     suspend fun setInlineImages(v: Boolean) = store.edit { it[INLINE_IMAGES] = v }
     suspend fun updateImageHosts(change: (List<String>) -> List<String>) =
         store.edit { it[IMAGE_HOSTS] = change(hosts(it[IMAGE_HOSTS])).joinToString(",") }
-    suspend fun setTweetPreviews(v: Boolean) = store.edit { it[TWEET_PREVIEWS] = v }
-    suspend fun setBlurSensitiveTweets(v: Boolean) = store.edit { it[BLUR_SENSITIVE_TWEETS] = v }
-    suspend fun setTweetAvatar(v: Boolean) = store.edit { it[TWEET_AVATAR] = v }
-    suspend fun setTweetDate(v: Boolean) = store.edit { it[TWEET_DATE] = v }
-    suspend fun setTweetMedia(v: Boolean) = store.edit { it[TWEET_MEDIA] = v }
-    suspend fun setTweetCounts(v: Boolean) = store.edit { it[TWEET_COUNTS] = v }
-    suspend fun setTweetTextLines(v: Int) = store.edit { it[TWEET_TEXT_LINES] = v.coerceIn(TweetTextLines.RANGE) }
-    suspend fun setTweetPictureSize(v: TweetPictureSize) = store.edit { it[TWEET_PICTURE_SIZE] = v.name }
+    suspend fun setPostSite(site: PostSite, on: Boolean) = store.edit { p ->
+        val sites = postSites(p[POST_SITES])
+        p[POST_SITES] = (if (on) sites + site else sites - site).joinToString(",") { it.name }
+    }
+    suspend fun setBlurNsfwPosts(v: Boolean) = store.edit { it[BLUR_NSFW_POSTS] = v }
+    suspend fun setPostAvatar(v: Boolean) = store.edit { it[POST_AVATAR] = v }
+    suspend fun setPostDate(v: Boolean) = store.edit { it[POST_DATE] = v }
+    suspend fun setPostMedia(v: Boolean) = store.edit { it[POST_MEDIA] = v }
+    suspend fun setPostCounts(v: Boolean) = store.edit { it[POST_COUNTS] = v }
+    suspend fun setPostTextLines(v: Int) = store.edit { it[POST_TEXT_LINES] = v.coerceIn(PostTextLines.RANGE) }
+    suspend fun setPostPictureSize(v: PostPictureSize) = store.edit { it[POST_PICTURE_SIZE] = v.name }
     suspend fun setFullLinks(v: Boolean) = store.edit { it[FULL_LINKS] = v }
     suspend fun setMobileData(v: MobileData) = store.edit { it[MOBILE_DATA] = v.name }
     suspend fun setCarouselChannels(v: Boolean) = store.edit { it[CAROUSEL_CHANNELS] = v }
@@ -337,14 +341,14 @@ class SettingsRepository(
         p[UPDATE_CHECK] = s.updateCheck
         p[INLINE_IMAGES] = s.inlineImages
         p[IMAGE_HOSTS] = s.imageHosts.joinToString(",")
-        p[TWEET_PREVIEWS] = s.tweetPreviews
-        p[BLUR_SENSITIVE_TWEETS] = s.blurSensitiveTweets
-        p[TWEET_AVATAR] = s.tweetAvatar
-        p[TWEET_DATE] = s.tweetDate
-        p[TWEET_MEDIA] = s.tweetMedia
-        p[TWEET_COUNTS] = s.tweetCounts
-        p[TWEET_TEXT_LINES] = s.tweetTextLines
-        p[TWEET_PICTURE_SIZE] = s.tweetPictureSize.name
+        p[POST_SITES] = s.postSites.joinToString(",") { it.name }
+        p[BLUR_NSFW_POSTS] = s.blurNsfwPosts
+        p[POST_AVATAR] = s.postAvatar
+        p[POST_DATE] = s.postDate
+        p[POST_MEDIA] = s.postMedia
+        p[POST_COUNTS] = s.postCounts
+        p[POST_TEXT_LINES] = s.postTextLines
+        p[POST_PICTURE_SIZE] = s.postPictureSize.name
         p[FULL_LINKS] = s.fullLinks
         p[MOBILE_DATA] = s.mobileData.name
         p[CAROUSEL_CHANNELS] = s.carouselChannels
@@ -373,6 +377,9 @@ class SettingsRepository(
         // Only a missing key means defaults; a list the user emptied stays empty.
         fun hosts(raw: String?): List<String> =
             raw?.split(',')?.map { it.trim() }?.filter { it.isNotEmpty() } ?: ImageLinks.DEFAULT_HOSTS
+
+        fun postSites(raw: String?): Set<PostSite> =
+            raw.orEmpty().split(',').mapNotNull { v -> PostSite.entries.firstOrNull { it.name == v } }.toSet()
 
         fun badgeProviders(raw: String?): Set<BadgeProvider> =
             raw?.split(',')?.mapNotNull { v -> BadgeProvider.entries.firstOrNull { it.name == v } }?.toSet()
@@ -411,14 +418,14 @@ class SettingsRepository(
         val SHOW_DELETED = booleanPreferencesKey("show_deleted")
         val UPDATE_CHECK = booleanPreferencesKey("update_check")
         val INLINE_IMAGES = booleanPreferencesKey("inline_images")
-        val TWEET_PREVIEWS = booleanPreferencesKey("tweet_previews")
-        val BLUR_SENSITIVE_TWEETS = booleanPreferencesKey("blur_sensitive_tweets")
-        val TWEET_AVATAR = booleanPreferencesKey("tweet_avatar")
-        val TWEET_DATE = booleanPreferencesKey("tweet_date")
-        val TWEET_MEDIA = booleanPreferencesKey("tweet_media")
-        val TWEET_COUNTS = booleanPreferencesKey("tweet_counts")
-        val TWEET_TEXT_LINES = intPreferencesKey("tweet_text_lines")
-        val TWEET_PICTURE_SIZE = stringPreferencesKey("tweet_picture_size")
+        val POST_SITES = stringPreferencesKey("post_sites")
+        val BLUR_NSFW_POSTS = booleanPreferencesKey("blur_nsfw_posts")
+        val POST_AVATAR = booleanPreferencesKey("post_avatar")
+        val POST_DATE = booleanPreferencesKey("post_date")
+        val POST_MEDIA = booleanPreferencesKey("post_media")
+        val POST_COUNTS = booleanPreferencesKey("post_counts")
+        val POST_TEXT_LINES = intPreferencesKey("post_text_lines")
+        val POST_PICTURE_SIZE = stringPreferencesKey("post_picture_size")
         val FULL_LINKS = booleanPreferencesKey("full_links")
         val MOBILE_DATA = stringPreferencesKey("mobile_data")
         val IMAGE_HOSTS = stringPreferencesKey("image_hosts")

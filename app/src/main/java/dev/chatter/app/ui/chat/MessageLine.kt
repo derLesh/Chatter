@@ -19,8 +19,8 @@ import dev.chatter.app.chat.ChatItem
 import dev.chatter.app.chat.LinkPreviews
 import dev.chatter.app.chat.LinkText
 import dev.chatter.app.chat.MessageKind
+import dev.chatter.app.chat.PostLink
 import dev.chatter.app.chat.Segment
-import dev.chatter.app.chat.TweetLink
 import dev.chatter.app.emotes.Emote
 import dev.chatter.app.ui.theme.readableNameColor
 import java.text.SimpleDateFormat
@@ -36,8 +36,8 @@ internal class BuiltLine(
     val inline: Map<String, InlineData>,
     /** URLs of images taken out of the line and drawn below it. */
     val images: List<String> = emptyList(),
-    /** Posts on X taken out of the line and drawn below it as cards. */
-    val tweets: List<TweetLink> = emptyList(),
+    /** Links to posts taken out of the line and drawn below it as cards. */
+    val posts: List<PostLink> = emptyList(),
     /** Where the sender's name is in [text], for drawing a paint over it. */
     val nameRange: IntRange? = null,
 )
@@ -82,7 +82,7 @@ internal fun buildLine(item: ChatItem, style: ChatStyle, onName: LinkInteraction
     // Subs and raids have the channel in front of their header instead.
     val lineChannel = channel.takeIf { item.kind != MessageKind.UserNotice }
     lineChannel?.let { inline[CHANNEL_ID] = InlineData.ChannelData(it) }
-    val pulled = LinkPreviews.pull(item.segments, style.imageHosts, style.tweetCard != null)
+    val pulled = LinkPreviews.pull(item.segments, style.imageHosts, style.postCard?.sites.orEmpty())
     val segments = pulled.rest
     if (item.kind == MessageKind.Notice) {
         val text = buildAnnotatedString {
@@ -96,7 +96,7 @@ internal fun buildLine(item: ChatItem, style: ChatStyle, onName: LinkInteraction
                 }
             }
         }
-        return BuiltLine(text, inline, pulled.images, pulled.tweets)
+        return BuiltLine(text, inline, pulled.images, pulled.posts)
     }
     if (item.kind == MessageKind.UserNotice && item.segments.isEmpty()) return BuiltLine(AnnotatedString(""), inline)
 
@@ -136,7 +136,7 @@ internal fun buildLine(item: ChatItem, style: ChatStyle, onName: LinkInteraction
         )
         withStyle(body) { appendSegments(segments, inline, style) }
     }
-    return BuiltLine(text, inline, pulled.images, pulled.tweets, (nameStart until nameEnd).takeIf { !it.isEmpty() })
+    return BuiltLine(text, inline, pulled.images, pulled.posts, (nameStart until nameEnd).takeIf { !it.isEmpty() })
 }
 
 /**

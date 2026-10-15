@@ -66,7 +66,7 @@ object ImageLinks {
      * order. The space a removed link leaves goes with it.
      */
     fun split(segments: List<Segment>, hosts: Collection<String>): Pair<List<Segment>, List<String>> =
-        LinkPreviews.pull(segments, hosts, tweets = false).let { it.rest to it.images }
+        LinkPreviews.pull(segments, hosts, postSites = emptySet()).let { it.rest to it.images }
 
     /**
      * What the user typed as a bare host; they may paste a whole URL, and a leading "www." would

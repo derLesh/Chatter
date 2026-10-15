@@ -33,11 +33,13 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import dev.chatter.app.R
 import dev.chatter.app.chat.ImageLinks
+import dev.chatter.app.chat.PostSite
 import dev.chatter.app.settings.MobileData
 import dev.chatter.app.settings.Settings
 import dev.chatter.app.settings.TapAction
 import dev.chatter.app.ui.MainViewModel
 import dev.chatter.app.ui.SettingsSubPage
+import dev.chatter.app.ui.chat.siteName
 import kotlin.math.roundToInt
 
 @Composable
@@ -81,13 +83,16 @@ internal fun ChatPage(settings: Settings, vm: MainViewModel, open: (SettingsSubP
                 modifier = Modifier.clickable { open(SettingsSubPage.ImageHosts) },
             )
         }
-        item(R.string.settings_tweets) {
+        item(R.string.settings_posts) {
             ListItem(
-                headlineContent = { Text(stringResource(R.string.settings_tweets)) },
-                supportingContent = { Text(stringResource(if (settings.tweetPreviews) R.string.settings_on else R.string.settings_off)) },
+                headlineContent = { Text(stringResource(R.string.settings_posts)) },
+                supportingContent = {
+                    val sites = PostSite.entries.filter { it in settings.postSites }.map { stringResource(siteName(it)) }
+                    Text(sites.joinToString(", ").ifEmpty { stringResource(R.string.settings_off) })
+                },
                 trailingContent = { Icon(Icons.AutoMirrored.Filled.ArrowForward, contentDescription = null) },
                 colors = transparentItem(),
-                modifier = Modifier.clickable { open(SettingsSubPage.Tweets) },
+                modifier = Modifier.clickable { open(SettingsSubPage.Posts) },
             )
         }
         item(R.string.settings_full_links) { SwitchItem(R.string.settings_full_links, settings.fullLinks, vm::setFullLinks, R.string.settings_full_links_hint) }

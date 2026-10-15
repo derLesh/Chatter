@@ -12,7 +12,7 @@ import androidx.lifecycle.viewmodel.viewModelFactory
 import dev.chatter.app.ChatterApp
 import dev.chatter.app.ui.MainViewModel
 import dev.chatter.app.ui.chat.LinkGuard
-import dev.chatter.app.ui.chat.LocalTweets
+import dev.chatter.app.ui.chat.LocalPosts
 import dev.chatter.app.ui.theme.ChatterTheme
 import dev.chatter.app.util.EXTRA_CHANNEL
 
@@ -34,7 +34,7 @@ class BubbleActivity : ComponentActivity() {
         setContent {
             val settings by vm.settings.collectAsStateWithLifecycle()
             ChatterTheme(settings.themeMode, settings.dynamicColor, settings.pureBlack) {
-                LinkGuard { CompositionLocalProvider(LocalTweets provides vm.tweets) { BubbleScreen(vm, channel) } }
+                LinkGuard { CompositionLocalProvider(LocalPosts provides vm.posts) { BubbleScreen(vm, channel) } }
             }
         }
     }

@@ -44,7 +44,7 @@
 <p class="lang"><a href="#deutsch">Auf Deutsch lesen →</a></p>
 
 <h1>Chatter — Privacy Policy</h1>
-<p class="sub">Last updated: 15 October 2026</p>
+<p class="sub">Last updated: 16 October 2026</p>
 
 <p>Chatter is an independent Twitch chat client for Android with public source code. It has no backend of its
 own: there is no Chatter server, no account with Chatter, and no analytics, crash reporting or
@@ -118,6 +118,13 @@ developer, and no third party receives your Twitch access token except Twitch it
         &ldquo;Show posts from X&rdquo; is on, which it is not until you turn it on.</td>
   </tr>
   <tr>
+    <td>Bluesky</td>
+    <td><code>public.api.bsky.app</code>, <code>cdn.bsky.app</code>, <code>video.bsky.app</code></td>
+    <td>The author and number of a post on Bluesky that was linked in chat, to show it as a card.
+        Only while &ldquo;Show posts from Bluesky&rdquo; is on, which it is not until you turn it
+        on.</td>
+  </tr>
+  <tr>
     <td>GitHub</td>
     <td><code>raw.githubusercontent.com</code></td>
     <td>Nothing about you: the public list of Chatter supporters is downloaded.</td>
@@ -145,11 +152,13 @@ Settings &rarr; Chat &rarr; On mobile data), nothing is fetched at all. A site o
 way any site does when you open a link; nothing else is sent, and the picture is cached on your
 device.</p>
 
-<p><strong>Posts from X linked in chat.</strong> With &ldquo;Show posts from X&rdquo; on (Settings &rarr;
-Chat &rarr; Posts from X; off until you turn it on), a link to a post on X is shown as a card with
-its author, text and picture. X offers no free way to read a post, so Chatter asks FxTwitter, an
-independent open-source service, for it: the request carries the post's number and nothing else,
-and the author's picture and the post's picture then come from X's image server. A post is only
+<p><strong>Posts from X and Bluesky linked in chat.</strong> Each site has its own switch under
+Settings &rarr; Chat &rarr; Social media posts, and both are off until you turn them on. With one on,
+a link to a post on that site is shown as a card with its author, text and picture. X offers no free
+way to read a post, so Chatter asks FxTwitter, an independent open-source service, for it: the
+request carries the post's number and nothing else, and the pictures then come from X's image
+server. A post on Bluesky is read from Bluesky itself, the same way its own app does: the request
+carries the post's author and number, and the pictures come from Bluesky's servers. A post is only
 asked for when its message is on your screen, never for a chat running in the background, and not
 while the battery saver is on or Chatter saves data.</p>
 
@@ -188,7 +197,7 @@ Twitch Interactive, Inc.</p>
 <hr>
 
 <h1 id="deutsch">Chatter — Datenschutzerklärung</h1>
-<p class="sub">Zuletzt aktualisiert: 15. Oktober 2026</p>
+<p class="sub">Zuletzt aktualisiert: 16. Oktober 2026</p>
 
 <p>Chatter ist ein unabhängiger Twitch-Chat-Client für Android mit öffentlichem Quellcode. Die App hat kein
 eigenes Backend: Es gibt keinen Chatter-Server, kein Konto bei Chatter und in der App weder
@@ -263,6 +272,13 @@ gehen keine Daten, und außer Twitch selbst erhält kein Dritter das Twitch-Toke
         „Posts von X anzeigen“ eingeschaltet ist, was es erst ist, wenn du es einschaltest.</td>
   </tr>
   <tr>
+    <td>Bluesky</td>
+    <td><code>public.api.bsky.app</code>, <code>cdn.bsky.app</code>, <code>video.bsky.app</code></td>
+    <td>Autor und Nummer eines im Chat verlinkten Posts auf Bluesky, um ihn als Karte zu zeigen.
+        Nur solange „Posts von Bluesky anzeigen“ eingeschaltet ist, was es erst ist, wenn du es
+        einschaltest.</td>
+  </tr>
+  <tr>
     <td>GitHub</td>
     <td><code>raw.githubusercontent.com</code></td>
     <td>Nichts Persönliches: Die öffentliche Liste der Chatter-Unterstützer wird geladen.</td>
@@ -291,13 +307,16 @@ wird gar nichts geladen. Eine Seite
 auf der Liste erhält die IP-Adresse des Geräts genauso, wie es beim Öffnen eines Links der Fall
 wäre; mehr wird nicht gesendet, und das Bild wird auf dem Gerät zwischengespeichert.</p>
 
-<p><strong>Im Chat verlinkte Posts von X.</strong> Ist „Posts von X anzeigen“ eingeschaltet
-(Einstellungen &rarr; Chat &rarr; Posts von X; aus, bis du es einschaltest), wird ein Link auf
-einen Post auf X als Karte mit Autor, Text und Bild angezeigt. X bietet keinen freien Weg, einen Post
-zu lesen, deshalb fragt Chatter FxTwitter, einen unabhängigen Open-Source-Dienst: Die Anfrage
-enthält die Nummer des Posts und sonst nichts, das Profilbild und das Bild des Posts kommen danach
-vom Bildserver von X. Ein Post wird erst abgefragt, wenn seine Nachricht auf dem Bildschirm ist, nie
-für einen Chat im Hintergrund, und nicht im Akkusparmodus oder während Chatter Daten spart.</p>
+<p><strong>Im Chat verlinkte Posts von X und Bluesky.</strong> Jede Seite hat ihren eigenen
+Schalter unter Einstellungen &rarr; Chat &rarr; Social-Media-Posts, und beide sind aus, bis du sie
+einschaltest. Ist einer an, wird ein Link auf einen Post dieser Seite als Karte mit Autor, Text und
+Bild angezeigt. X bietet keinen freien Weg, einen Post zu lesen, deshalb fragt Chatter FxTwitter,
+einen unabhängigen Open-Source-Dienst: Die Anfrage enthält die Nummer des Posts und sonst nichts,
+die Bilder kommen danach vom Bildserver von X. Einen Post auf Bluesky liest Chatter direkt bei
+Bluesky, so wie es die eigene App von Bluesky tut: Die Anfrage enthält Autor und Nummer des Posts,
+die Bilder kommen von den Servern von Bluesky. Ein Post wird erst abgefragt, wenn seine Nachricht
+auf dem Bildschirm ist, nie für einen Chat im Hintergrund, und nicht im Akkusparmodus oder während
+Chatter Daten spart.</p>
 
 <h2>Benachrichtigungen und die Hintergrundverbindung</h2>
 <p>Damit Erwähnungen und Whispers auch bei geschlossener App ankommen, hält Chatter die
