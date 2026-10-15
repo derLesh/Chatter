@@ -15,11 +15,11 @@
     <string name="notif_disconnect">Disconnect</string>
     <string name="notif_reply">Reply</string>
     <string name="notif_reply_failed">Your reply could not be sent</string>
-    <string name="notif_reply_other_account">Not sent: Chatter is logged in to another account now than the one this was for</string>
+    <string name="notif_reply_other_account">Not sent: Chatter now uses a different account</string>
     <string name="notif_whisper_public">New whisper</string>
 
     <string name="settings_sender_avatars">Profile pictures</string>
-    <string name="settings_sender_avatars_hint">Show the user\'s avatar in the notification</string>
+    <string name="settings_sender_avatars_hint">Show the sender\'s profile picture in the notification</string>
 
     <!-- Chat system messages -->
     <string name="chat_reconnected">Reconnected.</string>
@@ -50,7 +50,7 @@
     <string name="action_mention">Mention</string>
     <string name="action_copy">Copy</string>
     <string name="link_check_title">Open this link?</string>
-    <string name="link_check_text">It is written to look like another site. It really goes to:</string>
+    <string name="link_check_text">This link looks like another site, but it goes to:</string>
     <string name="emotes">Emotes</string>
     <string name="input_hint">Send a message</string>
     <string name="input_hint_disabled">Not connected</string>
@@ -137,7 +137,7 @@
     <string name="guest_bar">You are reading as a guest</string>
     <string name="guest_log_in">Log in</string>
     <string name="account_guest_title">Reading as a guest</string>
-    <string name="account_guest_text">Without a login Chatter reads every chat you add. Writing, whispers, Twitch\'s own badges and notifications in the background need a Twitch account.</string>
+    <string name="account_guest_text">Without a login you can read every chat you add. To write, whisper, see Twitch badges and get notifications, you need a Twitch account.</string>
 
     <!-- Settings -->
     <string name="settings">Settings</string>
@@ -149,7 +149,7 @@
     <string name="settings_timestamps_off">No time</string>
     <string name="settings_animated_emotes">Animated emotes</string>
     <string name="settings_slow_idle_emotes">Slow down when left alone</string>
-    <string name="settings_slow_idle_emotes_hint">After three minutes without a touch, animated emotes play at 10 instead of 30 frames a second, which saves battery with the screen kept on</string>
+    <string name="settings_slow_idle_emotes_hint">After three minutes without a touch, animated emotes play slower. This saves battery when the screen stays on</string>
     <string name="settings_keywords">Highlighted words</string>
     <string name="settings_keywords_summary">Words that alert you like your own name does</string>
     <string name="settings_keywords_hint">Your username is always highlighted</string>
@@ -175,10 +175,10 @@
     <string name="theme_system">System</string>
     <string name="theme_light">Light</string>
     <string name="theme_dark">Dark</string>
-    <string name="settings_dynamic_color">Material You colors</string>
-    <string name="settings_dynamic_color_hint">Use your system\'s colors</string>
+    <string name="settings_dynamic_color">System colors</string>
+    <string name="settings_dynamic_color_hint">Use the colors of your wallpaper</string>
     <string name="settings_pure_black">Pure black</string>
-    <string name="settings_pure_black_hint">Black background for OLED screens, saves battery</string>
+    <string name="settings_pure_black_hint">Black background, saves battery on many phones</string>
     <string name="cmd_usage">Usage: %1$s</string>
     <string name="cmd_banned">%1$s has been banned.</string>
     <string name="cmd_timed_out">%1$s has been timed out for %2$s.</string>
@@ -195,7 +195,7 @@
     <string name="cmd_raid">Raid to %1$s started.</string>
     <string name="cmd_unraid">Raid cancelled.</string>
     <string name="cmd_color">Name color changed to %1$s.</string>
-    <string name="cmd_error_scope">Twitch has not allowed Chatter this yet. Log in again under Settings → Account to allow it.</string>
+    <string name="cmd_error_scope">Chatter is not allowed to do this yet. Log in again under Settings → Account to allow it.</string>
     <string name="cmd_error_permission">Not allowed: %1$s</string>
     <string name="cmd_error_generic">Command failed: %1$s</string>
     <string name="cmd_error_no_user">User %1$s not found</string>
@@ -210,7 +210,7 @@
     <!-- Settings pages -->
     <string name="settings_appearance_summary">Theme, colors, how a message looks</string>
     <string name="settings_emotes">Emotes &amp; badges</string>
-    <string name="settings_emotes_summary">Providers, animation, zero-width</string>
+    <string name="settings_emotes_summary">Providers, animation, badges</string>
     <string name="settings_filters">Filters</string>
     <string name="settings_filters_summary">Hidden words, rules, blocked users</string>
     <string name="settings_notifications_summary">Mentions, highlighted words</string>
@@ -234,12 +234,12 @@
     <string name="channel_notification_settings">Sound &amp; vibration</string>
     <string name="channel_in_title_bar">Show unread</string>
     <string name="settings_channel_tabs">Channels as tabs</string>
-    <string name="settings_channel_tabs_hint">All channels in one row, in the order you swipe through them. Hold a tab for its options.</string>
+    <string name="settings_channel_tabs_hint">All channels in a row at the top. Hold a tab for more options.</string>
     <string name="settings_unread_title_bar">Show unread channels in the title bar</string>
-    <string name="settings_unread_title_bar_hint">The avatars of channels with new messages next to the channel name, or a mark on their tab. Single channels can be left out in their menu.</string>
+    <string name="settings_unread_title_bar_hint">Shows the profile picture of channels with new messages at the top, or a mark on their tab. You can leave out a channel in its menu.</string>
     <string name="settings_group_device">On this phone</string>
     <string name="settings_keep_screen_on">Keep the screen on</string>
-    <string name="settings_keep_screen_on_hint">Stops the display from sleeping in the chat</string>
+    <string name="settings_keep_screen_on_hint">The screen stays on while you are in the chat</string>
     <string name="settings_emote_providers">Emote providers</string>
     <string name="settings_provider_twitch">Twitch</string>
     <string name="settings_provider_seventv">7TV</string>
@@ -248,29 +248,29 @@
     <string name="settings_show_deleted">Show deleted messages</string>
     <string name="settings_show_deleted_hint">Keep them struck through instead of hiding them.</string>
     <string name="settings_full_links">Show links in full</string>
-    <string name="settings_full_links_hint">Otherwise long links are shortened to their site and the start of the path</string>
+    <string name="settings_full_links_hint">Otherwise long links are shortened</string>
     <string name="settings_mobile_data">On mobile data</string>
-    <string name="settings_mobile_data_hint">Saving data leaves out linked images and animation, shows emotes smaller, loads no profile pictures for notifications and puts off the update check. Messages, mentions and whispers keep arriving as before. With Android\'s Data Saver on, Chatter always saves data on mobile data.</string>
+    <string name="settings_mobile_data_hint">Save data skips linked images, animations and profile pictures in notifications, shows emotes smaller and checks for updates later. Messages, mentions and whispers still arrive. With Android\'s Data Saver on, Chatter always saves data.</string>
     <string name="mobile_data_normal">Normal</string>
     <string name="mobile_data_save">Save data</string>
     <string name="mobile_data_saver_on">%1$s, but Data Saver is on</string>
     <string name="background_restricted_title">Battery use is restricted</string>
-    <string name="background_restricted_text">Android stops Chatter in the background whenever it likes, and mentions and whispers stop arriving until Chatter is opened again. Set Chatter\'s battery use to Unrestricted in the app settings.</string>
+    <string name="background_restricted_text">Android can stop Chatter in the background at any time. Then mentions and whispers only arrive again once you open Chatter. Set the battery use to Unrestricted in the app settings.</string>
     <string name="background_stopped_title">Android stopped the background connection</string>
-    <string name="background_stopped_text">On %1$s, Chatter was ended while it was listening for mentions. %2$s. Until it was opened again, no mentions or whispers arrived.</string>
+    <string name="background_stopped_text">On %1$s, Chatter was stopped in the background. %2$s. Until you opened it again, no mentions or whispers arrived.</string>
     <string name="background_unrestricted_hint">Setting Chatter\'s battery use to Unrestricted keeps most phones from doing this.</string>
     <string name="background_reason_memory">The phone was short of memory</string>
-    <string name="background_reason_resources">Android found it using too much battery or processor time</string>
+    <string name="background_reason_resources">Android thought it used too much battery or power</string>
     <string name="background_reason_user">It was stopped from the app settings or a task manager</string>
     <string name="background_reason_system">The phone\'s battery saving ended it</string>
     <string name="background_dismiss">Dismiss</string>
     <string name="background_why">Why?</string>
     <string name="background_battery_settings">App settings</string>
     <string name="settings_inline_images">Show linked images</string>
-    <string name="settings_inline_images_hint">Links to an image are replaced by the image. Off while the battery saver is on.</string>
+    <string name="settings_inline_images_hint">Links to an image show the image. Off in battery saver.</string>
     <string name="settings_image_hosts">Sites to load from</string>
     <string name="settings_image_hosts_none">No sites</string>
-    <string name="settings_image_hosts_hint">The address of a site, e.g. imgur.com. Subdomains are included.</string>
+    <string name="settings_image_hosts_hint">The address of a site, e.g. imgur.com. Addresses like i.imgur.com count too.</string>
     <string name="settings_image_hosts_add">Add a site</string>
     <string name="settings_image_hosts_edit">Edit the site</string>
     <string name="settings_image_hosts_edit_one">Edit %s</string>
@@ -298,7 +298,7 @@
     <string name="post_picture_medium">Medium</string>
     <string name="post_picture_large">Large</string>
     <string name="post_preview_message">look at this</string>
-    <string name="post_preview_text">Chatter can show a post from X or Bluesky right in the chat. Here you choose which parts the card shows and how much of the text: a line or two to keep the chat calm, or the whole post. The picture can be small, medium or large, and the date, the profile picture and the numbers can each be turned off. A tap on the card opens the post.</string>
+    <string name="post_preview_text">Chatter can show posts from X and Bluesky right in the chat. Here you choose what the card shows: how much text, how big the picture is, and whether the date, profile picture and numbers are there. A tap on the card opens the post.</string>
     <string name="settings_blur_nsfw_posts">Blur NSFW posts</string>
     <string name="settings_blur_nsfw_posts_hint">Pictures marked NSFW stay blurred until tapped</string>
     <string name="post_picture">Picture of the post</string>
@@ -306,13 +306,13 @@
     <string name="post_nsfw">NSFW · tap to show</string>
     <string name="settings_group_history">History</string>
     <string name="settings_carousel">Swipe in a circle</string>
-    <string name="settings_carousel_hint">Swipe through the channels endlessly</string>
+    <string name="settings_carousel_hint">After the last channel comes the first again</string>
     <string name="settings_emote_suggestions">Emote suggestions</string>
     <string name="settings_emote_suggestions_hint">Suggest emotes while typing, and emoji after a colon, as in :smile</string>
     <string name="settings_user_suggestions">Name suggestions</string>
     <string name="settings_user_suggestions_hint">Suggest names from the chat</string>
     <string name="settings_mention_with_at">Insert names with @</string>
-    <string name="settings_mention_with_at_hint">Insert the username with an @</string>
+    <string name="settings_mention_with_at_hint">Put an @ before the name</string>
     <string name="settings_group_colors">Colors</string>
     <string name="settings_group_messages">Messages</string>
     <string name="settings_message_tap">Tap a message</string>
@@ -323,7 +323,7 @@
     <string name="tap_action_mention">Mention</string>
     <string name="tap_action_nothing">Nothing</string>
     <string name="settings_copy_first">Copy first</string>
-    <string name="settings_copy_first_hint">Swap Copy and Reply</string>
+    <string name="settings_copy_first_hint">Put Copy before Reply</string>
     <string name="settings_group_mentions">Mentions</string>
     <string name="settings_alternate_background">Alternating background</string>
     <string name="settings_alternate_background_hint">Shade every other message for easier reading</string>
@@ -332,11 +332,11 @@
     <string name="settings_highlight_preview_name">viewer</string>
     <string name="settings_highlight_preview_text">hey @you, look at this!</string>
     <string name="settings_load_history">Load recent messages</string>
-    <string name="settings_load_history_hint">Load the chat history via recent-messages.robotty.de</string>
+    <string name="settings_load_history_hint">Loads earlier messages from recent-messages.robotty.de when you open a chat</string>
     <string name="settings_system_notifications">Notification settings</string>
     <string name="settings_group_accounts">Accounts</string>
-    <string name="account_scopes_title">This login allows less than Chatter uses</string>
-    <string name="account_scopes_text">It was made by an older version of Chatter. Log in again and Twitch asks you to allow the rest, such as moderating where you are a moderator</string>
+    <string name="account_scopes_title">Log in again to use everything</string>
+    <string name="account_scopes_text">Your login is from an older version of Chatter. Log in again and allow the rest, such as moderating</string>
     <string name="account_reauthorize">Log in again</string>
     <string name="account_id">%1$s</string>
     <string name="account_copy_id">Copy Twitch ID</string>
@@ -345,8 +345,8 @@
     <string name="account_add">Add account</string>
     <string name="account_add_short">Add</string>
     <string name="account_logout_title">Log %1$s out?</string>
-    <string name="account_logout_text">Chatter signs it out at Twitch too and carries on with your other account.</string>
-    <string name="account_logout_last_text">Chatter signs it out at Twitch too. It is your last account, so the login screen comes next and asks for the password again.</string>
+    <string name="account_logout_text">This also logs it out on Twitch. Chatter carries on with your other account.</string>
+    <string name="account_logout_last_text">This also logs it out on Twitch. It is your last account, so you will have to log in again.</string>
     <string name="settings_version">Version %1$s</string>
     <string name="settings_credits">Credits &amp; licenses</string>
     <string name="settings_credits_summary">Services and open source software used</string>
@@ -372,15 +372,15 @@
     <string name="settings_support_summary">Sponsor Chatter, supporter badge</string>
     <string name="settings_sponsor_claim">I have sponsored</string>
     <string name="settings_sponsor_claim_summary">Opens GitHub with your Twitch account filled in, so the badge can find you</string>
-    <string name="settings_sponsor_note">GitHub Sponsors does not know your Twitch id. Open an issue with your Twitch id</string>
+    <string name="settings_sponsor_note">GitHub Sponsors does not know your Twitch account. Tap “I have sponsored” to tell us</string>
     <string name="settings_source_code">Source code</string>
     <string name="settings_source_code_summary">github.com/derLesh/Chatter</string>
     <string name="settings_report_issue">Report a problem</string>
     <string name="settings_report_issue_summary">Opens a bug report on GitHub, with the app and Android version filled in</string>
     <string name="settings_security">Report a security problem</string>
-    <string name="settings_security_summary">How to tell us privately about a hole in Chatter, before everybody can read it</string>
+    <string name="settings_security_summary">Tell us about a security problem privately</string>
     <string name="crash_attach_title">Add the last crash?</string>
-    <string name="crash_attach_text">Chatter crashed on %1$s. Copy what it noted down about that, to paste into the report? Nothing of it leaves your phone unless you paste it.</string>
+    <string name="crash_attach_text">Chatter crashed on %1$s. Copy the crash details so you can paste them into the report? They only leave your phone if you paste them yourself.</string>
     <string name="crash_attach_copy">Copy and continue</string>
     <string name="crash_attach_skip">Without it</string>
     <string name="crash_clip_label">Chatter crash</string>
@@ -407,7 +407,7 @@
     <string name="settings_emotes_enabled">Show emotes</string>
     <string name="settings_emotes_new_messages_hint">Emote names are replaced by images</string>
     <string name="settings_zero_width">Zero-width emotes</string>
-    <string name="settings_zero_width_hint">Overlay emotes are drawn on top of the previous emote</string>
+    <string name="settings_zero_width_hint">Some emotes are placed on top of the emote before them</string>
     <string name="settings_unlisted_7tv">Unlisted 7TV emotes</string>
     <string name="settings_unlisted_7tv_hint">Show 7TV emotes that are not publicly listed</string>
 
@@ -440,7 +440,7 @@
 
     <!-- Name colors -->
     <string name="settings_name_colors">Name colors</string>
-    <string name="settings_name_colors_hint">Adjust username colors so they are easier to read</string>
+    <string name="settings_name_colors_hint">Adjust name colors so they are easier to read</string>
     <string name="settings_name_colors_sample">Aa</string>
     <string name="name_colors_none">No color</string>
     <string name="name_colors_twitch">Twitch</string>
@@ -455,7 +455,7 @@
 
     <string name="settings_mute_keywords">Hidden words</string>
     <string name="settings_mute_keywords_summary">Words that are hidden in the chat</string>
-    <string name="settings_mute_keywords_hint">Messages containing the word, and messages from chatters called that, are hidden</string>
+    <string name="settings_mute_keywords_hint">Hides messages with the word, and messages from chatters with that name</string>
     <string name="keywords_none">No highlighted words</string>
     <string name="mute_keywords_none">No hidden words</string>
     <string name="keyword_add_mention">Add highlighted word</string>
@@ -490,7 +490,7 @@
     <!-- Reporting -->
     <string name="action_report">Report</string>
     <string name="report_title">Report %1$s</string>
-    <string name="report_body">Chatter only shows the chat from Twitch. Reports are handled by Twitch. Reporting opens the channel of %1$s, where the report form sits behind the … menu, and puts the message on the clipboard so it can be pasted there.</string>
+    <string name="report_body">Chatter only shows the chat from Twitch, and Twitch handles reports. Reporting opens the channel of %1$s on Twitch and copies the message. You find the report form there in the … menu.</string>
     <string name="report_also_block">Block them here too</string>
     <string name="report_open_twitch">Report on Twitch</string>
     <string name="report_help">How reporting on Twitch works</string>
@@ -546,13 +546,13 @@
     <string name="update_whats_new">What\'s new</string>
     <string name="update_download">Download</string>
     <string name="update_download_version">Download %1$s</string>
-    <string name="update_download_hint">Opens the APK on GitHub. Install it over this one, and your channels and settings stay as they are.</string>
+    <string name="update_download_hint">Opens the new version on GitHub. Install it over this one, and your channels and settings stay.</string>
     <string name="update_page_title">New version</string>
-    <string name="changelog_major">Breaking</string>
+    <string name="changelog_major">Changed</string>
     <string name="changelog_minor">New</string>
     <string name="changelog_patch">Fixed</string>
     <string name="changelog_installed">Installed</string>
-    <string name="changelog_empty">No changelog shipped with this build</string>
+    <string name="changelog_empty">There is no changelog for this version</string>
     <string name="changelog_whats_new">New in this version</string>
     <string name="changelog_updated_to">Chatter was updated to %1$s</string>
     <string name="changelog_got_it">Got it</string>
@@ -565,7 +565,7 @@
 
     <string name="settings_group_controls">Controls</string>
     <string name="settings_group_user_card">User card</string>
-    <string name="settings_haptics">Haptic feedback</string>
+    <string name="settings_haptics">Vibration</string>
     <string name="settings_haptics_hint">A short buzz when you are mentioned</string>
 
     <!-- Launcher shortcuts -->
@@ -628,7 +628,7 @@
     <string name="inbox_tab_whispers">Whispers</string>
     <string name="inbox_from">%1$s in %2$s</string>
     <string name="inbox_whispers_empty">No whispers</string>
-    <string name="inbox_whispers_empty_hint">Whispers show up here. There are none at the moment</string>
+    <string name="inbox_whispers_empty_hint">Whispers to you show up here</string>
     <string name="inbox_empty">No mentions</string>
     <string name="inbox_empty_hint">Every message that mentions you or holds a highlighted word shows up here</string>
     <string name="inbox_mark_all_read">Mark all as read</string>
@@ -642,14 +642,14 @@
         <item quantity="other">%d rules</item>
     </plurals>
     <string name="rules_empty">No rules</string>
-    <string name="rules_empty_hint">A rule watches for a word, a name or a pattern and paints, announces or hides what it finds</string>
+    <string name="rules_empty_hint">A rule looks for a word, a name or a pattern, and highlights, notifies you about or hides what it finds</string>
     <string name="rule_new">New rule</string>
     <string name="rule_edit">Edit rule</string>
     <string name="rule_delete">Delete rule</string>
     <string name="rule_pattern">Looks for</string>
-    <string name="rule_pattern_hint">Matched as a whole word, upper and lower case alike</string>
-    <string name="rule_pattern_regex_hint">A regular expression. An invalid one never matches</string>
-    <string name="rule_pattern_unusable_hint">Chatter cannot use this pattern: it is broken, or needs a lookaround or a backreference, which are not supported because they can stall the chat</string>
+    <string name="rule_pattern_hint">Finds the whole word, in upper or lower case</string>
+    <string name="rule_pattern_regex_hint">A regular expression. A broken one finds nothing</string>
+    <string name="rule_pattern_unusable_hint">Chatter cannot use this pattern. It is broken, or uses a lookaround or backreference, which can slow down the chat</string>
     <string name="rule_unusable">Not used: this pattern is broken, or needs a lookaround or backreference</string>
     <string name="rule_target">Where</string>
     <string name="rule_target_message">Message</string>
@@ -668,10 +668,10 @@
     <!-- Backup -->
     <string name="settings_group_backup">Backup</string>
     <string name="backup_export">Save settings</string>
-    <string name="backup_export_hint">Create a backup of all settings. The file is saved on your device</string>
+    <string name="backup_export_hint">Saves all settings to a file on your phone</string>
     <string name="backup_save">Save</string>
     <string name="backup_import">Restore settings</string>
-    <string name="backup_import_hint">Load a Chatter backup. Your current settings are overwritten with the ones from the backup</string>
+    <string name="backup_import_hint">Loads a Chatter backup. It replaces your current settings</string>
     <string name="backup_exported">Settings saved</string>
     <string name="backup_imported">Settings restored</string>
     <string name="backup_invalid">That is not a Chatter backup</string>
@@ -704,7 +704,7 @@
     <string name="settings_live_notifications">Live notifications</string>
     <string name="settings_live_notifications_hint">A notification when a channel goes live, with its title and category</string>
     <string name="settings_live_channels">Which channels</string>
-    <string name="settings_live_channels_summary">Your channels notify, other followed channels when you turn them on</string>
+    <string name="settings_live_channels_summary">Your channels always, other followed channels only when you turn them on</string>
     <string name="live_channels_in_list">Your channels</string>
     <string name="live_channels_followed">Other followed channels</string>
     <string name="live_channels_loading">Asking Twitch whom you follow…</string>

@@ -7,17 +7,17 @@
     <string name="notif_connecting">Verbinde…</string>
     <string name="notif_waiting_network">Warte auf ein Netzwerk…</string>
     <plurals name="notif_connected">
-        <item quantity="one">Mit %d Channel verbunden</item>
-        <item quantity="other">Mit %d Channels verbunden</item>
+        <item quantity="one">Mit %d Kanal verbunden</item>
+        <item quantity="other">Mit %d Kanälen verbunden</item>
     </plurals>
     <string name="notif_disconnect">Trennen</string>
     <string name="notif_reply">Antworten</string>
     <string name="notif_reply_failed">Deine Antwort konnte nicht gesendet werden</string>
-    <string name="notif_reply_other_account">Nicht gesendet: Chatter ist inzwischen mit einem anderen Konto angemeldet als dem, für das sie war</string>
+    <string name="notif_reply_other_account">Nicht gesendet: Chatter nutzt inzwischen ein anderes Konto</string>
     <string name="notif_whisper_public">Neue Flüsternachricht</string>
 
     <string name="settings_sender_avatars">Profilbilder</string>
-    <string name="settings_sender_avatars_hint">Zeig den Avatar des Nutzers in der Benachrichtigung an</string>
+    <string name="settings_sender_avatars_hint">Zeigt das Profilbild des Absenders in der Benachrichtigung</string>
 
     <!-- Chat system messages -->
     <string name="chat_reconnected">Wieder verbunden.</string>
@@ -48,7 +48,7 @@
     <string name="action_mention">Erwähnen</string>
     <string name="action_copy">Kopieren</string>
     <string name="link_check_title">Diesen Link öffnen?</string>
-    <string name="link_check_text">Er ist so geschrieben, dass er nach einer anderen Seite aussieht. In Wirklichkeit führt er zu:</string>
+    <string name="link_check_text">Der Link sieht aus wie eine andere Seite, führt aber zu:</string>
     <string name="emotes">Emotes</string>
     <string name="input_hint">Nachricht senden</string>
     <string name="input_hint_disabled">Nicht verbunden</string>
@@ -86,14 +86,14 @@
     <string name="emoji_flags">Flaggen</string>
 
     <!-- Channels -->
-    <string name="no_channels_title">Keine Channels</string>
-    <string name="no_channels_text">Füge einen Channel hinzu</string>
-    <string name="channels">Channels</string>
+    <string name="no_channels_title">Keine Kanäle</string>
+    <string name="no_channels_text">Füge einen Kanal hinzu</string>
+    <string name="channels">Kanäle</string>
     <string name="status_connecting">Verbinde…</string>
     <string name="status_waiting_network">Warte auf ein Netzwerk…</string>
     <string name="status_live">Live · %1$s</string>
     <string name="unread_in_channel">Ungelesene Nachrichten in %1$s</string>
-    <string name="channel_options">Channel-Optionen</string>
+    <string name="channel_options">Kanal-Optionen</string>
     <string name="move_up">Nach oben</string>
     <string name="move_down">Nach unten</string>
     <string name="move_left">Nach links</string>
@@ -102,27 +102,27 @@
     <string name="page_removed">%1$s entfernt</string>
     <string name="undo">Rückgängig</string>
     <string name="rename_channel">Umbenennen</string>
-    <string name="rename_channel_hint">Gib dem Channel einen Spitznamen</string>
-    <string name="add_channel">Channel hinzufügen</string>
-    <string name="channel_name">Channel Name</string>
+    <string name="rename_channel_hint">Gib dem Kanal einen Spitznamen</string>
+    <string name="add_channel">Kanal hinzufügen</string>
+    <string name="channel_name">Kanalname</string>
     <string name="live">LIVE</string>
     <string name="add">Hinzufügen</string>
-    <string name="combine_channels">Channels kombinieren</string>
+    <string name="combine_channels">Kanäle kombinieren</string>
     <string name="combined_chat_edit">Kombinierten Chat bearbeiten</string>
     <string name="combined_chat_name">Name</string>
-    <string name="combined_chat_name_hint">Spitzname für die verbundenen Channels</string>
-    <string name="combined_chat_pick">Wähle mindestens zwei Channels, die du in einem Chat lesen willst.</string>
+    <string name="combined_chat_name_hint">Spitzname für die kombinierten Kanäle</string>
+    <string name="combined_chat_pick">Wähle mindestens zwei Kanäle, die du in einem Chat lesen willst.</string>
     <string name="combined_chat_create">Kombinieren</string>
     <string name="edit">Bearbeiten</string>
     <string name="input_hint_in">Nachricht in %1$s</string>
     <string name="send_in_channel">Schreibe in</string>
     <plurals name="combined_chat_live">
-        <item quantity="one">%d Channel live</item>
-        <item quantity="other">%d Channels live</item>
+        <item quantity="one">%d Kanal live</item>
+        <item quantity="other">%d Kanäle live</item>
     </plurals>
 
     <!-- Login -->
-    <string name="login_subtitle">Unterhalte dich in mehreren Channels gleichzeitig</string>
+    <string name="login_subtitle">Chatte in mehreren Kanälen gleichzeitig</string>
     <string name="login_missing_client_id">Keine Twitch Client ID eingerichtet. Trage twitch.clientId in local.properties ein und baue die App neu.</string>
     <string name="login_button">Mit Twitch anmelden</string>
     <string name="login_session_expired">Deine Anmeldung bei Twitch ist abgelaufen. Bitte melde dich neu an.</string>
@@ -131,21 +131,21 @@
     <string name="guest_bar">Du liest als Gast mit</string>
     <string name="guest_log_in">Anmelden</string>
     <string name="account_guest_title">Als Gast unterwegs</string>
-    <string name="account_guest_text">Ohne Anmeldung liest Chatter jeden Chat mit, den du hinzufügst. Zum Schreiben, für Flüstern, Twitchs eigene Abzeichen und Benachrichtigungen im Hintergrund braucht es ein Twitch-Konto.</string>
+    <string name="account_guest_text">Ohne Anmeldung kannst du jeden Chat lesen, den du hinzufügst. Zum Schreiben, Flüstern, für Twitch-Badges und Benachrichtigungen brauchst du ein Twitch-Konto.</string>
 
     <!-- Settings -->
     <string name="settings">Einstellungen</string>
     <string name="back">Zurück</string>
     <string name="settings_chat">Chat</string>
     <string name="settings_font_size">Textgröße: %1$d</string>
-    <string name="settings_message_limit">Gespeicherte Nachrichten pro Channel: %1$d</string>
+    <string name="settings_message_limit">Gespeicherte Nachrichten pro Kanal: %1$d</string>
     <string name="settings_timestamps">Zeitstempel</string>
     <string name="settings_timestamps_off">Keine Zeit</string>
     <string name="settings_animated_emotes">Animierte Emotes</string>
-    <string name="settings_slow_idle_emotes">Ohne Berührung verlangsamen</string>
-    <string name="settings_slow_idle_emotes_hint">Nach drei Minuten ohne Berührung laufen animierte Emotes mit 10 statt 30 Bildern pro Sekunde, das spart Akku, wenn der Bildschirm anbleibt</string>
+    <string name="settings_slow_idle_emotes">Langsamer, wenn unberührt</string>
+    <string name="settings_slow_idle_emotes_hint">Nach drei Minuten ohne Berührung laufen animierte Emotes langsamer. Das spart Akku, wenn der Bildschirm an bleibt</string>
     <string name="settings_keywords">Hervorgehobene Wörter</string>
-    <string name="settings_keywords_summary">Wörter, die dich benachrichtigen wie dein eigener Name</string>
+    <string name="settings_keywords_summary">Wörter, die dich wie dein Name benachrichtigen</string>
     <string name="settings_keywords_hint">Dein Nutzername wird immer hervorgehoben</string>
     <string name="save">Speichern</string>
     <string name="settings_notifications">Benachrichtigungen</string>
@@ -159,7 +159,7 @@
     <string name="error_service_down">%1$s ist nicht erreichbar.</string>
     <string name="error_rate_limited">Du sendest Nachrichten zu schnell.</string>
     <string name="error_unsupported_command">Unbekannter Befehl: /%1$s</string>
-    <string name="error_invalid_channel">Das ist kein gültiger Channel.</string>
+    <string name="error_invalid_channel">Das ist kein gültiger Kanal.</string>
 
     <!-- Commands & moderation -->
     <string name="action_delete">Löschen</string>
@@ -169,10 +169,10 @@
     <string name="theme_system">System</string>
     <string name="theme_light">Hell</string>
     <string name="theme_dark">Dunkel</string>
-    <string name="settings_dynamic_color">Material-You Farben</string>
-    <string name="settings_dynamic_color_hint">Verwende die Farben deines Systems</string>
+    <string name="settings_dynamic_color">Systemfarben</string>
+    <string name="settings_dynamic_color_hint">Die Farben deines Hintergrundbilds verwenden</string>
     <string name="settings_pure_black">Reines Schwarz</string>
-    <string name="settings_pure_black_hint">Schwarzer Hintergrund für OLED-Bildschirme, spart Akku</string>
+    <string name="settings_pure_black_hint">Schwarzer Hintergrund, spart auf vielen Handys Akku</string>
     <string name="cmd_usage">Verwendung: %1$s</string>
     <string name="cmd_banned">%1$s wurde gebannt.</string>
     <string name="cmd_timed_out">%1$s wurde für %2$s stummgeschaltet.</string>
@@ -189,13 +189,13 @@
     <string name="cmd_raid">Raid zu %1$s gestartet.</string>
     <string name="cmd_unraid">Raid abgebrochen.</string>
     <string name="cmd_color">Namensfarbe geändert zu %1$s.</string>
-    <string name="cmd_error_scope">Das hat Twitch Chatter noch nicht erlaubt. Melde dich unter Einstellungen → Konto erneut an, um es zu erlauben.</string>
+    <string name="cmd_error_scope">Chatter darf das noch nicht. Melde dich unter Einstellungen → Konto neu an, um es zu erlauben.</string>
     <string name="cmd_error_permission">Nicht erlaubt: %1$s</string>
     <string name="cmd_error_generic">Befehl fehlgeschlagen: %1$s</string>
     <string name="cmd_error_no_user">Nutzer %1$s nicht gefunden</string>
 
     <!-- User card -->
-    <string name="user_recent_messages">Letzte Nachrichten in diesem Channel</string>
+    <string name="user_recent_messages">Letzte Nachrichten in diesem Kanal</string>
     <string name="user_no_messages">Noch keine Nachrichten</string>
     <string name="user_partner">Partner</string>
     <string name="user_affiliate">Affiliate</string>
@@ -204,7 +204,7 @@
     <!-- Settings pages -->
     <string name="settings_appearance_summary">Design, Farben, Aussehen der Nachrichten</string>
     <string name="settings_emotes">Emotes &amp; Badges</string>
-    <string name="settings_emotes_summary">Anbieter, Animation, Zero-Width</string>
+    <string name="settings_emotes_summary">Anbieter, Animation, Badges</string>
     <string name="settings_filters">Filter</string>
     <string name="settings_filters_summary">Ausgeblendete Wörter, Regeln, Blockierte</string>
     <string name="settings_notifications_summary">Erwähnungen, Hervorgehobene Wörter</string>
@@ -227,13 +227,13 @@
     <string name="channel_notify_off">Benachrichtigungen aus</string>
     <string name="channel_notification_settings">Ton &amp; Vibration</string>
     <string name="channel_in_title_bar">Ungelesene anzeigen</string>
-    <string name="settings_channel_tabs">Channels als Tabs</string>
-    <string name="settings_channel_tabs_hint">Alle Channels in einer Zeile, in der Reihenfolge, in der du wischst. Halte einen Tab gedrückt für seine Optionen.</string>
+    <string name="settings_channel_tabs">Kanäle als Tabs</string>
+    <string name="settings_channel_tabs_hint">Alle Kanäle in einer Reihe oben. Halte einen Tab gedrückt für mehr Optionen.</string>
     <string name="settings_unread_title_bar">Ungelesene Kanäle in der Titelleiste</string>
-    <string name="settings_unread_title_bar_hint">Zeige bei ungelesenen Nachrichten den Avatar eines Kanals in der Titelleiste an, oder eine Markierung an seinem Tab</string>
+    <string name="settings_unread_title_bar_hint">Zeigt das Profilbild von Kanälen mit neuen Nachrichten oben, oder eine Markierung an ihrem Tab. Einzelne Kanäle kannst du in ihrem Menü ausnehmen.</string>
     <string name="settings_group_device">Auf diesem Handy</string>
     <string name="settings_keep_screen_on">Bildschirm anlassen</string>
-    <string name="settings_keep_screen_on_hint">Verhindert, dass sich das Display im Chat ausschaltet</string>
+    <string name="settings_keep_screen_on_hint">Der Bildschirm bleibt an, solange du im Chat bist</string>
     <string name="settings_emote_providers">Emote-Anbieter</string>
     <string name="settings_provider_twitch">Twitch</string>
     <string name="settings_provider_seventv">7TV</string>
@@ -242,35 +242,35 @@
     <string name="settings_show_deleted">Entfernte Nachrichten anzeigen</string>
     <string name="settings_show_deleted_hint">Durchgestrichen stehen lassen, statt sie auszublenden.</string>
     <string name="settings_full_links">Links vollständig anzeigen</string>
-    <string name="settings_full_links_hint">Sonst werden lange Links auf die Seite und den Anfang des Pfads gekürzt</string>
+    <string name="settings_full_links_hint">Sonst werden lange Links gekürzt</string>
     <string name="settings_mobile_data">Bei mobilen Daten</string>
-    <string name="settings_mobile_data_hint">Datensparen lässt verlinkte Bilder und Animationen weg, zeigt Emotes kleiner, lädt keine Profilbilder für Benachrichtigungen und verschiebt die Suche nach Updates. Nachrichten, Erwähnungen und Whispers kommen weiter wie bisher an. Ist der Datensparmodus von Android an, spart Chatter bei mobilen Daten immer.</string>
+    <string name="settings_mobile_data_hint">Daten sparen lädt keine verlinkten Bilder, Animationen und Profilbilder in Benachrichtigungen, zeigt Emotes kleiner und sucht später nach Updates. Nachrichten, Erwähnungen und Flüsternachrichten kommen weiter an. Ist der Datensparmodus von Android an, spart Chatter immer Daten.</string>
     <string name="mobile_data_normal">Normal</string>
     <string name="mobile_data_save">Daten sparen</string>
     <string name="mobile_data_saver_on">%1$s, aber der Datensparmodus ist an</string>
     <string name="background_restricted_title">Akkunutzung ist eingeschränkt</string>
-    <string name="background_restricted_text">Android beendet Chatter im Hintergrund, wann es will, und Erwähnungen und Whispers kommen erst wieder an, wenn Chatter geöffnet wird. Stell die Akkunutzung von Chatter in den App-Einstellungen auf „Nicht eingeschränkt“.</string>
+    <string name="background_restricted_text">Android kann Chatter im Hintergrund jederzeit beenden. Dann kommen Erwähnungen und Flüsternachrichten erst wieder an, wenn du Chatter öffnest. Stell die Akkunutzung in den App-Einstellungen auf „Nicht eingeschränkt“.</string>
     <string name="background_stopped_title">Android hat die Hintergrundverbindung beendet</string>
-    <string name="background_stopped_text">Am %1$s wurde Chatter beendet, während es auf Erwähnungen gewartet hat. %2$s. Bis es wieder geöffnet wurde, kamen keine Erwähnungen oder Whispers an.</string>
+    <string name="background_stopped_text">Am %1$s wurde Chatter im Hintergrund beendet. %2$s. Bis du es wieder geöffnet hast, kamen keine Erwähnungen oder Flüsternachrichten an.</string>
     <string name="background_unrestricted_hint">Mit der Akkunutzung auf „Nicht eingeschränkt“ tun das die meisten Handys nicht mehr.</string>
     <string name="background_reason_memory">Das Handy hatte zu wenig Arbeitsspeicher</string>
-    <string name="background_reason_resources">Android fand, dass es zu viel Akku oder Prozessor braucht</string>
+    <string name="background_reason_resources">Android fand, dass es zu viel Akku oder Leistung braucht</string>
     <string name="background_reason_user">Es wurde in den App-Einstellungen oder von einem Task-Manager beendet</string>
-    <string name="background_reason_system">Das Akkusparen des Handys hat es beendet</string>
+    <string name="background_reason_system">Der Akkusparmodus des Handys hat es beendet</string>
     <string name="background_dismiss">Ausblenden</string>
     <string name="background_why">Warum?</string>
     <string name="background_battery_settings">App-Einstellungen</string>
     <string name="settings_inline_images">Verlinkte Bilder anzeigen</string>
-    <string name="settings_inline_images_hint">URLs mit einem Bild werden durch das Bild ersetzt. Im Akkusparmodus deaktiviert.</string>
+    <string name="settings_inline_images_hint">Links zu Bildern zeigen das Bild. Im Akkusparmodus aus.</string>
     <string name="settings_image_hosts">Seiten zum Laden</string>
     <string name="settings_image_hosts_none">Keine Seiten</string>
-    <string name="settings_image_hosts_hint">Die Adresse einer Seite, z. B. imgur.com. Subdomains gehören dazu.</string>
+    <string name="settings_image_hosts_hint">Die Adresse einer Seite, z. B. imgur.com. Adressen wie i.imgur.com zählen mit.</string>
     <string name="settings_image_hosts_add">Seite hinzufügen</string>
     <string name="settings_image_hosts_edit">Seite bearbeiten</string>
     <string name="settings_image_hosts_edit_one">%s bearbeiten</string>
     <string name="settings_image_hosts_site">Seite</string>
     <string name="settings_image_hosts_reset">Zurück zu den voreingestellten Seiten</string>
-    <string name="settings_image_hosts_note">Nur von diesen Seiten werden Bilder im Chat angezeigt. URLs von anderen Anbietern bleiben ein Link</string>
+    <string name="settings_image_hosts_note">Nur von diesen Seiten werden Bilder im Chat angezeigt. Links zu anderen Seiten bleiben ein Link</string>
     <string name="linked_image">Verlinktes Bild</string>
     <string name="settings_post_site">Posts von %1$s anzeigen</string>
     <string name="settings_post_site_x_hint">Zeigt Links zu X-Posts als Karte</string>
@@ -290,21 +290,21 @@
     <string name="post_picture_medium">Mittel</string>
     <string name="post_picture_large">Groß</string>
     <string name="post_preview_message">schau mal</string>
-    <string name="post_preview_text">Chatter kann einen Post von X oder Bluesky direkt im Chat zeigen. Hier wählst du, welche Teile die Karte zeigt und wie viel vom Text: eine oder zwei Zeilen, damit der Chat ruhig bleibt, oder den ganzen Post. Das Bild kann klein, mittel oder groß sein, und Datum, Profilbild und Zahlen lassen sich einzeln ausschalten. Ein Tipp auf die Karte öffnet den Post.</string>
-    <string name="settings_blur_nsfw_posts">NSFW Posts unscharf</string>
+    <string name="post_preview_text">Chatter kann Posts von X und Bluesky direkt im Chat zeigen. Hier wählst du, was die Karte zeigt: wie viel Text, wie groß das Bild ist und ob Datum, Profilbild und Zahlen dabei sind. Ein Tipp auf die Karte öffnet den Post.</string>
+    <string name="settings_blur_nsfw_posts">NSFW-Posts unscharf</string>
     <string name="settings_blur_nsfw_posts_hint">Als NSFW markierte Bilder bleiben unscharf, bis du draufgetippt hast</string>
     <string name="post_picture">Bild des Posts</string>
     <string name="post_video">Video</string>
     <string name="post_nsfw">NSFW · Tippen zum Anzeigen</string>
     <string name="settings_group_history">Verlauf</string>
     <string name="settings_carousel">Im Kreis wischen</string>
-    <string name="settings_carousel_hint">Wische endlos durch die Channels</string>
-    <string name="settings_emote_suggestions">Emote Vorschläge</string>
+    <string name="settings_carousel_hint">Nach dem letzten Kanal kommt wieder der erste</string>
+    <string name="settings_emote_suggestions">Emote-Vorschläge</string>
     <string name="settings_emote_suggestions_hint">Emotes beim Tippen vorschlagen, und Emoji nach einem Doppelpunkt, wie bei :smile</string>
     <string name="settings_user_suggestions">Namensvorschläge</string>
     <string name="settings_user_suggestions_hint">Namen aus dem Chat vorschlagen</string>
     <string name="settings_mention_with_at">Namen mit @ einfügen</string>
-    <string name="settings_mention_with_at_hint">Füge den Username mit @ hinzu</string>
+    <string name="settings_mention_with_at_hint">Setzt ein @ vor den Namen</string>
     <string name="settings_group_colors">Farben</string>
     <string name="settings_group_messages">Nachrichten</string>
     <string name="settings_message_tap">Tipp auf eine Nachricht</string>
@@ -315,20 +315,20 @@
     <string name="tap_action_mention">Erwähnen</string>
     <string name="tap_action_nothing">Nichts</string>
     <string name="settings_copy_first">Kopieren zuerst</string>
-    <string name="settings_copy_first_hint">Kopieren und Antworten tauschen</string>
+    <string name="settings_copy_first_hint">Kopieren vor Antworten zeigen</string>
     <string name="settings_group_mentions">Erwähnungen</string>
     <string name="settings_alternate_background">Abwechselnder Hintergrund</string>
     <string name="settings_alternate_background_hint">Jede zweite Nachricht leicht hinterlegen, für bessere Lesbarkeit</string>
-    <string name="settings_highlight_color">Highlight-Farbe</string>
+    <string name="settings_highlight_color">Farbe für Erwähnungen</string>
     <string name="settings_highlight_color_hint">Hintergrund von Nachrichten, die dich erwähnen</string>
     <string name="settings_highlight_preview_name">zuschauer</string>
     <string name="settings_highlight_preview_text">hey @du, schau mal!</string>
     <string name="settings_load_history">Letzte Nachrichten laden</string>
-    <string name="settings_load_history_hint">Lade die Chat History über recent-messages.robotty.de</string>
+    <string name="settings_load_history_hint">Lädt frühere Nachrichten von recent-messages.robotty.de, wenn du einen Chat öffnest</string>
     <string name="settings_system_notifications">Benachrichtigungseinstellungen</string>
     <string name="settings_group_accounts">Konten</string>
-    <string name="account_scopes_title">Diese Anmeldung erlaubt weniger, als Chatter nutzt</string>
-    <string name="account_scopes_text">Sie stammt aus einer älteren Version von Chatter. Melde dich erneut an, dann fragt Twitch, ob du den Rest erlaubst, etwa das Moderieren, wo du Moderator bist</string>
+    <string name="account_scopes_title">Melde dich neu an, um alles zu nutzen</string>
+    <string name="account_scopes_text">Deine Anmeldung stammt aus einer älteren Version von Chatter. Melde dich neu an und erlaube den Rest, zum Beispiel das Moderieren</string>
     <string name="account_reauthorize">Erneut anmelden</string>
     <string name="account_id">%1$s</string>
     <string name="account_copy_id">Twitch-ID kopieren</string>
@@ -337,8 +337,8 @@
     <string name="account_add">Konto hinzufügen</string>
     <string name="account_add_short">Hinzufügen</string>
     <string name="account_logout_title">%1$s abmelden?</string>
-    <string name="account_logout_text">Chatter meldet es auch bei Twitch ab und macht mit deinem anderen Konto weiter.</string>
-    <string name="account_logout_last_text">Chatter meldet es auch bei Twitch ab. Es ist dein letztes Konto — danach kommt der Anmeldebildschirm und fragt wieder nach dem Passwort.</string>
+    <string name="account_logout_text">Das Konto wird auch bei Twitch abgemeldet. Chatter macht mit deinem anderen Konto weiter.</string>
+    <string name="account_logout_last_text">Das Konto wird auch bei Twitch abgemeldet. Es ist dein letztes Konto, danach musst du dich neu anmelden.</string>
     <string name="settings_version">Version %1$s</string>
     <string name="settings_credits">Credits &amp; Lizenzen</string>
     <string name="settings_credits_summary">Verwendete Dienste und Open-Source-Software</string>
@@ -364,15 +364,15 @@
     <string name="settings_support_summary">Chatter sponsern, Unterstützer-Badge</string>
     <string name="settings_sponsor_claim">Ich habe gesponsert</string>
     <string name="settings_sponsor_claim_summary">Öffnet GitHub mit deinem Twitch-Account darin, damit das Badge dich findet</string>
-    <string name="settings_sponsor_note">GitHub Sponsors kennt die Twitch ID nicht. Öffne ein Issue mit deiner Twitch ID</string>
+    <string name="settings_sponsor_note">GitHub Sponsors kennt dein Twitch-Konto nicht. Tippe auf „Ich habe gesponsert“, um es uns zu sagen</string>
     <string name="settings_source_code">Quellcode</string>
     <string name="settings_source_code_summary">github.com/derLesh/Chatter</string>
     <string name="settings_report_issue">Problem melden</string>
     <string name="settings_report_issue_summary">Öffnet einen Fehlerbericht auf GitHub, App- und Android-Version schon eingetragen</string>
     <string name="settings_security">Sicherheitslücke melden</string>
-    <string name="settings_security_summary">Wie du uns eine Lücke in Chatter vertraulich meldest, bevor sie jeder lesen kann</string>
+    <string name="settings_security_summary">Eine Sicherheitslücke vertraulich melden</string>
     <string name="crash_attach_title">Letzten Absturz anhängen?</string>
-    <string name="crash_attach_text">Chatter ist am %1$s abgestürzt. Kopieren, was es dazu notiert hat, um es in den Bericht einzufügen? Nichts davon verlässt das Handy, solange du es nicht selbst einfügst.</string>
+    <string name="crash_attach_text">Chatter ist am %1$s abgestürzt. Den Absturzbericht kopieren, damit du ihn einfügen kannst? Er verlässt dein Handy nur, wenn du ihn selbst einfügst.</string>
     <string name="crash_attach_copy">Kopieren und weiter</string>
     <string name="crash_attach_skip">Ohne</string>
     <string name="crash_clip_label">Chatter-Absturz</string>
@@ -397,14 +397,14 @@
     <!-- Emote settings -->
     <string name="settings_group_emotes">Emotes</string>
     <string name="settings_emotes_enabled">Emotes anzeigen</string>
-    <string name="settings_emotes_new_messages_hint">Emote Namen werden durch Bilder ersetzt</string>
+    <string name="settings_emotes_new_messages_hint">Emote-Namen werden durch Bilder ersetzt</string>
     <string name="settings_zero_width">Zero-Width-Emotes</string>
-    <string name="settings_zero_width_hint">Overlay-Emotes werden über das vorherige Emote gelegt</string>
+    <string name="settings_zero_width_hint">Manche Emotes werden über das Emote davor gelegt</string>
     <string name="settings_unlisted_7tv">Ungelistete 7TV-Emotes</string>
     <string name="settings_unlisted_7tv_hint">7TV-Emotes anzeigen, die nicht öffentlich gelistet sind</string>
 
     <!-- Emote card -->
-    <string name="emote_channel">Channel-Emote</string>
+    <string name="emote_channel">Kanal-Emote</string>
     <string name="emote_global">Globales Emote</string>
     <string name="emote_by">von %1$s</string>
     <string name="emote_zero_width">Zero-Width</string>
@@ -415,7 +415,7 @@
     <string name="emote_stack">Übereinander gelegte Emotes</string>
 
     <!-- 7TV activity -->
-    <string name="settings_seventv_events">7TV Aktivität</string>
+    <string name="settings_seventv_events">7TV-Aktivität</string>
     <string name="settings_seventv_events_hint">Im Chat anzeigen, wenn 7TV-Emotes hinzugefügt, entfernt oder umbenannt werden</string>
     <string name="settings_seventv_paints">7TV-Paints</string>
     <string name="settings_seventv_paints_hint">Namen in den Farben und Mustern, die ihre Besitzer bei 7TV gewählt haben. Manche sind schwer zu lesen</string>
@@ -426,13 +426,13 @@
     <string name="seventv_someone">Jemand</string>
 
     <!-- App icon -->
-    <string name="settings_app_icon">App Icon</string>
+    <string name="settings_app_icon">App-Icon</string>
     <string name="app_icon_light">Weiß</string>
     <string name="app_icon_dark">Schwarz</string>
 
     <!-- Namensfarben -->
     <string name="settings_name_colors">Namensfarben</string>
-    <string name="settings_name_colors_hint">Ändere die Username Farben, für leichtere Lesbarkeit</string>
+    <string name="settings_name_colors_hint">Passt die Namensfarben an, damit sie besser lesbar sind</string>
     <string name="settings_name_colors_sample">Aa</string>
     <string name="name_colors_none">Keine Farbe</string>
     <string name="name_colors_twitch">Twitch</string>
@@ -447,7 +447,7 @@
 
     <string name="settings_mute_keywords">Ausgeblendete Wörter</string>
     <string name="settings_mute_keywords_summary">Wörter, die im Chat ausgeblendet werden</string>
-    <string name="settings_mute_keywords_hint">Nachrichten mit dem Wort und Nachrichten von Chattern dieses Namens werden ausgeblendet</string>
+    <string name="settings_mute_keywords_hint">Blendet Nachrichten mit dem Wort aus, und Nachrichten von Chattern mit diesem Namen</string>
     <string name="keywords_none">Keine hervorgehobenen Wörter</string>
     <string name="mute_keywords_none">Keine ausgeblendeten Wörter</string>
     <string name="keyword_add_mention">Hervorgehobenes Wort hinzufügen</string>
@@ -483,7 +483,7 @@
     <!-- Reporting -->
     <string name="action_report">Melden</string>
     <string name="report_title">%1$s melden</string>
-    <string name="report_body">Chatter zeigt nur den Chat von Twitch. Meldungen werden von Twitch bearbeitet. Melden öffnet den Kanal von %1$s, wo das Meldeformular hinter dem …-Menü sitzt, und legt die Nachricht in die Zwischenablage, zum Einfügen.</string>
+    <string name="report_body">Chatter zeigt nur den Chat von Twitch, Meldungen bearbeitet Twitch. „Melden“ öffnet den Kanal von %1$s auf Twitch und kopiert die Nachricht. Das Meldeformular findest du dort im …-Menü.</string>
     <string name="report_also_block">Hier auch blockieren</string>
     <string name="report_open_twitch">Auf Twitch melden</string>
     <string name="report_help">Wie das Melden auf Twitch funktioniert</string>
@@ -508,15 +508,15 @@
         <item quantity="other">Folgt %1$d Kanälen</item>
     </plurals>
     <string name="block_user_title">Nutzer blockieren</string>
-    <string name="block_user_name">Twitch Username</string>
+    <string name="block_user_name">Twitch-Name</string>
     <string name="unblock_confirm_title">Entblocken?</string>
     <string name="unblock_confirm_text">%s wird dir wieder im Chat angezeigt</string>
     <string name="error_block_failed">Twitch hat das abgelehnt. Bitte noch einmal versuchen</string>
-    <string name="error_user_unknown">Kein Twitch Nutzer mit diesem Namen</string>
+    <string name="error_user_unknown">Kein Twitch-Nutzer mit diesem Namen</string>
 
     <!-- Spitznamen -->
     <string name="nickname_title">Spitzname</string>
-    <string name="nickname_hint">Wird statt des Twitch Username angezeigt. Leer lassen, um ihn zurückzusetzen</string>
+    <string name="nickname_hint">Wird statt des Twitch-Namens angezeigt. Leer lassen, um ihn zu entfernen</string>
 
     <!-- Badges -->
     <string name="settings_badge_providers">Badges</string>
@@ -530,7 +530,7 @@
     </plurals>
     <!-- Changelog -->
     <string name="settings_changelog">Changelog</string>
-    <string name="settings_changelog_summary">Chatter Versionsänderungen</string>
+    <string name="settings_changelog_summary">Was sich in jeder Version geändert hat</string>
     <string name="settings_update_check">Nach Updates suchen</string>
     <string name="settings_update_check_hint">Frage einmal am Tag bei GitHub nach, ob es eine neue Version gibt</string>
     <string name="update_available">Chatter %1$s ist da</string>
@@ -538,13 +538,13 @@
     <string name="update_whats_new">Was ist neu</string>
     <string name="update_download">Herunterladen</string>
     <string name="update_download_version">%1$s herunterladen</string>
-    <string name="update_download_hint">Öffnet die APK auf GitHub. Installiere sie über diese, deine Channels und Einstellungen bleiben erhalten.</string>
+    <string name="update_download_hint">Öffnet die neue Version auf GitHub. Installiere sie über diese, deine Kanäle und Einstellungen bleiben.</string>
     <string name="update_page_title">Neue Version</string>
     <string name="changelog_major">Änderungen</string>
     <string name="changelog_minor">Neu</string>
     <string name="changelog_patch">Behoben</string>
     <string name="changelog_installed">Installiert</string>
-    <string name="changelog_empty">Zu diesem Build gehört kein Changelog</string>
+    <string name="changelog_empty">Für diese Version gibt es keinen Changelog</string>
     <string name="changelog_whats_new">Neu in dieser Version</string>
     <string name="changelog_updated_to">Chatter wurde auf %1$s aktualisiert</string>
     <string name="changelog_got_it">Alles klar</string>
@@ -552,13 +552,13 @@
     <!-- Chat-Bubble -->
     <string name="settings_group_bubbles">Chat-Bubble</string>
     <string name="settings_bubbles">Bubbles</string>
-    <string name="settings_bubbles_hint">Erwähnungen können als Chat Bubble angezeigt werden</string>
+    <string name="settings_bubbles_hint">Erwähnungen können als Chat-Bubble angezeigt werden</string>
     <string name="bubble_unavailable">Chatter öffnen, um diesen Kanal zu lesen</string>
 
     <!-- Erwähnungen -->
     <string name="settings_group_controls">Bedienung</string>
     <string name="settings_group_user_card">Nutzerkarte</string>
-    <string name="settings_haptics">Haptisches Feedback</string>
+    <string name="settings_haptics">Vibration</string>
     <string name="settings_haptics_hint">Kurzes Vibrieren, wenn du erwähnt wirst</string>
 
     <string name="shortcut_inbox">Postfach</string>
@@ -617,7 +617,7 @@
     <string name="inbox_tab_whispers">Flüstern</string>
     <string name="inbox_from">%1$s in %2$s</string>
     <string name="inbox_whispers_empty">Keine Flüsternachrichten</string>
-    <string name="inbox_whispers_empty_hint">Hier erscheinen Flüsternachrichten. Aktuell ist es hier leer</string>
+    <string name="inbox_whispers_empty_hint">Hier erscheinen Flüsternachrichten an dich</string>
     <string name="inbox_empty">Keine Erwähnungen</string>
     <string name="inbox_empty_hint">Alle Nachrichten mit Erwähnungen oder hervorgehobenen Wörtern erscheinen hier</string>
     <string name="inbox_mark_all_read">Alle als gelesen markieren</string>
@@ -631,14 +631,14 @@
         <item quantity="other">%d Regeln</item>
     </plurals>
     <string name="rules_empty">Keine Regeln</string>
-    <string name="rules_empty_hint">Eine Regel achtet auf ein Wort, einen Namen oder ein Muster und färbt, meldet oder versteckt, was sie findet</string>
+    <string name="rules_empty_hint">Eine Regel sucht nach einem Wort, einem Namen oder einem Muster und markiert, meldet oder versteckt, was sie findet</string>
     <string name="rule_new">Neue Regel</string>
     <string name="rule_edit">Regel bearbeiten</string>
     <string name="rule_delete">Regel löschen</string>
     <string name="rule_pattern">Sucht nach</string>
-    <string name="rule_pattern_hint">Trifft als ganzes Wort, Groß- und Kleinschreibung egal</string>
-    <string name="rule_pattern_regex_hint">Ein regulärer Ausdruck. Ein ungültiger trifft nie</string>
-    <string name="rule_pattern_unusable_hint">Dieses Muster kann Chatter nicht verwenden: Es ist fehlerhaft oder braucht einen Lookaround oder Rückverweis. Die werden nicht unterstützt, weil sie den Chat aufhalten können</string>
+    <string name="rule_pattern_hint">Findet das ganze Wort, egal ob groß oder klein geschrieben</string>
+    <string name="rule_pattern_regex_hint">Ein regulärer Ausdruck. Ist er fehlerhaft, findet er nichts</string>
+    <string name="rule_pattern_unusable_hint">Chatter kann dieses Muster nicht nutzen. Es ist fehlerhaft oder nutzt einen Lookaround oder Rückverweis, die den Chat bremsen können</string>
     <string name="rule_unusable">Nicht verwendet: Das Muster ist fehlerhaft oder braucht einen Lookaround oder Rückverweis</string>
     <string name="rule_target">Wo</string>
     <string name="rule_target_message">Nachricht</string>
@@ -657,17 +657,17 @@
     <!-- Backup -->
     <string name="settings_group_backup">Backup</string>
     <string name="backup_export">Einstellungen sichern</string>
-    <string name="backup_export_hint">Erstelle ein Backup aller Einstellungen. Die Datei wird auf dem System gespeichert</string>
+    <string name="backup_export_hint">Speichert alle Einstellungen in einer Datei auf deinem Handy</string>
     <string name="backup_save">Sichern</string>
     <string name="backup_import">Einstellungen wiederherstellen</string>
-    <string name="backup_import_hint">Lade ein Chatter Backup. Alte Einstellungen werden mit denen vom Backup überschrieben</string>
+    <string name="backup_import_hint">Lädt ein Chatter-Backup. Es ersetzt deine jetzigen Einstellungen</string>
     <string name="backup_exported">Einstellungen gesichert</string>
     <string name="backup_imported">Einstellungen wiederhergestellt</string>
     <string name="backup_invalid">Das ist kein Chatter-Backup</string>
     <string name="backup_failed">Die Datei konnte nicht gelesen werden</string>
     <string name="backup_confirm_title">Dieses Backup wiederherstellen?</string>
     <string name="backup_confirm_text">Es ersetzt deine Einstellungen durch die aus der Datei. Öffne nur Backups von Leuten, denen du vertraust.</string>
-    <string name="backup_confirm_counts">Regeln: %1$d · Spitznamen: %2$d · Channels: %3$d</string>
+    <string name="backup_confirm_counts">Regeln: %1$d · Spitznamen: %2$d · Kanäle: %3$d</string>
     <string name="backup_confirm_hosts">Verlinkte Bilder werden geladen von: %1$s</string>
     <string name="backup_confirm_no_hosts">Verlinkte Bilder werden von keiner Seite geladen</string>
     <string name="backup_restore">Wiederherstellen</string>
@@ -693,7 +693,7 @@
     <string name="settings_live_notifications">Live-Benachrichtigungen</string>
     <string name="settings_live_notifications_hint">Eine Benachrichtigung, wenn ein Kanal live geht, mit Titel und Kategorie</string>
     <string name="settings_live_channels">Welche Kanäle</string>
-    <string name="settings_live_channels_summary">Deine Kanäle benachrichtigen, andere gefolgte Kanäle, wenn du sie einschaltest</string>
+    <string name="settings_live_channels_summary">Deine Kanäle immer, andere gefolgte Kanäle nur, wenn du sie einschaltest</string>
     <string name="live_channels_in_list">Deine Kanäle</string>
     <string name="live_channels_followed">Andere gefolgte Kanäle</string>
     <string name="live_channels_loading">Frage Twitch, wem du folgst…</string>

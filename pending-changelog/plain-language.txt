@@ -1,0 +1,1 @@
+patch: Explain settings and messages in plainer words, and say "Kanal" everywhere in German
