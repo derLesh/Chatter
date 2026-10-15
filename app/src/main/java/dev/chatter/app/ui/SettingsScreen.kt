@@ -15,15 +15,11 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.automirrored.filled.List
 import androidx.compose.material.icons.filled.AccountCircle
 import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.DateRange
-import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Face
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.Info
-import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Search
@@ -61,6 +57,7 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.res.vectorResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextAlign
@@ -69,24 +66,22 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigationevent.NavigationEventInfo
 import androidx.navigationevent.compose.NavigationBackHandler
 import androidx.navigationevent.compose.rememberNavigationEventState
-import coil3.ImageLoader
 import dev.chatter.app.BuildConfig
 import dev.chatter.app.R
-import dev.chatter.app.auth.Account
 import dev.chatter.app.auth.AuthState
+import dev.chatter.app.net.HelixUser
 import dev.chatter.app.stats.Stats
 import dev.chatter.app.ui.changelog.ChangelogPage
 import dev.chatter.app.ui.channels.OfferUndoRemoval
 import dev.chatter.app.ui.settings.AboutPage
 import dev.chatter.app.ui.settings.AccountPage
-import dev.chatter.app.ui.settings.AccountRowIcon
+import dev.chatter.app.ui.settings.AccountSummaryCard
 import dev.chatter.app.ui.settings.AppearancePage
 import dev.chatter.app.ui.settings.BADGE_PROVIDERS
-import dev.chatter.app.ui.settings.BackupGroup
+import dev.chatter.app.ui.settings.BackupPage
 import dev.chatter.app.ui.settings.BlockedUsersPage
 import dev.chatter.app.ui.settings.CategoryIcon
 import dev.chatter.app.ui.settings.ChannelsPage
-import dev.chatter.app.ui.settings.ChatPage
 import dev.chatter.app.ui.settings.CreditsPage
 import dev.chatter.app.ui.settings.EmotesPage
 import dev.chatter.app.ui.settings.FiltersPage
@@ -94,6 +89,8 @@ import dev.chatter.app.ui.settings.ImageHostsPage
 import dev.chatter.app.ui.settings.KeywordsPage
 import dev.chatter.app.ui.settings.LiveChannelsPage
 import dev.chatter.app.ui.settings.LocalSettingsTarget
+import dev.chatter.app.ui.settings.MediaPage
+import dev.chatter.app.ui.settings.MessagesPage
 import dev.chatter.app.ui.settings.MOBILE_DATA
 import dev.chatter.app.ui.settings.NotificationsPage
 import dev.chatter.app.ui.settings.PROVIDERS
@@ -104,28 +101,52 @@ import dev.chatter.app.ui.settings.SettingsSearch
 import dev.chatter.app.ui.settings.StatsPage
 import dev.chatter.app.ui.settings.SupportPage
 import dev.chatter.app.ui.settings.THEME_MODES
+import dev.chatter.app.ui.settings.TypingPage
 import dev.chatter.app.ui.settings.transparentItem
 import dev.chatter.app.ui.update.UpdateCard
 import dev.chatter.app.ui.update.UpdatePage
 import kotlinx.coroutines.launch
 
-/** Top level of the settings: categories that open a page, like Android's settings app. */
-private enum class SettingsPage(val title: Int, val summary: Int, val icon: ImageVector) {
-    Appearance(R.string.settings_appearance, R.string.settings_appearance_summary, Icons.Default.Edit),
-    Chat(R.string.settings_chat, R.string.settings_chat_summary, Icons.AutoMirrored.Filled.List),
-    Emotes(R.string.settings_emotes, R.string.settings_emotes_summary, Icons.Default.Face),
-    Filters(R.string.settings_filters, R.string.settings_filters_summary, Icons.Default.Lock),
-    Notifications(R.string.settings_notifications, R.string.settings_notifications_summary, Icons.Default.Notifications),
-    Channels(R.string.settings_channels, R.string.settings_channels_summary, Icons.Default.Person),
-    Stats(R.string.settings_stats, R.string.settings_stats_summary, Icons.Default.DateRange),
-    Account(R.string.settings_account, R.string.settings_account_summary, Icons.Default.AccountCircle),
+/** The headed groups the categories are listed in on the settings home. */
+private enum class SettingsSection(val title: Int) {
+    Chat(R.string.settings_chat),
+    Channels(R.string.settings_section_channels),
+    Data(R.string.settings_section_data),
+    App(R.string.app_name),
+}
+
+/**
+ * Top level of the settings: categories that open a page, like Android's settings app. A category
+ * without a [section] is reached another way.
+ */
+private enum class SettingsPage(
+    val title: Int,
+    val summary: Int,
+    val section: SettingsSection?,
+    val icon: @Composable () -> ImageVector,
+) {
+    Appearance(R.string.settings_appearance, R.string.settings_appearance_summary, SettingsSection.Chat, { drawableIcon(R.drawable.ic_palette) }),
+    Messages(R.string.settings_messages, R.string.settings_messages_summary, SettingsSection.Chat, { drawableIcon(R.drawable.ic_chat) }),
+    Media(R.string.settings_media, R.string.settings_media_summary, SettingsSection.Chat, { drawableIcon(R.drawable.ic_image) }),
+    Typing(R.string.settings_typing, R.string.settings_typing_summary, SettingsSection.Chat, { drawableIcon(R.drawable.ic_keyboard) }),
+    Emotes(R.string.settings_emotes, R.string.settings_emotes_summary, SettingsSection.Chat, { Icons.Default.Face }),
+    Filters(R.string.settings_filters, R.string.settings_filters_summary, SettingsSection.Chat, { drawableIcon(R.drawable.ic_filter_list) }),
+    Channels(R.string.settings_channels, R.string.settings_channels_summary, SettingsSection.Channels, { Icons.Default.Person }),
+    Notifications(R.string.settings_notifications, R.string.settings_notifications_summary, SettingsSection.Channels, { Icons.Default.Notifications }),
+    Stats(R.string.settings_stats, R.string.settings_stats_summary, SettingsSection.Data, { drawableIcon(R.drawable.ic_bar_chart) }),
+    Backup(R.string.settings_group_backup, R.string.settings_backup_summary, SettingsSection.Data, { drawableIcon(R.drawable.ic_backup) }),
     /** Only in the build people install themselves; see SPONSOR_LINK in build.gradle.kts. */
-    Support(R.string.settings_support, R.string.settings_support_summary, Icons.Default.Favorite),
-    About(R.string.settings_about, R.string.settings_about_summary, Icons.Default.Info),
+    Support(R.string.settings_support, R.string.settings_support_summary, SettingsSection.App, { Icons.Default.Favorite }),
+    About(R.string.settings_about, R.string.settings_about_summary, SettingsSection.App, { Icons.Default.Info }),
+    /** Opened from the profile card above the sections. */
+    Account(R.string.settings_account, R.string.settings_account_summary, null, { Icons.Default.AccountCircle }),
     ;
 
     val shown: Boolean get() = this != Support || BuildConfig.SPONSOR_LINK
 }
+
+@Composable
+private fun drawableIcon(id: Int) = ImageVector.vectorResource(id)
 
 /** A page opened from within a category. */
 internal enum class SettingsSubPage(val title: Int) {
@@ -175,29 +196,30 @@ private val SEARCH_INDEX: List<SearchEntry> by lazy {
         add(SearchEntry(R.string.settings_first_messages, appearance, R.string.settings_first_messages_hint))
         add(SearchEntry(R.string.settings_keep_screen_on, appearance, R.string.settings_keep_screen_on_hint))
         add(SearchEntry(R.string.settings_haptics, appearance, R.string.settings_haptics_hint))
-        val chat = SettingsPage.Chat
-        add(SearchEntry(R.string.settings_message_limit, chat))
-        add(SearchEntry(R.string.settings_load_history, chat, R.string.settings_load_history_hint))
-        add(SearchEntry(R.string.settings_inline_images, chat, R.string.settings_inline_images_hint))
-        add(SearchEntry(R.string.settings_image_hosts, chat))
+        val messages = SettingsPage.Messages
+        add(SearchEntry(R.string.settings_message_limit, messages))
+        add(SearchEntry(R.string.settings_load_history, messages, R.string.settings_load_history_hint))
+        add(SearchEntry(R.string.settings_message_tap, messages))
+        add(SearchEntry(R.string.settings_name_tap, messages))
+        add(SearchEntry(R.string.settings_copy_first, messages, R.string.settings_copy_first_hint))
+        val media = SettingsPage.Media
+        add(SearchEntry(R.string.settings_inline_images, media, R.string.settings_inline_images_hint))
+        add(SearchEntry(R.string.settings_image_hosts, media))
         add(
             SearchEntry(
-                R.string.settings_posts, chat,
+                R.string.settings_posts, media,
                 also = listOf(
                     R.string.post_site_x, R.string.post_site_bluesky, R.string.settings_post_avatar, R.string.settings_post_media,
                     R.string.settings_post_counts, R.string.settings_post_picture_size, R.string.settings_blur_nsfw_posts,
                 ),
             ),
         )
-        add(SearchEntry(R.string.settings_full_links, chat, R.string.settings_full_links_hint))
-        add(SearchEntry(R.string.settings_mobile_data, chat, R.string.settings_mobile_data_hint, also = MOBILE_DATA.map { it.second }))
-        add(SearchEntry(R.string.settings_emote_suggestions, chat, R.string.settings_emote_suggestions_hint))
-        add(SearchEntry(R.string.settings_user_suggestions, chat, R.string.settings_user_suggestions_hint))
-        add(SearchEntry(R.string.settings_mention_with_at, chat, R.string.settings_mention_with_at_hint))
-        add(SearchEntry(R.string.settings_message_tap, chat))
-        add(SearchEntry(R.string.settings_name_tap, chat))
-        add(SearchEntry(R.string.settings_carousel, chat, R.string.settings_carousel_hint))
-        add(SearchEntry(R.string.settings_copy_first, chat, R.string.settings_copy_first_hint))
+        add(SearchEntry(R.string.settings_full_links, media, R.string.settings_full_links_hint))
+        add(SearchEntry(R.string.settings_mobile_data, media, R.string.settings_mobile_data_hint, also = MOBILE_DATA.map { it.second }))
+        val typing = SettingsPage.Typing
+        add(SearchEntry(R.string.settings_emote_suggestions, typing, R.string.settings_emote_suggestions_hint))
+        add(SearchEntry(R.string.settings_user_suggestions, typing, R.string.settings_user_suggestions_hint))
+        add(SearchEntry(R.string.settings_mention_with_at, typing, R.string.settings_mention_with_at_hint))
         val emotes = SettingsPage.Emotes
         add(SearchEntry(R.string.settings_emotes_enabled, emotes, R.string.settings_emotes_new_messages_hint))
         add(SearchEntry(R.string.settings_animated_emotes, emotes))
@@ -222,9 +244,12 @@ private val SEARCH_INDEX: List<SearchEntry> by lazy {
         val channels = SettingsPage.Channels
         add(SearchEntry(R.string.settings_channel_tabs, channels, R.string.settings_channel_tabs_hint))
         add(SearchEntry(R.string.settings_unread_title_bar, channels, R.string.settings_unread_title_bar_hint))
+        add(SearchEntry(R.string.settings_carousel, channels, R.string.settings_carousel_hint))
+        val backup = SettingsPage.Backup
+        add(SearchEntry(R.string.backup_export, backup, R.string.backup_export_hint))
+        add(SearchEntry(R.string.backup_import, backup, R.string.backup_import_hint))
         val account = SettingsPage.Account
         add(SearchEntry(R.string.settings_group_accounts, account, also = listOf(R.string.logout, R.string.account_add_short)))
-        add(SearchEntry(R.string.settings_group_backup, account, also = listOf(R.string.backup_export, R.string.backup_import)))
         val about = SettingsPage.About
         add(SearchEntry(R.string.settings_changelog, about, R.string.settings_changelog_summary))
         add(SearchEntry(R.string.settings_source_code, about, R.string.settings_source_code_summary))
@@ -282,6 +307,15 @@ fun SettingsScreen(vm: MainViewModel, onBack: () -> Unit) {
     val account = (auth as? AuthState.LoggedIn)?.account
     val update by vm.availableUpdate.collectAsStateWithLifecycle()
     val scope = rememberCoroutineScope()
+    // Fetched fresh whenever the settings open, for the card on top and the account page.
+    var profile by remember(account?.userId) { mutableStateOf<HelixUser?>(null) }
+    var following by remember(account?.userId) { mutableStateOf<Int?>(null) }
+    LaunchedEffect(account?.userId) {
+        if (account == null) return@LaunchedEffect
+        vm.refreshAccounts()
+        profile = vm.ownProfile()
+        following = vm.followedChannels()
+    }
     // The channel page can remove channels and offers undo like the chat does.
     val snackbar = remember { SnackbarHostState() }
     OfferUndoRemoval(vm, snackbar)
@@ -374,26 +408,28 @@ fun SettingsScreen(vm: MainViewModel, onBack: () -> Unit) {
                 SettingsSubPage.Update -> update?.let { UpdatePage(it) }
                 null -> when (current) {
                     null -> {
+                        AccountSummaryCard(auth, profile, following, vm.imageLoader) { page = SettingsPage.Account }
                         update?.let { UpdateCard(it, BuildConfig.VERSION_NAME) { subPage = SettingsSubPage.Update } }
-                        Home(account, vm.imageLoader) { page = it }
+                        Home { page = it }
                     }
                     SettingsPage.Appearance -> AppearancePage(settings, vm)
-                    SettingsPage.Chat -> ChatPage(settings, vm) { subPage = it }
+                    SettingsPage.Messages -> MessagesPage(settings, vm)
+                    SettingsPage.Media -> MediaPage(settings, vm) { subPage = it }
+                    SettingsPage.Typing -> TypingPage(settings, vm)
                     SettingsPage.Emotes -> EmotesPage(settings, vm)
                     SettingsPage.Filters -> FiltersPage(settings, vm) { subPage = it }
                     SettingsPage.Notifications -> NotificationsPage(settings, vm) { subPage = it }
                     SettingsPage.Channels -> ChannelsPage(vm, settings)
                     SettingsPage.Stats -> StatsPage(vm) { page = SettingsPage.Channels }
-                    SettingsPage.Account -> {
-                        AccountPage(
-                            vm,
-                            onAddAccount = { addAccount = TwitchLogin(vm.addAccountUrl(), signedOut = true) },
-                            // Same account: Twitch's session can stay, it only asks to grant the
-                            // rest.
-                            onReauthorize = { addAccount = TwitchLogin(vm.reauthorizeUrl(), signedOut = false) },
-                        )
-                        BackupGroup(vm)
-                    }
+                    SettingsPage.Backup -> BackupPage(vm)
+                    SettingsPage.Account -> AccountPage(
+                        vm,
+                        profile = profile,
+                        following = following,
+                        onAddAccount = { addAccount = TwitchLogin(vm.addAccountUrl(), signedOut = true) },
+                        // Same account: Twitch's session can stay, it only asks to grant the rest.
+                        onReauthorize = { addAccount = TwitchLogin(vm.reauthorizeUrl(), signedOut = false) },
+                    )
                     SettingsPage.Support -> SupportPage(vm)
                     SettingsPage.About -> AboutPage(settings, vm) { subPage = it }
                 }
@@ -475,7 +511,7 @@ private fun SearchPage(query: String, onQuery: (String) -> Unit, onOpen: (Search
                             headlineContent = { Text(title) },
                             // A category found as itself needs no category below.
                             supportingContent = if (entry.key == null) null else ({ Text(stringResource(entry.page.title)) }),
-                            leadingContent = { CategoryIcon(entry.page.icon) },
+                            leadingContent = { CategoryIcon(entry.page.icon()) },
                             colors = transparentItem(),
                             modifier = Modifier.clickable { onOpen(entry) },
                         )
@@ -539,24 +575,22 @@ private fun SettingsPageScaffold(
     }
 }
 
+/** The categories, in their sections. */
 @Composable
-private fun Home(account: Account?, imageLoader: ImageLoader, open: (SettingsPage) -> Unit) {
-    SettingsGroup {
-        SettingsPage.entries.filter { it.shown }.forEach { p ->
-            val isAccount = p == SettingsPage.Account && account != null
-            item {
-                ListItem(
-                    headlineContent = { Text(stringResource(p.title), fontWeight = FontWeight.Medium) },
-                    supportingContent = {
-                        Text(if (isAccount) account.name else stringResource(p.summary))
-                    },
-                    // The active account's avatar instead of an icon.
-                    leadingContent = {
-                        if (isAccount) AccountRowIcon(account, imageLoader) else CategoryIcon(p.icon)
-                    },
-                    colors = transparentItem(),
-                    modifier = Modifier.clickable { open(p) },
-                )
+private fun Home(open: (SettingsPage) -> Unit) {
+    val pages = SettingsPage.entries.filter { it.shown }
+    SettingsSection.entries.forEach { section ->
+        SettingsGroup(section.title) {
+            pages.filter { it.section == section }.forEach { p ->
+                item {
+                    ListItem(
+                        headlineContent = { Text(stringResource(p.title), fontWeight = FontWeight.Medium) },
+                        supportingContent = { Text(stringResource(p.summary)) },
+                        leadingContent = { CategoryIcon(p.icon()) },
+                        colors = transparentItem(),
+                        modifier = Modifier.clickable { open(p) },
+                    )
+                }
             }
         }
     }

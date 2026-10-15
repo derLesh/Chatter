@@ -209,13 +209,21 @@
 
     <!-- Settings pages -->
     <string name="settings_appearance_summary">Theme, colors, how a message looks</string>
-    <string name="settings_chat_summary">History, images, typing, tapping</string>
     <string name="settings_emotes">Emotes &amp; badges</string>
     <string name="settings_emotes_summary">Providers, animation, zero-width</string>
     <string name="settings_filters">Filters</string>
     <string name="settings_filters_summary">Hidden words, rules, blocked users</string>
     <string name="settings_notifications_summary">Mentions, highlighted words</string>
-    <string name="settings_account_summary">Accounts, backup</string>
+    <string name="settings_account_summary">Switch accounts, log out</string>
+    <string name="settings_messages">Messages</string>
+    <string name="settings_messages_summary">History, tapping, user card</string>
+    <string name="settings_media">Links &amp; images</string>
+    <string name="settings_media_summary">Image previews, posts, mobile data</string>
+    <string name="settings_typing">Typing</string>
+    <string name="settings_typing_summary">Suggestions, mentions</string>
+    <string name="settings_backup_summary">Save and restore your settings</string>
+    <string name="settings_section_channels">Channels &amp; notifications</string>
+    <string name="settings_section_data">Your data</string>
     <string name="settings_about">About</string>
     <string name="settings_about_summary">Version, credits</string>
     <string name="settings_channels">Channels</string>
@@ -239,7 +247,6 @@
     <string name="settings_provider_ffz">FrankerFaceZ</string>
     <string name="settings_show_deleted">Show deleted messages</string>
     <string name="settings_show_deleted_hint">Keep them struck through instead of hiding them.</string>
-    <string name="settings_group_images">Links and images</string>
     <string name="settings_full_links">Show links in full</string>
     <string name="settings_full_links_hint">Otherwise long links are shortened to their site and the start of the path</string>
     <string name="settings_mobile_data">On mobile data</string>
@@ -556,7 +563,6 @@
     <string name="settings_bubbles_hint">Mentions can be shown as a chat bubble</string>
     <string name="bubble_unavailable">Open Chatter to read this channel</string>
 
-    <string name="settings_group_input">Input</string>
     <string name="settings_group_controls">Controls</string>
     <string name="settings_group_user_card">User card</string>
     <string name="settings_haptics">Haptic feedback</string>

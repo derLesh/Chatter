@@ -22,7 +22,6 @@ import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -36,29 +35,14 @@ import dev.chatter.app.chat.ImageLinks
 import dev.chatter.app.chat.PostSite
 import dev.chatter.app.settings.MobileData
 import dev.chatter.app.settings.Settings
-import dev.chatter.app.settings.TapAction
 import dev.chatter.app.ui.MainViewModel
 import dev.chatter.app.ui.SettingsSubPage
 import dev.chatter.app.ui.chat.siteName
-import kotlin.math.roundToInt
 
+/** Linked images and posts in the chat, and what they may cost on mobile data. */
 @Composable
-internal fun ChatPage(settings: Settings, vm: MainViewModel, open: (SettingsSubPage) -> Unit) {
-    SettingsGroup(R.string.settings_group_history) {
-        item(R.string.settings_message_limit) {
-            var limit by remember(settings.messageLimit) { mutableFloatStateOf(settings.messageLimit.toFloat()) }
-            SliderItem(
-                title = stringResource(R.string.settings_message_limit, limit.roundToInt()),
-                value = limit,
-                onChange = { limit = it },
-                onDone = { vm.setMessageLimit(limit.roundToInt()) },
-                range = 100f..2000f,
-                steps = 18,
-            )
-        }
-        item(R.string.settings_load_history) { SwitchItem(R.string.settings_load_history, settings.loadHistory, vm::setLoadHistory, R.string.settings_load_history_hint) }
-    }
-    SettingsGroup(R.string.settings_group_images) {
+internal fun MediaPage(settings: Settings, vm: MainViewModel, open: (SettingsSubPage) -> Unit) {
+    SettingsGroup {
         item(R.string.settings_inline_images) {
             SwitchItem(
                 R.string.settings_inline_images, settings.inlineImages,
@@ -96,27 +80,9 @@ internal fun ChatPage(settings: Settings, vm: MainViewModel, open: (SettingsSubP
             )
         }
         item(R.string.settings_full_links) { SwitchItem(R.string.settings_full_links, settings.fullLinks, vm::setFullLinks, R.string.settings_full_links_hint) }
+    }
+    SettingsGroup {
         item(R.string.settings_mobile_data) { MobileDataPicker(settings.mobileData, vm) }
-    }
-    // Input assistance.
-    SettingsGroup(R.string.settings_group_input) {
-        item(R.string.settings_emote_suggestions) { SwitchItem(R.string.settings_emote_suggestions, settings.emoteSuggestions, vm::setEmoteSuggestions, R.string.settings_emote_suggestions_hint) }
-        item(R.string.settings_user_suggestions) { SwitchItem(R.string.settings_user_suggestions, settings.userSuggestions, vm::setUserSuggestions, R.string.settings_user_suggestions_hint) }
-        item(R.string.settings_mention_with_at) { SwitchItem(R.string.settings_mention_with_at, settings.mentionWithAt, vm::setMentionWithAt, R.string.settings_mention_with_at_hint) }
-    }
-    // What a tap or swipe on the chat does.
-    SettingsGroup(R.string.settings_group_controls) {
-        item(R.string.settings_message_tap) { TapActionPicker(R.string.settings_message_tap, settings.messageTap, vm::setMessageTap) }
-        item(R.string.settings_name_tap) { TapActionPicker(R.string.settings_name_tap, settings.nameTap, vm::setNameTap) }
-        item(R.string.settings_carousel) {
-            SwitchItem(
-                R.string.settings_carousel, settings.carouselChannels,
-                vm::setCarouselChannels, R.string.settings_carousel_hint,
-            )
-        }
-    }
-    SettingsGroup(R.string.settings_group_user_card) {
-        item(R.string.settings_copy_first) { SwitchItem(R.string.settings_copy_first, settings.copyFirst, vm::setCopyFirst, R.string.settings_copy_first_hint) }
     }
 }
 
@@ -220,29 +186,4 @@ internal fun ImageHostsPage(hosts: List<String>, vm: MainViewModel) {
             confirmLabel = R.string.save,
         )
     }
-}
-
-/**
- * What a tap on a message or its name does. The hint points out that holding always opens the user
- * card, with blocking, reporting and moderating.
- */
-@Composable
-private fun TapActionPicker(title: Int, selected: TapAction, onSelect: (TapAction) -> Unit) {
-    ChoiceItem(
-        title = title,
-        value = selected,
-        options = TapAction.entries,
-        label = { action ->
-            stringResource(
-                when (action) {
-                    TapAction.Reply -> R.string.tap_action_reply
-                    TapAction.UserCard -> R.string.tap_action_user_card
-                    TapAction.Mention -> R.string.tap_action_mention
-                    TapAction.Nothing -> R.string.tap_action_nothing
-                },
-            )
-        },
-        onPick = onSelect,
-        hint = R.string.settings_tap_hint,
-    )
 }

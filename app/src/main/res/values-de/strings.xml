@@ -203,13 +203,21 @@
 
     <!-- Settings pages -->
     <string name="settings_appearance_summary">Design, Farben, Aussehen der Nachrichten</string>
-    <string name="settings_chat_summary">Verlauf, Bilder, Schreiben, Tippen</string>
     <string name="settings_emotes">Emotes &amp; Badges</string>
     <string name="settings_emotes_summary">Anbieter, Animation, Zero-Width</string>
     <string name="settings_filters">Filter</string>
     <string name="settings_filters_summary">Ausgeblendete Wörter, Regeln, Blockierte</string>
     <string name="settings_notifications_summary">Erwähnungen, Hervorgehobene Wörter</string>
-    <string name="settings_account_summary">Konten, Backup</string>
+    <string name="settings_account_summary">Konten wechseln, abmelden</string>
+    <string name="settings_messages">Nachrichten</string>
+    <string name="settings_messages_summary">Verlauf, Antippen, Nutzerkarte</string>
+    <string name="settings_media">Links &amp; Bilder</string>
+    <string name="settings_media_summary">Bildvorschau, Posts, mobile Daten</string>
+    <string name="settings_typing">Schreiben</string>
+    <string name="settings_typing_summary">Vorschläge, Erwähnungen</string>
+    <string name="settings_backup_summary">Einstellungen sichern und wiederherstellen</string>
+    <string name="settings_section_channels">Kanäle &amp; Benachrichtigungen</string>
+    <string name="settings_section_data">Deine Daten</string>
     <string name="settings_about">Über</string>
     <string name="settings_about_summary">Version, Credits</string>
     <string name="settings_channels">Kanäle</string>
@@ -233,7 +241,6 @@
     <string name="settings_provider_ffz">FrankerFaceZ</string>
     <string name="settings_show_deleted">Entfernte Nachrichten anzeigen</string>
     <string name="settings_show_deleted_hint">Durchgestrichen stehen lassen, statt sie auszublenden.</string>
-    <string name="settings_group_images">Links und Bilder</string>
     <string name="settings_full_links">Links vollständig anzeigen</string>
     <string name="settings_full_links_hint">Sonst werden lange Links auf die Seite und den Anfang des Pfads gekürzt</string>
     <string name="settings_mobile_data">Bei mobilen Daten</string>
@@ -549,7 +556,6 @@
     <string name="bubble_unavailable">Chatter öffnen, um diesen Kanal zu lesen</string>
 
     <!-- Erwähnungen -->
-    <string name="settings_group_input">Eingabe</string>
     <string name="settings_group_controls">Bedienung</string>
     <string name="settings_group_user_card">Nutzerkarte</string>
     <string name="settings_haptics">Haptisches Feedback</string>

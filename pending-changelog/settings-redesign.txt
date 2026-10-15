@@ -1,0 +1,1 @@
+minor: Open the settings with your account on top and the chat settings split into messages, links and typing

@@ -22,6 +22,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ExitToApp
+import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.AccountCircle
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material3.AlertDialog
@@ -33,7 +34,6 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -70,11 +70,17 @@ import java.time.format.FormatStyle
  * The active account and the others to switch to. Chatter holds several Twitch logins at once (a
  * main account and a bot, two streamers sharing a phone); one is connected at a time.
  *
- * Name and picture are stored with the login and work offline; the rest is fetched while the page
- * is open.
+ * Name and picture are stored with the login and work offline; [profile] and [following] are
+ * fetched when the settings open, null until Twitch answers.
  */
 @Composable
-fun AccountPage(vm: MainViewModel, onAddAccount: () -> Unit, onReauthorize: () -> Unit) {
+fun AccountPage(
+    vm: MainViewModel,
+    profile: HelixUser?,
+    following: Int?,
+    onAddAccount: () -> Unit,
+    onReauthorize: () -> Unit,
+) {
     val accounts by vm.accounts.collectAsStateWithLifecycle()
     // The state, not the list: switching changes the active account without changing the list.
     val auth by vm.authState.collectAsStateWithLifecycle()
@@ -82,16 +88,7 @@ fun AccountPage(vm: MainViewModel, onAddAccount: () -> Unit, onReauthorize: () -
         if (auth is AuthState.Guest) GuestCard(onLogIn = vm::leaveGuest)
         return
     }
-    var profile by remember(active.userId) { mutableStateOf<HelixUser?>(null) }
-    var following by remember(active.userId) { mutableStateOf<Int?>(null) }
     var loggingOut by remember { mutableStateOf<Account?>(null) }
-
-    // Fetched fresh, since this page is where the user checks the current facts.
-    LaunchedEffect(active.userId) {
-        vm.refreshAccounts()
-        profile = vm.ownProfile()
-        following = vm.followedChannels()
-    }
 
     ProfileCard(active, profile, following, vm.imageLoader)
     AccountsGroup(
@@ -151,11 +148,37 @@ private fun GuestCard(onLogIn: () -> Unit) {
 }
 
 /**
- * The account card: picture, name with Twitch id, account age and affiliate/partner status. Holding
- * it copies the id, which bug reports and supporter claims ask for.
+ * The top of the settings home: the active account's card, or the guest's way to log in. Both open
+ * the account page.
  */
 @Composable
-private fun ProfileCard(account: Account, profile: HelixUser?, following: Int?, imageLoader: ImageLoader) {
+fun AccountSummaryCard(
+    auth: AuthState,
+    profile: HelixUser?,
+    following: Int?,
+    imageLoader: ImageLoader,
+    onOpen: () -> Unit,
+) {
+    when (auth) {
+        is AuthState.LoggedIn -> ProfileCard(auth.account, profile, following, imageLoader, onOpen)
+        AuthState.Guest -> GuestSummaryCard(onOpen)
+        else -> Unit
+    }
+}
+
+/**
+ * The account card: picture, name with Twitch id, account age and affiliate/partner status. Holding
+ * it copies the id, which bug reports and supporter claims ask for. With [onOpen] a tap opens the
+ * account page.
+ */
+@Composable
+private fun ProfileCard(
+    account: Account,
+    profile: HelixUser?,
+    following: Int?,
+    imageLoader: ImageLoader,
+    onOpen: (() -> Unit)? = null,
+) {
     @Suppress("DEPRECATION")
     val clipboard = LocalClipboardManager.current
     val copyLabel = stringResource(R.string.account_copy_id)
@@ -174,23 +197,37 @@ private fun ProfileCard(account: Account, profile: HelixUser?, following: Int?, 
             verticalAlignment = Alignment.CenterVertically,
             modifier = Modifier
                 .fillMaxWidth()
-                // Held, not tapped: copying the id is the only action, and a ripple on every tap
-                // would suggest more.
-                .pointerInput(account.userId) { detectTapGestures(onLongPress = { copyId() }) }
-                .semantics { onLongClick(copyLabel) { copyId(); true } }
+                .then(
+                    if (onOpen != null) {
+                        Modifier.combinedClickable(
+                            onClick = onOpen,
+                            onClickLabel = stringResource(R.string.settings_account),
+                            onLongClick = copyId,
+                            onLongClickLabel = copyLabel,
+                        )
+                    } else {
+                        // Held, not tapped: copying the id is the only action, and a ripple on
+                        // every tap would suggest more.
+                        Modifier
+                            .pointerInput(account.userId) { detectTapGestures(onLongPress = { copyId() }) }
+                            .semantics { onLongClick(copyLabel) { copyId(); true } }
+                    },
+                )
                 .padding(horizontal = 20.dp, vertical = 18.dp),
         ) {
             Avatar(account, imageLoader, 72.dp)
             Spacer(Modifier.width(16.dp))
             Column(Modifier.weight(1f)) {
-                Row(verticalAlignment = Alignment.Bottom) {
+                // On the name's baseline: the two sizes have different line heights, so their
+                // bottoms do not line up.
+                Row {
                     Text(
                         account.name,
                         style = MaterialTheme.typography.titleLarge,
                         fontWeight = FontWeight.Bold,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
-                        modifier = Modifier.weight(1f, fill = false),
+                        modifier = Modifier.weight(1f, fill = false).alignByBaseline(),
                     )
                     Spacer(Modifier.width(8.dp))
                     Text(
@@ -198,6 +235,7 @@ private fun ProfileCard(account: Account, profile: HelixUser?, following: Int?, 
                         style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         maxLines = 1,
+                        modifier = Modifier.alignByBaseline(),
                     )
                 }
                 formatDate(profile?.createdAt)?.let { created ->
@@ -215,8 +253,66 @@ private fun ProfileCard(account: Account, profile: HelixUser?, following: Int?, 
                     )
                 }
             }
+            if (onOpen != null) OpenArrow()
         }
     }
+}
+
+/** The guest's card on the settings home, in place of an account. */
+@Composable
+private fun GuestSummaryCard(onOpen: () -> Unit) {
+    Surface(
+        color = MaterialTheme.colorScheme.surfaceContainer,
+        shape = RoundedCornerShape(24.dp),
+        modifier = Modifier.fillMaxWidth(),
+    ) {
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            modifier = Modifier
+                .fillMaxWidth()
+                .clickable(onClickLabel = stringResource(R.string.settings_account), onClick = onOpen)
+                .padding(horizontal = 20.dp, vertical = 18.dp),
+        ) {
+            Box(
+                contentAlignment = Alignment.Center,
+                modifier = Modifier
+                    .size(72.dp)
+                    .clip(CircleShape)
+                    .background(MaterialTheme.colorScheme.surfaceContainerHighest),
+            ) {
+                Icon(
+                    Icons.Default.AccountCircle,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.size(50.dp),
+                )
+            }
+            Spacer(Modifier.width(16.dp))
+            Column(Modifier.weight(1f)) {
+                Text(
+                    stringResource(R.string.account_guest_title),
+                    style = MaterialTheme.typography.titleLarge,
+                    fontWeight = FontWeight.Bold,
+                )
+                Text(
+                    stringResource(R.string.login_button),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.primary,
+                )
+            }
+            OpenArrow()
+        }
+    }
+}
+
+@Composable
+private fun OpenArrow() {
+    Icon(
+        Icons.AutoMirrored.Filled.KeyboardArrowRight,
+        contentDescription = null,
+        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+        modifier = Modifier.padding(start = 8.dp),
+    )
 }
 
 @Composable
@@ -417,11 +513,4 @@ private fun formatDate(iso: String?): String? = iso?.takeIf { it.isNotEmpty() }?
         Instant.parse(it).atZone(ZoneId.systemDefault()).toLocalDate()
             .format(DateTimeFormatter.ofLocalizedDate(FormatStyle.MEDIUM))
     }.getOrNull()
-}
-
-/** The settings home row, showing the account's avatar instead of an icon. */
-@Composable
-fun AccountRowIcon(account: Account?, imageLoader: ImageLoader) {
-    if (account == null) CategoryIcon(Icons.Default.AccountCircle)
-    else Avatar(account, imageLoader, 40.dp)
 }

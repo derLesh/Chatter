@@ -33,7 +33,7 @@ import kotlinx.coroutines.withContext
 
 /** Exporting the configuration to a file and importing it, in Chatter's own format. */
 @Composable
-internal fun BackupGroup(vm: MainViewModel) {
+internal fun BackupPage(vm: MainViewModel) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     var status by remember { mutableStateOf<Int?>(null) }
@@ -111,8 +111,8 @@ internal fun BackupGroup(vm: MainViewModel) {
         )
     }
 
-    SettingsGroup(R.string.settings_group_backup) {
-        item {
+    SettingsGroup {
+        item(R.string.backup_export) {
             ListItem(
                 headlineContent = { Text(stringResource(R.string.backup_export)) },
                 supportingContent = { Text(stringResource(R.string.backup_export_hint)) },
@@ -124,7 +124,7 @@ internal fun BackupGroup(vm: MainViewModel) {
                 colors = transparentItem(),
             )
         }
-        item {
+        item(R.string.backup_import) {
             ListItem(
                 headlineContent = { Text(stringResource(R.string.backup_import)) },
                 supportingContent = { Text(stringResource(R.string.backup_import_hint)) },

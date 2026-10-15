@@ -73,6 +73,12 @@ internal fun ChannelsPage(vm: MainViewModel, settings: Settings) {
                 R.string.settings_unread_title_bar_hint,
             )
         }
+        item(R.string.settings_carousel) {
+            SwitchItem(
+                R.string.settings_carousel, settings.carouselChannels,
+                vm::setCarouselChannels, R.string.settings_carousel_hint,
+            )
+        }
     }
     renameTarget?.let { login ->
         RenameChannelDialog(
