@@ -59,7 +59,6 @@ import coil3.compose.AsyncImage
 import dev.chatter.app.R
 import dev.chatter.app.auth.Account
 import dev.chatter.app.auth.AuthState
-import dev.chatter.app.net.HelixUser
 import dev.chatter.app.ui.MainViewModel
 import java.time.Instant
 import java.time.ZoneId
@@ -70,14 +69,12 @@ import java.time.format.FormatStyle
  * The active account and the others to switch to. Chatter holds several Twitch logins at once (a
  * main account and a bot, two streamers sharing a phone); one is connected at a time.
  *
- * Name and picture are stored with the login and work offline; [profile] and [following] are
- * fetched when the settings open, null until Twitch answers.
+ * Everything on the profile card is stored with the login and works offline; see
+ * [dev.chatter.app.auth.AuthRepository.refreshProfiles].
  */
 @Composable
 fun AccountPage(
     vm: MainViewModel,
-    profile: HelixUser?,
-    following: Int?,
     onAddAccount: () -> Unit,
     onReauthorize: () -> Unit,
 ) {
@@ -90,7 +87,7 @@ fun AccountPage(
     }
     var loggingOut by remember { mutableStateOf<Account?>(null) }
 
-    ProfileCard(active, profile, following, vm.imageLoader)
+    ProfileCard(active, vm.imageLoader)
     AccountsGroup(
         accounts = accounts,
         active = active,
@@ -154,13 +151,11 @@ private fun GuestCard(onLogIn: () -> Unit) {
 @Composable
 fun AccountSummaryCard(
     auth: AuthState,
-    profile: HelixUser?,
-    following: Int?,
     imageLoader: ImageLoader,
     onOpen: () -> Unit,
 ) {
     when (auth) {
-        is AuthState.LoggedIn -> ProfileCard(auth.account, profile, following, imageLoader, onOpen)
+        is AuthState.LoggedIn -> ProfileCard(auth.account, imageLoader, onOpen)
         AuthState.Guest -> GuestSummaryCard(onOpen)
         else -> Unit
     }
@@ -174,8 +169,6 @@ fun AccountSummaryCard(
 @Composable
 private fun ProfileCard(
     account: Account,
-    profile: HelixUser?,
-    following: Int?,
     imageLoader: ImageLoader,
     onOpen: (() -> Unit)? = null,
 ) {
@@ -184,8 +177,8 @@ private fun ProfileCard(
     val copyLabel = stringResource(R.string.account_copy_id)
     val copyId = { clipboard.setText(AnnotatedString(account.userId)) }
     val subtitle = listOfNotNull(
-        broadcasterType(profile),
-        following?.let { pluralStringResource(R.plurals.account_following_summary, it, it) },
+        broadcasterType(account.broadcasterType),
+        account.following?.let { pluralStringResource(R.plurals.account_following_summary, it, it) },
     ).joinToString(" · ")
 
     Surface(
@@ -238,7 +231,7 @@ private fun ProfileCard(
                         modifier = Modifier.alignByBaseline(),
                     )
                 }
-                formatDate(profile?.createdAt)?.let { created ->
+                formatDate(account.createdAt)?.let { created ->
                     Text(
                         stringResource(R.string.user_created, created),
                         style = MaterialTheme.typography.bodyMedium,
@@ -316,7 +309,7 @@ private fun OpenArrow() {
 }
 
 @Composable
-private fun broadcasterType(profile: HelixUser?): String? = when (profile?.broadcasterType) {
+private fun broadcasterType(type: String): String? = when (type) {
     "partner" -> stringResource(R.string.user_partner)
     "affiliate" -> stringResource(R.string.user_affiliate)
     else -> null

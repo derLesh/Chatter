@@ -33,9 +33,15 @@ data class Account(
     val refreshToken: String?,
     /** Epoch millis when [token] expires. */
     val expiresAt: Long,
-    /** Display name and avatar, for the account switcher. */
+    /** Kept with the login, so the switcher and the settings show them at once and offline. */
     val displayName: String = "",
     val avatarUrl: String = "",
+    /** When Twitch created the account (ISO 8601); empty until known. */
+    val createdAt: String = "",
+    /** "partner", "affiliate" or "". */
+    val broadcasterType: String = "",
+    /** How many channels it follows; null until Twitch said. */
+    val following: Int? = null,
     /** What [token] may do; null for accounts stored before scopes were kept. */
     val scopes: Set<String>? = null,
 ) {
@@ -117,6 +123,9 @@ class AuthRepository(
     private val writeLock = Mutex()
 
     private var activeId: String? = null
+
+    /** Not stored: the first refresh after a start always asks Twitch. */
+    private var profilesRefreshedAt = 0L
 
     val account: Account? get() = (state.value as? AuthState.LoggedIn)?.account
     val token: String? get() = account?.token
@@ -357,22 +366,39 @@ class AuthRepository(
     }
 
     /**
-     * Fills in display names and avatars of all accounts with one request and stores them, so the
-     * switcher works offline.
+     * Fills in the profiles of all accounts with one request, and the follow count of the active
+     * one, and stores them. Only the active account's token may ask for its follows.
      */
     suspend fun refreshProfiles() {
         val logins = _accounts.value.map { it.login }
         if (logins.isEmpty()) return
         val byId = runCatching { helix.users(logins) }.getOrNull()?.associateBy { it.id } ?: return
+        val activeUserId = account?.userId
+        val following = activeUserId?.let { id -> runCatching { helix.followedCount(id) }.getOrNull() }
+        profilesRefreshedAt = System.currentTimeMillis()
         writeLock.withLock {
             val updated = _accounts.value.map { acc ->
-                byId[acc.userId]?.let { acc.copy(displayName = it.displayName, avatarUrl = it.profileImageUrl) } ?: acc
+                val profiled = byId[acc.userId]?.let {
+                    acc.copy(
+                        displayName = it.displayName,
+                        avatarUrl = it.profileImageUrl,
+                        createdAt = it.createdAt,
+                        broadcasterType = it.broadcasterType,
+                    )
+                } ?: acc
+                if (acc.userId == activeUserId && following != null) profiled.copy(following = following) else profiled
             }
             if (updated == _accounts.value) return
             _accounts.value = updated
             persist()
             publish()
         }
+    }
+
+    /** [refreshProfiles], unless that ran less than [PROFILE_MAX_AGE_MS] ago. */
+    suspend fun refreshProfilesIfStale() {
+        if (System.currentTimeMillis() - profilesRefreshedAt < PROFILE_MAX_AGE_MS) return
+        refreshProfiles()
     }
 
     // ---- Token maintenance ------------------------------------------------------------------
@@ -487,6 +513,9 @@ class AuthRepository(
         expiresAt = expiresAt,
         displayName = displayName,
         avatarUrl = avatarUrl,
+        createdAt = createdAt,
+        broadcasterType = broadcasterType,
+        following = following,
         scopes = scopes?.sorted(),
     )
 
@@ -513,6 +542,9 @@ class AuthRepository(
                 expiresAt = expiresAt,
                 displayName = displayName,
                 avatarUrl = avatarUrl,
+                createdAt = createdAt,
+                broadcasterType = broadcasterType,
+                following = following,
                 scopes = scopes?.toSet(),
             ),
         )
@@ -535,6 +567,9 @@ class AuthRepository(
         /** Retry delays: one second, then two, then three. */
         private const val DECRYPT_RETRY_MS = 1_000L
         private const val REFRESH_MARGIN_MS = 10 * 60_000L
+
+        /** Profiles and follow counts change rarely; opening the settings need not ask every time. */
+        private const val PROFILE_MAX_AGE_MS = 24 * 60 * 60_000L
 
         private val ACCOUNTS_KEY = stringPreferencesKey("accounts")
         private val ACTIVE_KEY = stringPreferencesKey("active_account")

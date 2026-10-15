@@ -15,6 +15,9 @@ class AccountStoreTest {
         expiresAt = 1_700_000_000_000,
         displayName = "Lesh",
         avatarUrl = "https://example.invalid/lesh.png",
+        createdAt = "2016-03-01T12:00:00Z",
+        broadcasterType = "affiliate",
+        following = 42,
     )
     private val bot = StoredAccount(login = "leshbot", userId = "2", token = "another-token")
 

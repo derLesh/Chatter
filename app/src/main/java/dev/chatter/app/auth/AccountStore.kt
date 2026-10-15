@@ -18,6 +18,9 @@ data class StoredAccount(
     val expiresAt: Long = 0L,
     val displayName: String = "",
     val avatarUrl: String = "",
+    val createdAt: String = "",
+    val broadcasterType: String = "",
+    val following: Int? = null,
     /** As `/oauth2/validate` reported them; null for entries from before scopes were stored. */
     val scopes: List<String>? = null,
 )

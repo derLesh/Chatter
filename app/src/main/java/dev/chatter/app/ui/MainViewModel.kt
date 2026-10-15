@@ -898,21 +898,9 @@ class MainViewModel(private val c: AppContainer) : ViewModel() {
         }
     }
 
-    /** Refreshes the stored names and pictures of all accounts. */
+    /** Refreshes the stored profiles of all accounts, unless that happened within the last day. */
     fun refreshAccounts() {
-        viewModelScope.launch { c.auth.refreshProfiles() }
-    }
-
-    /** The active account's Twitch profile; null if Twitch is unreachable. */
-    suspend fun ownProfile(): HelixUser? {
-        val login = c.auth.account?.login ?: return null
-        return runCatching { c.helix.users(listOf(login)).firstOrNull() }.getOrNull()
-    }
-
-    /** How many channels the account follows; null if Twitch did not say. */
-    suspend fun followedChannels(): Int? {
-        val userId = c.auth.account?.userId ?: return null
-        return runCatching { c.helix.followedCount(userId) }.getOrNull()
+        viewModelScope.launch { c.auth.refreshProfilesIfStale() }
     }
 
     fun setFontSize(v: Float) = saveSetting { setFontSize(v) }

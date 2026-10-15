@@ -69,7 +69,6 @@ import androidx.navigationevent.compose.rememberNavigationEventState
 import dev.chatter.app.BuildConfig
 import dev.chatter.app.R
 import dev.chatter.app.auth.AuthState
-import dev.chatter.app.net.HelixUser
 import dev.chatter.app.stats.Stats
 import dev.chatter.app.ui.changelog.ChangelogPage
 import dev.chatter.app.ui.channels.OfferUndoRemoval
@@ -304,18 +303,10 @@ fun SettingsScreen(vm: MainViewModel, onBack: () -> Unit) {
     }
     val settings by vm.settings.collectAsStateWithLifecycle()
     val auth by vm.authState.collectAsStateWithLifecycle()
-    val account = (auth as? AuthState.LoggedIn)?.account
     val update by vm.availableUpdate.collectAsStateWithLifecycle()
     val scope = rememberCoroutineScope()
-    // Fetched fresh whenever the settings open, for the card on top and the account page.
-    var profile by remember(account?.userId) { mutableStateOf<HelixUser?>(null) }
-    var following by remember(account?.userId) { mutableStateOf<Int?>(null) }
-    LaunchedEffect(account?.userId) {
-        if (account == null) return@LaunchedEffect
-        vm.refreshAccounts()
-        profile = vm.ownProfile()
-        following = vm.followedChannels()
-    }
+    // The card on top shows what is stored right away; this only updates it now and then.
+    LaunchedEffect(Unit) { vm.refreshAccounts() }
     // The channel page can remove channels and offers undo like the chat does.
     val snackbar = remember { SnackbarHostState() }
     OfferUndoRemoval(vm, snackbar)
@@ -408,7 +399,7 @@ fun SettingsScreen(vm: MainViewModel, onBack: () -> Unit) {
                 SettingsSubPage.Update -> update?.let { UpdatePage(it) }
                 null -> when (current) {
                     null -> {
-                        AccountSummaryCard(auth, profile, following, vm.imageLoader) { page = SettingsPage.Account }
+                        AccountSummaryCard(auth, vm.imageLoader) { page = SettingsPage.Account }
                         update?.let { UpdateCard(it, BuildConfig.VERSION_NAME) { subPage = SettingsSubPage.Update } }
                         Home { page = it }
                     }
@@ -424,8 +415,6 @@ fun SettingsScreen(vm: MainViewModel, onBack: () -> Unit) {
                     SettingsPage.Backup -> BackupPage(vm)
                     SettingsPage.Account -> AccountPage(
                         vm,
-                        profile = profile,
-                        following = following,
                         onAddAccount = { addAccount = TwitchLogin(vm.addAccountUrl(), signedOut = true) },
                         // Same account: Twitch's session can stay, it only asks to grant the rest.
                         onReauthorize = { addAccount = TwitchLogin(vm.reauthorizeUrl(), signedOut = false) },
