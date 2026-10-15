@@ -71,8 +71,10 @@ a week, grouped so that what is released together arrives together: Compose with
 with its plugins, the Android Gradle plugin, the other AndroidX libraries, and every other minor
 or patch update in one. Such a pull request would fail on the missing checksums, so
 `.github/workflows/dependabot-checksums.yml` runs the command above on it, adds the file and starts
-CI again. It only ever adds checksums: if one that was there changes, it stops and leaves it to
-you. It pushes to Dependabot's branch, after which Dependabot no longer rebases it on its own —
+CI again. It only ever adds checksums: `.github/scripts/check-verification-metadata.py` reads
+both files and lets through nothing but a SHA-256 for an artifact that was not listed before. A
+changed or extra checksum, a removed entry or anything new in `<configuration>` stops it and leaves
+it to you; its rules are tested in `.github/scripts/test_check_verification_metadata.py`. It pushes to Dependabot's branch, after which Dependabot no longer rebases it on its own —
 comment `@dependabot recreate` to start the pull request over.
 
 Supporting Chatter is **switched off** everywhere until GitHub Sponsors is set up: `sponsoring`

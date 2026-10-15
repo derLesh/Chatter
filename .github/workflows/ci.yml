@@ -50,8 +50,8 @@ jobs:
       - name: Unit tests
         run: ./gradlew :app:testDebugUnitTest
 
-      # The scripts other workflows run unattended: the supporter list rules and the benchmark
-      # summary.
+      # The scripts other workflows run unattended: the supporter list rules, the benchmark summary
+      # and the check on Dependabot's checksums.
       - name: Check the workflow scripts
         run: python3 -m unittest discover -s .github/scripts -p 'test_*.py'
 

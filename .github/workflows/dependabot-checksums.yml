@@ -2,8 +2,8 @@
 # adds them to the pull request and restarts CI, so the update is judged by the build.
 #
 # Two jobs: the first runs the build (and whatever a new plugin version does) with a read-only
-# token. The second can write but only runs git: it takes the file from the first job, rejects it if
-# an existing checksum changed, and pushes it.
+# token. The second can write but runs no build: it reads the file from the first job, refuses it
+# unless the only change is checksums for new artifacts, and pushes it.
 name: Dependabot checksums
 
 on:
@@ -69,33 +69,37 @@ jobs:
       # To restart CI: pushes with this token trigger no workflows.
       actions: write
     steps:
+      # The check comes from master, not from the branch it judges.
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.base_ref }}
+          path: trusted
+          sparse-checkout: .github/scripts/check-verification-metadata.py
+          sparse-checkout-cone-mode: false
+          persist-credentials: false
+
+      # Without credentials: the token only reaches the step that pushes.
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: ${{ github.head_ref }}
+          path: branch
+          persist-credentials: false
 
       - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
           name: verification-metadata
-          path: gradle/
+          path: ${{ runner.temp }}/regenerated
 
-      # Gradle keeps existing checksums and adds new ones, so an update only adds lines. A removed
-      # or changed line means a checksum changed for an unchanged version; a person has to look at
-      # that.
-      - name: Check that checksums were only added
+      # The file is trust policy too, so an update that removes no line can still loosen it. Only
+      # checksums for artifacts that were not there before go through; a person reads the rest.
+      - name: Check that only new checksums were added
         run: |
-          if git diff --quiet -- gradle/verification-metadata.xml; then
-            echo "Nothing new to record."
-            exit 0
-          fi
-          removed=$(git diff --numstat -- gradle/verification-metadata.xml | cut -f2)
-          if [ "$removed" != "0" ]; then
-            echo "::error::An existing checksum changed. Read the diff before trusting it:"
-            git diff -- gradle/verification-metadata.xml
-            exit 1
-          fi
-          git diff --stat -- gradle/verification-metadata.xml
+          python3 -I trusted/.github/scripts/check-verification-metadata.py \
+            branch/gradle/verification-metadata.xml "$RUNNER_TEMP/regenerated/verification-metadata.xml"
+          cp "$RUNNER_TEMP/regenerated/verification-metadata.xml" branch/gradle/verification-metadata.xml
 
       - name: Push and start CI again
+        working-directory: branch
         env:
           BRANCH: ${{ github.head_ref }}
           GH_TOKEN: ${{ github.token }}
@@ -104,5 +108,7 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git commit -m "Record the checksums of the updated dependencies" -- gradle/verification-metadata.xml
-          git push origin "HEAD:refs/heads/$BRANCH"
+          auth=$(printf 'x-access-token:%s' "$GH_TOKEN" | base64 -w0)
+          echo "::add-mask::$auth"
+          git -c http.https://github.com/.extraheader="AUTHORIZATION: basic $auth" push origin "HEAD:refs/heads/$BRANCH"
           gh workflow run ci.yml --ref "$BRANCH"
