@@ -272,9 +272,9 @@
     <string name="settings_image_hosts_note">Only images from these sites are shown in the chat. Links to other sites stay a link</string>
     <string name="linked_image">Linked image</string>
     <string name="settings_post_site">Show posts from %1$s</string>
-    <string name="settings_post_site_x_hint">Loaded through FxTwitter, not from X itself</string>
+    <string name="settings_post_site_x_hint">Shows links to X posts as a card</string>
     <string name="settings_posts">Social media posts</string>
-    <string name="settings_post_site_bluesky_hint">Loaded directly from Bluesky</string>
+    <string name="settings_post_site_bluesky_hint">Shows links to Bluesky posts as a card</string>
     <string name="post_site_x" translatable="false">X</string>
     <string name="post_site_bluesky" translatable="false">Bluesky</string>
     <string name="settings_off">Off</string>
