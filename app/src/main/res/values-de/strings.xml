@@ -266,9 +266,9 @@
     <string name="settings_image_hosts_note">Nur von diesen Seiten werden Bilder im Chat angezeigt. URLs von anderen Anbietern bleiben ein Link</string>
     <string name="linked_image">Verlinktes Bild</string>
     <string name="settings_post_site">Posts von %1$s anzeigen</string>
-    <string name="settings_post_site_x_hint">Links auf einen Post auf X zeigen Autor, Text und Bild. Jeder Post wird über FxTwitter geladen, einen Dienst, der nicht zu X gehört</string>
+    <string name="settings_post_site_x_hint">Geladen über FxTwitter, nicht von X selbst</string>
     <string name="settings_posts">Social-Media-Posts</string>
-    <string name="settings_post_site_bluesky_hint">Links auf einen Post auf Bluesky zeigen Autor, Text und Bild. Jeder Post wird direkt bei Bluesky geladen</string>
+    <string name="settings_post_site_bluesky_hint">Direkt von Bluesky geladen</string>
     <string name="settings_off">Aus</string>
     <string name="settings_post_preview">Vorschau</string>
     <string name="settings_group_post_parts">Was die Karte zeigt</string>
