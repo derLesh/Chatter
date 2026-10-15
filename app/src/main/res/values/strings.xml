@@ -271,6 +271,13 @@
     <string name="settings_image_hosts_reset">Back to the default sites</string>
     <string name="settings_image_hosts_note">Only images from these sites are shown in the chat. Links to other sites stay a link</string>
     <string name="linked_image">Linked image</string>
+    <string name="settings_tweet_previews">Show posts on X</string>
+    <string name="settings_tweet_previews_hint">Links to a post on X show its author, text and picture. Each post is fetched from FxTwitter, a service not run by X</string>
+    <string name="settings_blur_sensitive_tweets">Blur sensitive posts</string>
+    <string name="settings_blur_sensitive_tweets_hint">Pictures X marks as sensitive stay blurred until tapped</string>
+    <string name="tweet_picture">Picture of the post</string>
+    <string name="tweet_video">Video</string>
+    <string name="tweet_sensitive">Sensitive content · tap to show</string>
     <string name="settings_group_history">History</string>
     <string name="settings_carousel">Swipe in a circle</string>
     <string name="settings_carousel_hint">Swipe through the channels endlessly</string>
@@ -429,6 +436,18 @@
     <string name="keyword_add_mute">Hide a word</string>
     <string name="keyword_word">Word</string>
     <string name="keyword_remove">Remove %s</string>
+    <plurals name="tweet_replies">
+        <item quantity="one">%1$s reply</item>
+        <item quantity="other">%1$s replies</item>
+    </plurals>
+    <plurals name="tweet_reposts">
+        <item quantity="one">%1$s repost</item>
+        <item quantity="other">%1$s reposts</item>
+    </plurals>
+    <plurals name="tweet_likes">
+        <item quantity="one">%1$s like</item>
+        <item quantity="other">%1$s likes</item>
+    </plurals>
     <plurals name="settings_image_hosts_count">
         <item quantity="one">%1$d site</item>
         <item quantity="other">%1$d sites</item>

@@ -221,6 +221,7 @@ fun MessageRow(
                 built.images.forEach { url -> LinkedImage(url, style, imageLoader, alone) }
             }
         }
+        built.tweets.forEach { TweetCard(it, style, imageLoader) }
     }
 }
 
@@ -290,7 +291,8 @@ private fun LinkedImage(url: String, style: ChatStyle, loader: ImageLoader, alon
     )
 }
 
-private fun linkText(url: String, style: ChatStyle) = buildAnnotatedString {
+/** [url] as a link in the chat, for a picture or post that could not be shown. */
+internal fun linkText(url: String, style: ChatStyle) = buildAnnotatedString {
     withLink(LinkAnnotation.Url(url, TextLinkStyles(SpanStyle(color = style.linkColor, textDecoration = TextDecoration.Underline)))) {
         append(LinkText.display(url, style.shortLinks))
     }

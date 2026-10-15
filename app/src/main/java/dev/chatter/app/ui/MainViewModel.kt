@@ -148,6 +148,7 @@ class MainViewModel(private val c: AppContainer) : ViewModel() {
 
     val imageLoader get() = c.imageLoader
     val staticImageLoader get() = c.staticImageLoader
+    val tweets get() = c.tweets
 
     var input by mutableStateOf(TextFieldValue(""))
         private set
@@ -952,6 +953,8 @@ class MainViewModel(private val c: AppContainer) : ViewModel() {
     fun setHighlightColor(v: Int) = saveSetting { setHighlightColor(v) }
     fun setSmoothScrolling(v: Boolean) = saveSetting { setSmoothScrolling(v) }
     fun setInlineImages(v: Boolean) = saveSetting { setInlineImages(v) }
+    fun setTweetPreviews(v: Boolean) = saveSetting { setTweetPreviews(v) }
+    fun setBlurSensitiveTweets(v: Boolean) = saveSetting { setBlurSensitiveTweets(v) }
     fun setFullLinks(v: Boolean) = saveSetting { setFullLinks(v) }
 
     /** Turns whatever was pasted into bare hosts. */

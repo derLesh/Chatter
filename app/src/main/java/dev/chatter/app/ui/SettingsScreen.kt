@@ -178,6 +178,8 @@ private val SEARCH_INDEX: List<SearchEntry> by lazy {
         add(SearchEntry(R.string.settings_load_history, chat, R.string.settings_load_history_hint))
         add(SearchEntry(R.string.settings_inline_images, chat, R.string.settings_inline_images_hint))
         add(SearchEntry(R.string.settings_image_hosts, chat))
+        add(SearchEntry(R.string.settings_tweet_previews, chat, R.string.settings_tweet_previews_hint))
+        add(SearchEntry(R.string.settings_blur_sensitive_tweets, chat, R.string.settings_blur_sensitive_tweets_hint))
         add(SearchEntry(R.string.settings_full_links, chat, R.string.settings_full_links_hint))
         add(SearchEntry(R.string.settings_mobile_data, chat, R.string.settings_mobile_data_hint, also = MOBILE_DATA.map { it.second }))
         add(SearchEntry(R.string.settings_emote_suggestions, chat, R.string.settings_emote_suggestions_hint))

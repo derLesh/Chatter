@@ -1,0 +1,1 @@
+minor: Show links to posts on X as a card with the author, text, picture and counts, if turned on in the settings

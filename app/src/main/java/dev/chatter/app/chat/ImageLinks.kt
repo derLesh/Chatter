@@ -65,25 +65,8 @@ object ImageLinks {
      * Splits the picture links out of [segments]: returns the rest of the line and the pictures in
      * order. The space a removed link leaves goes with it.
      */
-    fun split(segments: List<Segment>, hosts: Collection<String>): Pair<List<Segment>, List<String>> {
-        if (segments.none { it is Segment.Link && imageUrl(it.url, hosts) != null }) return segments to emptyList()
-        val rest = ArrayList<Segment>(segments.size)
-        val urls = ArrayList<String>(2)
-        var dropped = false
-        for (seg in segments) {
-            val image = (seg as? Segment.Link)?.let { imageUrl(it.url, hosts) }
-            if (image != null) {
-                urls += image
-                dropped = true
-                continue
-            }
-            rest += if (dropped && seg is Segment.Text) Segment.Text(seg.text.trimStart(' ')) else seg
-            dropped = false
-        }
-        // A link at the end of the line takes the space before it.
-        if (dropped) (rest.lastOrNull() as? Segment.Text)?.let { rest[rest.lastIndex] = Segment.Text(it.text.trimEnd(' ')) }
-        return rest.filterNot { it is Segment.Text && it.text.isEmpty() } to urls
-    }
+    fun split(segments: List<Segment>, hosts: Collection<String>): Pair<List<Segment>, List<String>> =
+        LinkPreviews.pull(segments, hosts, tweets = false).let { it.rest to it.images }
 
     /**
      * What the user typed as a bare host; they may paste a whole URL, and a leading "www." would

@@ -35,6 +35,7 @@ import dev.chatter.app.chat.MentionInboxRepository
 import dev.chatter.app.chat.MessageBuilder
 import dev.chatter.app.chat.NicknameRepository
 import dev.chatter.app.chat.RuleRepository
+import dev.chatter.app.chat.TweetRepository
 import dev.chatter.app.chat.SendResult
 import dev.chatter.app.chat.WhisperInboxRepository
 import dev.chatter.app.chat.WhisperResult
@@ -48,6 +49,7 @@ import dev.chatter.app.emotes.SevenTvLiveUpdates
 import dev.chatter.app.irc.ConnectionState
 import dev.chatter.app.irc.IrcConnection
 import dev.chatter.app.net.DataSaving
+import dev.chatter.app.net.FxTwitterApi
 import dev.chatter.app.net.HelixApi
 import dev.chatter.app.net.ServiceTrouble
 import dev.chatter.app.net.ThirdPartyApi
@@ -131,6 +133,8 @@ class AppContainer(
     val auth = AuthRepository(context.authStore, http)
     val helix = HelixApi(http) { auth.freshToken() }.also { auth.helix = it }
     val thirdParty = ThirdPartyApi(http)
+    /** Posts on X for the cards that replace their links; see [TweetRepository]. */
+    val tweets = TweetRepository(FxTwitterApi(http), scope)
     val emotes = EmoteRepository(helix, thirdParty, trouble)
     val emoji = EmojiRepository(context)
     val badges = BadgeRepository(helix, thirdParty, trouble)

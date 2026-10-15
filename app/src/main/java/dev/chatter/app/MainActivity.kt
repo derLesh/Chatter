@@ -6,6 +6,7 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.viewModels
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.getValue
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.initializer
@@ -13,6 +14,7 @@ import androidx.lifecycle.viewmodel.viewModelFactory
 import dev.chatter.app.ui.AppRoot
 import dev.chatter.app.ui.MainViewModel
 import dev.chatter.app.ui.chat.LinkGuard
+import dev.chatter.app.ui.chat.LocalTweets
 import dev.chatter.app.ui.theme.ChatterTheme
 import dev.chatter.app.util.EXTRA_CHANNEL
 import dev.chatter.app.util.EXTRA_INBOX_TAB
@@ -30,7 +32,9 @@ class MainActivity : ComponentActivity() {
         handleIntent(intent)
         setContent {
             val settings by vm.settings.collectAsStateWithLifecycle()
-            ChatterTheme(settings.themeMode, settings.dynamicColor, settings.pureBlack) { LinkGuard { AppRoot(vm) } }
+            ChatterTheme(settings.themeMode, settings.dynamicColor, settings.pureBlack) {
+                LinkGuard { CompositionLocalProvider(LocalTweets provides vm.tweets) { AppRoot(vm) } }
+            }
         }
     }
 

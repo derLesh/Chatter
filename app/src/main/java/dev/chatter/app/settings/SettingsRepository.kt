@@ -91,6 +91,10 @@ data class Settings(
     val inlineImages: Boolean = true,
     /** The only hosts linked images are loaded from. */
     val imageHosts: List<String> = ImageLinks.DEFAULT_HOSTS,
+    /** Show links to posts on X as a card; fetches each post from FxTwitter. */
+    val tweetPreviews: Boolean = false,
+    /** Blur the picture of a post X marks as sensitive until it is tapped. */
+    val blurSensitiveTweets: Boolean = true,
     /** Write links in full instead of shortening them. */
     val fullLinks: Boolean = false,
     /** Leave out linked images, animation and sharp emotes on metered networks. */
@@ -171,6 +175,8 @@ class SettingsRepository(
             updateCheck = p[UPDATE_CHECK] ?: true,
             inlineImages = p[INLINE_IMAGES] ?: true,
             imageHosts = hosts(p[IMAGE_HOSTS]),
+            tweetPreviews = p[TWEET_PREVIEWS] ?: false,
+            blurSensitiveTweets = p[BLUR_SENSITIVE_TWEETS] ?: true,
             fullLinks = p[FULL_LINKS] ?: false,
             mobileData = p[MOBILE_DATA]?.let { v -> MobileData.entries.firstOrNull { it.name == v } } ?: MobileData.Normal,
             carouselChannels = p[CAROUSEL_CHANNELS] ?: false,
@@ -226,6 +232,8 @@ class SettingsRepository(
     suspend fun setInlineImages(v: Boolean) = store.edit { it[INLINE_IMAGES] = v }
     suspend fun updateImageHosts(change: (List<String>) -> List<String>) =
         store.edit { it[IMAGE_HOSTS] = change(hosts(it[IMAGE_HOSTS])).joinToString(",") }
+    suspend fun setTweetPreviews(v: Boolean) = store.edit { it[TWEET_PREVIEWS] = v }
+    suspend fun setBlurSensitiveTweets(v: Boolean) = store.edit { it[BLUR_SENSITIVE_TWEETS] = v }
     suspend fun setFullLinks(v: Boolean) = store.edit { it[FULL_LINKS] = v }
     suspend fun setMobileData(v: MobileData) = store.edit { it[MOBILE_DATA] = v.name }
     suspend fun setCarouselChannels(v: Boolean) = store.edit { it[CAROUSEL_CHANNELS] = v }
@@ -297,6 +305,8 @@ class SettingsRepository(
         p[UPDATE_CHECK] = s.updateCheck
         p[INLINE_IMAGES] = s.inlineImages
         p[IMAGE_HOSTS] = s.imageHosts.joinToString(",")
+        p[TWEET_PREVIEWS] = s.tweetPreviews
+        p[BLUR_SENSITIVE_TWEETS] = s.blurSensitiveTweets
         p[FULL_LINKS] = s.fullLinks
         p[MOBILE_DATA] = s.mobileData.name
         p[CAROUSEL_CHANNELS] = s.carouselChannels
@@ -363,6 +373,8 @@ class SettingsRepository(
         val SHOW_DELETED = booleanPreferencesKey("show_deleted")
         val UPDATE_CHECK = booleanPreferencesKey("update_check")
         val INLINE_IMAGES = booleanPreferencesKey("inline_images")
+        val TWEET_PREVIEWS = booleanPreferencesKey("tweet_previews")
+        val BLUR_SENSITIVE_TWEETS = booleanPreferencesKey("blur_sensitive_tweets")
         val FULL_LINKS = booleanPreferencesKey("full_links")
         val MOBILE_DATA = stringPreferencesKey("mobile_data")
         val IMAGE_HOSTS = stringPreferencesKey("image_hosts")

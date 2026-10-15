@@ -44,7 +44,7 @@
 <p class="lang"><a href="#deutsch">Auf Deutsch lesen →</a></p>
 
 <h1>Chatter — Privacy Policy</h1>
-<p class="sub">Last updated: 9 October 2026</p>
+<p class="sub">Last updated: 15 October 2026</p>
 
 <p>Chatter is an independent Twitch chat client for Android with public source code. It has no backend of its
 own: there is no Chatter server, no account with Chatter, and no analytics, crash reporting or
@@ -112,6 +112,12 @@ developer, and no third party receives your Twitch access token except Twitch it
     <td>The name of a channel you open, to load the messages sent before you joined.</td>
   </tr>
   <tr>
+    <td>FxTwitter</td>
+    <td><code>api.fxtwitter.com</code>, <code>pbs.twimg.com</code></td>
+    <td>The number of a post on X that was linked in chat, to show it as a card. Only while
+        &ldquo;Show posts on X&rdquo; is on, which it is not until you turn it on.</td>
+  </tr>
+  <tr>
     <td>GitHub</td>
     <td><code>raw.githubusercontent.com</code></td>
     <td>Nothing about you: the public list of Chatter supporters is downloaded.</td>
@@ -130,7 +136,7 @@ them, and each handles it under its own privacy policy. Emote and avatar images 
 the same providers' content servers and cached on your device.</p>
 
 <p><strong>Images linked in chat.</strong> With &ldquo;Show linked images&rdquo; on (Settings &rarr;
-Chat &rarr; Images in chat), a link to an image is fetched and shown in place of the link &mdash;
+Chat &rarr; Links and images), a link to an image is fetched and shown in place of the link &mdash;
 but only when it points at a plain image file on one of the sites on your own list there, which
 starts out as a handful of well-known image hosts and is yours to add to or empty. A link to
 anywhere else, or to any other kind of file, is never fetched and stays text you can tap. While
@@ -138,6 +144,14 @@ Android's battery saver is on, or while Chatter saves data on a metered network 
 Settings &rarr; Chat &rarr; On mobile data), nothing is fetched at all. A site on the list receives your device's IP address the same
 way any site does when you open a link; nothing else is sent, and the picture is cached on your
 device.</p>
+
+<p><strong>Posts on X linked in chat.</strong> With &ldquo;Show posts on X&rdquo; on (Settings &rarr;
+Chat &rarr; Links and images; off until you turn it on), a link to a post on X is shown as a card with
+its author, text and picture. X offers no free way to read a post, so Chatter asks FxTwitter, an
+independent open-source service, for it: the request carries the post's number and nothing else,
+and the author's picture and the post's picture then come from X's image server. A post is only
+asked for when its message is on your screen, never for a chat running in the background, and not
+while the battery saver is on or Chatter saves data.</p>
 
 <h2>Notifications and the background connection</h2>
 <p>To notify you about mentions and whispers while the app is closed, Chatter keeps a chat
@@ -174,7 +188,7 @@ Twitch Interactive, Inc.</p>
 <hr>
 
 <h1 id="deutsch">Chatter — Datenschutzerklärung</h1>
-<p class="sub">Zuletzt aktualisiert: 9. Oktober 2026</p>
+<p class="sub">Zuletzt aktualisiert: 15. Oktober 2026</p>
 
 <p>Chatter ist ein unabhängiger Twitch-Chat-Client für Android mit öffentlichem Quellcode. Die App hat kein
 eigenes Backend: Es gibt keinen Chatter-Server, kein Konto bei Chatter und in der App weder
@@ -243,6 +257,12 @@ gehen keine Daten, und außer Twitch selbst erhält kein Dritter das Twitch-Toke
     <td>Der Name eines geöffneten Kanals, um die Nachrichten vor dem Betreten zu laden.</td>
   </tr>
   <tr>
+    <td>FxTwitter</td>
+    <td><code>api.fxtwitter.com</code>, <code>pbs.twimg.com</code></td>
+    <td>Die Nummer eines im Chat verlinkten Posts auf X, um ihn als Karte zu zeigen. Nur solange
+        „Posts auf X anzeigen“ eingeschaltet ist, was es erst ist, wenn du es einschaltest.</td>
+  </tr>
+  <tr>
     <td>GitHub</td>
     <td><code>raw.githubusercontent.com</code></td>
     <td>Nichts Persönliches: Die öffentliche Liste der Chatter-Unterstützer wird geladen.</td>
@@ -261,7 +281,7 @@ sie nach seiner eigenen Datenschutzerklärung. Emote- und Avatarbilder kommen vo
 Content-Servern derselben Anbieter und werden auf dem Gerät zwischengespeichert.</p>
 
 <p><strong>Im Chat verlinkte Bilder.</strong> Ist „Verlinkte Bilder anzeigen“ eingeschaltet
-(Einstellungen &rarr; Chat &rarr; Bilder im Chat), wird ein Link auf ein Bild geladen und anstelle
+(Einstellungen &rarr; Chat &rarr; Links und Bilder), wird ein Link auf ein Bild geladen und anstelle
 des Links angezeigt &mdash; aber nur, wenn er auf eine einfache Bilddatei auf einer der Seiten der
 dortigen Liste zeigt. Diese Liste beginnt mit einigen bekannten Bild-Anbietern und gehört dir: Du
 kannst sie ergänzen oder leeren. Ein Link auf irgendetwas anderes – andere Seite, andere Art von
@@ -270,6 +290,14 @@ getakteten Netz Daten spart (Datensparmodus, oder Einstellungen &rarr; Chat &rar
 wird gar nichts geladen. Eine Seite
 auf der Liste erhält die IP-Adresse des Geräts genauso, wie es beim Öffnen eines Links der Fall
 wäre; mehr wird nicht gesendet, und das Bild wird auf dem Gerät zwischengespeichert.</p>
+
+<p><strong>Im Chat verlinkte Posts auf X.</strong> Ist „Posts auf X anzeigen“ eingeschaltet
+(Einstellungen &rarr; Chat &rarr; Links und Bilder; aus, bis du es einschaltest), wird ein Link auf
+einen Post auf X als Karte mit Autor, Text und Bild angezeigt. X bietet keinen freien Weg, einen Post
+zu lesen, deshalb fragt Chatter FxTwitter, einen unabhängigen Open-Source-Dienst: Die Anfrage
+enthält die Nummer des Posts und sonst nichts, das Profilbild und das Bild des Posts kommen danach
+vom Bildserver von X. Ein Post wird erst abgefragt, wenn seine Nachricht auf dem Bildschirm ist, nie
+für einen Chat im Hintergrund, und nicht im Akkusparmodus oder während Chatter Daten spart.</p>
 
 <h2>Benachrichtigungen und die Hintergrundverbindung</h2>
 <p>Damit Erwähnungen und Whispers auch bei geschlossener App ankommen, hält Chatter die

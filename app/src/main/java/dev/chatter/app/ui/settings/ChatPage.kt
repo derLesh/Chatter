@@ -81,6 +81,18 @@ internal fun ChatPage(settings: Settings, vm: MainViewModel, open: (SettingsSubP
                 modifier = Modifier.clickable { open(SettingsSubPage.ImageHosts) },
             )
         }
+        item(R.string.settings_tweet_previews) {
+            SwitchItem(
+                R.string.settings_tweet_previews, settings.tweetPreviews,
+                vm::setTweetPreviews, R.string.settings_tweet_previews_hint,
+            )
+        }
+        item(R.string.settings_blur_sensitive_tweets) {
+            SwitchItem(
+                R.string.settings_blur_sensitive_tweets, settings.blurSensitiveTweets,
+                vm::setBlurSensitiveTweets, R.string.settings_blur_sensitive_tweets_hint,
+            )
+        }
         item(R.string.settings_full_links) { SwitchItem(R.string.settings_full_links, settings.fullLinks, vm::setFullLinks, R.string.settings_full_links_hint) }
         item(R.string.settings_mobile_data) { MobileDataPicker(settings.mobileData, vm) }
     }
