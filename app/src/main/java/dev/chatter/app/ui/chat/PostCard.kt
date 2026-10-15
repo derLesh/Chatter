@@ -35,6 +35,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalUriHandler
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
@@ -92,11 +93,25 @@ fun pictureHeight(size: PostPictureSize): Dp = when (size) {
     PostPictureSize.Large -> 260.dp
 }
 
-/** How a site is named on its cards and in the settings. */
+/** How a site is named in the settings, and to a screen reader on its cards. */
 fun siteName(site: PostSite): Int = when (site) {
     PostSite.X -> R.string.post_site_x
     PostSite.Bluesky -> R.string.post_site_bluesky
 }
+
+/** The site's logo, drawn on its cards. */
+fun siteIcon(site: PostSite): Int = when (site) {
+    PostSite.X -> R.drawable.ic_site_x
+    PostSite.Bluesky -> R.drawable.ic_site_bluesky
+}
+
+/** Bluesky's butterfly is known by its blue; X's logo is plain, so it takes the card's text color. */
+private fun siteTint(site: PostSite, style: ChatStyle): Color = when (site) {
+    PostSite.X -> style.secondaryText
+    PostSite.Bluesky -> BLUESKY_BLUE
+}
+
+private val BLUESKY_BLUE = Color(0xFF1185FE)
 
 /** Draws a picture of the card; the settings preview draws its own instead of fetching. */
 typealias PostPicture = @Composable (url: String, description: String?, modifier: Modifier) -> Unit
@@ -181,7 +196,7 @@ internal fun PostCardContent(post: Post, site: PostSite, card: PostCardStyle, st
         post.media?.takeIf { card.media }?.let { media ->
             PostMediaBox(media, post.nsfw && card.blurNsfw, card.pictureHeight, open, picture)
         }
-        // The site is always named: with the link taken out of the line, nothing else says where the post is.
+        // The site is always shown: with the link taken out of the line, nothing else says where the post is.
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             val counts = if (card.counts) counts(post) else ""
             Text(
@@ -192,7 +207,12 @@ internal fun PostCardContent(post: Post, site: PostSite, card: PostCardStyle, st
                 overflow = TextOverflow.Ellipsis,
                 modifier = Modifier.weight(1f),
             )
-            Text(stringResource(siteName(site)), color = style.secondaryText, fontSize = secondarySize, maxLines = 1)
+            Icon(
+                painterResource(siteIcon(site)),
+                contentDescription = stringResource(siteName(site)),
+                tint = siteTint(site, style),
+                modifier = Modifier.size(style.fontSize.dp),
+            )
         }
     }
 }
