@@ -184,6 +184,10 @@ A change is not confirmed by compiling. Install it and open the screen it touche
 
 - **Both locales.** Every user-visible string lives in `app/src/main/res/values/strings.xml` *and*
   `values-de/strings.xml`. Adding one and not the other leaves the app half-translated.
+- **Simple language.** Write everything in short sentences and everyday words: strings, hints,
+  changelog lines, comments, commit messages and docs. "Show images from links", not "Enable
+  inline media rendering". Use a technical word only when no plain one fits, and a Twitch word
+  only when people who use Twitch know it (emote, mod, sub).
 - **Names explain what.** Variables, functions and types are named so the code reads without a
   comment: `unreadMentions`, `markChannelRead`, `retryMissing` rather than `count`, `update`,
   `handle`. If a name needs a comment to say what it holds or does, rename it first; a comment is
