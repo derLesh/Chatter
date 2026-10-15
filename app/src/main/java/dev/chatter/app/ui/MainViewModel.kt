@@ -43,6 +43,7 @@ import dev.chatter.app.settings.SettingsRepository
 import dev.chatter.app.settings.TapAction
 import dev.chatter.app.settings.ThemeMode
 import dev.chatter.app.settings.TimestampFormat
+import dev.chatter.app.settings.TweetPictureSize
 import dev.chatter.app.stats.Stats
 import dev.chatter.app.ui.chat.ReadMark
 import dev.chatter.app.ui.theme.NameColorPalette
@@ -955,6 +956,12 @@ class MainViewModel(private val c: AppContainer) : ViewModel() {
     fun setInlineImages(v: Boolean) = saveSetting { setInlineImages(v) }
     fun setTweetPreviews(v: Boolean) = saveSetting { setTweetPreviews(v) }
     fun setBlurSensitiveTweets(v: Boolean) = saveSetting { setBlurSensitiveTweets(v) }
+    fun setTweetAvatar(v: Boolean) = saveSetting { setTweetAvatar(v) }
+    fun setTweetDate(v: Boolean) = saveSetting { setTweetDate(v) }
+    fun setTweetMedia(v: Boolean) = saveSetting { setTweetMedia(v) }
+    fun setTweetCounts(v: Boolean) = saveSetting { setTweetCounts(v) }
+    fun setTweetTextLines(v: Int) = saveSetting { setTweetTextLines(v) }
+    fun setTweetPictureSize(v: TweetPictureSize) = saveSetting { setTweetPictureSize(v) }
     fun setFullLinks(v: Boolean) = saveSetting { setFullLinks(v) }
 
     /** Turns whatever was pasted into bare hosts. */

@@ -271,8 +271,25 @@
     <string name="settings_image_hosts_reset">Back to the default sites</string>
     <string name="settings_image_hosts_note">Only images from these sites are shown in the chat. Links to other sites stay a link</string>
     <string name="linked_image">Linked image</string>
-    <string name="settings_tweet_previews">Show posts on X</string>
+    <string name="settings_tweet_previews">Show posts from X</string>
     <string name="settings_tweet_previews_hint">Links to a post on X show its author, text and picture. Each post is fetched from FxTwitter, a service not run by X</string>
+    <string name="settings_tweets">Posts from X</string>
+    <string name="settings_on">On</string>
+    <string name="settings_off">Off</string>
+    <string name="settings_tweet_preview">Preview</string>
+    <string name="settings_group_tweet_parts">What the card shows</string>
+    <string name="settings_tweet_avatar">Profile picture</string>
+    <string name="settings_tweet_date">Date</string>
+    <string name="settings_tweet_media">Picture or video</string>
+    <string name="settings_tweet_counts">Replies, reposts and likes</string>
+    <string name="settings_tweet_text_none">Text: hidden</string>
+    <string name="settings_tweet_text_all">Text: all of it</string>
+    <string name="settings_tweet_picture_size">Picture size</string>
+    <string name="tweet_picture_small">Small</string>
+    <string name="tweet_picture_medium">Medium</string>
+    <string name="tweet_picture_large">Large</string>
+    <string name="tweet_preview_message">look at this</string>
+    <string name="tweet_preview_text">Chatter can show a post from X right in the chat. Here you choose which parts the card shows and how much of the text: a line or two to keep the chat calm, or the whole post. The picture can be small, medium or large, and the date, the profile picture and the numbers can each be turned off. A tap on the card opens the post.</string>
     <string name="settings_blur_sensitive_tweets">Blur sensitive posts</string>
     <string name="settings_blur_sensitive_tweets_hint">Pictures X marks as sensitive stay blurred until tapped</string>
     <string name="tweet_picture">Picture of the post</string>
@@ -436,6 +453,10 @@
     <string name="keyword_add_mute">Hide a word</string>
     <string name="keyword_word">Word</string>
     <string name="keyword_remove">Remove %s</string>
+    <plurals name="settings_tweet_text_lines">
+        <item quantity="one">Text: %1$d line</item>
+        <item quantity="other">Text: %1$d lines</item>
+    </plurals>
     <plurals name="tweet_replies">
         <item quantity="one">%1$s reply</item>
         <item quantity="other">%1$s replies</item>

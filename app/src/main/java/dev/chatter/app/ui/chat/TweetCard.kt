@@ -6,13 +6,13 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -21,6 +21,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.produceState
@@ -38,7 +39,9 @@ import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.min
 import androidx.compose.ui.unit.sp
 import coil3.ImageLoader
 import coil3.compose.AsyncImage
@@ -47,6 +50,9 @@ import dev.chatter.app.chat.Tweet
 import dev.chatter.app.chat.TweetLink
 import dev.chatter.app.chat.TweetMedia
 import dev.chatter.app.chat.TweetRepository
+import dev.chatter.app.settings.Settings
+import dev.chatter.app.settings.TweetPictureSize
+import dev.chatter.app.settings.TweetTextLines
 import java.text.DateFormat
 import java.util.Date
 import java.util.Locale
@@ -54,21 +60,50 @@ import java.util.Locale
 /** Where post cards get their posts. Without one, as in the settings preview, links stay links. */
 val LocalTweets = staticCompositionLocalOf<TweetRepository?> { null }
 
-private val CARD_MAX_WIDTH = 340.dp
+/** Which parts of a post its card shows, from the settings. */
+@Immutable
+data class TweetCardStyle(
+    val avatar: Boolean = true,
+    val date: Boolean = true,
+    val media: Boolean = true,
+    val counts: Boolean = true,
+    /** 0 hides the text; [Int.MAX_VALUE] shows all of it. */
+    val textLines: Int = TweetTextLines.DEFAULT,
+    val pictureHeight: Dp = pictureHeight(TweetPictureSize.Medium),
+    val blurSensitive: Boolean = true,
+)
+
+fun tweetCardStyle(settings: Settings) = TweetCardStyle(
+    avatar = settings.tweetAvatar,
+    date = settings.tweetDate,
+    media = settings.tweetMedia,
+    counts = settings.tweetCounts,
+    textLines = if (settings.tweetTextLines >= TweetTextLines.ALL) Int.MAX_VALUE else settings.tweetTextLines,
+    pictureHeight = pictureHeight(settings.tweetPictureSize),
+    blurSensitive = settings.blurSensitiveTweets,
+)
+
+fun pictureHeight(size: TweetPictureSize): Dp = when (size) {
+    TweetPictureSize.Small -> 100.dp
+    TweetPictureSize.Medium -> 160.dp
+    TweetPictureSize.Large -> 260.dp
+}
+
+/** Draws a picture of the card; the settings preview draws its own instead of fetching. */
+typealias TweetPicture = @Composable (url: String, description: String?, modifier: Modifier) -> Unit
+
 private val AVATAR_SIZE = 20.dp
-private const val TEXT_MAX_LINES = 6
-/** Tall pictures are cut to this so one post does not fill the screen. */
-private const val PICTURE_MIN_ASPECT = 1f
-private const val PICTURE_MAX_ASPECT = 2.5f
+private const val PICTURE_MIN_ASPECT = 0.5f
+private const val PICTURE_MAX_ASPECT = 4f
 private const val PICTURE_DEFAULT_ASPECT = 16f / 9f
 private val SENSITIVE_BLUR = 24.dp
 
 /**
- * A post on X in place of its link: author, text, picture and counts. Tapping opens the post. Shows
- * the link while the post loads, and for good if it cannot be read.
+ * A post on X in place of its link. Tapping opens the post. Shows the link while the post loads,
+ * and for good if it cannot be read.
  */
 @Composable
-internal fun TweetCard(link: TweetLink, style: ChatStyle, loader: ImageLoader) {
+internal fun TweetCard(link: TweetLink, card: TweetCardStyle, style: ChatStyle, loader: ImageLoader) {
     val repository = LocalTweets.current
     // Starts from the cache, so a card scrolled back into view does not shrink to a link for a frame.
     val tweet by produceState(repository?.known(link.id), link.id, repository) {
@@ -84,27 +119,28 @@ internal fun TweetCard(link: TweetLink, style: ChatStyle, loader: ImageLoader) {
         return
     }
     val uriHandler = LocalUriHandler.current
+    TweetCardContent(post, card, style, open = { uriHandler.openUri(link.url) }) { url, description, modifier ->
+        AsyncImage(url, description, loader, modifier, contentScale = ContentScale.Crop)
+    }
+}
+
+/** The card for [post], with the parts [card] asks for. */
+@Composable
+internal fun TweetCardContent(post: Tweet, card: TweetCardStyle, style: ChatStyle, open: () -> Unit, picture: TweetPicture) {
     val shape = RoundedCornerShape(12.dp)
     val secondarySize = (style.fontSize - 2).sp
     Column(
         verticalArrangement = Arrangement.spacedBy(6.dp),
         modifier = Modifier
             .padding(top = 4.dp, bottom = 2.dp)
-            .widthIn(max = CARD_MAX_WIDTH)
+            .fillMaxWidth()
             .clip(shape)
             .border(1.dp, MaterialTheme.colorScheme.outlineVariant, shape)
-            .clickable { uriHandler.openUri(link.url) }
+            .clickable(onClick = open)
             .padding(10.dp),
     ) {
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-            post.avatarUrl?.let {
-                AsyncImage(
-                    model = it,
-                    contentDescription = null,
-                    imageLoader = loader,
-                    modifier = Modifier.size(AVATAR_SIZE).clip(CircleShape),
-                )
-            }
+            post.avatarUrl?.takeIf { card.avatar }?.let { picture(it, null, Modifier.size(AVATAR_SIZE).clip(CircleShape)) }
             Text(
                 text = post.name,
                 fontSize = style.fontSize.sp,
@@ -115,65 +151,67 @@ internal fun TweetCard(link: TweetLink, style: ChatStyle, loader: ImageLoader) {
             )
             val posted = remember(post.postedAt) { DateFormat.getDateInstance(DateFormat.MEDIUM).format(Date(post.postedAt)) }
             Text(
-                text = "@${post.handle} · $posted",
+                text = if (card.date) "@${post.handle} · $posted" else "@${post.handle}",
                 color = style.secondaryText,
                 fontSize = secondarySize,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
             )
         }
-        if (post.text.isNotEmpty()) {
+        if (post.text.isNotEmpty() && card.textLines > 0) {
             Text(
                 text = post.text,
                 fontSize = style.fontSize.sp,
                 lineHeight = (style.fontSize * 1.45f).sp,
-                maxLines = TEXT_MAX_LINES,
+                maxLines = card.textLines,
                 overflow = TextOverflow.Ellipsis,
             )
         }
-        post.media?.let { media ->
-            TweetPicture(media, post.sensitive && style.blurSensitive, loader) { uriHandler.openUri(link.url) }
+        post.media?.takeIf { card.media }?.let { media ->
+            TweetMediaBox(media, post.sensitive && card.blurSensitive, card.pictureHeight, open, picture)
         }
-        counts(post).takeIf { it.isNotEmpty() }?.let {
-            Text(it, color = style.secondaryText, fontSize = secondarySize, maxLines = 1, overflow = TextOverflow.Ellipsis)
+        if (card.counts) {
+            counts(post).takeIf { it.isNotEmpty() }?.let {
+                Text(it, color = style.secondaryText, fontSize = secondarySize, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            }
         }
     }
 }
 
 /**
- * The post's first picture, or a still of its video. A sensitive one stays blurred until the first
- * tap; after that a tap opens the post.
+ * The post's first picture, or a still of its video, across the card and at most [maxHeight] tall.
+ * A sensitive one stays blurred until the first tap; after that a tap opens the post.
  */
 @Composable
-private fun TweetPicture(media: TweetMedia, blurred: Boolean, loader: ImageLoader, open: () -> Unit) {
+private fun TweetMediaBox(media: TweetMedia, blurred: Boolean, maxHeight: Dp, open: () -> Unit, picture: TweetPicture) {
     var hidden by remember(media.pictureUrl, blurred) { mutableStateOf(blurred) }
     val aspect = (media.aspectRatio ?: PICTURE_DEFAULT_ASPECT).coerceIn(PICTURE_MIN_ASPECT, PICTURE_MAX_ASPECT)
-    Box(
-        contentAlignment = Alignment.Center,
-        modifier = Modifier
-            .fillMaxWidth()
-            .aspectRatio(aspect)
-            .clip(RoundedCornerShape(8.dp))
-            .clickable { if (hidden) hidden = false else open() },
-    ) {
-        AsyncImage(
-            model = media.pictureUrl,
-            contentDescription = stringResource(R.string.tweet_picture),
-            imageLoader = loader,
-            contentScale = ContentScale.Crop,
-            modifier = Modifier.matchParentSize().then(if (hidden) Modifier.blur(SENSITIVE_BLUR) else Modifier),
-        )
-        when {
-            hidden -> Overlay(stringResource(R.string.tweet_sensitive))
-            media.video -> Icon(
-                Icons.Default.PlayArrow,
-                contentDescription = stringResource(R.string.tweet_video),
-                tint = Color.White,
-                modifier = Modifier.background(Color.Black.copy(alpha = 0.5f), CircleShape).padding(6.dp).size(28.dp),
+    BoxWithConstraints(Modifier.fillMaxWidth()) {
+        Box(
+            contentAlignment = Alignment.Center,
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(min(maxWidth / aspect, maxHeight))
+                .clip(RoundedCornerShape(8.dp))
+                .clickable { if (hidden) hidden = false else open() },
+        ) {
+            picture(
+                media.pictureUrl,
+                stringResource(R.string.tweet_picture),
+                Modifier.matchParentSize().then(if (hidden) Modifier.blur(SENSITIVE_BLUR) else Modifier),
             )
-        }
-        if (media.more > 0) {
-            Overlay("+${media.more}", Modifier.align(Alignment.BottomEnd).padding(6.dp))
+            when {
+                hidden -> Overlay(stringResource(R.string.tweet_sensitive))
+                media.video -> Icon(
+                    Icons.Default.PlayArrow,
+                    contentDescription = stringResource(R.string.tweet_video),
+                    tint = Color.White,
+                    modifier = Modifier.background(Color.Black.copy(alpha = 0.5f), CircleShape).padding(6.dp).size(28.dp),
+                )
+            }
+            if (media.more > 0) {
+                Overlay("+${media.more}", Modifier.align(Alignment.BottomEnd).padding(6.dp))
+            }
         }
     }
 }

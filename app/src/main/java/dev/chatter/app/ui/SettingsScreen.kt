@@ -3,6 +3,8 @@ package dev.chatter.app.ui
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -103,6 +105,8 @@ import dev.chatter.app.ui.settings.SettingsSearch
 import dev.chatter.app.ui.settings.StatsPage
 import dev.chatter.app.ui.settings.SupportPage
 import dev.chatter.app.ui.settings.THEME_MODES
+import dev.chatter.app.ui.settings.TweetPreview
+import dev.chatter.app.ui.settings.TweetsPage
 import dev.chatter.app.ui.settings.transparentItem
 import dev.chatter.app.ui.update.UpdateCard
 import dev.chatter.app.ui.update.UpdatePage
@@ -132,6 +136,7 @@ internal enum class SettingsSubPage(val title: Int) {
     MentionKeywords(R.string.settings_keywords),
     MuteKeywords(R.string.settings_mute_keywords),
     ImageHosts(R.string.settings_image_hosts),
+    Tweets(R.string.settings_tweets),
     LiveChannels(R.string.settings_live_channels),
     Rules(R.string.settings_rules),
     Changelog(R.string.settings_changelog),
@@ -178,8 +183,15 @@ private val SEARCH_INDEX: List<SearchEntry> by lazy {
         add(SearchEntry(R.string.settings_load_history, chat, R.string.settings_load_history_hint))
         add(SearchEntry(R.string.settings_inline_images, chat, R.string.settings_inline_images_hint))
         add(SearchEntry(R.string.settings_image_hosts, chat))
-        add(SearchEntry(R.string.settings_tweet_previews, chat, R.string.settings_tweet_previews_hint))
-        add(SearchEntry(R.string.settings_blur_sensitive_tweets, chat, R.string.settings_blur_sensitive_tweets_hint))
+        add(
+            SearchEntry(
+                R.string.settings_tweets, chat, R.string.settings_tweet_previews_hint,
+                also = listOf(
+                    R.string.settings_tweet_previews, R.string.settings_tweet_avatar, R.string.settings_tweet_media,
+                    R.string.settings_tweet_counts, R.string.settings_tweet_picture_size, R.string.settings_blur_sensitive_tweets,
+                ),
+            ),
+        )
         add(SearchEntry(R.string.settings_full_links, chat, R.string.settings_full_links_hint))
         add(SearchEntry(R.string.settings_mobile_data, chat, R.string.settings_mobile_data_hint, also = MOBILE_DATA.map { it.second }))
         add(SearchEntry(R.string.settings_emote_suggestions, chat, R.string.settings_emote_suggestions_hint))
@@ -332,7 +344,9 @@ fun SettingsScreen(vm: MainViewModel, onBack: () -> Unit) {
         }
         // Search is only offered on the category list.
         val onSearch = if (current == null && currentSub == null) ({ searching = true }) else null
-        SettingsPageScaffold(title = title, onBack = goBack, onSearch = onSearch, snackbar = snackbar) {
+        val pinned: (@Composable () -> Unit)? =
+            if (currentSub == SettingsSubPage.Tweets) ({ TweetPreview(settings, vm) }) else null
+        SettingsPageScaffold(title = title, onBack = goBack, onSearch = onSearch, snackbar = snackbar, pinned = pinned) {
           CompositionLocalProvider(LocalSettingsTarget provides target.takeIf { currentSub == null }) {
             when (currentSub) {
                 SettingsSubPage.BlockedUsers -> BlockedUsersPage(vm)
@@ -353,6 +367,7 @@ fun SettingsScreen(vm: MainViewModel, onBack: () -> Unit) {
                     onRemove = vm::removeMuteKeyword,
                 )
                 SettingsSubPage.ImageHosts -> ImageHostsPage(settings.imageHosts, vm)
+                SettingsSubPage.Tweets -> TweetsPage(settings, vm)
                 SettingsSubPage.LiveChannels -> LiveChannelsPage(vm)
                 SettingsSubPage.Rules -> RulesPage(vm)
                 SettingsSubPage.Credits -> CreditsPage()
@@ -477,6 +492,9 @@ private fun SearchPage(query: String, onQuery: (String) -> Unit, onOpen: (Search
     }
 }
 
+/** How much of a page's height goes to its pinned part. */
+private const val PINNED_SHARE = 0.45f
+
 /** One settings page with a collapsing large title bar and scrolling content. */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -485,6 +503,8 @@ private fun SettingsPageScaffold(
     onBack: () -> Unit,
     onSearch: (() -> Unit)? = null,
     snackbar: SnackbarHostState? = null,
+    /** Stays in view above the scrolling content, like a preview of what the page changes. */
+    pinned: (@Composable () -> Unit)? = null,
     content: @Composable () -> Unit,
 ) {
     val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior(rememberTopAppBarState())
@@ -515,16 +535,31 @@ private fun SettingsPageScaffold(
             }
         },
     ) { padding ->
-        Column(
-            Modifier
-                .fillMaxSize()
-                .padding(padding)
-                .verticalScroll(rememberScrollState())
-                .padding(horizontal = 16.dp, vertical = 8.dp),
-            verticalArrangement = Arrangement.spacedBy(24.dp),
-        ) {
-            content()
-            Spacer(Modifier.height(16.dp))
+        BoxWithConstraints(Modifier.fillMaxSize().padding(padding)) {
+            val pinnedHeight = maxHeight * PINNED_SHARE
+            Column(Modifier.fillMaxSize()) {
+                // A fixed height, so a setting that grows the preview does not move the row under the
+                // finger; what does not fit scrolls.
+                pinned?.let {
+                    Box(
+                        Modifier
+                            .height(pinnedHeight)
+                            .verticalScroll(rememberScrollState())
+                            .padding(horizontal = 16.dp, vertical = 8.dp),
+                    ) { it() }
+                }
+                Column(
+                    Modifier
+                        .fillMaxWidth()
+                        .weight(1f)
+                        .verticalScroll(rememberScrollState())
+                        .padding(horizontal = 16.dp, vertical = 8.dp),
+                    verticalArrangement = Arrangement.spacedBy(24.dp),
+                ) {
+                    content()
+                    Spacer(Modifier.height(16.dp))
+                }
+            }
         }
     }
 }

@@ -35,10 +35,8 @@ data class ChatStyle(
     val haptics: Boolean,
     /** Hosts whose image links are shown as images. Empty when linked images are off. */
     val imageHosts: List<String>,
-    /** Whether links to posts on X are shown as a card. Off under either saver, like images. */
-    val tweets: Boolean = false,
-    /** Whether a sensitive post's picture is blurred until tapped. */
-    val blurSensitive: Boolean = true,
+    /** How links to posts on X are shown as a card; null leaves them links, as under either saver. */
+    val tweetCard: TweetCardStyle? = null,
     /** Whether long links are shortened to site and path start; see [LinkText]. */
     val shortLinks: Boolean = true,
     /** Smallest emote size, to save data; see [dev.chatter.app.net.DataSaving]. */
@@ -79,8 +77,8 @@ fun rememberChatStyle(
     val colors = MaterialTheme.colorScheme
     return remember(
         settings.fontSize, settings.timestamps, settings.highlightColor, settings.alternateBackground,
-        settings.nameColors, settings.highlightFirstMessages, settings.haptics,
-        settings.inlineImages, settings.imageHosts, settings.tweetPreviews, settings.blurSensitiveTweets, settings.fullLinks, settings.sevenTvPaints, powerSave, saveData, emoteFrameRate, nicknames, dark, colors,
+        settings.nameColors, settings.highlightFirstMessages, settings.haptics, tweetCardStyle(settings),
+        settings.inlineImages, settings.imageHosts, settings.tweetPreviews, settings.fullLinks, settings.sevenTvPaints, powerSave, saveData, emoteFrameRate, nicknames, dark, colors,
     ) {
         ChatStyle(
             fontSize = settings.fontSize,
@@ -103,8 +101,7 @@ fun rememberChatStyle(
             // Off or either saver means no allowed hosts, so the row checks only one thing. Links
             // stay links.
             imageHosts = if (settings.inlineImages && !powerSave && !saveData) settings.imageHosts else emptyList(),
-            tweets = settings.tweetPreviews && !powerSave && !saveData,
-            blurSensitive = settings.blurSensitiveTweets,
+            tweetCard = tweetCardStyle(settings).takeIf { settings.tweetPreviews && !powerSave && !saveData },
             shortLinks = !settings.fullLinks,
             smallEmotes = saveData,
             emoteFrameRate = emoteFrameRate,

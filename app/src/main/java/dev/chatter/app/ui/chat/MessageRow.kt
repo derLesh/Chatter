@@ -221,7 +221,7 @@ fun MessageRow(
                 built.images.forEach { url -> LinkedImage(url, style, imageLoader, alone) }
             }
         }
-        built.tweets.forEach { TweetCard(it, style, imageLoader) }
+        style.tweetCard?.let { card -> built.tweets.forEach { TweetCard(it, card, style, imageLoader) } }
     }
 }
 

@@ -82,7 +82,7 @@ internal fun buildLine(item: ChatItem, style: ChatStyle, onName: LinkInteraction
     // Subs and raids have the channel in front of their header instead.
     val lineChannel = channel.takeIf { item.kind != MessageKind.UserNotice }
     lineChannel?.let { inline[CHANNEL_ID] = InlineData.ChannelData(it) }
-    val pulled = LinkPreviews.pull(item.segments, style.imageHosts, style.tweets)
+    val pulled = LinkPreviews.pull(item.segments, style.imageHosts, style.tweetCard != null)
     val segments = pulled.rest
     if (item.kind == MessageKind.Notice) {
         val text = buildAnnotatedString {
