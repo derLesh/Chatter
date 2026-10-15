@@ -99,6 +99,7 @@ class ChatRepository(
         stats = stats,
         filters = { filters },
         selfLogin = { auth.account?.login.orEmpty() },
+        accountOf = { login -> auth.accounts.value.firstOrNull { it.login.equals(login, ignoreCase = true) }?.userId },
         onMention = ::onMention,
         onWhisper = ::onWhisper,
         onRoomFound = { channelId -> scope.launch { loadEmotesAndBadges(channelId) } },
@@ -122,7 +123,8 @@ class ChatRepository(
 
     private val _whispers = MutableSharedFlow<InboxWhisper>(extraBufferCapacity = 16)
     /**
-     * Whispers. Twitch only delivers them to tokens with `whispers:read`, which older logins lack.
+     * Whispers, each with the account it was sent to as [InboxWhisper.owner]. Twitch only delivers
+     * them to tokens with `whispers:read`, which older logins lack.
      */
     val whispers: SharedFlow<InboxWhisper> = _whispers
 
@@ -446,9 +448,12 @@ class ChatRepository(
     }
 
     private fun onWhisper(whisper: InboxWhisper, watched: Boolean) {
+        // One still arriving for the previous account goes to its inbox, unread and unannounced:
+        // the whisper tab and the notifications are the active account's.
+        val active = whisper.owner == auth.account?.userId
         // Read already if the whisper tab was open, and then no notification.
-        _whispers.tryEmit(whisper.copy(read = watched))
-        if (!watched) _whisperEvents.tryEmit(whisper)
+        _whispers.tryEmit(whisper.copy(read = watched && active))
+        if (!watched && active) _whisperEvents.tryEmit(whisper)
     }
 
     /** [id] is set for lines that are removed again later, like the history status lines. */

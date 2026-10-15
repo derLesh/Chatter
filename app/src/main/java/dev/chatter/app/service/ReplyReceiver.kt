@@ -40,8 +40,8 @@ class ReplyReceiver : BroadcastReceiver() {
                     val result = container.whisperFromNotification(account, whisperTo, userId, text)
                     // Twitch refuses whispers for various reasons; its message is the only
                     // explanation.
-                    if (result.sent) container.notifier.showWhisperSent(whisperTo, text)
-                    else container.notifier.showWhisperFailed(whisperTo, result.message)
+                    if (result.sent) container.notifier.showWhisperSent(account, whisperTo, text)
+                    else container.notifier.showWhisperFailed(account, whisperTo, result.message)
                 } else if (channel != null) {
                     if (container.sendFromNotification(account, channel, text)) container.notifier.showSent(channel, text)
                     else container.notifier.showSendFailed(channel)

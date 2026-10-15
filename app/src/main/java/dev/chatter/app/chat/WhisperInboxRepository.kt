@@ -60,6 +60,8 @@ class WhisperInboxRepository(
     private val store: DataStore<Preferences>,
     /** The active account's user id; only its whispers are shown. */
     private val owner: StateFlow<String?>,
+    /** Every account on the phone; see [dev.chatter.app.auth.AuthRepository.knownUserIds]. */
+    private val accounts: StateFlow<List<String>>,
     scope: CoroutineScope,
 ) {
     /** The active account's whispers, newest first; see [InboxOwners]. */
@@ -71,11 +73,19 @@ class WhisperInboxRepository(
         .map { list -> list.count { !it.read } }
         .stateIn(scope, SharingStarted.Eagerly, 0)
 
-    /** [account] is the user id the whisper was sent to. */
-    suspend fun add(whisper: InboxWhisper, account: String) = update { list ->
-        // Whisper ids are per thread, so the same id can occur for another account.
-        if (list.any { it.id == whisper.id && it.owner == account }) list
-        else (listOf(whisper.copy(owner = account)) + list).take(LIMIT)
+    /**
+     * Keeps [whisper] for its [InboxWhisper.owner], whichever account is active by now. Checked in
+     * the same write as the store, so an account removed meanwhile gets nothing: its
+     * [keepOnly] has run already, or will run after this.
+     */
+    suspend fun add(whisper: InboxWhisper) = update { list ->
+        val account = whisper.owner
+        when {
+            account == null || account !in accounts.value -> list
+            // Whisper ids are per thread, so the same id can occur for another account.
+            list.any { it.id == whisper.id && it.owner == account } -> list
+            else -> (listOf(whisper) + list).take(LIMIT)
+        }
     }
 
     suspend fun markRead(id: String) = update { list ->

@@ -1,0 +1,1 @@
+patch: Keep a whisper that arrives during an account switch with the account it was sent to

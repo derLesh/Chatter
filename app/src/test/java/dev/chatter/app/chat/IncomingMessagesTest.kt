@@ -69,6 +69,7 @@ class IncomingMessagesTest {
         stats = stats,
         filters = { filters },
         selfLogin = { "lukas" },
+        accountOf = { login -> mapOf("lukas" to "1", "second" to "2")[login.lowercase()] },
         onMention = { item, watched -> mentioned += item to watched },
         onWhisper = { whisper, watched -> whispered += whisper to watched },
         onRoomFound = { roomsFound += it },
@@ -351,6 +352,20 @@ class IncomingMessagesTest {
         windows.whispersVisible.value = false
         incoming.handle(line("@display-name=Someone;user-id=7 :someone!someone@someone.tmi.twitch.tv WHISPER lukas :again"))
         assertFalse(whispered.last().second)
+    }
+
+    @Test
+    fun aWhisperBelongsToTheAccountTwitchSentItTo() = runTest(dispatcher) {
+        incoming.handle(line("@user-id=7 :someone!someone@someone.tmi.twitch.tv WHISPER lukas :hello"))
+        incoming.handle(line("@user-id=7 :someone!someone@someone.tmi.twitch.tv WHISPER Second :hi"))
+        assertEquals(listOf("1", "2"), whispered.map { it.first.owner })
+    }
+
+    /** One still in the queue when its account was removed has nobody left to be shown to. */
+    @Test
+    fun aWhisperForAnAccountThatIsGoneIsDropped() = runTest(dispatcher) {
+        incoming.handle(line("@user-id=7 :someone!someone@someone.tmi.twitch.tv WHISPER removed :hello"))
+        assertEquals(emptyList<Pair<InboxWhisper, Boolean>>(), whispered)
     }
 
     @Test

@@ -25,9 +25,13 @@ class IncomingMessages(
     private val stats: ChatStats,
     private val filters: () -> ChatFilters,
     private val selfLogin: () -> String,
+    /** The user id of the account on the phone with this login; null for one that is gone. */
+    private val accountOf: (login: String) -> String?,
     /** A mention, and whether its channel was on screen. */
     private val onMention: (item: ChatItem, watched: Boolean) -> Unit,
-    /** A whisper, and whether the whisper tab was in front. */
+    /**
+     * A whisper with its [InboxWhisper.owner] set, and whether the whisper tab was in front.
+     */
     private val onWhisper: (whisper: InboxWhisper, watched: Boolean) -> Unit,
     /**
      * A channel reported its Twitch id for the first time; its emotes and badges can be fetched.
@@ -95,7 +99,7 @@ class IncomingMessages(
         val channel = msg.channel
         when (msg.command) {
             "PRIVMSG", "USERNOTICE" -> if (channel != null) onChatMessage(channel, msg)
-            "WHISPER" -> InboxWhisper.from(msg)?.let(::onWhisper)
+            "WHISPER" -> InboxWhisper.from(msg)?.let { onWhisper(it, recipient = msg.params.firstOrNull()) }
             "NOTICE" -> if (channel != null) {
                 // Every refusal of a sent message has a msg-id of this form. The message was never
                 // delivered, so it is struck out and the notice says why.
@@ -158,10 +162,15 @@ class IncomingMessages(
         return true
     }
 
-    private fun onWhisper(whisper: InboxWhisper) {
+    /**
+     * Binds the whisper to the account Twitch addressed it to. Fixed here, because by the time it is
+     * stored or notified another account may be active; one for an account that is gone is dropped.
+     */
+    private fun onWhisper(whisper: InboxWhisper, recipient: String?) {
+        val owner = recipient?.let(accountOf) ?: return
         val muted = filters().muted
         if (muted.mutes(whisper.login, whisper.displayName, whisper.text)) return
-        onWhisper(whisper, windows.isWatchingWhispers())
+        onWhisper(whisper.copy(owner = owner), windows.isWatchingWhispers())
     }
 
     private fun onClearChat(channel: String, msg: IrcMessage) {

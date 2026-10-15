@@ -58,16 +58,18 @@ class ChatNotifier(
     private val icons: ChannelIcons,
     /** True while saving data; see [dev.chatter.app.net.DataSaving]. */
     private val saveData: StateFlow<Boolean>,
-    /** The active account's user id; every reply action is bound to it. */
-    private val account: StateFlow<String?>,
+    /**
+     * The active account's user id, read from the login itself rather than a flow derived from it,
+     * which lags behind an account switch.
+     */
+    private val activeAccount: () -> String?,
 ) {
     private val manager = NotificationManagerCompat.from(context)
     private val nm = context.getSystemService(NotificationManager::class.java)
     private val recent = HashMap<String, ArrayDeque<ChatItem>>()
     /** Twitch avatars of chatters in the notifications, by lowercase login. */
     private val senderIcons = ConcurrentHashMap<String, IconCompat>()
-    /** Whisper conversations currently shown, by lowercase login. */
-    private val whisperThreads = HashMap<String, WhisperThread>()
+    private val whisperThreads = WhisperConversations(activeAccount)
 
     fun createChannels() {
         nm.createNotificationChannel(
@@ -288,40 +290,38 @@ class ChatNotifier(
 
     // ---- Whispers --------------------------------------------------------------------------
 
-    /** One line of a whisper conversation as the notification shows it. */
-    private class WhisperLine(val text: String, val timestamp: Long, val own: Boolean)
-
-    /** The other person, kept so an answer can go back to them. */
-    private class WhisperThread(var name: String, var userId: String?) {
-        val lines = ArrayDeque<WhisperLine>()
-    }
-
-    /** Posts or extends the conversation with the sender. */
+    /**
+     * Posts or extends the conversation with the sender, if the account the whisper was sent to is
+     * still the active one; see [WhisperConversations].
+     */
     suspend fun notifyWhisper(whisper: InboxWhisper) {
         if (!manager.areNotificationsEnabled()) return
         // Fills the cache for this sender; older lines use what is cached.
         loadSenderIcon(whisper.login)
         addWhisperLine(
+            owner = whisper.owner,
             login = whisper.login,
             name = whisper.displayName,
             userId = whisper.userId,
-            line = WhisperLine(whisper.text, whisper.timestamp, own = false),
+            line = WhisperConversations.Line(whisper.text, whisper.timestamp, own = false),
         )
     }
 
-    /** Shows an answer sent from the notification in that conversation. */
-    fun showWhisperSent(login: String, text: String) {
+    /** Shows an answer [account] sent from the notification in that conversation. */
+    fun showWhisperSent(account: String?, login: String, text: String) {
         if (!manager.areNotificationsEnabled()) return
-        addWhisperLine(login, name = null, userId = null, line = WhisperLine(text, System.currentTimeMillis(), own = true))
+        val line = WhisperConversations.Line(text, System.currentTimeMillis(), own = true)
+        addWhisperLine(account, login, name = null, userId = null, line = line)
     }
 
     /**
      * Shows in the conversation why an answer was not sent; Twitch refuses whispers for reasons the
      * app cannot predict.
      */
-    fun showWhisperFailed(login: String, reason: String) {
+    fun showWhisperFailed(account: String?, login: String, reason: String) {
         if (!manager.areNotificationsEnabled()) return
-        addWhisperLine(login, name = null, userId = null, line = WhisperLine(reason, System.currentTimeMillis(), own = true))
+        val line = WhisperConversations.Line(reason, System.currentTimeMillis(), own = true)
+        addWhisperLine(account, login, name = null, userId = null, line = line)
     }
 
     /**
@@ -337,18 +337,14 @@ class ChatNotifier(
     /** Removes the whisper notifications once the whisper tab is opened. */
     @Synchronized
     fun clearWhispers() {
-        whisperThreads.keys.forEach { manager.cancel(it, WHISPER_NOTIFICATION_ID) }
-        whisperThreads.clear()
+        whisperThreads.clear().forEach { manager.cancel(it, WHISPER_NOTIFICATION_ID) }
     }
 
+    /** Under the same lock as [clearConversations], so nothing is posted after it cleared. */
     @Synchronized
-    private fun addWhisperLine(login: String, name: String?, userId: String?, line: WhisperLine) {
+    private fun addWhisperLine(owner: String?, login: String, name: String?, userId: String?, line: WhisperConversations.Line) {
+        val thread = whisperThreads.add(owner, login, name, userId, line) ?: return
         val key = login.lowercase()
-        val thread = whisperThreads.getOrPut(key) { WhisperThread(name ?: login, userId) }
-        name?.let { thread.name = it }
-        userId?.let { thread.userId = it }
-        thread.lines.addLast(line)
-        while (thread.lines.size > 6) thread.lines.removeFirst()
 
         val me = Person.Builder().setName(context.getString(R.string.notif_me)).build()
         val sender = Person.Builder().setName(thread.name).setKey(key).setIcon(senderIcons[key]).build()
@@ -363,7 +359,7 @@ class ChatNotifier(
             .setGroup(GROUP_WHISPERS)
             .setAutoCancel(true)
             .setContentIntent(openWhispersIntent())
-            .addAction(whisperReplyAction(login, thread.userId))
+            .addAction(whisperReplyAction(login, thread.userId, thread.owner))
             // On a lock screen that hides private content, only "a new whisper" is shown.
             .setVisibility(NotificationCompat.VISIBILITY_PRIVATE)
             .setPublicVersion(
@@ -391,12 +387,13 @@ class ChatNotifier(
         )
     }
 
-    private fun whisperReplyAction(login: String, userId: String?): NotificationCompat.Action {
+    /** Answers as [owner], the account the whisper was sent to. */
+    private fun whisperReplyAction(login: String, userId: String?, owner: String): NotificationCompat.Action {
         val intent = Intent(context, ReplyReceiver::class.java)
             .setData(replyUri(REPLY_WHISPER, login))
             .putExtra(EXTRA_WHISPER, login)
             .putExtra(EXTRA_WHISPER_USER_ID, userId)
-            .putExtra(EXTRA_ACCOUNT, account.value)
+            .putExtra(EXTRA_ACCOUNT, owner)
         val pending = PendingIntent.getBroadcast(
             context, 0, intent,
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_MUTABLE,
@@ -431,7 +428,7 @@ class ChatNotifier(
         val intent = Intent(context, ReplyReceiver::class.java)
             .setData(replyUri(REPLY_CHANNEL, channel))
             .putExtra(EXTRA_CHANNEL, channel)
-            .putExtra(EXTRA_ACCOUNT, account.value)
+            .putExtra(EXTRA_ACCOUNT, activeAccount())
         val pending = PendingIntent.getBroadcast(
             context, 0, intent,
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_MUTABLE,

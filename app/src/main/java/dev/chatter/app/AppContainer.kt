@@ -142,7 +142,7 @@ class AppContainer(
     private val activeUserId: StateFlow<String?> =
         auth.state.map { (it as? AuthState.LoggedIn)?.account?.userId }.stateIn(scope, SharingStarted.Eagerly, null)
     val inbox = MentionInboxRepository(context.inboxStore, activeUserId, scope)
-    val whisperInbox = WhisperInboxRepository(context.inboxStore, activeUserId, scope)
+    val whisperInbox = WhisperInboxRepository(context.inboxStore, activeUserId, auth.knownUserIds, scope)
     val rules = RuleRepository(context.ruleStore, scope)
     val stats = StatsRepository(context.statsStore, scope)
     val backgroundHealth = BackgroundHealth(context, context.healthStore, scope)
@@ -191,7 +191,7 @@ class AppContainer(
 
     // Needs the image loader: mention notifications use the channel avatar as icon.
     private val channelIcons = ChannelIcons(context, channels, imageLoader)
-    val notifier = ChatNotifier(context, channels, helix, settings.settings, channelIcons, dataSaving.active, activeUserId)
+    val notifier = ChatNotifier(context, channels, helix, settings.settings, channelIcons, dataSaving.active) { auth.account?.userId }
     private val shortcuts = ChannelShortcuts(context, channels.identities, channelIcons, scope)
     val liveAlerts = LiveAlerts(helix, auth, channels, settings.settings, activeUserId, notifier, scope)
 
@@ -217,7 +217,8 @@ class AppContainer(
         scope.launch {
             chat.allMentions.collect { m -> activeUserId.value?.let { inbox.add(m.item, read = m.seen, account = it) } }
         }
-        scope.launch { chat.whispers.collect { w -> activeUserId.value?.let { whisperInbox.add(w, account = it) } } }
+        // A whisper already names its account; the active one may have changed since it arrived.
+        scope.launch { chat.whispers.collect { whisperInbox.add(it) } }
         scope.launch {
             channels.loadCache()
             auth.restore()
