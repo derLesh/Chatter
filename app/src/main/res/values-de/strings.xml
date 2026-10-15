@@ -284,11 +284,11 @@
     <string name="tweet_picture_large">Groß</string>
     <string name="tweet_preview_message">schau mal</string>
     <string name="tweet_preview_text">Chatter kann einen Post von X direkt im Chat zeigen. Hier wählst du, welche Teile die Karte zeigt und wie viel vom Text: eine oder zwei Zeilen, damit der Chat ruhig bleibt, oder den ganzen Post. Das Bild kann klein, mittel oder groß sein, und Datum, Profilbild und Zahlen lassen sich einzeln ausschalten. Ein Tipp auf die Karte öffnet den Post.</string>
-    <string name="settings_blur_sensitive_tweets">Sensible Posts unscharf</string>
-    <string name="settings_blur_sensitive_tweets_hint">Bilder, die X als sensibel markiert, bleiben unscharf, bis du draufgetippt hast</string>
+    <string name="settings_blur_sensitive_tweets">NSFW Posts unscharf</string>
+    <string name="settings_blur_sensitive_tweets_hint">Bilder, die X als NSFW markiert, bleiben unscharf, bis du draufgetippt hast</string>
     <string name="tweet_picture">Bild des Posts</string>
     <string name="tweet_video">Video</string>
-    <string name="tweet_sensitive">Sensibler Inhalt · Tippen zum Anzeigen</string>
+    <string name="tweet_sensitive">NSFW · Tippen zum Anzeigen</string>
     <string name="settings_group_history">Verlauf</string>
     <string name="settings_carousel">Im Kreis wischen</string>
     <string name="settings_carousel_hint">Wische endlos durch die Channels</string>

@@ -290,11 +290,11 @@
     <string name="tweet_picture_large">Large</string>
     <string name="tweet_preview_message">look at this</string>
     <string name="tweet_preview_text">Chatter can show a post from X right in the chat. Here you choose which parts the card shows and how much of the text: a line or two to keep the chat calm, or the whole post. The picture can be small, medium or large, and the date, the profile picture and the numbers can each be turned off. A tap on the card opens the post.</string>
-    <string name="settings_blur_sensitive_tweets">Blur sensitive posts</string>
-    <string name="settings_blur_sensitive_tweets_hint">Pictures X marks as sensitive stay blurred until tapped</string>
+    <string name="settings_blur_sensitive_tweets">Blur NSFW posts</string>
+    <string name="settings_blur_sensitive_tweets_hint">Pictures X marks as NSFW stay blurred until tapped</string>
     <string name="tweet_picture">Picture of the post</string>
     <string name="tweet_video">Video</string>
-    <string name="tweet_sensitive">Sensitive content · tap to show</string>
+    <string name="tweet_sensitive">NSFW · tap to show</string>
     <string name="settings_group_history">History</string>
     <string name="settings_carousel">Swipe in a circle</string>
     <string name="settings_carousel_hint">Swipe through the channels endlessly</string>

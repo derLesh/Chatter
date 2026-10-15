@@ -47,7 +47,7 @@ internal val TWEET_PICTURE_SIZES = listOf(
     TweetPictureSize.Large to R.string.tweet_picture_large,
 )
 
-/** Posts from X: whether links become cards, and what a card shows. [TweetPreview] sits above it. */
+/** Posts from X: whether links become cards, and what a card shows, with a preview of one. */
 @Composable
 internal fun TweetsPage(settings: Settings, vm: MainViewModel) {
     SettingsGroup {
@@ -55,6 +55,7 @@ internal fun TweetsPage(settings: Settings, vm: MainViewModel) {
             SwitchItem(R.string.settings_tweet_previews, settings.tweetPreviews, vm::setTweetPreviews, R.string.settings_tweet_previews_hint)
         }
     }
+    TweetPreview(settings, vm)
     SettingsGroup(R.string.settings_group_tweet_parts) {
         item(R.string.settings_tweet_avatar) { SwitchItem(R.string.settings_tweet_avatar, settings.tweetAvatar, vm::setTweetAvatar) }
         item(R.string.settings_tweet_date) { SwitchItem(R.string.settings_tweet_date, settings.tweetDate, vm::setTweetDate) }
@@ -120,7 +121,7 @@ private fun PictureSizeItem(selected: TweetPictureSize, vm: MainViewModel) {
  * shapes, so the preview fetches nothing.
  */
 @Composable
-internal fun TweetPreview(settings: Settings, vm: MainViewModel) {
+private fun TweetPreview(settings: Settings, vm: MainViewModel) {
     val scheme = MaterialTheme.colorScheme
     val style = rememberChatStyle(settings, emptyMap())
     val messageText = stringResource(R.string.tweet_preview_message)

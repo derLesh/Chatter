@@ -3,8 +3,6 @@ package dev.chatter.app.ui
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -105,7 +103,6 @@ import dev.chatter.app.ui.settings.SettingsSearch
 import dev.chatter.app.ui.settings.StatsPage
 import dev.chatter.app.ui.settings.SupportPage
 import dev.chatter.app.ui.settings.THEME_MODES
-import dev.chatter.app.ui.settings.TweetPreview
 import dev.chatter.app.ui.settings.TweetsPage
 import dev.chatter.app.ui.settings.transparentItem
 import dev.chatter.app.ui.update.UpdateCard
@@ -344,9 +341,7 @@ fun SettingsScreen(vm: MainViewModel, onBack: () -> Unit) {
         }
         // Search is only offered on the category list.
         val onSearch = if (current == null && currentSub == null) ({ searching = true }) else null
-        val pinned: (@Composable () -> Unit)? =
-            if (currentSub == SettingsSubPage.Tweets) ({ TweetPreview(settings, vm) }) else null
-        SettingsPageScaffold(title = title, onBack = goBack, onSearch = onSearch, snackbar = snackbar, pinned = pinned) {
+        SettingsPageScaffold(title = title, onBack = goBack, onSearch = onSearch, snackbar = snackbar) {
           CompositionLocalProvider(LocalSettingsTarget provides target.takeIf { currentSub == null }) {
             when (currentSub) {
                 SettingsSubPage.BlockedUsers -> BlockedUsersPage(vm)
@@ -492,9 +487,6 @@ private fun SearchPage(query: String, onQuery: (String) -> Unit, onOpen: (Search
     }
 }
 
-/** How much of a page's height goes to its pinned part. */
-private const val PINNED_SHARE = 0.45f
-
 /** One settings page with a collapsing large title bar and scrolling content. */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -503,8 +495,6 @@ private fun SettingsPageScaffold(
     onBack: () -> Unit,
     onSearch: (() -> Unit)? = null,
     snackbar: SnackbarHostState? = null,
-    /** Stays in view above the scrolling content, like a preview of what the page changes. */
-    pinned: (@Composable () -> Unit)? = null,
     content: @Composable () -> Unit,
 ) {
     val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior(rememberTopAppBarState())
@@ -535,31 +525,16 @@ private fun SettingsPageScaffold(
             }
         },
     ) { padding ->
-        BoxWithConstraints(Modifier.fillMaxSize().padding(padding)) {
-            val pinnedHeight = maxHeight * PINNED_SHARE
-            Column(Modifier.fillMaxSize()) {
-                // A fixed height, so a setting that grows the preview does not move the row under the
-                // finger; what does not fit scrolls.
-                pinned?.let {
-                    Box(
-                        Modifier
-                            .height(pinnedHeight)
-                            .verticalScroll(rememberScrollState())
-                            .padding(horizontal = 16.dp, vertical = 8.dp),
-                    ) { it() }
-                }
-                Column(
-                    Modifier
-                        .fillMaxWidth()
-                        .weight(1f)
-                        .verticalScroll(rememberScrollState())
-                        .padding(horizontal = 16.dp, vertical = 8.dp),
-                    verticalArrangement = Arrangement.spacedBy(24.dp),
-                ) {
-                    content()
-                    Spacer(Modifier.height(16.dp))
-                }
-            }
+        Column(
+            Modifier
+                .fillMaxSize()
+                .padding(padding)
+                .verticalScroll(rememberScrollState())
+                .padding(horizontal = 16.dp, vertical = 8.dp),
+            verticalArrangement = Arrangement.spacedBy(24.dp),
+        ) {
+            content()
+            Spacer(Modifier.height(16.dp))
         }
     }
 }
