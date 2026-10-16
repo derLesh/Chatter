@@ -9,6 +9,7 @@ import androidx.datastore.preferences.core.stringPreferencesKey
 import dev.chatter.app.net.AppJson
 import dev.chatter.app.net.HelixApi
 import dev.chatter.app.net.HelixChannelSearch
+import dev.chatter.app.net.HelixStream
 import dev.chatter.app.net.decodeStored
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -304,19 +305,26 @@ class ChannelRepository(
         return users.associate { it.login to it.id }
     }
 
-    /** One Helix call for all channels. Only while the app is in the foreground. */
+    /** Asks Twitch at once, e.g. for a channel just added; [dev.chatter.app.service.LiveAlerts] keeps
+     * it current. */
     suspend fun refreshLive() {
         val logins = channels.value
         if (logins.isEmpty()) return
         val streams = try {
-            helix.liveStreams(logins).associateBy { it.userLogin }
+            helix.liveStreams(logins)
         } catch (e: Exception) {
             Log.w(TAG, "streams failed: ${e.message}")
             return
         }
+        applyLive(logins, streams)
+    }
+
+    /** Takes over the live [streams] of [logins]; a channel among them without one is offline. */
+    fun applyLive(logins: List<String>, streams: List<HelixStream>) {
+        val byLogin = streams.associateBy { it.userLogin }
         _info.update { current ->
             current + logins.associateWith { login ->
-                val s = streams[login]
+                val s = byLogin[login]
                 (current[login] ?: ChannelInfo(login)).copy(
                     isLive = s != null,
                     viewers = s?.viewerCount ?: 0,

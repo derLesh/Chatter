@@ -767,14 +767,6 @@ class MainViewModel(private val c: AppContainer, savedState: SavedStateHandle) :
 
     suspend fun searchChannels(query: String): List<HelixChannelSearch> = c.channels.search(query)
 
-    /** Polls live status while the UI is visible; cancelled when it goes away. */
-    suspend fun pollLiveStatus() {
-        while (true) {
-            c.channels.refreshLive()
-            delay(120_000)
-        }
-    }
-
     // ---- Login / settings ----------------------------------------------------------------------
 
     /** Writes a setting off the main thread; the screen follows through [settings]. */

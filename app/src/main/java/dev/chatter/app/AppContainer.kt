@@ -215,7 +215,7 @@ class AppContainer(
     private val channelIcons = ChannelIcons(context, channels, imageLoader)
     val notifier = ChatNotifier(context, channels, helix, settings.settings, channelIcons, dataSaving.active) { auth.account?.userId }
     private val shortcuts = ChannelShortcuts(context, channels.identities, channelIcons, scope)
-    val liveAlerts = LiveAlerts(helix, auth, channels, settings.settings, activeUserId, notifier, scope)
+    val liveAlerts = LiveAlerts(helix, auth, channels, settings.settings, activeUserId, chat.windows.anyVisible, notifier, scope)
 
     private val _powerSaveMode = MutableStateFlow(false)
     /** True while Android's battery saver is on. */

@@ -1,0 +1,1 @@
+patch: Ask Twitch less often what is live, which saves battery while Chatter runs in the background

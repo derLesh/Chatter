@@ -163,11 +163,6 @@ fun MainScreen(vm: MainViewModel, onInbox: () -> Unit, onSettings: () -> Unit) {
         onStopOrDispose { }
     }
 
-    // Polls live status only while the app is on screen.
-    LaunchedEffect(lifecycleOwner) {
-        lifecycleOwner.repeatOnLifecycle(Lifecycle.State.STARTED) { vm.pollLiveStatus() }
-    }
-
     val haptics = LocalHapticFeedback.current
     val focusManager = LocalFocusManager.current
     LaunchedEffect(resources, settings.haptics) {

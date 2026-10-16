@@ -32,6 +32,24 @@ class LiveAlertsTest {
     }
 
     @Test
+    fun followedStreamsAreOnlyAskedForAChannelOutsideTheListThatWasTurnedOn() {
+        val list = listOf("forsen")
+        assertFalse("nothing turned on by default", LiveAlerts.followedWanted(LiveAlertChoices(), list))
+        val on = LiveAlertChoices().with("xqc", inList = false, enabled = true)
+        assertTrue(LiveAlerts.followedWanted(on, list))
+        assertFalse("added to the list since, it is asked for there", LiveAlerts.followedWanted(on, list + "xqc"))
+    }
+
+    @Test
+    fun theListIsOnlyAskedForInTheBackgroundWhileOneOfItsChannelsNotifies() {
+        val list = listOf("forsen", "xqc")
+        assertTrue(LiveAlerts.anyWanted(LiveAlertChoices(), list))
+        val oneOff = LiveAlertChoices().with("forsen", inList = true, enabled = false)
+        assertTrue(LiveAlerts.anyWanted(oneOff, list))
+        assertFalse(LiveAlerts.anyWanted(oneOff.with("xqc", inList = true, enabled = false), list))
+    }
+
+    @Test
     fun whatIsLiveAtTheFirstLookDidNotJustGoLive() {
         assertEquals(emptySet<String>(), LiveAlerts.wentLive(before = null, now = setOf("a", "b")))
     }
