@@ -54,6 +54,7 @@ import dev.chatter.app.net.BlueskyApi
 import dev.chatter.app.net.DataSaving
 import dev.chatter.app.net.FxTwitterApi
 import dev.chatter.app.net.HelixApi
+import dev.chatter.app.net.ImageRedirects
 import dev.chatter.app.net.ServiceTrouble
 import dev.chatter.app.net.ThirdPartyApi
 import dev.chatter.app.service.BackgroundHealth
@@ -127,7 +128,11 @@ class AppContainer(
 
     // Coil has its own disk cache; images in the response cache would be stored twice and push out
     // the lists it is meant for.
-    private val imageHttp: OkHttpClient = http.newBuilder().cache(null).build()
+    private val imageHttp: OkHttpClient = http.newBuilder()
+        .cache(null)
+        .followRedirects(false)
+        .addInterceptor(ImageRedirects)
+        .build()
 
     /** Collects unreachable services so the screen can report each once. */
     val trouble = ServiceTrouble()

@@ -1,0 +1,1 @@
+patch: Load a picture only from the site it was allowed from, even when that site sends Chatter on to another
