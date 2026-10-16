@@ -52,11 +52,11 @@ class CrashLog(private val dir: File, private val device: DeviceInfo) {
         files().dropLast(KEPT).forEach { it.delete() }
     }
 
-    /** The most recent crash, or null. */
+    /** The most recent crash, or null. Cleaned again, since an older version may have written it. */
     fun latest(): Crash? {
         val file = files().lastOrNull() ?: return null
         val at = file.name.removePrefix(PREFIX).removeSuffix(SUFFIX).toLongOrNull() ?: return null
-        return runCatching { Crash(at, file.readText()) }.getOrNull()
+        return runCatching { Crash(at, hideSecrets(file.readText())) }.getOrNull()
     }
 
     /** Oldest first. */
@@ -77,9 +77,31 @@ class CrashLog(private val dir: File, private val device: DeviceInfo) {
          */
         private const val MAX_TRACE_CHARS = 12_000
 
+        private const val HIDDEN = "[hidden]"
+
+        /**
+         * Login secrets an error message may quote: a request's headers, the login redirect, the
+         * chat's PASS line. The name stays, so the report still says what was there.
+         */
+        private val SECRETS = listOf(
+            // The whole value, whatever scheme it names: "Authorization: Bearer …", "OAuth …".
+            Regex("""(?i)\b((?:proxy-)?authorization["']?\s*[:=]\s*["']?)[^\r\n"',;}]+"""),
+            Regex("""(?i)\b(bearer\s+)[A-Za-z0-9._~+/=-]+"""),
+            Regex("""(?i)\b(oauth:)[A-Za-z0-9._~+/=-]+"""),
+            // As URL parameter, form field or JSON: access_token=…, "refresh_token":"…".
+            Regex("""(?i)\b((?:access_|refresh_|id_)?token|client_secret|password|passwd)(["']?\s*[:=]\s*["']?)[^\s&"',;}#]+"""),
+        )
+
+        /** [text] with the values [SECRETS] finds replaced. Internal for tests. */
+        internal fun hideSecrets(text: String): String = SECRETS.fold(text) { result, secret ->
+            secret.replace(result) { match -> match.groupValues.drop(1).joinToString("") + HIDDEN }
+        }
+
         /** The crash as it goes into a bug report. Internal for tests. */
         internal fun format(at: Long, thread: String, error: Throwable, device: DeviceInfo): String {
-            val trace = StringWriter().also { error.printStackTrace(PrintWriter(it)) }.toString().trimEnd()
+            // printStackTrace includes causes and suppressed errors. Cleaned before it is cut, so a
+            // cut cannot leave half a secret behind.
+            val trace = hideSecrets(StringWriter().also { error.printStackTrace(PrintWriter(it)) }.toString().trimEnd())
             val time = SimpleDateFormat("yyyy-MM-dd HH:mm:ss 'UTC'", Locale.ROOT)
                 .apply { timeZone = TimeZone.getTimeZone("UTC") }
                 .format(Date(at))
