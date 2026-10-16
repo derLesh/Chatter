@@ -19,6 +19,8 @@ import dev.chatter.app.util.RateLimiter
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.joinAll
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -31,6 +33,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeoutOrNull
 import java.util.UUID
+import java.util.concurrent.ConcurrentHashMap
 
 /** A mention that just arrived, and whether its channel was open. */
 data class MentionEvent(val item: ChatItem, val seen: Boolean)
@@ -86,6 +89,12 @@ class ChatRepository(
     private val loadedChannels = HashSet<String>()
     private var joinedChannels: List<String> = emptyList()
 
+    /**
+     * The emote and badge load of each channel id, started by whichever comes first: the channel's
+     * own load or its first ROOMSTATE.
+     */
+    private val listLoads = ConcurrentHashMap<String, Job>()
+
     /** The settings as applied to arriving messages. Rule changes affect new messages only. */
     @Volatile private var filters = ChatFilters()
 
@@ -103,7 +112,7 @@ class ChatRepository(
         accountOf = { login -> auth.accounts.value.firstOrNull { it.login.equals(login, ignoreCase = true) }?.userId },
         onMention = ::onMention,
         onWhisper = ::onWhisper,
-        onRoomFound = { channelId -> scope.launch { loadEmotesAndBadges(channelId) } },
+        onRoomFound = { channelId -> loadEmotesAndBadges(channelId) },
         sharedChats = sharedChats,
         onSharedChatStarted = { channel -> scope.launch { loadSharedChat(channel) } },
         onPartnersFound = { ids -> scope.launch { describePartners(ids) } },
@@ -192,8 +201,10 @@ class ChatRepository(
                 when (state) {
                     ConnectionState.Connected -> if (wasConnected) {
                         systemAll(R.string.chat_reconnected)
-                        // Fetch what was said while offline.
-                        buffers.channels().forEach { ch -> scope.launch { loadHistory(ch, since = incoming.lastLive(ch)) } }
+                        // Fetch what was said while offline, the channel on screen first.
+                        buffers.channels().sortedBy(::priority).forEach { ch ->
+                            scope.launch { loadHistory(ch, since = incoming.lastLive(ch)) }
+                        }
                     } else wasConnected = true
                     // Said once when the connection drops, not for every retry.
                     ConnectionState.Connecting, ConnectionState.WaitingForNetwork ->
@@ -207,6 +218,20 @@ class ChatRepository(
 
     /** The messages of a channel, or of a combined chat by its key. */
     fun messages(page: String): StateFlow<List<ChatItem>> = buffers.messages(page)
+
+    /**
+     * Which channels go first when many start at once, for joining and loading: the one on screen
+     * (or read last, before a window reported), then those that notify, then the rest.
+     */
+    fun priority(channel: String): Int {
+        val last = channelRepo.lastChannel.value
+        return when {
+            windows.isWatching(channel) || channel == last ||
+                last?.let { channelRepo.groups.value[it] }?.channels?.contains(channel) == true -> 0
+            channel !in channelRepo.mutedChannels.value -> 1
+            else -> 2
+        }
+    }
 
     /** Adds an info line (e.g. 7TV activity), optionally followed by emote and text segments. */
     fun postNotice(channel: String, text: String, segments: List<Segment> = emptyList()) = scope.launch(worker) {
@@ -286,6 +311,7 @@ class ChatRepository(
         incoming.clear()
         sharedChats.clear()
         loadedChannels.clear()
+        listLoads.clear()
         joinedChannels = emptyList()
         _unreadMentions.value = emptyMap()
     }
@@ -304,6 +330,8 @@ class ChatRepository(
         val removed = joinedChannels - list.toSet()
         joinedChannels = list
         removed.forEach { ch ->
+            // Joined again later, the channel loads its lists again.
+            rooms.id(ch)?.let { listLoads.remove(it) }
             irc.part(ch)
             buffers.close(ch)
             chatterRegistry.remove(ch)
@@ -315,7 +343,27 @@ class ChatRepository(
         added.forEach { ch ->
             irc.join(ch)
             buffers.open(ch)
-            if (loadedChannels.add(ch)) scope.launch { loadChannelData(ch) }
+        }
+        val toLoad = added.filter { loadedChannels.add(it) }
+        if (toLoad.isNotEmpty()) scope.launch { loadChannels(toLoad) }
+    }
+
+    /**
+     * Loads channels in the order of [priority], each group with a head start on the next: a request
+     * only runs once five to the same host are done, so the channel on screen would otherwise wait
+     * behind all the others.
+     */
+    private suspend fun loadChannels(channels: List<String>) {
+        // First, so the user does not look at an empty screen while the ids and emotes load.
+        channels.forEach { announceHistory(it) }
+        val unknown = channels.filter { rooms.id(it) == null && channelRepo.info.value[it]?.id == null }
+        val found = if (unknown.isEmpty()) emptyMap() else channelRepo.refreshUsers(unknown)
+        coroutineScope {
+            channels.groupBy(::priority).toSortedMap().values.forEach { group ->
+                val loads = group.map { launch { loadChannelData(it, found[it]) } }
+                // Only a head start: a history service that does not answer would hold up the rest.
+                withTimeoutOrNull(HEAD_START_MS) { loads.joinAll() }
+            }
         }
     }
 
@@ -324,25 +372,23 @@ class ChatRepository(
      * moment: an unreachable provider does not refuse, it times out, which once meant twenty
      * seconds of empty channel. Emotes that arrive later are put into the messages afterwards.
      */
-    private suspend fun loadChannelData(channel: String) {
-        // First, so the user does not look at an empty screen while the channel id and emotes load.
-        announceHistory(channel)
-        val id = rooms.id(channel)
-            ?: channelRepo.info.value[channel]?.id
-            ?: channelRepo.refreshUsers(listOf(channel))[channel]
+    private suspend fun loadChannelData(channel: String, foundId: String?) {
+        val id = rooms.id(channel) ?: channelRepo.info.value[channel]?.id ?: foundId
         if (id != null) {
             rooms.setId(channel, id)
-            val emoteLoad = scope.launch { loadEmotesAndBadges(id) }
+            val listLoad = loadEmotesAndBadges(id)
             loadChatters(channel, id)
-            withTimeoutOrNull(EMOTES_BEFORE_HISTORY_MS) { emoteLoad.join() }
+            withTimeoutOrNull(EMOTES_BEFORE_HISTORY_MS) { listLoad.join() }
         }
         loadHistory(channel)
     }
 
-    private suspend fun loadEmotesAndBadges(channelId: String) = coroutineScope {
-        launch { emotes.loadChannel(channelId, auth.account?.userId) }
-        launch { badges.loadChannel(channelId) }
-        launch { cheermotes.loadChannel(channelId) }
+    private fun loadEmotesAndBadges(channelId: String): Job = listLoads.computeIfAbsent(channelId) {
+        scope.launch {
+            launch { emotes.loadChannel(channelId, auth.account?.userId) }
+            launch { badges.loadChannel(channelId) }
+            launch { cheermotes.loadChannel(channelId) }
+        }
     }
 
     /**
@@ -489,6 +535,9 @@ class ChatRepository(
 
     private companion object {
         const val TAG = "ChatRepository"
+
+        /** How long channels of one [priority] load before the next ones start. */
+        const val HEAD_START_MS = 5_000L
 
         /** How long the history waits for the channel's emotes. */
         const val EMOTES_BEFORE_HISTORY_MS = 3_000L

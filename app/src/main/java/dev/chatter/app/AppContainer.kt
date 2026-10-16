@@ -169,11 +169,12 @@ class AppContainer(
     /** True while Chatter saves data; see [DataSaving]. */
     val dataSaving = DataSaving(context, settings.settings.map { it.mobileData }, scope)
     val updates = UpdateRepository(http, settings, BuildConfig.VERSION_NAME, BuildConfig.UPDATE_CHECK, dataSaving.active, scope)
-    val irc = IrcConnection(socketHttp, scope, ::joinRank)
+    // Only called once connected, when [chat] exists.
+    val irc: IrcConnection = IrcConnection(socketHttp, scope) { chat.priority(it) }
     val whisperSender = WhisperSender(context, helix, auth)
     private val chatters = ChatterRegistry()
 
-    val chat = ChatRepository(
+    val chat: ChatRepository = ChatRepository(
         context, irc, MessageBuilder(emotes, badges, chatters, cheermotes, ::emoteOptions), emotes, badges, cheermotes, channels,
         thirdParty, helix, auth,
         CommandExecutor(context, helix, auth, whisperSender), AppChatNotices(context), chatters, blocked, stats,
@@ -358,17 +359,6 @@ class AppContainer(
             context.resources.getQuantityString(R.plurals.badge_supporter_months, months, months)
         },
     )
-
-    /**
-     * JOIN priority when there are more channels than Twitch takes at once: the one on screen (or
-     * the last read before a window reported), then notifying ones, then the rest. Only called once
-     * connected, when [chat] exists.
-     */
-    private fun joinRank(channel: String): Int = when {
-        chat.windows.isWatching(channel) || channel == channels.lastChannel.value -> 0
-        channel !in channels.mutedChannels.value -> 1
-        else -> 2
-    }
 
     /** Opens the chat connection for an account or a guest. Safe to call repeatedly. */
     fun connect() {
