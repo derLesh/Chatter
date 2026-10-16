@@ -78,6 +78,8 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
@@ -332,22 +334,25 @@ class AppContainer(
                 if (visible && auth.account != null) {
                     badges.retryMissing(supporterTitles())
                     cheermotes.retryMissing()
-                    emotes.retryMissing(auth.account?.userId)
+                    emotes.retryMissing()
                 }
             }
         }
-        // Emotes are retried in the background with a growing interval, since a provider that is
-        // down usually returns within the hour. Stops as soon as nothing is missing.
+        // Emotes are retried with a growing interval, since a provider that is down usually returns
+        // within the hour. Only while the chat is on screen: a message looks its emotes up when it
+        // is first drawn, and coming back retries at once (above).
         scope.launch {
-            emotes.waitingForProvider.collectLatest { waiting ->
-                if (!waiting) return@collectLatest
-                var wait = EMOTE_RETRY_FIRST_MS
-                while (true) {
-                    delay(wait)
-                    emotes.retryMissing(auth.account?.userId)
-                    wait = (wait * 2).coerceAtMost(EMOTE_RETRY_MAX_MS)
+            combine(emotes.waitingForProvider, chat.windows.anyVisible) { waiting, visible -> waiting && visible }
+                .distinctUntilChanged()
+                .collectLatest { retrying ->
+                    if (!retrying) return@collectLatest
+                    var wait = EMOTE_RETRY_FIRST_MS
+                    while (true) {
+                        delay(wait)
+                        emotes.retryMissing()
+                        wait = (wait * 2).coerceAtMost(EMOTE_RETRY_MAX_MS)
+                    }
                 }
-            }
         }
         registerNetworkCallback()
         watchPowerSaveMode()

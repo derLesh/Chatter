@@ -1,0 +1,1 @@
+patch: Stop asking an emote site that is down while Chatter runs in the background, which saves battery

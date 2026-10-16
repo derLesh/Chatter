@@ -93,8 +93,12 @@ class EmoteRepositoryTest {
         override suspend fun userEmotes(userId: String) =
             own.map { HelixEmote(id = "twitch-$it", name = it, emoteType = "subscriptions") }
 
-        override suspend fun channelEmotes(channelId: String) =
-            follower.map { HelixEmote(id = "follower-$it", name = it, emoteType = "follower") }
+        var followerAsked = 0
+
+        override suspend fun channelEmotes(channelId: String): List<HelixEmote> {
+            followerAsked++
+            return follower.map { HelixEmote(id = "follower-$it", name = it, emoteType = "follower") }
+        }
 
         override suspend fun isFollowing(userId: String, channelId: String) = follows
     }
@@ -178,10 +182,23 @@ class EmoteRepositoryTest {
         val afterFirst = providers.calls
 
         providers.ffz = listOf("pepeD")
-        assertTrue(emotes.retryMissing(userId = null))
+        assertTrue(emotes.retryMissing())
         assertEquals("BTTV and 7TV answered and are left alone", afterFirst + 1, providers.calls)
         assertEquals(EmoteProvider.Ffz, emotes.lookup(channel, "pepeD")?.provider)
         assertEquals("what was already there stays", EmoteProvider.Bttv, emotes.lookup(channel, "susge")?.provider)
+    }
+
+    @Test
+    fun aRetryDoesNotAskForTheFollowerEmotesAgain() = runTest {
+        twitch.follower = listOf("channelSmile")
+        providers.ffz = null
+        emotes.loadChannel(channel, userId = "me")
+        val asked = twitch.followerAsked
+
+        providers.ffz = listOf("pepeD")
+        emotes.retryMissing()
+        assertEquals(asked, twitch.followerAsked)
+        assertEquals("what the first load brought stays", EmoteProvider.Twitch, emotes.lookupOwnTwitch(channel, "channelSmile")?.provider)
     }
 
     @Test
@@ -191,7 +208,7 @@ class EmoteRepositoryTest {
         val afterFirst = providers.calls
 
         assertFalse(emotes.waitingForProvider.value)
-        assertFalse(emotes.retryMissing(userId = null))
+        assertFalse(emotes.retryMissing())
         assertEquals(afterFirst, providers.calls)
     }
 
@@ -202,7 +219,7 @@ class EmoteRepositoryTest {
         assertTrue(emotes.waitingForProvider.value)
 
         providers.sevenTv = listOf("catJAM")
-        emotes.retryMissing(userId = null)
+        emotes.retryMissing()
         assertFalse(emotes.waitingForProvider.value)
     }
 
@@ -222,7 +239,7 @@ class EmoteRepositoryTest {
         assertEquals("nothing new while FFZ is still away", 1, rebuilds.size)
 
         providers.ffz = listOf("pepeD")
-        emotes.retryMissing(userId = null)
+        emotes.retryMissing()
         runCurrent()
         assertEquals(2, rebuilds.size)
         watching.cancel()
@@ -245,7 +262,7 @@ class EmoteRepositoryTest {
         assertFalse("nor have the global emotes been asked for yet", emotes.complete(null))
 
         providers.ffz = emptyList()
-        emotes.retryMissing(userId = null)
+        emotes.retryMissing()
         emotes.loadGlobal()
         assertTrue(emotes.complete(channel))
     }

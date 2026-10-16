@@ -164,9 +164,9 @@ class EmoteRepository(
 
     /**
      * Asks only the providers that did not answer. Returns true if one of them is back; [arrived]
-     * tells the chat too.
+     * tells the chat too. The follower emotes are not asked again: they were not what was missing.
      */
-    suspend fun retryMissing(userId: String?): Boolean {
+    suspend fun retryMissing(): Boolean {
         var recovered = false
         if (globalAsked && globalMissing.isNotEmpty()) {
             val before = globalMissing
@@ -176,7 +176,7 @@ class EmoteRepository(
         // Over a copy: loading writes into this map.
         channelMissing.entries.map { it.key to it.value }.forEach { (channelId, missing) ->
             if (missing.isEmpty()) return@forEach
-            loadChannel(channelId, userId, missing)
+            loadChannel(channelId, userId = null, wanted = missing)
             if (channelMissing[channelId].orEmpty() != missing) recovered = true
         }
         return recovered
