@@ -242,7 +242,7 @@
     <string name="settings_unread_title_bar_hint">Shows the profile picture of channels with new messages at the top, or a mark on their tab. You can leave out a channel in its menu.</string>
     <string name="settings_group_device">On this phone</string>
     <string name="settings_keep_screen_on">Keep the screen on</string>
-    <string name="settings_keep_screen_on_hint">The screen stays on while you are in the chat</string>
+    <string name="settings_keep_screen_on_hint">The screen stays on while messages arrive in the chat</string>
     <string name="settings_emote_providers">Emote providers</string>
     <string name="settings_provider_twitch">Twitch</string>
     <string name="settings_provider_seventv">7TV</string>

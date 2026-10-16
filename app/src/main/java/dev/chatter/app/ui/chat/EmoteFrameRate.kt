@@ -10,8 +10,11 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.input.pointer.PointerEventPass
 import androidx.compose.ui.input.pointer.PointerEventType
 import androidx.compose.ui.input.pointer.pointerInput
-import kotlinx.coroutines.channels.Channel
+import kotlinx.coroutines.channels.BufferOverflow
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.flow.first
 
 /**
  * Frames per second for animated emotes. At or above [ACTIVE] the RenderThread animates them at
@@ -31,23 +34,23 @@ object EmoteFrameRate {
 
 /**
  * When the chat was last touched. Not state: a touch must not recompose, only wake
- * [rememberEmoteFrameRate].
+ * [rememberEmoteFrameRate] and [screenOnWhileChatMoves].
  */
 class ChatActivity {
     @Volatile var last: Long = System.currentTimeMillis()
         private set
-    private val touched = Channel<Unit>(Channel.CONFLATED)
+    private val touched = MutableSharedFlow<Unit>(extraBufferCapacity = 1, onBufferOverflow = BufferOverflow.DROP_OLDEST)
+
+    /** Every touch from now on; earlier ones are not replayed. */
+    val touches: Flow<Unit> = touched
 
     fun note() {
         last = System.currentTimeMillis()
-        touched.trySend(Unit)
+        touched.tryEmit(Unit)
     }
 
-    internal suspend fun awaitTouch() {
-        // Touches from before the chat went idle do not end it.
-        while (touched.tryReceive().isSuccess) Unit
-        touched.receive()
-    }
+    // Touches from before the chat went idle do not end it, so only new ones count.
+    internal suspend fun awaitTouch() = touches.first()
 }
 
 /**

@@ -1,0 +1,1 @@
+patch: Let the screen turn off when the chat stays quiet for 10 minutes

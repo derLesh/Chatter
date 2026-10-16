@@ -71,6 +71,7 @@ import dev.chatter.app.ui.chat.SharedEmotes
 import dev.chatter.app.ui.chat.noteTouches
 import dev.chatter.app.ui.chat.rememberChatStyle
 import dev.chatter.app.ui.chat.rememberEmoteFrameRate
+import dev.chatter.app.ui.chat.screenOnWhileChatMoves
 import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.launch
@@ -145,10 +146,18 @@ fun MainScreen(vm: MainViewModel, onInbox: () -> Unit, onSettings: () -> Unit) {
         onStopOrDispose { SharedEmotes.setFrameRate(EmoteFrameRate.ACTIVE) }
     }
 
-    // Only while the chat is on screen.
+    // Only while the chat is on screen, and only while it moves: someone asleep next to an ended
+    // stream should not have the display on until the battery is empty.
     val view = LocalView.current
-    DisposableEffect(settings.keepScreenOn) {
-        view.keepScreenOn = settings.keepScreenOn
+    val shownChat = remember(active) { active?.let(vm::chat) }
+    LaunchedEffect(settings.keepScreenOn, shownChat) {
+        if (!settings.keepScreenOn || shownChat == null) {
+            view.keepScreenOn = false
+            return@LaunchedEffect
+        }
+        screenOnWhileChatMoves(shownChat, activity.touches).collect { view.keepScreenOn = it }
+    }
+    DisposableEffect(view) {
         onDispose { view.keepScreenOn = false }
     }
 

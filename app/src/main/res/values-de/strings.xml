@@ -236,7 +236,7 @@
     <string name="settings_unread_title_bar_hint">Zeigt das Profilbild von Kanälen mit neuen Nachrichten oben, oder eine Markierung an ihrem Tab. Einzelne Kanäle kannst du in ihrem Menü ausnehmen.</string>
     <string name="settings_group_device">Auf diesem Handy</string>
     <string name="settings_keep_screen_on">Bildschirm anlassen</string>
-    <string name="settings_keep_screen_on_hint">Der Bildschirm bleibt an, solange du im Chat bist</string>
+    <string name="settings_keep_screen_on_hint">Der Bildschirm bleibt an, solange Nachrichten im Chat ankommen</string>
     <string name="settings_emote_providers">Emote-Anbieter</string>
     <string name="settings_provider_twitch">Twitch</string>
     <string name="settings_provider_seventv">7TV</string>
