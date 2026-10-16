@@ -210,8 +210,8 @@ class MainViewModel(private val c: AppContainer) : ViewModel() {
         viewModelScope.launch { c.chat.refused.collect(::onRefused) }
     }
 
-    /** A message this window sent: page and time, in case Twitch refuses it. */
-    private class Sent(val text: String, val page: String?, val at: Long)
+    /** A message this window sent: page, answered message and time, in case Twitch refuses it. */
+    private class Sent(val text: String, val page: String, val replyTo: ChatItem?, val at: Long)
 
     /** The last message this window sent per channel. */
     private val sent = HashMap<String, Sent>()
@@ -238,9 +238,10 @@ class MainViewModel(private val c: AppContainer) : ViewModel() {
             if (input.text.isNotBlank()) return
             selectSendChannel(channel)
             input = restored
+            if (replyTo == null) replyTo = refused.replyTo
             updateSuggestions()
-        } else if (refused.page != null && refused.page !in drafts) {
-            drafts[refused.page] = Draft(restored, null)
+        } else if (refused.page !in drafts) {
+            drafts[refused.page] = Draft(restored, refused.replyTo)
             draftPages = drafts.keys.toSet()
         }
     }
@@ -264,9 +265,6 @@ class MainViewModel(private val c: AppContainer) : ViewModel() {
     /** The channel last written in per combined chat. */
     private val sendChannels = HashMap<String, String>()
 
-    /** Unsent input on a page the user left: the text and the message it answers. */
-    private class Draft(val input: TextFieldValue, val replyTo: ChatItem?)
-
     /**
      * Drafts of pages not on screen. A single shared input would carry text to the next page, and a
      * swipe mid-sentence would send it there.
@@ -276,8 +274,8 @@ class MainViewModel(private val c: AppContainer) : ViewModel() {
     /** Stores the input under [from] and restores the draft of [to]. */
     private fun swapDraft(from: String?, to: String?) {
         if (from != null) {
-            if (input.text.isNotBlank() || replyTo != null) drafts[from] = Draft(input, replyTo)
-            else drafts.remove(from)
+            val left = Draft(input, replyTo)
+            if (left.isEmpty) drafts.remove(from) else drafts[from] = left
         }
         val draft = to?.let(drafts::remove)
         input = draft?.input ?: TextFieldValue("")
@@ -682,29 +680,50 @@ class MainViewModel(private val c: AppContainer) : ViewModel() {
         replyTo = null
     }
 
+    /** Pages with a message on its way. A second tap there would send the same text again. */
+    private val sendingPages = HashSet<String>()
+
     fun send() {
         val channel = sendChannel ?: return
-        val text = input.text
-        val reply = replyTo
+        val page = shownPage ?: return
+        if (!sendingPages.add(page)) return
+        val submitted = Draft(input, replyTo)
+        val text = submitted.input.text.trim()
         viewModelScope.launch {
-            when (c.chat.send(channel, text, reply)) {
-                SendResult.Ok -> {
-                    // A command is not a message: no slow mode, nothing to restore.
-                    if (CommandParser.parse(text.trim()) == null) {
-                        val now = System.currentTimeMillis()
-                        sent[channel] = Sent(text.trim(), shownPage, now)
-                        val slow = SendLimits.slowSeconds(roomStates.value[channel], roles.value[channel])
-                        if (slow > 0) slowUntil[channel] = now + slow * 1000L
+            try {
+                when (c.chat.send(channel, text, submitted.replyTo)) {
+                    SendResult.Ok -> {
+                        // A command is not a message: no slow mode, nothing to restore.
+                        if (CommandParser.parse(text) == null) {
+                            val now = System.currentTimeMillis()
+                            sent[channel] = Sent(text, page, submitted.replyTo, now)
+                            val slow = SendLimits.slowSeconds(roomStates.value[channel], roles.value[channel])
+                            if (slow > 0) slowUntil[channel] = now + slow * 1000L
+                        }
+                        clearSent(page, submitted)
                     }
-                    input = TextFieldValue("")
-                    replyTo = null
-                    suggestions = emptyList()
+                    SendResult.Empty -> Unit
+                    SendResult.NotConnected -> _messages.send(UiMessage(R.string.error_not_connected))
+                    SendResult.RateLimited -> _messages.send(UiMessage(R.string.error_rate_limited))
+                    SendResult.CommandError -> Unit // the hint is shown in the chat
                 }
-                SendResult.Empty -> Unit
-                SendResult.NotConnected -> _messages.send(UiMessage(R.string.error_not_connected))
-                SendResult.RateLimited -> _messages.send(UiMessage(R.string.error_rate_limited))
-                SendResult.CommandError -> Unit // the hint is shown in the chat
+            } finally {
+                sendingPages.remove(page)
             }
+        }
+    }
+
+    /** Takes [submitted] out of [page]'s input, which the user may have changed or left meanwhile. */
+    private fun clearSent(page: String, submitted: Draft) {
+        if (page == shownPage) {
+            val remaining = Draft(input, replyTo).afterSending(submitted)
+            input = remaining.input
+            replyTo = remaining.replyTo
+            updateSuggestions()
+        } else {
+            val remaining = drafts[page]?.afterSending(submitted) ?: return
+            if (remaining.isEmpty) drafts.remove(page) else drafts[page] = remaining
+            draftPages = drafts.keys.toSet()
         }
     }
 
