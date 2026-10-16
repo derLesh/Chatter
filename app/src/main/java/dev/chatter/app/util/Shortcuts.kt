@@ -45,6 +45,16 @@ const val EXTRA_LIVE_CHANNEL = "live_channel"
  */
 const val EXTRA_PROFILING_CHANNEL = "profiling_channel"
 
+/**
+ * Settings the power benchmark sets before it measures, so that two runs differ in one setting
+ * only. Booleans; only the profiling builds listen, like [EXTRA_PROFILING_CHANNEL].
+ */
+const val EXTRA_PROFILING_DARK_THEME = "profiling_dark_theme"
+const val EXTRA_PROFILING_PURE_BLACK = "profiling_pure_black"
+const val EXTRA_PROFILING_ANIMATED_EMOTES = "profiling_animated_emotes"
+const val EXTRA_PROFILING_SMOOTH_SCROLLING = "profiling_smooth_scrolling"
+const val EXTRA_PROFILING_KEEP_SCREEN_ON = "profiling_keep_screen_on"
+
 private const val CHANNEL_PREFIX = "channel:"
 private const val INBOX_ID = "inbox"
 

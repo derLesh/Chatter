@@ -41,11 +41,16 @@ fun startLoggedOut() {
 /**
  * Reads a busy channel as a guest and waits for its chat. Lasts until [startLoggedOut], so every
  * following start goes straight to the chat.
+ *
+ * [settings] are set on the way, by the names of the `EXTRA_PROFILING_` constants in the app.
  */
-fun startInChat() {
+fun startInChat(settings: Map<String, Boolean> = emptyMap()) {
     val channel = InstrumentationRegistry.getArguments().getString("chatterChannel") ?: DEFAULT_CHANNEL
-    // Directly to the activity, not the launcher alias: the extra is not for the launcher.
-    device.executeShellCommand("am start -W -n $PACKAGE/dev.chatter.app.MainActivity --es $EXTRA_CHANNEL $channel")
+    val settingExtras = settings.entries.joinToString("") { (name, on) -> " --ez $name $on" }
+    // Directly to the activity, not the launcher alias: the extras are not for the launcher.
+    device.executeShellCommand(
+        "am start -W -n $PACKAGE/dev.chatter.app.MainActivity --es $EXTRA_CHANNEL $channel$settingExtras",
+    )
     chat()
 }
 

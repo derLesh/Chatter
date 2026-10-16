@@ -180,6 +180,7 @@ says about the cold start and the chat frames, with the profile and without, int
 ./gradlew :app:connectedMicrobenchmarkAndroidTest -Pandroid.testInstrumentationRunnerArguments.package=dev.chatter.app.flows       # the screen tests, on the connected phone
 ./gradlew :app:generateReleaseBaselineProfile       # record the baseline profile on the connected phone
 ./gradlew :baselineprofile:connectedBenchmarkReleaseAndroidTest   # what the profile is worth
+./gradlew :baselineprofile:connectedBenchmarkReleaseAndroidTest -Pandroid.testInstrumentationRunnerArguments.class=dev.chatter.app.baselineprofile.PowerBenchmark   # what an open chat draws, per power rail; see docs/power.md
 ```
 
 A change is not confirmed by compiling. Install it and open the screen it touches:

@@ -47,6 +47,7 @@ import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.repeatOnLifecycle
 import coil3.ImageLoader
+import dev.chatter.app.BuildConfig
 import dev.chatter.app.R
 import dev.chatter.app.auth.AuthState
 import dev.chatter.app.channels.ChannelInfo
@@ -151,9 +152,10 @@ fun MainScreen(vm: MainViewModel, onInbox: () -> Unit, onSettings: () -> Unit) {
         onDispose { view.keepScreenOn = false }
     }
 
-    // Keeps the chat service and connection running while there are channels.
+    // Keeps the chat service and connection running while there are channels. Profiling builds run
+    // it for a guest too; see ChatService.
     LifecycleStartEffect(channels.isNotEmpty(), guest) {
-        if (channels.isNotEmpty() && !guest) ChatService.start(context)
+        if (channels.isNotEmpty() && (!guest || BuildConfig.PROFILING)) ChatService.start(context)
         onStopOrDispose { }
     }
 

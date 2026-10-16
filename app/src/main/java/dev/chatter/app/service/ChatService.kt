@@ -13,6 +13,7 @@ import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
 import androidx.core.content.ContextCompat
 import dev.chatter.app.ChatterApp
+import dev.chatter.app.BuildConfig
 import dev.chatter.app.R
 import dev.chatter.app.auth.AuthState
 import dev.chatter.app.irc.ConnectionState
@@ -77,7 +78,7 @@ class ChatService : Service() {
         }
         // Runs while someone is logged in with at least one channel. Logging out keeps the
         // channels, so the login is watched as well. A guest gets no mentions or whispers and needs
-        // no service.
+        // no service, except in the profiling builds, which measure a night in the background as one.
         scope.launch {
             combine(
                 container.channels.channels,
@@ -86,7 +87,7 @@ class ChatService : Service() {
             ) { ch, st, auth -> Triple(ch.size, st, auth) }
                 .distinctUntilChanged()
                 .collect { (count, state, auth) ->
-                    if (count == 0 || state == ConnectionState.AuthFailed || auth is AuthState.LoggedOut || auth is AuthState.Guest) {
+                    if (count == 0 || state == ConnectionState.AuthFailed || auth is AuthState.LoggedOut || (auth is AuthState.Guest && !BuildConfig.PROFILING)) {
                         // Logout and a rejected login close the socket themselves; running out of
                         // channels does not.
                         if (count == 0) container.disconnect()
