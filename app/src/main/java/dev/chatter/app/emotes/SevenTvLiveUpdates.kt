@@ -2,6 +2,7 @@ package dev.chatter.app.emotes
 
 import android.content.Context
 import dev.chatter.app.R
+import dev.chatter.app.badges.BadgeProvider
 import dev.chatter.app.badges.BadgeRepository
 import dev.chatter.app.chat.ChatRepository
 import dev.chatter.app.chat.Segment
@@ -9,6 +10,9 @@ import dev.chatter.app.settings.Settings
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 
 /**
@@ -28,9 +32,12 @@ class SevenTvLiveUpdates(
     private val scope: CoroutineScope,
 ) {
     fun start() {
-        // Subscribe to the sets and users of the loaded channels.
+        // Subscribe to the sets and users of the loaded channels, as far as 7TV is switched on.
+        val badgesOn = settings.map { BadgeProvider.SevenTv in it.badgeProviders }.distinctUntilChanged()
+        val emotesOn = settings.map { EmoteProvider.SevenTv in it.emoteProvidersOn }.distinctUntilChanged()
         scope.launch {
-            emotes.version.collect { client.setSubscriptions(subscriptions()) }
+            combine(emotes.version, emotesOn, badgesOn) { _, _, badges -> subscriptions(badges) }
+                .collect { client.setSubscriptions(it) }
         }
         scope.launch {
             chat.windows.anyVisible.collectLatest { active ->
@@ -55,10 +62,11 @@ class SevenTvLiveUpdates(
 
     /**
      * The emote sets of every channel plus its cosmetics. 7TV badges are only pushed per channel
-     * since the cosmetics endpoint was retired; Chatterino does the same.
+     * since the cosmetics endpoint was retired; Chatterino does the same. Paints come with the
+     * badges and are only shown with them, so [badges] decides for both.
      */
-    private fun subscriptions(): Set<SevenTvSubscription> =
-        emotes.sevenTvSubscriptions() + chat.rooms.knownIds().flatMap { roomId ->
+    private fun subscriptions(badges: Boolean): Set<SevenTvSubscription> =
+        emotes.sevenTvSubscriptions() + if (!badges) emptySet() else chat.rooms.knownIds().flatMap { roomId ->
             listOf(
                 SevenTvSubscription.ofChannel("cosmetic.create", roomId),
                 SevenTvSubscription.ofChannel("entitlement.create", roomId),

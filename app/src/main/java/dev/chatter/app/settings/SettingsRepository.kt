@@ -152,6 +152,9 @@ data class Settings(
      */
     val copyFirst: Boolean = false,
 ) {
+    /** The emote providers whose lists are loaded: none while emotes are off. */
+    val emoteProvidersOn: Set<EmoteProvider> get() = if (emotesEnabled) emoteProviders else emptySet()
+
     companion object {
         // ARGB colors are opaque (0xFF......), so these never clash with one.
         const val HIGHLIGHT_DEFAULT = 0

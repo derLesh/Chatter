@@ -80,6 +80,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.drop
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
@@ -151,7 +152,7 @@ class AppContainer(
     val thirdParty = ThirdPartyApi(http)
     /** Posts for the cards that replace their links, one source per site. */
     val posts = PostRepository(listOf(XPostSource(FxTwitterApi(http)), BlueskyPostSource(BlueskyApi(http))), scope)
-    val emotes = EmoteRepository(helix, thirdParty, trouble)
+    val emotes = EmoteRepository(helix, thirdParty, trouble, providersOn = { settings.settings.value.emoteProvidersOn })
     val emoji = EmojiRepository(context)
     val badges = BadgeRepository(helix, thirdParty, trouble)
     private val cheermotes = CheermoteRepository(helix, trouble)
@@ -229,6 +230,10 @@ class AppContainer(
         scope.launch { settings.decideOnboarding(isFirstInstall(context)) }
         // Read for every message, so mirrored onto the repository.
         scope.launch { settings.settings.collect { badges.enabled = it.badgeProviders } }
+        // A provider switched on is loaded now; one switched off is no longer waited for.
+        scope.launch {
+            settings.settings.map { it.emoteProvidersOn }.distinctUntilChanged().drop(1).collect { emotes.retryMissing() }
+        }
         sevenTvLive.start()
         shortcuts.start()
         liveAlerts.start()

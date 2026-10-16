@@ -30,6 +30,8 @@ class EmoteRepository(
     private val helix: TwitchEmoteApi,
     private val thirdParty: ThirdPartyEmoteApi,
     private val trouble: ServiceTrouble = ServiceTrouble(),
+    /** The providers the user has switched on; the others are never asked. */
+    private val providersOn: () -> Set<EmoteProvider> = { EmoteProvider.entries.toSet() },
     /** Injected for tests. */
     private val now: () -> Long = System::currentTimeMillis,
 ) : EmoteSource {
@@ -49,7 +51,7 @@ class EmoteRepository(
 
     /**
      * Providers whose global emotes are missing: all of them before the first load, afterwards the
-     * ones that did not answer. [retryMissing] asks only these.
+     * ones that did not answer or are switched off. [retryMissing] asks those switched on.
      */
     @Volatile private var globalMissing: Set<EmoteProvider> = THIRD_PARTY
 
@@ -93,8 +95,8 @@ class EmoteRepository(
 
     /** All providers have answered for [channelId], so a message built now will not change. */
     override fun complete(channelId: String?): Boolean =
-        globalMissing.isEmpty() &&
-            (channelId == null || (channelId in answered && channelMissing[channelId].isNullOrEmpty()))
+        globalMissing.thatAreOn().isEmpty() &&
+            (channelId == null || (channelId in answered && channelMissing[channelId].orEmpty().thatAreOn().isEmpty()))
 
     /**
      * Everything the user can type in a channel, for autocomplete and the picker. Weaker sources go
@@ -113,11 +115,11 @@ class EmoteRepository(
     /** Asks the providers that still owe global emotes; no request once all are loaded. */
     suspend fun loadGlobal() = globalLock.withLock {
         globalAsked = true
-        val wanted = globalMissing
+        val wanted = globalMissing.thatAreOn()
         if (wanted.isEmpty()) return@withLock
         val loaded = global.merge(ask(wanted) { fetchGlobal(it) })
         global = loaded.emotes
-        globalMissing = loaded.failed
+        globalMissing = globalMissing - wanted + loaded.failed
         updateWaiting()
         _version.update { it + 1 }
         if (loaded.failed != wanted) _arrived.tryEmit(Unit)
@@ -140,7 +142,8 @@ class EmoteRepository(
         wanted: Set<EmoteProvider> = THIRD_PARTY,
     ) = coroutineScope {
         val follower = async { if (userId != null) loadFollowerEmotes(channelId, userId) }
-        val answers = ask(wanted) { fetchChannel(channelId, it) }
+        val asked = wanted.thatAreOn()
+        val answers = ask(asked) { fetchChannel(channelId, it) }
         // Merged into the current emotes once the answers are in, not into a snapshot from before
         // the request. Otherwise a 7TV change or another provider's retry finishing in between is
         // lost.
@@ -148,13 +151,14 @@ class EmoteRepository(
         channels.compute(channelId) { _, current ->
             (current ?: ProviderEmotes()).merge(answers).also { failed = it.failed }.emotes
         }
-        // Providers not asked this time keep their previous state.
+        // Providers not asked this time keep their previous state; before the first load that is
+        // missing, so one switched on later is loaded then.
         var owed = emptySet<EmoteProvider>()
         val missing = channelMissing.compute(channelId) { _, before ->
-            owed = before.orEmpty()
-            owed - wanted + failed
+            owed = before ?: THIRD_PARTY
+            owed - asked + failed
         }.orEmpty()
-        if (missing.isEmpty()) lastFullLoad[channelId] = now() else lastFullLoad.remove(channelId)
+        if (missing.thatAreOn().isEmpty()) lastFullLoad[channelId] = now() else lastFullLoad.remove(channelId)
         val first = answered.add(channelId)
         updateWaiting()
         follower.await()
@@ -163,19 +167,22 @@ class EmoteRepository(
     }
 
     /**
-     * Asks only the providers that did not answer. Returns true if one of them is back; [arrived]
-     * tells the chat too. The follower emotes are not asked again: they were not what was missing.
+     * Asks only the providers that did not answer, and those just switched on. Returns true if one
+     * of them is back; [arrived] tells the chat too. The follower emotes are not asked again: they
+     * were not what was missing.
      */
     suspend fun retryMissing(): Boolean {
+        // A provider switched off since is no longer waited for.
+        updateWaiting()
         var recovered = false
-        if (globalAsked && globalMissing.isNotEmpty()) {
+        if (globalAsked && globalMissing.thatAreOn().isNotEmpty()) {
             val before = globalMissing
             loadGlobal()
             if (globalMissing != before) recovered = true
         }
         // Over a copy: loading writes into this map.
         channelMissing.entries.map { it.key to it.value }.forEach { (channelId, missing) ->
-            if (missing.isEmpty()) return@forEach
+            if (missing.thatAreOn().isEmpty()) return@forEach
             loadChannel(channelId, userId = null, wanted = missing)
             if (channelMissing[channelId].orEmpty() != missing) recovered = true
         }
@@ -206,9 +213,11 @@ class EmoteRepository(
     }
 
     /** EventAPI subscriptions: set changes and set switches of every channel. */
-    fun sevenTvSubscriptions(): Set<SevenTvSubscription> =
-        sevenTvSets.values.mapTo(HashSet()) { SevenTvSubscription.ofObject("emote_set.update", it) } +
+    fun sevenTvSubscriptions(): Set<SevenTvSubscription> {
+        if (EmoteProvider.SevenTv !in providersOn()) return emptySet()
+        return sevenTvSets.values.mapTo(HashSet()) { SevenTvSubscription.ofObject("emote_set.update", it) } +
             sevenTvUsers.values.map { SevenTvSubscription.ofObject("user.update", it) }
+    }
 
     fun channelForSevenTvSet(setId: String): String? = sevenTvSets.entries.firstOrNull { it.value == setId }?.key
     fun channelForSevenTvUser(userId: String): String? = sevenTvUsers.entries.firstOrNull { it.value == userId }?.key
@@ -294,9 +303,11 @@ class EmoteRepository(
     }
 
     private fun updateWaiting() {
-        _waitingForProvider.value = (globalAsked && globalMissing.isNotEmpty()) ||
-            channelMissing.values.any { it.isNotEmpty() }
+        _waitingForProvider.value = (globalAsked && globalMissing.thatAreOn().isNotEmpty()) ||
+            channelMissing.values.any { it.thatAreOn().isNotEmpty() }
     }
+
+    private fun Set<EmoteProvider>.thatAreOn(): Set<EmoteProvider> = this intersect providersOn()
 
     private suspend fun <T> safe(what: String, block: suspend () -> T): T? = try {
         block()

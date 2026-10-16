@@ -33,7 +33,8 @@ class EmoteRepositoryTest {
     private val twitch = FakeTwitch()
     private val trouble = ServiceTrouble()
     private var clock = 0L
-    private val emotes = EmoteRepository(twitch, providers, trouble) { clock }
+    private var switchedOn = EmoteProvider.entries.toSet()
+    private val emotes = EmoteRepository(twitch, providers, trouble, providersOn = { switchedOn }) { clock }
 
     private val channel = "22484632"
 
@@ -333,6 +334,61 @@ class EmoteRepositoryTest {
         twitch.follows = true
         emotes.loadChannel(channel, userId = "me")
         assertEquals(EmoteProvider.Twitch, emotes.lookupOwnTwitch(channel, "channelSmile")?.provider)
+    }
+
+    // ---- providers the user switched off ------------------------------------------------------
+
+    @Test
+    fun aProviderThatIsSwitchedOffIsNeverAsked() = runTest {
+        switchedOn = setOf(EmoteProvider.Twitch, EmoteProvider.SevenTv)
+        emotes.loadGlobal()
+        emotes.loadChannel(channel, userId = null)
+        assertEquals("7TV's global and channel list only", 2, providers.calls)
+        assertTrue(emotes.complete(channel))
+        assertFalse(emotes.waitingForProvider.value)
+    }
+
+    @Test
+    fun noEmotesAtAllAskNobody() = runTest {
+        switchedOn = emptySet()
+        emotes.loadGlobal()
+        emotes.loadChannel(channel, userId = null)
+        assertEquals(0, providers.calls)
+        assertTrue(emotes.sevenTvSubscriptions().isEmpty())
+    }
+
+    @Test
+    fun aProviderThatIsDownIsNoLongerWaitedForOnceSwitchedOff() = runTest {
+        providers.ffz = null
+        emotes.loadChannel(channel, userId = null)
+        assertTrue(emotes.waitingForProvider.value)
+        val afterFirst = providers.calls
+
+        switchedOn = switchedOn - EmoteProvider.Ffz
+        assertFalse(emotes.retryMissing())
+        assertFalse(emotes.waitingForProvider.value)
+        assertEquals(afterFirst, providers.calls)
+    }
+
+    @Test
+    fun aProviderSwitchedOnLaterIsLoadedThen() = runTest {
+        providers.bttv = listOf("catJAM")
+        switchedOn = setOf(EmoteProvider.Twitch, EmoteProvider.SevenTv)
+        emotes.loadChannel(channel, userId = null)
+        assertNull(emotes.lookup(channel, "catJAM"))
+
+        switchedOn = switchedOn + EmoteProvider.Bttv
+        assertTrue(emotes.retryMissing())
+        assertEquals(EmoteProvider.Bttv, emotes.lookup(channel, "catJAM")?.provider)
+    }
+
+    @Test
+    fun sevenTvSwitchedOffSubscribesToNothing() = runTest {
+        emotes.loadChannel(channel, userId = null)
+        assertFalse(emotes.sevenTvSubscriptions().isEmpty())
+
+        switchedOn = switchedOn - EmoteProvider.SevenTv
+        assertTrue(emotes.sevenTvSubscriptions().isEmpty())
     }
 
     // ---- what the 7TV EventAPI pushes ----------------------------------------------------------

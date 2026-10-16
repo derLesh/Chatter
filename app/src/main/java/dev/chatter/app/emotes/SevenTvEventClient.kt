@@ -137,6 +137,10 @@ class SevenTvEventClient(
 
     fun stop() = synchronized(lock) {
         wanted = false
+        closeSocket()
+    }
+
+    private fun closeSocket() {
         reconnectJob?.cancel()
         watchdogJob?.cancel()
         socket?.close(1000, null)
@@ -172,10 +176,13 @@ class SevenTvEventClient(
         val old = subscriptions
         subscriptions = new
         val ws = socket
-        if (ws != null && ready) {
+        if (new.isEmpty()) {
+            // With 7TV switched off a socket would only bring heartbeats.
+            closeSocket()
+        } else if (ws != null && ready) {
             (old - new).forEach { ws.send(subscriptionMessage(36, it)) }
             (new - old).forEach { ws.send(subscriptionMessage(35, it)) }
-        } else if (wanted && networkUp && socket == null && new.isNotEmpty()) {
+        } else if (wanted && networkUp && socket == null) {
             open()
         }
     }
