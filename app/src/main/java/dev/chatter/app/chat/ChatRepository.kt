@@ -25,6 +25,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.merge
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -179,9 +180,9 @@ class ChatRepository(
             channelRepo.groups.collect { groups -> buffers.setGroups(groups.mapValues { it.value.channels }) }
         }
 
-        // A provider came back: messages on screen were built without its emotes and are rebuilt.
+        // Emotes or badges arrived late: messages built without them are rebuilt.
         scope.launch(worker) {
-            emotes.recovered.collect { buffers.rebuildAll() }
+            merge(emotes.arrived, badges.arrived).collect { buffers.rebuildAll() }
         }
 
         scope.launch(worker) {

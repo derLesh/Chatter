@@ -1,5 +1,6 @@
 package dev.chatter.app.chat
 
+import dev.chatter.app.badges.Badge
 import dev.chatter.app.emotes.Emote
 import dev.chatter.app.emotes.EmoteProvider
 import dev.chatter.app.irc.IrcMessage
@@ -27,6 +28,30 @@ class MessageBuilderTest {
         IrcMessage.parse("@id=x;display-name=User${if (tags.isEmpty()) "" else ";$tags"} :user!user@user.tmi.twitch.tv PRIVMSG #chan :$text")!!
 
     private fun build(msg: IrcMessage) = builder.build(msg, "lukas", "1", mentions)!!
+
+    @Test
+    fun aMessageBuiltBeforeTheChannelsListsArriveGetsThemWhenBuiltAgain() {
+        var loaded = false
+        val channelEmotes = object : EmoteSource {
+            override fun lookup(channelId: String?, word: String) = thirdParty[word]?.takeIf { loaded }
+            override fun lookupOwnTwitch(channelId: String?, word: String) = null
+            override fun complete(channelId: String?) = loaded
+        }
+        val channelBadges = object : BadgeSource {
+            override fun resolve(channelId: String?, badgesTag: String?, userId: String?) =
+                if (loaded) listOf(Badge("b", "Subscriber")) else emptyList()
+            override fun complete(channelId: String?) = loaded
+        }
+        val item = MessageBuilder(channelEmotes, channelBadges)
+            .build(privmsg("OMEGALUL hi", "badges=subscriber/12"), "lukas", "1", mentions)!!
+        item.body.prepare()
+        assertTrue(item.badges.isEmpty())
+
+        loaded = true
+        val rebuilt = item.copy(body = item.body.rebuilt())
+        assertEquals("OMEGALUL", (rebuilt.segments[0] as Segment.EmoteSeg).emote.name)
+        assertEquals(listOf("Subscriber"), rebuilt.badges.map { it.title })
+    }
 
     @Test
     fun twitchEmotesFromTag() {

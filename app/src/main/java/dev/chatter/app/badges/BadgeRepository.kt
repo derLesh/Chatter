@@ -9,6 +9,8 @@ import dev.chatter.app.net.ServiceTrouble
 import dev.chatter.app.net.ThirdPartyBadgeApi
 import dev.chatter.app.net.TrustedImages
 import dev.chatter.app.net.TwitchBadgeApi
+import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.flow.SharedFlow
 import java.time.Instant
 import java.time.LocalDate
 import java.time.ZoneId
@@ -72,6 +74,14 @@ class BadgeRepository(
     /** Channels whose badges failed to load, retried when the app comes back. */
     private val failedChannels = ConcurrentHashMap.newKeySet<String>()
 
+    /** Whether the global set and each channel's were asked for once, answered or not. */
+    @Volatile private var globalAnswered = false
+    private val answeredChannels = ConcurrentHashMap.newKeySet<String>()
+
+    private val _arrived = MutableSharedFlow<Unit>(extraBufferCapacity = 1)
+    /** Badges arrived that messages built earlier lack; those messages are rebuilt. */
+    val arrived: SharedFlow<Unit> = _arrived
+
     @Volatile private var lastRetry = 0L
 
     /** Providers whose badges are shown. Set from the settings, read for every message. */
@@ -91,6 +101,9 @@ class BadgeRepository(
             else -> twitch + extra + sevenTv
         }
     }
+
+    override fun complete(channelId: String?): Boolean =
+        globalAnswered && (channelId == null || channelId in answeredChannels)
 
     override fun paint(userId: String?): NamePaint? =
         if (userId == null || BadgeProvider.SevenTv !in enabled) null
@@ -131,11 +144,13 @@ class BadgeRepository(
             .onSuccess {
                 global = it.toMap()
                 trouble.reachable(ServiceTrouble.TWITCH)
+                _arrived.tryEmit(Unit)
             }
             .onFailure {
                 if (it !is NotLoggedInException) trouble.report(ServiceTrouble.TWITCH)
                 Log.w(TAG, "Global badges failed: ${it.message}")
             }
+        globalAnswered = true
     }
 
     suspend fun loadChannel(channelId: String) {
@@ -143,12 +158,14 @@ class BadgeRepository(
             .onSuccess {
                 channels[channelId] = it.toMap()
                 failedChannels.remove(channelId)
+                _arrived.tryEmit(Unit)
             }
             .onFailure {
                 failedChannels.add(channelId)
                 if (it !is NotLoggedInException) trouble.report(ServiceTrouble.TWITCH)
                 Log.w(TAG, "Channel badges failed: ${it.message}")
             }
+        answeredChannels.add(channelId)
     }
 
     /**
@@ -207,7 +224,10 @@ class BadgeRepository(
                 }
         }
 
-        if (changed) thirdPartyBadges = mergeThirdParty()
+        if (changed) {
+            thirdPartyBadges = mergeThirdParty()
+            _arrived.tryEmit(Unit)
+        }
     }
 
     /**

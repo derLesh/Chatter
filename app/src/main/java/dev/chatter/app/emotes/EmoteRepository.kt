@@ -62,6 +62,12 @@ class EmoteRepository(
     /** The same per channel. */
     private val channelMissing = ConcurrentHashMap<String, Set<EmoteProvider>>()
 
+    /**
+     * Channels whose first load has finished. Until then a channel owes every provider, so a message
+     * built meanwhile stays rebuildable.
+     */
+    private val answered = ConcurrentHashMap.newKeySet<String>()
+
     /** Increments on every change, so the picker and autocomplete can refresh. */
     private val _version = MutableStateFlow(0)
     val version: StateFlow<Int> = _version
@@ -70,12 +76,12 @@ class EmoteRepository(
     /** True while a provider still owes emotes. */
     val waitingForProvider: StateFlow<Boolean> = _waitingForProvider
 
-    private val _recovered = MutableSharedFlow<Unit>(extraBufferCapacity = 1)
+    private val _arrived = MutableSharedFlow<Unit>(extraBufferCapacity = 1)
     /**
-     * A previously unreachable provider answered. Messages on screen were built without its emotes
-     * and are rebuilt.
+     * Emotes arrived that messages built earlier may lack: a first load, or a provider that was
+     * unreachable answered. Those messages are rebuilt.
      */
-    val recovered: SharedFlow<Unit> = _recovered
+    val arrived: SharedFlow<Unit> = _arrived
 
     /** Third-party emote for a word, channel before global. */
     override fun lookup(channelId: String?, word: String): Emote? =
@@ -87,7 +93,8 @@ class EmoteRepository(
 
     /** All providers have answered for [channelId], so a message built now will not change. */
     override fun complete(channelId: String?): Boolean =
-        globalMissing.isEmpty() && (channelId == null || channelMissing[channelId].isNullOrEmpty())
+        globalMissing.isEmpty() &&
+            (channelId == null || (channelId in answered && channelMissing[channelId].isNullOrEmpty()))
 
     /**
      * Everything the user can type in a channel, for autocomplete and the picker. Weaker sources go
@@ -113,6 +120,7 @@ class EmoteRepository(
         globalMissing = loaded.failed
         updateWaiting()
         _version.update { it + 1 }
+        if (loaded.failed != wanted) _arrived.tryEmit(Unit)
     }
 
     suspend fun loadTwitchUserEmotes(userId: String) {
@@ -141,16 +149,22 @@ class EmoteRepository(
             (current ?: ProviderEmotes()).merge(answers).also { failed = it.failed }.emotes
         }
         // Providers not asked this time keep their previous state.
-        val missing = channelMissing.compute(channelId) { _, before -> before.orEmpty() - wanted + failed }.orEmpty()
+        var owed = emptySet<EmoteProvider>()
+        val missing = channelMissing.compute(channelId) { _, before ->
+            owed = before.orEmpty()
+            owed - wanted + failed
+        }.orEmpty()
         if (missing.isEmpty()) lastFullLoad[channelId] = now() else lastFullLoad.remove(channelId)
+        val first = answered.add(channelId)
         updateWaiting()
         follower.await()
         _version.update { it + 1 }
+        if (first || (owed - missing).isNotEmpty()) _arrived.tryEmit(Unit)
     }
 
     /**
-     * Asks only the providers that did not answer. Returns true if one of them is back, so messages
-     * built without its emotes can be rebuilt.
+     * Asks only the providers that did not answer. Returns true if one of them is back; [arrived]
+     * tells the chat too.
      */
     suspend fun retryMissing(userId: String?): Boolean {
         var recovered = false
@@ -165,7 +179,6 @@ class EmoteRepository(
             loadChannel(channelId, userId, missing)
             if (channelMissing[channelId].orEmpty() != missing) recovered = true
         }
-        if (recovered) _recovered.tryEmit(Unit)
         return recovered
     }
 
@@ -223,6 +236,7 @@ class EmoteRepository(
     fun clear() {
         channels.clear()
         channelMissing.clear()
+        answered.clear()
         updateWaiting()
         lastFullLoad.clear()
         sevenTvSets.clear()

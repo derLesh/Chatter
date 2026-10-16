@@ -1,0 +1,1 @@
+patch: Show emotes and badges in messages that arrived while a channel was still loading

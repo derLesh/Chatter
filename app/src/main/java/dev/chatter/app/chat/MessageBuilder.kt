@@ -48,6 +48,9 @@ fun interface BadgeSource {
 
     /** The 7TV paint [userId] wears, if any. */
     fun paint(userId: String?): NamePaint? = null
+
+    /** False while badges for [channelId] are still on their way; see [EmoteSource.complete]. */
+    fun complete(channelId: String?): Boolean = true
 }
 
 /** Turns IRC messages into [ChatItem]s, once per message. */
@@ -154,8 +157,8 @@ class MessageBuilder(
 
         override fun quote() = builtQuote ?: reply?.let { quoteSegments(channel, it.parentBody, channelId) }.orEmpty()
 
-        // A provider that still owes emotes would change the message once it answers.
-        override fun worthKeeping() = !emotes.complete(channelId)
+        // A list still on its way would change the message once it arrives.
+        override fun worthKeeping() = !emotes.complete(channelId) || !badges.complete(badgeChannelId)
     }
 
     private fun buildPrivmsg(

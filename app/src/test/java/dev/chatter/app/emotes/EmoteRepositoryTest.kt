@@ -209,19 +209,32 @@ class EmoteRepositoryTest {
     @Test
     fun theChatIsToldToBuildItsMessagesAgainWhenEmotesArriveLate() = runTest {
         val rebuilds = mutableListOf<Unit>()
-        val watching = launch { emotes.recovered.collect { rebuilds += it } }
+        val watching = launch { emotes.arrived.collect { rebuilds += it } }
         runCurrent()
 
         providers.ffz = null
         emotes.loadChannel(channel, userId = null)
         runCurrent()
-        assertEquals("nothing to build again while it is still missing", 0, rebuilds.size)
+        assertEquals("the first answer brings the other providers' emotes", 1, rebuilds.size)
+
+        emotes.loadChannel(channel, userId = null)
+        runCurrent()
+        assertEquals("nothing new while FFZ is still away", 1, rebuilds.size)
 
         providers.ffz = listOf("pepeD")
         emotes.retryMissing(userId = null)
         runCurrent()
-        assertEquals(1, rebuilds.size)
+        assertEquals(2, rebuilds.size)
         watching.cancel()
+    }
+
+    @Test
+    fun aMessageBuiltBeforeTheChannelsFirstLoadStaysRebuildable() = runTest {
+        emotes.loadGlobal()
+        assertFalse("the channel's emotes are still on their way", emotes.complete(channel))
+
+        emotes.loadChannel(channel, userId = null)
+        assertTrue(emotes.complete(channel))
     }
 
     @Test
