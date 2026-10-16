@@ -1,0 +1,1 @@
+minor: Show new users around the app on the first start and let them pick the most useful settings right away

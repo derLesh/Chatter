@@ -17,6 +17,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import dev.chatter.app.auth.AuthState
 import dev.chatter.app.ui.changelog.UpdateNotesSheet
 import dev.chatter.app.ui.inbox.InboxScreen
+import dev.chatter.app.ui.onboarding.OnboardingScreen
 
 /** The screens after login: the chat and the two it opens over itself. */
 private enum class Screen { Chat, Inbox, Settings }
@@ -47,6 +48,18 @@ fun AppRoot(vm: MainViewModel) {
         AuthState.Loading -> Box(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background))
         AuthState.LoggedOut -> LoginScreen(vm)
         is AuthState.LoggedIn, AuthState.Guest -> {
+            // Blank while unknown, so neither the onboarding nor the chat flashes up for nothing.
+            when (vm.onboardingSeen.collectAsStateWithLifecycle().value) {
+                null -> {
+                    Box(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background))
+                    return
+                }
+                false -> {
+                    OnboardingScreen(vm)
+                    return
+                }
+                true -> Unit
+            }
             // Once, right after the first login; guests get no notifications to allow.
             val introSeen by vm.notificationIntroSeen.collectAsStateWithLifecycle()
             val context = LocalContext.current

@@ -69,6 +69,7 @@ import dev.chatter.app.stats.StatsRepository
 import dev.chatter.app.update.UpdateRepository
 import dev.chatter.app.util.ChannelIcons
 import dev.chatter.app.util.ChannelShortcuts
+import dev.chatter.app.util.isFirstInstall
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -222,6 +223,7 @@ class AppContainer(
         stats.start(chat.windows.anyVisible)
         backgroundHealth.start()
         changelog.start()
+        scope.launch { settings.decideOnboarding(isFirstInstall(context)) }
         // Read for every message, so mirrored onto the repository.
         scope.launch { settings.settings.collect { badges.enabled = it.badgeProviders } }
         sevenTvLive.start()

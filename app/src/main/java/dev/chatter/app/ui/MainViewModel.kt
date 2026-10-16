@@ -147,6 +147,9 @@ class MainViewModel(private val c: AppContainer) : ViewModel() {
     /** Null until read, so the intro does not flash up for somebody who has seen it. */
     val notificationIntroSeen: StateFlow<Boolean?> = c.settings.notificationIntroSeen
         .stateIn(viewModelScope, SharingStarted.Eagerly, null)
+    /** Null until known, like [notificationIntroSeen]. */
+    val onboardingSeen: StateFlow<Boolean?> = c.settings.onboardingSeen
+        .stateIn(viewModelScope, SharingStarted.Eagerly, null)
 
     val imageLoader get() = c.imageLoader
     val staticImageLoader get() = c.staticImageLoader
@@ -870,6 +873,8 @@ class MainViewModel(private val c: AppContainer) : ViewModel() {
     /** Profiling builds' way past the login: reads [channel] as a guest. */
     fun readAsGuest(channel: String) {
         viewModelScope.launch {
+            // The profile journeys need the chat right away, even on a fresh install.
+            c.settings.setOnboardingSeen(true)
             if (c.auth.account == null) c.auth.continueAsGuest()
             addChannel(channel)
         }
@@ -1000,6 +1005,11 @@ class MainViewModel(private val c: AppContainer) : ViewModel() {
     fun markChangelogRead() = c.changelog.markRead()
 
     fun markNotificationIntroSeen() = saveSetting { setNotificationIntroSeen() }
+
+    fun finishOnboarding() = saveSetting { setOnboardingSeen(true) }
+
+    /** For the developer page: the onboarding comes up again as on a fresh install. */
+    fun showOnboardingAgain() = saveSetting { setOnboardingSeen(false) }
 
     /** A newer GitHub release, for the GitHub APK; null otherwise. */
     val availableUpdate = c.updates.available

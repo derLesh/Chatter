@@ -69,24 +69,7 @@ import kotlin.math.roundToInt
 internal fun AppearancePage(settings: Settings, vm: MainViewModel) {
     val dark = isAppInDarkTheme()
     SettingsGroup(R.string.settings_group_colors) {
-        item(R.string.settings_theme) {
-            ListItem(
-                // The buttons are the row: three one-word options are clearer than a sheet, and
-                // need no extra label under the "Colors" heading.
-                headlineContent = {
-                    SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth()) {
-                        THEME_MODES.forEachIndexed { i, (mode, label) ->
-                            SegmentedButton(
-                                selected = settings.themeMode == mode,
-                                onClick = { vm.setThemeMode(mode) },
-                                shape = SegmentedButtonDefaults.itemShape(i, THEME_MODES.size),
-                            ) { Text(stringResource(label)) }
-                        }
-                    }
-                },
-                colors = transparentItem(),
-            )
-        }
+        item(R.string.settings_theme) { ThemeModeItem(settings.themeMode, vm::setThemeMode) }
         item(R.string.settings_dynamic_color) { SwitchItem(R.string.settings_dynamic_color, settings.dynamicColor, vm::setDynamicColor, R.string.settings_dynamic_color_hint) }
         // Only while the app is dark (chosen, or dark via System); a light theme has no black.
         if (dark) {
@@ -144,9 +127,31 @@ internal fun AppearancePage(settings: Settings, vm: MainViewModel) {
     }
 }
 
+/**
+ * The buttons are the row: three one-word options are clearer than a sheet, and need no extra
+ * label under the "Colors" heading.
+ */
+@Composable
+internal fun ThemeModeItem(selected: ThemeMode, onSelect: (ThemeMode) -> Unit) {
+    ListItem(
+        headlineContent = {
+            SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth()) {
+                THEME_MODES.forEachIndexed { i, (mode, label) ->
+                    SegmentedButton(
+                        selected = selected == mode,
+                        onClick = { onSelect(mode) },
+                        shape = SegmentedButtonDefaults.itemShape(i, THEME_MODES.size),
+                    ) { Text(stringResource(label)) }
+                }
+            }
+        },
+        colors = transparentItem(),
+    )
+}
+
 /** Chat text size with a live preview line. */
 @Composable
-private fun TextSizeItem(settings: Settings, vm: MainViewModel) {
+internal fun TextSizeItem(settings: Settings, vm: MainViewModel) {
     var size by remember(settings.fontSize) { mutableFloatStateOf(settings.fontSize) }
     val scheme = MaterialTheme.colorScheme
     val dark = isAppInDarkTheme()
@@ -329,7 +334,7 @@ private fun NameColorPicker(selected: NameColorPalette, onSelect: (NameColorPale
 
 /** Mention highlight swatches and a preview line. */
 @Composable
-private fun HighlightColorPicker(selected: Int, onSelect: (Int) -> Unit) {
+internal fun HighlightColorPicker(selected: Int, onSelect: (Int) -> Unit) {
     val scheme = MaterialTheme.colorScheme
     val options = listOf(
         Settings.HIGHLIGHT_DEFAULT, Settings.HIGHLIGHT_ACCENT,

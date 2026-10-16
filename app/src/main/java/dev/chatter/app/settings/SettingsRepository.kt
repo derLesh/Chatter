@@ -295,6 +295,16 @@ class SettingsRepository(
 
     suspend fun setNotificationIntroSeen() = store.edit { it[NOTIFICATION_INTRO_SEEN] = true }
 
+    /** Whether the onboarding was gone through. Null until [decideOnboarding] has run once. */
+    val onboardingSeen: Flow<Boolean?> = store.data.map { it[ONBOARDING_SEEN] }
+
+    suspend fun setOnboardingSeen(v: Boolean) = store.edit { it[ONBOARDING_SEEN] = v }
+
+    /** Somebody who updates from a version without the onboarding knows the app already. */
+    suspend fun decideOnboarding(firstInstall: Boolean) = store.edit {
+        if (it[ONBOARDING_SEEN] == null) it[ONBOARDING_SEEN] = !firstInstall
+    }
+
     /**
      * The release GitHub reported at the last check (JSON) and when that was. Not part of
      * [Settings]: it is not a user choice and must not travel with a backup.
@@ -444,6 +454,7 @@ class SettingsRepository(
         val COPY_FIRST = booleanPreferencesKey("copy_first")
         val SEEN_VERSION = stringPreferencesKey("seen_changelog_version")
         val NOTIFICATION_INTRO_SEEN = booleanPreferencesKey("notification_intro_seen")
+        val ONBOARDING_SEEN = booleanPreferencesKey("onboarding_seen")
         val AVAILABLE_UPDATE = stringPreferencesKey("available_update")
         val UPDATE_CHECKED_AT = longPreferencesKey("update_checked_at")
         const val MAX_RECENT = 40

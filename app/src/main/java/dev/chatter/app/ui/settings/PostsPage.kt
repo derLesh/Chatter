@@ -84,7 +84,7 @@ internal fun PostsPage(settings: Settings, vm: MainViewModel) {
 }
 
 @Composable
-private fun SiteItem(site: PostSite, on: Boolean, onChange: (Boolean) -> Unit) {
+internal fun SiteItem(site: PostSite, on: Boolean, onChange: (Boolean) -> Unit) {
     ListItem(
         headlineContent = { Text(stringResource(R.string.settings_post_site, stringResource(siteName(site)))) },
         supportingContent = { Text(stringResource(siteHint(site))) },
@@ -138,10 +138,10 @@ private fun PictureSizeItem(selected: PostPictureSize, vm: MainViewModel) {
 
 /**
  * A made-up message with a post card, drawn with the current settings, from the first site turned
- * on. Pictures are colored shapes, so the preview fetches nothing.
+ * on. Pictures are colored shapes, so the preview fetches nothing. [text] is what the post says.
  */
 @Composable
-private fun PostPreview(settings: Settings, vm: MainViewModel) {
+internal fun PostPreview(settings: Settings, vm: MainViewModel, text: Int = R.string.post_preview_text) {
     val scheme = MaterialTheme.colorScheme
     val style = rememberChatStyle(settings, emptyMap())
     val site = settings.postSites.firstOrNull() ?: PostSite.X
@@ -153,7 +153,7 @@ private fun PostPreview(settings: Settings, vm: MainViewModel) {
             body = MessageBody.of(listOf(Segment.Text(messageText))), text = messageText,
         )
     }
-    val postText = stringResource(R.string.post_preview_text)
+    val postText = stringResource(text)
     val post = remember(postText, site) {
         Post(
             name = "Chatter", handle = PREVIEW_HANDLES.getValue(site), avatarUrl = PREVIEW_AVATAR, text = postText,

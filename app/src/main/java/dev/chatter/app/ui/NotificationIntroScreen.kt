@@ -154,7 +154,7 @@ private fun IntroExplanation() {
 }
 
 @Composable
-private fun IntroPoint(icon: ImageVector, text: Int) {
+internal fun IntroPoint(icon: ImageVector, text: Int) {
     Row(verticalAlignment = Alignment.Top) {
         Icon(icon, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.padding(top = 2.dp))
         Spacer(Modifier.width(16.dp))

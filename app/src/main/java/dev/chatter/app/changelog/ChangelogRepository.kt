@@ -2,6 +2,7 @@ package dev.chatter.app.changelog
 
 import android.content.Context
 import dev.chatter.app.settings.SettingsRepository
+import dev.chatter.app.util.isFirstInstall
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -54,7 +55,7 @@ class ChangelogRepository(
         if (seen == null) {
             // Nothing recorded yet. A fresh install has nothing to report; an update from a version
             // that did not track this shows the current release.
-            if (isFirstInstall()) {
+            if (isFirstInstall(context)) {
                 settings.setSeenVersion(versionName)
                 return emptyList()
             }
@@ -64,12 +65,6 @@ class ChangelogRepository(
         if (seen.isOnlyAFixAwayFrom(current)) return emptyList()
         return _releases.value.filter { it.version > seen }
     }
-
-    /** Android tells install and update apart by these two timestamps. */
-    private fun isFirstInstall(): Boolean = runCatching {
-        val info = context.packageManager.getPackageInfo(context.packageName, 0)
-        info.firstInstallTime == info.lastUpdateTime
-    }.getOrDefault(true)
 
     private companion object {
         /** Copied from CHANGELOG.md by the copyChangelog task. */

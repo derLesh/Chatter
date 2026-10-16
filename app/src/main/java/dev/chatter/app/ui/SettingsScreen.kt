@@ -16,6 +16,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.AccountCircle
+import androidx.compose.material.icons.filled.Build
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Face
 import androidx.compose.material.icons.filled.Favorite
@@ -82,6 +83,7 @@ import dev.chatter.app.ui.settings.BlockedUsersPage
 import dev.chatter.app.ui.settings.CategoryIcon
 import dev.chatter.app.ui.settings.ChannelsPage
 import dev.chatter.app.ui.settings.CreditsPage
+import dev.chatter.app.ui.settings.DeveloperPage
 import dev.chatter.app.ui.settings.EmotesPage
 import dev.chatter.app.ui.settings.FiltersPage
 import dev.chatter.app.ui.settings.ImageHostsPage
@@ -137,11 +139,17 @@ private enum class SettingsPage(
     /** Only in the build people install themselves; see SPONSOR_LINK in build.gradle.kts. */
     Support(R.string.settings_support, R.string.settings_support_summary, SettingsSection.App, { Icons.Default.Favorite }),
     About(R.string.settings_about, R.string.settings_about_summary, SettingsSection.App, { Icons.Default.Info }),
+    /** Only in debug builds. */
+    Developer(R.string.settings_developer, R.string.settings_developer_summary, SettingsSection.App, { Icons.Default.Build }),
     /** Opened from the profile card above the sections. */
     Account(R.string.settings_account, R.string.settings_account_summary, null, { Icons.Default.AccountCircle }),
     ;
 
-    val shown: Boolean get() = this != Support || BuildConfig.SPONSOR_LINK
+    val shown: Boolean get() = when (this) {
+        Support -> BuildConfig.SPONSOR_LINK
+        Developer -> BuildConfig.DEBUG
+        else -> true
+    }
 }
 
 @Composable
@@ -258,6 +266,9 @@ private val SEARCH_INDEX: List<SearchEntry> by lazy {
         add(SearchEntry(R.string.settings_credits, about, R.string.settings_credits_summary))
         // Only the GitHub APK has this switch.
         if (BuildConfig.UPDATE_CHECK) add(SearchEntry(R.string.settings_update_check, about, R.string.settings_update_check_hint))
+        if (BuildConfig.DEBUG) {
+            add(SearchEntry(R.string.settings_show_onboarding, SettingsPage.Developer, R.string.settings_show_onboarding_hint))
+        }
     }
 }
 
@@ -421,6 +432,7 @@ fun SettingsScreen(vm: MainViewModel, onBack: () -> Unit) {
                     )
                     SettingsPage.Support -> SupportPage(vm)
                     SettingsPage.About -> AboutPage(settings, vm) { subPage = it }
+                    SettingsPage.Developer -> DeveloperPage(vm)
                 }
             }
           }
