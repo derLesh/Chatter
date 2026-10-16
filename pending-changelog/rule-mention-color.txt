@@ -1,0 +1,1 @@
+patch: A highlight rule left on the mention color now highlights its messages

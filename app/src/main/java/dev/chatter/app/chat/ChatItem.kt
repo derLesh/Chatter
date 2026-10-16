@@ -135,7 +135,7 @@ data class ChatItem(
     /** Plain text, for copying and reply previews. */
     val text: String = "",
     val isMention: Boolean = false,
-    /** ARGB background from a matching highlight rule. */
+    /** ARGB background from a matching highlight rule, or [MENTION_HIGHLIGHT]. */
     val highlight: Int? = null,
     /** Twitch's `first-msg`: the user's first message in this channel ever. */
     val isFirstMessage: Boolean = false,
@@ -167,4 +167,12 @@ data class ChatItem(
 
     /** The message this one answers, as segments; empty if it answers nothing. */
     val quote: List<Segment> get() = body.quote
+
+    companion object {
+        /**
+         * [highlight] of a rule without a color of its own: the mention color from the settings,
+         * which only the screen knows. Fully transparent, so no rule color can be it.
+         */
+        const val MENTION_HIGHLIGHT = 0
+    }
 }

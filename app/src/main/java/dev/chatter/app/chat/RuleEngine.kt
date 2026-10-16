@@ -37,7 +37,9 @@ class RuleEngine(rules: List<ChatRule> = emptyList()) {
             if (!matches(c, item)) continue
             when (c.rule.action) {
                 RuleAction.Hide -> return null
-                RuleAction.Highlight -> result = result.copy(highlight = c.rule.color ?: result.highlight)
+                RuleAction.Highlight -> result = result.copy(
+                    highlight = c.rule.color ?: result.highlight ?: ChatItem.MENTION_HIGHLIGHT,
+                )
                 RuleAction.Notify -> result = result.copy(
                     isMention = true,
                     highlight = c.rule.color ?: result.highlight,

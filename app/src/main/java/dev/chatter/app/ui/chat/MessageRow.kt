@@ -114,6 +114,7 @@ fun MessageRow(
 
     val firstMessage = item.isFirstMessage && style.firstMessageBackground != null
     val background = when {
+        item.highlight == ChatItem.MENTION_HIGHLIGHT -> style.mentionBackground
         // A rule's own color beats the mention color.
         item.highlight != null -> Color(item.highlight).copy(alpha = HIGHLIGHT_ALPHA)
         item.isMention -> style.mentionBackground

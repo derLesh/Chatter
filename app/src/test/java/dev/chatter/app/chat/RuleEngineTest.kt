@@ -75,6 +75,22 @@ class RuleEngineTest {
     }
 
     @Test
+    fun aHighlightWithoutColorUsesTheMentionColor() {
+        val engine = RuleEngine(listOf(rule("giveaway")))
+        val item = engine.apply(message("giveaway starting"))!!
+        assertEquals(ChatItem.MENTION_HIGHLIGHT, item.highlight)
+        assertFalse(item.isMention)
+    }
+
+    @Test
+    fun aRuleColorBeatsTheMentionColor() {
+        val engine = RuleEngine(listOf(rule("giveaway"), rule("giveaway", color = RED)))
+        assertEquals(RED, engine.apply(message("giveaway starting"))?.highlight)
+        val reversed = RuleEngine(listOf(rule("giveaway", color = RED), rule("giveaway")))
+        assertEquals(RED, reversed.apply(message("giveaway starting"))?.highlight)
+    }
+
+    @Test
     fun hideWins() {
         val engine = RuleEngine(listOf(rule("spam", color = RED), rule("spam", action = RuleAction.Hide)))
         assertNull(engine.apply(message("spam spam")))
