@@ -5,7 +5,8 @@
     allowBackup="false" in the manifest only ever covered the cloud: since Android 12 a transfer
     from one phone to the next ignores it and takes the app's storage along unless told otherwise.
     The login could not be read there anyway — its key is in the old phone's Keystore — and the
-    rest moves the way the user chooses, with the backup under Settings → Account.
+    rest moves the way the user chooses, with the file saved under Settings → Backup.
+    docs/privacy-policy.html says so; it changes with this file.
 -->
 <data-extraction-rules>
     <cloud-backup>
