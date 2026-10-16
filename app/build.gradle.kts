@@ -262,7 +262,12 @@ dependencies {
     // The benchmark runs in the measured app's process and needs an activity and a permission
     // there; only that build gets them. See testBuildType.
     "microbenchmarkImplementation"(libs.androidx.benchmark.junit4)
+    // The test APK runs against the app's copy of the test runner; the one benchmark-junit4 brings is
+    // too old for ActivityScenario in the flow tests.
+    "microbenchmarkImplementation"(libs.androidx.test.runner)
     androidTestImplementation(libs.androidx.test.ext.junit)
+    // Taps through the real screens in ScreenRestoreTest.
+    androidTestImplementation(libs.androidx.test.uiautomator)
 
     // The profile from :baselineprofile, compiled into the release APK.
     baselineProfile(project(":baselineprofile"))

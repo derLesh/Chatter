@@ -110,6 +110,13 @@ made-up lines by `BusyChannel`. It runs against the `microbenchmark` build type:
 not debuggable (a debuggable app runs unoptimized and would measure nothing a user runs), with an
 application id of its own, because a connected test uninstalls what it tested afterwards.
 
+`.github/workflows/screen-tests.yml` runs the screen tests in `app/src/androidTest/.../flows` on an
+emulator for every push and pull request: the real activity, recreated, must come back on the same
+screen and page. They read as a guest without channels, so they need no login and no message
+arrives. They share the `microbenchmark` build with the benchmark, so both commands below name
+their package. What is written, sent and restored is tested on the JVM instead, through
+`Composer` and a sender the test controls (`ComposerFlowTest`); a new composer flow goes there.
+
 `.github/workflows/release.yml` is the release itself, started by hand from the Actions tab. Nobody
 picks a version there either — it runs `releaseVersion`, so the pending entries decide it. It then
 builds and signs both the APK and the Play bundle, pushes the release commit and the `v<version>`
@@ -169,7 +176,8 @@ says about the cold start and the chat frames, with the profile and without, int
 ./gradlew releaseVersion             # fold them into CHANGELOG.md, bump the version, clear pending
 ./gradlew :app:testDebugUnitTest     # unit tests
 ./gradlew :app:installDebug          # build and install on the connected phone
-./gradlew :app:connectedMicrobenchmarkAndroidTest   # what a message costs, on the connected phone
+./gradlew :app:connectedMicrobenchmarkAndroidTest -Pandroid.testInstrumentationRunnerArguments.package=dev.chatter.app.benchmark   # what a message costs, on the connected phone
+./gradlew :app:connectedMicrobenchmarkAndroidTest -Pandroid.testInstrumentationRunnerArguments.package=dev.chatter.app.flows       # the screen tests, on the connected phone
 ./gradlew :app:generateReleaseBaselineProfile       # record the baseline profile on the connected phone
 ./gradlew :baselineprofile:connectedBenchmarkReleaseAndroidTest   # what the profile is worth
 ```
