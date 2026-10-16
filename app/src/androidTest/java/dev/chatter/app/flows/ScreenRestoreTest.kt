@@ -6,12 +6,15 @@ import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import androidx.test.uiautomator.By
 import androidx.test.uiautomator.BySelector
+import androidx.test.uiautomator.Direction
 import androidx.test.uiautomator.UiDevice
+import androidx.test.uiautomator.UiObject2
 import androidx.test.uiautomator.Until
 import dev.chatter.app.ChatterApp
 import dev.chatter.app.MainActivity
 import dev.chatter.app.R
 import kotlinx.coroutines.runBlocking
+import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
@@ -38,7 +41,8 @@ class ScreenRestoreTest {
     fun theSettingsPageComesBack() {
         ActivityScenario.launch(MainActivity::class.java).use { activity ->
             tap(By.desc(app.getString(R.string.settings)))
-            tap(By.text(app.getString(R.string.settings_filters)))
+            expect(By.text(app.getString(R.string.settings_appearance)))
+            scrollTo(By.text(app.getString(R.string.settings_filters))).click()
             expect(By.text(app.getString(R.string.settings_rules)))
 
             activity.recreate()
@@ -61,6 +65,14 @@ class ScreenRestoreTest {
     private fun tap(selector: BySelector) {
         expect(selector)
         device.findObject(selector).click()
+    }
+
+    /** The CI emulator's screen is short, so a category low on the page may need scrolling to. */
+    private fun scrollTo(selector: BySelector): UiObject2 {
+        val found = device.findObject(selector)
+            ?: device.findObject(By.scrollable(true))?.scrollUntil(Direction.DOWN, Until.findObject(selector))
+        assertNotNull("Not on screen, even after scrolling: $selector", found)
+        return found!!
     }
 
     private fun expect(selector: BySelector) {
