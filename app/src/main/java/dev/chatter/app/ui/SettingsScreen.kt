@@ -96,6 +96,7 @@ import dev.chatter.app.ui.settings.MOBILE_DATA
 import dev.chatter.app.ui.settings.NotificationsPage
 import dev.chatter.app.ui.settings.PROVIDERS
 import dev.chatter.app.ui.settings.PostsPage
+import dev.chatter.app.ui.settings.RuleEditorPage
 import dev.chatter.app.ui.settings.RulesPage
 import dev.chatter.app.ui.settings.SettingsGroup
 import dev.chatter.app.ui.settings.SettingsSearch
@@ -278,21 +279,27 @@ private val SEARCH_INDEX: List<SearchEntry> by lazy {
  */
 private data class TwitchLogin(val url: String, val signedOut: Boolean)
 
-/** The current position in the settings: search, category, sub-page. */
+/** [SettingsPlace.rule] while a rule is being written that is not saved yet. */
+private const val NEW_RULE = ""
+
+/** The current position in the settings: search, category, sub-page, rule editor. */
 private data class SettingsPlace(
     val page: SettingsPage? = null,
     val subPage: SettingsSubPage? = null,
     /** The search is open; a category opened from it returns to it. */
     val searching: Boolean = false,
+    /** The id of the rule in the editor, or [NEW_RULE]. */
+    val rule: String? = null,
 ) {
     /** Decides whether a transition goes forward or back. */
-    val depth: Int get() = (if (searching) 1 else 0) + (if (page != null) 1 else 0) + (if (subPage != null) 1 else 0)
+    val depth: Int get() = listOf(searching, page != null, subPage != null, rule != null).count { it }
 }
 
 @Composable
 fun SettingsScreen(vm: MainViewModel, onBack: () -> Unit) {
     var page by rememberSaveable { mutableStateOf<SettingsPage?>(null) }
     var subPage by rememberSaveable { mutableStateOf<SettingsSubPage?>(null) }
+    var rule by rememberSaveable { mutableStateOf<String?>(null) }
     var searching by rememberSaveable { mutableStateOf(false) }
     var query by rememberSaveable { mutableStateOf("") }
     // The setting a search result opened, highlighted until the page is left.
@@ -303,6 +310,7 @@ fun SettingsScreen(vm: MainViewModel, onBack: () -> Unit) {
     val goBack = {
         when {
             addAccount != null -> addAccount = null
+            rule != null -> rule = null
             subPage != null -> subPage = null
             page != null -> {
                 page = null
@@ -346,9 +354,10 @@ fun SettingsScreen(vm: MainViewModel, onBack: () -> Unit) {
         return
     }
 
-    val place = SettingsPlace(page, subPage, searching)
+    val place = SettingsPlace(page, subPage, searching, rule)
     // One step up. From the category list, leaving the settings is animated by the parent screen.
     val backTo = when {
+        rule != null -> place.copy(rule = null)
         subPage != null -> place.copy(subPage = null)
         page != null -> place.copy(page = null)
         searching -> place.copy(searching = false)
@@ -356,7 +365,20 @@ fun SettingsScreen(vm: MainViewModel, onBack: () -> Unit) {
     }
     rememberPredictiveTransition(place, backTo, onBack = goBack, label = "settings-page").AnimatedContent(
         transitionSpec = { slideBetweenScreens(forward = targetState.depth > initialState.depth) },
-    ) { (current, currentSub, currentSearching) ->
+    ) { (current, currentSub, currentSearching, currentRule) ->
+        if (currentRule != null) {
+            // Looked up once; the editor keeps its own copy from then on.
+            val editing = remember(currentRule) { vm.rules.value.find { it.id == currentRule } }
+            RuleEditorPage(
+                rule = editing,
+                onSave = {
+                    vm.saveRule(it)
+                    goBack()
+                },
+                onBack = goBack,
+            )
+            return@AnimatedContent
+        }
         if (current == null && currentSearching) {
             SearchPage(
                 query = query,
@@ -400,7 +422,7 @@ fun SettingsScreen(vm: MainViewModel, onBack: () -> Unit) {
                 SettingsSubPage.ImageHosts -> ImageHostsPage(settings.imageHosts, vm)
                 SettingsSubPage.Posts -> PostsPage(settings, vm)
                 SettingsSubPage.LiveChannels -> LiveChannelsPage(vm)
-                SettingsSubPage.Rules -> RulesPage(vm)
+                SettingsSubPage.Rules -> RulesPage(vm) { rule = it?.id ?: NEW_RULE }
                 SettingsSubPage.Credits -> CreditsPage()
                 SettingsSubPage.Changelog -> {
                     val releases by vm.releases.collectAsStateWithLifecycle()

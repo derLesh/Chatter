@@ -160,12 +160,11 @@ internal fun BlockedUsersPage(vm: MainViewModel) {
 
 /**
  * The user's highlight rules, listed in the order they apply, since a hide beats everything below.
+ * [edit] opens a rule in the editor, or a new one for null.
  */
 @Composable
-internal fun RulesPage(vm: MainViewModel) {
+internal fun RulesPage(vm: MainViewModel, edit: (ChatRule?) -> Unit) {
     val rules by vm.rules.collectAsStateWithLifecycle()
-    var editing by remember { mutableStateOf<ChatRule?>(null) }
-    var creating by remember { mutableStateOf(false) }
     val scheme = MaterialTheme.colorScheme
 
     SettingsGroup {
@@ -213,7 +212,7 @@ internal fun RulesPage(vm: MainViewModel) {
                         }
                     },
                     colors = transparentItem(),
-                    modifier = Modifier.clickable { editing = rule },
+                    modifier = Modifier.clickable { edit(rule) },
                 )
             }
         }
@@ -222,17 +221,9 @@ internal fun RulesPage(vm: MainViewModel) {
                 headlineContent = { Text(stringResource(R.string.rule_new)) },
                 leadingContent = { CategoryIcon(Icons.Default.Add) },
                 colors = transparentItem(),
-                modifier = Modifier.clickable { creating = true },
+                modifier = Modifier.clickable { edit(null) },
             )
         }
-    }
-
-    if (creating || editing != null) {
-        RuleDialog(
-            rule = editing,
-            onSave = vm::saveRule,
-            onDismiss = { creating = false; editing = null },
-        )
     }
 }
 
