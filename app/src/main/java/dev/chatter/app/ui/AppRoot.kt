@@ -9,7 +9,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
@@ -25,8 +25,9 @@ private enum class Screen { Chat, Inbox, Settings }
 @Composable
 fun AppRoot(vm: MainViewModel) {
     val auth by vm.authState.collectAsStateWithLifecycle()
-    var showSettings by remember { mutableStateOf(false) }
-    var showInbox by remember { mutableStateOf(false) }
+    // Saved, so turning the phone does not drop the user back into the chat.
+    var showSettings by rememberSaveable { mutableStateOf(false) }
+    var showInbox by rememberSaveable { mutableStateOf(false) }
 
     // Requested from outside (shortcut, whisper notification). The inbox clears it after scrolling
     // to the tab.
