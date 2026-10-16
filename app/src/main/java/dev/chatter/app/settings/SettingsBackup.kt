@@ -22,6 +22,8 @@ data class SettingsBackup(
     /** Nickname by lowercase login. */
     val nicknames: Map<String, String>? = null,
     val channels: ChannelBackup? = null,
+    /** Names of the most recently used emotes, newest first. */
+    val recentEmotes: List<String>? = null,
 ) {
     companion object {
         const val APP = "Chatter"
@@ -78,6 +80,7 @@ class BackupManager(
                 liveAlertsOn = channels.liveAlerts.value.on.toList(),
                 liveAlertsOff = channels.liveAlerts.value.off.toList(),
             ),
+            recentEmotes = settings.recentEmotes.value,
         )
     )
 
@@ -94,6 +97,7 @@ class BackupManager(
     /** Applies [backup] as [read] returned it. */
     suspend fun apply(backup: SettingsBackup) {
         backup.settings?.let { settings.replaceAll(it) }
+        backup.recentEmotes?.let { settings.setRecentEmotes(it) }
         backup.rules?.let { rules.replaceAll(it) }
         backup.nicknames?.let { nicknames.replaceAll(it) }
         backup.channels?.let {

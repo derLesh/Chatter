@@ -30,6 +30,13 @@ class BackupCheckTest {
         assertEquals(Settings().fontSize, clean(Settings(fontSize = Float.NaN)).fontSize)
     }
 
+    /** Stored space-separated: a space inside would split one into two. */
+    @Test
+    fun recentEmotesLoseSpacesAndRepeats() {
+        val backup = BackupCheck.clean(SettingsBackup(recentEmotes = listOf("KEKW", "two words", "", "KEKW", "LUL")))
+        assertEquals(listOf("KEKW", "LUL"), backup.recentEmotes)
+    }
+
     /** Stored comma-separated: a comma inside would split one into two. */
     @Test
     fun keywordsLoseTheirCommasAndBlanks() {

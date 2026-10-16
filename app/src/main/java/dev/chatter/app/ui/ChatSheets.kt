@@ -166,7 +166,7 @@ fun ChatSheets(
         EmotePickerSheet(
             emotes = emotes,
             emoji = emoji,
-            recent = settings.recentEmotes,
+            recent = vm.recentEmotes.collectAsStateWithLifecycle().value,
             imageLoader = loader,
             onPick = vm::insertEmote,
             onPickEmoji = vm::insertEmoji,

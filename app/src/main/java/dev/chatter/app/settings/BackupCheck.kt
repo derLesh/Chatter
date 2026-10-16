@@ -46,6 +46,8 @@ object BackupCheck {
     /** [backup] with everything out of bounds dropped or clamped. */
     fun clean(backup: SettingsBackup): SettingsBackup = backup.copy(
         settings = backup.settings?.let(::clean),
+        // Stored space-separated.
+        recentEmotes = backup.recentEmotes?.filter { it.isNotBlank() && ' ' !in it }?.distinct()?.take(MAX_RECENT_EMOTES),
         rules = backup.rules
             ?.filter { it.pattern.isNotBlank() && it.pattern.length <= MAX_PATTERN }
             ?.distinctBy { it.id }
@@ -75,8 +77,6 @@ object BackupCheck {
         postTextLines = s.postTextLines.coerceIn(PostTextLines.RANGE),
         mentionKeywords = keywords(s.mentionKeywords),
         muteKeywords = keywords(s.muteKeywords),
-        // Stored space-separated.
-        recentEmotes = s.recentEmotes.filter { it.isNotBlank() && ' ' !in it }.distinct().take(MAX_RECENT_EMOTES),
         imageHosts = hosts(s.imageHosts),
     )
 

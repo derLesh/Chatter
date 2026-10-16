@@ -16,6 +16,7 @@ import dev.chatter.app.ui.theme.NameColorPalette
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
@@ -62,8 +63,6 @@ data class Settings(
     val animatedEmotes: Boolean = true,
     /** Fewer frames per second for animated emotes once the chat has been idle for a while. */
     val slowIdleEmotes: Boolean = true,
-    /** Names of the most recently used emotes, newest first. */
-    val recentEmotes: List<String> = emptyList(),
     val themeMode: ThemeMode = ThemeMode.System,
     /** Material You colors from the wallpaper instead of Twitch purple. */
     val dynamicColor: Boolean = true,
@@ -175,7 +174,6 @@ class SettingsRepository(
             muteKeywords = words(p[MUTE_KEYWORDS]),
             animatedEmotes = p[ANIMATED] ?: true,
             slowIdleEmotes = p[SLOW_IDLE_EMOTES] ?: true,
-            recentEmotes = p[RECENT_EMOTES].orEmpty().split(' ').filter { it.isNotEmpty() },
             themeMode = p[THEME_MODE]?.let { v -> ThemeMode.entries.firstOrNull { it.name == v } } ?: ThemeMode.System,
             dynamicColor = p[DYNAMIC_COLOR] ?: true,
             pureBlack = p[PURE_BLACK] ?: false,
@@ -333,7 +331,6 @@ class SettingsRepository(
         p[MUTE_KEYWORDS] = s.muteKeywords.joinToString(",")
         p[ANIMATED] = s.animatedEmotes
         p[SLOW_IDLE_EMOTES] = s.slowIdleEmotes
-        p[RECENT_EMOTES] = s.recentEmotes.joinToString(" ")
         p[THEME_MODE] = s.themeMode.name
         p[DYNAMIC_COLOR] = s.dynamicColor
         p[PURE_BLACK] = s.pureBlack
@@ -380,6 +377,17 @@ class SettingsRepository(
         p[BADGE_PROVIDERS] = s.badgeProviders.joinToString(",") { it.name }
         p[EMOTE_PROVIDERS] = s.emoteProviders.joinToString(",") { it.name }
     }
+
+    /**
+     * Names of the most recently used emotes, newest first. Not part of [settings]: they change with
+     * every emote used, and every screen reading the settings would be drawn again.
+     */
+    val recentEmotes: StateFlow<List<String>> = store.data
+        .map { p -> p[RECENT_EMOTES].orEmpty().split(' ').filter { it.isNotEmpty() } }
+        .distinctUntilChanged()
+        .stateIn(scope, SharingStarted.Eagerly, emptyList())
+
+    suspend fun setRecentEmotes(names: List<String>) = store.edit { it[RECENT_EMOTES] = names.joinToString(" ") }
 
     suspend fun addRecentEmote(name: String) = store.edit { p ->
         val list = p[RECENT_EMOTES].orEmpty().split(' ').filter { it.isNotEmpty() && it != name }

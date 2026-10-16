@@ -27,6 +27,9 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.drop
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.merge
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
@@ -34,6 +37,14 @@ import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeoutOrNull
 import java.util.UUID
 import java.util.concurrent.ConcurrentHashMap
+
+/** What the mention and mute filters are built from. */
+private data class FilterWords(
+    val login: String,
+    val mention: List<String>,
+    val mute: List<String>,
+    val blocked: Set<String>,
+)
 
 /** A mention that just arrived, and whether its channel was open. */
 data class MentionEvent(val item: ChatItem, val seen: Boolean)
@@ -158,24 +169,25 @@ class ChatRepository(
     fun start() {
         scope.launch(worker) { irc.messages.collect { incoming.handle(it) } }
 
+        // Only what the filters are made of: another setting or a token refresh must not send every
+        // message in memory through them again.
         scope.launch(worker) {
-            var showedDeleted = settings.value.showDeleted
-            combine(auth.state, settings, blocked.logins) { _, s, blockedLogins -> s to blockedLogins }
-                .collect { (s, blockedLogins) ->
-                    val muted = MuteFilter(s.muteKeywords, blockedLogins)
-                    filters = filters.copy(
-                        mentions = MentionMatcher(auth.account?.login.orEmpty(), s.mentionKeywords),
-                        muted = muted,
-                    )
-                    buffers.dropMuted(muted)
-                    buffers.trimAll(s.messageLimit)
-                    // Deleted messages are filtered when publishing, so showing them again needs a
-                    // republish.
-                    if (s.showDeleted != showedDeleted) {
-                        showedDeleted = s.showDeleted
-                        buffers.republishAll()
-                    }
-                }
+            combine(auth.state, settings, blocked.logins) { _, s, blockedLogins ->
+                FilterWords(auth.account?.login.orEmpty(), s.mentionKeywords, s.muteKeywords, blockedLogins)
+            }.distinctUntilChanged().collect { words ->
+                val muted = MuteFilter(words.mute, words.blocked)
+                filters = filters.copy(mentions = MentionMatcher(words.login, words.mention), muted = muted)
+                buffers.dropMuted(muted)
+            }
+        }
+
+        scope.launch(worker) {
+            settings.map { it.messageLimit }.distinctUntilChanged().collect { buffers.trimAll(it) }
+        }
+
+        // Deleted messages are filtered when publishing, so showing them again needs a republish.
+        scope.launch(worker) {
+            settings.map { it.showDeleted }.distinctUntilChanged().drop(1).collect { buffers.republishAll() }
         }
 
         scope.launch(worker) {
