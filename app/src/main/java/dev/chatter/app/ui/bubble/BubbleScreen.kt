@@ -169,6 +169,7 @@ fun BubbleScreen(vm: MainViewModel, channel: String?) {
             imageLoader = loader,
             onPick = vm::insertEmote,
             onPickEmoji = vm::insertEmoji,
+            onReload = { vm.reloadEmotes(channel) },
             onDismiss = { showPicker = false },
         )
     }

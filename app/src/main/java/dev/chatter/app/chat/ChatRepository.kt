@@ -10,6 +10,7 @@ import dev.chatter.app.channels.BlockedUsersRepository
 import dev.chatter.app.channels.ChannelRepository
 import dev.chatter.app.emotes.CheermoteRepository
 import dev.chatter.app.emotes.EmoteRepository
+import dev.chatter.app.emotes.label
 import dev.chatter.app.irc.ConnectionState
 import dev.chatter.app.irc.IrcMessage
 import dev.chatter.app.net.HelixApi
@@ -256,6 +257,17 @@ class ChatRepository(
                 timestamp = System.currentTimeMillis(), systemText = text, text = text,
                 body = MessageBody.of(segments))
         )
+    }
+
+    /**
+     * Loads the emotes of [channels] again from every provider switched on, and says in each chat
+     * whether all of them answered.
+     */
+    fun reloadEmotes(channels: List<String>) = scope.launch {
+        val failed = emotes.reload(channels.mapNotNull { rooms.id(it) }, auth.account?.userId)
+        val text = if (failed.isEmpty()) context.getString(R.string.emotes_reloaded)
+        else context.getString(R.string.emotes_reloaded_without, failed.joinToString { it.label })
+        channels.forEach { postNotice(it, text) }
     }
 
     fun clearUnread(channel: String) {

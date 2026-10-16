@@ -4,26 +4,36 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.GridItemSpan
 import androidx.compose.foundation.lazy.grid.LazyGridScope
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.PrimaryTabRow
 import androidx.compose.material3.Tab
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -42,6 +52,7 @@ import dev.chatter.app.emotes.Emoji
 import dev.chatter.app.emotes.EmojiGroup
 import dev.chatter.app.emotes.Emote
 import dev.chatter.app.emotes.EmoteProvider
+import kotlinx.coroutines.launch
 
 /** What the picker offers: an emote with its image, or an emoji drawn by the system font. */
 private sealed interface PickerItem {
@@ -59,7 +70,8 @@ private sealed interface PickerItem {
 /** A run of the grid, under a [header] if it has one. */
 private class PickerSection(val header: Int?, val items: List<PickerItem>)
 
-private class PickerTab(val title: Int, val sections: List<PickerSection>) {
+/** [reloadable]: its emotes come from lists that can be loaded again; emoji do not. */
+private class PickerTab(val title: Int, val sections: List<PickerSection>, val reloadable: Boolean = true) {
     val isEmpty: Boolean get() = sections.all { it.items.isEmpty() }
 
     companion object {
@@ -70,7 +82,7 @@ private class PickerTab(val title: Int, val sections: List<PickerSection>) {
 
 /**
  * Bottom sheet with tabs: recently used, then one per provider with channel emotes first, then
- * emoji in their groups.
+ * emoji in their groups. Below the emotes, [onReload] loads them again.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -81,6 +93,7 @@ fun EmotePickerSheet(
     imageLoader: ImageLoader,
     onPick: (Emote) -> Unit,
     onPickEmoji: (Emoji) -> Unit,
+    onReload: suspend () -> Unit,
     onDismiss: () -> Unit,
 ) {
     val tabs = remember(emotes, emoji, recent) {
@@ -102,10 +115,23 @@ fun EmotePickerSheet(
             PickerTab(
                 R.string.emoji,
                 emoji.groupBy { it.group }.map { (group, list) -> PickerSection(group.title, list.map { PickerItem.EmojiItem(it) }) },
+                reloadable = false,
             ),
         )
     }
     var selected by rememberSaveable { mutableIntStateOf(if (recent.isEmpty()) 1 else 0) }
+    var reloading by remember { mutableStateOf(false) }
+    val scope = rememberCoroutineScope()
+    val reload: () -> Unit = {
+        scope.launch {
+            reloading = true
+            try {
+                onReload()
+            } finally {
+                reloading = false
+            }
+        }
+    }
 
     ModalBottomSheet(onDismissRequest = onDismiss) {
         Column(Modifier.height(420.dp)) {
@@ -129,8 +155,9 @@ fun EmotePickerSheet(
             }
             val tab = tabs[selected]
             if (tab.isEmpty) {
-                Box(Modifier.fillMaxWidth().padding(32.dp), contentAlignment = Alignment.Center) {
+                Column(Modifier.fillMaxWidth().padding(32.dp), horizontalAlignment = Alignment.CenterHorizontally) {
                     Text(stringResource(R.string.emotes_empty), color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    if (tab.reloadable) ReloadButton(reloading, reload)
                 }
             } else {
                 // Keyed by tab, so switching tabs starts at the top instead of keeping the offset.
@@ -152,10 +179,29 @@ fun EmotePickerSheet(
                             }
                             pickerItems(section.items, imageLoader, onPick, onPickEmoji)
                         }
+                        if (tab.reloadable) item(key = "reload", span = { GridItemSpan(maxLineSpan) }) {
+                            Box(contentAlignment = Alignment.Center) { ReloadButton(reloading, reload) }
+                        }
                     }
                 }
             }
         }
+    }
+}
+
+/** Small and grey: needed when an emote is missing, not every time the picker opens. */
+@Composable
+private fun ReloadButton(reloading: Boolean, onClick: () -> Unit) {
+    TextButton(
+        onClick = onClick,
+        enabled = !reloading,
+        colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.onSurfaceVariant),
+        modifier = Modifier.padding(top = 8.dp),
+    ) {
+        if (reloading) CircularProgressIndicator(Modifier.size(16.dp), strokeWidth = 2.dp)
+        else Icon(Icons.Default.Refresh, contentDescription = null, modifier = Modifier.size(16.dp))
+        Spacer(Modifier.width(8.dp))
+        Text(stringResource(R.string.reload_emotes), style = MaterialTheme.typography.labelMedium)
     }
 }
 

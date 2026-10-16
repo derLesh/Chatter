@@ -105,6 +105,9 @@
     <string name="move_left">Move left</string>
     <string name="move_right">Move right</string>
     <string name="remove_channel">Remove</string>
+    <string name="reload_emotes">Reload emotes</string>
+    <string name="emotes_reloaded">Emotes reloaded</string>
+    <string name="emotes_reloaded_without">Emotes reloaded, but no answer from %1$s</string>
     <string name="page_removed">%1$s removed</string>
     <string name="undo">Undo</string>
     <string name="rename_channel">Rename</string>

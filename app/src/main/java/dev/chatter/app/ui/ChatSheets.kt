@@ -170,6 +170,7 @@ fun ChatSheets(
             imageLoader = loader,
             onPick = vm::insertEmote,
             onPickEmoji = vm::insertEmoji,
+            onReload = { vm.reloadEmotes(vm.sendChannel) },
             onDismiss = { sheets.showPicker = false },
         )
     }

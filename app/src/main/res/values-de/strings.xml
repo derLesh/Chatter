@@ -99,6 +99,9 @@
     <string name="move_left">Nach links</string>
     <string name="move_right">Nach rechts</string>
     <string name="remove_channel">Entfernen</string>
+    <string name="reload_emotes">Emotes neu laden</string>
+    <string name="emotes_reloaded">Emotes neu geladen</string>
+    <string name="emotes_reloaded_without">Emotes neu geladen, aber keine Antwort von %1$s</string>
     <string name="page_removed">%1$s entfernt</string>
     <string name="undo">Rückgängig</string>
     <string name="rename_channel">Umbenennen</string>

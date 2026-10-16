@@ -753,6 +753,11 @@ class MainViewModel(private val c: AppContainer, savedState: SavedStateHandle) :
         viewModelScope.launch { c.channels.setNotify(login, enabled) }
     }
 
+    /** Loads the emotes again, those of [channel] and the ones usable everywhere; returns when done. */
+    suspend fun reloadEmotes(channel: String?) {
+        c.chat.reloadEmotes(listOfNotNull(channel)).join()
+    }
+
     fun renameChannel(login: String, name: String) {
         viewModelScope.launch { c.channels.rename(login, name) }
     }

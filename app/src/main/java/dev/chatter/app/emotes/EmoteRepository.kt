@@ -113,16 +113,40 @@ class EmoteRepository(
     }
 
     /** Asks the providers that still owe global emotes; no request once all are loaded. */
-    suspend fun loadGlobal() = globalLock.withLock {
+    suspend fun loadGlobal() {
+        loadGlobal(globalMissing)
+    }
+
+    /** Asks [wanted] for their global emotes, those switched on. Returns the ones that did not answer. */
+    private suspend fun loadGlobal(wanted: Set<EmoteProvider>): Set<EmoteProvider> = globalLock.withLock {
         globalAsked = true
-        val wanted = globalMissing.thatAreOn()
-        if (wanted.isEmpty()) return@withLock
-        val loaded = global.merge(ask(wanted) { fetchGlobal(it) })
+        val asked = wanted.thatAreOn()
+        if (asked.isEmpty()) return@withLock emptySet()
+        val loaded = global.merge(ask(asked) { fetchGlobal(it) })
         global = loaded.emotes
-        globalMissing = globalMissing - wanted + loaded.failed
+        globalMissing = globalMissing - asked + loaded.failed
         updateWaiting()
         _version.update { it + 1 }
-        if (loaded.failed != wanted) _arrived.tryEmit(Unit)
+        if (loaded.failed != asked) _arrived.tryEmit(Unit)
+        loaded.failed
+    }
+
+    /**
+     * Asks every provider switched on again, whatever was loaded: the global emotes, those of
+     * [channelIds] and the Twitch emotes of [userId]. Returns the providers that did not answer.
+     */
+    suspend fun reload(channelIds: Collection<String>, userId: String?): Set<EmoteProvider> = coroutineScope {
+        val twitch = async { if (userId != null) loadTwitchUserEmotes(userId) }
+        val global = async { loadGlobal(THIRD_PARTY) }
+        val channels = channelIds.map { id ->
+            async {
+                loadChannel(id, userId)
+                channelMissing[id].orEmpty().thatAreOn()
+            }
+        }
+        twitch.await()
+        // The chat rebuilds what it still can, even when no list was missing before.
+        (global.await() + channels.awaitAll().flatten()).also { _arrived.tryEmit(Unit) }
     }
 
     suspend fun loadTwitchUserEmotes(userId: String) {

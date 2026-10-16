@@ -336,6 +336,44 @@ class EmoteRepositoryTest {
         assertEquals(EmoteProvider.Twitch, emotes.lookupOwnTwitch(channel, "channelSmile")?.provider)
     }
 
+    // ---- reloading by hand ---------------------------------------------------------------------
+
+    @Test
+    fun aReloadAsksEveryProviderAgainAndTakesWhatChanged() = runTest {
+        emotes.loadGlobal()
+        emotes.loadChannel(channel, userId = null)
+        val afterFirst = providers.calls
+
+        providers.sevenTv = listOf("catJAM")
+        assertEquals(emptySet<EmoteProvider>(), emotes.reload(listOf(channel), userId = null))
+        assertEquals("three global lists and three channel lists", afterFirst + 6, providers.calls)
+        assertEquals(EmoteProvider.SevenTv, emotes.lookup(channel, "catJAM")?.provider)
+    }
+
+    @Test
+    fun aReloadSaysWhichProviderDidNotAnswer() = runTest {
+        providers.bttv = listOf("susge")
+        emotes.loadChannel(channel, userId = null)
+
+        providers.bttv = null
+        assertEquals(setOf(EmoteProvider.Bttv), emotes.reload(listOf(channel), userId = null))
+        assertEquals("what was there stays", EmoteProvider.Bttv, emotes.lookup(channel, "susge")?.provider)
+    }
+
+    @Test
+    fun aReloadAsksNoProviderThatIsSwitchedOff() = runTest {
+        switchedOn = setOf(EmoteProvider.Twitch, EmoteProvider.SevenTv)
+        emotes.reload(listOf(channel), userId = null)
+        assertEquals(2, providers.calls)
+    }
+
+    @Test
+    fun aReloadBringsTheTwitchEmotesOfTheAccount() = runTest {
+        twitch.own = listOf("Kappa")
+        emotes.reload(emptyList(), userId = "me")
+        assertEquals(EmoteProvider.Twitch, emotes.lookupOwnTwitch(null, "Kappa")?.provider)
+    }
+
     // ---- providers the user switched off ------------------------------------------------------
 
     @Test
