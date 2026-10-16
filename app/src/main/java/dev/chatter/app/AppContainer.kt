@@ -159,7 +159,7 @@ class AppContainer(
     /** The active account's user id; null for a guest or nobody. */
     private val activeUserId: StateFlow<String?> =
         auth.state.map { (it as? AuthState.LoggedIn)?.account?.userId }.stateIn(scope, SharingStarted.Eagerly, null)
-    val inbox = MentionInboxRepository(context.inboxStore, activeUserId, scope)
+    val inbox = MentionInboxRepository(context.inboxStore, activeUserId, scope) { chat.windows.anyVisible.value }
     val whisperInbox = WhisperInboxRepository(context.inboxStore, activeUserId, auth.knownUserIds, scope)
     val rules = RuleRepository(context.ruleStore, scope)
     val stats = StatsRepository(context.statsStore, scope)
@@ -326,6 +326,8 @@ class AppContainer(
             chat.windows.anyVisible.collect { visible ->
                 // Someone looking at "Connecting…" should not wait out a long backoff.
                 if (visible) irc.retryNow()
+                // Android may end the process any time after the app leaves the screen.
+                if (!visible) inbox.saveNow()
                 // The global set comes from Helix, which needs a login.
                 if (visible && auth.account != null) {
                     badges.retryMissing(supporterTitles())

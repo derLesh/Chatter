@@ -107,8 +107,9 @@ class ChatService : Service() {
 
     override fun onDestroy() {
         // Without the service Android may end the process next, and up to ten minutes of statistics
-        // are not saved yet.
+        // and a minute of mentions are not saved yet.
         container.stats.saveNow()
+        container.inbox.saveNow()
         // Stopped on purpose: later process ends cost no mentions.
         container.backgroundHealth.setListening(false)
         scope.cancel()

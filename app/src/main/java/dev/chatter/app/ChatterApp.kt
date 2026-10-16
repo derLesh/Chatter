@@ -21,12 +21,15 @@ class ChatterApp : Application(), SingletonImageLoader.Factory {
     }
 
     /**
-     * Android may end the process next. Background stats are saved only every ten minutes, so save
-     * them now.
+     * Android may end the process next. Background stats and mentions are saved only every few
+     * minutes, so save them now.
      */
     override fun onTrimMemory(level: Int) {
         super.onTrimMemory(level)
-        if (level >= TRIM_MEMORY_BACKGROUND) container.stats.saveNow()
+        if (level >= TRIM_MEMORY_BACKGROUND) {
+            container.stats.saveNow()
+            container.inbox.saveNow()
+        }
     }
 
     override fun newImageLoader(context: PlatformContext): ImageLoader = container.imageLoader

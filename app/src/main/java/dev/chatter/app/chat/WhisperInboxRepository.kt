@@ -11,6 +11,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.serialization.Serializable
@@ -64,9 +65,15 @@ class WhisperInboxRepository(
     private val accounts: StateFlow<List<String>>,
     scope: CoroutineScope,
 ) {
-    /** The active account's whispers, newest first; see [InboxOwners]. */
-    val whispers: StateFlow<List<InboxWhisper>> = combine(store.data, owner) { p, me ->
-        if (me == null) emptyList() else decode(p[WHISPERS]).orEmpty().filter { it.owner == me }
+    /**
+     * The active account's whispers, newest first; see [InboxOwners]. Decoded only when they
+     * changed: the mentions share the store.
+     */
+    val whispers: StateFlow<List<InboxWhisper>> = combine(
+        store.data.map { it[WHISPERS] }.distinctUntilChanged().map { decode(it).orEmpty() },
+        owner,
+    ) { all, me ->
+        if (me == null) emptyList() else all.filter { it.owner == me }
     }.stateIn(scope, SharingStarted.Eagerly, emptyList())
 
     val unreadCount: StateFlow<Int> = whispers

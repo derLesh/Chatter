@@ -6,12 +6,21 @@ import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.stringPreferencesKey
 import dev.chatter.app.net.AppJson
 import dev.chatter.app.net.decodeStored
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.channels.Channel
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.isActive
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlinx.serialization.Serializable
 
 /** One mention, kept after the message has left the buffer. */
@@ -28,16 +37,37 @@ data class InboxMention(
     val owner: String? = null,
 )
 
-/** Every mention received, across channels, kept across restarts. */
+/**
+ * Every mention received, across channels, kept across restarts.
+ *
+ * The list lives in memory and is written on a timer: a mention can arrive many times a minute all
+ * night, and each write rewrites the whole list. On screen it is saved within seconds, in the
+ * background once a minute, and at once through [saveNow] when the process may end.
+ */
 class MentionInboxRepository(
     private val store: DataStore<Preferences>,
     /** The active account's user id; only its mentions are shown. */
     private val owner: StateFlow<String?>,
-    scope: CoroutineScope,
+    private val scope: CoroutineScope,
+    /** Whether the app is on screen, which decides how soon a change is saved. */
+    private val inFront: () -> Boolean = { true },
 ) {
+    /**
+     * Every account's mentions, newest first. Null until read from the store, and for good if the
+     * stored list cannot be read: then nothing is added, so nothing is written over it.
+     */
+    private val all = MutableStateFlow<List<InboxMention>?>(null)
+    private val loaded = CompletableDeferred<Unit>()
+    private val changing = Mutex()
+
+    /** What is on disk, to skip writes that change nothing. */
+    private var saved: List<InboxMention>? = null
+    private val saving = Mutex()
+    private val changed = Channel<Unit>(Channel.CONFLATED)
+
     /** The active account's mentions, newest first. See [InboxOwners]. */
-    val mentions: StateFlow<List<InboxMention>> = combine(store.data, owner) { p, me ->
-        if (me == null) emptyList() else decode(p[MENTIONS]).orEmpty().filter { it.owner == me }
+    val mentions: StateFlow<List<InboxMention>> = combine(all, owner) { list, me ->
+        if (me == null) emptyList() else list.orEmpty().filter { it.owner == me }
     }.stateIn(scope, SharingStarted.Eagerly, emptyList())
 
     val unreadCount: StateFlow<Int> = mentions
@@ -95,19 +125,52 @@ class MentionInboxRepository(
         InboxOwners.keepOnly(list, accounts, { it.owner }) { row, id -> row.copy(owner = id) }
     }
 
-    /** Never writes over an inbox it cannot read; see [decodeStored]. */
-    private suspend fun update(transform: (List<InboxMention>) -> List<InboxMention>) {
-        store.edit { p ->
-            val current = decode(p[MENTIONS]) ?: return@edit
-            val next = transform(current)
-            if (next !== current) p[MENTIONS] = AppJson.encodeToString(next)
+    init {
+        scope.launch {
+            val stored = decode(store.data.first()[MENTIONS])
+            saved = stored
+            all.value = stored
+            loaded.complete(Unit)
+            while (isActive) {
+                // Wait for a change, then let more pile up.
+                changed.receive()
+                delay(if (inFront()) SAVE_DELAY_MS else BACKGROUND_SAVE_DELAY_MS)
+                save()
+            }
         }
+    }
+
+    /** Writes what changed now, for moments the process may end. */
+    fun saveNow() {
+        scope.launch { save() }
+    }
+
+    /** Never changes an inbox it cannot read; see [decodeStored]. */
+    private suspend fun update(transform: (List<InboxMention>) -> List<InboxMention>) {
+        loaded.await()
+        changing.withLock {
+            val current = all.value ?: return
+            val next = transform(current)
+            if (next === current) return
+            all.value = next
+        }
+        changed.trySend(Unit)
+    }
+
+    private suspend fun save() = saving.withLock {
+        val current = all.value ?: return@withLock
+        if (current === saved) return@withLock
+        store.edit { it[MENTIONS] = AppJson.encodeToString(current) }
+        saved = current
     }
 
     private companion object {
         val MENTIONS = stringPreferencesKey("inbox_mentions")
         /** A few days' worth without turning the store into a database. */
         const val LIMIT = 300
+
+        const val SAVE_DELAY_MS = 2_000L
+        const val BACKGROUND_SAVE_DELAY_MS = 60_000L
 
         fun decode(raw: String?): List<InboxMention>? = decodeStored(raw, emptyList(), "mentions")
     }
