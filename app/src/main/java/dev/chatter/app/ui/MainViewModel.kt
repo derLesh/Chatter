@@ -538,6 +538,9 @@ class MainViewModel(private val c: AppContainer, savedState: SavedStateHandle) :
 
     // ---- Highlight rules ---------------------------------------------------------------------
 
+    /** The newest messages in memory, for trying a rule on them in the editor. */
+    suspend fun messagesToTryRulesOn(): List<ChatItem> = c.chat.newestMessages(RULE_TRY_MESSAGES)
+
     fun saveRule(rule: ChatRule) {
         viewModelScope.launch { c.rules.save(rule) }
     }
@@ -953,5 +956,8 @@ class MainViewModel(private val c: AppContainer, savedState: SavedStateHandle) :
 
         /** Where the drafts are kept when Android saves the window. */
         const val DRAFTS_KEY = "drafts"
+
+        /** Enough to show what a rule finds in a busy chat, few enough to try on every keystroke. */
+        const val RULE_TRY_MESSAGES = 300
     }
 }

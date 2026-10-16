@@ -665,6 +665,22 @@
     <string name="rule_channel_hint">Leave empty to use the rule in every channel</string>
     <string name="rule_regex">Regular expression</string>
     <string name="rule_regex_hint">Use the pattern as written instead of matching a word</string>
+    <string name="rule_try">Try it</string>
+    <string name="rule_try_hint">Make up a message and see what this rule does with it. Nothing is sent.</string>
+    <string name="rule_try_in_channel">In %s</string>
+    <string name="rule_try_other_channel">In another channel</string>
+    <string name="rule_try_matches">The rule finds this message</string>
+    <string name="rule_try_no_match">The rule does not find this message</string>
+    <string name="rule_try_other">The rule finds this message, but only works in %s</string>
+    <string name="rule_try_unusable">The rule finds nothing, because the pattern cannot be used</string>
+    <string name="rule_try_shown">In the chat: shown as usual</string>
+    <string name="rule_try_highlighted">In the chat: highlighted</string>
+    <string name="rule_try_notifies">In the chat: highlighted, and it counts as a mention</string>
+    <string name="rule_try_hidden">In the chat: hidden</string>
+    <plurals name="rule_try_found">
+        <item quantity="one">Finds %d message in your chats right now</item>
+        <item quantity="other">Finds %d messages in your chats right now</item>
+    </plurals>
 
     <!-- Backup -->
     <string name="settings_group_backup">Backup</string>

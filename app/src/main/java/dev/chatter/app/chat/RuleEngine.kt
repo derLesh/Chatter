@@ -33,8 +33,7 @@ class RuleEngine(rules: List<ChatRule> = emptyList()) {
         if (compiled.isEmpty() || item.isOwn) return item
         var result = item
         for (c in compiled) {
-            if (c.rule.channel != null && !c.rule.channel.equals(item.channel, ignoreCase = true)) continue
-            if (!matches(c, item)) continue
+            if (!acts(c, item)) continue
             when (c.rule.action) {
                 RuleAction.Hide -> return null
                 RuleAction.Highlight -> result = result.copy(
@@ -48,6 +47,14 @@ class RuleEngine(rules: List<ChatRule> = emptyList()) {
         }
         return result
     }
+
+    /** The rules that act on [item], in order. */
+    fun matching(item: ChatItem): List<ChatRule> = compiled
+        .filter { acts(it, item) }
+        .map { it.rule }
+
+    private fun acts(c: Compiled, item: ChatItem): Boolean =
+        (c.rule.channel == null || c.rule.channel.equals(item.channel, ignoreCase = true)) && matches(c, item)
 
     private fun matches(c: Compiled, item: ChatItem): Boolean {
         val m = c.matcher

@@ -654,6 +654,22 @@
     <string name="rule_channel_hint">Leer lassen, damit die Regel in jedem Kanal gilt</string>
     <string name="rule_regex">Regulärer Ausdruck</string>
     <string name="rule_regex_hint">Das Muster so verwenden, wie es dasteht, statt ein Wort zu suchen</string>
+    <string name="rule_try">Ausprobieren</string>
+    <string name="rule_try_hint">Denk dir eine Nachricht aus und sieh, was die Regel damit macht. Es wird nichts gesendet.</string>
+    <string name="rule_try_in_channel">In %s</string>
+    <string name="rule_try_other_channel">In einem anderen Kanal</string>
+    <string name="rule_try_matches">Die Regel findet diese Nachricht</string>
+    <string name="rule_try_no_match">Die Regel findet diese Nachricht nicht</string>
+    <string name="rule_try_other">Die Regel findet diese Nachricht, gilt aber nur in %s</string>
+    <string name="rule_try_unusable">Die Regel findet nichts, weil das Muster nicht verwendet werden kann</string>
+    <string name="rule_try_shown">Im Chat: ganz normal angezeigt</string>
+    <string name="rule_try_highlighted">Im Chat: hervorgehoben</string>
+    <string name="rule_try_notifies">Im Chat: hervorgehoben, und sie zählt als Erwähnung</string>
+    <string name="rule_try_hidden">Im Chat: ausgeblendet</string>
+    <plurals name="rule_try_found">
+        <item quantity="one">Findet gerade %d Nachricht in deinen Chats</item>
+        <item quantity="other">Findet gerade %d Nachrichten in deinen Chats</item>
+    </plurals>
 
     <!-- Backup -->
     <string name="settings_group_backup">Backup</string>

@@ -371,6 +371,8 @@ fun SettingsScreen(vm: MainViewModel, onBack: () -> Unit) {
             val editing = remember(currentRule) { vm.rules.value.find { it.id == currentRule } }
             RuleEditorPage(
                 rule = editing,
+                savedRules = vm.rules.collectAsStateWithLifecycle().value,
+                loadedMessages = vm::messagesToTryRulesOn,
                 onSave = {
                     vm.saveRule(it)
                     goBack()

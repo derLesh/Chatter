@@ -18,6 +18,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
@@ -30,6 +31,7 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -38,6 +40,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.Saver
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -49,18 +52,26 @@ import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.luminance
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardCapitalization
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import dev.chatter.app.R
+import dev.chatter.app.chat.ChatItem
 import dev.chatter.app.chat.ChatRule
 import dev.chatter.app.chat.PatternProblem
 import dev.chatter.app.chat.RuleAction
 import dev.chatter.app.chat.RuleEngine
+import dev.chatter.app.chat.RuleOutcome
+import dev.chatter.app.chat.RulePreview
+import dev.chatter.app.chat.RuleResult
 import dev.chatter.app.chat.RuleTarget
 import dev.chatter.app.net.AppJson
 import java.util.UUID
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 
 /** Colors a rule can use; the first means "use the mention color". */
 private val RULE_COLORS = listOf(
@@ -78,11 +89,18 @@ private val RuleSaver = Saver<ChatRule, String>(
 /**
  * Edits one rule on a page of its own: what to look for, where, and what to do. A new rule
  * ([rule] null) starts from [ChatRule]'s defaults; an existing one keeps its id. Back leaves
- * without saving.
+ * without saving. The rule can be tried on a made-up message, among [savedRules], and on
+ * [loadedMessages].
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-internal fun RuleEditorPage(rule: ChatRule?, onSave: (ChatRule) -> Unit, onBack: () -> Unit) {
+internal fun RuleEditorPage(
+    rule: ChatRule?,
+    savedRules: List<ChatRule>,
+    loadedMessages: suspend () -> List<ChatItem>,
+    onSave: (ChatRule) -> Unit,
+    onBack: () -> Unit,
+) {
     var draft by rememberSaveable(stateSaver = RuleSaver) {
         mutableStateOf(rule ?: ChatRule(id = UUID.randomUUID().toString(), pattern = ""))
     }
@@ -199,6 +217,7 @@ internal fun RuleEditorPage(rule: ChatRule?, onSave: (ChatRule) -> Unit, onBack:
                 ),
                 modifier = Modifier.fillMaxWidth().padding(top = 16.dp),
             )
+            RuleTry(draft, savedRules, loadedMessages)
             Spacer(Modifier.height(16.dp))
         }
     }
@@ -259,3 +278,114 @@ private fun ColorRow(selected: Int?, onSelect: (Int?) -> Unit) {
         }
     }
 }
+
+/**
+ * A made-up message to try [rule] on, and the loaded messages the rule finds. Nothing is sent,
+ * changed or notified.
+ */
+@Composable
+private fun RuleTry(rule: ChatRule, savedRules: List<ChatRule>, loadedMessages: suspend () -> List<ChatItem>) {
+    var text by rememberSaveable { mutableStateOf("") }
+    var author by rememberSaveable { mutableStateOf("") }
+    var inRuleChannel by rememberSaveable { mutableStateOf(true) }
+    val ruleChannel = rule.channel
+
+    Label(R.string.rule_try)
+    Text(
+        stringResource(R.string.rule_try_hint),
+        style = MaterialTheme.typography.bodySmall,
+        color = MaterialTheme.colorScheme.onSurfaceVariant,
+    )
+    OutlinedTextField(
+        value = text,
+        onValueChange = { text = it },
+        singleLine = true,
+        label = { Text(stringResource(R.string.rule_target_message)) },
+        modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
+    )
+    OutlinedTextField(
+        value = author,
+        onValueChange = { author = it },
+        singleLine = true,
+        label = { Text(stringResource(R.string.rule_target_author)) },
+        keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.None),
+        modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
+    )
+    if (ruleChannel != null) {
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.padding(top = 8.dp)) {
+            FilterChip(
+                selected = inRuleChannel,
+                onClick = { inRuleChannel = true },
+                label = { Text(stringResource(R.string.rule_try_in_channel, ruleChannel)) },
+            )
+            FilterChip(
+                selected = !inRuleChannel,
+                onClick = { inRuleChannel = false },
+                label = { Text(stringResource(R.string.rule_try_other_channel)) },
+            )
+        }
+    }
+
+    // A channel no rule can be limited to stands for "another channel".
+    val channel = if (ruleChannel != null && inRuleChannel) ruleChannel else ""
+    if (rule.pattern.isNotBlank() && (text.isNotBlank() || author.isNotBlank())) {
+        val preview = remember(rule, savedRules, channel, author, text) {
+            RulePreview.of(rule, savedRules, channel, author, text)
+        }
+        Surface(
+            color = MaterialTheme.colorScheme.surfaceContainerHigh,
+            shape = RoundedCornerShape(12.dp),
+            modifier = Modifier.fillMaxWidth().padding(top = 12.dp),
+        ) {
+            Column(Modifier.padding(12.dp)) {
+                Text(
+                    when (preview.outcome) {
+                        is RuleOutcome.Unusable -> stringResource(R.string.rule_try_unusable)
+                        RuleOutcome.NoMatch -> stringResource(R.string.rule_try_no_match)
+                        RuleOutcome.OtherChannel -> stringResource(R.string.rule_try_other, ruleChannel.orEmpty())
+                        RuleOutcome.Matches -> stringResource(R.string.rule_try_matches)
+                    },
+                    style = MaterialTheme.typography.bodyMedium,
+                )
+                Text(
+                    stringResource(
+                        when (preview.result) {
+                            RuleResult.Shown -> R.string.rule_try_shown
+                            RuleResult.Highlighted -> R.string.rule_try_highlighted
+                            RuleResult.Notifies -> R.string.rule_try_notifies
+                            RuleResult.Hidden -> R.string.rule_try_hidden
+                        },
+                    ),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+        }
+    }
+
+    val loaded by produceState(emptyList<ChatItem>()) { value = loadedMessages() }
+    // Tried off the main thread: a regex over a few hundred messages on every keystroke.
+    val found by produceState<List<ChatItem>?>(null, rule, loaded) {
+        value = if (rule.pattern.isBlank() || loaded.isEmpty()) null
+        else withContext(Dispatchers.Default) { RulePreview.matchesIn(rule, loaded) }
+    }
+    found?.let { matches ->
+        Text(
+            pluralStringResource(R.plurals.rule_try_found, matches.size, matches.size),
+            style = MaterialTheme.typography.bodyMedium,
+            modifier = Modifier.padding(top = 12.dp),
+        )
+        matches.takeLast(FOUND_SHOWN).forEach { item ->
+            Text(
+                "${item.displayName ?: item.login}: ${item.text}",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+        }
+    }
+}
+
+/** How many of the loaded messages a rule finds are listed under the count. */
+private const val FOUND_SHOWN = 3

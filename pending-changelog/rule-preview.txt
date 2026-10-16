@@ -1,0 +1,1 @@
+minor: Try a rule on a made-up message, and see what it finds in your chats, before you save it

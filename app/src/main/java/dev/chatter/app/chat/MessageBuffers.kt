@@ -240,6 +240,11 @@ class MessageBuffers(
             .onEach { it.body.prepare() }
     }
 
+    /** The newest [limit] messages of all channels together, oldest first. Not built for drawing. */
+    suspend fun newest(limit: Int): List<ChatItem> = withContext(worker) {
+        buffers.values.flatMap { it.takeLast(limit) }.sortedBy { it.timestamp }.takeLast(limit)
+    }
+
     fun countUnread(channel: String) {
         counts(channel).unread++
         unreadDirty = true
