@@ -7,7 +7,6 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.text.TextRange
 import androidx.compose.ui.text.input.TextFieldValue
-import androidx.core.os.bundleOf
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -231,7 +230,7 @@ class MainViewModel(private val c: AppContainer, savedState: SavedStateHandle) :
         // Android may end the process while Chatter is in the background; the drafts come back
         // with the window.
         savedState.get<Bundle>(DRAFTS_KEY)?.getString(DRAFTS_KEY)?.let(composer::restore)
-        savedState.setSavedStateProvider(DRAFTS_KEY) { bundleOf(DRAFTS_KEY to composer.save()) }
+        savedState.setSavedStateProvider(DRAFTS_KEY) { Bundle().apply { putString(DRAFTS_KEY, composer.save()) } }
         viewModelScope.launch {
             combine(c.auth.state, c.auth.accounts, ::Pair).collect { (state, accounts) ->
                 if (state == AuthState.Loading) return@collect
