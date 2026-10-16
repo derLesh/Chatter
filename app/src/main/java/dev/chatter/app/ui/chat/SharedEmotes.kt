@@ -36,6 +36,7 @@ import coil3.ImageLoader
 import coil3.asDrawable
 import coil3.request.ImageRequest
 import coil3.request.SuccessResult
+import coil3.size.Precision
 import coil3.size.ScaleDrawable
 import java.util.IdentityHashMap
 import java.util.WeakHashMap
@@ -56,8 +57,18 @@ import java.util.WeakHashMap
  * tick puts the changes on screen as a single window frame at the lower rate.
  */
 object SharedEmotes {
-    /** Recently shown emotes kept off screen, so scrolling back does not decode them again. */
-    private const val KEEP = 64
+    /**
+     * Memory for recently shown emotes kept off screen, so scrolling back does not decode them
+     * again. A few hundred of the usual size.
+     */
+    private const val KEEP_BYTES = 4 * 1024 * 1024
+
+    /**
+     * Largest an emote is decoded, in pixels; larger ones are scaled down with their shape kept.
+     * Twice the size of the widest emotes seen, and many times what a line shows.
+     */
+    private const val MAX_WIDTH = 1024
+    private const val MAX_HEIGHT = 256
 
     private class Shown(val drawable: Drawable) {
         val listeners = ArrayList<() -> Unit>(2)
@@ -101,8 +112,12 @@ object SharedEmotes {
      */
     private class Store {
         val shown = HashMap<String, Shown>()
-        val recent = LruCache<String, Drawable>(KEEP)
+        val recent = object : LruCache<String, Drawable>(KEEP_BYTES) {
+            override fun sizeOf(key: String, value: Drawable) = value.pixels() * 4
+        }
     }
+
+    private fun Drawable.pixels() = intrinsicWidth.coerceAtLeast(1) * intrinsicHeight.coerceAtLeast(1)
 
     private val stores = WeakHashMap<ImageLoader, Store>()
     private val byDrawable = IdentityHashMap<Drawable, Shown>()
@@ -138,6 +153,9 @@ object SharedEmotes {
     fun steppedFrame(drawable: Drawable): Bitmap? {
         val shown = byDrawable[drawable]?.takeIf { it.stepped } ?: return null
         shown.frame?.let { return it }
+        // Loads are bounded, but a frame is a bitmap of its own; one this large is left to the
+        // RenderThread.
+        if (drawable.pixels() > MAX_WIDTH * MAX_HEIGHT) return null
         val width = drawable.intrinsicWidth.coerceAtLeast(1)
         val height = drawable.intrinsicHeight.coerceAtLeast(1)
         val frame = createBitmap(width, height)
@@ -218,7 +236,13 @@ object SharedEmotes {
 
     suspend fun load(context: Context, loader: ImageLoader, url: String): Drawable? {
         cached(loader, url)?.let { return it }
-        val result = loader.execute(ImageRequest.Builder(context).data(url).build()) as? SuccessResult ?: return null
+        val request = ImageRequest.Builder(context)
+            .data(url)
+            .size(MAX_WIDTH, MAX_HEIGHT)
+            // Only ever scaled down; exact would blow every emote up to the limit.
+            .precision(Precision.INEXACT)
+            .build()
+        val result = loader.execute(request) as? SuccessResult ?: return null
         // Another occurrence may have loaded the same emote meanwhile.
         cached(loader, url)?.let { return it }
         val drawable = result.image.asDrawable(context.resources)

@@ -25,6 +25,7 @@ import coil3.ImageLoader
 import coil3.request.ImageRequest
 import coil3.request.SuccessResult
 import coil3.request.allowHardware
+import coil3.size.Precision
 import coil3.toBitmap
 import dev.chatter.app.badges.NamePaint
 import kotlin.math.abs
@@ -68,13 +69,22 @@ internal fun TextLayoutResult.boundsOf(range: IntRange): Rect? {
     )
 }
 
+/** Largest side of a paint's picture, in pixels. */
+private const val PAINT_IMAGE_MAX_SIDE = 512
+
 /** An image paint's picture, as a bitmap a shader can use; null until it has loaded. */
 @Composable
 internal fun rememberPaintImage(url: String, loader: ImageLoader): ImageBitmap? {
     val context = LocalContext.current
     val image by produceState<ImageBitmap?>(null, url, loader) {
-        // Shaders cannot read hardware bitmaps.
-        val request = ImageRequest.Builder(context).data(url).allowHardware(false).build()
+        val request = ImageRequest.Builder(context)
+            .data(url)
+            // Shaders cannot read hardware bitmaps.
+            .allowHardware(false)
+            // Stretched over a name either way; only ever scaled down.
+            .size(PAINT_IMAGE_MAX_SIDE)
+            .precision(Precision.INEXACT)
+            .build()
         value = (loader.execute(request) as? SuccessResult)?.image?.toBitmap()?.asImageBitmap()
     }
     return image

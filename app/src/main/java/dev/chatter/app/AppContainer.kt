@@ -19,6 +19,8 @@ import coil3.gif.AnimatedImageDecoder
 import coil3.memory.MemoryCache
 import coil3.network.okhttp.OkHttpNetworkFetcherFactory
 import coil3.request.crossfade
+import coil3.request.maxBitmapSize
+import coil3.size.Size
 import dev.chatter.app.auth.AuthRepository
 import dev.chatter.app.auth.AuthState
 import dev.chatter.app.badges.BadgeRepository
@@ -55,6 +57,7 @@ import dev.chatter.app.net.DataSaving
 import dev.chatter.app.net.FxTwitterApi
 import dev.chatter.app.net.HelixApi
 import dev.chatter.app.net.ImageRedirects
+import dev.chatter.app.net.ImageSizeLimit
 import dev.chatter.app.net.ServiceTrouble
 import dev.chatter.app.net.ThirdPartyApi
 import dev.chatter.app.service.BackgroundHealth
@@ -132,6 +135,7 @@ class AppContainer(
         .cache(null)
         .followRedirects(false)
         .addInterceptor(ImageRedirects)
+        .addInterceptor(ImageSizeLimit(MAX_IMAGE_BYTES))
         .build()
 
     /** Collects unreachable services so the screen can report each once. */
@@ -458,6 +462,15 @@ class AppContainer(
 
         /** Enough for the emote and badge lists of many channels. */
         const val HTTP_CACHE_BYTES = 20L * 1024 * 1024
+
+        /** Far above any emote; a long GIF linked in chat can come close. */
+        const val MAX_IMAGE_BYTES = 16L * 1024 * 1024
+
+        /**
+         * Longest side of any decoded picture, 16 MB at most; Coil's own limit is 4096. Nothing in
+         * the app is shown larger.
+         */
+        const val MAX_IMAGE_SIDE = 2048
     }
 
     private fun imageLoader(animated: Boolean) = ImageLoader.Builder(context)
@@ -465,6 +478,7 @@ class AppContainer(
             add(OkHttpNetworkFetcherFactory(callFactory = { imageHttp }))
             if (animated) add(AnimatedImageDecoder.Factory())
         }
+        .maxBitmapSize(Size(MAX_IMAGE_SIDE, MAX_IMAGE_SIDE))
         .memoryCache { MemoryCache.Builder().maxSizePercent(context, if (animated) 0.15 else 0.05).build() }
         .diskCache { diskCache }
         .crossfade(false)
