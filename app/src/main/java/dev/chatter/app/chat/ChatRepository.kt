@@ -160,6 +160,9 @@ class ChatRepository(
     /** New messages per channel since the user last looked. */
     val unreadMessages: StateFlow<Map<String, Int>> get() = buffers.unreadMessages
 
+    /** See [MessageBuffers.channelsWithNews]. */
+    val channelsWithNews: StateFlow<Set<String>> get() = buffers.channelsWithNews
+
     /**
      * The chat screen's page: a channel or a combined chat key. A bubble reads its own channel and
      * does not touch this.

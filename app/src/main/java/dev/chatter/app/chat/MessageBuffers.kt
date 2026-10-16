@@ -67,6 +67,13 @@ class MessageBuffers(
     private val _unreadMessages = MutableStateFlow<Map<String, Int>>(emptyMap())
     val unreadMessages: StateFlow<Map<String, Int>> = _unreadMessages
 
+    private val _channelsWithNews = MutableStateFlow<Set<String>>(emptySet())
+    /**
+     * The channels with new messages, which only changes when one gets its first or is read. The
+     * tabs need no more than this, and the counts change with every message.
+     */
+    val channelsWithNews: StateFlow<Set<String>> = _channelsWithNews
+
     /** The list a channel, or a combined chat by its key, is drawn from. */
     fun messages(channel: String): StateFlow<List<ChatItem>> = flows.computeIfAbsent(channel) { ch ->
         MutableStateFlow<List<ChatItem>>(emptyList()).also { flow ->
@@ -118,7 +125,7 @@ class MessageBuffers(
         flows.values.forEach { it.value = emptyList() }
         counts.values.forEach { it.unread = 0 }
         unreadDirty = false
-        _unreadMessages.value = emptyMap()
+        publishUnread()
     }
 
     /** Adds a message to its channel unless it is already there. */
@@ -254,7 +261,7 @@ class MessageBuffers(
         val channelCounts = counts[channel] ?: return
         if (channelCounts.unread == 0) return
         channelCounts.unread = 0
-        _unreadMessages.value = unreadCounts()
+        publishUnread()
     }
 
     private fun trim(channel: String, buffer: ArrayDeque<ChatItem>, limit: Int = settings.value.messageLimit) {
@@ -463,8 +470,11 @@ class MessageBuffers(
         }
     }
 
-    private fun unreadCounts(): Map<String, Int> =
-        counts.entries.filter { it.value.unread > 0 }.associate { it.key to it.value.unread }
+    private fun publishUnread() {
+        val counts = counts.entries.filter { it.value.unread > 0 }.associate { it.key to it.value.unread }
+        _unreadMessages.value = counts
+        _channelsWithNews.value = counts.keys
+    }
 
     private fun markDirty(channel: String) {
         dirty.add(channel)
@@ -486,7 +496,7 @@ class MessageBuffers(
             }
             if (unreadDirty) {
                 unreadDirty = false
-                _unreadMessages.value = unreadCounts()
+                publishUnread()
             }
         }
     }

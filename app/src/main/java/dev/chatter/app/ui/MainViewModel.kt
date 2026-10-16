@@ -107,6 +107,7 @@ class MainViewModel(private val c: AppContainer, savedState: SavedStateHandle) :
     val lastChannel = c.channels.lastChannel
     val unreadMentions = c.chat.unreadMentions
     val unreadMessages = c.chat.unreadMessages
+    val channelsWithNews = c.chat.channelsWithNews
     val settings = c.settings.settings
     val recentEmotes = c.settings.recentEmotes
     val connection = c.irc.state

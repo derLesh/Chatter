@@ -82,7 +82,8 @@ fun ChannelTabBar(
     active: String?,
     info: Map<String, ChannelInfo>,
     unread: Map<String, Int>,
-    unreadMessages: Map<String, Int>,
+    /** Channels with new messages. */
+    withNews: Set<String>,
     roomState: RoomState?,
     /** The user's role in [active]; the line under its tab takes the role's color. */
     role: ChatRole?,
@@ -116,7 +117,7 @@ fun ChannelTabBar(
                     active = active,
                     info = info,
                     unread = unread,
-                    unreadMessages = unreadMessages,
+                    withNews = withNews,
                     showUnread = showUnread,
                     hiddenUnread = hiddenUnread,
                     drafts = drafts,
@@ -169,7 +170,7 @@ private fun ChannelTabs(
     active: String?,
     info: Map<String, ChannelInfo>,
     unread: Map<String, Int>,
-    unreadMessages: Map<String, Int>,
+    withNews: Set<String>,
     showUnread: Boolean,
     hiddenUnread: Set<String>,
     drafts: Set<String>,
@@ -212,7 +213,7 @@ private fun ChannelTabs(
             val isSelected = index == selected
             // The page being read has nothing new, whatever the count says before it is cleared.
             val mentions = if (showUnread && !isSelected) members.sumOf { unread[it] ?: 0 } else 0
-            val hasNew = showUnread && !isSelected && members.any { (unreadMessages[it] ?: 0) > 0 }
+            val hasNew = showUnread && !isSelected && members.any { it in withNews }
             val position = pages.indexOf(page)
             ChannelTab(
                 name = group?.displayName(info) ?: info[page]?.displayName ?: page,

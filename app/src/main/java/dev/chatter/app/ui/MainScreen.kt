@@ -82,7 +82,7 @@ fun MainScreen(vm: MainViewModel, onInbox: () -> Unit, onSettings: () -> Unit) {
     val groups by vm.groups.collectAsStateWithLifecycle()
     val info by vm.channelInfo.collectAsStateWithLifecycle()
     val unread by vm.unreadMentions.collectAsStateWithLifecycle()
-    val unreadMessages by vm.unreadMessages.collectAsStateWithLifecycle()
+    val withNews by vm.channelsWithNews.collectAsStateWithLifecycle()
     val connection by vm.connection.collectAsStateWithLifecycle()
     val settings by vm.settings.collectAsStateWithLifecycle()
     // Guests have no input, no service and no notifications to allow.
@@ -258,7 +258,7 @@ fun MainScreen(vm: MainViewModel, onInbox: () -> Unit, onSettings: () -> Unit) {
                 active = active,
                 info = info,
                 unread = unread,
-                unreadMessages = unreadMessages,
+                withNews = withNews,
                 roomState = roomState,
                 role = role,
                 sharedWith = sharedWith,
@@ -284,7 +284,8 @@ fun MainScreen(vm: MainViewModel, onInbox: () -> Unit, onSettings: () -> Unit) {
                 active = active,
                 info = info,
                 unread = unread,
-                unreadMessages = unreadMessages,
+                withNews = withNews,
+                unreadMessages = vm.unreadMessages,
                 roomState = roomState,
                 roleBadge = roleBadge,
                 sharedWith = sharedWith,

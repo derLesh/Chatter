@@ -39,6 +39,7 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -67,6 +68,7 @@ import dev.chatter.app.chat.RoomState
 import dev.chatter.app.irc.ConnectionState
 import dev.chatter.app.ui.theme.LiveRed
 import dev.chatter.app.ui.theme.barColor
+import kotlinx.coroutines.flow.StateFlow
 
 /**
  * The bar above the chat: the current page with a menu of all pages, other channels with news, and
@@ -81,7 +83,10 @@ fun ChannelTopBar(
     active: String?,
     info: Map<String, ChannelInfo>,
     unread: Map<String, Int>,
-    unreadMessages: Map<String, Int>,
+    /** Channels with new messages. */
+    withNews: Set<String>,
+    /** How many, read only while the channel menu is open. */
+    unreadMessages: StateFlow<Map<String, Int>>,
     roomState: RoomState?,
     roleBadge: Badge?,
     /** Shared Chat partners of [active], or null if it shares with nobody. */
@@ -177,7 +182,7 @@ fun ChannelTopBar(
                 shown = activeGroup?.channels ?: listOfNotNull(active),
                 info = info,
                 unread = unread,
-                unreadMessages = unreadMessages,
+                withNews = withNews,
                 imageLoader = imageLoader,
                 onSelect = onSelect,
             )
@@ -208,11 +213,11 @@ private fun UnreadStrip(
     shown: List<String>,
     info: Map<String, ChannelInfo>,
     unread: Map<String, Int>,
-    unreadMessages: Map<String, Int>,
+    withNews: Set<String>,
     imageLoader: ImageLoader,
     onSelect: (String) -> Unit,
 ) {
-    val pending = channels.filter { it !in shown && ((unread[it] ?: 0) > 0 || (unreadMessages[it] ?: 0) > 0) }
+    val pending = channels.filter { it !in shown && ((unread[it] ?: 0) > 0 || it in withNews) }
     if (pending.isEmpty()) return
     Row(
         verticalAlignment = Alignment.CenterVertically,
@@ -254,7 +259,7 @@ private fun ChannelDropdown(
     active: String?,
     info: Map<String, ChannelInfo>,
     unread: Map<String, Int>,
-    unreadMessages: Map<String, Int>,
+    unreadMessages: StateFlow<Map<String, Int>>,
     drafts: Set<String>,
     imageLoader: ImageLoader,
     anchorX: Dp,
@@ -277,6 +282,8 @@ private fun ChannelDropdown(
         offset = DpOffset(DROPDOWN_MARGIN - anchorX, 0.dp),
         modifier = Modifier.width(width),
     ) {
+        // Composed only while open, so only then does every new message redraw it.
+        val unreadMessages by unreadMessages.collectAsStateWithLifecycle()
         pages.forEachIndexed { index, page ->
             val group = groups[page]
             // A combined chat's channels are unknown for a moment after start.

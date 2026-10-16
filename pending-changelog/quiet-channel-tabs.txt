@@ -1,0 +1,1 @@
+patch: Draw the channel tabs less often while other channels are busy
