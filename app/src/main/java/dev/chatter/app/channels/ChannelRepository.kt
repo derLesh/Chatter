@@ -277,6 +277,14 @@ class ChannelRepository(
         refreshUsers(valid)
     }
 
+    /** Replaces the live alert choices, for restoring a backup. Invalid logins are dropped. */
+    suspend fun restoreLiveAlerts(on: Collection<String>, off: Collection<String>) {
+        store.edit { p ->
+            p[LIVE_ON] = on.mapNotNull { normalize(it) }.distinct().joinToString(",")
+            p[LIVE_OFF] = off.mapNotNull { normalize(it) }.distinct().joinToString(",")
+        }
+    }
+
     /** Fetches id, display name and avatar. Returns the Twitch user id per login. */
     suspend fun refreshUsers(logins: List<String>): Map<String, String> {
         if (logins.isEmpty()) return emptyMap()

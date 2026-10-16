@@ -48,6 +48,12 @@ data class ChannelBackup(
     val notificationsOff: List<String> = emptyList(),
     val hiddenUnread: List<String> = emptyList(),
     val groups: List<ChannelGroup> = emptyList(),
+    /**
+     * Channels outside the list that notify when they go live, and channels in the list that do
+     * not. Null in a backup from before these were saved; the phone's own choices then stay.
+     */
+    val liveAlertsOn: List<String>? = null,
+    val liveAlertsOff: List<String>? = null,
 )
 
 /** Writes and reads [SettingsBackup] files. */
@@ -69,6 +75,8 @@ class BackupManager(
                 notificationsOff = channels.mutedChannels.value.toList(),
                 hiddenUnread = channels.hiddenUnread.value.toList(),
                 groups = channels.groups.value.values.toList(),
+                liveAlertsOn = channels.liveAlerts.value.on.toList(),
+                liveAlertsOff = channels.liveAlerts.value.off.toList(),
             ),
         )
     )
@@ -90,6 +98,9 @@ class BackupManager(
         backup.nicknames?.let { nicknames.replaceAll(it) }
         backup.channels?.let {
             channels.restore(it.logins, it.names, it.notificationsOff.toSet(), it.hiddenUnread.toSet(), it.groups)
+            if (it.liveAlertsOn != null || it.liveAlertsOff != null) {
+                channels.restoreLiveAlerts(it.liveAlertsOn.orEmpty(), it.liveAlertsOff.orEmpty())
+            }
         }
     }
 }

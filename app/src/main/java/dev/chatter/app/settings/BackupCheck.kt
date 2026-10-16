@@ -25,6 +25,9 @@ object BackupCheck {
     const val MAX_NICKNAME = 50
     const val MAX_CHANNELS = 200
 
+    /** Live alerts also cover followed channels, which may be many more than are in the list. */
+    const val MAX_LIVE_ALERTS = 2000
+
     /**
      * Well above a backup at all limits. Reading a large file into memory just to reject it could
      * run out of memory.
@@ -60,6 +63,8 @@ object BackupCheck {
             c.copy(
                 logins = c.logins.filter { !ChannelGroup.isKey(it) || it in keys }.take(MAX_CHANNELS),
                 groups = groups,
+                liveAlertsOn = c.liveAlertsOn?.let(::liveAlertLogins),
+                liveAlertsOff = c.liveAlertsOff?.let(::liveAlertLogins),
             )
         },
     )
@@ -74,6 +79,9 @@ object BackupCheck {
         recentEmotes = s.recentEmotes.filter { it.isNotBlank() && ' ' !in it }.distinct().take(MAX_RECENT_EMOTES),
         imageHosts = hosts(s.imageHosts),
     )
+
+    private fun liveAlertLogins(list: List<String>) =
+        list.map { it.trim().lowercase() }.filter(LOGIN::matches).distinct().take(MAX_LIVE_ALERTS)
 
     /** Stored comma-separated. */
     private fun keywords(list: List<String>) =
