@@ -40,7 +40,10 @@ class ChannelIcons(
         return (image as? BitmapImage)?.bitmap?.let { IconCompat.createWithBitmap(it) }
     }
 
-    private fun fallback(): IconCompat = IconCompat.createWithResource(context, R.mipmap.ic_launcher)
+    // One object, so a notification can tell that the picture did not change.
+    private val fallback by lazy { IconCompat.createWithResource(context, R.mipmap.ic_launcher) }
+
+    private fun fallback(): IconCompat = fallback
 
     private companion object {
         /** Notification and shortcut icons are shown small; larger wastes memory. */

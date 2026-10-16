@@ -62,9 +62,11 @@ class ChatService : Service() {
         // vibration and the unread counts instead.
         val appInFront = container.chat.windows.anyVisible
         scope.launch {
-            container.chat.mentionEvents.collect {
-                if (appInFront.value) container.notifier.buzz(ChatNotifier.mentionChannelId(it.channel))
-                else container.notifier.notify(it)
+            container.chat.mentionEvents.inBursts(MENTION_BURST_MS).collect { burst ->
+                burst.groupBy { it.channel }.forEach { (channel, items) ->
+                    if (appInFront.value) container.notifier.buzz(ChatNotifier.mentionChannelId(channel))
+                    else container.notifier.notify(items)
+                }
             }
         }
         scope.launch {
@@ -152,6 +154,9 @@ class ChatService : Service() {
         private const val TAG = "ChatService"
         private const val NOTIFICATION_ID = 1
         private const val ACTION_DISCONNECT = "dev.chatter.app.DISCONNECT"
+
+        /** At most one notification update and one vibration per channel this often. */
+        private const val MENTION_BURST_MS = 1_000L
 
         /** Must be called while the app is in the foreground. */
         fun start(context: Context) {

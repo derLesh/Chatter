@@ -39,6 +39,9 @@ import dev.chatter.app.util.EXTRA_WHISPER_USER_ID
 import dev.chatter.app.util.INBOX_TAB_WHISPERS
 import dev.chatter.app.util.appLaunchIntent
 import dev.chatter.app.util.channelShortcut
+import dev.chatter.app.util.channelShortcutId
+import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.flow.StateFlow
 import java.util.concurrent.ConcurrentHashMap
 
@@ -69,6 +72,12 @@ class ChatNotifier(
     private val recent = HashMap<String, ArrayDeque<ChatItem>>()
     /** Twitch avatars of chatters in the notifications, by lowercase login. */
     private val senderIcons = ConcurrentHashMap<String, IconCompat>()
+
+    /**
+     * The name and picture each channel's conversation was last set up with; setting it up again
+     * is two calls into the system for nothing.
+     */
+    private val conversations = HashMap<String, Pair<String, IconCompat>>()
     private val whisperThreads = WhisperConversations(activeAccount)
 
     fun createChannels() {
@@ -165,13 +174,13 @@ class ChatNotifier(
     /** Removes that notice once the connection is back. */
     fun clearNotListening() = manager.cancel(NOT_LISTENING_ID)
 
-    /** Loads the pictures and posts the notification. */
-    suspend fun notify(item: ChatItem) {
-        if (!manager.areNotificationsEnabled()) return
-        val icon = icons.channel(item.channel)
-        // Fills the cache for this chatter; older lines use what is cached.
-        loadSenderIcon(item.login)
-        post(item, icon)
+    /** Loads the pictures and posts [items], mentions in one channel, as one update. */
+    suspend fun notify(items: List<ChatItem>) {
+        if (items.isEmpty() || !manager.areNotificationsEnabled()) return
+        val icon = icons.channel(items.first().channel)
+        // Fills the cache for these chatters; older lines use what is cached.
+        loadSenderIcons(items.mapNotNull { it.login })
+        post(items, icon)
     }
 
     /**
@@ -200,9 +209,11 @@ class ChatNotifier(
     suspend fun showSent(channel: String, text: String) {
         if (!manager.areNotificationsEnabled()) return
         post(
-            ChatItem(
-                id = "notification-reply-${System.nanoTime()}", channel = channel, kind = MessageKind.Chat,
-                timestamp = System.currentTimeMillis(), text = text, isOwn = true,
+            listOf(
+                ChatItem(
+                    id = "notification-reply-${System.nanoTime()}", channel = channel, kind = MessageKind.Chat,
+                    timestamp = System.currentTimeMillis(), text = text, isOwn = true,
+                ),
             ),
             icons.channel(channel),
         )
@@ -213,24 +224,26 @@ class ChatNotifier(
         if (!manager.areNotificationsEnabled()) return
         val text = context.getString(R.string.notif_reply_failed)
         post(
-            ChatItem(
-                id = "notification-failed-${System.nanoTime()}", channel = channel, kind = MessageKind.Notice,
-                timestamp = System.currentTimeMillis(), text = text, displayName = context.getString(R.string.app_name),
+            listOf(
+                ChatItem(
+                    id = "notification-failed-${System.nanoTime()}", channel = channel, kind = MessageKind.Notice,
+                    timestamp = System.currentTimeMillis(), text = text, displayName = context.getString(R.string.app_name),
+                ),
             ),
             icons.channel(channel),
         )
     }
 
+    /** [items] are lines of one channel. */
     @Synchronized
-    private fun post(item: ChatItem, icon: IconCompat) {
+    private fun post(items: List<ChatItem>, icon: IconCompat) {
+        val item = items.last()
         val lines = recent.getOrPut(item.channel) { ArrayDeque() }
-        lines.addLast(item)
+        lines.addAll(items)
         while (lines.size > 6) lines.removeFirst()
 
         val name = channelName(item.channel)
-        // A mention can arrive before the channel list, e.g. right after restoring a backup.
-        ensureChannel(item.channel, name)
-        val shortcutId = publishShortcut(item.channel, name, icon)
+        val shortcutId = setUpConversation(item.channel, name, icon)
         val me = Person.Builder().setName(context.getString(R.string.notif_me)).build()
         val style = NotificationCompat.MessagingStyle(me)
             .setConversationTitle("#${item.channel}")
@@ -274,17 +287,26 @@ class ChatNotifier(
     private fun channelName(channel: String): String = channels.info.value[channel]?.displayName ?: channel
 
     /**
-     * The sender's Twitch avatar, looked up once per chatter. Costs a request and a download per
-     * new name, so it is a setting and skipped while saving data. Cached pictures are always used.
+     * The senders' Twitch avatars, looked up once per chatter, all new ones in one request. Costs a
+     * download per new name, so it is a setting and skipped while saving data. Cached pictures are
+     * always used.
      */
-    private suspend fun loadSenderIcon(login: String?) {
-        val key = login?.lowercase() ?: return
-        if (!settings.value.senderAvatars || saveData.value || senderIcons.containsKey(key)) return
-        val url = runCatching { helix.users(listOf(key)).firstOrNull()?.profileImageUrl }.getOrNull() ?: return
-        icons.load(url)?.let {
-            // Mentions keep coming from new people; the cache must not grow without bound.
-            if (senderIcons.size >= MAX_SENDER_ICONS) senderIcons.clear()
-            senderIcons[key] = it
+    private suspend fun loadSenderIcons(logins: List<String>) {
+        if (!settings.value.senderAvatars || saveData.value) return
+        val missing = logins.map { it.lowercase() }.distinct().filterNot(senderIcons::containsKey).take(MAX_SENDER_ICONS)
+        if (missing.isEmpty()) return
+        val users = runCatching { helix.users(missing) }.getOrNull() ?: return
+        coroutineScope {
+            users.forEach { user ->
+                val url = user.profileImageUrl.ifEmpty { null } ?: return@forEach
+                launch {
+                    icons.load(url)?.let {
+                        // Mentions keep coming from new people; the cache must not grow without bound.
+                        if (senderIcons.size >= MAX_SENDER_ICONS) senderIcons.clear()
+                        senderIcons[user.login.lowercase()] = it
+                    }
+                }
+            }
         }
     }
 
@@ -297,7 +319,7 @@ class ChatNotifier(
     suspend fun notifyWhisper(whisper: InboxWhisper) {
         if (!manager.areNotificationsEnabled()) return
         // Fills the cache for this sender; older lines use what is cached.
-        loadSenderIcon(whisper.login)
+        loadSenderIcons(listOf(whisper.login))
         addWhisperLine(
             owner = whisper.owner,
             login = whisper.login,
@@ -411,13 +433,19 @@ class ChatNotifier(
     // ------------------------------------------------------------------------------------------
 
     /**
-     * The conversation shortcut a notification points to. [dev.chatter.app.util.ChannelShortcuts]
-     * publishes the same one, but it has to exist before the notification arrives.
+     * The notification channel and the conversation shortcut a notification points to, set up when
+     * the channel's name or picture changed. [dev.chatter.app.util.ChannelShortcuts] publishes the
+     * same shortcut, but it has to exist before the notification arrives, and a mention can arrive
+     * before the channel list, e.g. right after restoring a backup. Returns the shortcut's id.
      */
-    private fun publishShortcut(channel: String, name: String, icon: IconCompat): String {
-        val shortcut = channelShortcut(context, channel, name, icon)
-        runCatching { ShortcutManagerCompat.pushDynamicShortcut(context, shortcut) }
-        return shortcut.id
+    private fun setUpConversation(channel: String, name: String, icon: IconCompat): String {
+        val before = conversations[channel]
+        if (before == null || before.first != name || before.second !== icon) {
+            ensureChannel(channel, name)
+            runCatching { ShortcutManagerCompat.pushDynamicShortcut(context, channelShortcut(context, channel, name, icon)) }
+            conversations[channel] = name to icon
+        }
+        return channelShortcutId(channel)
     }
 
     /**

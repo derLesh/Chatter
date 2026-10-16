@@ -123,7 +123,8 @@ class ChatRepository(
     /** Channels where Twitch just refused one of the user's messages, one event per refusal. */
     val refused: SharedFlow<String> = _refused
 
-    private val _mentionEvents = MutableSharedFlow<ChatItem>(extraBufferCapacity = 32)
+    // Room for a raid's worth; the notifications combine them (see ChatService).
+    private val _mentionEvents = MutableSharedFlow<ChatItem>(extraBufferCapacity = 256)
     /** Live mentions in channels the user is not looking at. */
     val mentionEvents: SharedFlow<ChatItem> = _mentionEvents
 
