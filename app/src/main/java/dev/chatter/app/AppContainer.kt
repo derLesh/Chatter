@@ -86,6 +86,7 @@ import okhttp3.Cache
 import okhttp3.OkHttpClient
 import java.util.concurrent.TimeUnit
 
+// Settings and channels move to a new phone under these names; see data_extraction_rules.xml.
 private val Context.authStore by store("auth")
 private val Context.channelStore by store("channels")
 private val Context.settingsStore by store("settings")
