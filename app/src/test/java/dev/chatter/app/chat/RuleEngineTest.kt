@@ -139,6 +139,19 @@ class RuleEngineTest {
         }
     }
 
+    /** The rule editor says which of the two it is, so the user knows what to fix. */
+    @Test
+    fun aBrokenPatternIsToldApartFromOneRE2LeavesOut() {
+        listOf("(unclosed", "[a-", "a{2,1}", """\""").forEach { pattern ->
+            assertEquals(pattern, PatternProblem.Broken, RuleEngine.problem(pattern))
+        }
+        listOf("(?<!@)lesh", "foo(?=bar)", """(a)\1""").forEach { pattern ->
+            assertEquals(pattern, PatternProblem.Unsupported, RuleEngine.problem(pattern))
+        }
+        // Finding nothing right now is no problem.
+        assertNull(RuleEngine.problem("""^zzz\d{40}$"""))
+    }
+
     @Test
     fun ordinaryPatternsAreUsed() {
         assertFalse(RuleEngine.skips("""^!\w+"""))

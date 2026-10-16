@@ -74,6 +74,16 @@ class RuleEngine(rules: List<ChatRule> = emptyList()) {
          */
         fun skips(pattern: String): Boolean = re2(pattern) == null
 
+        /**
+         * Why a regex rule with [pattern] is skipped, or null if it is not. What Java reads but RE2
+         * does not is valid and needs a lookaround or backreference; compiling it runs nothing.
+         */
+        fun problem(pattern: String): PatternProblem? = when {
+            re2(pattern) != null -> null
+            runCatching { java.util.regex.Pattern.compile(pattern) }.isSuccess -> PatternProblem.Unsupported
+            else -> PatternProblem.Broken
+        }
+
         private fun re2(pattern: String): Re2Pattern? =
             runCatching { Re2Pattern.compile(pattern, Re2Pattern.CASE_INSENSITIVE) }.getOrNull()
 
@@ -89,4 +99,13 @@ class RuleEngine(rules: List<ChatRule> = emptyList()) {
             return TextMatcher { text -> synchronized(matcher) { matcher.reset(text.take(MAX_TEXT)).find() } }
         }
     }
+}
+
+/** Why a regex rule cannot be used. */
+enum class PatternProblem {
+    /** Not a regular expression, like an unclosed bracket. */
+    Broken,
+
+    /** A lookaround or backreference, which RE2 leaves out so no message can stall the chat. */
+    Unsupported,
 }

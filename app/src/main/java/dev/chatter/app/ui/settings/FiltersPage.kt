@@ -179,13 +179,14 @@ internal fun RulesPage(vm: MainViewModel) {
             }
         }
         rules.forEach { rule ->
+            val usable = !(rule.regex && RuleEngine.skips(rule.pattern))
             item {
                 ListItem(
                     headlineContent = { Text(rule.pattern, fontFamily = if (rule.regex) FontFamily.Monospace else null) },
                     supportingContent = {
                         Column {
                             Text(ruleSummary(rule))
-                            if (rule.regex && RuleEngine.skips(rule.pattern)) {
+                            if (!usable) {
                                 Text(stringResource(R.string.rule_unusable), color = scheme.error)
                             }
                         }
@@ -200,7 +201,12 @@ internal fun RulesPage(vm: MainViewModel) {
                     },
                     trailingContent = {
                         Row(verticalAlignment = Alignment.CenterVertically) {
-                            Switch(checked = rule.enabled, onCheckedChange = { vm.setRuleEnabled(rule, it) })
+                            // Off and greyed out while unusable; tapping the rule opens it to fix.
+                            Switch(
+                                checked = rule.enabled && usable,
+                                onCheckedChange = { vm.setRuleEnabled(rule, it) },
+                                enabled = usable,
+                            )
                             IconButton(onClick = { vm.deleteRule(rule) }) {
                                 Icon(Icons.Default.Delete, contentDescription = stringResource(R.string.rule_delete))
                             }

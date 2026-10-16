@@ -637,8 +637,9 @@
     <string name="rule_delete">Regel löschen</string>
     <string name="rule_pattern">Sucht nach</string>
     <string name="rule_pattern_hint">Findet das ganze Wort, egal ob groß oder klein geschrieben</string>
-    <string name="rule_pattern_regex_hint">Ein regulärer Ausdruck. Ist er fehlerhaft, findet er nichts</string>
-    <string name="rule_pattern_unusable_hint">Chatter kann dieses Muster nicht nutzen. Es ist fehlerhaft oder nutzt einen Lookaround oder Rückverweis, die den Chat bremsen können</string>
+    <string name="rule_pattern_regex_hint">Ein regulärer Ausdruck</string>
+    <string name="rule_pattern_broken_hint">Das ist kein gültiger regulärer Ausdruck. Prüfe die Klammern und die Zeichen nach einem Backslash</string>
+    <string name="rule_pattern_unsupported_hint">Lookarounds und Rückverweise kann Chatter nicht nutzen, weil sie den Chat bremsen können</string>
     <string name="rule_unusable">Nicht verwendet: Das Muster ist fehlerhaft oder braucht einen Lookaround oder Rückverweis</string>
     <string name="rule_target">Wo</string>
     <string name="rule_target_message">Nachricht</string>

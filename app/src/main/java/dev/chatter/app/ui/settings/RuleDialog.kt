@@ -43,6 +43,7 @@ import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.unit.dp
 import dev.chatter.app.R
 import dev.chatter.app.chat.ChatRule
+import dev.chatter.app.chat.PatternProblem
 import dev.chatter.app.chat.RuleAction
 import dev.chatter.app.chat.RuleEngine
 import dev.chatter.app.chat.RuleTarget
@@ -62,6 +63,9 @@ private val RULE_COLORS = listOf(
 @Composable
 fun RuleDialog(rule: ChatRule?, onSave: (ChatRule) -> Unit, onDismiss: () -> Unit) {
     var draft by remember { mutableStateOf(rule ?: ChatRule(id = UUID.randomUUID().toString(), pattern = "")) }
+    val problem = remember(draft.pattern, draft.regex) {
+        if (draft.regex) RuleEngine.problem(draft.pattern.trim()) else null
+    }
 
     AlertDialog(
         onDismissRequest = onDismiss,
@@ -73,17 +77,17 @@ fun RuleDialog(rule: ChatRule?, onSave: (ChatRule) -> Unit, onDismiss: () -> Uni
                     onValueChange = { draft = draft.copy(pattern = it) },
                     singleLine = true,
                     label = { Text(stringResource(R.string.rule_pattern)) },
+                    isError = problem != null,
                     supportingText = {
-                        val unusable = draft.regex && RuleEngine.skips(draft.pattern)
                         Text(
                             stringResource(
                                 when {
-                                    unusable -> R.string.rule_pattern_unusable_hint
+                                    problem == PatternProblem.Broken -> R.string.rule_pattern_broken_hint
+                                    problem == PatternProblem.Unsupported -> R.string.rule_pattern_unsupported_hint
                                     draft.regex -> R.string.rule_pattern_regex_hint
                                     else -> R.string.rule_pattern_hint
                                 },
                             ),
-                            color = if (unusable) MaterialTheme.colorScheme.error else Color.Unspecified,
                         )
                     },
                     keyboardOptions = KeyboardOptions(
@@ -153,7 +157,8 @@ fun RuleDialog(rule: ChatRule?, onSave: (ChatRule) -> Unit, onDismiss: () -> Uni
         confirmButton = {
             TextButton(
                 onClick = { onSave(draft.copy(pattern = draft.pattern.trim())); onDismiss() },
-                enabled = draft.pattern.isNotBlank(),
+                // A switched-off rule may keep a pattern still being worked on.
+                enabled = draft.pattern.isNotBlank() && !(draft.enabled && problem != null),
             ) { Text(stringResource(R.string.save)) }
         },
         dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.cancel)) } },
