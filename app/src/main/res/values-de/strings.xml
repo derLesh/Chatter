@@ -214,7 +214,7 @@
     <string name="settings_media">Links &amp; Bilder</string>
     <string name="settings_media_summary">Bildvorschau, Posts, mobile Daten</string>
     <string name="settings_typing">Schreiben</string>
-    <string name="settings_typing_summary">Vorschläge, Erwähnungen</string>
+    <string name="settings_typing_summary">Nur lesen, Vorschläge, Erwähnungen</string>
     <string name="settings_backup_summary">Einstellungen sichern und wiederherstellen</string>
     <string name="settings_section_channels">Kanäle &amp; Benachrichtigungen</string>
     <string name="settings_section_data">Deine Daten</string>
@@ -299,6 +299,8 @@
     <string name="settings_group_history">Verlauf</string>
     <string name="settings_carousel">Im Kreis wischen</string>
     <string name="settings_carousel_hint">Nach dem letzten Kanal kommt wieder der erste</string>
+    <string name="settings_read_only">Nur lesen</string>
+    <string name="settings_read_only_hint">Blendet die Eingabe unten im Chat aus, wenn du nur mitlesen und nichts schreiben willst</string>
     <string name="settings_emote_suggestions">Emote-Vorschläge</string>
     <string name="settings_emote_suggestions_hint">Emotes beim Tippen vorschlagen, und Emoji nach einem Doppelpunkt, wie bei :smile</string>
     <string name="settings_user_suggestions">Namensvorschläge</string>

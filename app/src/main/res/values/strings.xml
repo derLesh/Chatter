@@ -220,7 +220,7 @@
     <string name="settings_media">Links &amp; images</string>
     <string name="settings_media_summary">Image previews, posts, mobile data</string>
     <string name="settings_typing">Typing</string>
-    <string name="settings_typing_summary">Suggestions, mentions</string>
+    <string name="settings_typing_summary">Read only, suggestions, mentions</string>
     <string name="settings_backup_summary">Save and restore your settings</string>
     <string name="settings_section_channels">Channels &amp; notifications</string>
     <string name="settings_section_data">Your data</string>
@@ -307,6 +307,8 @@
     <string name="settings_group_history">History</string>
     <string name="settings_carousel">Swipe in a circle</string>
     <string name="settings_carousel_hint">After the last channel comes the first again</string>
+    <string name="settings_read_only">Only read</string>
+    <string name="settings_read_only_hint">Hide the input at the bottom of the chat, for watching a chat without writing in it</string>
     <string name="settings_emote_suggestions">Emote suggestions</string>
     <string name="settings_emote_suggestions_hint">Suggest emotes while typing, and emoji after a colon, as in :smile</string>
     <string name="settings_user_suggestions">Name suggestions</string>

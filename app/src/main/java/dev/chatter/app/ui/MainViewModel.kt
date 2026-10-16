@@ -436,12 +436,17 @@ class MainViewModel(private val c: AppContainer, savedState: SavedStateHandle) :
     /** Every emoji the phone can draw, for the picker. */
     suspend fun emoji(): List<Emoji> = c.emoji.all()
 
-    /** Mentions the author of [item], in the channel it was written in on a combined chat. */
-    fun mention(item: ChatItem) {
-        val name = item.displayName ?: item.login ?: return
+    /**
+     * Mentions the author of [item], in the channel it was written in on a combined chat. False if
+     * there is no name or no input to put it in.
+     */
+    fun mention(item: ChatItem): Boolean {
+        if (settings.value.readOnly) return false
+        val name = item.displayName ?: item.login ?: return false
         selectSendChannel(item.channel)
         val (text, cursor) = Autocomplete.insert(input.text, input.selection.start, "@$name")
         composer.input = TextFieldValue(text, TextRange(cursor))
+        return true
     }
 
     private fun rememberEmote(name: String) {
@@ -621,10 +626,12 @@ class MainViewModel(private val c: AppContainer, savedState: SavedStateHandle) :
 
     /**
      * Answers [item] with the next message. False if it cannot be answered: a notice, the user's
-     * own message before Twitch confirmed it, or anything for a guest.
+     * own message before Twitch confirmed it, anything for a guest, or anything while the input is
+     * hidden.
      */
     fun startReply(item: ChatItem): Boolean {
-        if (c.auth.account == null || !item.canReply || item.id.startsWith("local-")) return false
+        if (c.auth.account == null || settings.value.readOnly) return false
+        if (!item.canReply || item.id.startsWith("local-")) return false
         composer.startReply(item)
         updateSuggestions()
         return true
@@ -734,6 +741,7 @@ class MainViewModel(private val c: AppContainer, savedState: SavedStateHandle) :
     fun setShowDeleted(v: Boolean) = saveSetting { setShowDeleted(v) }
     fun setEmoteSuggestions(v: Boolean) = saveSetting { setEmoteSuggestions(v) }
     fun setMentionWithAt(v: Boolean) = saveSetting { setMentionWithAt(v) }
+    fun setReadOnly(v: Boolean) = saveSetting { setReadOnly(v) }
     fun setUserSuggestions(v: Boolean) = saveSetting { setUserSuggestions(v) }
 
     fun setChannelUnreadVisible(login: String, visible: Boolean) {

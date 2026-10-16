@@ -225,6 +225,7 @@ private val SEARCH_INDEX: List<SearchEntry> by lazy {
         add(SearchEntry(R.string.settings_full_links, media, R.string.settings_full_links_hint))
         add(SearchEntry(R.string.settings_mobile_data, media, R.string.settings_mobile_data_hint, also = MOBILE_DATA.map { it.second }))
         val typing = SettingsPage.Typing
+        add(SearchEntry(R.string.settings_read_only, typing, R.string.settings_read_only_hint))
         add(SearchEntry(R.string.settings_emote_suggestions, typing, R.string.settings_emote_suggestions_hint))
         add(SearchEntry(R.string.settings_user_suggestions, typing, R.string.settings_user_suggestions_hint))
         add(SearchEntry(R.string.settings_mention_with_at, typing, R.string.settings_mention_with_at_hint))

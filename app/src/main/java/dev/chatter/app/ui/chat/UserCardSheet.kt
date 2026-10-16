@@ -73,7 +73,7 @@ import java.time.format.FormatStyle
 /**
  * Opened from a message: the author (avatar, badges, account age, bio), actions, and their recent
  * messages in this channel. [onWhisper] receives the Twitch id once loaded, saving a lookup. A
- * [guest] gets no actions that write.
+ * [guest] gets no actions that write; without [onReply] and [onMention] those two are left out.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -91,8 +91,8 @@ fun UserCardSheet(
     onBlock: (HelixUser, Boolean) -> Unit,
     onBlockLogin: (String) -> Unit,
     onNickname: () -> Unit,
-    onReply: () -> Unit,
-    onMention: () -> Unit,
+    onReply: (() -> Unit)?,
+    onMention: (() -> Unit)?,
     onWhisper: (userId: String?) -> Unit,
     onDelete: () -> Unit,
     onTimeout: () -> Unit,
@@ -109,7 +109,7 @@ fun UserCardSheet(
     @Suppress("DEPRECATION")
     val clipboard = LocalClipboardManager.current
     val isUserMessage = item.login != null
-    val canReply = !guest && item.canReply && !item.id.startsWith("local-")
+    val canReply = !guest && onReply != null && item.canReply && !item.id.startsWith("local-")
 
     // Waits for the recent messages, which come from memory. Opened earlier the sheet would be
     // short, expand fully and stay so; opened with them, a long card opens half-way.
@@ -161,7 +161,9 @@ fun UserCardSheet(
                     }
                     // They swap places, Mention stays in the middle.
                     if (copyFirst) copy() else reply()
-                    if (isUserMessage && !guest) ActionButton(Icons.Default.Person, R.string.action_mention) { onMention(); onDismiss() }
+                    if (isUserMessage && !guest && onMention != null) {
+                        ActionButton(Icons.Default.Person, R.string.action_mention) { onMention(); onDismiss() }
+                    }
                     if (copyFirst) reply() else copy()
                 }
             }

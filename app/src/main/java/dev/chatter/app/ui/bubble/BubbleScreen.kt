@@ -132,7 +132,7 @@ fun BubbleScreen(vm: MainViewModel, channel: String?) {
                 partners = partnerMarks,
                 onMentionsSeen = vm::onMentionsSeen,
             )
-            InputBar(
+            if (!settings.readOnly) InputBar(
                 value = vm.input,
                 onValueChange = vm::onInputChange,
                 enabled = connection == ConnectionState.Connected,

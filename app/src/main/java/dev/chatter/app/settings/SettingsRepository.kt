@@ -89,6 +89,8 @@ data class Settings(
     val unreadInTitleBar: Boolean = true,
     /** Every channel as a tab in the title bar instead of a menu. */
     val channelTabs: Boolean = true,
+    /** No send bar: for reading a chat without writing in it, like a streamer watching their own. */
+    val readOnly: Boolean = false,
     /** Suggest emotes while typing. */
     val emoteSuggestions: Boolean = true,
     /** Suggest recent chatters after an "@". */
@@ -188,6 +190,7 @@ class SettingsRepository(
             sevenTvPaints = p[SEVENTV_PAINTS] ?: true,
             unreadInTitleBar = p[UNREAD_TITLE_BAR] ?: true,
             channelTabs = p[CHANNEL_TABS] ?: true,
+            readOnly = p[READ_ONLY] ?: false,
             emoteSuggestions = p[EMOTE_SUGGESTIONS] ?: true,
             userSuggestions = p[USER_SUGGESTIONS] ?: true,
             mentionWithAt = p[MENTION_WITH_AT] ?: true,
@@ -254,6 +257,7 @@ class SettingsRepository(
     suspend fun setEmoteSuggestions(v: Boolean) = store.edit { it[EMOTE_SUGGESTIONS] = v }
     suspend fun setUserSuggestions(v: Boolean) = store.edit { it[USER_SUGGESTIONS] = v }
     suspend fun setMentionWithAt(v: Boolean) = store.edit { it[MENTION_WITH_AT] = v }
+    suspend fun setReadOnly(v: Boolean) = store.edit { it[READ_ONLY] = v }
     suspend fun setShowDeleted(v: Boolean) = store.edit { it[SHOW_DELETED] = v }
     suspend fun setUpdateCheck(v: Boolean) = store.edit { it[UPDATE_CHECK] = v }
     suspend fun setInlineImages(v: Boolean) = store.edit { it[INLINE_IMAGES] = v }
@@ -347,6 +351,7 @@ class SettingsRepository(
         p[EMOTE_SUGGESTIONS] = s.emoteSuggestions
         p[USER_SUGGESTIONS] = s.userSuggestions
         p[MENTION_WITH_AT] = s.mentionWithAt
+        p[READ_ONLY] = s.readOnly
         p[SHOW_DELETED] = s.showDeleted
         p[UPDATE_CHECK] = s.updateCheck
         p[INLINE_IMAGES] = s.inlineImages
@@ -425,6 +430,7 @@ class SettingsRepository(
         val EMOTE_SUGGESTIONS = booleanPreferencesKey("emote_suggestions")
         val USER_SUGGESTIONS = booleanPreferencesKey("user_suggestions")
         val MENTION_WITH_AT = booleanPreferencesKey("mention_with_at")
+        val READ_ONLY = booleanPreferencesKey("read_only")
         val SHOW_DELETED = booleanPreferencesKey("show_deleted")
         val UPDATE_CHECK = booleanPreferencesKey("update_check")
         val INLINE_IMAGES = booleanPreferencesKey("inline_images")

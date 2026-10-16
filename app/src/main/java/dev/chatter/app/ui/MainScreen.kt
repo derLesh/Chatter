@@ -357,10 +357,10 @@ fun MainScreen(vm: MainViewModel, onInbox: () -> Unit, onSettings: () -> Unit) {
                                 }
                             }
                             // Messages that cannot be answered or mentioned (a notice, an
-                            // unconfirmed message) open the card.
+                            // unconfirmed message, any while the user only reads) open the card.
                             when (action) {
                                 TapAction.Reply -> if (!vm.startReply(item)) sheets.actionItem = item
-                                TapAction.Mention -> if (item.login != null) vm.mention(item) else sheets.actionItem = item
+                                TapAction.Mention -> if (!vm.mention(item)) sheets.actionItem = item
                                 TapAction.UserCard -> sheets.actionItem = item
                                 TapAction.Nothing -> Unit
                             }
@@ -384,9 +384,10 @@ fun MainScreen(vm: MainViewModel, onInbox: () -> Unit, onSettings: () -> Unit) {
 }
 
 /**
- * The input, or the login prompt for a guest. [inThread]: the one in the conversation sheet, which
- * always shows the answered message; the chat's own hides it meanwhile, so two inputs do not fight
- * over the keyboard. [sendChannels] are a combined chat's channels to pick from.
+ * The input, the login prompt for a guest, or nothing if the user only reads. [inThread]: the one
+ * in the conversation sheet, which always shows the answered message; the chat's own hides it
+ * meanwhile, so two inputs do not fight over the keyboard. [sendChannels] are a combined chat's
+ * channels to pick from.
  */
 @Composable
 private fun ChatInput(
@@ -401,6 +402,7 @@ private fun ChatInput(
     sendChannels: List<String> = emptyList(),
     channelInfo: Map<String, ChannelInfo> = emptyMap(),
 ) {
+    if (vm.settings.collectAsStateWithLifecycle().value.readOnly) return
     if (guest) {
         GuestBar(onLogIn = vm::leaveGuest, modifier = Modifier.fillMaxWidth())
         return

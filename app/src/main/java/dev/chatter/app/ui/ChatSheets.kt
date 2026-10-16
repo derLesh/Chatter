@@ -96,8 +96,9 @@ fun ChatSheets(
             onBlock = vm::setBlocked,
             onBlockLogin = vm::blockByLogin,
             onNickname = { sheets.nicknameTarget = item },
-            onReply = { vm.startReply(item) },
-            onMention = { vm.mention(item) },
+            // Both write into the input, which is gone while the user only reads.
+            onReply = if (settings.readOnly) null else ({ vm.startReply(item) }),
+            onMention = if (settings.readOnly) null else ({ vm.mention(item) }),
             onWhisper = { userId -> sheets.whisperTo = item to userId },
             onDelete = { vm.deleteMessage(item) },
             onTimeout = { vm.timeoutUser(item) },
