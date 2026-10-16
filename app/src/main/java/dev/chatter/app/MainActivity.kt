@@ -9,6 +9,7 @@ import androidx.activity.viewModels
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.getValue
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.lifecycle.createSavedStateHandle
 import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
 import dev.chatter.app.ui.AppRoot
@@ -23,7 +24,7 @@ import dev.chatter.app.util.EXTRA_PROFILING_CHANNEL
 
 class MainActivity : ComponentActivity() {
     private val vm: MainViewModel by viewModels {
-        viewModelFactory { initializer { MainViewModel((application as ChatterApp).container) } }
+        viewModelFactory { initializer { MainViewModel((application as ChatterApp).container, createSavedStateHandle()) } }
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {

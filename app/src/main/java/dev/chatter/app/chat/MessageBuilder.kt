@@ -85,8 +85,8 @@ class MessageBuilder(
         selfLogin: String,
         channelId: String?,
         reply: ReplyInfo?,
-        /** The segments of the answered message, already built. */
-        quote: List<Segment> = emptyList(),
+        /** The segments of the answered message, already built; null builds them from [reply]. */
+        quote: List<Segment>? = null,
     ): ChatItem {
         val isAction = isAction(text)
         val body = if (isAction) actionText(text) else text
@@ -102,7 +102,7 @@ class MessageBuilder(
                 DeferredBody(
                     channel, body, emotesTag = null, badgesTag = userState["badges"],
                     userId = userState["user-id"], channelId = channelId, ownMessage = true,
-                    builtQuote = quote,
+                    builtQuote = quote, reply = reply,
                 ),
             ),
             text = body,

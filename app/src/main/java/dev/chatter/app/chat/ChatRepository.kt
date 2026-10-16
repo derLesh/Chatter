@@ -260,7 +260,8 @@ class ChatRepository(
             ReplyInfo(it.id, it.login.orEmpty(), it.displayName.orEmpty(), it.text, threadId = it.reply?.threadId ?: it.id)
         }
         incoming.sent(
-            builder.buildOwn(channel, wire, state, auth.account?.login.orEmpty(), rooms.id(channel), reply, replyParent?.segments.orEmpty()),
+            // An answered message restored with its draft has no segments; the quote is built from its text.
+            builder.buildOwn(channel, wire, state, auth.account?.login.orEmpty(), rooms.id(channel), reply, replyParent?.segments?.ifEmpty { null }),
         )
         stats.countSent(channel)
         SendResult.Ok

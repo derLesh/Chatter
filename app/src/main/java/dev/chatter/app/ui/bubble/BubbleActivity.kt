@@ -7,6 +7,7 @@ import androidx.activity.viewModels
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.getValue
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.lifecycle.createSavedStateHandle
 import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
 import dev.chatter.app.ChatterApp
@@ -23,7 +24,7 @@ import dev.chatter.app.util.EXTRA_CHANNEL
  */
 class BubbleActivity : ComponentActivity() {
     private val vm: MainViewModel by viewModels {
-        viewModelFactory { initializer { MainViewModel((application as ChatterApp).container) } }
+        viewModelFactory { initializer { MainViewModel((application as ChatterApp).container, createSavedStateHandle()) } }
     }
 
     private val channel: String? get() = intent?.getStringExtra(EXTRA_CHANNEL)

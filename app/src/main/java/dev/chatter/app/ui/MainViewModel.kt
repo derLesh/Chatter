@@ -1,17 +1,20 @@
 package dev.chatter.app.ui
 
+import android.os.Bundle
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.text.TextRange
 import androidx.compose.ui.text.input.TextFieldValue
+import androidx.core.os.bundleOf
+import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dev.chatter.app.AppContainer
 import dev.chatter.app.BuildConfig
 import dev.chatter.app.R
+import dev.chatter.app.auth.AuthState
 import dev.chatter.app.badges.Badge
 import dev.chatter.app.badges.BadgeProvider
 import dev.chatter.app.channels.ChannelGroup
@@ -79,7 +82,7 @@ sealed interface Suggestion {
     data class EmojiSuggestion(val emoji: Emoji, val shortcode: String) : Suggestion
 }
 
-class MainViewModel(private val c: AppContainer) : ViewModel() {
+class MainViewModel(private val c: AppContainer, savedState: SavedStateHandle) : ViewModel() {
     val authState = c.auth.state
 
     /**
@@ -155,21 +158,37 @@ class MainViewModel(private val c: AppContainer) : ViewModel() {
     val staticImageLoader get() = c.staticImageLoader
     val posts get() = c.posts
 
-    var input by mutableStateOf(TextFieldValue(""))
-        private set
-    var replyTo by mutableStateOf<ChatItem?>(null)
-        private set
+    private val composer = Composer(
+        scope = viewModelScope,
+        outbox = object : Outbox {
+            override suspend fun send(channel: String, text: String, replyTo: ChatItem?) = c.chat.send(channel, text, replyTo)
 
-    /**
-     * Number of replies started. The input opens the keyboard for each new one, but not for a reply
-     * restored with its page's draft.
-     */
-    var replyStarts by mutableIntStateOf(0)
-        private set
+            override fun slowSeconds(channel: String) =
+                SendLimits.slowSeconds(roomStates.value[channel], roles.value[channel])
 
+            override suspend fun report(result: SendResult) {
+                when (result) {
+                    SendResult.NotConnected -> _messages.send(UiMessage(R.string.error_not_connected))
+                    SendResult.RateLimited -> _messages.send(UiMessage(R.string.error_rate_limited))
+                    // A command error is shown in the chat.
+                    SendResult.Ok, SendResult.Empty, SendResult.CommandError -> Unit
+                }
+            }
+        },
+        onInputReplaced = ::updateSuggestions,
+    )
+
+    val input: TextFieldValue get() = composer.input
+    val replyTo: ChatItem? get() = composer.replyTo
+    /** See [Composer.replyStarts]. */
+    val replyStarts: Int get() = composer.replyStarts
     /** Pages with an unsent draft, marked next to their name. */
-    var draftPages by mutableStateOf<Set<String>>(emptySet())
-        private set
+    val draftPages: Set<String> get() = composer.draftPages
+    /** See [Composer.sendChannel]. */
+    val sendChannel: String? get() = composer.sendChannel
+    /** When the user may write in [sendChannel] again; 0 if now. */
+    val sendWaitUntil: Long get() = composer.sendWaitUntil
+
     var suggestions by mutableStateOf<List<Suggestion>>(emptyList())
         private set
 
@@ -207,42 +226,19 @@ class MainViewModel(private val c: AppContainer) : ViewModel() {
         viewModelScope.launch {
             c.trouble.unreachable.collect { _messages.send(UiMessage(R.string.error_service_down, it)) }
         }
-        viewModelScope.launch { c.chat.refused.collect(::onRefused) }
-    }
+        viewModelScope.launch { c.chat.refused.collect(composer::onRefused) }
 
-    /** A message this window sent: page, answered message and time, in case Twitch refuses it. */
-    private class Sent(val text: String, val page: String, val replyTo: ChatItem?, val at: Long)
-
-    /** The last message this window sent per channel. */
-    private val sent = HashMap<String, Sent>()
-
-    /**
-     * When slow mode lets the user write again, per channel. Only this window's messages are known.
-     */
-    private val slowUntil = mutableStateMapOf<String, Long>()
-
-    /** When the user may write in [sendChannel] again; 0 if now. */
-    val sendWaitUntil: Long get() = sendChannel?.let { slowUntil[it] } ?: 0L
-
-    /**
-     * Twitch refused the last message sent in [channel]. It goes back into the input of its page so
-     * nothing has to be retyped, unless something new is being written there.
-     */
-    private fun onRefused(channel: String) {
-        val refused = sent.remove(channel) ?: return
-        if (System.currentTimeMillis() - refused.at > REFUSAL_WINDOW_MS) return
-        // A refused message started no slow mode.
-        slowUntil.remove(channel)
-        val restored = TextFieldValue(refused.text, TextRange(refused.text.length))
-        if (refused.page == shownPage) {
-            if (input.text.isNotBlank()) return
-            selectSendChannel(channel)
-            input = restored
-            if (replyTo == null) replyTo = refused.replyTo
-            updateSuggestions()
-        } else if (refused.page !in drafts) {
-            drafts[refused.page] = Draft(restored, refused.replyTo)
-            draftPages = drafts.keys.toSet()
+        // Android may end the process while Chatter is in the background; the drafts come back
+        // with the window.
+        savedState.get<Bundle>(DRAFTS_KEY)?.getString(DRAFTS_KEY)?.let(composer::restore)
+        savedState.setSavedStateProvider(DRAFTS_KEY) { bundleOf(DRAFTS_KEY to composer.save()) }
+        viewModelScope.launch {
+            combine(c.auth.state, c.auth.accounts, ::Pair).collect { (state, accounts) ->
+                if (state == AuthState.Loading) return@collect
+                val active = (state as? AuthState.LoggedIn)?.account?.userId
+                composer.useAccount(active, accounts.mapTo(HashSet()) { it.userId })
+                updateSuggestions()
+            }
         }
     }
 
@@ -250,38 +246,7 @@ class MainViewModel(private val c: AppContainer) : ViewModel() {
      * The page this window shows: a channel or a combined chat key. Differs from [activePage] while
      * a bubble is open; that one belongs to the chat screen.
      */
-    private var shownPage: String? = null
-
-    /** The channels of [shownPage]: one, or all channels of the combined chat. */
-    private var shownChannels: List<String> = emptyList()
-
-    /**
-     * Where typed messages go. On a channel's page that channel; on a combined chat the channel the
-     * user picked, or the one of the message being answered.
-     */
-    var sendChannel by mutableStateOf<String?>(null)
-        private set
-
-    /** The channel last written in per combined chat. */
-    private val sendChannels = HashMap<String, String>()
-
-    /**
-     * Drafts of pages not on screen. A single shared input would carry text to the next page, and a
-     * swipe mid-sentence would send it there.
-     */
-    private val drafts = HashMap<String, Draft>()
-
-    /** Stores the input under [from] and restores the draft of [to]. */
-    private fun swapDraft(from: String?, to: String?) {
-        if (from != null) {
-            val left = Draft(input, replyTo)
-            if (left.isEmpty) drafts.remove(from) else drafts[from] = left
-        }
-        val draft = to?.let(drafts::remove)
-        input = draft?.input ?: TextFieldValue("")
-        replyTo = draft?.replyTo
-        draftPages = drafts.keys.toSet()
-    }
+    private val shownPage: String? get() = composer.shownPage
 
     /** The newest message each page had on screen; see [onSeen]. */
     private val seen = HashMap<String, ReadMark>()
@@ -318,14 +283,9 @@ class MainViewModel(private val c: AppContainer) : ViewModel() {
      */
     fun selectChannel(page: String?) {
         val channels = page?.let(::channelsOf).orEmpty()
-        if (shownPage == page && shownChannels == channels) return
-        val samePage = shownPage == page
-        if (!samePage) {
-            shownPage?.let(::leave)
-            swapDraft(shownPage, page)
-        }
-        shownPage = page
-        shownChannels = channels
+        val left = shownPage
+        if (!composer.show(page, channels)) return
+        if (left != page) left?.let(::leave)
         c.chat.windows.setChannels(this, channels.toSet())
         // The chat screen follows this; a bubble must not move it.
         if (!inBubble) c.chat.activePage.value = page
@@ -337,19 +297,12 @@ class MainViewModel(private val c: AppContainer) : ViewModel() {
         }
         // Remembered for after a restart: the chat screen's page, not a bubble's channel.
         if (page != null && !inBubble) rememberLastChannel(page)
-        sendChannel = page?.let { sendChannels[it] }?.takeIf { it in channels } ?: channels.firstOrNull()
-        // A combined chat that lost the answered message's channel cannot answer it.
-        if (replyTo?.channel !in channels) replyTo = null
         suggestions = emptyList()
     }
 
     /** Writes in [channel] from now on; it must be one of the page's channels. */
     fun selectSendChannel(channel: String) {
-        if (channel !in shownChannels || channel == sendChannel) return
-        sendChannel = channel
-        shownPage?.let { sendChannels[it] = channel }
-        // A reply goes to the channel of the message it answers.
-        if (replyTo?.channel != channel) replyTo = null
+        composer.selectSendChannel(channel)
         updateSuggestions()
     }
 
@@ -383,7 +336,7 @@ class MainViewModel(private val c: AppContainer) : ViewModel() {
     }
 
     fun setUiVisible(visible: Boolean) {
-        c.chat.windows.setVisible(this, visible, shownChannels.toSet())
+        c.chat.windows.setVisible(this, visible, composer.shownChannels.toSet())
         // Leaving may come before the delay ends; then this is the last chance to write it.
         if (!visible) {
             writeLastChannel()
@@ -391,7 +344,7 @@ class MainViewModel(private val c: AppContainer) : ViewModel() {
         }
         if (visible) {
             c.connect()
-            shownChannels.forEach {
+            composer.shownChannels.forEach {
                 c.chat.clearUnread(it)
                 if (!inBubble) c.notifier.clear(it)
             }
@@ -407,7 +360,7 @@ class MainViewModel(private val c: AppContainer) : ViewModel() {
     // ---- Input & autocomplete --------------------------------------------------------------
 
     fun onInputChange(value: TextFieldValue) {
-        input = value
+        composer.input = value
         updateSuggestions()
     }
 
@@ -464,19 +417,19 @@ class MainViewModel(private val c: AppContainer) : ViewModel() {
             is Suggestion.EmojiSuggestion -> s.emoji.value.also { rememberEmote(it) }
         }
         val (text, cursor) = Autocomplete.replace(input.text, word, value)
-        input = TextFieldValue(text, TextRange(cursor))
+        composer.input = TextFieldValue(text, TextRange(cursor))
         suggestions = emptyList()
     }
 
     fun insertEmote(emote: Emote) {
         val (text, cursor) = Autocomplete.insert(input.text, input.selection.start, emote.name)
-        input = TextFieldValue(text, TextRange(cursor))
+        composer.input = TextFieldValue(text, TextRange(cursor))
         rememberEmote(emote.name)
     }
 
     fun insertEmoji(emoji: Emoji) {
         val (text, cursor) = Autocomplete.insert(input.text, input.selection.start, emoji.value)
-        input = TextFieldValue(text, TextRange(cursor))
+        composer.input = TextFieldValue(text, TextRange(cursor))
         rememberEmote(emoji.value)
     }
 
@@ -488,7 +441,7 @@ class MainViewModel(private val c: AppContainer) : ViewModel() {
         val name = item.displayName ?: item.login ?: return
         selectSendChannel(item.channel)
         val (text, cursor) = Autocomplete.insert(input.text, input.selection.start, "@$name")
-        input = TextFieldValue(text, TextRange(cursor))
+        composer.input = TextFieldValue(text, TextRange(cursor))
     }
 
     private fun rememberEmote(name: String) {
@@ -540,7 +493,6 @@ class MainViewModel(private val c: AppContainer) : ViewModel() {
     /** Twitch badge image for the user's role in a channel (moderator sword etc.). */
     fun roleBadge(channel: String, role: ChatRole): Badge? =
         role.badgeTag?.let { c.badges.resolve(c.chat.rooms.id(channel), it, userId = null).firstOrNull() }
-
 
     /**
      * Blocks or unblocks on Twitch. Needs the Twitch id from the user card's profile, so it is
@@ -670,62 +622,14 @@ class MainViewModel(private val c: AppContainer) : ViewModel() {
      */
     fun startReply(item: ChatItem): Boolean {
         if (c.auth.account == null || !item.canReply || item.id.startsWith("local-")) return false
-        selectSendChannel(item.channel)
-        replyTo = item
-        replyStarts++
+        composer.startReply(item)
+        updateSuggestions()
         return true
     }
 
-    fun cancelReply() {
-        replyTo = null
-    }
+    fun cancelReply() = composer.cancelReply()
 
-    /** Pages with a message on its way. A second tap there would send the same text again. */
-    private val sendingPages = HashSet<String>()
-
-    fun send() {
-        val channel = sendChannel ?: return
-        val page = shownPage ?: return
-        if (!sendingPages.add(page)) return
-        val submitted = Draft(input, replyTo)
-        val text = submitted.input.text.trim()
-        viewModelScope.launch {
-            try {
-                when (c.chat.send(channel, text, submitted.replyTo)) {
-                    SendResult.Ok -> {
-                        // A command is not a message: no slow mode, nothing to restore.
-                        if (CommandParser.parse(text) == null) {
-                            val now = System.currentTimeMillis()
-                            sent[channel] = Sent(text, page, submitted.replyTo, now)
-                            val slow = SendLimits.slowSeconds(roomStates.value[channel], roles.value[channel])
-                            if (slow > 0) slowUntil[channel] = now + slow * 1000L
-                        }
-                        clearSent(page, submitted)
-                    }
-                    SendResult.Empty -> Unit
-                    SendResult.NotConnected -> _messages.send(UiMessage(R.string.error_not_connected))
-                    SendResult.RateLimited -> _messages.send(UiMessage(R.string.error_rate_limited))
-                    SendResult.CommandError -> Unit // the hint is shown in the chat
-                }
-            } finally {
-                sendingPages.remove(page)
-            }
-        }
-    }
-
-    /** Takes [submitted] out of [page]'s input, which the user may have changed or left meanwhile. */
-    private fun clearSent(page: String, submitted: Draft) {
-        if (page == shownPage) {
-            val remaining = Draft(input, replyTo).afterSending(submitted)
-            input = remaining.input
-            replyTo = remaining.replyTo
-            updateSuggestions()
-        } else {
-            val remaining = drafts[page]?.afterSending(submitted) ?: return
-            if (remaining.isEmpty) drafts.remove(page) else drafts[page] = remaining
-            draftPages = drafts.keys.toSet()
-        }
-    }
+    fun send() = composer.send()
 
     // ---- Bug reports -------------------------------------------------------------------------
 
@@ -1047,10 +951,7 @@ class MainViewModel(private val c: AppContainer) : ViewModel() {
         /** How long a channel must stay on screen to be remembered as the last one. */
         const val LAST_CHANNEL_DELAY_MS = 1_500L
 
-        /**
-         * How long after sending a refusal may still refer to that message. Twitch answers within a
-         * second; the chat uses the same window to confirm sent messages.
-         */
-        const val REFUSAL_WINDOW_MS = 10_000L
+        /** Where the drafts are kept when Android saves the window. */
+        const val DRAFTS_KEY = "drafts"
     }
 }
