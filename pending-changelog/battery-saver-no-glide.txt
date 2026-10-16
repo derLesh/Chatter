@@ -1,0 +1,1 @@
+patch: Let new messages appear without gliding while battery saver is on

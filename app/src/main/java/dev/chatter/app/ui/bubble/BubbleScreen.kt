@@ -127,7 +127,7 @@ fun BubbleScreen(vm: MainViewModel, channel: String?) {
                 // there.
                 onGesture = { item, _ -> vm.startReply(item) },
                 modifier = Modifier.weight(1f),
-                smoothScrolling = settings.smoothScrolling,
+                smoothScrolling = settings.smoothScrolling && !powerSave,
                 onEmoteClick = { emoteCard = it },
                 partners = partnerMarks,
                 onMentionsSeen = vm::onMentionsSeen,

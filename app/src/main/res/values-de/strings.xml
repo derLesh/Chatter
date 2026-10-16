@@ -394,7 +394,7 @@
     <string name="settings_group_text">Text</string>
     <string name="settings_text_size_sample">Hallo Chat, so groß werden Nachrichten angezeigt.</string>
     <string name="settings_smooth_scrolling">Weiches Scrollen</string>
-    <string name="settings_smooth_scrolling_hint">Neue Nachrichten gleiten ins Bild statt zu springen</string>
+    <string name="settings_smooth_scrolling_hint">Neue Nachrichten gleiten ins Bild statt zu springen. Im Akkusparmodus aus.</string>
 
     <!-- Emote settings -->
     <string name="settings_group_emotes">Emotes</string>

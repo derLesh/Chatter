@@ -362,7 +362,8 @@ fun MainScreen(vm: MainViewModel, onInbox: () -> Unit, onSettings: () -> Unit) {
                             }
                         },
                         modifier = Modifier.fillMaxSize(),
-                        smoothScrolling = settings.smoothScrolling,
+                        // Battery saver stills it like the emotes: in a busy chat some row is always moving.
+                        smoothScrolling = settings.smoothScrolling && !powerSave,
                         onEmoteClick = { sheets.emoteCard = it },
                     )
                 }
