@@ -211,15 +211,16 @@ fun MessageRow(
                 PaintedLine(built, paint, inlineContent, style, imageLoader)
             }
         }
-        if (built.images.isNotEmpty()) {
+        if (built.images.isNotEmpty() || built.gifs.isNotEmpty()) {
             // Side by side while they fit; two pictures in a message usually belong together.
             FlowRow(
                 horizontalArrangement = Arrangement.spacedBy(IMAGE_GAP),
                 verticalArrangement = Arrangement.spacedBy(IMAGE_GAP),
                 modifier = Modifier.padding(top = 4.dp, bottom = 2.dp),
             ) {
-                val alone = built.images.size == 1
+                val alone = built.images.size + built.gifs.size == 1
                 built.images.forEach { url -> LinkedImage(url, style, imageLoader, alone) }
+                built.gifs.forEach { gif -> LinkedImage(gif.url, style, imageLoader, alone, title = gif.title) }
             }
         }
         style.postCard?.let { card -> built.posts.forEach { PostCard(it, card, style, imageLoader) } }
@@ -260,15 +261,16 @@ private fun PaintedLine(
 }
 
 /**
- * A linked image shown in place of its URL. Tapping opens the link, which is also the fallback when
- * the image fails to load. [alone]: the only picture in the message, which may use more width.
+ * A linked image or GIF shown in place of its URL. Tapping opens the link, which is also the
+ * fallback when the image fails to load, written as [title] if there is one. [alone]: the only
+ * picture in the message, which may use more width.
  */
 @Composable
-private fun LinkedImage(url: String, style: ChatStyle, loader: ImageLoader, alone: Boolean) {
+private fun LinkedImage(url: String, style: ChatStyle, loader: ImageLoader, alone: Boolean, title: String? = null) {
     var failed by remember(url) { mutableStateOf(false) }
     if (failed) {
         Text(
-            text = remember(url, style.linkColor) { linkText(url, style) },
+            text = remember(url, title, style.linkColor) { linkText(url, style, title) },
             fontSize = style.fontSize.sp,
             lineHeight = (style.fontSize * 1.45f).sp,
         )
@@ -277,7 +279,7 @@ private fun LinkedImage(url: String, style: ChatStyle, loader: ImageLoader, alon
     val uriHandler = LocalUriHandler.current
     AsyncImage(
         model = url,
-        contentDescription = stringResource(R.string.linked_image),
+        contentDescription = title?.removeSurrounding("[", "]") ?: stringResource(R.string.linked_image),
         imageLoader = loader,
         contentScale = ContentScale.Fit,
         alignment = Alignment.TopStart,
@@ -293,9 +295,9 @@ private fun LinkedImage(url: String, style: ChatStyle, loader: ImageLoader, alon
 }
 
 /** [url] as a link in the chat, for a picture or post that could not be shown. */
-internal fun linkText(url: String, style: ChatStyle) = buildAnnotatedString {
+internal fun linkText(url: String, style: ChatStyle, title: String? = null) = buildAnnotatedString {
     withLink(LinkAnnotation.Url(url, TextLinkStyles(SpanStyle(color = style.linkColor, textDecoration = TextDecoration.Underline)))) {
-        append(LinkText.display(url, style.shortLinks))
+        append(title ?: LinkText.display(url, style.shortLinks))
     }
 }
 

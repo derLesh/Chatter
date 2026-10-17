@@ -104,6 +104,8 @@ data class Settings(
     val inlineImages: Boolean = true,
     /** The only hosts linked images are loaded from. */
     val imageHosts: List<String> = ImageLinks.DEFAULT_HOSTS,
+    /** Show the GIFs subs post instead of their title. */
+    val showGifs: Boolean = true,
     /** Sites whose links to a post are shown as a card; each post is fetched from that site. */
     val postSites: Set<PostSite> = emptySet(),
     /** Blur the picture of a post marked NSFW until it is tapped. */
@@ -201,6 +203,7 @@ class SettingsRepository(
             updateCheck = p[UPDATE_CHECK] ?: true,
             inlineImages = p[INLINE_IMAGES] ?: true,
             imageHosts = hosts(p[IMAGE_HOSTS]),
+            showGifs = p[SHOW_GIFS] ?: true,
             postSites = postSites(p[POST_SITES]),
             blurNsfwPosts = p[BLUR_NSFW_POSTS] ?: true,
             postAvatar = p[POST_AVATAR] ?: true,
@@ -265,6 +268,7 @@ class SettingsRepository(
     suspend fun setShowDeleted(v: Boolean) = store.edit { it[SHOW_DELETED] = v }
     suspend fun setUpdateCheck(v: Boolean) = store.edit { it[UPDATE_CHECK] = v }
     suspend fun setInlineImages(v: Boolean) = store.edit { it[INLINE_IMAGES] = v }
+    suspend fun setShowGifs(v: Boolean) = store.edit { it[SHOW_GIFS] = v }
     suspend fun updateImageHosts(change: (List<String>) -> List<String>) =
         store.edit { it[IMAGE_HOSTS] = change(hosts(it[IMAGE_HOSTS])).joinToString(",") }
     suspend fun setPostSite(site: PostSite, on: Boolean) = store.edit { p ->
@@ -360,6 +364,7 @@ class SettingsRepository(
         p[UPDATE_CHECK] = s.updateCheck
         p[INLINE_IMAGES] = s.inlineImages
         p[IMAGE_HOSTS] = s.imageHosts.joinToString(",")
+        p[SHOW_GIFS] = s.showGifs
         p[POST_SITES] = s.postSites.joinToString(",") { it.name }
         p[BLUR_NSFW_POSTS] = s.blurNsfwPosts
         p[POST_AVATAR] = s.postAvatar
@@ -450,6 +455,7 @@ class SettingsRepository(
         val SHOW_DELETED = booleanPreferencesKey("show_deleted")
         val UPDATE_CHECK = booleanPreferencesKey("update_check")
         val INLINE_IMAGES = booleanPreferencesKey("inline_images")
+        val SHOW_GIFS = booleanPreferencesKey("show_gifs")
         val POST_SITES = stringPreferencesKey("post_sites")
         val BLUR_NSFW_POSTS = booleanPreferencesKey("blur_nsfw_posts")
         val POST_AVATAR = booleanPreferencesKey("post_avatar")

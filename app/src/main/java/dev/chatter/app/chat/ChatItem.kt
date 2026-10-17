@@ -19,6 +19,11 @@ sealed interface Segment {
      * its tier's [color].
      */
     data class Cheer(val dark: Emote, val light: Emote, val amount: Int, val color: Int) : Segment
+    /**
+     * A GIF from Twitch's `gifs` tag, which Tier 2 and 3 subs post from Giphy. [title] is the text
+     * it stands in for, "[Yes GIF by …]"; [url] is checked by [TwitchGifs.url].
+     */
+    data class Gif(val title: String, val url: String) : Segment
 }
 
 enum class MessageKind { Chat, Action, UserNotice, Notice }

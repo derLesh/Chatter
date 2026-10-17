@@ -285,4 +285,38 @@ class MessageBuilderTest {
     fun aMessageThatAnswersNothingQuotesNothing() {
         assertTrue(build(privmsg("OMEGALUL")).quote.isEmpty())
     }
+
+    /** The example from Twitch's docs. */
+    @Test
+    fun aGifFromTheTagReplacesItsTitle() {
+        val url = "https://media4.giphy.com/media/joSNxeswxuc74Juo8X/giphy.gif?" +
+            "cid=095d7a5dzizsiwgabonagkmigggv8v1spfai91ac3x0dsiy0&ep=v1_gifs_trending&rid=giphy.gif&ct=g"
+        val item = build(privmsg("[Y A Y Yes GIF by Djemilah Birnie]", "gifs=0-33|joSNxeswxuc74Juo8X|$url"))
+        assertEquals(listOf<Segment>(Segment.Gif("[Y A Y Yes GIF by Djemilah Birnie]", url)), item.segments)
+        assertEquals("[Y A Y Yes GIF by Djemilah Birnie]", item.text)
+    }
+
+    @Test
+    fun aGifInTheMiddleKeepsTheTextAroundIt() {
+        val url = "https://media.giphy.com/media/b/giphy.gif"
+        val item = build(privmsg("😀 [Kappa GIF] OMEGALUL", "gifs=2-12|b|$url"))
+        assertEquals(
+            listOf(Segment.Text("😀 "), Segment.Gif("[Kappa GIF]", url), Segment.Text(" "), Segment.EmoteSeg(thirdParty.getValue("OMEGALUL"))),
+            item.segments,
+        )
+    }
+
+    @Test
+    fun aGifFromAnywhereButGiphyStaysText() {
+        val item = build(privmsg("[Yes GIF]", "gifs=0-8|x|https://evil.example/giphy.gif"))
+        assertEquals(listOf<Segment>(Segment.Text("[Yes GIF]")), item.segments)
+    }
+
+    @Test
+    fun aGifInAReplyIsShiftedLikeEmotes() {
+        val url = "https://media.giphy.com/media/b/giphy.gif"
+        val tags = "reply-parent-msg-id=p;reply-parent-user-login=ole;reply-parent-display-name=ole;gifs=5-13|b|$url"
+        val item = build(privmsg("@ole [Yes GIF]", tags))
+        assertEquals(listOf<Segment>(Segment.Gif("[Yes GIF]", url)), item.segments)
+    }
 }

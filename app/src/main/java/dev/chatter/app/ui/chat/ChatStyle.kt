@@ -35,6 +35,8 @@ data class ChatStyle(
     val haptics: Boolean,
     /** Hosts whose image links are shown as images. Empty when linked images are off. */
     val imageHosts: List<String>,
+    /** Whether GIFs are drawn below the line; false leaves their title as a link. */
+    val gifs: Boolean = false,
     /** How links to posts are shown as a card; null leaves them links, as under either saver. */
     val postCard: PostCardStyle? = null,
     /** Whether long links are shortened to site and path start; see [LinkText]. */
@@ -62,7 +64,7 @@ fun ChatStyle.nameOf(login: String?, fallback: String): String =
  * The chat style from the settings, shared by the chat screen and the bubble.
  *
  * [powerSave] is Android's battery saver and [saveData] Data Saver or the user's save-data choice
- * on metered networks. Both stop linked images and post cards, like they still animated emotes;
+ * on metered networks. Both stop linked images, GIFs and post cards, like they still animated emotes;
  * [saveData] also loads emotes in their smallest size.
  */
 @Composable
@@ -78,7 +80,7 @@ fun rememberChatStyle(
     return remember(
         settings.fontSize, settings.timestamps, settings.highlightColor, settings.alternateBackground,
         settings.nameColors, settings.highlightFirstMessages, settings.haptics, postCardStyle(settings),
-        settings.inlineImages, settings.imageHosts, settings.fullLinks, settings.sevenTvPaints, powerSave, saveData, emoteFrameRate, nicknames, dark, colors,
+        settings.inlineImages, settings.imageHosts, settings.showGifs, settings.fullLinks, settings.sevenTvPaints, powerSave, saveData, emoteFrameRate, nicknames, dark, colors,
     ) {
         ChatStyle(
             fontSize = settings.fontSize,
@@ -101,6 +103,7 @@ fun rememberChatStyle(
             // Off or either saver means no allowed hosts, so the row checks only one thing. Links
             // stay links.
             imageHosts = if (settings.inlineImages && !powerSave && !saveData) settings.imageHosts else emptyList(),
+            gifs = settings.showGifs && !powerSave && !saveData,
             postCard = postCardStyle(settings).takeIf { it.sites.isNotEmpty() && !powerSave && !saveData },
             shortLinks = !settings.fullLinks,
             smallEmotes = saveData,

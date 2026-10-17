@@ -881,6 +881,7 @@ class MainViewModel(private val c: AppContainer, savedState: SavedStateHandle) :
     fun setHighlightColor(v: Int) = saveSetting { setHighlightColor(v) }
     fun setSmoothScrolling(v: Boolean) = saveSetting { setSmoothScrolling(v) }
     fun setInlineImages(v: Boolean) = saveSetting { setInlineImages(v) }
+    fun setShowGifs(v: Boolean) = saveSetting { setShowGifs(v) }
     fun setPostSite(site: PostSite, on: Boolean) = saveSetting { setPostSite(site, on) }
     fun setBlurNsfwPosts(v: Boolean) = saveSetting { setBlurNsfwPosts(v) }
     fun setPostAvatar(v: Boolean) = saveSetting { setPostAvatar(v) }

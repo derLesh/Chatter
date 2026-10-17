@@ -214,6 +214,7 @@ private val SEARCH_INDEX: List<SearchEntry> by lazy {
         val media = SettingsPage.Media
         add(SearchEntry(R.string.settings_inline_images, media, R.string.settings_inline_images_hint))
         add(SearchEntry(R.string.settings_image_hosts, media))
+        add(SearchEntry(R.string.settings_show_gifs, media, R.string.settings_show_gifs_hint))
         add(
             SearchEntry(
                 R.string.settings_posts, media,

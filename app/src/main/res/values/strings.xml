@@ -221,7 +221,7 @@
     <string name="settings_messages">Messages</string>
     <string name="settings_messages_summary">History, tapping, user card</string>
     <string name="settings_media">Links &amp; images</string>
-    <string name="settings_media_summary">Image previews, posts, mobile data</string>
+    <string name="settings_media_summary">Image previews, GIFs, posts, mobile data</string>
     <string name="settings_typing">Typing</string>
     <string name="settings_typing_summary">Read only, suggestions, mentions</string>
     <string name="settings_backup_summary">Save and restore your settings</string>
@@ -273,6 +273,8 @@
     <string name="background_battery_settings">App settings</string>
     <string name="settings_inline_images">Show linked images</string>
     <string name="settings_inline_images_hint">Links to an image show the image. Off in battery saver.</string>
+    <string name="settings_show_gifs">Show GIFs</string>
+    <string name="settings_show_gifs_hint">GIFs that subs post in chat. Off in battery saver.</string>
     <string name="settings_image_hosts">Sites to load from</string>
     <string name="settings_image_hosts_none">No sites</string>
     <string name="settings_image_hosts_hint">The address of a site, e.g. imgur.com. Addresses like i.imgur.com count too.</string>

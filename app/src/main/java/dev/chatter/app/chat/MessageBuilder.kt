@@ -126,6 +126,7 @@ class MessageBuilder(
         private val rawBody: String,
         private val emotesTag: String?,
         private val badgesTag: String?,
+        private val gifsTag: String? = null,
         private val userId: String?,
         private val channelId: String?,
         private val ownMessage: Boolean,
@@ -142,13 +143,18 @@ class MessageBuilder(
         override fun segments(): List<Segment> {
             val text = if (strippedPrefix == 0) rawBody else rawBody.substring(strippedPrefix)
             var ranges = twitchEmotes(rawBody, emotesTag)
+            var gifs = twitchGifs(rawBody, gifsTag)
             if (strippedPrefix > 0) {
                 ranges = ranges.mapNotNull { r ->
                     if (r.start < strippedPrefix) null
                     else r.copy(start = r.start - strippedPrefix, end = r.end - strippedPrefix)
                 }
+                gifs = gifs.mapNotNull { g ->
+                    if (g.start < strippedPrefix) null
+                    else g.copy(start = g.start - strippedPrefix, end = g.end - strippedPrefix)
+                }
             }
-            return segments(channel, text, ranges, channelId, ownMessage, cheered)
+            return segments(channel, text, ranges, channelId, ownMessage, cheered, gifs)
         }
 
         override fun badges() = this@MessageBuilder.badges.resolve(badgeChannelId, badgesTag, userId)
@@ -195,7 +201,7 @@ class MessageBuilder(
             color = parseColor(msg.tag("color")),
             body = MessageBody.from(
                 DeferredBody(
-                    channel, raw, emotesTag = msg.tag("emotes"), badgesTag = badgesOf(msg),
+                    channel, raw, emotesTag = msg.tag("emotes"), badgesTag = badgesOf(msg), gifsTag = msg.tag("gifs"),
                     userId = msg.tag("user-id"), channelId = roomId,
                     ownMessage = false, strippedPrefix = stripped, badgeChannelId = partner ?: roomId,
                     reply = reply, cheered = bits > 0,
@@ -268,9 +274,7 @@ class MessageBuilder(
     internal fun twitchEmotes(text: String, tag: String?): List<EmoteRange> {
         if (tag.isNullOrEmpty()) return emptyList()
         val result = ArrayList<EmoteRange>()
-        val hasSurrogates = text.any { it.isSurrogate() }
-        val cpCount = if (hasSurrogates) text.codePointCount(0, text.length) else text.length
-        fun charIndex(cp: Int) = if (hasSurrogates) text.offsetByCodePoints(0, cp) else cp
+        val positions = CodePoints(text)
 
         for (entry in tag.split('/')) {
             val colon = entry.indexOf(':')
@@ -281,14 +285,38 @@ class MessageBuilder(
                 if (dash <= 0) continue
                 val startCp = range.substring(0, dash).toIntOrNull() ?: continue
                 val endCp = range.substring(dash + 1).toIntOrNull() ?: continue
-                if (startCp < 0 || endCp >= cpCount || endCp < startCp) continue
-                val start = charIndex(startCp)
-                val end = charIndex(endCp + 1)
-                result += EmoteRange(start, end, id, text.substring(start, end))
+                val chars = positions.chars(startCp, endCp) ?: continue
+                result += EmoteRange(chars.first, chars.last + 1, id, text.substring(chars.first, chars.last + 1))
             }
         }
         result.sortBy { it.start }
         return result
+    }
+
+    internal data class GifRange(val start: Int, val end: Int, val url: String)
+
+    /** Parses the `gifs` tag into positions in [text], counted like [twitchEmotes]. */
+    internal fun twitchGifs(text: String, tag: String?): List<GifRange> {
+        val entries = TwitchGifs.parse(tag)
+        if (entries.isEmpty()) return emptyList()
+        val positions = CodePoints(text)
+        return entries.mapNotNull { e ->
+            positions.chars(e.startCp, e.endCp)?.let { GifRange(it.first, it.last + 1, e.url) }
+        }.sortedBy { it.start }
+    }
+
+    /** Twitch counts positions in code points, Kotlin strings in UTF-16 units. */
+    private class CodePoints(private val text: String) {
+        private val hasSurrogates = text.any { it.isSurrogate() }
+        private val count = if (hasSurrogates) text.codePointCount(0, text.length) else text.length
+
+        /** The chars of code points [startCp] to [endCp], or null if they are not all in the text. */
+        fun chars(startCp: Int, endCp: Int): IntRange? {
+            if (startCp < 0 || endCp >= count || endCp < startCp) return null
+            return index(startCp) until index(endCp + 1)
+        }
+
+        private fun index(cp: Int) = if (hasSurrogates) text.offsetByCodePoints(0, cp) else cp
     }
 
     internal fun segments(
@@ -298,6 +326,7 @@ class MessageBuilder(
         channelId: String?,
         ownMessage: Boolean,
         cheered: Boolean = false,
+        gifs: List<GifRange> = emptyList(),
     ): List<Segment> {
         val opts = options()
         // With emotes off, every word stays text, Twitch emotes included.
@@ -305,6 +334,7 @@ class MessageBuilder(
         val out = ArrayList<Segment>()
         val buf = StringBuilder()
         var nextTwitch = 0
+        var nextGif = 0
         var i = 0
         val len = text.length
 
@@ -330,6 +360,16 @@ class MessageBuilder(
             if (text[i] == ' ') {
                 buf.append(' ')
                 i++
+                continue
+            }
+            // A GIF's title is plain text, so emotes and links inside it stay part of the title.
+            while (nextGif < gifs.size && gifs[nextGif].start < i) nextGif++
+            val gif = gifs.getOrNull(nextGif)
+            if (gif != null && gif.start == i) {
+                flush()
+                out += Segment.Gif(text.substring(gif.start, gif.end), gif.url)
+                i = gif.end
+                nextGif++
                 continue
             }
             while (nextTwitch < twitch.size && twitch[nextTwitch].start < i) nextTwitch++

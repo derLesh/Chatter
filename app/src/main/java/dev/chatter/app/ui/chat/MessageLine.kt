@@ -38,6 +38,8 @@ internal class BuiltLine(
     val images: List<String> = emptyList(),
     /** Links to posts taken out of the line and drawn below it as cards. */
     val posts: List<PostLink> = emptyList(),
+    /** GIFs taken out of the line and drawn below it, after [images]. */
+    val gifs: List<Segment.Gif> = emptyList(),
     /** Where the sender's name is in [text], for drawing a paint over it. */
     val nameRange: IntRange? = null,
 )
@@ -82,7 +84,7 @@ internal fun buildLine(item: ChatItem, style: ChatStyle, onName: LinkInteraction
     // Subs and raids have the channel in front of their header instead.
     val lineChannel = channel.takeIf { item.kind != MessageKind.UserNotice }
     lineChannel?.let { inline[CHANNEL_ID] = InlineData.ChannelData(it) }
-    val pulled = LinkPreviews.pull(item.segments, style.imageHosts, style.postCard?.sites.orEmpty())
+    val pulled = LinkPreviews.pull(item.segments, style.imageHosts, style.postCard?.sites.orEmpty(), style.gifs)
     val segments = pulled.rest
     if (item.kind == MessageKind.Notice) {
         val text = buildAnnotatedString {
@@ -96,7 +98,7 @@ internal fun buildLine(item: ChatItem, style: ChatStyle, onName: LinkInteraction
                 }
             }
         }
-        return BuiltLine(text, inline, pulled.images, pulled.posts)
+        return BuiltLine(text, inline, pulled.images, pulled.posts, pulled.gifs)
     }
     if (item.kind == MessageKind.UserNotice && item.segments.isEmpty()) return BuiltLine(AnnotatedString(""), inline)
 
@@ -136,7 +138,7 @@ internal fun buildLine(item: ChatItem, style: ChatStyle, onName: LinkInteraction
         )
         withStyle(body) { appendSegments(segments, inline, style) }
     }
-    return BuiltLine(text, inline, pulled.images, pulled.posts, (nameStart until nameEnd).takeIf { !it.isEmpty() })
+    return BuiltLine(text, inline, pulled.images, pulled.posts, pulled.gifs, (nameStart until nameEnd).takeIf { !it.isEmpty() })
 }
 
 /**
@@ -166,6 +168,7 @@ internal fun buildQuote(template: String, quote: List<Segment>, fallback: String
                 is Segment.Link -> withStyle(SpanStyle(color = style.linkColor)) { append(LinkText.display(seg.text, short = true)) }
                 is Segment.Mention -> append(seg.name)
                 is Segment.Cheer -> appendCheer(seg, "q$i", inline, style)
+                is Segment.Gif -> append(seg.title)
             }
         }
         append(template, at + QUOTE_MARK.length, template.length)
@@ -193,6 +196,10 @@ private fun AnnotatedString.Builder.appendSegments(segments: List<Segment>, inli
                 withStyle(SpanStyle(color = color, fontWeight = FontWeight.Bold)) { append(seg.name) }
             }
             is Segment.Cheer -> appendCheer(seg, "e$i", inline, style)
+            // A GIF left in the line, while GIFs are off or a saver is on, is its title as a link.
+            is Segment.Gif -> withLink(
+                LinkAnnotation.Url(seg.url, TextLinkStyles(SpanStyle(color = style.linkColor, textDecoration = TextDecoration.Underline))),
+            ) { append(seg.title) }
         }
     }
 }

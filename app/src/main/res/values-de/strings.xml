@@ -215,7 +215,7 @@
     <string name="settings_messages">Nachrichten</string>
     <string name="settings_messages_summary">Verlauf, Antippen, Nutzerkarte</string>
     <string name="settings_media">Links &amp; Bilder</string>
-    <string name="settings_media_summary">Bildvorschau, Posts, mobile Daten</string>
+    <string name="settings_media_summary">Bildvorschau, GIFs, Posts, mobile Daten</string>
     <string name="settings_typing">Schreiben</string>
     <string name="settings_typing_summary">Nur lesen, Vorschläge, Erwähnungen</string>
     <string name="settings_backup_summary">Einstellungen sichern und wiederherstellen</string>
@@ -267,6 +267,8 @@
     <string name="background_battery_settings">App-Einstellungen</string>
     <string name="settings_inline_images">Verlinkte Bilder anzeigen</string>
     <string name="settings_inline_images_hint">Links zu Bildern zeigen das Bild. Im Akkusparmodus aus.</string>
+    <string name="settings_show_gifs">GIFs anzeigen</string>
+    <string name="settings_show_gifs_hint">GIFs, die Subs im Chat posten. Im Akkusparmodus aus.</string>
     <string name="settings_image_hosts">Seiten zum Laden</string>
     <string name="settings_image_hosts_none">Keine Seiten</string>
     <string name="settings_image_hosts_hint">Die Adresse einer Seite, z. B. imgur.com. Adressen wie i.imgur.com zählen mit.</string>

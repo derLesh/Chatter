@@ -39,7 +39,7 @@ import dev.chatter.app.ui.MainViewModel
 import dev.chatter.app.ui.SettingsSubPage
 import dev.chatter.app.ui.chat.siteName
 
-/** Linked images and posts in the chat, and what they may cost on mobile data. */
+/** Linked images, GIFs and posts in the chat, and what they may cost on mobile data. */
 @Composable
 internal fun MediaPage(settings: Settings, vm: MainViewModel, open: (SettingsSubPage) -> Unit) {
     SettingsGroup {
@@ -66,6 +66,9 @@ internal fun MediaPage(settings: Settings, vm: MainViewModel, open: (SettingsSub
                 colors = transparentItem(),
                 modifier = Modifier.clickable { open(SettingsSubPage.ImageHosts) },
             )
+        }
+        item(R.string.settings_show_gifs) {
+            SwitchItem(R.string.settings_show_gifs, settings.showGifs, vm::setShowGifs, R.string.settings_show_gifs_hint)
         }
         item(R.string.settings_posts) {
             ListItem(
