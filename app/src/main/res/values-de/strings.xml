@@ -237,6 +237,8 @@
     <string name="settings_group_device">Auf diesem Handy</string>
     <string name="settings_keep_screen_on">Bildschirm anlassen</string>
     <string name="settings_keep_screen_on_hint">Der Bildschirm bleibt an, solange Nachrichten im Chat ankommen</string>
+    <string name="settings_keep_screen_on_when_quiet">Auch bei ruhigem Chat</string>
+    <string name="settings_keep_screen_on_when_quiet_hint">Der Bildschirm bleibt auch nach 10 Minuten ohne Nachricht oder Berührung an. Das braucht mehr Akku</string>
     <string name="settings_emote_providers">Emote-Anbieter</string>
     <string name="settings_provider_twitch">Twitch</string>
     <string name="settings_provider_seventv">7TV</string>

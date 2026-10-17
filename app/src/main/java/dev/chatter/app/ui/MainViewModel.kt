@@ -699,6 +699,7 @@ class MainViewModel(private val c: AppContainer, savedState: SavedStateHandle) :
     fun setChannelTabs(v: Boolean) = saveSetting { setChannelTabs(v) }
     fun setHaptics(v: Boolean) = saveSetting { setHaptics(v) }
     fun setKeepScreenOn(v: Boolean) = saveSetting { setKeepScreenOn(v) }
+    fun setKeepScreenOnWhenQuiet(v: Boolean) = saveSetting { setKeepScreenOnWhenQuiet(v) }
     fun setBubbles(v: Boolean) = saveSetting { setBubbles(v) }
     fun setLiveNotifications(v: Boolean) = saveSetting { setLiveNotifications(v) }
 

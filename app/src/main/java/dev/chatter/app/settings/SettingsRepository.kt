@@ -131,8 +131,10 @@ data class Settings(
      * message, a send that failed.
      */
     val haptics: Boolean = true,
-    /** Keep the screen awake while the chat is on screen. */
+    /** Keep the screen awake while the chat is on screen and messages arrive. */
     val keepScreenOn: Boolean = false,
+    /** With [keepScreenOn]: also after 10 minutes without a message or touch. */
+    val keepScreenOnWhenQuiet: Boolean = false,
     /** A notification when a channel goes live; which channels is chosen per channel. */
     val liveNotifications: Boolean = true,
     /** Offer mention notifications as a floating chat bubble over other apps. */
@@ -213,6 +215,7 @@ class SettingsRepository(
             carouselChannels = p[CAROUSEL_CHANNELS] ?: false,
             haptics = p[HAPTICS] ?: true,
             keepScreenOn = p[KEEP_SCREEN_ON] ?: false,
+            keepScreenOnWhenQuiet = p[KEEP_SCREEN_ON_WHEN_QUIET] ?: false,
             bubbles = p[BUBBLES] ?: false,
             liveNotifications = p[LIVE_NOTIFICATIONS] ?: true,
             senderAvatars = p[SENDER_AVATARS] ?: true,
@@ -280,6 +283,7 @@ class SettingsRepository(
     suspend fun setCarouselChannels(v: Boolean) = store.edit { it[CAROUSEL_CHANNELS] = v }
     suspend fun setHaptics(v: Boolean) = store.edit { it[HAPTICS] = v }
     suspend fun setKeepScreenOn(v: Boolean) = store.edit { it[KEEP_SCREEN_ON] = v }
+    suspend fun setKeepScreenOnWhenQuiet(v: Boolean) = store.edit { it[KEEP_SCREEN_ON_WHEN_QUIET] = v }
     suspend fun setBubbles(v: Boolean) = store.edit { it[BUBBLES] = v }
     suspend fun setLiveNotifications(v: Boolean) = store.edit { it[LIVE_NOTIFICATIONS] = v }
     suspend fun setSenderAvatars(v: Boolean) = store.edit { it[SENDER_AVATARS] = v }
@@ -369,6 +373,7 @@ class SettingsRepository(
         p[CAROUSEL_CHANNELS] = s.carouselChannels
         p[HAPTICS] = s.haptics
         p[KEEP_SCREEN_ON] = s.keepScreenOn
+        p[KEEP_SCREEN_ON_WHEN_QUIET] = s.keepScreenOnWhenQuiet
         p[BUBBLES] = s.bubbles
         p[LIVE_NOTIFICATIONS] = s.liveNotifications
         p[SENDER_AVATARS] = s.senderAvatars
@@ -459,6 +464,7 @@ class SettingsRepository(
         val CAROUSEL_CHANNELS = booleanPreferencesKey("carousel_channels")
         val HAPTICS = booleanPreferencesKey("haptics")
         val KEEP_SCREEN_ON = booleanPreferencesKey("keep_screen_on")
+        val KEEP_SCREEN_ON_WHEN_QUIET = booleanPreferencesKey("keep_screen_on_when_quiet")
         val BUBBLES = booleanPreferencesKey("chat_bubbles")
         val LIVE_NOTIFICATIONS = booleanPreferencesKey("live_notifications")
         val SENDER_AVATARS = booleanPreferencesKey("notification_sender_avatars")

@@ -203,6 +203,7 @@ private val SEARCH_INDEX: List<SearchEntry> by lazy {
         add(SearchEntry(R.string.settings_show_deleted, appearance, R.string.settings_show_deleted_hint))
         add(SearchEntry(R.string.settings_first_messages, appearance, R.string.settings_first_messages_hint))
         add(SearchEntry(R.string.settings_keep_screen_on, appearance, R.string.settings_keep_screen_on_hint))
+        add(SearchEntry(R.string.settings_keep_screen_on_when_quiet, appearance, R.string.settings_keep_screen_on_when_quiet_hint))
         add(SearchEntry(R.string.settings_haptics, appearance, R.string.settings_haptics_hint))
         val messages = SettingsPage.Messages
         add(SearchEntry(R.string.settings_message_limit, messages))

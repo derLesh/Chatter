@@ -146,16 +146,16 @@ fun MainScreen(vm: MainViewModel, onInbox: () -> Unit, onSettings: () -> Unit) {
         onStopOrDispose { SharedEmotes.setFrameRate(EmoteFrameRate.ACTIVE) }
     }
 
-    // Only while the chat is on screen, and only while it moves: someone asleep next to an ended
-    // stream should not have the display on until the battery is empty.
+    // Only while the chat is on screen, and unless asked otherwise only while it moves: someone
+    // asleep next to an ended stream should not have the display on until the battery is empty.
     val view = LocalView.current
     val shownChat = remember(active) { active?.let(vm::chat) }
-    LaunchedEffect(settings.keepScreenOn, shownChat) {
-        if (!settings.keepScreenOn || shownChat == null) {
-            view.keepScreenOn = false
-            return@LaunchedEffect
+    LaunchedEffect(settings.keepScreenOn, settings.keepScreenOnWhenQuiet, shownChat) {
+        when {
+            !settings.keepScreenOn || shownChat == null -> view.keepScreenOn = false
+            settings.keepScreenOnWhenQuiet -> view.keepScreenOn = true
+            else -> screenOnWhileChatMoves(shownChat, activity.touches).collect { view.keepScreenOn = it }
         }
-        screenOnWhileChatMoves(shownChat, activity.touches).collect { view.keepScreenOn = it }
     }
     DisposableEffect(view) {
         onDispose { view.keepScreenOn = false }

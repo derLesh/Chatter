@@ -110,13 +110,22 @@ internal fun AppearancePage(settings: Settings, vm: MainViewModel) {
         }
     }
 
-    // The two phone-related settings, in one group.
+    // The phone-related settings, in one group.
     SettingsGroup(R.string.settings_group_device) {
         item(R.string.settings_keep_screen_on) {
             SwitchItem(
                 R.string.settings_keep_screen_on, settings.keepScreenOn,
                 vm::setKeepScreenOn, R.string.settings_keep_screen_on_hint,
             )
+        }
+        // Only relevant while the screen is kept on.
+        if (settings.keepScreenOn) {
+            item(R.string.settings_keep_screen_on_when_quiet) {
+                SwitchItem(
+                    R.string.settings_keep_screen_on_when_quiet, settings.keepScreenOnWhenQuiet,
+                    vm::setKeepScreenOnWhenQuiet, R.string.settings_keep_screen_on_when_quiet_hint,
+                )
+            }
         }
         item(R.string.settings_haptics) {
             SwitchItem(
