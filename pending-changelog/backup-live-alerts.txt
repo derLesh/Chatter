@@ -1,1 +1,0 @@
-patch: A backup now also keeps which channels notify you when they go live

@@ -1,1 +1,0 @@
-minor: Choose to keep the screen on even when the chat is quiet

@@ -1,1 +1,0 @@
-patch: Save the mention inbox less often, which saves battery while mentions keep coming in

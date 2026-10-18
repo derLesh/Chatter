@@ -1,1 +1,0 @@
-patch: Keep the chat from going through every message again each time an emote is used

@@ -1,1 +1,0 @@
-minor: Load the emotes again from the bottom of the emote picker, when one is missing or new

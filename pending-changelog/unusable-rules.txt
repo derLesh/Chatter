@@ -1,1 +1,0 @@
-patch: A rule with a pattern Chatter cannot use can no longer be saved switched on, and the editor says what is wrong

@@ -1,1 +1,0 @@
-minor: Take your settings and channels along when you set up a new phone from the old one

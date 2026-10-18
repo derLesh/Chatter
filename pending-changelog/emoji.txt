@@ -1,1 +1,0 @@
-minor: Pick emoji from a tab of their own in the emote picker, or type a colon and a shortcode like :smile

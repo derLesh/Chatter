@@ -1,1 +1,0 @@
-patch: Unsent messages and replies come back after Android closed Chatter in the background

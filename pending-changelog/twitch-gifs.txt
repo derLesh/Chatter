@@ -1,1 +1,0 @@
-minor: Show the GIFs that Tier 2 and 3 subs post in chat, with a switch to leave them as text

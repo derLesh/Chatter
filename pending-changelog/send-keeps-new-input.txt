@@ -1,1 +1,0 @@
-patch: A message that is slow to send no longer clears what you wrote in the meantime or in another chat

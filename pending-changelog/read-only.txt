@@ -1,1 +1,0 @@
-minor: Hide the input with Settings → Typing → Only read, for watching a chat without writing in it

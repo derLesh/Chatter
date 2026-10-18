@@ -1,1 +1,0 @@
-minor: Explain what Chatter notifies about before asking, and say in the settings when notifications are off

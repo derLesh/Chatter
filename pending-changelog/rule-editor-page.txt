@@ -1,1 +1,0 @@
-patch: Rules are now written on a page of their own instead of in a small window

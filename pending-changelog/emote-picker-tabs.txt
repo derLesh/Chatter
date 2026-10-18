@@ -1,1 +1,0 @@
-patch: Show every tab of the emote picker at once, in the color of the picker itself

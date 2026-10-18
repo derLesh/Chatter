@@ -1,1 +1,0 @@
-patch: Download emotes only from the sites that are switched on, and 7TV badges and paints only while shown

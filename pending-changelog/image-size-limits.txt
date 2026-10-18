@@ -1,1 +1,0 @@
-patch: Keep a very large picture or emote from filling the memory, by loading it smaller or showing the link instead

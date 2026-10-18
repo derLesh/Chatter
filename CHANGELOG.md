@@ -3,6 +3,49 @@
 Every release of Chatter, newest first. Written from the entries in `pending-changelog/` by
 `./gradlew releaseVersion`, and shown in the app under Settings → About → Changelog.
 
+## 0.9.0 — 2026-10-18
+- minor: Choose to keep the screen on even when the chat is quiet
+- minor: Draw 7TV paints on names, gradients and pictures with their shadows, with a setting to turn them off
+- minor: Explain what Chatter notifies about before asking, and say in the settings when notifications are off
+- minor: Get a notification when a channel goes live, for your channels and any followed ones you pick
+- minor: Hide the input with Settings → Typing → Only read, for watching a chat without writing in it
+- minor: Load the emotes again from the bottom of the emote picker, when one is missing or new
+- minor: Open the settings with your account on top and the chat settings split into messages, links and typing
+- minor: Pick emoji from a tab of their own in the emote picker, or type a colon and a shortcode like :smile
+- minor: Show cheers as animated cheermotes in their tier's color, and set messages with bits apart like a sub
+- minor: Show links to posts from X and Bluesky as a card, and choose on a page of its own what the card shows
+- minor: Show new users around the app on the first start and let them pick the most useful settings right away
+- minor: Show the GIFs that Tier 2 and 3 subs post in chat, with a switch to leave them as text
+- minor: Take your settings and channels along when you set up a new phone from the old one
+- minor: Try a rule on a made-up message, and see what it finds in your chats, before you save it
+- patch: A backup now also keeps which channels notify you when they go live
+- patch: A highlight rule left on the mention color now highlights its messages
+- patch: A message that is slow to send no longer clears what you wrote in the meantime or in another chat
+- patch: A rule with a pattern Chatter cannot use can no longer be saved switched on, and the editor says what is wrong
+- patch: Add a way to report a security problem privately, under Settings → About
+- patch: Ask Twitch less often what is live, which saves battery while Chatter runs in the background
+- patch: Combine many mentions at once into one notification update and one vibration
+- patch: Download emotes only from the sites that are switched on, and 7TV badges and paints only while shown
+- patch: Draw the channel tabs less often while other channels are busy
+- patch: Explain settings and messages in plainer words, and say "Kanal" everywhere in German
+- patch: Keep a very large picture or emote from filling the memory, by loading it smaller or showing the link instead
+- patch: Keep a whisper that arrives during an account switch with the account it was sent to
+- patch: Keep the chat from going through every message again each time an emote is used
+- patch: Leave login secrets out of crash reports, so a copied report is safe to paste into an issue
+- patch: Let new messages appear without gliding while battery saver is on
+- patch: Let the screen turn off when the chat stays quiet for 10 minutes
+- patch: Load a picture only from the site it was allowed from, even when that site sends Chatter on to another
+- patch: Load the channel on screen first when Chatter starts with many channels
+- patch: Open the account in the settings at once, without loading it from Twitch every time
+- patch: Rules are now written on a page of their own instead of in a small window
+- patch: Save the mention inbox less often, which saves battery while mentions keep coming in
+- patch: Show emotes and badges in messages that arrived while a channel was still loading
+- patch: Show every tab of the emote picker at once, in the color of the picker itself
+- patch: Show your role in a channel as the color of its tab's underline, with a little more room for the chat modes
+- patch: Stop asking an emote site that is down while Chatter runs in the background, which saves battery
+- patch: Turning the phone no longer closes the settings or the inbox
+- patch: Unsent messages and replies come back after Android closed Chatter in the background
+
 ## 0.8.0 — 2026-10-03
 - minor: Keep a note of the last crashes, and offer to copy one into a bug report with the versions filled in
 - minor: Keep what was typed with its channel, so swiping to another one no longer takes it along

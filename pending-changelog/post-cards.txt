@@ -1,1 +1,0 @@
-minor: Show links to posts from X and Bluesky as a card, and choose on a page of its own what the card shows

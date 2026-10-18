@@ -1,1 +1,0 @@
-patch: Turning the phone no longer closes the settings or the inbox

@@ -1,1 +1,0 @@
-patch: Load the channel on screen first when Chatter starts with many channels
