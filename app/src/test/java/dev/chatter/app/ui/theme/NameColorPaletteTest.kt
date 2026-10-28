@@ -20,7 +20,7 @@ class NameColorPaletteTest {
     fun brightColorsGetDarkerOnALightBackgroundButNotBlack() {
         for (palette in adjusting) for (color in bright) {
             val luminance = palette.adjust(color, dark = false).luminance()
-            assertTrue("$palette $color: $luminance", luminance <= 0.40f)
+            assertTrue("$palette $color: $luminance", luminance <= MAX_LUMA_ON_LIGHT)
             assertTrue("$palette $color came out nearly black: $luminance", luminance >= 0.08f)
         }
     }
@@ -28,13 +28,13 @@ class NameColorPaletteTest {
     @Test
     fun darkColorsGetLighterOnADarkBackground() {
         for (palette in adjusting) for (color in dark) {
-            assertTrue("$palette $color", palette.adjust(color, dark = true).luminance() >= 0.18f)
+            assertTrue("$palette $color", palette.adjust(color, dark = true).luminance() >= MIN_LUMA_ON_DARK)
         }
     }
 
     @Test
     fun aReadableColorIsLeftAlone() {
-        val orange = Color(0xFFFF7F24)
-        for (palette in adjusting) assertEquals("$palette", orange, palette.adjust(orange, dark = false))
+        val firebrick = Color(0xFFB22222)
+        for (palette in adjusting) assertEquals("$palette", firebrick, palette.adjust(firebrick, dark = false))
     }
 }
