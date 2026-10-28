@@ -36,6 +36,11 @@ class BackupRoundTripTest {
         /** The choices once something is stored; a missing choice fails instead of waiting forever. */
         suspend fun liveAlerts(): LiveAlertChoices =
             withTimeout(5_000) { channels.liveAlerts.first { it != LiveAlertChoices() } }
+
+        /** Waits for [expected]; the store's flow can still show the first of two changes. */
+        suspend fun liveAlertsReach(expected: LiveAlertChoices) {
+            withTimeout(5_000) { channels.liveAlerts.first { it == expected } }
+        }
     }
 
     @After
@@ -48,13 +53,13 @@ class BackupRoundTripTest {
         // Only followed, not in the list.
         old.channels.setLiveAlert("xqc", enabled = true)
         old.channels.setLiveAlert("forsen", enabled = false)
-        val expected = old.liveAlerts()
+        val expected = LiveAlertChoices(on = setOf("xqc"), off = setOf("forsen"))
+        old.liveAlertsReach(expected)
 
         val new = Phone()
         new.backups.apply(new.backups.read(old.backups.export())!!)
 
-        assertEquals(LiveAlertChoices(on = setOf("xqc"), off = setOf("forsen")), expected)
-        assertEquals(expected, new.liveAlerts())
+        new.liveAlertsReach(expected)
     }
 
     @Test
