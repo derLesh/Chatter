@@ -776,7 +776,7 @@
         <item quantity="other">%1$d Nachrichten in %2$s</item>
     </plurals>
     <string name="catch_up_writing">Die Zusammenfassung wird geschrieben…</string>
-    <string name="catch_up_disclaimer">Von Gemini Nano auf deinem Handy. Kann falsch sein.</string>
+    <string name="catch_up_disclaimer">Lokal mit Gemini Nano generiert. Kann Fehler enthalten.</string>
     <string name="catch_up_empty">Gemini Nano hatte dazu nichts zu sagen.</string>
     <string name="catch_up_busy">Gemini Nano ist beschäftigt. Versuch es gleich noch mal.</string>
     <string name="catch_up_quota">Für heute sind keine Zusammenfassungen mehr frei.</string>

@@ -787,7 +787,7 @@
         <item quantity="other">%1$d messages in %2$s</item>
     </plurals>
     <string name="catch_up_writing">Writing the summary…</string>
-    <string name="catch_up_disclaimer">By Gemini Nano on your phone. It can be wrong.</string>
+    <string name="catch_up_disclaimer">Locally generated with Gemini Nano. It may contain errors.</string>
     <string name="catch_up_empty">Gemini Nano had nothing to say about it.</string>
     <string name="catch_up_busy">Gemini Nano is busy. Try again in a moment.</string>
     <string name="catch_up_quota">No more summaries for today.</string>
