@@ -171,7 +171,6 @@
     <!-- Commands & moderation -->
     <string name="action_delete">Löschen</string>
     <string name="action_timeout">Timeout</string>
-    <string name="timeout_choose">Dauer wählen</string>
     <string name="timeout_1m">1 Minute</string>
     <string name="timeout_10m">10 Minuten</string>
     <string name="timeout_1h">1 Stunde</string>
