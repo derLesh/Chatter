@@ -621,10 +621,12 @@ class MainViewModel(private val c: AppContainer, savedState: SavedStateHandle) :
         viewModelScope.launch { c.inbox.markRead(mention.id) }
     }
 
-    /**
-     * Mentions currently on screen. Opening a channel reads its mentions, but returning to the app
-     * on the same channel is not an opening, and mentions that arrived meanwhile would stay unread.
-     */
+    /** Reads the mentions of the channels on screen, as opening them does. */
+    fun readShownChannels() {
+        composer.shownChannels.forEach { viewModelScope.launch { c.inbox.markChannelRead(it) } }
+    }
+
+    /** Mentions currently on screen; one on screen is read, however it came to be unread. */
     fun onMentionsSeen(ids: Set<String>) {
         // Called on every scroll that changes visible mentions, almost always read ones; only
         // unread ones are worth a write.

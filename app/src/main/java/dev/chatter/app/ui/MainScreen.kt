@@ -225,7 +225,12 @@ fun MainScreen(vm: MainViewModel, onInbox: () -> Unit, onSettings: () -> Unit) {
     // A bubble shows its own channel in the title bar while open; when the chat screen is back, the
     // page on screen is the channel again.
     LifecycleStartEffect(pageKeys, restored, pages) {
-        if (restored) vm.selectChannel(pages.channelAt(pagerState.currentPage)?.let(pageKeys::getOrNull))
+        if (restored) {
+            vm.selectChannel(pages.channelAt(pagerState.currentPage)?.let(pageKeys::getOrNull))
+            // Coming back to the chat reads it like opening it; selectChannel stops early for the
+            // same page.
+            vm.readShownChannels()
+        }
         onStopOrDispose { }
     }
 
