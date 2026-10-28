@@ -1,0 +1,1 @@
+patch: Show older messages less faded in the light theme, so they stay easy to read

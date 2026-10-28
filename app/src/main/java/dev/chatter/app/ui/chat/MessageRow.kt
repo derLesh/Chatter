@@ -61,8 +61,12 @@ import dev.chatter.app.chat.Segment
 private const val BADGE_EM = 1.35f
 /** How strongly a rule's highlight color tints the background. */
 private const val HIGHLIGHT_ALPHA = 0.2f
-/** History is dimmed so live chat stands out. */
+/**
+ * History is dimmed so live chat stands out. Half leaves text on black at about 5:1, but on white
+ * at about 3:1, so the light theme keeps more to look as dimmed and stay as readable.
+ */
 private const val HISTORICAL_ALPHA = 0.5f
+private const val HISTORICAL_ALPHA_LIGHT = 0.65f
 private const val EMOTE_EM = 2.1f
 /** Large enough to recognize the picture, small enough not to fill the screen. */
 private val IMAGE_MAX_WIDTH = 220.dp
@@ -143,7 +147,7 @@ fun MessageRow(
             .graphicsLayer {
                 alpha = when {
                     item.deleted -> 0.4f
-                    item.historical -> HISTORICAL_ALPHA
+                    item.historical -> if (style.dark) HISTORICAL_ALPHA else HISTORICAL_ALPHA_LIGHT
                     else -> 1f
                 }
                 compositingStrategy = CompositingStrategy.ModulateAlpha
