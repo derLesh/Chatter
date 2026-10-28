@@ -13,16 +13,18 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.relocation.BringIntoViewRequester
 import androidx.compose.foundation.relocation.bringIntoViewRequester
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowForward
+import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.Icon
 import androidx.compose.material3.ListItem
 import androidx.compose.material3.ListItemDefaults
+import androidx.compose.material3.MaterialShapes
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.toShape
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.compositionLocalOf
@@ -63,6 +65,7 @@ private const val REVEAL_DELAY_MS = 350L
  * Related settings as separate tiles with small gaps (Android 16 style): strong outer corners,
  * slight ones between tiles.
  */
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 internal fun SettingsGroup(title: Int? = null, build: GroupScope.() -> Unit) {
     val items = GroupScope().apply(build).items
@@ -72,7 +75,7 @@ internal fun SettingsGroup(title: Int? = null, build: GroupScope.() -> Unit) {
         if (title != null) {
             Text(
                 stringResource(title),
-                style = MaterialTheme.typography.titleSmall,
+                style = MaterialTheme.typography.titleSmallEmphasized,
                 color = MaterialTheme.colorScheme.primary,
                 modifier = Modifier.padding(start = 16.dp, bottom = 8.dp),
             )
@@ -125,18 +128,48 @@ private fun tileShape(index: Int, count: Int): RoundedCornerShape {
     )
 }
 
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
-internal fun CategoryIcon(icon: ImageVector) {
+internal fun CategoryIcon(icon: ImageVector, index: Int = 0) {
+    val shape = CATEGORY_SHAPES[index % CATEGORY_SHAPES.size].toShape()
+    val colors = MaterialTheme.colorScheme
+    val (container, content) = when (index % 3) {
+        0 -> colors.primaryContainer to colors.onPrimaryContainer
+        1 -> colors.tertiaryContainer to colors.onTertiaryContainer
+        else -> colors.secondaryContainer to colors.onSecondaryContainer
+    }
     Box(
         contentAlignment = Alignment.Center,
         modifier = Modifier
-            .size(40.dp)
-            .clip(CircleShape)
-            .background(MaterialTheme.colorScheme.primaryContainer),
+            .size(44.dp)
+            .clip(shape)
+            .background(container),
     ) {
-        Icon(icon, contentDescription = null, tint = MaterialTheme.colorScheme.onPrimaryContainer)
+        Icon(icon, contentDescription = null, tint = content, modifier = Modifier.size(22.dp))
     }
 }
+
+/**
+ * Material 3 Expressive's shapes, one per category in order, so neighbours never look alike and a
+ * category keeps its shape between the list and the search.
+ */
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
+private val CATEGORY_SHAPES = listOf(
+    MaterialShapes.Cookie9Sided,
+    MaterialShapes.Clover4Leaf,
+    MaterialShapes.Sunny,
+    MaterialShapes.Cookie6Sided,
+    MaterialShapes.Flower,
+    MaterialShapes.SoftBurst,
+    MaterialShapes.Pentagon,
+    MaterialShapes.Puffy,
+    MaterialShapes.Gem,
+    MaterialShapes.Cookie4Sided,
+    MaterialShapes.Clover8Leaf,
+    MaterialShapes.PuffyDiamond,
+    MaterialShapes.Ghostish,
+    MaterialShapes.Bun,
+)
 
 @Composable
 internal fun transparentItem() = ListItemDefaults.colors(containerColor = Color.Transparent)

@@ -7,7 +7,6 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -30,6 +29,9 @@ import androidx.compose.material.icons.filled.MailOutline
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.ButtonGroupDefaults
+import androidx.compose.material3.ButtonShapes
+import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.HorizontalDivider
@@ -146,70 +148,52 @@ fun UserCardSheet(
             }
 
             item {
-                Row(
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp),
-                ) {
-                    val reply: @Composable RowScope.() -> Unit = {
-                        if (canReply) ActionButton(Icons.AutoMirrored.Filled.Send, R.string.action_reply) { onReply(); onDismiss() }
-                    }
-                    val copy: @Composable RowScope.() -> Unit = {
-                        ActionButton(ImageVector.vectorResource(R.drawable.ic_content_copy), R.string.action_copy) {
-                            clipboard.setText(AnnotatedString(item.text.ifEmpty { item.systemText.orEmpty() }))
-                            onDismiss()
-                        }
-                    }
-                    // They swap places, Mention stays in the middle.
-                    if (copyFirst) copy() else reply()
-                    if (isUserMessage && !guest && onMention != null) {
-                        ActionButton(Icons.Default.Person, R.string.action_mention) { onMention(); onDismiss() }
-                    }
-                    if (copyFirst) reply() else copy()
+                val copyIcon = ImageVector.vectorResource(R.drawable.ic_content_copy)
+                val reply = CardAction(Icons.AutoMirrored.Filled.Send, R.string.action_reply) { onReply?.invoke(); onDismiss() }
+                    .takeIf { canReply }
+                val copy = CardAction(copyIcon, R.string.action_copy) {
+                    clipboard.setText(AnnotatedString(item.text.ifEmpty { item.systemText.orEmpty() }))
+                    onDismiss()
                 }
+                val mention = CardAction(Icons.Default.Person, R.string.action_mention) { onMention?.invoke(); onDismiss() }
+                    .takeIf { isUserMessage && !guest && onMention != null }
+                // They swap places, Mention stays in the middle.
+                val actions = if (copyFirst) listOfNotNull(copy, mention, reply) else listOfNotNull(reply, mention, copy)
+                ConnectedButtons(actions, tonal = true, modifier = Modifier.padding(horizontal = 16.dp))
             }
 
             // Actions on the person. Blocking needs the profile's Twitch id; reporting works even
             // if the card fails to load.
             if (isUserMessage && !item.isOwn) {
                 item {
-                    Row(
-                        horizontalArrangement = Arrangement.spacedBy(8.dp),
-                        modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
-                    ) {
-                        if (!guest) {
-                            ModButton(Icons.Default.MailOutline, R.string.action_whisper, danger = false) {
-                                onWhisper(user?.id)
-                                onDismiss()
-                            }
-                        }
+                    val reportIcon = ImageVector.vectorResource(R.drawable.ic_report_flag)
+                    val actions = listOfNotNull(
+                        CardAction(Icons.Default.MailOutline, R.string.action_whisper) {
+                            onWhisper(user?.id)
+                            onDismiss()
+                        }.takeIf { !guest },
                         user?.let { user ->
-                            ModButton(
+                            CardAction(
                                 icon = if (blocked) Icons.Default.Check else Icons.Default.Clear,
                                 label = if (blocked) R.string.action_unblock else R.string.action_block,
                                 danger = !blocked,
                             ) { onBlock(user, !blocked); onDismiss() }
-                        }
-                        ModButton(
-                            icon = ImageVector.vectorResource(R.drawable.ic_report_flag),
-                            label = R.string.action_report,
-                            danger = false,
-                        ) { reporting = true }
-                    }
+                        },
+                        CardAction(reportIcon, R.string.action_report) { reporting = true },
+                    )
+                    ConnectedButtons(actions, tonal = false, modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp))
                 }
             }
 
             if (canModerate && isUserMessage && !item.isOwn) {
                 item {
-                    Row(
-                        horizontalArrangement = Arrangement.spacedBy(8.dp),
-                        modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
-                    ) {
-                        if (!item.id.startsWith("local-") && !item.deleted) {
-                            ModButton(Icons.Default.Delete, R.string.action_delete, danger = false) { onDelete(); onDismiss() }
-                        }
-                        ModButton(Icons.Default.Warning, R.string.action_timeout, danger = false) { onTimeout(); onDismiss() }
-                        ModButton(Icons.Default.Lock, R.string.action_ban, danger = true) { onBan(); onDismiss() }
-                    }
+                    val actions = listOfNotNull(
+                        CardAction(Icons.Default.Delete, R.string.action_delete) { onDelete(); onDismiss() }
+                            .takeIf { !item.id.startsWith("local-") && !item.deleted },
+                        CardAction(Icons.Default.Warning, R.string.action_timeout) { onTimeout(); onDismiss() },
+                        CardAction(Icons.Default.Lock, R.string.action_ban, danger = true) { onBan(); onDismiss() },
+                    )
+                    ConnectedButtons(actions, tonal = false, modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp))
                 }
             }
 
@@ -371,23 +355,46 @@ private fun BadgeRow(item: ChatItem, imageLoader: ImageLoader) {
 /** Buttons share the row; labels are cut instead of wrapping. */
 private val CompactPadding = PaddingValues(horizontal = 8.dp, vertical = 8.dp)
 
-@Composable
-private fun RowScope.ActionButton(icon: ImageVector, label: Int, onClick: () -> Unit) {
-    FilledTonalButton(onClick = onClick, contentPadding = CompactPadding, modifier = Modifier.weight(1f)) {
-        ButtonContent(icon, label)
-    }
-}
+/** One button in a row of the user card. */
+private class CardAction(val icon: ImageVector, val label: Int, val danger: Boolean = false, val onClick: () -> Unit)
 
+/**
+ * A row of buttons joined into one group (Material 3 Expressive): round outer corners, small inner
+ * ones, and the pressed button turns squarer. [tonal] for the actions on the message, outlined for
+ * those on the person.
+ */
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
-private fun RowScope.ModButton(icon: ImageVector, label: Int, danger: Boolean, onClick: () -> Unit) {
-    val color = if (danger) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurface
-    OutlinedButton(
-        onClick = onClick,
-        contentPadding = CompactPadding,
-        colors = ButtonDefaults.outlinedButtonColors(contentColor = color),
-        modifier = Modifier.weight(1f),
+private fun ConnectedButtons(actions: List<CardAction>, tonal: Boolean, modifier: Modifier) {
+    Row(
+        horizontalArrangement = Arrangement.spacedBy(ButtonGroupDefaults.ConnectedSpaceBetween),
+        modifier = modifier.fillMaxWidth(),
     ) {
-        ButtonContent(icon, label)
+        actions.forEachIndexed { i, action ->
+            val joined = when {
+                actions.size == 1 -> null
+                i == 0 -> ButtonGroupDefaults.connectedLeadingButtonShapes()
+                i == actions.lastIndex -> ButtonGroupDefaults.connectedTrailingButtonShapes()
+                else -> ButtonGroupDefaults.connectedMiddleButtonShapes()
+            }
+            val shapes = joined?.let { ButtonShapes(it.shape, it.pressedShape) } ?: ButtonDefaults.shapes()
+            if (tonal) {
+                FilledTonalButton(onClick = action.onClick, shapes = shapes, contentPadding = CompactPadding, modifier = Modifier.weight(1f)) {
+                    ButtonContent(action.icon, action.label)
+                }
+            } else {
+                val color = if (action.danger) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurface
+                OutlinedButton(
+                    onClick = action.onClick,
+                    shapes = shapes,
+                    contentPadding = CompactPadding,
+                    colors = ButtonDefaults.outlinedButtonColors(contentColor = color),
+                    modifier = Modifier.weight(1f),
+                ) {
+                    ButtonContent(action.icon, action.label)
+                }
+            }
+        }
     }
 }
 

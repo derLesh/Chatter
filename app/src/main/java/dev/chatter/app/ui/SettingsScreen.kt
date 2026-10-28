@@ -545,7 +545,7 @@ private fun SearchPage(query: String, onQuery: (String) -> Unit, onOpen: (Search
                             headlineContent = { Text(title) },
                             // A category found as itself needs no category below.
                             supportingContent = if (entry.key == null) null else ({ Text(stringResource(entry.page.title)) }),
-                            leadingContent = { CategoryIcon(entry.page.icon()) },
+                            leadingContent = { CategoryIcon(entry.page.icon(), entry.page.ordinal) },
                             colors = transparentItem(),
                             modifier = Modifier.clickable { onOpen(entry) },
                         )
@@ -620,7 +620,7 @@ private fun Home(open: (SettingsPage) -> Unit) {
                     ListItem(
                         headlineContent = { Text(stringResource(p.title), fontWeight = FontWeight.Medium) },
                         supportingContent = { Text(stringResource(p.summary)) },
-                        leadingContent = { CategoryIcon(p.icon()) },
+                        leadingContent = { CategoryIcon(p.icon(), p.ordinal) },
                         colors = transparentItem(),
                         modifier = Modifier.clickable { open(p) },
                     )

@@ -5,6 +5,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.SheetValue
@@ -36,7 +37,7 @@ import kotlinx.coroutines.flow.filter
  * from the channel's list, so new answers appear while it is open. Tapping a message makes it the
  * target of [onAnswer]; Twitch files the answer under the same conversation. [input] is the field.
  */
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 fun ThreadSheet(
     threadId: String,
@@ -81,7 +82,7 @@ fun ThreadSheet(
         Column {
             Text(
                 stringResource(R.string.thread_title),
-                style = MaterialTheme.typography.titleMedium,
+                style = MaterialTheme.typography.titleMediumEmphasized,
                 modifier = Modifier.padding(start = 20.dp, end = 20.dp, bottom = 8.dp),
             )
             // Reversed like the chat, so the list stays at the newest end.

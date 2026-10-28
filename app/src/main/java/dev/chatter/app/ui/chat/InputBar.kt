@@ -26,9 +26,12 @@ import androidx.compose.material.icons.filled.Face
 import androidx.compose.material3.DropdownMenuGroup
 import androidx.compose.material3.DropdownMenuPopup
 import androidx.compose.material3.DropdownMenuPopupPositionProvider
+import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
+import androidx.compose.material3.FilledIconButton
 import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.MenuDefaults
 import androidx.compose.material3.SelectableDropdownMenuItem
@@ -85,6 +88,7 @@ import kotlinx.coroutines.delay
  * Twitch's limits are shown before sending: remaining characters for long messages, slow mode
  * seconds on the send button ([waitUntil]), and a [restriction] instead of the placeholder.
  */
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 fun InputBar(
     value: TextFieldValue,
@@ -137,7 +141,7 @@ fun InputBar(
             if (choosing) {
                 SendChannelPicker(sendChannels, sendChannel, channelInfo, imageLoader, enabled, onSendChannel)
             }
-            IconButton(onClick = onEmotePicker, enabled = enabled) {
+            IconButton(onClick = onEmotePicker, shapes = IconButtonDefaults.shapes(), enabled = enabled) {
                 Icon(Icons.Default.Face, contentDescription = stringResource(R.string.emotes))
             }
             TextField(
@@ -186,7 +190,16 @@ fun InputBar(
                 ),
                 modifier = Modifier.weight(1f).focusRequester(focus),
             )
-            IconButton(onClick = onSend, enabled = canSend) {
+            // Filled once there is something to send, and squarer while pressed (Expressive).
+            FilledIconButton(
+                onClick = onSend,
+                shapes = IconButtonDefaults.shapes(),
+                enabled = canSend,
+                colors = IconButtonDefaults.filledIconButtonColors(
+                    disabledContainerColor = Color.Transparent,
+                ),
+                modifier = Modifier.padding(start = 4.dp),
+            ) {
                 if (waitLeft > 0) {
                     val wait = pluralStringResource(R.plurals.send_wait, waitLeft, waitLeft)
                     Text(

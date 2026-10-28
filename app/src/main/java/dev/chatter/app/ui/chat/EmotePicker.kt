@@ -18,9 +18,10 @@ import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.Icon
+import androidx.compose.material3.LoadingIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.PrimaryTabRow
@@ -190,6 +191,7 @@ fun EmotePickerSheet(
 }
 
 /** Small and grey: needed when an emote is missing, not every time the picker opens. */
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 private fun ReloadButton(reloading: Boolean, onClick: () -> Unit) {
     TextButton(
@@ -198,7 +200,7 @@ private fun ReloadButton(reloading: Boolean, onClick: () -> Unit) {
         colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.onSurfaceVariant),
         modifier = Modifier.padding(top = 8.dp),
     ) {
-        if (reloading) CircularProgressIndicator(Modifier.size(16.dp), strokeWidth = 2.dp)
+        if (reloading) LoadingIndicator(Modifier.size(24.dp))
         else Icon(Icons.Default.Refresh, contentDescription = null, modifier = Modifier.size(16.dp))
         Spacer(Modifier.width(8.dp))
         Text(stringResource(R.string.reload_emotes), style = MaterialTheme.typography.labelMedium)

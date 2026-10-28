@@ -7,8 +7,9 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.ListItem
+import androidx.compose.material3.LoadingIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
@@ -79,6 +80,7 @@ private fun BetaSwitchItem(res: Int, checked: Boolean, onChange: (Boolean) -> Un
 }
 
 /** Whether Gemini Nano is on the phone, with a way to get it or to ask again. */
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 private fun ModelStateItem(vm: MainViewModel) {
     val state by vm.onDeviceModel.collectAsStateWithLifecycle()
@@ -101,7 +103,7 @@ private fun ModelStateItem(vm: MainViewModel) {
         },
         trailingContent = {
             when (state) {
-                ModelState.Unknown, ModelState.Downloading -> CircularProgressIndicator(Modifier.size(20.dp), strokeWidth = 2.dp)
+                ModelState.Unknown, ModelState.Downloading -> LoadingIndicator(Modifier.size(32.dp))
                 ModelState.Downloadable -> TextButton(onClick = vm::prepareOnDeviceModel) { Text(stringResource(R.string.model_download)) }
                 ModelState.Unsupported -> TextButton(onClick = vm::prepareOnDeviceModel) { Text(stringResource(R.string.model_check_again)) }
                 ModelState.Ready -> Unit

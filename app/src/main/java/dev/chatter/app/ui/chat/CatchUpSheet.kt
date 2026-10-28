@@ -15,9 +15,10 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.KeyboardArrowUp
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.Icon
+import androidx.compose.material3.LoadingIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Text
@@ -43,7 +44,7 @@ import dev.chatter.app.ui.BetaBadge
 import dev.chatter.app.ui.CatchUpSummary
 
 /** What arrived while the user was away, summed up by Gemini Nano as it writes. */
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 fun CatchUpSheet(summary: CatchUpSummary, onDismiss: () -> Unit) {
     ModalBottomSheet(
@@ -64,7 +65,7 @@ fun CatchUpSheet(summary: CatchUpSummary, onDismiss: () -> Unit) {
                     tint = MaterialTheme.colorScheme.tertiary,
                 )
                 Spacer(Modifier.width(10.dp))
-                Text(stringResource(R.string.catch_up_title), style = MaterialTheme.typography.titleLarge)
+                Text(stringResource(R.string.catch_up_title), style = MaterialTheme.typography.titleLargeEmphasized)
                 Spacer(Modifier.width(10.dp))
                 BetaBadge()
             }
@@ -83,7 +84,7 @@ fun CatchUpSheet(summary: CatchUpSummary, onDismiss: () -> Unit) {
                     color = MaterialTheme.colorScheme.error,
                 )
                 text.isEmpty() && !summary.done -> Row(verticalAlignment = Alignment.CenterVertically) {
-                    CircularProgressIndicator(Modifier.size(20.dp), strokeWidth = 2.dp)
+                    LoadingIndicator(Modifier.size(32.dp))
                     Spacer(Modifier.width(12.dp))
                     Text(stringResource(R.string.catch_up_writing), style = MaterialTheme.typography.bodyLarge)
                 }
