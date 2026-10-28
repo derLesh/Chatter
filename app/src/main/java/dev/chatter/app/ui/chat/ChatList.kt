@@ -1,9 +1,19 @@
 package dev.chatter.app.ui.chat
 
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.SizeTransform
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.VisibilityThreshold
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.scaleIn
+import androidx.compose.animation.scaleOut
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
+import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.gestures.scrollBy
 import androidx.compose.foundation.interaction.DragInteraction
 import androidx.compose.foundation.layout.Arrangement
@@ -23,6 +33,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.KeyboardArrowUp
+import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.ExtendedFloatingActionButton
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
@@ -57,6 +68,7 @@ import dev.chatter.app.ai.CatchUp
 import dev.chatter.app.chat.ChatItem
 import dev.chatter.app.chat.Segment
 import dev.chatter.app.ui.BetaBadge
+import dev.chatter.app.ui.channels.formatCount
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.filter
@@ -105,6 +117,12 @@ fun ChatList(
 
     LaunchedEffect(listState) {
         listState.interactionSource.interactions.collect { if (it is DragInteraction.Start) userScrolling = true }
+    }
+    // The newest message when the user left the bottom; the button counts what came after it.
+    var leftAt by remember { mutableStateOf<String?>(null) }
+    LaunchedEffect(follow) { leftAt = if (follow) null else items.lastOrNull()?.id }
+    val newSinceLeft = remember(items, leftAt) {
+        leftAt?.let { id -> items.indexOfLast { it.id == id }.takeIf { it >= 0 }?.let { items.lastIndex - it } } ?: 0
     }
     val unseen = remember(items, readMark) { readMark?.unseenIn(items) }
     // The chip helps find the line; once the line was on screen or the user scrolled to the bottom,
@@ -215,24 +233,60 @@ fun ChatList(
                 }
             }
         }
-        if (!follow) {
-            ExtendedFloatingActionButton(
-                onClick = {
-                    scope.launch {
-                        listState.scrollToItem(0)
-                        follow = true
-                        chipDone = true
-                    }
-                },
-                icon = { Icon(Icons.Default.KeyboardArrowDown, contentDescription = null) },
-                text = { Text(stringResource(R.string.more_messages)) },
-                containerColor = MaterialTheme.colorScheme.primary,
-                contentColor = MaterialTheme.colorScheme.onPrimary,
-                modifier = Modifier
-                    .align(Alignment.BottomCenter)
-                    .padding(bottom = 12.dp),
-            )
-        }
+        NewMessagesButton(
+            visible = !follow,
+            count = newSinceLeft,
+            onClick = {
+                scope.launch {
+                    listState.scrollToItem(0)
+                    follow = true
+                    chipDone = true
+                }
+            },
+            modifier = Modifier
+                .align(Alignment.BottomCenter)
+                .padding(bottom = 12.dp),
+        )
+    }
+}
+
+/**
+ * Back to the newest message, shown while the user reads further up. Springs in and out, and counts
+ * what arrived since they left the bottom, growing with the number.
+ */
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
+@Composable
+private fun NewMessagesButton(visible: Boolean, count: Int, onClick: () -> Unit, modifier: Modifier) {
+    val motion = MaterialTheme.motionScheme
+    AnimatedVisibility(
+        visible = visible,
+        enter = scaleIn(motion.fastSpatialSpec()) + fadeIn(motion.fastEffectsSpec()),
+        exit = scaleOut(motion.fastSpatialSpec()) + fadeOut(motion.fastEffectsSpec()),
+        modifier = modifier,
+    ) {
+        ExtendedFloatingActionButton(
+            onClick = onClick,
+            icon = { Icon(Icons.Default.KeyboardArrowDown, contentDescription = null) },
+            text = {
+                // The new number rolls in from below, like a counter.
+                AnimatedContent(
+                    targetState = count,
+                    transitionSpec = {
+                        (slideInVertically(motion.fastSpatialSpec()) { it } + fadeIn(motion.fastEffectsSpec()))
+                            .togetherWith(slideOutVertically(motion.fastSpatialSpec()) { -it } + fadeOut(motion.fastEffectsSpec()))
+                            .using(SizeTransform(clip = false) { _, _ -> motion.fastSpatialSpec() })
+                    },
+                    label = "new-messages",
+                ) { n ->
+                    Text(
+                        if (n > 0) pluralStringResource(R.plurals.new_messages_count, n, formatCount(n))
+                        else stringResource(R.string.more_messages),
+                    )
+                }
+            },
+            containerColor = MaterialTheme.colorScheme.primary,
+            contentColor = MaterialTheme.colorScheme.onPrimary,
+        )
     }
 }
 

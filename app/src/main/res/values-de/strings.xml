@@ -34,6 +34,10 @@
     <!-- Chat -->
     <string name="reply_to">↪ Antwort an @%1$s: %2$s</string>
     <string name="more_messages">Neue Nachrichten</string>
+    <plurals name="new_messages_count">
+        <item quantity="one">%s neue Nachricht</item>
+        <item quantity="other">%s neue Nachrichten</item>
+    </plurals>
     <string name="unseen_line">Neu</string>
     <string name="draft_waiting">Nicht gesendete Nachricht</string>
     <plurals name="unseen_messages">

@@ -1,0 +1,1 @@
+patch: The button back to the newest messages springs in and counts what arrived since you scrolled up
