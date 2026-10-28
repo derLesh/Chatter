@@ -1,0 +1,1 @@
+patch: Keep bright names readable in the light theme with the loop name colors, instead of nearly black

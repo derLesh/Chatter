@@ -3,6 +3,7 @@ package dev.chatter.app.ui.theme
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.luminance
 import kotlin.math.abs
+import kotlin.math.floor
 import kotlin.math.pow
 
 /**
@@ -55,10 +56,10 @@ fun NameColorPalette.adjust(base: Color, dark: Boolean): Color = when {
     }
     this == NameColorPalette.HslLoop -> {
         val hsl = base.toHsl()
-        loop(dark) { step -> hslColor(hsl[0], hsl[1], (hsl[2] + step) % 1f) }
+        loop(dark) { step -> hslColor(hsl[0], hsl[1], wrap(hsl[2] + step)) }
     }
     else -> loop(dark) { step ->
-        Color((base.red + step) % 1f, (base.green + step) % 1f, (base.blue + step) % 1f)
+        Color(wrap(base.red + step), wrap(base.green + step), wrap(base.blue + step))
     }
 }
 
@@ -84,11 +85,16 @@ private inline fun solveLightness(dark: Boolean, current: Float, build: (Float) 
     return best
 }
 
-/** Steps the color around its space and stops at the first readable one. */
+/**
+ * Steps the color around its space and stops at the first readable one: lighter on dark
+ * backgrounds, darker on light ones. Stepping up on a light background would pass through every
+ * lighter shade, none readable, and wrap around to nearly black.
+ */
 private inline fun loop(dark: Boolean, build: (Float) -> Color): Color {
-    var fallback = build(LOOP_STEP)
+    val direction = if (dark) 1f else -1f
+    var fallback = build(direction * LOOP_STEP)
     for (i in 1..LOOP_COUNT) {
-        val color = build(i * LOOP_STEP)
+        val color = build(direction * i * LOOP_STEP)
         if (readable(color, dark)) return color
         // Nothing fits: keep the one closest to the background's opposite.
         if (if (dark) color.luminance() > fallback.luminance() else color.luminance() < fallback.luminance()) {
@@ -97,6 +103,9 @@ private inline fun loop(dark: Boolean, build: (Float) -> Color): Color {
     }
     return fallback
 }
+
+/** [value] wrapped into 0..1, also when a step down took it below 0. */
+private fun wrap(value: Float): Float = value - floor(value)
 
 private const val STEPS = 12
 private const val LOOP_STEP = 1f / 12f
