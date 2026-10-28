@@ -21,6 +21,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import dev.chatter.app.BuildConfig
 import dev.chatter.app.R
 import dev.chatter.app.ai.ModelState
 import dev.chatter.app.settings.Settings
@@ -43,7 +44,7 @@ internal fun BetaPage(settings: Settings, vm: MainViewModel) {
         }
         if (settings.catchUpSummary) item { ModelStateItem(vm) }
     }
-    SettingsGroup {
+    if (BuildConfig.ASSISTANT_ACCESS) SettingsGroup {
         item(R.string.settings_assistant) {
             // AppFunctions came with Android 16.
             val supported = Build.VERSION.SDK_INT >= Build.VERSION_CODES.BAKLAVA

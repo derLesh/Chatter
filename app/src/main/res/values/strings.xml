@@ -776,8 +776,8 @@
     <string name="model_state_ready">Gemini Nano is ready</string>
     <string name="model_download">Download</string>
     <string name="model_check_again">Check again</string>
-    <string name="settings_assistant">Let assistants use Chatter</string>
-    <string name="settings_assistant_hint">When you ask them, Gemini and other assistants on your phone can list your channels, read your mentions, open a channel and write a message as you. What they get goes to the assistant.</string>
+    <string name="settings_assistant">Assistant access</string>
+    <string name="settings_assistant_hint">Gemini &amp; co. help when you ask, like “Write gg in xqc” or “Any new mentions?”</string>
     <string name="settings_assistant_unsupported">Needs Android 16 or newer.</string>
     <string name="app_functions_description">Read your Twitch channels and mentions, open a chat and write in it</string>
     <string name="catch_up_action">Sum up</string>

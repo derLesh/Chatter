@@ -246,7 +246,8 @@ class AppContainer(
             settings.settings.map { it.catchUpSummary }.distinctUntilChanged().filter { it }.collect { onDeviceModel.prepare() }
         }
         scope.launch {
-            settings.settings.map { it.assistantActions }.distinctUntilChanged().collect { assistantAccess.allow(it) }
+            settings.settings.map { it.assistantActions && BuildConfig.ASSISTANT_ACCESS }.distinctUntilChanged()
+                .collect { assistantAccess.allow(it) }
         }
         sevenTvLive.start()
         shortcuts.start()

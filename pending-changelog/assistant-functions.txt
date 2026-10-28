@@ -1,1 +1,0 @@
-minor: Beta: let Gemini and other assistants list your channels, read mentions and write for you when you ask

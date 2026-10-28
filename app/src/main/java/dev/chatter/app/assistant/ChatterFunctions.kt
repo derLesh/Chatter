@@ -66,7 +66,7 @@ abstract class ChatterFunctions : AppFunctionService() {
 
     /**
      * List the Twitch channels the user follows in Chatter, with whether each is live and how much
-     * the user has not read yet.
+     * the user has not read yet. Answers requests like "Who is live?" or "Where are unread messages?".
      *
      * @return Every channel in the user's order. Empty if the user has added none.
      */
@@ -91,7 +91,8 @@ abstract class ChatterFunctions : AppFunctionService() {
     }
 
     /**
-     * Get the chat messages that mentioned the user, newest first.
+     * Get the chat messages that mentioned the user, newest first. Answers requests like "Any new
+     * mentions?" or "What did people write to me on Twitch?".
      *
      * @param onlyUnread True for only the mentions the user has not seen yet; false for all that
      *   Chatter kept.
@@ -109,7 +110,7 @@ abstract class ChatterFunctions : AppFunctionService() {
     }
 
     /**
-     * Open the chat of a channel in Chatter.
+     * Open the chat of a channel in Chatter, as in "Open xqc's chat".
      *
      * Required workflow: Call "listChannels" first to find the channel's login.
      *
@@ -131,14 +132,15 @@ abstract class ChatterFunctions : AppFunctionService() {
 
     /**
      * Send a chat message to a channel as the user's Twitch account. Everybody in that chat sees it
-     * under the user's name.
+     * under the user's name. Fits requests like "Write gg in xqc" or "Tell the chat in forsen
+     * that I am back".
      *
      * Required workflow: Call "listChannels" first to find the channel's login, and show the user
      * the exact message before sending it.
      *
-     * @param channel The login of a channel from "listChannels".
-     * @param message The text to send, at most 500 characters. Twitch commands starting with "/"
-     *   are not allowed.
+     * @param channel The login of a channel from "listChannels", such as "xqc".
+     * @param message The text to send, such as "gg", at most 500 characters. Twitch commands
+     *   starting with "/" are not allowed.
      * @throws AppFunctionElementNotFoundException If the channel is not in the user's list.
      * @throws AppFunctionDeniedException If the user is not logged in or set Chatter to only read;
      *   tell them to change that in Chatter.

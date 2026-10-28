@@ -765,8 +765,8 @@
     <string name="model_state_ready">Gemini Nano ist bereit</string>
     <string name="model_download">Herunterladen</string>
     <string name="model_check_again">Erneut prüfen</string>
-    <string name="settings_assistant">Assistenten Chatter bedienen lassen</string>
-    <string name="settings_assistant_hint">Wenn du sie darum bittest, können Gemini und andere Assistenten auf deinem Handy deine Kanäle auflisten, deine Erwähnungen lesen, einen Kanal öffnen und als du schreiben. Was sie dabei bekommen, geht an den Assistenten.</string>
+    <string name="settings_assistant">Assistenten-Zugriff</string>
+    <string name="settings_assistant_hint">Gemini &amp; Co. helfen auf Zuruf, z. B. „Schreib in xqc gg“ oder „Hab ich neue Erwähnungen?“</string>
     <string name="settings_assistant_unsupported">Braucht Android 16 oder neuer.</string>
     <string name="app_functions_description">Deine Twitch-Kanäle und Erwähnungen lesen, einen Chat öffnen und darin schreiben</string>
     <string name="catch_up_action">Zusammenfassen</string>

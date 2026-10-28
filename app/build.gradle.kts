@@ -58,6 +58,13 @@ val sideloaded = (project.findProperty("distribution") as String?) == "github"
 val sponsorLink = sponsoring && sideloaded
 
 /**
+ * Whether assistants may be let into Chatter (Settings → Beta features). Off while Gemini only calls
+ * the AppFunctions of apps in Google's preview; the functions are built, tested and waiting.
+ * Turning it on also brings back the assistant sections of the privacy policy and data safety notes.
+ */
+val assistantAccess = false
+
+/**
  * The two build types the baselineprofile plugin adds: the one the profile is recorded on and the
  * one the macrobenchmark measures. A separate app, since the connected test wipes it and uninstalls
  * it afterwards, and the only builds that can be told to read a channel as a guest (see
@@ -80,6 +87,7 @@ android {
         versionName = versionProps.getProperty("version")
         buildConfigField("String", "TWITCH_CLIENT_ID", "\"$twitchClientId\"")
         buildConfigField("boolean", "SPONSORING", "$sponsoring")
+        buildConfigField("boolean", "ASSISTANT_ACCESS", "$assistantAccess")
         // True only in profilingBuildTypes.
         buildConfigField("boolean", "PROFILING", "false")
 

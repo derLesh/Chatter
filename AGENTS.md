@@ -83,6 +83,12 @@ asking for a supporter list nobody serves, and the two workflows below have thei
 commented out. Everything is built and tested and waiting; turning it on is that one line and
 those two triggers.
 
+Letting assistants into Chatter is **switched off** the same way: `assistantAccess` in
+`app/build.gradle.kts` hides its switch under Settings → Beta features, because Gemini only calls
+the AppFunctions of apps in Google's preview. The functions in `assistant/` are built and tested
+with `adb shell cmd app_function`. Turning it on is that line plus the assistant sections of the
+privacy policy and `data-safety.md`, as commit 81a8da3 had them.
+
 `.github/workflows/sponsors.yml` folds what GitHub Sponsors knows into `docs/supporters.json`.
 Its schedule is commented out for now, so it only runs when started by hand; put it back once
 `SPONSORS_TOKEN` exists. It is meant to run every few hours — GitHub has no trigger for "somebody sponsored", so it asks. It writes every
