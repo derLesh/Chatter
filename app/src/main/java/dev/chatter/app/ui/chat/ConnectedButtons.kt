@@ -77,7 +77,7 @@ internal fun ConnectedButtons(
                 else -> ButtonGroupDefaults.connectedMiddleButtonShapes()
             }
             val shapes = joined?.let { ButtonShapes(it.shape, it.pressedShape) } ?: ButtonDefaults.shapes()
-            val size = Modifier.weight(1f).heightIn(min = if (compact) 32.dp else 40.dp)
+            val size = Modifier.weight(1f).heightIn(min = minHeight(compact))
             if (action.choices.isNotEmpty()) {
                 ChoicesButton(action, shapes, tonal, compact, size)
             } else {
@@ -122,7 +122,9 @@ private fun PartButton(
 private fun ChoicesButton(action: ButtonAction, shapes: ButtonShapes, tonal: Boolean, compact: Boolean, modifier: Modifier) {
     var open by remember { mutableStateOf(false) }
     Box(modifier) {
-        PartButton(action, shapes, tonal, compact, Modifier.fillMaxWidth(), onClick = { open = true }) {
+        // The box hands no minimum height down, so the button would fall back to its own, taller one.
+        val fill = Modifier.fillMaxWidth().heightIn(min = minHeight(compact))
+        PartButton(action, shapes, tonal, compact, fill, onClick = { open = true }) {
             ButtonContent(action, compact)
             Icon(
                 Icons.Default.KeyboardArrowDown,
@@ -157,6 +159,8 @@ private fun ButtonContent(action: ButtonAction, compact: Boolean) {
         overflow = TextOverflow.Ellipsis,
     )
 }
+
+private fun minHeight(compact: Boolean) = if (compact) 32.dp else 40.dp
 
 private val RowPadding = PaddingValues(horizontal = 8.dp, vertical = 8.dp)
 private val CompactRowPadding = PaddingValues(horizontal = 6.dp, vertical = 4.dp)
