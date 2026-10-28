@@ -253,6 +253,8 @@ dependencies {
     implementation(libs.coil.network.okhttp)
     implementation(libs.kotlinx.serialization.json)
     implementation(libs.kotlinx.coroutines.android)
+    // Gemini Nano on the phone, for the catch-up summary; see OnDeviceModel.
+    implementation(libs.mlkit.genai.prompt)
 
     testImplementation(libs.junit)
     // Lets tests control coroutines and dispatcher clocks.

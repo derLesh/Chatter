@@ -44,11 +44,13 @@
 <p class="lang"><a href="#deutsch">Auf Deutsch lesen →</a></p>
 
 <h1>Chatter — Privacy Policy</h1>
-<p class="sub">Last updated: 17 October 2026</p>
+<p class="sub">Last updated: 28 October 2026</p>
 
 <p>Chatter is an independent Twitch chat client for Android with public source code. It has no backend of its
 own: there is no Chatter server, no account with Chatter, and no analytics, crash reporting or
-advertising in the app. This policy describes what stays on your phone and what leaves it.</p>
+advertising in the app. The one exception is a beta feature that is off until you turn it on; see
+&ldquo;Summaries on your phone&rdquo; below. This policy describes what stays on your phone and what
+leaves it.</p>
 
 <h2>What Chatter stores on your device</h2>
 <p>All of the following is kept in Chatter's private app storage and never sent anywhere by the
@@ -182,6 +184,17 @@ carries the post's author and number, and the pictures come from Bluesky's serve
 asked for when its message is on your screen, never for a chat running in the background, and not
 while the battery saver is on or Chatter saves data.</p>
 
+<p><strong>Summaries on your phone (beta).</strong> With &ldquo;Sum up what you missed&rdquo; on
+(Settings &rarr; Beta features), which it is not until you turn it on, Chatter can ask Gemini Nano
+what happened in a chat while you were away. Gemini Nano is a language model that Android's AICore
+runs on the phone itself: the chat messages you have it sum up are processed on the device and are
+not sent anywhere. Chatter reaches it through Google's ML Kit, and ML Kit sends Google diagnostic
+and usage data about it &mdash; such as the phone model, the Android version, the language set, how
+long a request took, how large it was and any error code &mdash; together with an identifier for the
+installation. It does not send the chat or the summary. Google handles this data under its own
+privacy policy. With the switch off, ML Kit is never started. If the phone does not have Gemini Nano
+yet, AICore may download it from Google.</p>
+
 <h2>Notifications and the background connection</h2>
 <p>To notify you about mentions and whispers while the app is closed, Chatter keeps a chat
 connection open in a foreground service, which Android shows as an ongoing notification. Twitch
@@ -217,12 +230,13 @@ Twitch Interactive, Inc.</p>
 <hr>
 
 <h1 id="deutsch">Chatter — Datenschutzerklärung</h1>
-<p class="sub">Zuletzt aktualisiert: 17. Oktober 2026</p>
+<p class="sub">Zuletzt aktualisiert: 28. Oktober 2026</p>
 
 <p>Chatter ist ein unabhängiger Twitch-Chat-Client für Android mit öffentlichem Quellcode. Die App hat kein
 eigenes Backend: Es gibt keinen Chatter-Server, kein Konto bei Chatter und in der App weder
-Analyse- noch Absturzberichte oder Werbung. Diese Erklärung beschreibt, was auf dem Telefon bleibt
-und was es verlässt.</p>
+Analyse- noch Absturzberichte oder Werbung. Die einzige Ausnahme ist eine Beta-Funktion, die aus
+ist, bis du sie einschaltest; siehe &bdquo;Zusammenfassungen auf dem Gerät&ldquo; unten. Diese
+Erklärung beschreibt, was auf dem Telefon bleibt und was es verlässt.</p>
 
 <h2>Was Chatter auf dem Gerät speichert</h2>
 <p>Alles Folgende liegt im privaten App-Speicher von Chatter und wird von der Entwicklung nirgendwohin
@@ -360,6 +374,18 @@ Bluesky, so wie es die eigene App von Bluesky tut: Die Anfrage enthält Autor un
 die Bilder kommen von den Servern von Bluesky. Ein Post wird erst abgefragt, wenn seine Nachricht
 auf dem Bildschirm ist, nie für einen Chat im Hintergrund, und nicht im Akkusparmodus oder während
 Chatter Daten spart.</p>
+
+<p><strong>Zusammenfassungen auf dem Gerät (Beta).</strong> Ist &bdquo;Verpasstes
+zusammenfassen&ldquo; eingeschaltet (Einstellungen &rarr; Beta-Funktionen), was es nicht ist, bis du
+es einschaltest, kann Chatter Gemini Nano fragen, was in einem Chat passiert ist, während du weg
+warst. Gemini Nano ist ein Sprachmodell, das AICore von Android auf dem Telefon selbst ausführt: Die
+Chatnachrichten, die du zusammenfassen lässt, werden auf dem Gerät verarbeitet und nirgendwohin
+gesendet. Chatter erreicht es über ML Kit von Google, und ML Kit sendet Google Diagnose- und
+Nutzungsdaten dazu &ndash; etwa Gerätemodell, Android-Version, eingestellte Sprache, wie lange eine
+Anfrage gedauert hat, wie groß sie war und einen etwaigen Fehlercode &ndash; zusammen mit einer
+Kennung der Installation. Den Chat und die Zusammenfassung sendet es nicht. Google behandelt diese
+Daten nach seiner eigenen Datenschutzerklärung. Ist der Schalter aus, wird ML Kit nie gestartet. Hat
+das Telefon Gemini Nano noch nicht, lädt AICore es unter Umständen von Google herunter.</p>
 
 <h2>Benachrichtigungen und die Hintergrundverbindung</h2>
 <p>Damit Erwähnungen und Whispers auch bei geschlossener App ankommen, hält Chatter die

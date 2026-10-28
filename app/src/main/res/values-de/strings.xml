@@ -751,4 +751,33 @@
     <string name="live_channels_followed">Andere gefolgte Kanäle</string>
     <string name="live_channels_loading">Frage Twitch, wem du folgst…</string>
     <string name="live_channels_none">Keine weiteren gefolgten Kanäle</string>
+    <!-- Beta-Funktionen -->
+    <string name="beta">Beta</string>
+    <string name="settings_beta">Beta-Funktionen</string>
+    <string name="settings_beta_summary">Neues ausprobieren, das noch nicht fertig ist</string>
+    <string name="settings_beta_intro">Diese Funktionen sind neu. Sie können sich ändern, ausfallen oder wieder verschwinden.</string>
+    <string name="settings_catch_up">Verpasstes zusammenfassen</string>
+    <string name="settings_catch_up_hint">Ab 30 neuen Nachrichten fragt ein Knopf Gemini Nano auf deinem Handy, was passiert ist. Der Chat bleibt auf dem Handy; Googles ML Kit zählt, wie oft es benutzt wird.</string>
+    <string name="model_state_checking">Wird geprüft, ob dieses Handy das kann…</string>
+    <string name="model_state_unsupported">Dieses Handy hat kein Gemini Nano, daher geht das hier nicht.</string>
+    <string name="model_state_downloadable">Gemini Nano ist noch nicht auf diesem Handy.</string>
+    <string name="model_state_downloading">Gemini Nano wird heruntergeladen. Das kann eine Weile dauern.</string>
+    <string name="model_state_ready">Auf diesem Handy bereit</string>
+    <string name="model_download">Herunterladen</string>
+    <string name="model_check_again">Erneut prüfen</string>
+    <string name="catch_up_action">Zusammenfassen</string>
+    <string name="catch_up_title">Was du verpasst hast</string>
+    <plurals name="catch_up_subtitle">
+        <item quantity="one">%1$d Nachricht in %2$s</item>
+        <item quantity="other">%1$d Nachrichten in %2$s</item>
+    </plurals>
+    <string name="catch_up_writing">Die Zusammenfassung wird geschrieben…</string>
+    <string name="catch_up_disclaimer">Geschrieben von Gemini Nano auf deinem Handy; der Chat verlässt es nicht. Eine Zusammenfassung kann falsch sein.</string>
+    <string name="catch_up_empty">Gemini Nano hatte dazu nichts zu sagen.</string>
+    <string name="catch_up_busy">Gemini Nano ist gerade beschäftigt. Versuch es gleich noch mal.</string>
+    <string name="catch_up_quota">Android hat Chatters Anteil für heute aufgebraucht. Versuch es später noch mal.</string>
+    <string name="catch_up_unsupported">Dieses Handy kann gerade keine Zusammenfassung schreiben.</string>
+    <string name="catch_up_failed">Die Zusammenfassung hat nicht geklappt. Versuch es noch mal.</string>
+    <string name="catch_up_refused">Googles Schutzfilter auf deinem Handy hat diesen Chat abgelehnt, daher gibt es keine Zusammenfassung.</string>
+    <string name="catch_up_parts_refused">Googles Schutzfilter auf deinem Handy hat einen Teil des Chats abgelehnt; der fehlt hier.</string>
 </resources>

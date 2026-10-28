@@ -17,6 +17,7 @@ import dev.chatter.app.chat.Segment
 import dev.chatter.app.ui.channels.AddChannelDialog
 import dev.chatter.app.ui.channels.CombineChannelsDialog
 import dev.chatter.app.ui.channels.RenameChannelDialog
+import dev.chatter.app.ui.chat.CatchUpSheet
 import dev.chatter.app.ui.chat.ChannelMark
 import dev.chatter.app.ui.chat.ChatStyle
 import dev.chatter.app.ui.chat.EmoteCardSheet
@@ -62,7 +63,7 @@ class ChatSheetState {
 
 /**
  * The sheets and dialogs of the chat screen: user card, conversation, whisper, nickname, emote card
- * and picker, and adding, combining and renaming channels. [threadInput] is the input inside the
+ * and picker, catch-up summary, and adding, combining and renaming channels. [threadInput] is the input inside the
  * conversation sheet.
  */
 @Composable
@@ -106,6 +107,7 @@ fun ChatSheets(
             onDismiss = { sheets.actionItem = null },
         )
     }
+    vm.catchUp?.let { CatchUpSheet(it, onDismiss = vm::closeCatchUp) }
     sheets.threadOf?.let { opened ->
         // After an answer is sent, the next one goes to the last answered message, in the same
         // conversation.

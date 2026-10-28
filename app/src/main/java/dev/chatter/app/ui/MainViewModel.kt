@@ -13,6 +13,8 @@ import androidx.lifecycle.viewModelScope
 import dev.chatter.app.AppContainer
 import dev.chatter.app.BuildConfig
 import dev.chatter.app.R
+import dev.chatter.app.ai.ModelFailure
+import dev.chatter.app.ai.ModelTrouble
 import dev.chatter.app.auth.AuthState
 import dev.chatter.app.badges.Badge
 import dev.chatter.app.badges.BadgeProvider
@@ -63,12 +65,26 @@ import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import java.util.Locale
 
 /**
  * A snackbar message: a string resource and its argument. Resolved on screen, so a message that is
  * up follows a language change.
  */
 data class UiMessage(val text: Int, val fill: String? = null)
+
+/**
+ * A catch-up summary of [count] messages in [page], growing while the model writes it. [trouble]
+ * says why it stopped short; [refusedParts] of the chat were left out by the safety check.
+ */
+data class CatchUpSummary(
+    val page: String,
+    val count: Int,
+    val text: String = "",
+    val refusedParts: Int = 0,
+    val done: Boolean = false,
+    val trouble: ModelTrouble? = null,
+)
 
 /** A just removed channel or combined chat, with the name it was shown under. */
 class Removal(val name: String, val removed: RemovedPage)
@@ -114,6 +130,8 @@ class MainViewModel(private val c: AppContainer, savedState: SavedStateHandle) :
     val activePage = c.chat.activePage
     val modChannels = c.chat.rooms.moderated
     val powerSaveMode = c.powerSaveMode
+    /** Whether Gemini Nano can write catch-up summaries on this phone. */
+    val onDeviceModel = c.onDeviceModel.state
     val saveData = c.dataSaving.active
     val backgroundStop = c.backgroundHealth.lastStop
     val batteryRestrictions = c.backgroundHealth.restrictions
@@ -273,6 +291,43 @@ class MainViewModel(private val c: AppContainer, savedState: SavedStateHandle) :
 
     /** The messages of a channel, or of a combined chat by its key. */
     fun chat(page: String) = c.chat.messages(page)
+
+    /** The open catch-up summary; null while none is. */
+    var catchUp by mutableStateOf<CatchUpSummary?>(null)
+        private set
+    private var catchUpJob: Job? = null
+
+    /** Has Gemini Nano sum up [missed], the messages of [page] that arrived while away. */
+    fun summarize(page: String, missed: List<ChatItem>) {
+        catchUpJob?.cancel()
+        val info = c.channels.info.value
+        val name = c.channels.groups.value[page]?.displayName(info) ?: info[page]?.displayName ?: page
+        catchUp = CatchUpSummary(name, missed.size)
+        catchUpJob = viewModelScope.launch {
+            try {
+                c.onDeviceModel.summarize(
+                    channel = name,
+                    missed = missed,
+                    combined = ChannelGroup.isKey(page),
+                    language = Locale.getDefault().getDisplayLanguage(Locale.ENGLISH),
+                    ownLogin = c.auth.account?.login,
+                ).collect { catchUp = catchUp?.copy(text = it.text, refusedParts = it.refusedParts) }
+                catchUp = catchUp?.copy(done = true)
+            } catch (e: ModelFailure) {
+                catchUp = catchUp?.copy(done = true, trouble = e.trouble)
+            }
+        }
+    }
+
+    fun closeCatchUp() {
+        catchUpJob?.cancel()
+        catchUp = null
+    }
+
+    /** Asks AICore again; after a system update or once the model has arrived. */
+    fun prepareOnDeviceModel() {
+        c.scope.launch { c.onDeviceModel.prepare() }
+    }
 
     /** The channels a page reads from. */
     private fun channelsOf(page: String): List<String> =
@@ -740,6 +795,7 @@ class MainViewModel(private val c: AppContainer, savedState: SavedStateHandle) :
     fun setMessageTap(v: TapAction) = saveSetting { setMessageTap(v) }
     fun setNameTap(v: TapAction) = saveSetting { setNameTap(v) }
     fun setCopyFirst(v: Boolean) = saveSetting { setCopyFirst(v) }
+    fun setCatchUpSummary(v: Boolean) = saveSetting { setCatchUpSummary(v) }
     fun setShowDeleted(v: Boolean) = saveSetting { setShowDeleted(v) }
     fun setEmoteSuggestions(v: Boolean) = saveSetting { setEmoteSuggestions(v) }
     fun setMentionWithAt(v: Boolean) = saveSetting { setMentionWithAt(v) }

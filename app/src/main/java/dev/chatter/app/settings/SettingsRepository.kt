@@ -155,6 +155,11 @@ data class Settings(
      * Copy instead of Reply as the first action on the user card, for people who reply by tapping.
      */
     val copyFirst: Boolean = false,
+    /**
+     * Beta: offer a summary by Gemini Nano of what arrived while away. Off until turned on, since
+     * ML Kit reports usage to Google once it is used.
+     */
+    val catchUpSummary: Boolean = false,
 ) {
     /** The emote providers whose lists are loaded: none while emotes are off. */
     val emoteProvidersOn: Set<EmoteProvider> get() = if (emotesEnabled) emoteProviders else emptySet()
@@ -227,6 +232,7 @@ class SettingsRepository(
                 ?: NameColorPalette.HslLuma,
             messageTap = p[MESSAGE_TAP]?.let { v -> TapAction.entries.firstOrNull { it.name == v } } ?: TapAction.Reply,
             copyFirst = p[COPY_FIRST] ?: false,
+            catchUpSummary = p[CATCH_UP_SUMMARY] ?: false,
             nameTap = p[NAME_TAP]?.let { v -> TapAction.entries.firstOrNull { it.name == v } } ?: TapAction.UserCard,
             badgeProviders = badgeProviders(p[BADGE_PROVIDERS]),
             emoteProviders = emoteProviders(p[EMOTE_PROVIDERS]),
@@ -238,6 +244,7 @@ class SettingsRepository(
     suspend fun setMessageTap(v: TapAction) = store.edit { it[MESSAGE_TAP] = v.name }
     suspend fun setNameTap(v: TapAction) = store.edit { it[NAME_TAP] = v.name }
     suspend fun setCopyFirst(v: Boolean) = store.edit { it[COPY_FIRST] = v }
+    suspend fun setCatchUpSummary(v: Boolean) = store.edit { it[CATCH_UP_SUMMARY] = v }
     suspend fun setMessageLimit(v: Int) = store.edit { it[LIMIT] = v }
     // List settings are changed from the stored value inside one edit, so quick successive changes
     // cannot undo each other. Stored comma-separated, as they always were.
@@ -387,6 +394,7 @@ class SettingsRepository(
         p[MESSAGE_TAP] = s.messageTap.name
         p[NAME_TAP] = s.nameTap.name
         p[COPY_FIRST] = s.copyFirst
+        p[CATCH_UP_SUMMARY] = s.catchUpSummary
         p[BADGE_PROVIDERS] = s.badgeProviders.joinToString(",") { it.name }
         p[EMOTE_PROVIDERS] = s.emoteProviders.joinToString(",") { it.name }
     }
@@ -481,6 +489,7 @@ class SettingsRepository(
         val MESSAGE_TAP = stringPreferencesKey("message_tap")
         val NAME_TAP = stringPreferencesKey("name_tap")
         val COPY_FIRST = booleanPreferencesKey("copy_first")
+        val CATCH_UP_SUMMARY = booleanPreferencesKey("catch_up_summary")
         val SEEN_VERSION = stringPreferencesKey("seen_changelog_version")
         val NOTIFICATION_INTRO_SEEN = booleanPreferencesKey("notification_intro_seen")
         val ONBOARDING_SEEN = booleanPreferencesKey("onboarding_seen")

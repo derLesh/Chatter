@@ -6,6 +6,7 @@ import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.gestures.scrollBy
 import androidx.compose.foundation.interaction.DragInteraction
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -40,9 +41,11 @@ import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.res.vectorResource
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.testTagsAsResourceId
 import androidx.compose.ui.unit.IntOffset
@@ -50,8 +53,10 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil3.ImageLoader
 import dev.chatter.app.R
+import dev.chatter.app.ai.CatchUp
 import dev.chatter.app.chat.ChatItem
 import dev.chatter.app.chat.Segment
+import dev.chatter.app.ui.BetaBadge
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.filter
@@ -71,6 +76,7 @@ const val CHAT_LIST_TAG = "chat"
  * [readMark] is how far the page was read when the user last left it; newer messages get a line and
  * a chip that jumps there (see [ReadMark]). Only the page in front passes [onSeen], which receives
  * the newest message on screen, and [onMentionsSeen], which receives the visible mentions by id.
+ * [onCatchUp] offers a summary of a long stretch of new messages and receives them, oldest first.
  */
 @Composable
 fun ChatList(
@@ -86,6 +92,7 @@ fun ChatList(
     readMark: ReadMark? = null,
     onSeen: ((ReadMark) -> Unit)? = null,
     onMentionsSeen: ((Set<String>) -> Unit)? = null,
+    onCatchUp: ((List<ChatItem>) -> Unit)? = null,
 ) {
     // Deleted messages are already filtered by the repository.
     val items by messages.collectAsStateWithLifecycle()
@@ -184,21 +191,29 @@ fun ChatList(
             }
         }
         if (unseen != null && lineIndex != null && !chipDone && !lineShown) {
-            UnseenChip(
-                unseen = unseen,
-                onClick = {
-                    scope.launch {
-                        follow = false
-                        // reverseLayout puts the target row at the bottom; scrolled back a screen,
-                        // the line is at the top with the new messages below.
-                        listState.scrollToItem(lineIndex)
-                        val row = listState.layoutInfo.visibleItemsInfo.firstOrNull { it.index == lineIndex }?.size ?: 0
-                        listState.scrollBy(-(listState.layoutInfo.viewportSize.height - row).coerceAtLeast(0).toFloat())
-                        chipDone = true
-                    }
-                },
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(6.dp),
                 modifier = Modifier.align(Alignment.TopCenter).padding(top = 8.dp),
-            )
+            ) {
+                UnseenChip(
+                    unseen = unseen,
+                    onClick = {
+                        scope.launch {
+                            follow = false
+                            // reverseLayout puts the target row at the bottom; scrolled back a
+                            // screen, the line is at the top with the new messages below.
+                            listState.scrollToItem(lineIndex)
+                            val row = listState.layoutInfo.visibleItemsInfo.firstOrNull { it.index == lineIndex }?.size ?: 0
+                            listState.scrollBy(-(listState.layoutInfo.viewportSize.height - row).coerceAtLeast(0).toFloat())
+                            chipDone = true
+                        }
+                    },
+                )
+                if (onCatchUp != null && unseen.count >= CatchUp.MIN_MESSAGES) {
+                    CatchUpChip { onCatchUp(items.subList(unseen.first, items.size).toList()) }
+                }
+            }
         }
         if (!follow) {
             ExtendedFloatingActionButton(
@@ -251,7 +266,7 @@ private fun UnseenLine() {
 
 /** How much arrived while away; tapping jumps to the start of it. */
 @Composable
-private fun UnseenChip(unseen: Unseen, onClick: () -> Unit, modifier: Modifier) {
+private fun UnseenChip(unseen: Unseen, onClick: () -> Unit, modifier: Modifier = Modifier) {
     Surface(
         onClick = onClick,
         shape = CircleShape,
@@ -271,6 +286,29 @@ private fun UnseenChip(unseen: Unseen, onClick: () -> Unit, modifier: Modifier) 
                 else pluralStringResource(R.plurals.unseen_messages, unseen.count, unseen.count),
                 style = MaterialTheme.typography.labelLarge,
             )
+        }
+    }
+}
+
+/** Asks for a summary of what arrived while away; see [CatchUp]. */
+@Composable
+private fun CatchUpChip(onClick: () -> Unit) {
+    Surface(
+        onClick = onClick,
+        shape = CircleShape,
+        color = MaterialTheme.colorScheme.tertiaryContainer,
+        contentColor = MaterialTheme.colorScheme.onTertiaryContainer,
+        shadowElevation = 3.dp,
+    ) {
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            modifier = Modifier.padding(start = 12.dp, end = 10.dp, top = 6.dp, bottom = 6.dp),
+        ) {
+            Icon(ImageVector.vectorResource(R.drawable.ic_auto_awesome), contentDescription = null, modifier = Modifier.size(18.dp))
+            Spacer(Modifier.width(6.dp))
+            Text(stringResource(R.string.catch_up_action), style = MaterialTheme.typography.labelLarge)
+            Spacer(Modifier.width(8.dp))
+            BetaBadge()
         }
     }
 }

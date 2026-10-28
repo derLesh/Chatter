@@ -21,6 +21,7 @@ import coil3.network.okhttp.OkHttpNetworkFetcherFactory
 import coil3.request.crossfade
 import coil3.request.maxBitmapSize
 import coil3.size.Size
+import dev.chatter.app.ai.OnDeviceModel
 import dev.chatter.app.auth.AuthRepository
 import dev.chatter.app.auth.AuthState
 import dev.chatter.app.badges.BadgeRepository
@@ -81,6 +82,7 @@ import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.drop
+import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
@@ -217,6 +219,9 @@ class AppContainer(
     private val shortcuts = ChannelShortcuts(context, channels.identities, channelIcons, scope)
     val liveAlerts = LiveAlerts(helix, auth, channels, settings.settings, activeUserId, chat.windows.anyVisible, notifier, scope)
 
+    /** Gemini Nano, for the catch-up summary (beta). */
+    val onDeviceModel = OnDeviceModel()
+
     private val _powerSaveMode = MutableStateFlow(false)
     /** True while Android's battery saver is on. */
     val powerSaveMode: StateFlow<Boolean> = _powerSaveMode
@@ -233,6 +238,10 @@ class AppContainer(
         // A provider switched on is loaded now; one switched off is no longer waited for.
         scope.launch {
             settings.settings.map { it.emoteProvidersOn }.distinctUntilChanged().drop(1).collect { emotes.retryMissing() }
+        }
+        // Only once the beta is on; until then ML Kit is not touched at all.
+        scope.launch {
+            settings.settings.map { it.catchUpSummary }.distinctUntilChanged().filter { it }.collect { onDeviceModel.prepare() }
         }
         sevenTvLive.start()
         shortcuts.start()

@@ -1,0 +1,1 @@
+minor: Beta: let Gemini Nano sum up on your phone what you missed in a busy chat, under Settings → Beta features

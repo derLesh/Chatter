@@ -79,6 +79,7 @@ import dev.chatter.app.ui.settings.AccountSummaryCard
 import dev.chatter.app.ui.settings.AppearancePage
 import dev.chatter.app.ui.settings.BADGE_PROVIDERS
 import dev.chatter.app.ui.settings.BackupPage
+import dev.chatter.app.ui.settings.BetaPage
 import dev.chatter.app.ui.settings.BlockedUsersPage
 import dev.chatter.app.ui.settings.CategoryIcon
 import dev.chatter.app.ui.settings.ChannelsPage
@@ -138,6 +139,8 @@ private enum class SettingsPage(
     Stats(R.string.settings_stats, R.string.settings_stats_summary, SettingsSection.Data, { drawableIcon(R.drawable.ic_bar_chart) }),
     Backup(R.string.settings_group_backup, R.string.settings_backup_summary, SettingsSection.Data, { drawableIcon(R.drawable.ic_backup) }),
     /** Only in the build people install themselves; see SPONSOR_LINK in build.gradle.kts. */
+    /** What is new and not finished; marked as beta wherever it shows. */
+    Beta(R.string.settings_beta, R.string.settings_beta_summary, SettingsSection.App, { drawableIcon(R.drawable.ic_auto_awesome) }),
     Support(R.string.settings_support, R.string.settings_support_summary, SettingsSection.App, { Icons.Default.Favorite }),
     About(R.string.settings_about, R.string.settings_about_summary, SettingsSection.App, { Icons.Default.Info }),
     /** Only in debug builds. */
@@ -261,6 +264,7 @@ private val SEARCH_INDEX: List<SearchEntry> by lazy {
         add(SearchEntry(R.string.backup_import, backup, R.string.backup_import_hint))
         val account = SettingsPage.Account
         add(SearchEntry(R.string.settings_group_accounts, account, also = listOf(R.string.logout, R.string.account_add_short)))
+        add(SearchEntry(R.string.settings_catch_up, SettingsPage.Beta, R.string.settings_catch_up_hint))
         val about = SettingsPage.About
         add(SearchEntry(R.string.settings_changelog, about, R.string.settings_changelog_summary))
         add(SearchEntry(R.string.settings_source_code, about, R.string.settings_source_code_summary))
@@ -457,6 +461,7 @@ fun SettingsScreen(vm: MainViewModel, onBack: () -> Unit) {
                         // Same account: Twitch's session can stay, it only asks to grant the rest.
                         onReauthorize = { addAccount = TwitchLogin(vm.reauthorizeUrl(), signedOut = false) },
                     )
+                    SettingsPage.Beta -> BetaPage(settings, vm)
                     SettingsPage.Support -> SupportPage(vm)
                     SettingsPage.About -> AboutPage(settings, vm) { subPage = it }
                     SettingsPage.Developer -> DeveloperPage(vm)

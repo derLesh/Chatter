@@ -49,6 +49,7 @@ import androidx.lifecycle.repeatOnLifecycle
 import coil3.ImageLoader
 import dev.chatter.app.BuildConfig
 import dev.chatter.app.R
+import dev.chatter.app.ai.ModelState
 import dev.chatter.app.auth.AuthState
 import dev.chatter.app.channels.ChannelInfo
 import dev.chatter.app.chat.ChatRestriction
@@ -129,6 +130,9 @@ fun MainScreen(vm: MainViewModel, onInbox: () -> Unit, onSettings: () -> Unit) {
     val pagerState = rememberPagerState(initialPage = pages.pageOf(pageKeys.indexOf(active).coerceAtLeast(0))) { pages.count }
 
     val sheets = remember { ChatSheetState() }
+
+    val modelState by vm.onDeviceModel.collectAsStateWithLifecycle()
+    val canCatchUp = settings.catchUpSummary && modelState == ModelState.Ready
 
     // Animated emotes are the most expensive part of the screen; battery saver and data saving
     // still them like the setting does, and also stop linked images (see rememberChatStyle).
@@ -345,6 +349,7 @@ fun MainScreen(vm: MainViewModel, onInbox: () -> Unit, onSettings: () -> Unit) {
                         readMark = vm.readMark(channel),
                         onSeen = if (channel == active) { mark -> vm.onSeen(channel, mark) } else null,
                         onMentionsSeen = if (channel == active) vm::onMentionsSeen else null,
+                        onCatchUp = if (canCatchUp && channel == active) { missed -> vm.summarize(channel, missed) } else null,
                         style = style,
                         imageLoader = loader,
                         onGesture = { item, gesture ->
