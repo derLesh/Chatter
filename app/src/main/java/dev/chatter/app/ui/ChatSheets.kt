@@ -102,7 +102,7 @@ fun ChatSheets(
             onMention = if (settings.readOnly) null else ({ vm.mention(item) }),
             onWhisper = { userId -> sheets.whisperTo = item to userId },
             onDelete = { vm.deleteMessage(item) },
-            onTimeout = { vm.timeoutUser(item) },
+            onTimeout = { vm.timeoutUser(item, it) },
             onBan = { vm.banUser(item) },
             onDismiss = { sheets.actionItem = null },
         )

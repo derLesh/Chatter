@@ -103,7 +103,8 @@ fun UserCardSheet(
     onMention: (() -> Unit)?,
     onWhisper: (userId: String?) -> Unit,
     onDelete: () -> Unit,
-    onTimeout: () -> Unit,
+    /** Seconds; see [TIMEOUTS]. */
+    onTimeout: (Int) -> Unit,
     onBan: () -> Unit,
     onDismiss: () -> Unit,
 ) {
@@ -204,7 +205,12 @@ fun UserCardSheet(
                     val actions = listOfNotNull(
                         ButtonAction(R.string.action_delete, Icons.Default.Delete) { onDelete(); onDismiss() }
                             .takeIf { !item.id.startsWith("local-") && !item.deleted },
-                        ButtonAction(R.string.action_timeout, Icons.Default.Warning) { onTimeout(); onDismiss() },
+                        ButtonAction(
+                            R.string.action_timeout,
+                            Icons.Default.Warning,
+                            choices = TIMEOUTS.map { (label, seconds) -> ButtonChoice(label) { onTimeout(seconds); onDismiss() } },
+                            choicesLabel = R.string.timeout_choose,
+                        ) { onTimeout(DEFAULT_TIMEOUT); onDismiss() },
                         ButtonAction(R.string.action_ban, Icons.Default.Lock, danger = true) { onBan(); onDismiss() },
                     )
                     ConnectedButtons(
@@ -386,6 +392,16 @@ private fun BadgeRow(item: ChatItem, imageLoader: ImageLoader) {
 }
 
 /** Buttons share the row; labels are cut instead of wrapping. */
+/** The lengths offered behind Timeout, in seconds; tapping Timeout itself takes [DEFAULT_TIMEOUT]. */
+private val TIMEOUTS = listOf(
+    R.string.timeout_1m to 60,
+    R.string.timeout_10m to 600,
+    R.string.timeout_1h to 3_600,
+    R.string.timeout_1d to 86_400,
+)
+
+private const val DEFAULT_TIMEOUT = 600
+
 private fun formatDate(iso: String?): String? = iso?.takeIf { it.isNotEmpty() }?.let {
     runCatching {
         Instant.parse(it).atZone(ZoneId.systemDefault()).toLocalDate()

@@ -173,6 +173,11 @@
     <!-- Commands & moderation -->
     <string name="action_delete">Delete</string>
     <string name="action_timeout">Timeout</string>
+    <string name="timeout_choose">Choose how long</string>
+    <string name="timeout_1m">1 minute</string>
+    <string name="timeout_10m">10 minutes</string>
+    <string name="timeout_1h">1 hour</string>
+    <string name="timeout_1d">1 day</string>
     <string name="action_ban">Ban</string>
     <string name="settings_appearance">Appearance</string>
     <string name="theme_system">System</string>
