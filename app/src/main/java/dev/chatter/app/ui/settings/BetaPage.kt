@@ -1,5 +1,6 @@
 package dev.chatter.app.ui.settings
 
+import android.os.Build
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -40,24 +41,36 @@ internal fun BetaPage(settings: Settings, vm: MainViewModel) {
             BetaSwitchItem(R.string.settings_catch_up, settings.catchUpSummary, vm::setCatchUpSummary, R.string.settings_catch_up_hint)
         }
         if (settings.catchUpSummary) item { ModelStateItem(vm) }
+        item(R.string.settings_assistant) {
+            // AppFunctions came with Android 16.
+            val supported = Build.VERSION.SDK_INT >= Build.VERSION_CODES.BAKLAVA
+            BetaSwitchItem(
+                R.string.settings_assistant,
+                settings.assistantActions && supported,
+                vm::setAssistantActions,
+                if (supported) R.string.settings_assistant_hint else R.string.settings_assistant_unsupported,
+                enabled = supported,
+            )
+        }
     }
 }
 
 /** Like [SwitchItem], with the beta mark next to the title. */
 @Composable
-private fun BetaSwitchItem(res: Int, checked: Boolean, onChange: (Boolean) -> Unit, hint: Int) {
+private fun BetaSwitchItem(res: Int, checked: Boolean, onChange: (Boolean) -> Unit, hint: Int, enabled: Boolean = true) {
     ListItem(
         headlineContent = {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Text(stringResource(res))
+                // A long title wraps instead of squeezing the mark into a column of letters.
+                Text(stringResource(res), Modifier.weight(1f, fill = false))
                 Spacer(Modifier.width(8.dp))
                 BetaBadge()
             }
         },
         supportingContent = { Text(stringResource(hint)) },
-        trailingContent = { Switch(checked = checked, onCheckedChange = onChange) },
+        trailingContent = { Switch(checked = checked, onCheckedChange = onChange, enabled = enabled) },
         colors = transparentItem(),
-        modifier = Modifier.clickable { onChange(!checked) },
+        modifier = Modifier.clickable(enabled = enabled) { onChange(!checked) },
     )
 }
 

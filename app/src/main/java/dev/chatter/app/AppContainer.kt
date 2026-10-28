@@ -22,6 +22,7 @@ import coil3.request.crossfade
 import coil3.request.maxBitmapSize
 import coil3.size.Size
 import dev.chatter.app.ai.OnDeviceModel
+import dev.chatter.app.assistant.AssistantAccess
 import dev.chatter.app.auth.AuthRepository
 import dev.chatter.app.auth.AuthState
 import dev.chatter.app.badges.BadgeRepository
@@ -221,6 +222,7 @@ class AppContainer(
 
     /** Gemini Nano, for the catch-up summary (beta). */
     val onDeviceModel = OnDeviceModel()
+    private val assistantAccess = AssistantAccess(context)
 
     private val _powerSaveMode = MutableStateFlow(false)
     /** True while Android's battery saver is on. */
@@ -242,6 +244,9 @@ class AppContainer(
         // Only once the beta is on; until then ML Kit is not touched at all.
         scope.launch {
             settings.settings.map { it.catchUpSummary }.distinctUntilChanged().filter { it }.collect { onDeviceModel.prepare() }
+        }
+        scope.launch {
+            settings.settings.map { it.assistantActions }.distinctUntilChanged().collect { assistantAccess.allow(it) }
         }
         sevenTvLive.start()
         shortcuts.start()

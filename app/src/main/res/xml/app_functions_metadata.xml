@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- What an assistant reads about Chatter before it uses the functions in ChatterFunctions.kt. -->
+<AppFunctionAppMetadata xmlns:appfn="http://schemas.android.com/apk/androidx.appfunctions"
+    appfn:displayDescription="@string/app_functions_description"
+    appfn:instructions="Chatter is a Twitch chat client. Functions act on the channels in the user's Chatter list, as the Twitch account logged in to Chatter.
+Operational patterns:
+- Resolve a channel with 'listChannels' first and pass its login to 'openChannel' or 'sendChatMessage'.
+- 'listChannels' also answers which channels are live and where unread messages wait.
+Constraints:
+- 'sendChatMessage' posts publicly under the user's name; confirm the exact text with the user first. Twitch commands are refused.
+- Messages are limited to 500 characters." />

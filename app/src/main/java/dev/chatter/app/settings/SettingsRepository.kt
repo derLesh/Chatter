@@ -160,6 +160,11 @@ data class Settings(
      * ML Kit reports usage to Google once it is used.
      */
     val catchUpSummary: Boolean = false,
+    /**
+     * Beta: let Gemini and other assistants list channels and mentions, open a channel and write in
+     * one, through Android's AppFunctions. Off until turned on: it writes as the user.
+     */
+    val assistantActions: Boolean = false,
 ) {
     /** The emote providers whose lists are loaded: none while emotes are off. */
     val emoteProvidersOn: Set<EmoteProvider> get() = if (emotesEnabled) emoteProviders else emptySet()
@@ -233,6 +238,7 @@ class SettingsRepository(
             messageTap = p[MESSAGE_TAP]?.let { v -> TapAction.entries.firstOrNull { it.name == v } } ?: TapAction.Reply,
             copyFirst = p[COPY_FIRST] ?: false,
             catchUpSummary = p[CATCH_UP_SUMMARY] ?: false,
+            assistantActions = p[ASSISTANT_ACTIONS] ?: false,
             nameTap = p[NAME_TAP]?.let { v -> TapAction.entries.firstOrNull { it.name == v } } ?: TapAction.UserCard,
             badgeProviders = badgeProviders(p[BADGE_PROVIDERS]),
             emoteProviders = emoteProviders(p[EMOTE_PROVIDERS]),
@@ -245,6 +251,7 @@ class SettingsRepository(
     suspend fun setNameTap(v: TapAction) = store.edit { it[NAME_TAP] = v.name }
     suspend fun setCopyFirst(v: Boolean) = store.edit { it[COPY_FIRST] = v }
     suspend fun setCatchUpSummary(v: Boolean) = store.edit { it[CATCH_UP_SUMMARY] = v }
+    suspend fun setAssistantActions(v: Boolean) = store.edit { it[ASSISTANT_ACTIONS] = v }
     suspend fun setMessageLimit(v: Int) = store.edit { it[LIMIT] = v }
     // List settings are changed from the stored value inside one edit, so quick successive changes
     // cannot undo each other. Stored comma-separated, as they always were.
@@ -395,6 +402,7 @@ class SettingsRepository(
         p[NAME_TAP] = s.nameTap.name
         p[COPY_FIRST] = s.copyFirst
         p[CATCH_UP_SUMMARY] = s.catchUpSummary
+        p[ASSISTANT_ACTIONS] = s.assistantActions
         p[BADGE_PROVIDERS] = s.badgeProviders.joinToString(",") { it.name }
         p[EMOTE_PROVIDERS] = s.emoteProviders.joinToString(",") { it.name }
     }
@@ -490,6 +498,7 @@ class SettingsRepository(
         val NAME_TAP = stringPreferencesKey("name_tap")
         val COPY_FIRST = booleanPreferencesKey("copy_first")
         val CATCH_UP_SUMMARY = booleanPreferencesKey("catch_up_summary")
+        val ASSISTANT_ACTIONS = booleanPreferencesKey("assistant_actions")
         val SEEN_VERSION = stringPreferencesKey("seen_changelog_version")
         val NOTIFICATION_INTRO_SEEN = booleanPreferencesKey("notification_intro_seen")
         val ONBOARDING_SEEN = booleanPreferencesKey("onboarding_seen")

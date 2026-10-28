@@ -796,6 +796,7 @@ class MainViewModel(private val c: AppContainer, savedState: SavedStateHandle) :
     fun setNameTap(v: TapAction) = saveSetting { setNameTap(v) }
     fun setCopyFirst(v: Boolean) = saveSetting { setCopyFirst(v) }
     fun setCatchUpSummary(v: Boolean) = saveSetting { setCatchUpSummary(v) }
+    fun setAssistantActions(v: Boolean) = saveSetting { setAssistantActions(v) }
     fun setShowDeleted(v: Boolean) = saveSetting { setShowDeleted(v) }
     fun setEmoteSuggestions(v: Boolean) = saveSetting { setEmoteSuggestions(v) }
     fun setMentionWithAt(v: Boolean) = saveSetting { setMentionWithAt(v) }

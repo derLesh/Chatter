@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
-<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
 
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
@@ -84,5 +85,26 @@
                 android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
                 android:value="Holds the user's own Twitch chat session open (IRC over WebSocket) so that mentions and whispers addressed to them can be delivered as notifications the moment they arrive. Twitch publishes no push API for chat messages, so there is no FCM path to this data and the connection is the only source. The service is started by the user joining a channel, runs only while they have channels joined, and stops when they leave or log out. No other foregroundServiceType describes an interactive chat session: it is not media, location, data transfer, or device sync." />
         </service>
+
+        <!--
+            What Gemini and other assistants may do in Chatter (assistant/ChatterFunctions.kt). KSP
+            writes the service class and the function list; Android only binds it for an assistant.
+        -->
+        <service
+            android:name=".assistant.ChatterAppFunctionService"
+            android:exported="true"
+            android:permission="android.permission.BIND_APP_FUNCTION_SERVICE"
+            tools:targetApi="36">
+            <property
+                android:name="android.app.appfunctions.v2"
+                android:value="chatter_app_functions.xml" />
+            <intent-filter>
+                <action android:name="android.app.appfunctions.AppFunctionService" />
+            </intent-filter>
+        </service>
+
+        <property
+            android:name="android.app.appfunctions.app_metadata"
+            android:resource="@xml/app_functions_metadata" />
     </application>
 </manifest>

@@ -265,6 +265,7 @@ private val SEARCH_INDEX: List<SearchEntry> by lazy {
         val account = SettingsPage.Account
         add(SearchEntry(R.string.settings_group_accounts, account, also = listOf(R.string.logout, R.string.account_add_short)))
         add(SearchEntry(R.string.settings_catch_up, SettingsPage.Beta, R.string.settings_catch_up_hint))
+        add(SearchEntry(R.string.settings_assistant, SettingsPage.Beta, R.string.settings_assistant_hint))
         val about = SettingsPage.About
         add(SearchEntry(R.string.settings_changelog, about, R.string.settings_changelog_summary))
         add(SearchEntry(R.string.settings_source_code, about, R.string.settings_source_code_summary))

@@ -8,6 +8,7 @@ plugins {
     alias(libs.plugins.kotlin.compose)
     alias(libs.plugins.kotlin.serialization)
     alias(libs.plugins.androidx.baselineprofile)
+    alias(libs.plugins.ksp)
 }
 
 // The Twitch Client ID is in local.properties (not committed): twitch.clientId=...
@@ -227,6 +228,11 @@ androidComponents {
     }
 }
 
+ksp {
+    // Collects the app's functions into the one index Android reads; without it none are found.
+    arg("appfunctions:aggregateAppFunctions", "true")
+}
+
 dependencies {
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.activity.compose)
@@ -255,6 +261,9 @@ dependencies {
     implementation(libs.kotlinx.coroutines.android)
     // Gemini Nano on the phone, for the catch-up summary; see OnDeviceModel.
     implementation(libs.mlkit.genai.prompt)
+    // What Gemini and other assistants may do in Chatter; see assistant/ChatterFunctions.
+    implementation(libs.androidx.appfunctions)
+    ksp(libs.androidx.appfunctions.compiler)
 
     testImplementation(libs.junit)
     // Lets tests control coroutines and dispatcher clocks.

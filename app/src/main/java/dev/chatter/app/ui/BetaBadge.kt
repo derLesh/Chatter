@@ -25,6 +25,8 @@ fun BetaBadge(modifier: Modifier = Modifier) {
             stringResource(R.string.beta).uppercase(),
             style = MaterialTheme.typography.labelSmall,
             fontWeight = FontWeight.Bold,
+            maxLines = 1,
+            softWrap = false,
             modifier = Modifier.padding(horizontal = 6.dp, vertical = 1.dp),
         )
     }
