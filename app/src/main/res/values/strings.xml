@@ -625,6 +625,7 @@
     <string name="whisper_new_hint">Your message</string>
     <string name="action_whisper">Whisper</string>
     <string name="action_open_on_twitch">Open on Twitch</string>
+    <string name="more_options">More options</string>
     <string name="user_avatar">Profile picture of %1$s</string>
     <string name="whisper_error_empty">Nothing to whisper</string>
     <string name="whisper_error_scope">Chatter may not send whispers yet - sign out and in again to allow it</string>

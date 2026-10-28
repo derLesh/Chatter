@@ -195,8 +195,13 @@ fun InputBar(
                 onClick = onSend,
                 shapes = IconButtonDefaults.shapes(),
                 enabled = canSend,
+                // Spelled out: the defaults drew the arrow too faint to make out on the filled
+                // button, and the empty one should look like the plain button it replaces.
                 colors = IconButtonDefaults.filledIconButtonColors(
+                    containerColor = MaterialTheme.colorScheme.primary,
+                    contentColor = MaterialTheme.colorScheme.onPrimary,
                     disabledContainerColor = Color.Transparent,
+                    disabledContentColor = MaterialTheme.colorScheme.onSurfaceVariant,
                 ),
                 modifier = Modifier.padding(start = 4.dp),
             ) {

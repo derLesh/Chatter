@@ -1,1 +1,1 @@
-patch: Give the app the springy motion and shapes of Material 3 Expressive, from settings icons to the send button
+patch: Join the buttons on user and emote cards, put rare user actions in a menu and fill the send button when ready

@@ -4,6 +4,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -26,18 +27,23 @@ import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.MailOutline
+import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.ButtonGroupDefaults
 import androidx.compose.material3.ButtonShapes
-import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
+import androidx.compose.material3.DropdownMenuGroup
+import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.DropdownMenuPopup
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.MenuDefaults
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Surface
@@ -119,7 +125,37 @@ fun UserCardSheet(
     ModalBottomSheet(onDismissRequest = onDismiss, containerColor = MaterialTheme.colorScheme.surfaceContainerLow) {
         LazyColumn(Modifier.fillMaxWidth()) {
             if (isUserMessage) {
-                item { Header(item, user, style, imageLoader, onNickname, onAvatar = { avatarOpen = true }) }
+                item {
+                    // Everything about the person that is rarely needed: one tap away in a menu,
+                    // with the harsh actions in a group of their own.
+                    val uriHandler = LocalUriHandler.current
+                    val openIcon = ImageVector.vectorResource(R.drawable.ic_open_in_new)
+                    val reportIcon = ImageVector.vectorResource(R.drawable.ic_report_flag)
+                    val menu = listOf(
+                        listOfNotNull(
+                            ButtonAction(R.string.action_whisper, Icons.Default.MailOutline) {
+                                onWhisper(user?.id)
+                                onDismiss()
+                            }.takeIf { !guest && !item.isOwn },
+                            ButtonAction(R.string.nickname_title, Icons.Default.Edit, onClick = onNickname),
+                            item.login?.let { login ->
+                                ButtonAction(R.string.action_open_on_twitch, openIcon) { uriHandler.openUri("https://www.twitch.tv/$login") }
+                            },
+                        ),
+                        if (item.isOwn) emptyList() else listOfNotNull(
+                            // Blocking needs the profile's Twitch id; reporting works without it.
+                            user?.let { user ->
+                                ButtonAction(
+                                    label = if (blocked) R.string.action_unblock else R.string.action_block,
+                                    icon = if (blocked) Icons.Default.Check else Icons.Default.Clear,
+                                    danger = !blocked,
+                                ) { onBlock(user, !blocked); onDismiss() }
+                            },
+                            ButtonAction(R.string.action_report, reportIcon, danger = true) { reporting = true },
+                        ),
+                    ).filter { it.isNotEmpty() }
+                    Header(item, user, style, imageLoader, menu, onAvatar = { avatarOpen = true })
+                }
                 user?.description?.takeIf { it.isNotBlank() }?.let { bio ->
                     item {
                         Text(
@@ -149,51 +185,34 @@ fun UserCardSheet(
 
             item {
                 val copyIcon = ImageVector.vectorResource(R.drawable.ic_content_copy)
-                val reply = CardAction(Icons.AutoMirrored.Filled.Send, R.string.action_reply) { onReply?.invoke(); onDismiss() }
+                val reply = ButtonAction(R.string.action_reply, Icons.AutoMirrored.Filled.Send) { onReply?.invoke(); onDismiss() }
                     .takeIf { canReply }
-                val copy = CardAction(copyIcon, R.string.action_copy) {
+                val copy = ButtonAction(R.string.action_copy, copyIcon) {
                     clipboard.setText(AnnotatedString(item.text.ifEmpty { item.systemText.orEmpty() }))
                     onDismiss()
                 }
-                val mention = CardAction(Icons.Default.Person, R.string.action_mention) { onMention?.invoke(); onDismiss() }
+                val mention = ButtonAction(R.string.action_mention, Icons.Default.Person) { onMention?.invoke(); onDismiss() }
                     .takeIf { isUserMessage && !guest && onMention != null }
                 // They swap places, Mention stays in the middle.
                 val actions = if (copyFirst) listOfNotNull(copy, mention, reply) else listOfNotNull(reply, mention, copy)
                 ConnectedButtons(actions, tonal = true, modifier = Modifier.padding(horizontal = 16.dp))
             }
 
-            // Actions on the person. Blocking needs the profile's Twitch id; reporting works even
-            // if the card fails to load.
-            if (isUserMessage && !item.isOwn) {
-                item {
-                    val reportIcon = ImageVector.vectorResource(R.drawable.ic_report_flag)
-                    val actions = listOfNotNull(
-                        CardAction(Icons.Default.MailOutline, R.string.action_whisper) {
-                            onWhisper(user?.id)
-                            onDismiss()
-                        }.takeIf { !guest },
-                        user?.let { user ->
-                            CardAction(
-                                icon = if (blocked) Icons.Default.Check else Icons.Default.Clear,
-                                label = if (blocked) R.string.action_unblock else R.string.action_block,
-                                danger = !blocked,
-                            ) { onBlock(user, !blocked); onDismiss() }
-                        },
-                        CardAction(reportIcon, R.string.action_report) { reporting = true },
-                    )
-                    ConnectedButtons(actions, tonal = false, modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp))
-                }
-            }
-
+            // Lower and smaller than the actions above: a mod wants them at hand, not in the way.
             if (canModerate && isUserMessage && !item.isOwn) {
                 item {
                     val actions = listOfNotNull(
-                        CardAction(Icons.Default.Delete, R.string.action_delete) { onDelete(); onDismiss() }
+                        ButtonAction(R.string.action_delete, Icons.Default.Delete) { onDelete(); onDismiss() }
                             .takeIf { !item.id.startsWith("local-") && !item.deleted },
-                        CardAction(Icons.Default.Warning, R.string.action_timeout) { onTimeout(); onDismiss() },
-                        CardAction(Icons.Default.Lock, R.string.action_ban, danger = true) { onBan(); onDismiss() },
+                        ButtonAction(R.string.action_timeout, Icons.Default.Warning) { onTimeout(); onDismiss() },
+                        ButtonAction(R.string.action_ban, Icons.Default.Lock, danger = true) { onBan(); onDismiss() },
                     )
-                    ConnectedButtons(actions, tonal = false, modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp))
+                    ConnectedButtons(
+                        actions,
+                        tonal = false,
+                        compact = true,
+                        modifier = Modifier.padding(start = 16.dp, end = 16.dp, top = 8.dp),
+                    )
                 }
             }
 
@@ -258,10 +277,9 @@ private fun Header(
     user: HelixUser?,
     style: ChatStyle,
     imageLoader: ImageLoader,
-    onNickname: () -> Unit,
+    menu: List<List<ButtonAction>>,
     onAvatar: () -> Unit,
 ) {
-    val uriHandler = LocalUriHandler.current
     Row(
         verticalAlignment = Alignment.CenterVertically,
         modifier = Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 8.dp),
@@ -278,29 +296,14 @@ private fun Header(
         )
         Spacer(Modifier.width(16.dp))
         Column(Modifier.weight(1f)) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Text(
-                    text = style.nameOf(item.login, item.displayName ?: item.login.orEmpty()),
-                    style = MaterialTheme.typography.headlineSmall,
-                    fontWeight = FontWeight.Bold,
-                    color = readableNameColor(item.color, item.login, style.dark, style.nameColors),
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                    modifier = Modifier.weight(1f, fill = false),
-                )
-                IconButton(onClick = onNickname) {
-                    Icon(Icons.Default.Edit, contentDescription = stringResource(R.string.nickname_title))
-                }
-                // Their channel page, opened by the Twitch app if installed.
-                item.login?.let { login ->
-                    IconButton(onClick = { uriHandler.openUri("https://www.twitch.tv/$login") }) {
-                        Icon(
-                            ImageVector.vectorResource(R.drawable.ic_open_in_new),
-                            contentDescription = stringResource(R.string.action_open_on_twitch),
-                        )
-                    }
-                }
-            }
+            Text(
+                text = style.nameOf(item.login, item.displayName ?: item.login.orEmpty()),
+                style = MaterialTheme.typography.headlineSmall,
+                fontWeight = FontWeight.Bold,
+                color = readableNameColor(item.color, item.login, style.dark, style.nameColors),
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
             val subtitle = listOfNotNull(
                 item.login?.takeIf { !it.equals(item.displayName, ignoreCase = true) }?.let { "@$it" },
                 when (user?.broadcasterType) {
@@ -320,6 +323,36 @@ private fun Header(
                 )
             }
             if (item.badges.isNotEmpty()) BadgeRow(item, imageLoader)
+        }
+        if (menu.isNotEmpty()) MoreMenu(menu, Modifier.align(Alignment.Top))
+    }
+}
+
+/** The ⋮ button and its menu, in groups. */
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
+@Composable
+private fun MoreMenu(groups: List<List<ButtonAction>>, modifier: Modifier) {
+    var open by remember { mutableStateOf(false) }
+    Box(modifier) {
+        IconButton(onClick = { open = true }) {
+            Icon(Icons.Default.MoreVert, contentDescription = stringResource(R.string.more_options))
+        }
+        DropdownMenuPopup(expanded = open, onDismissRequest = { open = false }) {
+            groups.forEachIndexed { g, group ->
+                if (g > 0) Spacer(Modifier.height(MenuDefaults.GroupSpacing))
+                DropdownMenuGroup(shapes = MenuDefaults.groupShape(g, groups.size)) {
+                    group.forEachIndexed { i, action ->
+                        val color = if (action.danger) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurface
+                        DropdownMenuItem(
+                            text = { Text(stringResource(action.label)) },
+                            leadingIcon = action.icon?.let { { Icon(it, contentDescription = null) } },
+                            shape = MenuDefaults.itemShape(i, group.size).shape,
+                            colors = MenuDefaults.itemColors(textColor = color, leadingIconColor = color),
+                            onClick = { open = false; action.onClick() },
+                        )
+                    }
+                }
+            }
         }
     }
 }
@@ -353,58 +386,6 @@ private fun BadgeRow(item: ChatItem, imageLoader: ImageLoader) {
 }
 
 /** Buttons share the row; labels are cut instead of wrapping. */
-private val CompactPadding = PaddingValues(horizontal = 8.dp, vertical = 8.dp)
-
-/** One button in a row of the user card. */
-private class CardAction(val icon: ImageVector, val label: Int, val danger: Boolean = false, val onClick: () -> Unit)
-
-/**
- * A row of buttons joined into one group (Material 3 Expressive): round outer corners, small inner
- * ones, and the pressed button turns squarer. [tonal] for the actions on the message, outlined for
- * those on the person.
- */
-@OptIn(ExperimentalMaterial3ExpressiveApi::class)
-@Composable
-private fun ConnectedButtons(actions: List<CardAction>, tonal: Boolean, modifier: Modifier) {
-    Row(
-        horizontalArrangement = Arrangement.spacedBy(ButtonGroupDefaults.ConnectedSpaceBetween),
-        modifier = modifier.fillMaxWidth(),
-    ) {
-        actions.forEachIndexed { i, action ->
-            val joined = when {
-                actions.size == 1 -> null
-                i == 0 -> ButtonGroupDefaults.connectedLeadingButtonShapes()
-                i == actions.lastIndex -> ButtonGroupDefaults.connectedTrailingButtonShapes()
-                else -> ButtonGroupDefaults.connectedMiddleButtonShapes()
-            }
-            val shapes = joined?.let { ButtonShapes(it.shape, it.pressedShape) } ?: ButtonDefaults.shapes()
-            if (tonal) {
-                FilledTonalButton(onClick = action.onClick, shapes = shapes, contentPadding = CompactPadding, modifier = Modifier.weight(1f)) {
-                    ButtonContent(action.icon, action.label)
-                }
-            } else {
-                val color = if (action.danger) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurface
-                OutlinedButton(
-                    onClick = action.onClick,
-                    shapes = shapes,
-                    contentPadding = CompactPadding,
-                    colors = ButtonDefaults.outlinedButtonColors(contentColor = color),
-                    modifier = Modifier.weight(1f),
-                ) {
-                    ButtonContent(action.icon, action.label)
-                }
-            }
-        }
-    }
-}
-
-@Composable
-private fun ButtonContent(icon: ImageVector, label: Int) {
-    Icon(icon, contentDescription = null, modifier = Modifier.size(18.dp))
-    Spacer(Modifier.width(6.dp))
-    Text(stringResource(label), maxLines = 1, overflow = TextOverflow.Ellipsis)
-}
-
 private fun formatDate(iso: String?): String? = iso?.takeIf { it.isNotEmpty() }?.let {
     runCatching {
         Instant.parse(it).atZone(ZoneId.systemDefault()).toLocalDate()

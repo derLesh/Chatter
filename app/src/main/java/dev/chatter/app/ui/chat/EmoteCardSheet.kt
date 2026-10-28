@@ -18,10 +18,8 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -147,26 +145,20 @@ fun EmoteCardSheet(
             }
 
             Spacer(Modifier.height(20.dp))
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
-                FilledTonalButton(onClick = { onInsert(emote); onDismiss() }, modifier = Modifier.weight(1f)) {
-                    Text(stringResource(R.string.emote_insert), maxLines = 1)
-                }
-                OutlinedButton(onClick = { clipboard.setText(AnnotatedString(emote.name)) }, modifier = Modifier.weight(1f)) {
-                    Text(stringResource(R.string.emote_copy_name), maxLines = 1, overflow = TextOverflow.Ellipsis)
-                }
+            val actions = listOfNotNull(
+                ButtonAction(R.string.emote_insert) { onInsert(emote); onDismiss() },
+                ButtonAction(R.string.emote_copy_name) { clipboard.setText(AnnotatedString(emote.name)) },
                 emote.pageUrl?.let { url ->
-                    OutlinedButton(
-                        onClick = {
-                            try {
-                                context.startActivity(Intent(Intent.ACTION_VIEW, url.toUri()))
-                            } catch (e: ActivityNotFoundException) {
-                                // No browser installed.
-                            }
-                        },
-                        modifier = Modifier.weight(1f),
-                    ) { Text(stringResource(R.string.emote_open_page), maxLines = 1, overflow = TextOverflow.Ellipsis) }
-                }
-            }
+                    ButtonAction(R.string.emote_open_page) {
+                        try {
+                            context.startActivity(Intent(Intent.ACTION_VIEW, url.toUri()))
+                        } catch (e: ActivityNotFoundException) {
+                            // No browser installed.
+                        }
+                    }
+                },
+            )
+            ConnectedButtons(actions, tonal = true)
         }
     }
 }
