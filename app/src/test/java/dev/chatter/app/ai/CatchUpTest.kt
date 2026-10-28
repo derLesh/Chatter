@@ -2,6 +2,7 @@ package dev.chatter.app.ai
 
 import dev.chatter.app.chat.ChatItem
 import dev.chatter.app.chat.MessageKind
+import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
@@ -68,12 +69,44 @@ class CatchUpTest {
 
     @Test
     fun thePromptAsksForTheLanguageAndNamesTheUser() {
-        val prompt = CatchUp.prompt("forsen", "German", "bob", points = 3)
-        assertTrue("at most 3 short bullet points, in German" in prompt)
+        val prompt = CatchUp.prompt("forsen", "German", "bob")
+        assertTrue("short bullet points, in German" in prompt)
         assertTrue("\"bob\"" in prompt)
         assertTrue(prompt.endsWith("Chat:\n"))
-        assertFalse("\"bob\"" in CatchUp.prompt("forsen", "German", null, points = 3))
-        assertTrue("one short bullet point" in CatchUp.prompt("forsen", "German", null, points = 1))
+        assertFalse("\"bob\"" in CatchUp.prompt("forsen", "German", null))
+    }
+
+    /** A safety check that objects to any stretch holding one of [bad]; counts how often it was asked. */
+    private class Filter(private val bad: Set<Int>) {
+        var asked = 0
+        val passes: suspend (Int, Int) -> Boolean = { from, to -> asked++; (from until to).none { it in bad } }
+    }
+
+    @Test
+    fun oneRefusedMessageIsFoundAmongMany() = runBlocking {
+        val refused = CatchUp.refused(100, Filter(setOf(57)).passes)
+        assertTrue(57 in refused)
+        assertTrue(refused.size <= CatchUp.NARROW)
+    }
+
+    @Test
+    fun refusedMessagesFarApartAreEachFoundAndTheRestKept() = runBlocking {
+        val refused = CatchUp.refused(100, Filter(setOf(3, 88)).passes)
+        assertTrue(3 in refused && 88 in refused)
+        assertTrue(refused.size <= 2 * CatchUp.NARROW)
+    }
+
+    @Test
+    fun aChatRefusedThroughoutStopsAskingAndCountsAsRefused() = runBlocking {
+        val filter = Filter((0 until 100).toSet())
+        val refused = CatchUp.refused(100, filter.passes)
+        assertEquals((0 until 100).toSet(), refused)
+        assertEquals(CatchUp.MAX_TRIES, filter.asked)
+    }
+
+    @Test
+    fun aChatRefusedOnlyAsAWholeLeavesNothingOut() = runBlocking {
+        assertEquals(emptySet<Int>(), CatchUp.refused(100) { _, _ -> true })
     }
 
     @Test

@@ -4,6 +4,7 @@ import android.util.Log
 import com.google.mlkit.genai.common.DownloadStatus
 import com.google.mlkit.genai.common.FeatureStatus
 import com.google.mlkit.genai.common.GenAiException
+import com.google.mlkit.genai.prompt.GenerateContentRequest
 import com.google.mlkit.genai.prompt.Generation
 import com.google.mlkit.genai.prompt.GenerativeModel
 import com.google.mlkit.genai.prompt.TextPart
@@ -20,11 +21,11 @@ import kotlinx.coroutines.sync.withLock
 /** What Gemini Nano can do on this phone right now. */
 enum class ModelState { Unknown, Unsupported, Downloadable, Downloading, Ready }
 
-/** Why a summary did not come. [Refused]: AICore's safety check turned down every part. */
+/** Why a summary did not come. [Refused]: AICore's safety check turned the chat down. */
 enum class ModelTrouble { Busy, Quota, Unsupported, Refused, Other }
 
-/** What the model has written so far; [refusedParts] were turned down by the safety check. */
-data class Summary(val text: String, val refusedParts: Int = 0)
+/** What the model has written so far; [leftOut] are the messages the safety check refused. */
+data class Summary(val text: String, val leftOut: List<ChatItem> = emptyList())
 
 class ModelFailure(val trouble: ModelTrouble, cause: Throwable? = null) : Exception(cause)
 
@@ -89,8 +90,9 @@ class OnDeviceModel {
      * The summary of [missed] in [channel], growing as the model writes it. [combined] marks each
      * line with its channel.
      *
-     * AICore checks every request against Google's safety rules, and a rough chat is often refused
-     * as a whole. Then each part is summed up on its own, and the refused ones are left out.
+     * AICore checks every request against Google's safety rules and says no more than that it
+     * refused. Then the few messages it objects to are searched out, left out of the summary and
+     * handed back, so the user sees what is missing and why.
      */
     fun summarize(
         channel: String,
@@ -99,23 +101,28 @@ class OnDeviceModel {
         language: String,
         ownLogin: String?,
     ): Flow<Summary> = flow {
-        val lines = CatchUp.lines(missed, combined)
+        val entries = missed.mapNotNull { item -> CatchUp.line(item, combined)?.let { item to it } }
         // Given nothing, the model sums up its own instructions.
-        if (lines.isEmpty()) return@flow
-        val whole = write(lines, CatchUp.prompt(channel, language, ownLogin, points = 3)) { emit(Summary(it)) }
-        if (whole != null) return@flow
+        if (entries.isEmpty()) return@flow
+        val prompt = CatchUp.prompt(channel, language, ownLogin)
+        val lines = entries.map { it.second }
+        if (write(lines, prompt) { emit(Summary(it)) } != null) return@flow
 
-        val parts = lines.chunked((lines.size + PARTS - 1) / PARTS)
-        val done = StringBuilder()
-        var refused = 0
-        for (part in parts) {
-            val before = done.toString()
-            val text = write(part, CatchUp.prompt(channel, language, ownLogin, points = 1)) { emit(Summary(before + it, refused)) }
-            if (text == null) refused++ else done.append(text.trim()).append('\n')
-        }
-        if (refused == parts.size) throw ModelFailure(ModelTrouble.Refused)
-        emit(Summary(done.toString(), refused))
+        val refused = refusedIn(lines, prompt)
+        val leftOut = refused.map { entries[it].first }
+        val kept = lines.filterIndexed { i, _ -> i !in refused }
+        if (kept.isEmpty()) throw ModelFailure(ModelTrouble.Refused)
+        val text = write(kept, prompt) { emit(Summary(it, leftOut)) } ?: throw ModelFailure(ModelTrouble.Refused)
+        emit(Summary(text, leftOut))
     }
+
+    /** Each try asks for a single token, so it costs little more than the check itself. */
+    private suspend fun refusedIn(lines: List<String>, prompt: String): Set<Int> =
+        CatchUp.refused(lines.size) { from, to -> passes(lines.subList(from, to), prompt) }
+
+    private suspend fun passes(lines: List<String>, prompt: String): Boolean = attempt {
+        model.generateContent(request(prompt, lines, CatchUp.BUDGET, maxTokens = 1))
+    } != null
 
     /**
      * Has the model write about [lines] after [prompt], passing on the text so far. Null when the
@@ -125,37 +132,55 @@ class OnDeviceModel {
     private suspend fun write(lines: List<String>, prompt: String, onText: suspend (String) -> Unit): String? {
         var budget = CatchUp.BUDGET
         while (true) {
-            val request = generateContentRequest(TextPart(prompt + CatchUp.fit(lines, budget))) {
-                // Low, so the summary sticks to what the chat said.
-                temperature = 0.2f
-                maxOutputTokens = MAX_OUTPUT_TOKENS
-            }
             try {
-                val text = StringBuilder()
-                model.generateContentStream(request).collect { chunk ->
-                    chunk.candidates.firstOrNull()?.text?.let {
-                        text.append(it)
-                        onText(text.toString())
+                return attempt {
+                    val text = StringBuilder()
+                    model.generateContentStream(request(prompt, lines, budget, MAX_OUTPUT_TOKENS)).collect { chunk ->
+                        chunk.candidates.firstOrNull()?.text?.let {
+                            text.append(it)
+                            onText(text.toString())
+                        }
                     }
+                    text.toString()
                 }
-                return text.toString()
-            } catch (e: GenAiException) {
-                when {
-                    e.errorCode == GenAiException.ErrorCode.REQUEST_TOO_LARGE && budget == CatchUp.BUDGET -> budget /= 2
-                    // "Request doesn't pass certain policy check"; ML Kit has no code of its own for it.
-                    e.errorCode == GenAiException.ErrorCode.REQUEST_PROCESSING_ERROR -> return null
-                    else -> {
-                        Log.w(TAG, "Summary failed with error ${e.errorCode}", e)
-                        throw ModelFailure(troubleOf(e.errorCode), e)
-                    }
-                }
-            } catch (e: CancellationException) {
-                throw e
-            } catch (e: Exception) {
-                // AICore missing or gone since the check; ML Kit does not always wrap that.
-                throw ModelFailure(ModelTrouble.Other, e)
+            } catch (e: TooLarge) {
+                if (budget != CatchUp.BUDGET) throw ModelFailure(ModelTrouble.Other, e)
+                budget /= 2
             }
         }
+    }
+
+    private fun request(prompt: String, lines: List<String>, budget: Int, maxTokens: Int): GenerateContentRequest =
+        generateContentRequest(TextPart(prompt + CatchUp.fit(lines, budget))) {
+            // Low, so the summary sticks to what the chat said.
+            temperature = 0.2f
+            maxOutputTokens = maxTokens
+        }
+
+    private class TooLarge(cause: Throwable) : Exception(cause)
+
+    /** Runs [block]; null if the safety check refused the request. */
+    private suspend fun <T> attempt(block: suspend () -> T): T? = try {
+        block()
+    } catch (e: GenAiException) {
+        when (e.errorCode) {
+            GenAiException.ErrorCode.REQUEST_TOO_LARGE -> throw TooLarge(e)
+            // "Request doesn't pass certain policy check"; ML Kit has no code of its own for it.
+            GenAiException.ErrorCode.REQUEST_PROCESSING_ERROR -> null
+            else -> {
+                Log.w(TAG, "Summary failed with error ${e.errorCode}", e)
+                throw ModelFailure(troubleOf(e.errorCode), e)
+            }
+        }
+    } catch (e: CancellationException) {
+        throw e
+    } catch (e: ModelFailure) {
+        throw e
+    } catch (e: TooLarge) {
+        throw e
+    } catch (e: Exception) {
+        // AICore missing or gone since the check; ML Kit does not always wrap that.
+        throw ModelFailure(ModelTrouble.Other, e)
     }
 
     private fun troubleOf(code: Int) = when (code) {
@@ -170,7 +195,5 @@ class OnDeviceModel {
         const val TAG = "OnDeviceModel"
         /** Three short bullet points; also keeps a model that rambles from running on. */
         const val MAX_OUTPUT_TOKENS = 256
-        /** How many parts a chat the safety check refused is split into. */
-        const val PARTS = 4
     }
 }

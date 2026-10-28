@@ -39,13 +39,11 @@ object CatchUp {
      * short of chat repeats them as the summary. Written in English, which it follows best;
      * [language] is the English name of the language the answer should be in, as
      * `Locale.getDisplayLanguage(Locale.ENGLISH)` gives it. [ownLogin] lets it point out what was
-     * said to the user. [points] is how many bullet points it may write.
+     * said to the user.
      */
-    fun prompt(channel: String, language: String, ownLogin: String?, points: Int): String = buildString {
+    fun prompt(channel: String, language: String, ownLogin: String?): String = buildString {
         append("Below is a part of the Twitch chat of the channel \"").append(channel).append("\" that the user missed.\n")
-        append("Sum up what was talked about in ")
-        append(if (points == 1) "one short bullet point" else "at most $points short bullet points")
-        append(", in ").append(language).append(".\n")
+        append("Sum up what was talked about in at most three short bullet points, in ").append(language).append(".\n")
         append("Lines in square brackets are from Twitch, such as a raid or a sub; mention them only if there are any. ")
         append("Single words in capitals are usually emotes and mean a reaction.\n")
         if (!ownLogin.isNullOrBlank()) {
@@ -53,6 +51,40 @@ object CatchUp {
         }
         append("Only state what the chat below says, and nothing that is not in it. Do not add an introduction.\n\n")
         append("Chat:\n")
+    }
+
+    /** A refused stretch of chat is narrowed down to this many messages. */
+    const val NARROW = 2
+
+    /** Keeps the wait bounded when much of a chat is refused. */
+    const val MAX_TRIES = 24
+
+    /**
+     * Which of [count] messages a safety check refuses, given [passes] for the messages from `from`
+     * up to `to`. Found by halving: a half that passes is kept whole, one that does not is halved
+     * again down to [NARROW] messages. After [MAX_TRIES] whatever is still in doubt counts as
+     * refused.
+     */
+    suspend fun refused(count: Int, passes: suspend (from: Int, to: Int) -> Boolean): Set<Int> {
+        val refused = HashSet<Int>()
+        var tries = 0
+        suspend fun narrow(from: Int, to: Int) {
+            if (to - from <= NARROW) {
+                refused.addAll(from until to)
+                return
+            }
+            val middle = (from + to) / 2
+            for ((start, end) in listOf(from to middle, middle to to)) {
+                if (tries >= MAX_TRIES) {
+                    refused.addAll(start until end)
+                    continue
+                }
+                tries++
+                if (!passes(start, end)) narrow(start, end)
+            }
+        }
+        narrow(0, count)
+        return refused
     }
 
     /** The model's answer as plain text: it writes Markdown, which the sheet does not draw. */
@@ -64,7 +96,8 @@ object CatchUp {
 
     private val BULLET = Regex("""^\s*[*-]\s+""")
 
-    private fun line(item: ChatItem, withChannel: Boolean): String? {
+    /** One message as a plain line, or null for one that says nothing, like a deleted message. */
+    fun line(item: ChatItem, withChannel: Boolean = false): String? {
         if (item.deleted) return null
         val name = item.displayName ?: item.login
         val text = when (item.kind) {

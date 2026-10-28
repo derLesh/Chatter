@@ -36,11 +36,14 @@ internal fun BetaPage(settings: Settings, vm: MainViewModel) {
         color = MaterialTheme.colorScheme.onSurfaceVariant,
         modifier = Modifier.padding(start = 4.dp, end = 4.dp, bottom = 12.dp),
     )
+    // One group per feature, so a feature's status is not read as part of the next one.
     SettingsGroup {
         item(R.string.settings_catch_up) {
             BetaSwitchItem(R.string.settings_catch_up, settings.catchUpSummary, vm::setCatchUpSummary, R.string.settings_catch_up_hint)
         }
         if (settings.catchUpSummary) item { ModelStateItem(vm) }
+    }
+    SettingsGroup {
         item(R.string.settings_assistant) {
             // AppFunctions came with Android 16.
             val supported = Build.VERSION.SDK_INT >= Build.VERSION_CODES.BAKLAVA

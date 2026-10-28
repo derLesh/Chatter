@@ -766,14 +766,14 @@
     <string name="beta">Beta</string>
     <string name="settings_beta">Beta features</string>
     <string name="settings_beta_summary">Try what is new and not finished yet</string>
-    <string name="settings_beta_intro">These features are new. They can change, fail or go away again.</string>
+    <string name="settings_beta_intro">New and not finished yet.</string>
     <string name="settings_catch_up">Sum up what you missed</string>
-    <string name="settings_catch_up_hint">After 30 new messages, a button asks Gemini Nano on your phone what happened. The chat stays on the phone; Google\'s ML Kit counts how often it is used.</string>
-    <string name="model_state_checking">Checking whether this phone can do it…</string>
-    <string name="model_state_unsupported">This phone has no Gemini Nano, so this does not work here.</string>
-    <string name="model_state_downloadable">Gemini Nano is not on this phone yet.</string>
-    <string name="model_state_downloading">Gemini Nano is being downloaded. This can take a while.</string>
-    <string name="model_state_ready">Ready on this phone</string>
+    <string name="settings_catch_up_hint">From 30 new messages on, Gemini Nano sums up on your phone what happened. Google only gets usage numbers.</string>
+    <string name="model_state_checking">Checking…</string>
+    <string name="model_state_unsupported">This phone has no Gemini Nano.</string>
+    <string name="model_state_downloadable">Gemini Nano is missing.</string>
+    <string name="model_state_downloading">Downloading Gemini Nano…</string>
+    <string name="model_state_ready">Gemini Nano is ready</string>
     <string name="model_download">Download</string>
     <string name="model_check_again">Check again</string>
     <string name="settings_assistant">Let assistants use Chatter</string>
@@ -787,12 +787,15 @@
         <item quantity="other">%1$d messages in %2$s</item>
     </plurals>
     <string name="catch_up_writing">Writing the summary…</string>
-    <string name="catch_up_disclaimer">Written by Gemini Nano on your phone; the chat does not leave it. A summary can be wrong.</string>
+    <string name="catch_up_disclaimer">By Gemini Nano on your phone. It can be wrong.</string>
     <string name="catch_up_empty">Gemini Nano had nothing to say about it.</string>
     <string name="catch_up_busy">Gemini Nano is busy. Try again in a moment.</string>
-    <string name="catch_up_quota">Android has used up Chatter\'s share for today. Try again later.</string>
+    <string name="catch_up_quota">No more summaries for today.</string>
     <string name="catch_up_unsupported">This phone cannot write a summary right now.</string>
-    <string name="catch_up_failed">The summary did not work. Try again.</string>
-    <string name="catch_up_refused">Google\'s safety filter on your phone turned this chat down, so there is no summary.</string>
-    <string name="catch_up_parts_refused">Google\'s safety filter on your phone turned down part of the chat; that part is missing here.</string>
+    <string name="catch_up_failed">That did not work. Try again.</string>
+    <string name="catch_up_refused">Google\'s filter turned this chat down.</string>
+    <plurals name="catch_up_left_out">
+        <item quantity="one">Google\'s filter left out %d message</item>
+        <item quantity="other">Google\'s filter left out %d messages</item>
+    </plurals>
 </resources>

@@ -75,13 +75,13 @@ data class UiMessage(val text: Int, val fill: String? = null)
 
 /**
  * A catch-up summary of [count] messages in [page], growing while the model writes it. [trouble]
- * says why it stopped short; [refusedParts] of the chat were left out by the safety check.
+ * says why it stopped short; [leftOut] are the messages the safety check refused.
  */
 data class CatchUpSummary(
     val page: String,
     val count: Int,
     val text: String = "",
-    val refusedParts: Int = 0,
+    val leftOut: List<ChatItem> = emptyList(),
     val done: Boolean = false,
     val trouble: ModelTrouble? = null,
 )
@@ -311,7 +311,7 @@ class MainViewModel(private val c: AppContainer, savedState: SavedStateHandle) :
                     combined = ChannelGroup.isKey(page),
                     language = Locale.getDefault().getDisplayLanguage(Locale.ENGLISH),
                     ownLogin = c.auth.account?.login,
-                ).collect { catchUp = catchUp?.copy(text = it.text, refusedParts = it.refusedParts) }
+                ).collect { catchUp = catchUp?.copy(text = it.text, leftOut = it.leftOut) }
                 catchUp = catchUp?.copy(done = true)
             } catch (e: ModelFailure) {
                 catchUp = catchUp?.copy(done = true, trouble = e.trouble)
