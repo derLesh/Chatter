@@ -259,7 +259,7 @@ private fun TimestampPicker(selected: TimestampFormat, onSelect: (TimestampForma
     )
 }
 
-/** Launcher icon: black C on white, or white C on black, a night sky or a blueprint. */
+/** Launcher icon: black C on white or white C on black, and the icon of this build if it has one. */
 @Composable
 private fun AppIconPicker() {
     val context = LocalContext.current
@@ -278,7 +278,7 @@ private fun AppIconPicker() {
                         Triple(AppIcon.Dark, ColorPainter(Color(0xFF111111)), R.string.app_icon_dark),
                         Triple(AppIcon.Nightly, painterResource(R.drawable.ic_launcher_background_night), R.string.app_icon_nightly),
                         Triple(AppIcon.DevBuild, painterResource(R.drawable.ic_launcher_background_blueprint), R.string.app_icon_dev_build),
-                    ).forEach { (icon, background, label) ->
+                    ).filter { it.first.listed }.forEach { (icon, background, label) ->
                         val selected = icon == current
                         Column(
                             horizontalAlignment = Alignment.CenterHorizontally,

@@ -58,6 +58,12 @@ val sideloaded = (project.findProperty("distribution") as String?) == "github"
 val sponsorLink = sponsoring && sideloaded
 
 /**
+ * Whether this is a nightly build: a release build made with `-Pnightly`. For now that only offers
+ * the Nightly app icon; nothing builds one yet.
+ */
+val nightly = project.hasProperty("nightly")
+
+/**
  * Whether assistants may be let into Chatter (Settings → Beta features). Off while Gemini only calls
  * the AppFunctions of apps in Google's preview; the functions are built, tested and waiting.
  * Turning it on also brings back the assistant sections of the privacy policy and data safety notes.
@@ -88,6 +94,9 @@ android {
         buildConfigField("String", "TWITCH_CLIENT_ID", "\"$twitchClientId\"")
         buildConfigField("boolean", "SPONSORING", "$sponsoring")
         buildConfigField("boolean", "ASSISTANT_ACCESS", "$assistantAccess")
+        buildConfigField("boolean", "NIGHTLY", "$nightly")
+        // True in debug builds, which offer the Dev build app icon.
+        buildConfigField("boolean", "DEV_BUILD", "false")
         // True only in profilingBuildTypes.
         buildConfigField("boolean", "PROFILING", "false")
 
@@ -133,6 +142,7 @@ android {
             // People building the app themselves get the link.
             buildConfigField("boolean", "SPONSOR_LINK", "$sponsoring")
             buildConfigField("boolean", "UPDATE_CHECK", "true")
+            buildConfigField("boolean", "DEV_BUILD", "true")
         }
         release {
             buildConfigField("boolean", "SPONSOR_LINK", "$sponsorLink")

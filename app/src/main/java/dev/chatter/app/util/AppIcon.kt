@@ -3,6 +3,7 @@ package dev.chatter.app.util
 import android.content.ComponentName
 import android.content.Context
 import android.content.pm.PackageManager
+import dev.chatter.app.BuildConfig
 
 /**
  * The launcher icon. Each icon is an activity-alias in the manifest and exactly one is enabled; the
@@ -13,6 +14,14 @@ enum class AppIcon(private val alias: String) {
     Dark(".LauncherDark"),
     Nightly(".LauncherNightly"),
     DevBuild(".LauncherDevBuild");
+
+    /** Whether the picker lists it: the build icons only in their own build. */
+    val listed: Boolean
+        get() = when (this) {
+            Nightly -> BuildConfig.NIGHTLY
+            DevBuild -> BuildConfig.DEV_BUILD
+            else -> true
+        }
 
     private fun component(context: Context) = ComponentName(context, context.packageName + alias)
 
