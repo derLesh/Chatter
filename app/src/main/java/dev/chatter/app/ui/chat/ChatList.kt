@@ -186,10 +186,15 @@ fun ChatList(
     val currentOnJumped by rememberUpdatedState(onJumped)
     LaunchedEffect(jumpTo) {
         val target = jumpTo ?: return@LaunchedEffect
-        // Right after a start the history may still be on its way, and the message with it.
-        val found = withTimeoutOrNull(JUMP_WAIT_MS) {
-            snapshotFlow { items }.first { list -> list.isNotEmpty() && list.none { it.isHistoryLoading() } }
-        }?.takeIf { list -> list.any { it.id == target } }
+        // Asks the buffer, not [items]: in the background the list stops updating, and a
+        // notification's message arrived then. Right after a start the history may still bring it.
+        val inBuffer = withTimeoutOrNull(JUMP_WAIT_MS) {
+            messages.first { list -> list.isNotEmpty() && list.none { it.isHistoryLoading() } }
+        }?.any { it.id == target } == true
+        // The rows are laid out from [items], so the index must come from there once it caught up.
+        val found = if (inBuffer) withTimeoutOrNull(JUMP_WAIT_MS) {
+            snapshotFlow { items }.first { list -> list.any { it.id == target } }
+        } else null
         if (found == null) {
             listState.scrollToItem(0)
             follow = true
