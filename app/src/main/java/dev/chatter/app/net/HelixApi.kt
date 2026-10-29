@@ -183,6 +183,27 @@ class HelixApi(
         http.send("DELETE", url("moderation/chat", "broadcaster_id" to channelId, "moderator_id" to modId, "message_id" to messageId), headers())
     }
 
+    /** The message pinned in a chat, or null. Twitch only answers the broadcaster and moderators. */
+    suspend fun pinnedMessage(channelId: String, modId: String): HelixPinnedMessage? =
+        http.getJson<HelixList<HelixPinnedMessage>>(url("chat/pins", "broadcaster_id" to channelId, "moderator_id" to modId), headers())
+            .data.firstOrNull()
+
+    /** [durationSeconds] from 30 to 1800; null keeps it pinned until the stream ends. */
+    suspend fun pinMessage(channelId: String, modId: String, messageId: String, durationSeconds: Int?) {
+        http.send(
+            "PUT",
+            url(
+                "chat/pins", "broadcaster_id" to channelId, "moderator_id" to modId, "message_id" to messageId,
+                "duration_seconds" to durationSeconds?.toString(),
+            ),
+            headers(),
+        )
+    }
+
+    suspend fun unpinMessage(channelId: String, modId: String, messageId: String) {
+        http.send("DELETE", url("chat/pins", "broadcaster_id" to channelId, "moderator_id" to modId, "message_id" to messageId), headers())
+    }
+
     suspend fun updateChatSettings(channelId: String, modId: String, settings: JsonObject) {
         http.send("PATCH", url("chat/settings", "broadcaster_id" to channelId, "moderator_id" to modId), headers(), settings.toString())
     }
@@ -346,3 +367,35 @@ data class HelixEmote(
     @SerialName("owner_id") val ownerId: String = "",
     val format: List<String> = emptyList(),
 )
+
+@Serializable
+data class HelixPinnedMessage(
+    @SerialName("message_id") val messageId: String,
+    @SerialName("sender_user_id") val senderId: String = "",
+    @SerialName("sender_user_login") val senderLogin: String = "",
+    @SerialName("sender_user_name") val senderName: String = "",
+    @SerialName("pinned_by_user_name") val pinnedByName: String = "",
+    val message: HelixPinnedText = HelixPinnedText(),
+    /** RFC 3339. */
+    @SerialName("starts_at") val startsAt: String? = null,
+    /** RFC 3339; null or empty while it stays until the stream ends. */
+    @SerialName("ends_at") val endsAt: String? = null,
+)
+
+@Serializable
+data class HelixPinnedText(
+    val text: String = "",
+    /** The text cut into pieces that together are [text] again. */
+    val fragments: List<HelixFragment> = emptyList(),
+)
+
+@Serializable
+data class HelixFragment(
+    /** "text", "emote", "cheermote" or "mention". */
+    val type: String = "text",
+    val text: String = "",
+    val emote: HelixFragmentEmote? = null,
+)
+
+@Serializable
+data class HelixFragmentEmote(val id: String)

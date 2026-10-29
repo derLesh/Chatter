@@ -95,6 +95,9 @@ class ChatRepository(
     /** Shared Chat sessions; see [SharedChats]. */
     val sharedChats = SharedChats()
 
+    /** Pinned messages where the user moderates; see [PinnedMessages]. */
+    val pins = PinnedMessages(helix, auth, rooms, buffers, builder, worker)
+
     // --- state touched only on `worker` ---
     private val lastSent = HashMap<String, Pair<String, Long>>()
     private val rateLimiter = RateLimiter(30_000)
@@ -329,6 +332,8 @@ class ChatRepository(
      */
     fun runCommand(channel: String, command: ChatCommand) = scope.launch(worker) {
         system(channel, commands.execute(command, rooms.id(channel)))
+        // Twitch announces no pin, so the bar would wait for the next check.
+        if (command is ChatCommand.Pin || command is ChatCommand.Unpin) scope.launch { pins.refresh(channel) }
     }
 
     /** Drops all buffers, e.g. after logout. */
@@ -338,6 +343,7 @@ class ChatRepository(
         rooms.clear()
         incoming.clear()
         sharedChats.clear()
+        pins.clear()
         loadedChannels.clear()
         listLoads.clear()
         joinedChannels = emptyList()
@@ -365,6 +371,7 @@ class ChatRepository(
             chatterRegistry.remove(ch)
             rooms.forget(ch)
             sharedChats.forget(ch)
+            pins.forget(ch)
             loadedChannels.remove(ch)
             _unreadMentions.update { it - ch }
         }
@@ -471,6 +478,7 @@ class ChatRepository(
                     ?.also { incoming.rememberChatter(channel, it) }
             }
             buffers.merge(channel, items)
+            pins.takeFromChat(channel)
             if (announce) buffers.remove(channel, historyId(channel))
             // Old partner messages are marked like new ones. Whether a session is running is
             // decided by live messages only.

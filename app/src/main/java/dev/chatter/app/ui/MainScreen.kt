@@ -2,6 +2,7 @@ package dev.chatter.app.ui
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
@@ -68,6 +69,7 @@ import dev.chatter.app.ui.chat.EmoteFrameRate
 import dev.chatter.app.ui.chat.GuestBar
 import dev.chatter.app.ui.chat.InputBar
 import dev.chatter.app.ui.chat.MessageGesture
+import dev.chatter.app.ui.chat.PinnedBar
 import dev.chatter.app.ui.chat.SharedEmotes
 import dev.chatter.app.ui.chat.noteTouches
 import dev.chatter.app.ui.chat.rememberChatStyle
@@ -103,6 +105,8 @@ fun MainScreen(vm: MainViewModel, onInbox: () -> Unit, onSettings: () -> Unit) {
     val update by vm.availableUpdate.collectAsStateWithLifecycle()
     val sharedChats by vm.sharedChats.collectAsStateWithLifecycle()
     val chatPartners by vm.chatPartners.collectAsStateWithLifecycle()
+    val pins by vm.pins.collectAsStateWithLifecycle()
+    val modChannels by vm.modChannels.collectAsStateWithLifecycle()
     val partnerMarks = remember(chatPartners) {
         chatPartners.mapValues { (_, p) -> ChannelMark(p.avatarUrl, p.displayName) }
     }
@@ -170,6 +174,14 @@ fun MainScreen(vm: MainViewModel, onInbox: () -> Unit, onSettings: () -> Unit) {
     LifecycleStartEffect(channels.isNotEmpty(), guest) {
         if (channels.isNotEmpty() && (!guest || BuildConfig.PROFILING)) ChatService.start(context)
         onStopOrDispose { }
+    }
+
+    // Only for the channel on screen, and only while the app is in front: Twitch announces no pin,
+    // so this asks every minute.
+    val pinChannel = activeChannel?.takeIf { it in modChannels }
+    LaunchedEffect(lifecycleOwner, pinChannel) {
+        val channel = pinChannel ?: return@LaunchedEffect
+        lifecycleOwner.repeatOnLifecycle(Lifecycle.State.STARTED) { vm.followPin(channel) }
     }
 
     // Each time the chat comes on screen; the repository limits it to once a day.
@@ -347,46 +359,57 @@ fun MainScreen(vm: MainViewModel, onInbox: () -> Unit, onSettings: () -> Unit) {
                     val marks = remember(members, info) {
                         members?.associateWith { ChannelMark(info[it]?.avatarUrl, info[it]?.displayName ?: it) }
                     }
-                    ChatList(
-                        messages = remember(channel) { vm.chat(channel) },
-                        channels = marks,
-                        partners = partnerMarks,
-                        readMark = vm.readMark(channel),
-                        onSeen = if (channel == active) { mark -> vm.onSeen(channel, mark) } else null,
-                        onMentionsSeen = if (channel == active) vm::onMentionsSeen else null,
-                        onCatchUp = if (canCatchUp && channel == active) { missed -> vm.summarize(channel, missed) } else null,
-                        style = style,
-                        imageLoader = loader,
-                        onGesture = { item, gesture ->
-                            // Holding always opens the user card, whatever taps are set to.
-                            val action = when (gesture) {
-                                MessageGesture.Tap -> settings.messageTap
-                                MessageGesture.NameTap -> settings.nameTap
-                                MessageGesture.Hold -> TapAction.UserCard
-                                // A tap on the reply line opens the conversation.
-                                MessageGesture.Thread -> {
-                                    // Otherwise the input keeps focus under the sheet and gets the
-                                    // keyboard back when it closes.
-                                    focusManager.clearFocus()
-                                    sheets.threadOf = item
-                                    vm.startReply(item)
-                                    return@ChatList
+                    // The pin floats over the chat, which keeps its full height behind it.
+                    Box(Modifier.fillMaxSize()) {
+                        ChatList(
+                            messages = remember(channel) { vm.chat(channel) },
+                            channels = marks,
+                            partners = partnerMarks,
+                            readMark = vm.readMark(channel),
+                            onSeen = if (channel == active) { mark -> vm.onSeen(channel, mark) } else null,
+                            onMentionsSeen = if (channel == active) vm::onMentionsSeen else null,
+                            onCatchUp = if (canCatchUp && channel == active) { missed -> vm.summarize(channel, missed) } else null,
+                            style = style,
+                            imageLoader = loader,
+                            onGesture = { item, gesture ->
+                                // Holding always opens the user card, whatever taps are set to.
+                                val action = when (gesture) {
+                                    MessageGesture.Tap -> settings.messageTap
+                                    MessageGesture.NameTap -> settings.nameTap
+                                    MessageGesture.Hold -> TapAction.UserCard
+                                    // A tap on the reply line opens the conversation.
+                                    MessageGesture.Thread -> {
+                                        // Otherwise the input keeps focus under the sheet and gets the
+                                        // keyboard back when it closes.
+                                        focusManager.clearFocus()
+                                        sheets.threadOf = item
+                                        vm.startReply(item)
+                                        return@ChatList
+                                    }
                                 }
-                            }
-                            // Messages that cannot be answered or mentioned (a notice, an
-                            // unconfirmed message, any while the user only reads) open the card.
-                            when (action) {
-                                TapAction.Reply -> if (!vm.startReply(item)) sheets.actionItem = item
-                                TapAction.Mention -> if (!vm.mention(item)) sheets.actionItem = item
-                                TapAction.UserCard -> sheets.actionItem = item
-                                TapAction.Nothing -> Unit
-                            }
-                        },
-                        modifier = Modifier.fillMaxSize(),
-                        // Battery saver stills it like the emotes: in a busy chat some row is always moving.
-                        smoothScrolling = settings.smoothScrolling && !powerSave,
-                        onEmoteClick = { sheets.emoteCard = it },
-                    )
+                                // Messages that cannot be answered or mentioned (a notice, an
+                                // unconfirmed message, any while the user only reads) open the card.
+                                when (action) {
+                                    TapAction.Reply -> if (!vm.startReply(item)) sheets.actionItem = item
+                                    TapAction.Mention -> if (!vm.mention(item)) sheets.actionItem = item
+                                    TapAction.UserCard -> sheets.actionItem = item
+                                    TapAction.Nothing -> Unit
+                                }
+                            },
+                            modifier = Modifier.fillMaxSize(),
+                            // Battery saver stills it like the emotes: in a busy chat some row is always moving.
+                            smoothScrolling = settings.smoothScrolling && !powerSave,
+                            onEmoteClick = { sheets.emoteCard = it },
+                        )
+                        PinnedBar(
+                            pin = pins[channel]?.takeIf { it.item.id !in vm.hiddenPins },
+                            style = style,
+                            imageLoader = loader,
+                            onHide = vm::hidePin,
+                            onUnpin = vm::unpinMessage,
+                            modifier = Modifier.fillMaxWidth().align(Alignment.TopCenter),
+                        )
+                    }
                 }
             }
             ChatInput(

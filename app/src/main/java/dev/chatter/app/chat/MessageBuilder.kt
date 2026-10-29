@@ -115,6 +115,37 @@ class MessageBuilder(
     }
 
     /**
+     * A message fetched from Helix instead of read from IRC, such as a pin no longer in the chat.
+     * [emotesTag] and [badgesTag] are in the form of the IRC tags. Helix sends neither badges nor a
+     * color; without [color] the one the sender last wrote with here is used.
+     */
+    fun buildFetched(
+        channel: String,
+        channelId: String?,
+        id: String,
+        login: String,
+        displayName: String,
+        userId: String?,
+        text: String,
+        emotesTag: String?,
+        timestamp: Long,
+        badgesTag: String? = null,
+        color: Int? = null,
+    ): ChatItem = ChatItem(
+        id = id,
+        channel = channel,
+        kind = MessageKind.Chat,
+        timestamp = timestamp,
+        login = login,
+        displayName = displayName,
+        color = color ?: chatters.find(channel, login)?.color,
+        body = MessageBody.from(
+            DeferredBody(channel, text, emotesTag = emotesTag, badgesTag = badgesTag, userId = userId, channelId = channelId, ownMessage = false),
+        ),
+        text = text,
+    )
+
+    /**
      * The drawing part of a message, built on first use. Keeps only the tag values it needs instead
      * of the whole [IrcMessage].
      *

@@ -247,6 +247,11 @@ class MessageBuffers(
             .onEach { it.body.prepare() }
     }
 
+    /** One message, built for drawing; null once it is no longer in the channel. */
+    suspend fun find(channel: String, id: String): ChatItem? = withContext(worker) {
+        buffers[channel]?.lastOrNull { it.id == id }?.also { it.body.prepare() }
+    }
+
     /** The newest [limit] messages of all channels together, oldest first. Not built for drawing. */
     suspend fun newest(limit: Int): List<ChatItem> = withContext(worker) {
         buffers.values.flatMap { it.takeLast(limit) }.sortedBy { it.timestamp }.takeLast(limit)

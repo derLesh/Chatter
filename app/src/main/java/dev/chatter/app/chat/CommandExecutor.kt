@@ -56,6 +56,14 @@ class CommandExecutor(
             helix.deleteMessages(channel, me, command.messageId)
             str(R.string.cmd_deleted)
         }
+        is ChatCommand.Pin -> {
+            helix.pinMessage(channel, me, command.messageId, command.seconds)
+            str(R.string.cmd_pinned)
+        }
+        is ChatCommand.Unpin -> {
+            helix.unpinMessage(channel, me, command.messageId)
+            str(R.string.cmd_unpinned)
+        }
         ChatCommand.Clear -> {
             helix.deleteMessages(channel, me, null)
             str(R.string.cmd_cleared)
@@ -100,7 +108,7 @@ class CommandExecutor(
     /** The moderation scope [command] needs, or null if any account may run it. */
     private fun requiredScope(command: ChatCommand): String? = when (command) {
         is ChatCommand.Ban, is ChatCommand.Timeout, is ChatCommand.Unban -> "moderator:manage:banned_users"
-        is ChatCommand.Delete, ChatCommand.Clear -> "moderator:manage:chat_messages"
+        is ChatCommand.Delete, ChatCommand.Clear, is ChatCommand.Pin, is ChatCommand.Unpin -> "moderator:manage:chat_messages"
         is ChatCommand.Settings -> "moderator:manage:chat_settings"
         is ChatCommand.Announce -> "moderator:manage:announcements"
         is ChatCommand.Shoutout -> "moderator:manage:shoutouts"

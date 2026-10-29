@@ -10,6 +10,9 @@ sealed interface ChatCommand {
     data class Unban(val user: String) : ChatCommand
     data class Timeout(val user: String, val seconds: Int, val reason: String?) : ChatCommand
     data class Delete(val messageId: String) : ChatCommand
+    /** [seconds] from 30 to 1800; null pins until the stream ends. */
+    data class Pin(val messageId: String, val seconds: Int?) : ChatCommand
+    data class Unpin(val messageId: String) : ChatCommand
     data object Clear : ChatCommand
     /** A chat settings change like slow mode; [settings] is the Helix PATCH body. */
     data class Settings(val settings: JsonObject) : ChatCommand

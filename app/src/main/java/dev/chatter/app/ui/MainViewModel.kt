@@ -27,6 +27,7 @@ import dev.chatter.app.chat.ChatRole
 import dev.chatter.app.chat.ChatRule
 import dev.chatter.app.chat.CommandParser
 import dev.chatter.app.chat.ImageLinks
+import dev.chatter.app.chat.PinnedMessage
 import dev.chatter.app.chat.PostSite
 import dev.chatter.app.chat.InboxMention
 import dev.chatter.app.chat.InboxWhisper
@@ -138,6 +139,16 @@ class MainViewModel(private val c: AppContainer, savedState: SavedStateHandle) :
     val roomStates = c.chat.rooms.states
     val roles = c.chat.rooms.roles
     val subscribedChannels = c.chat.rooms.subscribed
+    /** The pinned message per channel, where the user moderates. */
+    val pins = c.chat.pins.pins
+
+    /** Pins the user put away; the next pin shows again. Message ids. */
+    var hiddenPins by mutableStateOf(emptySet<String>())
+        private set
+
+    fun hidePin(pin: PinnedMessage) {
+        hiddenPins = hiddenPins + pin.item.id
+    }
     /** Shared Chat partners of every channel currently sharing its chat. */
     val sharedChats = c.chat.sharedChats.sessions
     /** Name and picture of every Shared Chat partner seen so far, by channel id. */
@@ -671,6 +682,18 @@ class MainViewModel(private val c: AppContainer, savedState: SavedStateHandle) :
     fun deleteMessage(item: ChatItem) {
         c.chat.runCommand(item.channel, ChatCommand.Delete(item.id))
     }
+
+    /** [seconds] null pins until the stream ends. */
+    fun pinMessage(item: ChatItem, seconds: Int?) {
+        c.chat.runCommand(item.channel, ChatCommand.Pin(item.id, seconds))
+    }
+
+    fun unpinMessage(pin: PinnedMessage) {
+        c.chat.runCommand(pin.item.channel, ChatCommand.Unpin(pin.item.id))
+    }
+
+    /** Keeps the pin of [channel] current while the caller runs it, e.g. while it is on screen. */
+    suspend fun followPin(channel: String) = c.chat.pins.follow(channel)
 
     fun timeoutUser(item: ChatItem, seconds: Int = 600) {
         val login = item.login ?: return

@@ -176,6 +176,16 @@
     <string name="timeout_1h">1 Stunde</string>
     <string name="timeout_1d">1 Tag</string>
     <string name="action_ban">Bannen</string>
+    <string name="action_pin">Anpinnen</string>
+    <string name="action_unpin">Lösen</string>
+    <string name="action_hide_pin">Ausblenden</string>
+    <string name="pin_5m">5 Minuten</string>
+    <string name="pin_30m">30 Minuten</string>
+    <string name="pin_until_stream_ends">Bis der Stream endet</string>
+    <string name="pinned">Angepinnt</string>
+    <string name="pinned_by">Angepinnt von %1$s</string>
+    <string name="pin_show_all">Alles zeigen</string>
+    <string name="pin_show_less">Weniger zeigen</string>
     <string name="settings_appearance">Darstellung</string>
     <string name="theme_system">System</string>
     <string name="theme_light">Hell</string>
@@ -190,6 +200,8 @@
     <string name="cmd_unbanned">%1$s wurde entbannt.</string>
     <string name="cmd_deleted">Nachricht gelöscht.</string>
     <string name="cmd_cleared">Chat geleert.</string>
+    <string name="cmd_pinned">Nachricht angepinnt.</string>
+    <string name="cmd_unpinned">Nachricht nicht mehr angepinnt.</string>
     <string name="cmd_settings_updated">Chat-Einstellungen geändert.</string>
     <string name="cmd_modded">%1$s ist jetzt Moderator.</string>
     <string name="cmd_unmodded">%1$s ist kein Moderator mehr.</string>

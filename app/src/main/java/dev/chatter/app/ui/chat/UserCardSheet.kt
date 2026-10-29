@@ -103,6 +103,8 @@ fun UserCardSheet(
     onMention: (() -> Unit)?,
     onWhisper: (userId: String?) -> Unit,
     onDelete: () -> Unit,
+    /** Seconds, or null until the stream ends; see [PIN_LENGTHS]. */
+    onPin: (Int?) -> Unit,
     /** Seconds; see [TIMEOUTS]. */
     onTimeout: (Int) -> Unit,
     onBan: () -> Unit,
@@ -200,17 +202,26 @@ fun UserCardSheet(
             }
 
             // Lower and smaller than the actions above: a mod wants them at hand, not in the way.
-            if (canModerate && isUserMessage && !item.isOwn) {
+            // Only a message Twitch confirmed has the id to pin or delete it by.
+            val confirmed = !item.id.startsWith("local-") && !item.deleted
+            if (canModerate && isUserMessage && (confirmed || !item.isOwn)) {
                 item {
+                    val pinIcon = ImageVector.vectorResource(R.drawable.ic_push_pin)
                     val actions = listOfNotNull(
+                        ButtonAction(
+                            R.string.action_pin,
+                            pinIcon,
+                            choices = PIN_LENGTHS.map { (label, seconds) -> ButtonChoice(label) { onPin(seconds); onDismiss() } },
+                        ).takeIf { confirmed },
                         ButtonAction(R.string.action_delete, Icons.Default.Delete) { onDelete(); onDismiss() }
-                            .takeIf { !item.id.startsWith("local-") && !item.deleted },
+                            .takeIf { confirmed && !item.isOwn },
                         ButtonAction(
                             R.string.action_timeout,
                             Icons.Default.Warning,
                             choices = TIMEOUTS.map { (label, seconds) -> ButtonChoice(label) { onTimeout(seconds); onDismiss() } },
-                        ),
-                        ButtonAction(R.string.action_ban, Icons.Default.Lock, danger = true) { onBan(); onDismiss() },
+                        ).takeIf { !item.isOwn },
+                        ButtonAction(R.string.action_ban, Icons.Default.Lock, danger = true) { onBan(); onDismiss() }
+                            .takeIf { !item.isOwn },
                     )
                     ConnectedButtons(
                         actions,
@@ -397,6 +408,14 @@ private val TIMEOUTS = listOf(
     R.string.timeout_10m to 600,
     R.string.timeout_1h to 3_600,
     R.string.timeout_1d to 86_400,
+)
+
+/** The lengths Pin offers, in seconds; Twitch takes 30 to 1800, or none for the whole stream. */
+private val PIN_LENGTHS = listOf(
+    R.string.timeout_1m to 60,
+    R.string.pin_5m to 300,
+    R.string.pin_30m to 1_800,
+    R.string.pin_until_stream_ends to null,
 )
 
 private fun formatDate(iso: String?): String? = iso?.takeIf { it.isNotEmpty() }?.let {
