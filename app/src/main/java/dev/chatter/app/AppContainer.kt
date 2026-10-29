@@ -69,6 +69,7 @@ import dev.chatter.app.settings.BackupManager
 import dev.chatter.app.settings.SettingsRepository
 import dev.chatter.app.stats.StatsRepository
 import dev.chatter.app.update.UpdateRepository
+import dev.chatter.app.util.AppIconSwitcher
 import dev.chatter.app.util.ChannelIcons
 import dev.chatter.app.util.ChannelShortcuts
 import dev.chatter.app.util.isFirstInstall
@@ -218,6 +219,7 @@ class AppContainer(
     private val channelIcons = ChannelIcons(context, channels, imageLoader)
     val notifier = ChatNotifier(context, channels, helix, settings.settings, channelIcons, dataSaving.active) { auth.account?.userId }
     private val shortcuts = ChannelShortcuts(context, channels.identities, channelIcons, scope)
+    val appIcons = AppIconSwitcher(context, settings, scope)
     val liveAlerts = LiveAlerts(helix, auth, channels, settings.settings, activeUserId, chat.windows.anyVisible, notifier, scope)
 
     /** Gemini Nano, for the catch-up summary (beta). */
@@ -251,6 +253,7 @@ class AppContainer(
         }
         sevenTvLive.start()
         shortcuts.start()
+        appIcons.start()
         liveAlerts.start()
         // One notification channel per Twitch channel, so each can have its own sound.
         scope.launch { channels.identities.collect { notifier.syncChannels(it) } }

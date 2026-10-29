@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Background of the Christmas icon: a red bauble with the white glyph on it. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android" xmlns:aapt="http://schemas.android.com/aapt"
+    android:width="108dp" android:height="108dp" android:viewportWidth="108" android:viewportHeight="108">
+    <path android:pathData="M0,0 H108 V108 H0 Z">
+        <aapt:attr name="android:fillColor">
+            <gradient android:type="linear" android:startX="54" android:startY="18" android:endX="54" android:endY="90"
+                android:startColor="#FF1F7A3A" android:centerColor="#FF14592A" android:endColor="#FF0B3D1C" />
+        </aapt:attr>
+    </path>
+    <path android:fillColor="#FFFFFFFF" android:fillAlpha="0.8"
+        android:pathData="M24.1,54 a0.9,0.9 0 1,0 1.8,0 a0.9,0.9 0 1,0 -1.8,0 Z M29.3,76 a0.7,0.7 0 1,0 1.4,0 a0.7,0.7 0 1,0 -1.4,0 Z M81.2,48 a0.8,0.8 0 1,0 1.6,0 a0.8,0.8 0 1,0 -1.6,0 Z M78.4,72 a0.6,0.6 0 1,0 1.2,0 a0.6,0.6 0 1,0 -1.2,0 Z M29.4,36 a0.6,0.6 0 1,0 1.2,0 a0.6,0.6 0 1,0 -1.2,0 Z M83.5,62 a0.5,0.5 0 1,0 1,0 a0.5,0.5 0 1,0 -1,0 Z" />
+    <path android:strokeColor="#FFE8C468" android:strokeWidth="0.8"
+        android:pathData="M54,18 V27" />
+    <path android:strokeColor="#FFE8C468" android:strokeWidth="0.8"
+        android:pathData="M51.8,21.5 a2.2,2.2 0 1,0 4.4,0 a2.2,2.2 0 1,0 -4.4,0 Z" />
+    <path android:pathData="M28,56 a26,26 0 1,0 52,0 a26,26 0 1,0 -52,0 Z">
+        <aapt:attr name="android:fillColor">
+            <gradient android:type="radial" android:centerX="46" android:centerY="46" android:gradientRadius="34"
+                android:startColor="#FFF0464A" android:endColor="#FF8E0A12" />
+        </aapt:attr>
+    </path>
+    <path android:fillColor="#FFE8C468"
+        android:pathData="M48.5,25 H59.5 V31 H48.5 Z" />
+    <path android:strokeColor="#FFB8902E" android:strokeWidth="0.5"
+        android:pathData="M48.5,27 H59.5 M48.5,29 H59.5" />
+    <group>
+        <clip-path android:pathData="M28,56 a26,26 0 1,0 52,0 a26,26 0 1,0 -52,0 Z" />
+        <path android:strokeColor="#FFE8C468" android:strokeWidth="1.2" android:strokeLineCap="round"
+            android:pathData="M32,76.5 L36,79.5 L40,76.5 L44,79.5 L48,76.5 L52,79.5 L56,76.5 L60,79.5 L64,76.5 L68,79.5 L72,76.5 L76,79.5" />
+    </group>
+    <path android:fillColor="#FFFFFFFF" android:fillAlpha="0.3"
+        android:pathData="M36,41 a5,3 0 1,0 10,0 a5,3 0 1,0 -10,0 Z" />
+</vector>

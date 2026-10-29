@@ -460,6 +460,26 @@
     <string name="app_icon_dark">Schwarz</string>
     <string name="app_icon_nightly">Nightly</string>
     <string name="app_icon_dev_build">Dev-Build</string>
+    <string name="app_icon_purple">Lila</string>
+    <string name="app_icon_blue">Blau</string>
+    <string name="app_icon_teal">Petrol</string>
+    <string name="app_icon_green">Grün</string>
+    <string name="app_icon_yellow">Gelb</string>
+    <string name="app_icon_orange">Orange</string>
+    <string name="app_icon_red">Rot</string>
+    <string name="app_icon_pink">Pink</string>
+    <string name="app_icon_pride">Pride</string>
+    <string name="app_icon_valentine">Valentinstag</string>
+    <string name="app_icon_easter">Ostern</string>
+    <string name="app_icon_halloween">Halloween</string>
+    <string name="app_icon_christmas">Weihnachten</string>
+    <string name="app_icon_new_year">Neujahr</string>
+    <string name="app_icon_group_colors">Farben</string>
+    <string name="app_icon_group_seasons">Zu besonderen Tagen</string>
+    <string name="app_icon_group_build">Dieser Build</string>
+    <string name="app_icon_from">ab %1$s</string>
+    <string name="settings_seasonal_icons">Von selbst wechseln</string>
+    <string name="settings_seasonal_icons_hint">An besonderen Tagen ein passendes Icon, danach wieder deins</string>
 
     <!-- Namensfarben -->
     <string name="settings_name_colors">Namensfarben</string>

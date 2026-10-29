@@ -54,6 +54,7 @@ import dev.chatter.app.settings.TimestampFormat
 import dev.chatter.app.stats.Stats
 import dev.chatter.app.ui.chat.ReadMark
 import dev.chatter.app.ui.theme.NameColorPalette
+import dev.chatter.app.util.AppIcon
 import dev.chatter.app.util.Autocomplete
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -798,6 +799,11 @@ class MainViewModel(private val c: AppContainer, savedState: SavedStateHandle) :
     fun setHaptics(v: Boolean) = saveSetting { setHaptics(v) }
     fun setKeepScreenOn(v: Boolean) = saveSetting { setKeepScreenOn(v) }
     fun setKeepScreenOnWhenQuiet(v: Boolean) = saveSetting { setKeepScreenOnWhenQuiet(v) }
+    fun setSeasonalAppIcons(v: Boolean) = saveSetting { setSeasonalAppIcons(v) }
+    val appIcon: StateFlow<AppIcon> = c.appIcons.current
+    fun pickAppIcon(icon: AppIcon) {
+        viewModelScope.launch { c.appIcons.pick(icon) }
+    }
     fun setBubbles(v: Boolean) = saveSetting { setBubbles(v) }
     fun setLiveNotifications(v: Boolean) = saveSetting { setLiveNotifications(v) }
 

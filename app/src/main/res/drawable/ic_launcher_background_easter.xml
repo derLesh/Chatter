@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Background of the Easter icon: a painted egg with the black glyph on it. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android" xmlns:aapt="http://schemas.android.com/aapt"
+    android:width="108dp" android:height="108dp" android:viewportWidth="108" android:viewportHeight="108">
+    <path android:pathData="M0,0 H108 V108 H0 Z">
+        <aapt:attr name="android:fillColor">
+            <gradient android:type="linear" android:startX="54" android:startY="18" android:endX="54" android:endY="90"
+                android:startColor="#FFE4F5C8" android:centerColor="#FFC9EBA8" android:endColor="#FFA9DC8A" />
+        </aapt:attr>
+    </path>
+    <path android:fillColor="#FFFFFFFF" android:fillAlpha="0.8"
+        android:pathData="M24.2,40 a0.8,0.8 0 1,0 1.6,0 a0.8,0.8 0 1,0 -1.6,0 Z M83.3,44 a0.7,0.7 0 1,0 1.4,0 a0.7,0.7 0 1,0 -1.4,0 Z M23.4,70 a0.6,0.6 0 1,0 1.2,0 a0.6,0.6 0 1,0 -1.2,0 Z M84.2,72 a0.8,0.8 0 1,0 1.6,0 a0.8,0.8 0 1,0 -1.6,0 Z" />
+    <path android:fillColor="#FFFFF1C4"
+        android:pathData="M54,24 C68,24 79,44 79,59 C79,74 68,85 54,85 C40,85 29,74 29,59 C29,44 40,24 54,24 Z" />
+    <group>
+        <clip-path android:pathData="M54,24 C68,24 79,44 79,59 C79,74 68,85 54,85 C40,85 29,74 29,59 C29,44 40,24 54,24 Z" />
+        <path android:fillColor="#FFF7A8C4"
+            android:pathData="M28,26 H80 V31 H28 Z" />
+        <path android:strokeColor="#FF8FC9F0" android:strokeWidth="1.4" android:strokeLineCap="round"
+            android:pathData="M28,29.5 L32.5,33 L37,29.5 L41.5,33 L46,29.5 L50.5,33 L55,29.5 L59.5,33 L64,29.5 L68.5,33 L73,29.5 L77.5,33 L82,29.5" />
+        <path android:fillColor="#FFC5A8FF"
+            android:pathData="M28,79 H80 V86 H28 Z" />
+        <path android:strokeColor="#FFF7A8C4" android:strokeWidth="1.4" android:strokeLineCap="round"
+            android:pathData="M28,77 L32.5,80.5 L37,77 L41.5,80.5 L46,77 L50.5,80.5 L55,77 L59.5,80.5 L64,77 L68.5,80.5 L73,77 L77.5,80.5 L82,77" />
+    </group>
+    <path android:fillColor="#FFFFFFFF" android:fillAlpha="0.35"
+        android:pathData="M40.5,40 a3.5,5.5 0 1,0 7,0 a3.5,5.5 0 1,0 -7,0 Z" />
+</vector>

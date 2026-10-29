@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Background of the New Year icon: night blue with fireworks around the white glyph. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android" xmlns:aapt="http://schemas.android.com/aapt"
+    android:width="108dp" android:height="108dp" android:viewportWidth="108" android:viewportHeight="108">
+    <path android:pathData="M0,0 H108 V108 H0 Z">
+        <aapt:attr name="android:fillColor">
+            <gradient android:type="linear" android:startX="54" android:startY="18" android:endX="54" android:endY="90"
+                android:startColor="#FF0B1433" android:centerColor="#FF15214A" android:endColor="#FF23336B" />
+        </aapt:attr>
+    </path>
+    <path android:strokeColor="#FFFFD54F" android:strokeWidth="0.9" android:strokeLineCap="round"
+        android:pathData="M35,33 L39.5,33 M34.73,34 L38.63,36.25 M34,34.73 L36.25,38.63 M33,35 L33,39.5 M32,34.73 L29.75,38.63 M31.27,34 L27.37,36.25 M31,33 L26.5,33 M31.27,32 L27.37,29.75 M32,31.27 L29.75,27.37 M33,31 L33,26.5 M34,31.27 L36.25,27.37 M34.73,32 L38.63,29.75" />
+    <path android:strokeColor="#FFFF6FB5" android:strokeWidth="0.9" android:strokeLineCap="round"
+        android:pathData="M76.52,75.49 L80.14,76.67 M75.94,76.29 L78.17,79.37 M75,76.6 L75,80.4 M74.06,76.29 L71.83,79.37 M73.48,75.49 L69.86,76.67 M73.48,74.51 L69.86,73.33 M74.06,73.71 L71.83,70.63 M75,73.4 L75,69.6 M75.94,73.71 L78.17,70.63 M76.52,74.51 L80.14,73.33" />
+    <path android:strokeColor="#FF6FE3FF" android:strokeWidth="0.8" android:strokeLineCap="round"
+        android:pathData="M77.18,33.21 L79.55,33.63 M76.69,33.98 L78.06,35.95 M75.79,34.18 L75.37,36.55 M75.02,33.69 L73.05,35.06 M74.82,32.79 L72.45,32.37 M75.31,32.02 L73.94,30.05 M76.21,31.82 L76.63,29.45 M76.98,32.31 L78.95,30.94" />
+    <path android:fillColor="#FFFFFFFF"
+        android:pathData="M32.1,33 a0.9,0.9 0 1,0 1.8,0 a0.9,0.9 0 1,0 -1.8,0 Z M74.2,75 a0.8,0.8 0 1,0 1.6,0 a0.8,0.8 0 1,0 -1.6,0 Z M75.4,33 a0.6,0.6 0 1,0 1.2,0 a0.6,0.6 0 1,0 -1.2,0 Z" />
+    <path android:fillColor="#FFFFE9A8" android:fillAlpha="0.8"
+        android:pathData="M24.4,56 a0.6,0.6 0 1,0 1.2,0 a0.6,0.6 0 1,0 -1.2,0 Z M35.3,79 a0.7,0.7 0 1,0 1.4,0 a0.7,0.7 0 1,0 -1.4,0 Z M55.5,84 a0.5,0.5 0 1,0 1,0 a0.5,0.5 0 1,0 -1,0 Z M83.4,54 a0.6,0.6 0 1,0 1.2,0 a0.6,0.6 0 1,0 -1.2,0 Z M53.4,24 a0.6,0.6 0 1,0 1.2,0 a0.6,0.6 0 1,0 -1.2,0 Z" />
+</vector>

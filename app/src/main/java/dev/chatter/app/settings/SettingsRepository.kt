@@ -17,6 +17,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
@@ -140,6 +141,8 @@ data class Settings(
     val keepScreenOn: Boolean = false,
     /** With [keepScreenOn]: also after 10 minutes without a message or touch. */
     val keepScreenOnWhenQuiet: Boolean = false,
+    /** Give the app icon a season's look on its days, and the own one back afterwards. */
+    val seasonalAppIcons: Boolean = true,
     /** A notification when a channel goes live; which channels is chosen per channel. */
     val liveNotifications: Boolean = true,
     /** Offer mention notifications as a floating chat bubble over other apps. */
@@ -234,6 +237,7 @@ class SettingsRepository(
             haptics = p[HAPTICS] ?: true,
             keepScreenOn = p[KEEP_SCREEN_ON] ?: false,
             keepScreenOnWhenQuiet = p[KEEP_SCREEN_ON_WHEN_QUIET] ?: false,
+            seasonalAppIcons = p[SEASONAL_APP_ICONS] ?: true,
             bubbles = p[BUBBLES] ?: false,
             liveNotifications = p[LIVE_NOTIFICATIONS] ?: true,
             senderAvatars = p[SENDER_AVATARS] ?: true,
@@ -308,6 +312,7 @@ class SettingsRepository(
     suspend fun setHaptics(v: Boolean) = store.edit { it[HAPTICS] = v }
     suspend fun setKeepScreenOn(v: Boolean) = store.edit { it[KEEP_SCREEN_ON] = v }
     suspend fun setKeepScreenOnWhenQuiet(v: Boolean) = store.edit { it[KEEP_SCREEN_ON_WHEN_QUIET] = v }
+    suspend fun setSeasonalAppIcons(v: Boolean) = store.edit { it[SEASONAL_APP_ICONS] = v }
     suspend fun setBubbles(v: Boolean) = store.edit { it[BUBBLES] = v }
     suspend fun setLiveNotifications(v: Boolean) = store.edit { it[LIVE_NOTIFICATIONS] = v }
     suspend fun setSenderAvatars(v: Boolean) = store.edit { it[SENDER_AVATARS] = v }
@@ -353,6 +358,16 @@ class SettingsRepository(
         it[AVAILABLE_UPDATE] = json
         it[UPDATE_CHECKED_AT] = checkedAt
     }
+
+    /**
+     * The app icon picked by hand (an [dev.chatter.app.util.AppIcon] name) and the season window
+     * whose icon was set by itself last. Not part of [Settings]: the launcher holds the icon itself,
+     * and a backup must not change it.
+     */
+    suspend fun ownAppIcon(): String? = store.data.first()[OWN_APP_ICON]
+    suspend fun setOwnAppIcon(name: String) = store.edit { it[OWN_APP_ICON] = name }
+    suspend fun lastAutoAppIcon(): String? = store.data.first()[LAST_AUTO_APP_ICON]
+    suspend fun setLastAutoAppIcon(window: String) = store.edit { it[LAST_AUTO_APP_ICON] = window }
 
     /**
      * Writes every setting, for restoring a backup. New settings must be added here, or a restore
@@ -403,6 +418,7 @@ class SettingsRepository(
         p[HAPTICS] = s.haptics
         p[KEEP_SCREEN_ON] = s.keepScreenOn
         p[KEEP_SCREEN_ON_WHEN_QUIET] = s.keepScreenOnWhenQuiet
+        p[SEASONAL_APP_ICONS] = s.seasonalAppIcons
         p[BUBBLES] = s.bubbles
         p[LIVE_NOTIFICATIONS] = s.liveNotifications
         p[SENDER_AVATARS] = s.senderAvatars
@@ -501,6 +517,7 @@ class SettingsRepository(
         val HAPTICS = booleanPreferencesKey("haptics")
         val KEEP_SCREEN_ON = booleanPreferencesKey("keep_screen_on")
         val KEEP_SCREEN_ON_WHEN_QUIET = booleanPreferencesKey("keep_screen_on_when_quiet")
+        val SEASONAL_APP_ICONS = booleanPreferencesKey("seasonal_app_icons")
         val BUBBLES = booleanPreferencesKey("chat_bubbles")
         val LIVE_NOTIFICATIONS = booleanPreferencesKey("live_notifications")
         val SENDER_AVATARS = booleanPreferencesKey("notification_sender_avatars")
@@ -519,6 +536,8 @@ class SettingsRepository(
         val NOTIFICATION_INTRO_SEEN = booleanPreferencesKey("notification_intro_seen")
         val ONBOARDING_SEEN = booleanPreferencesKey("onboarding_seen")
         val AVAILABLE_UPDATE = stringPreferencesKey("available_update")
+        val OWN_APP_ICON = stringPreferencesKey("own_app_icon")
+        val LAST_AUTO_APP_ICON = stringPreferencesKey("last_auto_app_icon")
         val UPDATE_CHECKED_AT = longPreferencesKey("update_checked_at")
         const val MAX_RECENT = 40
     }

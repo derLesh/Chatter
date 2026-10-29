@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Background of the rainbow flag app icon: the flag as a ring around a dark disc. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp" android:height="108dp" android:viewportWidth="108" android:viewportHeight="108">
+    <path android:fillColor="#FFE40303"
+        android:pathData="M0,0 H108 V30 H0 Z" />
+    <path android:fillColor="#FFFF8C00"
+        android:pathData="M0,30 H108 V42 H0 Z" />
+    <path android:fillColor="#FFFFED00"
+        android:pathData="M0,42 H108 V54 H0 Z" />
+    <path android:fillColor="#FF008026"
+        android:pathData="M0,54 H108 V66 H0 Z" />
+    <path android:fillColor="#FF004CFF"
+        android:pathData="M0,66 H108 V78 H0 Z" />
+    <path android:fillColor="#FF732982"
+        android:pathData="M0,78 H108 V108 H0 Z" />
+    <path android:fillColor="#FF161616"
+        android:pathData="M30,54 a24,24 0 1,0 48,0 a24,24 0 1,0 -48,0 Z" />
+</vector>

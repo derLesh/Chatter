@@ -1,6 +1,5 @@
 package dev.chatter.app.ui.settings
 
-import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -8,11 +7,8 @@ import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
@@ -33,21 +29,17 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
-import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.luminance
-import androidx.compose.ui.graphics.painter.ColorPainter
-import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import dev.chatter.app.R
 import dev.chatter.app.chat.ChatItem
 import dev.chatter.app.chat.MessageBody
@@ -66,7 +58,6 @@ import dev.chatter.app.ui.theme.highlightBackground
 import dev.chatter.app.ui.theme.highlightColor
 import dev.chatter.app.ui.theme.isAppInDarkTheme
 import dev.chatter.app.ui.theme.readableNameColor
-import dev.chatter.app.util.AppIcon
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -86,7 +77,7 @@ internal fun AppearancePage(settings: Settings, vm: MainViewModel, open: (Settin
         }
         item(R.string.settings_highlight_color) { HighlightColorPicker(settings.highlightColor, vm::setHighlightColor) }
         item(R.string.settings_name_colors) { NameColorPicker(settings.nameColors, vm::setNameColors) }
-        item(R.string.settings_app_icon) { AppIconPicker() }
+        item(R.string.settings_app_icon) { AppIconItem(vm) { open(SettingsSubPage.AppIcons) } }
     }
 
     SettingsGroup(R.string.settings_group_text) {
@@ -259,73 +250,21 @@ private fun TimestampPicker(selected: TimestampFormat, onSelect: (TimestampForma
     )
 }
 
-/** Launcher icon: black C on white or white C on black, and the icon of this build if it has one. */
+/** The current launcher icon; the choice is a page of its own. */
 @Composable
-private fun AppIconPicker() {
-    val context = LocalContext.current
-    var current by remember { mutableStateOf(AppIcon.current(context)) }
+private fun AppIconItem(vm: MainViewModel, onOpen: () -> Unit) {
+    val current by vm.appIcon.collectAsStateWithLifecycle()
     ListItem(
         headlineContent = { Text(stringResource(R.string.settings_app_icon)) },
-        supportingContent = {
-            Column {
-                FlowRow(
-                    horizontalArrangement = Arrangement.spacedBy(12.dp),
-                    verticalArrangement = Arrangement.spacedBy(4.dp),
-                    modifier = Modifier.padding(top = 4.dp),
-                ) {
-                    listOf(
-                        Triple(AppIcon.Light, ColorPainter(Color.White), R.string.app_icon_light),
-                        Triple(AppIcon.Dark, ColorPainter(Color(0xFF111111)), R.string.app_icon_dark),
-                        Triple(AppIcon.Nightly, painterResource(R.drawable.ic_launcher_background_night), R.string.app_icon_nightly),
-                        Triple(AppIcon.DevBuild, painterResource(R.drawable.ic_launcher_background_blueprint), R.string.app_icon_dev_build),
-                    ).filter { it.first.listed }.forEach { (icon, background, label) ->
-                        val selected = icon == current
-                        Column(
-                            horizontalAlignment = Alignment.CenterHorizontally,
-                            modifier = Modifier
-                                .clip(RoundedCornerShape(16.dp))
-                                .clickable {
-                                    if (!selected) {
-                                        AppIcon.set(context, icon)
-                                        current = icon
-                                    }
-                                }
-                                .padding(8.dp),
-                        ) {
-                            Box(
-                                contentAlignment = Alignment.Center,
-                                modifier = Modifier
-                                    .size(64.dp)
-                                    .clip(CircleShape)
-                                    .border(
-                                        if (selected) 3.dp else 1.dp,
-                                        if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outlineVariant,
-                                        CircleShape,
-                                    ),
-                            ) {
-                                // The launcher shows the middle 72 of the 108dp background, and the
-                                // glyph below is drawn 1.5 times the launcher's size as well.
-                                Image(background, contentDescription = null, modifier = Modifier.matchParentSize().scale(1.5f))
-                                Icon(
-                                    painterResource(R.drawable.ic_chatter_monochrome),
-                                    contentDescription = null,
-                                    tint = if (icon == AppIcon.Light) Color(0xFF111111) else Color.White,
-                                    modifier = Modifier.size(64.dp),
-                                )
-                            }
-                            Spacer(Modifier.height(6.dp))
-                            Text(
-                                stringResource(label),
-                                style = MaterialTheme.typography.labelLarge,
-                                color = if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
-                                fontWeight = if (selected) FontWeight.Bold else FontWeight.Normal,
-                            )
-                        }
-                    }
-                }
+        supportingContent = { Text(stringResource(current.label)) },
+        trailingContent = {
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                AppIconPreview(current, size = 40.dp)
+                Icon(Icons.AutoMirrored.Filled.ArrowForward, contentDescription = null)
             }
         },
         colors = transparentItem(),
+        modifier = Modifier.clickable(onClick = onOpen),
     )
 }
 

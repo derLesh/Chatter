@@ -73,9 +73,11 @@ import dev.chatter.app.auth.AuthState
 import dev.chatter.app.stats.Stats
 import dev.chatter.app.ui.changelog.ChangelogPage
 import dev.chatter.app.ui.channels.OfferUndoRemoval
+import dev.chatter.app.ui.settings.APP_ICON_TERMS
 import dev.chatter.app.ui.settings.AboutPage
 import dev.chatter.app.ui.settings.AccountPage
 import dev.chatter.app.ui.settings.AccountSummaryCard
+import dev.chatter.app.ui.settings.AppIconsPage
 import dev.chatter.app.ui.settings.AppearancePage
 import dev.chatter.app.ui.settings.BADGE_PROVIDERS
 import dev.chatter.app.ui.settings.BackupPage
@@ -169,6 +171,7 @@ internal enum class SettingsSubPage(val title: Int) {
     ImageHosts(R.string.settings_image_hosts),
     Posts(R.string.settings_posts),
     SpecialMessages(R.string.settings_special_messages),
+    AppIcons(R.string.settings_app_icon),
     LiveChannels(R.string.settings_live_channels),
     Rules(R.string.settings_rules),
     Changelog(R.string.settings_changelog),
@@ -201,7 +204,7 @@ private val SEARCH_INDEX: List<SearchEntry> by lazy {
         add(SearchEntry(R.string.settings_pure_black, appearance, R.string.settings_pure_black_hint))
         add(SearchEntry(R.string.settings_highlight_color, appearance, R.string.settings_highlight_color_hint))
         add(SearchEntry(R.string.settings_name_colors, appearance, R.string.settings_name_colors_hint))
-        add(SearchEntry(R.string.settings_app_icon, appearance))
+        add(SearchEntry(R.string.settings_app_icon, appearance, also = APP_ICON_TERMS))
         add(SearchEntry(R.string.settings_font_size, appearance))
         add(SearchEntry(R.string.settings_timestamps, appearance))
         add(SearchEntry(R.string.settings_alternate_background, appearance, R.string.settings_alternate_background_hint))
@@ -436,6 +439,7 @@ fun SettingsScreen(vm: MainViewModel, onBack: () -> Unit) {
                 SettingsSubPage.ImageHosts -> ImageHostsPage(settings.imageHosts, vm)
                 SettingsSubPage.Posts -> PostsPage(settings, vm)
                 SettingsSubPage.SpecialMessages -> SpecialMessagesPage(settings, vm)
+                SettingsSubPage.AppIcons -> AppIconsPage(settings, vm)
                 SettingsSubPage.LiveChannels -> LiveChannelsPage(vm)
                 SettingsSubPage.Rules -> RulesPage(vm) { rule = it?.id ?: NEW_RULE }
                 SettingsSubPage.Credits -> CreditsPage()
