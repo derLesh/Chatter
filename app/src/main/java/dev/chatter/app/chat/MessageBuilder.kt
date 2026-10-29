@@ -247,6 +247,13 @@ class MessageBuilder(
             sharedId = msg.tag("source-id"),
             sourceRoomId = partner,
             bits = bits,
+            powerUp = when (msg.tag("msg-id")) {
+                "gigantified-emote-message" -> PowerUp.GiantEmote
+                "highlighted-message" -> PowerUp.Highlighted
+                "animated-message" -> PowerUp.Effect
+                else -> null
+            },
+            rewardId = msg.tag("custom-reward-id")?.ifEmpty { null },
         )
     }
 
@@ -280,6 +287,9 @@ class MessageBuilder(
             historical = historical,
             sharedId = msg.tag("source-id"),
             sourceRoomId = partner,
+            watchStreak = if (msg.tagIs("msg-id", "viewermilestone") && msg.tagIs("msg-param-category", "watch-streak")) {
+                msg.tag("msg-param-value")?.toIntOrNull()?.takeIf { it > 0 }
+            } else null,
         )
     }
 

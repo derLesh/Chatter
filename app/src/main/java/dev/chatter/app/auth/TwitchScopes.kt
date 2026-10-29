@@ -26,6 +26,8 @@ object TwitchScopes {
         "moderator:manage:announcements", "moderator:manage:shoutouts",
         // /mod, /vip and /raid in the user's own channel.
         "channel:manage:moderators", "channel:manage:vips", "channel:manage:raids",
+        // The names of rewards redeemed with a message in the user's own channel.
+        "channel:read:redemptions",
     )
 
     /**

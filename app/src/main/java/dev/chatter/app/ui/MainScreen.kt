@@ -101,6 +101,7 @@ fun MainScreen(vm: MainViewModel, onInbox: () -> Unit, onSettings: () -> Unit) {
     val roles by vm.roles.collectAsStateWithLifecycle()
     val subscribed by vm.subscribedChannels.collectAsStateWithLifecycle()
     val nicknames by vm.nicknames.collectAsStateWithLifecycle()
+    val rewardNames by vm.rewardNames.collectAsStateWithLifecycle()
     val inboxUnread by vm.inboxUnread.collectAsStateWithLifecycle()
     val update by vm.availableUpdate.collectAsStateWithLifecycle()
     val sharedChats by vm.sharedChats.collectAsStateWithLifecycle()
@@ -146,7 +147,7 @@ fun MainScreen(vm: MainViewModel, onInbox: () -> Unit, onSettings: () -> Unit) {
     // An idle chat next to a stream keeps animating, at a lower frame rate.
     val activity = remember { ChatActivity() }
     val emoteFrameRate = rememberEmoteFrameRate(activity, settings.slowIdleEmotes)
-    val style = rememberChatStyle(settings, nicknames, powerSave, saveData, emoteFrameRate)
+    val style = rememberChatStyle(settings, nicknames, rewardNames, powerSave, saveData, emoteFrameRate)
     // Only while this screen is in front: the bubble draws the same shared emotes, and the main
     // window being idle should not slow them there.
     LifecycleStartEffect(emoteFrameRate) {

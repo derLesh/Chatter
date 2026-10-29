@@ -28,6 +28,16 @@ sealed interface Segment {
 
 enum class MessageKind { Chat, Action, UserNotice, Notice }
 
+/** What a chatter paid channel points or bits for, from the message's `msg-id`. */
+enum class PowerUp {
+    /** `gigantified-emote-message`: the message's last emote, drawn large. */
+    GiantEmote,
+    /** `highlighted-message`. */
+    Highlighted,
+    /** `animated-message`: an animation Twitch plays over the message. */
+    Effect,
+}
+
 /**
  * The parts of a message only drawing needs: emote, link and mention segments, the sender's badges,
  * and the segments of the message a reply answers. Built on first use, because filtering, mentions
@@ -162,6 +172,11 @@ data class ChatItem(
     val sourceRoomId: String? = null,
     /** Bits cheered with this message, from the `bits` tag. */
     val bits: Int = 0,
+    val powerUp: PowerUp? = null,
+    /** `custom-reward-id`: the channel point reward this message's text was entered for. */
+    val rewardId: String? = null,
+    /** Streams in a row of a watch streak notice; Twitch's own text is English only. */
+    val watchStreak: Int? = null,
 ) {
     val canReply: Boolean get() = kind == MessageKind.Chat || kind == MessageKind.Action
 

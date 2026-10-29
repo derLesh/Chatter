@@ -157,6 +157,8 @@ class MainViewModel(private val c: AppContainer, savedState: SavedStateHandle) :
     val blockedUsers = c.blocked.blocked
     val blockedLogins = c.blocked.logins
     val nicknames = c.nicknames.nicknames
+    /** Reward titles by reward id, in the user's own channel. */
+    val rewardNames = c.chat.rewards.names
     val rules = c.rules.rules
     val inboxMentions = c.inbox.mentions
     val inboxWhispers = c.whisperInbox.whispers
@@ -958,6 +960,7 @@ class MainViewModel(private val c: AppContainer, savedState: SavedStateHandle) :
     fun setMobileData(v: MobileData) = saveSetting { setMobileData(v) }
     fun setPureBlack(v: Boolean) = saveSetting { setPureBlack(v) }
     fun setHighlightFirstMessages(v: Boolean) = saveSetting { setHighlightFirstMessages(v) }
+    fun setShowPowerUps(v: Boolean) = saveSetting { setShowPowerUps(v) }
     fun setNameColors(v: NameColorPalette) = saveSetting { setNameColors(v) }
     fun setAlternateBackground(v: Boolean) = saveSetting { setAlternateBackground(v) }
     fun setHighlightColor(v: Int) = saveSetting { setHighlightColor(v) }

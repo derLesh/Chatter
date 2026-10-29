@@ -15,7 +15,7 @@ class TwitchScopesTest {
     /** Scopes for features Chatter does not have stay out of the token. */
     @Test
     fun theLoginAsksForNothingChatterDoesNotUse() {
-        listOf("channel:manage:broadcast", "channel:edit:commercial", "channel:manage:polls", "channel:read:redemptions")
+        listOf("channel:manage:broadcast", "channel:edit:commercial", "channel:manage:polls", "channel:manage:redemptions")
             .forEach { assertFalse(it, it in TwitchScopes.ALL) }
         assertEquals(TwitchScopes.ALL.size, TwitchScopes.ALL.toSet().size)
     }

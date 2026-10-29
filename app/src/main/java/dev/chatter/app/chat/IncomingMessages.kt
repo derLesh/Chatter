@@ -45,6 +45,8 @@ class IncomingMessages(
     private val onPartnersFound: (ids: List<String>) -> Unit = {},
     /** Twitch refused a message the user sent in this channel. */
     private val onRefused: (channel: String) -> Unit = {},
+    /** A message entered for a channel point reward arrived; see [RewardNames.seen]. */
+    private val onReward: (rewardId: String, channelId: String?) -> Unit = { _, _ -> },
 ) {
     /**
      * Shared ids of recently reported mentions. A Shared Chat message arrives in every channel of
@@ -141,6 +143,7 @@ class IncomingMessages(
             sharedChats.unknown(listOf(partner)).takeIf { it.isNotEmpty() }?.let(onPartnersFound)
         }
         if (muted.mutes(built)) return
+        built.rewardId?.let { onReward(it, rooms.id(channel)) }
         val item = rules.apply(built) ?: return
         rememberChatter(channel, item)
         buffers.add(item)

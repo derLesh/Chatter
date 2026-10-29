@@ -33,6 +33,7 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.preferredFrameRate
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.LinkAnnotation
@@ -56,6 +57,7 @@ import dev.chatter.app.badges.NamePaint
 import dev.chatter.app.chat.ChatItem
 import dev.chatter.app.chat.LinkText
 import dev.chatter.app.chat.MessageKind
+import dev.chatter.app.chat.PowerUp
 import dev.chatter.app.chat.Segment
 
 private const val BADGE_EM = 1.35f
@@ -122,6 +124,7 @@ fun MessageRow(
         // A rule's own color beats the mention color.
         item.highlight != null -> Color(item.highlight).copy(alpha = HIGHLIGHT_ALPHA)
         item.isMention -> style.mentionBackground
+        style.powerUps && item.powerUp == PowerUp.Highlighted -> style.highlightedBackground
         firstMessage -> style.firstMessageBackground
         // Cheers stand out a little, like subs.
         item.kind == MessageKind.UserNotice || item.bits > 0 -> style.noticeBackground
@@ -161,6 +164,22 @@ fun MessageRow(
                 fontWeight = FontWeight.Medium,
             )
         }
+        if (style.powerUps && item.rewardId != null) {
+            Text(
+                text = style.rewardNames[item.rewardId]?.let { stringResource(R.string.reward_redeemed_named, it) }
+                    ?: stringResource(R.string.reward_redeemed),
+                color = style.accent,
+                fontSize = (style.fontSize - 2).sp,
+                fontWeight = FontWeight.Medium,
+            )
+        }
+        if (style.powerUps && item.powerUp == PowerUp.Effect) {
+            Text(
+                text = stringResource(R.string.message_effect),
+                color = style.secondaryText,
+                fontSize = (style.fontSize - 2).sp,
+            )
+        }
         item.reply?.let { reply ->
             // The quote is inserted where the string puts it, whatever order a language uses.
             val template = stringResource(R.string.reply_to, style.nameOf(reply.parentLogin, reply.parentDisplayName), QUOTE_MARK)
@@ -184,14 +203,18 @@ fun MessageRow(
                     .clickable { onGesture(item, MessageGesture.Thread) },
             )
         }
-        if (item.kind == MessageKind.UserNotice && item.systemText != null) {
+        val header = item.watchStreak?.let { streams ->
+            val name = style.nameOf(item.login, item.displayName ?: item.login.orEmpty())
+            pluralStringResource(R.plurals.watch_streak, streams, name, streams)
+        } ?: item.systemText
+        if (item.kind == MessageKind.UserNotice && header != null) {
             // The channel goes in front of the header, since subs and raids often have no message
             // of their own.
             Text(
-                text = remember(item.systemText, channel) {
+                text = remember(header, channel) {
                     buildAnnotatedString {
                         if (channel != null) appendChannel(channel)
-                        append(item.systemText)
+                        append(header)
                     }
                 },
                 inlineContent = if (channel == null) emptyMap() else remember(channel, imageLoader) {
@@ -343,13 +366,19 @@ private fun inlineFor(
         val base = data.seg.emote
         // Wide zero-width overlays should not be clipped, so the widest aspect ratio is used.
         val aspect = (data.seg.overlays + base).maxOf { EmoteSizes.aspectRatio(it) }
+        val em = if (data.giant) emoteEm * GIANT_EMOTE_SCALE else emoteEm
         InlineTextContent(
-            Placeholder((emoteEm * aspect).em, emoteEm.em, PlaceholderVerticalAlign.Center),
+            Placeholder((em * aspect).em, em.em, PlaceholderVerticalAlign.Center),
         ) {
             Box(Modifier.fillMaxSize().preferredFrameRate(frameRate).then(if (onEmoteClick != null) Modifier.clickable { onEmoteClick(data.seg) } else Modifier)) {
                 (listOf(base) + data.seg.overlays).forEach { e ->
                     SharedEmoteImage(
-                        url = if (smallEmotes) e.smallUrl else e.url,
+                        url = when {
+                            smallEmotes -> e.smallUrl
+                            // The usual size would be blurry this large.
+                            data.giant -> e.largeUrl
+                            else -> e.url
+                        },
                         contentDescription = e.name,
                         loader = loader,
                         onLoaded = EmoteSizes.onSize(e),
@@ -360,6 +389,9 @@ private fun inlineFor(
         }
     }
 }
+
+/** About the size Twitch draws a giant emote at, next to its usual one. */
+private const val GIANT_EMOTE_SCALE = 3f
 
 /** Smaller emotes in the reply line, so it keeps its line height. */
 private const val QUOTE_EMOTE_EM = 1.5f

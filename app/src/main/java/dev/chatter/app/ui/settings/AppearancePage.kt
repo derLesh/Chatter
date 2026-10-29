@@ -108,6 +108,9 @@ internal fun AppearancePage(settings: Settings, vm: MainViewModel) {
                 vm::setHighlightFirstMessages, R.string.settings_first_messages_hint,
             )
         }
+        item(R.string.settings_power_ups) {
+            SwitchItem(R.string.settings_power_ups, settings.showPowerUps, vm::setShowPowerUps, R.string.settings_power_ups_hint)
+        }
     }
 
     // The phone-related settings, in one group.

@@ -145,6 +145,8 @@ data class Settings(
     val senderAvatars: Boolean = true,
     /** Mark a chatter's first message in a channel (Twitch's flag). */
     val highlightFirstMessages: Boolean = true,
+    /** Show giant emotes, highlighted messages, message effects and rewards the way Twitch does. */
+    val showPowerUps: Boolean = true,
     /** How user-picked name colors are adjusted for readability. */
     val nameColors: NameColorPalette = NameColorPalette.HslLuma,
     /** Tap on a message. */
@@ -233,6 +235,7 @@ class SettingsRepository(
             liveNotifications = p[LIVE_NOTIFICATIONS] ?: true,
             senderAvatars = p[SENDER_AVATARS] ?: true,
             highlightFirstMessages = p[FIRST_MESSAGES] ?: true,
+            showPowerUps = p[POWER_UPS] ?: true,
             nameColors = p[NAME_COLORS]?.let { v -> NameColorPalette.entries.firstOrNull { it.name == v } }
                 ?: NameColorPalette.HslLuma,
             messageTap = p[MESSAGE_TAP]?.let { v -> TapAction.entries.firstOrNull { it.name == v } } ?: TapAction.Reply,
@@ -306,6 +309,7 @@ class SettingsRepository(
     suspend fun setLiveNotifications(v: Boolean) = store.edit { it[LIVE_NOTIFICATIONS] = v }
     suspend fun setSenderAvatars(v: Boolean) = store.edit { it[SENDER_AVATARS] = v }
     suspend fun setHighlightFirstMessages(v: Boolean) = store.edit { it[FIRST_MESSAGES] = v }
+    suspend fun setShowPowerUps(v: Boolean) = store.edit { it[POWER_UPS] = v }
     suspend fun setNameColors(v: NameColorPalette) = store.edit { it[NAME_COLORS] = v.name }
     suspend fun updateBadgeProviders(change: (Set<BadgeProvider>) -> Set<BadgeProvider>) =
         store.edit { p -> p[BADGE_PROVIDERS] = change(badgeProviders(p[BADGE_PROVIDERS])).joinToString(",") { it.name } }
@@ -397,6 +401,7 @@ class SettingsRepository(
         p[LIVE_NOTIFICATIONS] = s.liveNotifications
         p[SENDER_AVATARS] = s.senderAvatars
         p[FIRST_MESSAGES] = s.highlightFirstMessages
+        p[POWER_UPS] = s.showPowerUps
         p[NAME_COLORS] = s.nameColors.name
         p[MESSAGE_TAP] = s.messageTap.name
         p[NAME_TAP] = s.nameTap.name
@@ -494,6 +499,7 @@ class SettingsRepository(
         val BADGE_PROVIDERS = stringPreferencesKey("badge_providers")
         val NAME_COLORS = stringPreferencesKey("name_colors")
         val FIRST_MESSAGES = booleanPreferencesKey("highlight_first_messages")
+        val POWER_UPS = booleanPreferencesKey("show_power_ups")
         val MESSAGE_TAP = stringPreferencesKey("message_tap")
         val NAME_TAP = stringPreferencesKey("name_tap")
         val COPY_FIRST = booleanPreferencesKey("copy_first")

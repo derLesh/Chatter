@@ -47,6 +47,12 @@ data class ChatStyle(
     val emoteFrameRate: Float = EmoteFrameRate.ACTIVE,
     /** Whether names are drawn with their 7TV paint. */
     val paints: Boolean = true,
+    /** Whether giant emotes, highlighted messages, effects and rewards are shown as such. */
+    val powerUps: Boolean = false,
+    /** Background of a message highlighted with channel points. */
+    val highlightedBackground: Color = Color.Transparent,
+    /** Channel point reward titles by reward id; only the user's own channel's are known. */
+    val rewardNames: Map<String, String> = emptyMap(),
 )
 
 /**
@@ -71,6 +77,7 @@ fun ChatStyle.nameOf(login: String?, fallback: String): String =
 fun rememberChatStyle(
     settings: Settings,
     nicknames: Map<String, String>,
+    rewardNames: Map<String, String> = emptyMap(),
     powerSave: Boolean = false,
     saveData: Boolean = false,
     emoteFrameRate: Float = EmoteFrameRate.ACTIVE,
@@ -80,7 +87,7 @@ fun rememberChatStyle(
     return remember(
         settings.fontSize, settings.timestamps, settings.highlightColor, settings.alternateBackground,
         settings.nameColors, settings.highlightFirstMessages, settings.haptics, postCardStyle(settings),
-        settings.inlineImages, settings.imageHosts, settings.showGifs, settings.fullLinks, settings.sevenTvPaints, powerSave, saveData, emoteFrameRate, nicknames, dark, colors,
+        settings.inlineImages, settings.imageHosts, settings.showGifs, settings.fullLinks, settings.sevenTvPaints, settings.showPowerUps, powerSave, saveData, emoteFrameRate, nicknames, rewardNames, dark, colors,
     ) {
         ChatStyle(
             fontSize = settings.fontSize,
@@ -109,6 +116,9 @@ fun rememberChatStyle(
             smallEmotes = saveData,
             emoteFrameRate = emoteFrameRate,
             paints = settings.sevenTvPaints,
+            powerUps = settings.showPowerUps,
+            highlightedBackground = colors.primary.copy(alpha = 0.28f),
+            rewardNames = rewardNames,
         )
     }
 }

@@ -20,6 +20,7 @@ import dev.chatter.app.chat.LinkPreviews
 import dev.chatter.app.chat.LinkText
 import dev.chatter.app.chat.MessageKind
 import dev.chatter.app.chat.PostLink
+import dev.chatter.app.chat.PowerUp
 import dev.chatter.app.chat.Segment
 import dev.chatter.app.emotes.Emote
 import dev.chatter.app.ui.theme.readableNameColor
@@ -57,7 +58,8 @@ internal fun pendingAspects(line: BuiltLine): List<Float> = line.inline.values.m
 internal sealed interface InlineData {
     data class ChannelData(val mark: ChannelMark) : InlineData
     data class BadgeData(val badge: Badge) : InlineData
-    data class EmoteData(val seg: Segment.EmoteSeg) : InlineData
+    /** [giant]: the emote of a giant emote power-up. */
+    data class EmoteData(val seg: Segment.EmoteSeg, val giant: Boolean = false) : InlineData
     /** Not clickable: the emote card would offer to type "Cheer100" into the input. */
     data class CheerData(val picture: Emote) : InlineData
 }
@@ -136,7 +138,8 @@ internal fun buildLine(item: ChatItem, style: ChatStyle, onName: LinkInteraction
             fontStyle = if (isAction) FontStyle.Italic else FontStyle.Normal,
             textDecoration = if (item.deleted) TextDecoration.LineThrough else null,
         )
-        withStyle(body) { appendSegments(segments, inline, style) }
+        val giantAt = if (style.powerUps && item.powerUp == PowerUp.GiantEmote) segments.indexOfLast { it is Segment.EmoteSeg } else -1
+        withStyle(body) { appendSegments(segments, inline, style, giantAt) }
     }
     return BuiltLine(text, inline, pulled.images, pulled.posts, pulled.gifs, (nameStart until nameEnd).takeIf { !it.isEmpty() })
 }
@@ -179,13 +182,18 @@ internal fun buildQuote(template: String, quote: List<Segment>, fallback: String
 /** Placeholder for the answered message in the reply template; never part of a message. */
 internal const val QUOTE_MARK = "\uE000"
 
-private fun AnnotatedString.Builder.appendSegments(segments: List<Segment>, inline: MutableMap<String, InlineData>, style: ChatStyle) {
+private fun AnnotatedString.Builder.appendSegments(
+    segments: List<Segment>,
+    inline: MutableMap<String, InlineData>,
+    style: ChatStyle,
+    giantAt: Int = -1,
+) {
     segments.forEachIndexed { i, seg ->
         when (seg) {
             is Segment.Text -> append(seg.text)
             is Segment.EmoteSeg -> {
                 val id = "e$i"
-                inline[id] = InlineData.EmoteData(seg)
+                inline[id] = InlineData.EmoteData(seg, giant = i == giantAt)
                 appendInlineContent(id, seg.emote.name)
             }
             is Segment.Link -> withLink(

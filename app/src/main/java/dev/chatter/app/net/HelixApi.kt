@@ -183,6 +183,10 @@ class HelixApi(
         http.send("DELETE", url("moderation/chat", "broadcaster_id" to channelId, "moderator_id" to modId, "message_id" to messageId), headers())
     }
 
+    /** The channel point rewards of the user's own channel. Twitch answers no one else. */
+    suspend fun customRewards(broadcasterId: String): List<HelixReward> =
+        http.getJson<HelixList<HelixReward>>(url("channel_points/custom_rewards", "broadcaster_id" to broadcasterId), headers()).data
+
     /** The message pinned in a chat, or null. Twitch only answers the broadcaster and moderators. */
     suspend fun pinnedMessage(channelId: String, modId: String): HelixPinnedMessage? =
         http.getJson<HelixList<HelixPinnedMessage>>(url("chat/pins", "broadcaster_id" to channelId, "moderator_id" to modId), headers())
@@ -367,6 +371,9 @@ data class HelixEmote(
     @SerialName("owner_id") val ownerId: String = "",
     val format: List<String> = emptyList(),
 )
+
+@Serializable
+data class HelixReward(val id: String, val title: String = "")
 
 @Serializable
 data class HelixPinnedMessage(

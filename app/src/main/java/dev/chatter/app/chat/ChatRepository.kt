@@ -98,6 +98,9 @@ class ChatRepository(
     /** Pinned messages where the user moderates; see [PinnedMessages]. */
     val pins = PinnedMessages(helix, auth, rooms, buffers, builder, worker)
 
+    /** Reward titles in the user's own channel; see [RewardNames]. */
+    val rewards = RewardNames(helix, auth, scope)
+
     // --- state touched only on `worker` ---
     private val lastSent = HashMap<String, Pair<String, Long>>()
     private val rateLimiter = RateLimiter(30_000)
@@ -132,6 +135,7 @@ class ChatRepository(
         onSharedChatStarted = { channel -> scope.launch { loadSharedChat(channel) } },
         onPartnersFound = { ids -> scope.launch { describePartners(ids) } },
         onRefused = { _refused.tryEmit(it) },
+        onReward = rewards::seen,
     )
 
     private val _refused = MutableSharedFlow<String>(extraBufferCapacity = 8)
@@ -344,6 +348,7 @@ class ChatRepository(
         incoming.clear()
         sharedChats.clear()
         pins.clear()
+        rewards.clear()
         loadedChannels.clear()
         listLoads.clear()
         joinedChannels = emptyList()
@@ -478,6 +483,7 @@ class ChatRepository(
                     ?.also { incoming.rememberChatter(channel, it) }
             }
             buffers.merge(channel, items)
+            items.firstNotNullOfOrNull { it.rewardId }?.let { rewards.seen(it, rooms.id(channel)) }
             pins.takeFromChat(channel)
             if (announce) buffers.remove(channel, historyId(channel))
             // Old partner messages are marked like new ones. Whether a session is running is

@@ -319,4 +319,30 @@ class MessageBuilderTest {
         val item = build(privmsg("@ole [Yes GIF]", tags))
         assertEquals(listOf<Segment>(Segment.Gif("[Yes GIF]", url)), item.segments)
     }
+
+    @Test
+    fun powerUpsAreReadFromTheMessageId() {
+        assertEquals(PowerUp.GiantEmote, build(privmsg("Kappa", "msg-id=gigantified-emote-message;emotes=25:0-4")).powerUp)
+        assertEquals(PowerUp.Highlighted, build(privmsg("hi", "msg-id=highlighted-message")).powerUp)
+        assertEquals(PowerUp.Effect, build(privmsg("hi", "msg-id=animated-message;animation-id=simmer")).powerUp)
+        assertEquals(null, build(privmsg("hi")).powerUp)
+    }
+
+    @Test
+    fun aRewardMessageKnowsItsReward() {
+        assertEquals("r1", build(privmsg("hydrate!", "custom-reward-id=r1")).rewardId)
+        assertEquals(null, build(privmsg("hi", "custom-reward-id=")).rewardId)
+    }
+
+    @Test
+    fun aWatchStreakCountsItsStreams() {
+        fun notice(tags: String) = IrcMessage.parse(
+            "@id=n;login=user;display-name=User;$tags;system-msg=User\\swatched\\s5\\sconsecutive\\sstreams :tmi.twitch.tv USERNOTICE #chan",
+        )!!
+        val streak = build(notice("msg-id=viewermilestone;msg-param-category=watch-streak;msg-param-value=5"))
+        assertEquals(5, streak.watchStreak)
+        assertEquals(MessageKind.UserNotice, streak.kind)
+        assertEquals(null, build(notice("msg-id=viewermilestone;msg-param-category=other;msg-param-value=5")).watchStreak)
+        assertEquals(null, build(notice("msg-id=resub;msg-param-value=5")).watchStreak)
+    }
 }

@@ -479,8 +479,17 @@
     <string name="name_colors_rgb_loop">RGB Loop</string>
 
     <string name="first_message">First message in this channel</string>
+    <string name="reward_redeemed">Redeemed a reward</string>
+    <string name="reward_redeemed_named">Redeemed %1$s</string>
+    <string name="message_effect">Sent with an effect</string>
+    <plurals name="watch_streak">
+        <item quantity="one">%1$s watched %2$d stream in a row</item>
+        <item quantity="other">%1$s watched %2$d streams in a row</item>
+    </plurals>
     <string name="settings_first_messages">Highlight first messages</string>
     <string name="settings_first_messages_hint">Mark it when someone writes in a channel for the first time</string>
+    <string name="settings_power_ups">Show power-ups</string>
+    <string name="settings_power_ups_hint">Giant emotes, highlighted messages and rewards, like on Twitch</string>
 
     <string name="settings_mute_keywords">Hidden words</string>
     <string name="settings_mute_keywords_summary">Words that are hidden in the chat</string>
