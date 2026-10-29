@@ -1,0 +1,2 @@
+minor: See giant emotes, highlighted messages, message effects, rewards and watch streaks like on Twitch
+minor: Choose which special messages to show under Appearance, each with a preview

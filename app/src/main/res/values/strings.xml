@@ -488,8 +488,20 @@
     </plurals>
     <string name="settings_first_messages">Highlight first messages</string>
     <string name="settings_first_messages_hint">Mark it when someone writes in a channel for the first time</string>
-    <string name="settings_power_ups">Show power-ups</string>
-    <string name="settings_power_ups_hint">Giant emotes, highlighted messages and rewards, like on Twitch</string>
+    <string name="settings_special_messages">Special messages</string>
+    <string name="settings_special_messages_on">%1$d of %2$d on</string>
+    <string name="special_giant_emotes">Giant emotes</string>
+    <string name="special_giant_emotes_hint">An emote someone made big with bits</string>
+    <string name="special_highlighted">Highlighted messages</string>
+    <string name="special_highlighted_hint">Bought with channel points, shown in color</string>
+    <string name="special_effects">Message effects</string>
+    <string name="special_effects_hint">A small note instead of the animation</string>
+    <string name="special_rewards">Rewards</string>
+    <string name="special_rewards_hint">A line above the text of a channel point reward. Its name only in your own channel.</string>
+    <string name="special_watch_streaks">Watch streaks</string>
+    <string name="special_watch_streaks_hint">Someone watched several streams in a row. Off hides them.</string>
+    <string name="special_preview_text">Hello chat!</string>
+    <string name="special_preview_reward">Hydrate</string>
 
     <string name="settings_mute_keywords">Hidden words</string>
     <string name="settings_mute_keywords_summary">Words that are hidden in the chat</string>

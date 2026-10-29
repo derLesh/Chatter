@@ -1,2 +1,0 @@
-minor: See giant emotes, highlighted messages, message effects and rewards like on Twitch, or turn them off
-patch: Show watch streaks in the language of the app

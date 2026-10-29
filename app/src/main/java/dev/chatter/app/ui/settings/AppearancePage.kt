@@ -17,6 +17,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material3.Icon
 import androidx.compose.material3.ListItem
@@ -49,9 +50,11 @@ import dev.chatter.app.chat.MessageBody
 import dev.chatter.app.chat.MessageKind
 import dev.chatter.app.chat.Segment
 import dev.chatter.app.settings.Settings
+import dev.chatter.app.settings.SpecialMessage
 import dev.chatter.app.settings.ThemeMode
 import dev.chatter.app.settings.TimestampFormat
 import dev.chatter.app.ui.MainViewModel
+import dev.chatter.app.ui.SettingsSubPage
 import dev.chatter.app.ui.chat.ChatStyle
 import dev.chatter.app.ui.chat.MessageRow
 import dev.chatter.app.ui.theme.NameColorPalette
@@ -66,7 +69,7 @@ import java.util.Locale
 import kotlin.math.roundToInt
 
 @Composable
-internal fun AppearancePage(settings: Settings, vm: MainViewModel) {
+internal fun AppearancePage(settings: Settings, vm: MainViewModel, open: (SettingsSubPage) -> Unit) {
     val dark = isAppInDarkTheme()
     SettingsGroup(R.string.settings_group_colors) {
         item(R.string.settings_theme) { ThemeModeItem(settings.themeMode, vm::setThemeMode) }
@@ -108,8 +111,20 @@ internal fun AppearancePage(settings: Settings, vm: MainViewModel) {
                 vm::setHighlightFirstMessages, R.string.settings_first_messages_hint,
             )
         }
-        item(R.string.settings_power_ups) {
-            SwitchItem(R.string.settings_power_ups, settings.showPowerUps, vm::setShowPowerUps, R.string.settings_power_ups_hint)
+        item(R.string.settings_special_messages) {
+            ListItem(
+                headlineContent = { Text(stringResource(R.string.settings_special_messages)) },
+                supportingContent = {
+                    val on = settings.specialMessages.size
+                    Text(
+                        if (on == 0) stringResource(R.string.settings_off)
+                        else stringResource(R.string.settings_special_messages_on, on, SpecialMessage.entries.size),
+                    )
+                },
+                trailingContent = { Icon(Icons.AutoMirrored.Filled.ArrowForward, contentDescription = null) },
+                colors = transparentItem(),
+                modifier = Modifier.clickable { open(SettingsSubPage.SpecialMessages) },
+            )
         }
     }
 

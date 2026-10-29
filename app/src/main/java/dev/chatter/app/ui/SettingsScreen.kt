@@ -97,6 +97,8 @@ import dev.chatter.app.ui.settings.MOBILE_DATA
 import dev.chatter.app.ui.settings.NotificationsPage
 import dev.chatter.app.ui.settings.PROVIDERS
 import dev.chatter.app.ui.settings.PostsPage
+import dev.chatter.app.ui.settings.SPECIAL_MESSAGE_TITLES
+import dev.chatter.app.ui.settings.SpecialMessagesPage
 import dev.chatter.app.ui.settings.RuleEditorPage
 import dev.chatter.app.ui.settings.RulesPage
 import dev.chatter.app.ui.settings.SettingsGroup
@@ -166,6 +168,7 @@ internal enum class SettingsSubPage(val title: Int) {
     MuteKeywords(R.string.settings_mute_keywords),
     ImageHosts(R.string.settings_image_hosts),
     Posts(R.string.settings_posts),
+    SpecialMessages(R.string.settings_special_messages),
     LiveChannels(R.string.settings_live_channels),
     Rules(R.string.settings_rules),
     Changelog(R.string.settings_changelog),
@@ -205,7 +208,7 @@ private val SEARCH_INDEX: List<SearchEntry> by lazy {
         add(SearchEntry(R.string.settings_smooth_scrolling, appearance, R.string.settings_smooth_scrolling_hint))
         add(SearchEntry(R.string.settings_show_deleted, appearance, R.string.settings_show_deleted_hint))
         add(SearchEntry(R.string.settings_first_messages, appearance, R.string.settings_first_messages_hint))
-        add(SearchEntry(R.string.settings_power_ups, appearance, R.string.settings_power_ups_hint))
+        add(SearchEntry(R.string.settings_special_messages, appearance, also = SPECIAL_MESSAGE_TITLES.map { it.second }))
         add(SearchEntry(R.string.settings_keep_screen_on, appearance, R.string.settings_keep_screen_on_hint))
         add(SearchEntry(R.string.settings_keep_screen_on_when_quiet, appearance, R.string.settings_keep_screen_on_when_quiet_hint))
         add(SearchEntry(R.string.settings_haptics, appearance, R.string.settings_haptics_hint))
@@ -432,6 +435,7 @@ fun SettingsScreen(vm: MainViewModel, onBack: () -> Unit) {
                 )
                 SettingsSubPage.ImageHosts -> ImageHostsPage(settings.imageHosts, vm)
                 SettingsSubPage.Posts -> PostsPage(settings, vm)
+                SettingsSubPage.SpecialMessages -> SpecialMessagesPage(settings, vm)
                 SettingsSubPage.LiveChannels -> LiveChannelsPage(vm)
                 SettingsSubPage.Rules -> RulesPage(vm) { rule = it?.id ?: NEW_RULE }
                 SettingsSubPage.Credits -> CreditsPage()
@@ -447,7 +451,7 @@ fun SettingsScreen(vm: MainViewModel, onBack: () -> Unit) {
                         update?.let { UpdateCard(it, BuildConfig.VERSION_NAME) { subPage = SettingsSubPage.Update } }
                         Home { page = it }
                     }
-                    SettingsPage.Appearance -> AppearancePage(settings, vm)
+                    SettingsPage.Appearance -> AppearancePage(settings, vm) { subPage = it }
                     SettingsPage.Messages -> MessagesPage(settings, vm)
                     SettingsPage.Media -> MediaPage(settings, vm) { subPage = it }
                     SettingsPage.Typing -> TypingPage(settings, vm)

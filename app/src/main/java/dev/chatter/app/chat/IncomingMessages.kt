@@ -8,7 +8,11 @@ data class ChatFilters(
     val mentions: MentionMatcher = MentionMatcher("", emptyList()),
     val muted: MuteFilter = MuteFilter(),
     val rules: RuleEngine = RuleEngine(),
-)
+    val watchStreaks: Boolean = true,
+) {
+    /** Whether [item] is left out of the chat, before rules see it. */
+    fun hides(item: ChatItem): Boolean = muted.mutes(item) || (item.watchStreak != null && !watchStreaks)
+}
 
 /**
  * Handles what Twitch sends, one message at a time on the chat worker: build it, apply the mute
@@ -131,7 +135,8 @@ class IncomingMessages(
     }
 
     private fun onChatMessage(channel: String, msg: IrcMessage) {
-        val (mentions, muted, rules) = filters()
+        val current = filters()
+        val (mentions, _, rules) = current
         val built = builder.build(msg, selfLogin(), rooms.id(channel), mentions) ?: return
         // Muted and hidden messages count as seen too, so a reconnect does not fetch them again.
         lastLive.getOrPut(channel) { Newest(0L) }.at = built.timestamp
@@ -142,7 +147,7 @@ class IncomingMessages(
         built.sourceRoomId?.let { partner ->
             sharedChats.unknown(listOf(partner)).takeIf { it.isNotEmpty() }?.let(onPartnersFound)
         }
-        if (muted.mutes(built)) return
+        if (current.hides(built)) return
         built.rewardId?.let { onReward(it, rooms.id(channel)) }
         val item = rules.apply(built) ?: return
         rememberChatter(channel, item)

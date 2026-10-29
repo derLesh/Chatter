@@ -108,6 +108,24 @@ class IncomingMessagesTest {
     }
 
     @Test
+    fun watchStreaksTurnedOffNeverReachTheChannel() = runTest(dispatcher) {
+        buffers.open("forsen")
+        filters = filters.copy(watchStreaks = false)
+        incoming.handle(
+            line(
+                "@id=w;login=someone;display-name=someone;msg-id=viewermilestone;msg-param-category=watch-streak;" +
+                    "msg-param-value=5 :tmi.twitch.tv USERNOTICE #forsen",
+            ),
+        )
+        incoming.handle(privmsg("someone", "hello"))
+
+        val watcher = launch { buffers.messages("forsen").collect {} }
+        advanceUntilIdle()
+        assertEquals(listOf("hello"), buffers.messages("forsen").value.map { it.text })
+        watcher.cancel()
+    }
+
+    @Test
     fun aMutedMessageStillMarksHowFarTheChannelHasBeenRead() = runTest(dispatcher) {
         buffers.open("forsen")
         filters = filters.copy(muted = MuteFilter(keywords = listOf("spoiler")))

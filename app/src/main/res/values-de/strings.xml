@@ -472,7 +472,7 @@
 
     <string name="first_message">Erste Nachricht in diesem Kanal</string>
     <string name="reward_redeemed">Hat eine Belohnung eingelöst</string>
-    <string name="reward_redeemed_named">Hat %1$s eingelöst</string>
+    <string name="reward_redeemed_named">Hat „%1$s“ eingelöst</string>
     <string name="message_effect">Mit Effekt gesendet</string>
     <plurals name="watch_streak">
         <item quantity="one">%1$s hat %2$d Stream in Folge geschaut</item>
@@ -480,8 +480,20 @@
     </plurals>
     <string name="settings_first_messages">Erste Nachrichten hervorheben</string>
     <string name="settings_first_messages_hint">Markieren, wenn jemand zum ersten Mal in einem Kanal schreibt</string>
-    <string name="settings_power_ups">Power-ups zeigen</string>
-    <string name="settings_power_ups_hint">Riesige Emotes, hervorgehobene Nachrichten und Belohnungen, wie auf Twitch</string>
+    <string name="settings_special_messages">Besondere Nachrichten</string>
+    <string name="settings_special_messages_on">%1$d von %2$d an</string>
+    <string name="special_giant_emotes">Riesige Emotes</string>
+    <string name="special_giant_emotes_hint">Ein Emote, das jemand mit Bits groß gemacht hat</string>
+    <string name="special_highlighted">Hervorgehobene Nachrichten</string>
+    <string name="special_highlighted_hint">Mit Kanalpunkten gekauft, farbig hinterlegt</string>
+    <string name="special_effects">Nachrichteneffekte</string>
+    <string name="special_effects_hint">Ein kleiner Hinweis statt der Animation</string>
+    <string name="special_rewards">Belohnungen</string>
+    <string name="special_rewards_hint">Eine Zeile über dem Text einer Kanalpunkte-Belohnung. Ihr Name nur im eigenen Kanal.</string>
+    <string name="special_watch_streaks">Watch-Streaks</string>
+    <string name="special_watch_streaks_hint">Jemand hat mehrere Streams in Folge geschaut. Aus blendet sie aus.</string>
+    <string name="special_preview_text">Hallo Chat!</string>
+    <string name="special_preview_reward">Wasser trinken</string>
 
     <string name="settings_mute_keywords">Ausgeblendete Wörter</string>
     <string name="settings_mute_keywords_summary">Wörter, die im Chat ausgeblendet werden</string>

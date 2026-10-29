@@ -6,6 +6,7 @@ import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.graphics.Color
 import dev.chatter.app.settings.Settings
+import dev.chatter.app.settings.SpecialMessage
 import dev.chatter.app.settings.TimestampFormat
 import dev.chatter.app.ui.theme.NameColorPalette
 import dev.chatter.app.ui.theme.highlightBackground
@@ -47,8 +48,8 @@ data class ChatStyle(
     val emoteFrameRate: Float = EmoteFrameRate.ACTIVE,
     /** Whether names are drawn with their 7TV paint. */
     val paints: Boolean = true,
-    /** Whether giant emotes, highlighted messages, effects and rewards are shown as such. */
-    val powerUps: Boolean = false,
+    /** Special messages shown the way Twitch shows them. */
+    val specialMessages: Set<SpecialMessage> = emptySet(),
     /** Background of a message highlighted with channel points. */
     val highlightedBackground: Color = Color.Transparent,
     /** Channel point reward titles by reward id; only the user's own channel's are known. */
@@ -87,7 +88,7 @@ fun rememberChatStyle(
     return remember(
         settings.fontSize, settings.timestamps, settings.highlightColor, settings.alternateBackground,
         settings.nameColors, settings.highlightFirstMessages, settings.haptics, postCardStyle(settings),
-        settings.inlineImages, settings.imageHosts, settings.showGifs, settings.fullLinks, settings.sevenTvPaints, settings.showPowerUps, powerSave, saveData, emoteFrameRate, nicknames, rewardNames, dark, colors,
+        settings.inlineImages, settings.imageHosts, settings.showGifs, settings.fullLinks, settings.sevenTvPaints, settings.specialMessages, powerSave, saveData, emoteFrameRate, nicknames, rewardNames, dark, colors,
     ) {
         ChatStyle(
             fontSize = settings.fontSize,
@@ -116,7 +117,7 @@ fun rememberChatStyle(
             smallEmotes = saveData,
             emoteFrameRate = emoteFrameRate,
             paints = settings.sevenTvPaints,
-            powerUps = settings.showPowerUps,
+            specialMessages = settings.specialMessages,
             highlightedBackground = colors.primary.copy(alpha = 0.28f),
             rewardNames = rewardNames,
         )

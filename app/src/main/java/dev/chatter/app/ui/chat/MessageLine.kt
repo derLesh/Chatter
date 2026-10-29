@@ -23,6 +23,7 @@ import dev.chatter.app.chat.PostLink
 import dev.chatter.app.chat.PowerUp
 import dev.chatter.app.chat.Segment
 import dev.chatter.app.emotes.Emote
+import dev.chatter.app.settings.SpecialMessage
 import dev.chatter.app.ui.theme.readableNameColor
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -138,7 +139,7 @@ internal fun buildLine(item: ChatItem, style: ChatStyle, onName: LinkInteraction
             fontStyle = if (isAction) FontStyle.Italic else FontStyle.Normal,
             textDecoration = if (item.deleted) TextDecoration.LineThrough else null,
         )
-        val giantAt = if (style.powerUps && item.powerUp == PowerUp.GiantEmote) segments.indexOfLast { it is Segment.EmoteSeg } else -1
+        val giantAt = if (item.powerUp == PowerUp.GiantEmote && SpecialMessage.GiantEmote in style.specialMessages) segments.indexOfLast { it is Segment.EmoteSeg } else -1
         withStyle(body) { appendSegments(segments, inline, style, giantAt) }
     }
     return BuiltLine(text, inline, pulled.images, pulled.posts, pulled.gifs, (nameStart until nameEnd).takeIf { !it.isEmpty() })

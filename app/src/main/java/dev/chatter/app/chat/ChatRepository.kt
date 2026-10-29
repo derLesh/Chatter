@@ -16,6 +16,7 @@ import dev.chatter.app.irc.IrcMessage
 import dev.chatter.app.net.HelixApi
 import dev.chatter.app.net.ThirdPartyApi
 import dev.chatter.app.settings.Settings
+import dev.chatter.app.settings.SpecialMessage
 import dev.chatter.app.util.RateLimiter
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -203,6 +204,11 @@ class ChatRepository(
 
         scope.launch(worker) {
             rules.collect { filters = filters.copy(rules = RuleEngine(it)) }
+        }
+
+        scope.launch(worker) {
+            settings.map { SpecialMessage.WatchStreak in it.specialMessages }.distinctUntilChanged()
+                .collect { filters = filters.copy(watchStreaks = it) }
         }
 
         scope.launch(worker) {
@@ -473,12 +479,13 @@ class ChatRepository(
         }
         withContext(worker) {
             val self = auth.account?.login.orEmpty()
-            val (mentions, muted, rules) = filters
+            val current = filters
+            val (mentions, _, rules) = current
             val items = lines.mapNotNull { line ->
                 val msg = IrcMessage.parse(line) ?: return@mapNotNull null
                 if (msg.command != "PRIVMSG" && msg.command != "USERNOTICE") return@mapNotNull null
                 builder.build(msg, self, rooms.id(channel), mentions, historical = true)
-                    ?.takeIf { (since == null || it.timestamp > since) && !muted.mutes(it) }
+                    ?.takeIf { (since == null || it.timestamp > since) && !current.hides(it) }
                     ?.let { rules.apply(it) }
                     ?.also { incoming.rememberChatter(channel, it) }
             }

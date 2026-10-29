@@ -59,6 +59,7 @@ import dev.chatter.app.chat.LinkText
 import dev.chatter.app.chat.MessageKind
 import dev.chatter.app.chat.PowerUp
 import dev.chatter.app.chat.Segment
+import dev.chatter.app.settings.SpecialMessage
 
 private const val BADGE_EM = 1.35f
 /** How strongly a rule's highlight color tints the background. */
@@ -124,7 +125,7 @@ fun MessageRow(
         // A rule's own color beats the mention color.
         item.highlight != null -> Color(item.highlight).copy(alpha = HIGHLIGHT_ALPHA)
         item.isMention -> style.mentionBackground
-        style.powerUps && item.powerUp == PowerUp.Highlighted -> style.highlightedBackground
+        item.powerUp == PowerUp.Highlighted && SpecialMessage.Highlighted in style.specialMessages -> style.highlightedBackground
         firstMessage -> style.firstMessageBackground
         // Cheers stand out a little, like subs.
         item.kind == MessageKind.UserNotice || item.bits > 0 -> style.noticeBackground
@@ -164,7 +165,7 @@ fun MessageRow(
                 fontWeight = FontWeight.Medium,
             )
         }
-        if (style.powerUps && item.rewardId != null) {
+        if (item.rewardId != null && SpecialMessage.Reward in style.specialMessages) {
             Text(
                 text = style.rewardNames[item.rewardId]?.let { stringResource(R.string.reward_redeemed_named, it) }
                     ?: stringResource(R.string.reward_redeemed),
@@ -173,7 +174,7 @@ fun MessageRow(
                 fontWeight = FontWeight.Medium,
             )
         }
-        if (style.powerUps && item.powerUp == PowerUp.Effect) {
+        if (item.powerUp == PowerUp.Effect && SpecialMessage.Effect in style.specialMessages) {
             Text(
                 text = stringResource(R.string.message_effect),
                 color = style.secondaryText,
