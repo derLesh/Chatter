@@ -9,7 +9,7 @@ activityCompose = "1.12.4"
 # The one activity-compose brings along; named here because the back handlers use it directly.
 navigationevent = "1.2.0"
 lifecycle = "2.10.0"
-datastore = "1.2.1"
+datastore = "1.3.0"
 okhttp = "5.5.0"
 re2j = "1.8"
 coil = "3.6.3"
