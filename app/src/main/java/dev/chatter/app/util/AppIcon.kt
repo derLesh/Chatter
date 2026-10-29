@@ -10,7 +10,9 @@ import android.content.pm.PackageManager
  */
 enum class AppIcon(private val alias: String) {
     Light(".LauncherLight"),
-    Dark(".LauncherDark");
+    Dark(".LauncherDark"),
+    Nightly(".LauncherNightly"),
+    DevBuild(".LauncherDevBuild");
 
     private fun component(context: Context) = ComponentName(context, context.packageName + alias)
 

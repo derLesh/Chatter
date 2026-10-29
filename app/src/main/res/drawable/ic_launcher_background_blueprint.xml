@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Background of the Dev build icon: a blueprint grid with a construction circle and a dimension line. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android" xmlns:aapt="http://schemas.android.com/aapt"
+    android:width="108dp" android:height="108dp" android:viewportWidth="108" android:viewportHeight="108">
+    <path android:pathData="M0,0 H108 V108 H0 Z">
+        <aapt:attr name="android:fillColor">
+            <gradient android:type="radial" android:centerX="54" android:centerY="54" android:gradientRadius="60"
+                android:startColor="#FF2B6CC4" android:endColor="#FF17478A" />
+        </aapt:attr>
+    </path>
+    <path android:strokeColor="#FFFFFFFF" android:strokeWidth="0.3" android:strokeAlpha="0.16"
+        android:pathData="M6,0 V108 M0,6 H108 M12,0 V108 M0,12 H108 M24,0 V108 M0,24 H108 M30,0 V108 M0,30 H108 M42,0 V108 M0,42 H108 M48,0 V108 M0,48 H108 M60,0 V108 M0,60 H108 M66,0 V108 M0,66 H108 M78,0 V108 M0,78 H108 M84,0 V108 M0,84 H108 M96,0 V108 M0,96 H108 M102,0 V108 M0,102 H108" />
+    <path android:strokeColor="#FFFFFFFF" android:strokeWidth="0.5" android:strokeAlpha="0.32"
+        android:pathData="M18,0 V108 M0,18 H108 M36,0 V108 M0,36 H108 M54,0 V108 M0,54 H108 M72,0 V108 M0,72 H108 M90,0 V108 M0,90 H108" />
+    <path android:strokeColor="#FFFFFFFF" android:strokeWidth="0.6" android:strokeAlpha="0.55"
+        android:pathData="M29,54 a25,25 0 1,0 50,0 a25,25 0 1,0 -50,0 Z" />
+    <path android:strokeColor="#FFFFFFFF" android:strokeWidth="0.6" android:strokeAlpha="0.75"
+        android:pathData="M38,81 H70 M38,79 V83 M70,79 V83 M38,81 L41,79.8 M38,81 L41,82.2 M70,81 L67,79.8 M70,81 L67,82.2 M38,75 V78 M70,75 V78" />
+</vector>

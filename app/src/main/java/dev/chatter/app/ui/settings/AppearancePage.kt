@@ -1,5 +1,6 @@
 package dev.chatter.app.ui.settings
 
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -7,6 +8,7 @@ import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -37,8 +39,10 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.luminance
+import androidx.compose.ui.graphics.painter.ColorPainter
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
@@ -255,7 +259,7 @@ private fun TimestampPicker(selected: TimestampFormat, onSelect: (TimestampForma
     )
 }
 
-/** Launcher icon: black C on white or white C on black. */
+/** Launcher icon: black C on white, or white C on black, a night sky or a blueprint. */
 @Composable
 private fun AppIconPicker() {
     val context = LocalContext.current
@@ -264,10 +268,16 @@ private fun AppIconPicker() {
         headlineContent = { Text(stringResource(R.string.settings_app_icon)) },
         supportingContent = {
             Column {
-                Row(horizontalArrangement = Arrangement.spacedBy(20.dp), modifier = Modifier.padding(top = 4.dp)) {
+                FlowRow(
+                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                    verticalArrangement = Arrangement.spacedBy(4.dp),
+                    modifier = Modifier.padding(top = 4.dp),
+                ) {
                     listOf(
-                        Triple(AppIcon.Light, Color.White, R.string.app_icon_light),
-                        Triple(AppIcon.Dark, Color(0xFF111111), R.string.app_icon_dark),
+                        Triple(AppIcon.Light, ColorPainter(Color.White), R.string.app_icon_light),
+                        Triple(AppIcon.Dark, ColorPainter(Color(0xFF111111)), R.string.app_icon_dark),
+                        Triple(AppIcon.Nightly, painterResource(R.drawable.ic_launcher_background_night), R.string.app_icon_nightly),
+                        Triple(AppIcon.DevBuild, painterResource(R.drawable.ic_launcher_background_blueprint), R.string.app_icon_dev_build),
                     ).forEach { (icon, background, label) ->
                         val selected = icon == current
                         Column(
@@ -287,17 +297,19 @@ private fun AppIconPicker() {
                                 modifier = Modifier
                                     .size(64.dp)
                                     .clip(CircleShape)
-                                    .background(background)
                                     .border(
                                         if (selected) 3.dp else 1.dp,
                                         if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outlineVariant,
                                         CircleShape,
                                     ),
                             ) {
+                                // The launcher shows the middle 72 of the 108dp background, and the
+                                // glyph below is drawn 1.5 times the launcher's size as well.
+                                Image(background, contentDescription = null, modifier = Modifier.matchParentSize().scale(1.5f))
                                 Icon(
                                     painterResource(R.drawable.ic_chatter_monochrome),
                                     contentDescription = null,
-                                    tint = if (background == Color.White) Color(0xFF111111) else Color.White,
+                                    tint = if (icon == AppIcon.Light) Color(0xFF111111) else Color.White,
                                     modifier = Modifier.size(64.dp),
                                 )
                             }

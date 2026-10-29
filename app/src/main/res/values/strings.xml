@@ -466,6 +466,8 @@
     <string name="settings_app_icon">App icon</string>
     <string name="app_icon_light">White</string>
     <string name="app_icon_dark">Black</string>
+    <string name="app_icon_nightly">Nightly</string>
+    <string name="app_icon_dev_build">Dev build</string>
 
     <!-- Name colors -->
     <string name="settings_name_colors">Name colors</string>
