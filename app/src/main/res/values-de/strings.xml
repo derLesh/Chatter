@@ -604,6 +604,7 @@
     <string name="settings_bubbles">Bubbles</string>
     <string name="settings_bubbles_hint">Erwähnungen können als Chat-Bubble angezeigt werden</string>
     <string name="bubble_unavailable">Chatter öffnen, um diesen Kanal zu lesen</string>
+    <string name="jump_message_gone">Diese Nachricht ist nicht mehr im Chat</string>
 
     <!-- Erwähnungen -->
     <string name="settings_group_controls">Bedienung</string>

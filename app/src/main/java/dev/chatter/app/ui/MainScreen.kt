@@ -107,6 +107,7 @@ fun MainScreen(vm: MainViewModel, onInbox: () -> Unit, onSettings: () -> Unit) {
     val sharedChats by vm.sharedChats.collectAsStateWithLifecycle()
     val chatPartners by vm.chatPartners.collectAsStateWithLifecycle()
     val pins by vm.pins.collectAsStateWithLifecycle()
+    val jump by vm.requestedMessage.collectAsStateWithLifecycle()
     val modChannels by vm.modChannels.collectAsStateWithLifecycle()
     val partnerMarks = remember(chatPartners) {
         chatPartners.mapValues { (_, p) -> ChannelMark(p.avatarUrl, p.displayName) }
@@ -370,6 +371,12 @@ fun MainScreen(vm: MainViewModel, onInbox: () -> Unit, onSettings: () -> Unit) {
                             onSeen = if (channel == active) { mark -> vm.onSeen(channel, mark) } else null,
                             onMentionsSeen = if (channel == active) vm::onMentionsSeen else null,
                             onCatchUp = if (canCatchUp && channel == active) { missed -> vm.summarize(channel, missed) } else null,
+                            // Only the page in front: a wrapping pager may show the channel twice.
+                            jumpTo = jump?.takeIf { it.channel == channel && channel == active }?.id,
+                            onJumped = { found ->
+                                vm.requestedMessage.value = null
+                                if (!found) scope.launch { snackbar.showSnackbar(resources.getString(R.string.jump_message_gone)) }
+                            },
                             style = style,
                             imageLoader = loader,
                             onGesture = { item, gesture ->

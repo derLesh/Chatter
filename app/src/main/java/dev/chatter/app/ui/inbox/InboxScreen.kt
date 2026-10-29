@@ -69,7 +69,7 @@ import kotlinx.coroutines.launch
 /** Mentions and whispers in two tabs. Unlike the chat buffers this keeps them across restarts. */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun InboxScreen(vm: MainViewModel, onOpenChannel: (String) -> Unit, onBack: () -> Unit) {
+fun InboxScreen(vm: MainViewModel, onOpenMention: (InboxMention) -> Unit, onBack: () -> Unit) {
     val mentions by vm.inboxMentions.collectAsStateWithLifecycle()
     val whispers by vm.inboxWhispers.collectAsStateWithLifecycle()
     val mentionUnread by vm.mentionUnread.collectAsStateWithLifecycle()
@@ -142,7 +142,7 @@ fun InboxScreen(vm: MainViewModel, onOpenChannel: (String) -> Unit, onBack: () -
                         imageLoader = vm.imageLoader,
                         onOpen = { mention ->
                             vm.markInboxRead(mention)
-                            onOpenChannel(mention.channel)
+                            onOpenMention(mention)
                         },
                     )
                     else -> WhisperList(

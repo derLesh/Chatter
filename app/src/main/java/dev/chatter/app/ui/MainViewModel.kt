@@ -75,6 +75,9 @@ import java.util.Locale
  */
 data class UiMessage(val text: Int, val fill: String? = null)
 
+/** A message to scroll to: [id] in [channel]'s chat. */
+data class MessageJump(val channel: String, val id: String)
+
 /**
  * A catch-up summary of [count] messages in [page], growing while the model writes it. [trouble]
  * says why it stopped short; [leftOut] are the messages the safety check refused.
@@ -236,6 +239,18 @@ class MainViewModel(private val c: AppContainer, savedState: SavedStateHandle) :
      * just added or combined.
      */
     val requestedChannel = MutableStateFlow<String?>(null)
+
+    /**
+     * The message a mention notification or the inbox points at. Cleared by its chat once it
+     * scrolled there or found the message gone.
+     */
+    val requestedMessage = MutableStateFlow<MessageJump?>(null)
+
+    /** Opens [channel] scrolled to the message [id]. */
+    fun openMessage(channel: String, id: String) {
+        requestedMessage.value = MessageJump(channel, id)
+        requestedChannel.value = channel
+    }
 
     /**
      * The inbox tab requested from outside (shortcut, whisper notification), or null. Cleared by

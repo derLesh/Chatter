@@ -91,8 +91,8 @@ fun AppRoot(vm: MainViewModel) {
                     Screen.Settings -> SettingsScreen(vm, onBack = toChat)
                     Screen.Inbox -> InboxScreen(
                         vm,
-                        onOpenChannel = { channel ->
-                            vm.requestedChannel.value = channel
+                        onOpenMention = { mention ->
+                            vm.openMessage(mention.channel, mention.id)
                             showInbox = false
                         },
                         onBack = toChat,

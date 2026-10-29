@@ -21,6 +21,7 @@ import dev.chatter.app.ui.theme.ChatterTheme
 import dev.chatter.app.util.EXTRA_CHANNEL
 import dev.chatter.app.util.EXTRA_INBOX_TAB
 import dev.chatter.app.util.EXTRA_LIVE_CHANNEL
+import dev.chatter.app.util.EXTRA_MESSAGE
 import dev.chatter.app.util.EXTRA_PROFILING_ANIMATED_EMOTES
 import dev.chatter.app.util.EXTRA_PROFILING_CHANNEL
 import dev.chatter.app.util.EXTRA_PROFILING_DARK_THEME
@@ -36,7 +37,7 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
-        handleIntent(intent)
+        handleIntent(intent, jump = savedInstanceState == null)
         setContent {
             val settings by vm.settings.collectAsStateWithLifecycle()
             ChatterTheme(settings.themeMode, settings.dynamicColor, settings.pureBlack) {
@@ -60,10 +61,18 @@ class MainActivity : ComponentActivity() {
         super.onStop()
     }
 
-    /** Handles a channel from a mention or live notification, or the inbox from a shortcut. */
-    private fun handleIntent(intent: Intent?) {
+    /**
+     * Handles a channel from a mention or live notification, or the inbox from a shortcut. [jump] is
+     * false for a recreated activity, which would otherwise scroll back to the mention on rotation.
+     */
+    private fun handleIntent(intent: Intent?, jump: Boolean = true) {
         intent ?: return
-        intent.getStringExtra(EXTRA_CHANNEL)?.let { vm.requestedChannel.value = it }
+        val channel = intent.getStringExtra(EXTRA_CHANNEL)
+        val message = intent.getStringExtra(EXTRA_MESSAGE)?.takeIf { jump }
+        when {
+            channel != null && message != null -> vm.openMessage(channel, message)
+            channel != null -> vm.requestedChannel.value = channel
+        }
         intent.getStringExtra(EXTRA_LIVE_CHANNEL)?.let(vm::openLiveChannel)
         intent.getIntExtra(EXTRA_INBOX_TAB, -1).takeIf { it >= 0 }?.let { vm.requestedInbox.value = it }
         // Any app can start this activity and must not add channels (a live notification only adds

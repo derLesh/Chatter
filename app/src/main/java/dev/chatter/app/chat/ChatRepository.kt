@@ -57,6 +57,11 @@ enum class SendResult {
     CommandError,
 }
 
+/** True for the line that stands in for a channel's history while it loads. */
+fun ChatItem.isHistoryLoading(): Boolean = id == historyLoadingId(channel)
+
+private fun historyLoadingId(channel: String) = "history-$channel"
+
 /**
  * Owns the chat of all channels. Every mutation runs on the single-threaded [worker], so no locks
  * are needed. Messages live in [MessageBuffers]; this class handles what Twitch sends.
@@ -574,7 +579,7 @@ class ChatRepository(
         }
     }
 
-    private fun historyId(channel: String) = "history-" + channel
+    private fun historyId(channel: String) = historyLoadingId(channel)
     private fun historyFailedId(channel: String) = "history-failed-" + channel
 
     private fun systemAll(res: Int) {

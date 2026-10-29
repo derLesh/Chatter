@@ -32,6 +32,9 @@ const val EXTRA_ACCOUNT = "account"
 /** In a launch intent: the channel to open. */
 const val EXTRA_CHANNEL = "channel"
 
+/** In a launch intent: the id of the message in [EXTRA_CHANNEL] to scroll to. */
+const val EXTRA_MESSAGE = "message"
+
 /**
  * A channel from a live notification. Unlike [EXTRA_CHANNEL] it may add the channel to the list,
  * but only one Chatter notified about; see LiveAlerts.

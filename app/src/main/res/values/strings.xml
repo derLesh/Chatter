@@ -612,6 +612,7 @@
     <string name="settings_bubbles">Bubbles</string>
     <string name="settings_bubbles_hint">Mentions can be shown as a chat bubble</string>
     <string name="bubble_unavailable">Open Chatter to read this channel</string>
+    <string name="jump_message_gone">That message is no longer in the chat</string>
 
     <string name="settings_group_controls">Controls</string>
     <string name="settings_group_user_card">User card</string>

@@ -3,6 +3,7 @@ package dev.chatter.app.ui.chat
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.SizeTransform
+import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.VisibilityThreshold
 import androidx.compose.animation.core.spring
@@ -52,6 +53,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.pluralStringResource
@@ -67,13 +69,16 @@ import dev.chatter.app.R
 import dev.chatter.app.ai.CatchUp
 import dev.chatter.app.chat.ChatItem
 import dev.chatter.app.chat.Segment
+import dev.chatter.app.chat.isHistoryLoading
 import dev.chatter.app.ui.BetaBadge
 import dev.chatter.app.ui.channels.formatCount
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.filterNotNull
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withTimeoutOrNull
 
 /** The message list for UI Automator. The benchmark module repeats the name. */
 const val CHAT_LIST_TAG = "chat"
@@ -89,6 +94,9 @@ const val CHAT_LIST_TAG = "chat"
  * a chip that jumps there (see [ReadMark]). Only the page in front passes [onSeen], which receives
  * the newest message on screen, and [onMentionsSeen], which receives the visible mentions by id.
  * [onCatchUp] offers a summary of a long stretch of new messages and receives them, oldest first.
+ *
+ * [jumpTo] is the id of a message to scroll to and flash; [onJumped] then says whether it was still
+ * there, and the caller clears [jumpTo].
  */
 @Composable
 fun ChatList(
@@ -105,6 +113,8 @@ fun ChatList(
     onSeen: ((ReadMark) -> Unit)? = null,
     onMentionsSeen: ((Set<String>) -> Unit)? = null,
     onCatchUp: ((List<ChatItem>) -> Unit)? = null,
+    jumpTo: String? = null,
+    onJumped: (found: Boolean) -> Unit = {},
 ) {
     // Deleted messages are already filtered by the repository.
     val items by messages.collectAsStateWithLifecycle()
@@ -171,6 +181,42 @@ fun ChatList(
         if (follow && items.isNotEmpty() && !userScrolling) listState.scrollToItem(0)
     }
 
+    var flashing by remember { mutableStateOf<String?>(null) }
+    val flash = remember { Animatable(0f) }
+    val currentOnJumped by rememberUpdatedState(onJumped)
+    LaunchedEffect(jumpTo) {
+        val target = jumpTo ?: return@LaunchedEffect
+        // Right after a start the history may still be on its way, and the message with it.
+        val found = withTimeoutOrNull(JUMP_WAIT_MS) {
+            snapshotFlow { items }.first { list -> list.isNotEmpty() && list.none { it.isHistoryLoading() } }
+        }?.takeIf { list -> list.any { it.id == target } }
+        if (found == null) {
+            listState.scrollToItem(0)
+            follow = true
+            currentOnJumped(false)
+            return@LaunchedEffect
+        }
+        val index = found.size - 1 - found.indexOfLast { it.id == target }
+        follow = false
+        // reverseLayout puts the target row at the bottom; half a screen back puts it in the middle.
+        listState.scrollToItem(index)
+        val row = listState.layoutInfo.visibleItemsInfo.firstOrNull { it.index == index }?.size ?: 0
+        listState.scrollBy(-((listState.layoutInfo.viewportSize.height - row) / 2).coerceAtLeast(0).toFloat())
+        // A message among the newest cannot move up; then the list stays at the bottom and follows.
+        follow = listState.firstVisibleItemIndex == 0 && listState.firstVisibleItemScrollOffset == 0
+        chipDone = true
+        currentOnJumped(true)
+        // Its own coroutine: clearing jumpTo restarts this effect, which must not cut the flash short.
+        scope.launch {
+            flashing = target
+            flash.snapTo(0f)
+            flash.animateTo(1f, tween(FLASH_IN_MS))
+            flash.animateTo(0f, tween(FLASH_OUT_MS))
+            flashing = null
+        }
+    }
+    val flashColor = style.mentionBackground.copy(alpha = FLASH_ALPHA)
+
     Box(modifier) {
         LazyColumn(
             state = listState,
@@ -190,10 +236,13 @@ fun ChatList(
                 key = { items[count - 1 - it].id },
                 contentType = { items[count - 1 - it].kind },
             ) { index ->
-                val rowModifier = if (smoothScrolling) {
-                    Modifier.animateItem(fadeInSpec = ROW_FADE_IN, placementSpec = ROW_PLACEMENT, fadeOutSpec = null)
-                } else Modifier
                 val item = items[count - 1 - index]
+                val rowModifier = (if (smoothScrolling) {
+                    Modifier.animateItem(fadeInSpec = ROW_FADE_IN, placementSpec = ROW_PLACEMENT, fadeOutSpec = null)
+                } else Modifier).then(
+                    // Behind the row, whose own background is see-through, so the text stays readable.
+                    if (item.id == flashing) Modifier.drawBehind { drawRect(flashColor, alpha = flash.value) } else Modifier,
+                )
                 // Where it was written; for a partner's message not the channel it arrived in.
                 val mark = item.sourceRoomId?.let(partners::get) ?: channels?.get(item.channel)
                 if (index == lineIndex) {
@@ -289,6 +338,13 @@ private fun NewMessagesButton(visible: Boolean, count: Int, onClick: () -> Unit,
         )
     }
 }
+
+/** How long a jump waits for the history, which may bring its message. */
+private const val JUMP_WAIT_MS = 10_000L
+private const val FLASH_IN_MS = 150
+private const val FLASH_OUT_MS = 1_200
+/** The highlight color at this alpha, stronger than a mention's own background. */
+private const val FLASH_ALPHA = 0.5f
 
 /** Shared by every row instead of built per row and frame. */
 private val ROW_FADE_IN = tween<Float>(120)

@@ -1,5 +1,6 @@
 package dev.chatter.app.ui.bubble
 
+import android.content.Intent
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -12,10 +13,12 @@ import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
 import dev.chatter.app.ChatterApp
 import dev.chatter.app.ui.MainViewModel
+import dev.chatter.app.ui.MessageJump
 import dev.chatter.app.ui.chat.LinkGuard
 import dev.chatter.app.ui.chat.LocalPosts
 import dev.chatter.app.ui.theme.ChatterTheme
 import dev.chatter.app.util.EXTRA_CHANNEL
+import dev.chatter.app.util.EXTRA_MESSAGE
 
 /**
  * One channel's chat as an Android chat bubble. A separate activity with its own [MainViewModel],
@@ -32,12 +35,24 @@ class BubbleActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         vm.inBubble = true
+        // Not again when recreated, or every rotation would scroll back to the mention.
+        if (savedInstanceState == null) requestJump(intent)
         setContent {
             val settings by vm.settings.collectAsStateWithLifecycle()
             ChatterTheme(settings.themeMode, settings.dynamicColor, settings.pureBlack) {
                 LinkGuard { CompositionLocalProvider(LocalPosts provides vm.posts) { BubbleScreen(vm, channel) } }
             }
         }
+    }
+
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        requestJump(intent)
+    }
+
+    private fun requestJump(intent: Intent?) {
+        val message = intent?.getStringExtra(EXTRA_MESSAGE) ?: return
+        channel?.let { vm.requestedMessage.value = MessageJump(it, message) }
     }
 
     override fun onStart() {

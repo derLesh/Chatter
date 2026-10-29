@@ -16,6 +16,8 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -23,9 +25,11 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -44,6 +48,7 @@ import dev.chatter.app.ui.chat.EmoteCardSheet
 import dev.chatter.app.ui.chat.EmotePickerSheet
 import dev.chatter.app.ui.chat.InputBar
 import dev.chatter.app.ui.chat.rememberChatStyle
+import kotlinx.coroutines.launch
 
 /**
  * A single channel's chat sized for a bubble: a one-line header, the message list and the same
@@ -73,6 +78,10 @@ fun BubbleScreen(vm: MainViewModel, channel: String?) {
     val loader = if (settings.animatedEmotes && !powerSave && !saveData) vm.imageLoader else vm.staticImageLoader
     var emoteCard by remember { mutableStateOf<Segment.EmoteSeg?>(null) }
     var showPicker by remember { mutableStateOf(false) }
+    val jump by vm.requestedMessage.collectAsStateWithLifecycle()
+    val snackbar = remember { SnackbarHostState() }
+    val scope = rememberCoroutineScope()
+    val resources = LocalResources.current
 
     // A Surface, not just a background color: it sets the content color, otherwise text stays black
     // and disappears in a dark theme.
@@ -120,19 +129,27 @@ fun BubbleScreen(vm: MainViewModel, channel: String?) {
             }
             HorizontalDivider()
 
-            ChatList(
-                messages = remember(channel) { vm.chat(channel) },
-                style = style,
-                imageLoader = loader,
-                // No user card: a bubble is too small for the sheet, and answering is what one does
-                // there.
-                onGesture = { item, _ -> vm.startReply(item) },
-                modifier = Modifier.weight(1f),
-                smoothScrolling = settings.smoothScrolling && !powerSave,
-                onEmoteClick = { emoteCard = it },
-                partners = partnerMarks,
-                onMentionsSeen = vm::onMentionsSeen,
-            )
+            Box(Modifier.weight(1f)) {
+                ChatList(
+                    messages = remember(channel) { vm.chat(channel) },
+                    style = style,
+                    imageLoader = loader,
+                    // No user card: a bubble is too small for the sheet, and answering is what one
+                    // does there.
+                    onGesture = { item, _ -> vm.startReply(item) },
+                    modifier = Modifier.fillMaxSize(),
+                    smoothScrolling = settings.smoothScrolling && !powerSave,
+                    onEmoteClick = { emoteCard = it },
+                    partners = partnerMarks,
+                    onMentionsSeen = vm::onMentionsSeen,
+                    jumpTo = jump?.takeIf { it.channel == channel }?.id,
+                    onJumped = { found ->
+                        vm.requestedMessage.value = null
+                        if (!found) scope.launch { snackbar.showSnackbar(resources.getString(R.string.jump_message_gone)) }
+                    },
+                )
+                SnackbarHost(snackbar, Modifier.align(Alignment.BottomCenter))
+            }
             if (!settings.readOnly) InputBar(
                 value = vm.input,
                 onValueChange = vm::onInputChange,

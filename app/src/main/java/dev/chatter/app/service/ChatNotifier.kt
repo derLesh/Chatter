@@ -34,6 +34,7 @@ import dev.chatter.app.util.EXTRA_ACCOUNT
 import dev.chatter.app.util.EXTRA_CHANNEL
 import dev.chatter.app.util.EXTRA_INBOX_TAB
 import dev.chatter.app.util.EXTRA_LIVE_CHANNEL
+import dev.chatter.app.util.EXTRA_MESSAGE
 import dev.chatter.app.util.EXTRA_WHISPER
 import dev.chatter.app.util.EXTRA_WHISPER_USER_ID
 import dev.chatter.app.util.INBOX_TAB_WHISPERS
@@ -78,6 +79,8 @@ class ChatNotifier(
      * is two calls into the system for nothing.
      */
     private val conversations = HashMap<String, Pair<String, IconCompat>>()
+    /** The newest mention in each channel's notification, by id; a tap scrolls to it. */
+    private val jumpTargets = HashMap<String, String>()
     private val whisperThreads = WhisperConversations(activeAccount)
 
     fun createChannels() {
@@ -180,7 +183,7 @@ class ChatNotifier(
         val icon = icons.channel(items.first().channel)
         // Fills the cache for these chatters; older lines use what is cached.
         loadSenderIcons(items.mapNotNull { it.login })
-        post(items, icon)
+        post(items, icon, newestMention = items.last().id)
     }
 
     /**
@@ -234,10 +237,12 @@ class ChatNotifier(
         )
     }
 
-    /** [items] are lines of one channel. */
+    /** [items] are lines of one channel. [newestMention] is null for the user's own lines. */
     @Synchronized
-    private fun post(items: List<ChatItem>, icon: IconCompat) {
+    private fun post(items: List<ChatItem>, icon: IconCompat, newestMention: String? = null) {
         val item = items.last()
+        newestMention?.let { jumpTargets[item.channel] = it }
+        val jumpTo = jumpTargets[item.channel]
         val lines = recent.getOrPut(item.channel) { ArrayDeque() }
         lines.addAll(items)
         while (lines.size > 6) lines.removeFirst()
@@ -266,9 +271,9 @@ class ChatNotifier(
             .setAutoCancel(true)
             .setShortcutId(shortcutId)
             .setLocusId(LocusIdCompat(shortcutId))
-            .setContentIntent(openChannelIntent(context, item.channel))
+            .setContentIntent(openChannelIntent(context, item.channel, jumpTo))
             .addAction(replyAction(item.channel))
-            .apply { if (settings.value.bubbles) setBubbleMetadata(bubbleMetadata(item.channel, icon)) }
+            .apply { if (settings.value.bubbles) setBubbleMetadata(bubbleMetadata(item.channel, icon, jumpTo)) }
             .build()
         try {
             manager.notify(item.channel.hashCode(), notification)
@@ -281,6 +286,7 @@ class ChatNotifier(
     @Synchronized
     fun clear(channel: String) {
         recent.remove(channel)
+        jumpTargets.remove(channel)
         manager.cancel(channel.hashCode())
     }
 
@@ -471,13 +477,14 @@ class ChatNotifier(
             .build()
     }
 
-    private fun bubbleMetadata(channel: String, icon: IconCompat): NotificationCompat.BubbleMetadata {
+    private fun bubbleMetadata(channel: String, icon: IconCompat, message: String?): NotificationCompat.BubbleMetadata {
         // The data URI makes each channel its own document, so two channels can bubble side by
         // side.
         val intent = Intent(context, BubbleActivity::class.java)
             .setAction(Intent.ACTION_VIEW)
             .setData("chatter://channel/$channel".toUri())
             .putExtra(EXTRA_CHANNEL, channel)
+            .putExtra(EXTRA_MESSAGE, message)
         val pending = PendingIntent.getActivity(
             context, channel.hashCode(), intent,
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_MUTABLE,
@@ -533,8 +540,9 @@ class ChatNotifier(
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
         )
 
-        fun openChannelIntent(context: Context, channel: String?): PendingIntent {
-            val intent = appLaunchIntent(context, channel)
+        /** Opens [channel]'s chat, scrolled to [message] if given. */
+        fun openChannelIntent(context: Context, channel: String?, message: String? = null): PendingIntent {
+            val intent = appLaunchIntent(context, channel).putExtra(EXTRA_MESSAGE, message)
             return PendingIntent.getActivity(
                 context, channel?.hashCode() ?: 0, intent,
                 PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
