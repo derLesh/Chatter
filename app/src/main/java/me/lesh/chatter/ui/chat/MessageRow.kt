@@ -27,7 +27,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.CompositingStrategy
 import androidx.compose.ui.graphics.drawscope.DrawScope
@@ -297,7 +296,7 @@ private fun DrawScope.drawDivider(color: Color) {
 
 /**
  * A line whose name has a 7TV paint. The paint is placed once the line is laid out and the name's
- * bounds are known; see [namePaintStyle].
+ * bounds are known; see [NamePaintBrush].
  */
 @Composable
 private fun PaintedLine(
@@ -309,12 +308,14 @@ private fun PaintedLine(
     imageLoader: ImageLoader,
 ) {
     val range = built.nameRange ?: return
-    var nameBounds by remember(built) { mutableStateOf<Rect?>(null) }
     val image = paint.imageUrl?.let { rememberPaintImage(it, imageLoader) }
+    val brush = remember(built, paint, image) {
+        if (paint.kind == NamePaint.Kind.Image && image == null) null else NamePaintBrush(paint, image)
+    }
     val density = LocalDensity.current
-    val text = remember(built, paint, nameBounds, image, density) {
+    val text = remember(built, paint, brush, density) {
         AnnotatedString.Builder(built.text).apply {
-            addStyle(namePaintStyle(paint, nameBounds, image, density), range.first, range.last + 1)
+            addStyle(namePaintStyle(paint, brush, density), range.first, range.last + 1)
         }.toAnnotatedString()
     }
     Text(
@@ -322,10 +323,7 @@ private fun PaintedLine(
         inlineContent = inlineContent,
         fontSize = style.fontSize.sp,
         lineHeight = lineHeight,
-        onTextLayout = { layout ->
-            val bounds = layout.boundsOf(range)
-            if (bounds != nameBounds) nameBounds = bounds
-        },
+        onTextLayout = { layout -> brush?.place(layout.boundsOf(range)) },
     )
 }
 

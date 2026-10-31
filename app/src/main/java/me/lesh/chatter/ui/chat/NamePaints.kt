@@ -17,6 +17,7 @@ import androidx.compose.ui.graphics.ShaderBrush
 import androidx.compose.ui.graphics.Shadow
 import androidx.compose.ui.graphics.TileMode
 import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.TextLayoutResult
@@ -35,11 +36,10 @@ import kotlin.math.max
 import kotlin.math.sin
 
 /**
- * How a painted name is drawn: the paint over [nameBounds], the name's place in the laid-out line.
- * Compose sizes a span's brush to the whole paragraph, so without the bounds a gradient would
- * stretch over the message; until they are known the name has the paint's main color.
+ * How a painted name is drawn: with [brush], or in the paint's main color while an image paint's
+ * picture is still loading ([brush] null).
  */
-internal fun namePaintStyle(paint: NamePaint, nameBounds: Rect?, image: ImageBitmap?, density: Density): SpanStyle {
+internal fun namePaintStyle(paint: NamePaint, brush: NamePaintBrush?, density: Density): SpanStyle {
     val shadow = paint.shadows.firstOrNull()?.let {
         Shadow(
             color = Color(it.color),
@@ -47,13 +47,8 @@ internal fun namePaintStyle(paint: NamePaint, nameBounds: Rect?, image: ImageBit
             blurRadius = it.radius * density.density,
         )
     }
-    val ready = paint.kind != NamePaint.Kind.Image || image != null
-    val placed = nameBounds?.takeIf { ready && it.width > 0f && it.height > 0f }
-    return if (placed != null) {
-        SpanStyle(brush = PlacedPaint(paint, placed, image), shadow = shadow)
-    } else {
-        SpanStyle(color = paint.fallbackColor?.let { Color(it) } ?: Color.Unspecified, shadow = shadow)
-    }
+    return if (brush != null) SpanStyle(brush = brush, shadow = shadow)
+    else SpanStyle(color = paint.fallbackColor?.let { Color(it) } ?: Color.Unspecified, shadow = shadow)
 }
 
 /** Where the characters [range] were laid out, or null if they are not in this layout. */
@@ -90,12 +85,46 @@ internal fun rememberPaintImage(url: String, loader: ImageLoader): ImageBitmap? 
     return image
 }
 
-/** A data class: the same paint over the same bounds is equal, so the text is not laid out again. */
-private data class PlacedPaint(val paint: NamePaint, val bounds: Rect, val image: ImageBitmap?) : ShaderBrush() {
-    override fun createShader(size: Size): Shader = when (paint.kind) {
-        NamePaint.Kind.Linear -> linear()
-        NamePaint.Kind.Radial -> radial()
-        NamePaint.Kind.Image -> picture(image!!)
+/**
+ * A paint over the name alone. Compose sizes a span's brush to the whole paragraph, so the name's
+ * bounds come from [place], called in onTextLayout. That runs before the line is drawn and the shader
+ * is made, so the line is composed and laid out once. One per line: it keeps its identity, so the
+ * text stays equal and is not laid out again.
+ */
+internal class NamePaintBrush(private val paint: NamePaint, private val image: ImageBitmap?) : ShaderBrush() {
+    private var bounds: Rect? = null
+    private var shader: Shader? = null
+    private var shaderBounds: Rect? = null
+    private val shaderMatrix = Matrix()
+
+    fun place(nameBounds: Rect?) {
+        bounds = nameBounds
+        val made = shader ?: return
+        val madeFor = shaderBounds ?: return
+        if (nameBounds == null || nameBounds == madeFor) return
+        // Compose makes the shader again only when the paragraph's size changes, but the name can
+        // move without that, e.g. when an emote before it gets its real width.
+        made.setLocalMatrix(Matrix(shaderMatrix).apply { postTranslate(nameBounds.left - madeFor.left, nameBounds.top - madeFor.top) })
+    }
+
+    override fun createShader(size: Size): Shader {
+        val placed = bounds?.takeIf { it.width > 0f && it.height > 0f }
+        val made = when {
+            placed == null -> solid()
+            paint.kind == NamePaint.Kind.Linear -> linear(placed)
+            paint.kind == NamePaint.Kind.Radial -> radial(placed)
+            else -> image?.let { picture(it, placed) } ?: solid()
+        }
+        shader = made
+        shaderBounds = placed
+        made.getLocalMatrix(shaderMatrix)
+        return made
+    }
+
+    /** For a line drawn before it was placed, which should not happen. */
+    private fun solid(): Shader {
+        val color = Color(paint.fallbackColor ?: paint.stops.firstOrNull()?.color ?: Color.White.toArgb())
+        return LinearGradientShader(Offset.Zero, Offset(1f, 0f), listOf(color, color))
     }
 
     private val colors get() = paint.stops.map { Color(it.color) }
@@ -114,7 +143,7 @@ private data class PlacedPaint(val paint: NamePaint, val bounds: Rect, val image
     }
 
     /** CSS's linear-gradient: through the centre at [NamePaint.angle], reaching both corners. */
-    private fun linear(): Shader {
+    private fun linear(bounds: Rect): Shader {
         val radians = Math.toRadians(paint.angle.toDouble())
         val direction = Offset(sin(radians).toFloat(), -cos(radians).toFloat())
         val length = abs(bounds.width * direction.x) + abs(bounds.height * direction.y)
@@ -130,14 +159,14 @@ private data class PlacedPaint(val paint: NamePaint, val bounds: Rect, val image
     }
 
     /** CSS's radial-gradient from the centre out to the farthest corner. */
-    private fun radial(): Shader {
+    private fun radial(bounds: Rect): Shader {
         val stretch = stretch()
         val radius = (hypot(bounds.width / 2, bounds.height / 2) * stretch.to).coerceAtLeast(1f)
         return RadialGradientShader(bounds.center, radius, colors, stretch.positions, tileMode)
     }
 
     /** The picture covering the name, like CSS's background-size: cover. */
-    private fun picture(image: ImageBitmap): Shader {
+    private fun picture(image: ImageBitmap, bounds: Rect): Shader {
         val scale = max(bounds.width / image.width, bounds.height / image.height)
         return ImageShader(image, TileMode.Repeated, TileMode.Repeated).apply {
             setLocalMatrix(Matrix().apply {
