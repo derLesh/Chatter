@@ -1,6 +1,5 @@
 package me.lesh.chatter.ui.settings
 
-import android.text.format.Formatter
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Column
@@ -20,7 +19,6 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
@@ -35,7 +33,6 @@ import java.util.Date
 /** The user's chat stats, counted on this device and never sent; can be reset at the bottom. */
 @Composable
 internal fun StatsPage(vm: MainViewModel, onChannels: () -> Unit) {
-    val context = LocalContext.current
     val stats by vm.stats.collectAsStateWithLifecycle()
     val info by vm.channelInfo.collectAsStateWithLifecycle()
     var confirmReset by remember { mutableStateOf(false) }
@@ -43,9 +40,6 @@ internal fun StatsPage(vm: MainViewModel, onChannels: () -> Unit) {
     val week = remember(stats) { stats.backgroundByChannel(Stats.KEEP_DAYS) }
     val today = remember(stats) { stats.backgroundByChannel(1).toMap() }
     val outliers = remember(week) { Stats.outliers(week) }
-    val bytesToday = remember(stats) { stats.trafficOver(1) }
-    val bytesWeek = remember(stats) { stats.trafficOver(Stats.KEEP_DAYS) }
-    val size = { bytes: Long -> Formatter.formatShortFileSize(context, bytes) }
 
     SettingsGroup(R.string.settings_stats_group_messages) {
         item { StatRow(R.string.settings_stats_sent, formatNumber(stats.sent)) }
@@ -128,26 +122,6 @@ internal fun StatsPage(vm: MainViewModel, onChannels: () -> Unit) {
                     modifier = if (busy) Modifier.clickable(onClick = onChannels) else Modifier,
                 )
             }
-        }
-    }
-    SettingsGroup(R.string.settings_stats_group_data) {
-        item {
-            ListItem(
-                headlineContent = { Text(stringResource(R.string.settings_stats_data_open)) },
-                supportingContent = {
-                    Text(stringResource(R.string.settings_stats_today_week, size(bytesToday.open), size(bytesWeek.open)))
-                },
-                colors = transparentItem(),
-            )
-        }
-        item {
-            ListItem(
-                headlineContent = { Text(stringResource(R.string.settings_stats_data_background)) },
-                supportingContent = {
-                    Text(stringResource(R.string.settings_stats_today_week, size(bytesToday.background), size(bytesWeek.background)))
-                },
-                colors = transparentItem(),
-            )
         }
     }
     SettingsGroup {

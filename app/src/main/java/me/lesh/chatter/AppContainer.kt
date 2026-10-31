@@ -71,6 +71,7 @@ import me.lesh.chatter.service.LiveAlerts
 import me.lesh.chatter.settings.BackupManager
 import me.lesh.chatter.settings.SettingsRepository
 import me.lesh.chatter.stats.StatsRepository
+import me.lesh.chatter.storage.StorageUsage
 import me.lesh.chatter.update.UpdateRepository
 import me.lesh.chatter.util.AppIconSwitcher
 import me.lesh.chatter.util.ChannelIcons
@@ -201,6 +202,8 @@ class AppContainer(
             .maxSizeBytes(100L * 1024 * 1024)
             .build()
     }
+
+    val storage = StorageUsage(context, { diskCache }, http.cache)
 
     private fun emoteOptions() = settings.settings.value.let {
         EmoteOptions(

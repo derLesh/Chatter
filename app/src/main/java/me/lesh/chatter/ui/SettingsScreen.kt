@@ -110,6 +110,7 @@ import me.lesh.chatter.ui.settings.RulesPage
 import me.lesh.chatter.ui.settings.SettingsGroup
 import me.lesh.chatter.ui.settings.SettingsSearch
 import me.lesh.chatter.ui.settings.StatsPage
+import me.lesh.chatter.ui.settings.StoragePage
 import me.lesh.chatter.ui.settings.SupportPage
 import me.lesh.chatter.ui.settings.THEME_MODES
 import me.lesh.chatter.ui.settings.TypingPage
@@ -145,6 +146,7 @@ private enum class SettingsPage(
     Channels(R.string.settings_channels, R.string.settings_channels_summary, SettingsSection.Channels, { Icons.Default.Person }),
     Notifications(R.string.settings_notifications, R.string.settings_notifications_summary, SettingsSection.Channels, { Icons.Default.Notifications }),
     Stats(R.string.settings_stats, R.string.settings_stats_summary, SettingsSection.Data, { drawableIcon(R.drawable.ic_bar_chart) }),
+    Storage(R.string.settings_storage, R.string.settings_storage_summary, SettingsSection.Data, { drawableIcon(R.drawable.ic_storage) }),
     Backup(R.string.settings_group_backup, R.string.settings_backup_summary, SettingsSection.Data, { drawableIcon(R.drawable.ic_backup) }),
     /** Only in the build people install themselves; see SPONSOR_LINK in build.gradle.kts. */
     /** What is new and not finished; marked as beta wherever it shows. */
@@ -245,7 +247,6 @@ private val SEARCH_INDEX: List<SearchEntry> by lazy {
             ),
         )
         add(SearchEntry(R.string.settings_full_links, media, R.string.settings_full_links_hint))
-        add(SearchEntry(R.string.settings_mobile_data, media, R.string.settings_mobile_data_hint, also = MOBILE_DATA.map { it.second }))
         val typing = SettingsPage.Typing
         add(SearchEntry(R.string.settings_read_only, typing, R.string.settings_read_only_hint))
         add(SearchEntry(R.string.settings_emote_suggestions, typing, R.string.settings_emote_suggestions_hint))
@@ -278,6 +279,11 @@ private val SEARCH_INDEX: List<SearchEntry> by lazy {
         add(SearchEntry(R.string.settings_channel_tabs, channels, R.string.settings_channel_tabs_hint))
         add(SearchEntry(R.string.settings_unread_title_bar, channels, R.string.settings_unread_title_bar_hint))
         add(SearchEntry(R.string.settings_carousel, channels, R.string.settings_carousel_hint))
+        val storage = SettingsPage.Storage
+        add(SearchEntry(R.string.settings_stats_group_data, storage, also = listOf(R.string.settings_stats_data_background)))
+        add(SearchEntry(R.string.settings_mobile_data, storage, R.string.settings_mobile_data_hint, also = MOBILE_DATA.map { it.second }))
+        add(SearchEntry(R.string.storage_group, storage, also = listOf(R.string.storage_images, R.string.storage_emote_lists)))
+        add(SearchEntry(R.string.storage_clear_cache, storage, R.string.storage_clear_cache_hint))
         val backup = SettingsPage.Backup
         add(SearchEntry(R.string.backup_export, backup, R.string.backup_export_hint))
         add(SearchEntry(R.string.backup_import, backup, R.string.backup_import_hint))
@@ -478,6 +484,7 @@ fun SettingsScreen(vm: MainViewModel, onBack: () -> Unit) {
                     SettingsPage.Notifications -> NotificationsPage(settings, vm) { subPage = it }
                     SettingsPage.Channels -> ChannelsPage(vm, settings)
                     SettingsPage.Stats -> StatsPage(vm) { page = SettingsPage.Channels }
+                    SettingsPage.Storage -> StoragePage(settings, vm)
                     SettingsPage.Backup -> BackupPage(vm)
                     SettingsPage.Account -> AccountPage(
                         vm,

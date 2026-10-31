@@ -1092,6 +1092,10 @@ class MainViewModel(private val c: AppContainer, savedState: SavedStateHandle) :
     fun setAnimatedEmotes(v: Boolean) = saveSetting { setAnimatedEmotes(v) }
     fun setSlowIdleEmotes(v: Boolean) = saveSetting { setSlowIdleEmotes(v) }
 
+    suspend fun storageReport() = c.storage.measure()
+
+    suspend fun clearCache() = c.storage.clearCache()
+
     fun resetStats() {
         viewModelScope.launch { c.stats.reset() }
     }

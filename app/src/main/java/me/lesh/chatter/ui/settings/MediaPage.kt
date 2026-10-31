@@ -29,17 +29,15 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
-import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import me.lesh.chatter.R
 import me.lesh.chatter.chat.ImageLinks
 import me.lesh.chatter.chat.PostSite
-import me.lesh.chatter.settings.MobileData
 import me.lesh.chatter.settings.Settings
 import me.lesh.chatter.ui.MainViewModel
 import me.lesh.chatter.ui.SettingsSubPage
 import me.lesh.chatter.ui.chat.siteName
 
-/** Linked images, GIFs and posts in the chat, and what they may cost on mobile data. */
+/** Linked images, GIFs and posts in the chat. */
 @Composable
 internal fun MediaPage(settings: Settings, vm: MainViewModel, open: (SettingsSubPage) -> Unit) {
     SettingsGroup {
@@ -84,34 +82,6 @@ internal fun MediaPage(settings: Settings, vm: MainViewModel, open: (SettingsSub
         }
         item(R.string.settings_full_links) { SwitchItem(R.string.settings_full_links, settings.fullLinks, vm::setFullLinks, R.string.settings_full_links_hint) }
     }
-    SettingsGroup {
-        item(R.string.settings_mobile_data) { MobileDataPicker(settings.mobileData, vm) }
-    }
-}
-
-internal val MOBILE_DATA = listOf(
-    MobileData.Normal to R.string.mobile_data_normal,
-    MobileData.SaveData to R.string.mobile_data_save,
-)
-
-/**
- * Behaviour on mobile data. The row says when Data Saver is on, since the phone saves data then
- * regardless of the choice here.
- */
-@Composable
-private fun MobileDataPicker(selected: MobileData, vm: MainViewModel) {
-    val saving by vm.saveData.collectAsStateWithLifecycle()
-    ChoiceItem(
-        title = R.string.settings_mobile_data,
-        value = selected,
-        options = MOBILE_DATA.map { it.first },
-        label = { choice ->
-            val name = stringResource(MOBILE_DATA.first { it.first == choice }.second)
-            if (saving && choice == MobileData.Normal) stringResource(R.string.mobile_data_saver_on, name) else name
-        },
-        onPick = vm::setMobileData,
-        hint = R.string.settings_mobile_data_hint,
-    )
 }
 
 /**
