@@ -16,6 +16,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Button
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.ListItem
@@ -99,23 +100,26 @@ private fun claimUrl(twitchId: String?, login: String): String =
  * should leave the phone unless the user pastes it.
  */
 @Composable
-private fun ReportIssueItem(vm: MainViewModel) {
-    val context = LocalContext.current
-    val scope = rememberCoroutineScope()
-    var crash by remember { mutableStateOf<Crash?>(null) }
-    val open = { context.startActivity(Intent(Intent.ACTION_VIEW, bugReportUrl(vm.device).toUri())) }
+private fun ReportIssueItem(reportIssue: () -> Unit) {
     ListItem(
         headlineContent = { Text(stringResource(R.string.settings_report_issue)) },
         supportingContent = { Text(stringResource(R.string.settings_report_issue_summary)) },
         trailingContent = { Icon(Icons.AutoMirrored.Filled.ArrowForward, contentDescription = null) },
         colors = transparentItem(),
-        modifier = Modifier.clickable {
-            scope.launch {
-                val last = vm.lastCrash()
-                if (last == null) open() else crash = last
-            }
-        },
+        modifier = Modifier.clickable(onClick = reportIssue),
     )
+}
+
+/**
+ * What a tap on "Report a problem" runs: opens the bug report, after a crash first offering to copy
+ * it. Shows that dialog itself.
+ */
+@Composable
+private fun rememberReportIssue(vm: MainViewModel): () -> Unit {
+    val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+    var crash by remember { mutableStateOf<Crash?>(null) }
+    val open = { context.startActivity(Intent(Intent.ACTION_VIEW, bugReportUrl(vm.device).toUri())) }
     crash?.let { last ->
         AlertDialog(
             onDismissRequest = { crash = null },
@@ -141,6 +145,12 @@ private fun ReportIssueItem(vm: MainViewModel) {
             },
         )
     }
+    return {
+        scope.launch {
+            val last = vm.lastCrash()
+            if (last == null) open() else crash = last
+        }
+    }
 }
 
 /** The bug report template URL with app and device fields filled in. */
@@ -155,6 +165,7 @@ private fun bugReportUrl(device: DeviceInfo): String =
 
 @Composable
 internal fun AboutPage(settings: Settings, vm: MainViewModel, open: (SettingsSubPage) -> Unit) {
+    val reportIssue = rememberReportIssue(vm)
     // The wordmark already shows the name, so no heading below.
     Column(
         horizontalAlignment = Alignment.CenterHorizontally,
@@ -172,14 +183,10 @@ internal fun AboutPage(settings: Settings, vm: MainViewModel, open: (SettingsSub
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
+        // New bugs show up in Nightly first, so reporting one moves up from the list below.
         if (BuildConfig.NIGHTLY) {
-            Text(
-                stringResource(R.string.settings_nightly),
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.primary,
-                textAlign = TextAlign.Center,
-                modifier = Modifier.padding(horizontal = 24.dp),
-            )
+            Spacer(Modifier.height(16.dp))
+            Button(onClick = reportIssue) { Text(stringResource(R.string.settings_report_issue)) }
         }
     }
     SettingsGroup {
@@ -193,7 +200,7 @@ internal fun AboutPage(settings: Settings, vm: MainViewModel, open: (SettingsSub
             )
         }
         item(R.string.settings_source_code) { LinkItem(R.string.settings_source_code, R.string.settings_source_code_summary, REPO_URL) }
-        item(R.string.settings_report_issue) { ReportIssueItem(vm) }
+        if (!BuildConfig.NIGHTLY) item(R.string.settings_report_issue) { ReportIssueItem(reportIssue) }
         // A security hole goes to a private report, not into a public issue like the row above.
         item(R.string.settings_security) { LinkItem(R.string.settings_security, R.string.settings_security_summary, SECURITY_URL) }
         item(R.string.settings_privacy) { LinkItem(R.string.settings_privacy, R.string.settings_privacy_summary, PRIVACY_URL) }

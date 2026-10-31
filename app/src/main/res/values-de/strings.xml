@@ -369,7 +369,6 @@
     <string name="account_logout_text">Das Konto wird auch bei Twitch abgemeldet. Chatter macht mit deinem anderen Konto weiter.</string>
     <string name="account_logout_last_text">Das Konto wird auch bei Twitch abgemeldet. Es ist dein letztes Konto, danach musst du dich neu anmelden.</string>
     <string name="settings_version">Version %1$s</string>
-    <string name="settings_nightly">Nightly: die neuesten Änderungen vor einem Release, kann Fehler haben</string>
     <string name="settings_credits">Credits &amp; Lizenzen</string>
     <string name="settings_credits_summary">Verwendete Dienste und Open-Source-Software</string>
     <string name="settings_credits_services">Dienste</string>

@@ -20,10 +20,11 @@ data class IconChange(val icon: AppIcon, val autoWindow: String? = null)
  * What the launcher icon becomes on [today], or null when it stays. A seasonal icon gives way to
  * [own] once its days are over; with [auto] each season's icon is set once, on its first day the
  * app runs, so picking another one during the season sticks. [lastAutoWindow] is the
- * [IconChange.autoWindow] set last.
+ * [IconChange.autoWindow] set last. A season never replaces the Nightly icon by itself, since that
+ * icon is how Nightly is told apart from Chatter.
  */
 fun iconChangeOn(today: LocalDate, current: AppIcon, own: AppIcon, auto: Boolean, lastAutoWindow: String?): IconChange? {
-    if (auto) {
+    if (auto && own != AppIcon.Nightly) {
         val due = AppIcon.entries.firstOrNull { it.season?.isOn(today) == true }
         val window = due?.season?.let { "${it.name} ${it.nextStart(today)}" }
         if (due != null && window != lastAutoWindow) return IconChange(due, window)

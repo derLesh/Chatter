@@ -33,6 +33,13 @@ class IconChangeTest {
     }
 
     @Test
+    fun noSeasonReplacesTheNightlyIcon() {
+        assertNull(iconChangeOn(halloween, AppIcon.Nightly, AppIcon.Nightly, auto = true, lastAutoWindow = null))
+        // Picked by hand, it still gives way to Nightly afterwards.
+        assertEquals(IconChange(AppIcon.Nightly), iconChangeOn(november, AppIcon.Halloween, AppIcon.Nightly, auto = true, lastAutoWindow = null))
+    }
+
+    @Test
     fun aSeasonalIconGivesWayAfterItsDays() {
         assertEquals(IconChange(AppIcon.Purple), iconChangeOn(november, AppIcon.Halloween, AppIcon.Purple, auto = true, lastAutoWindow = "Halloween 2026-10-17"))
         // Also when it was picked by hand.
