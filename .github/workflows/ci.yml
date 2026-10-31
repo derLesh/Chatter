@@ -105,6 +105,16 @@ jobs:
         with:
           cache-provider: basic
 
+      # setup-gradle's basic cache is keyed on the Gradle files only and never written again once it
+      # exists, so the build cache gets an entry of its own per commit. A run starts from the newest
+      # one, a pull request from master's.
+      - name: Restore the build cache
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/.gradle/caches/build-cache-1
+          key: gradle-build-cache-${{ github.job }}-${{ github.sha }}
+          restore-keys: gradle-build-cache-${{ github.job }}-
+
       - name: Changelog entries and unit tests
         run: ./gradlew checkChangelog :app:testDebugUnitTest --continue
 
@@ -139,6 +149,14 @@ jobs:
         uses: gradle/actions/setup-gradle@3f5f9adaf7d9fecd50b5935e54106014257a94e6 # v6.4.0
         with:
           cache-provider: basic
+
+      # As in the tests job.
+      - name: Restore the build cache
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/.gradle/caches/build-cache-1
+          key: gradle-build-cache-${{ github.job }}-${{ github.sha }}
+          restore-keys: gradle-build-cache-${{ github.job }}-
 
       # Lint on the release variant, since that is what ships. R8, the resource shrinker and
       # bundling only run in release builds, and a release is a bad time to find out they fail.
