@@ -116,8 +116,9 @@ comment `@dependabot recreate` to start the pull request over.
 Supporting Chatter is **switched off** everywhere until GitHub Sponsors is set up: `sponsoring`
 in `app/build.gradle.kts` takes the settings category out of every build and keeps the app from
 asking for a supporter list nobody serves, and the two workflows below have their triggers
-commented out. Everything is built and tested and waiting; turning it on is that one line and
-those two triggers.
+commented out. Everything is built and tested and waiting; turning it on is that one line, those
+two triggers and the issue form `.github/ISSUE_TEMPLATE/supporter.yml` back as commit b5d8722 had
+it. The form is out until then, since GitHub offers every form to everyone and nobody would answer.
 
 Letting assistants into Chatter is **switched off** the same way: `assistantAccess` in
 `app/build.gradle.kts` hides its switch under Settings → Beta features, because Gemini only calls
