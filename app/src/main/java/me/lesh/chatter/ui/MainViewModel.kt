@@ -108,7 +108,7 @@ sealed interface Suggestion {
     data class EmojiSuggestion(val emoji: Emoji, val shortcode: String) : Suggestion
 }
 
-class MainViewModel(private val c: AppContainer, savedState: SavedStateHandle) : ViewModel() {
+class MainViewModel(private val c: AppContainer, private val savedState: SavedStateHandle) : ViewModel() {
     val authState = c.auth.state
 
     /**
@@ -383,6 +383,8 @@ class MainViewModel(private val c: AppContainer, savedState: SavedStateHandle) :
         val left = shownPage
         if (!composer.show(page, channels)) return
         if (left != page) left?.let(::leave)
+        // Moving to the chat beside swaps the two, so the same chat is never shown twice.
+        if (page != null && page == sidePage && sideShown && left != null) showBeside(left)
         c.chat.windows.setChannels(this, channels.toSet())
         // The chat screen follows this; a bubble must not move it.
         if (!inBubble) c.chat.activePage.value = page
@@ -395,6 +397,82 @@ class MainViewModel(private val c: AppContainer, savedState: SavedStateHandle) :
         // Remembered for after a restart: the chat screen's page, not a bubble's channel.
         if (page != null && !inBubble) rememberLastChannel(page)
         suggestions = emptyList()
+    }
+
+    // ---- The pane beside the chat, on a wide screen --------------------------------------------
+
+    /**
+     * The chat in the pane beside, by its page; null for none. Kept while the screen is narrow, so
+     * unfolding brings it back.
+     */
+    var sidePage by mutableStateOf<String?>(savedState[SIDE_PAGE_KEY])
+        private set
+
+    /** Whether the pane beside shows the inbox; it then shows no chat. */
+    var inboxBeside by mutableStateOf(savedState[SIDE_INBOX_KEY] ?: false)
+        private set
+
+    /** Counts as a window of its own, so the chat beside is read like the one in front. */
+    private val sideWindow = Any()
+    private var sideShown = false
+    private var uiVisible = false
+
+    /** Shows [page] in the pane beside; null closes the chat there. */
+    fun showBeside(page: String?) {
+        if (page != null) closeInboxBeside()
+        if (page == sidePage) return
+        sidePage?.let(::leave)
+        sidePage = page
+        savedState[SIDE_PAGE_KEY] = page
+        updateSideWindow()
+    }
+
+    /** Opens the inbox in the pane beside, in place of a chat there. */
+    fun openInboxBeside() {
+        showBeside(null)
+        inboxBeside = true
+        savedState[SIDE_INBOX_KEY] = true
+    }
+
+    fun closeInboxBeside() {
+        inboxBeside = false
+        savedState[SIDE_INBOX_KEY] = false
+    }
+
+    /** The pane beside came on screen as a chat, or left it. */
+    fun setSideShown(shown: Boolean) {
+        if (!shown) sidePage?.let(::leave)
+        sideShown = shown
+        updateSideWindow()
+    }
+
+    /** Swaps the chat beside with the one in front, where the input is. */
+    fun bringSideToFront() {
+        val page = sidePage ?: return
+        selectChannel(page)
+        requestedChannel.value = page
+    }
+
+    private fun updateSideWindow() {
+        val channels = sidePage?.takeIf { sideShown && uiVisible }?.let(::channelsOf).orEmpty()
+        c.chat.windows.setChannels(sideWindow, channels.toSet())
+        channels.forEach {
+            c.notifier.clear(it)
+            c.chat.clearUnread(it)
+            viewModelScope.launch { c.inbox.markChannelRead(it) }
+        }
+    }
+
+    /**
+     * Makes sure a message to [channel] can be written: the input belongs to the chat in front, so
+     * a message from the chat beside first brings that one to the front. False if neither shows it.
+     */
+    private fun canWriteIn(channel: String): Boolean {
+        if (channel in composer.shownChannels) return true
+        val side = sidePage?.takeIf { sideShown } ?: return false
+        if (channel !in channelsOf(side)) return false
+        bringSideToFront()
+        return true
     }
 
     /** Writes in [channel] from now on; it must be one of the page's channels. */
@@ -434,6 +512,9 @@ class MainViewModel(private val c: AppContainer, savedState: SavedStateHandle) :
 
     fun setUiVisible(visible: Boolean) {
         c.chat.windows.setVisible(this, visible, composer.shownChannels.toSet())
+        uiVisible = visible
+        if (!visible) sidePage?.takeIf { sideShown }?.let(::leave)
+        updateSideWindow()
         // Leaving may come before the delay ends; then this is the last chance to write it.
         if (!visible) {
             writeLastChannel()
@@ -451,6 +532,7 @@ class MainViewModel(private val c: AppContainer, savedState: SavedStateHandle) :
     /** The window is gone; it reads nothing any more. */
     override fun onCleared() {
         c.chat.windows.setVisible(this, visible = false, channels = emptySet())
+        c.chat.windows.setChannels(sideWindow, emptySet())
         super.onCleared()
     }
 
@@ -540,6 +622,7 @@ class MainViewModel(private val c: AppContainer, savedState: SavedStateHandle) :
     fun mention(item: ChatItem): Boolean {
         if (settings.value.readOnly) return false
         val name = item.displayName ?: item.login ?: return false
+        if (!canWriteIn(item.channel)) return false
         selectSendChannel(item.channel)
         val (text, cursor) = Autocomplete.insert(input.text, input.selection.start, "@$name")
         composer.input = TextFieldValue(text, TextRange(cursor))
@@ -774,6 +857,7 @@ class MainViewModel(private val c: AppContainer, savedState: SavedStateHandle) :
     fun startReply(item: ChatItem): Boolean {
         if (c.auth.account == null || settings.value.readOnly) return false
         if (!item.canReply || item.id.startsWith("local-")) return false
+        if (!canWriteIn(item.channel)) return false
         composer.startReply(item)
         updateSuggestions()
         return true
@@ -1129,6 +1213,9 @@ class MainViewModel(private val c: AppContainer, savedState: SavedStateHandle) :
 
         /** Where the drafts are kept when Android saves the window. */
         const val DRAFTS_KEY = "drafts"
+
+        const val SIDE_PAGE_KEY = "side_page"
+        const val SIDE_INBOX_KEY = "side_inbox"
 
         /** Enough to show what a rule finds in a busy chat, few enough to try on every keystroke. */
         const val RULE_TRY_MESSAGES = 300

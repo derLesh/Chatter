@@ -22,11 +22,8 @@ import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.KeyboardArrowUp
-import androidx.compose.material.icons.filled.MailOutline
 import androidx.compose.material.icons.filled.MoreVert
-import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.Badge
-import androidx.compose.material3.BadgedBox
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -48,9 +45,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.layout.positionInWindow
 import androidx.compose.ui.platform.LocalDensity
-import androidx.compose.ui.platform.LocalWindowInfo
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
@@ -108,14 +105,23 @@ fun ChannelTopBar(
     settingsBadge: Boolean = false,
     /** Pages with an unsent draft. */
     drafts: Set<String> = emptySet(),
+    /** False while a pane beside the chat carries the inbox and settings buttons. */
+    showAppButtons: Boolean = true,
+    /** Puts a page in the pane beside the chat; null while the screen has room for one only. */
+    onShowBeside: ((String) -> Unit)? = null,
+    /** The page shown beside the chat, if any. */
+    beside: String? = null,
 ) {
     var expanded by remember { mutableStateOf(false) }
     val activeGroup = active?.let { groups[it] }
     // The title's position, to center the full-width menu below it.
     var anchorX by remember { mutableStateOf(0.dp) }
+    // The bar's width, not the window's: beside a second pane the menu stays over this one.
+    var barWidth by remember { mutableStateOf(0.dp) }
     val density = LocalDensity.current
 
     TopAppBar(
+        modifier = Modifier.onSizeChanged { barWidth = with(density) { it.width.toDp() } },
         colors = TopAppBarDefaults.topAppBarColors(containerColor = MaterialTheme.colorScheme.barColor),
         title = {
             Box(Modifier.onGloballyPositioned { anchorX = with(density) { it.positionInWindow().x.toDp() } }) {
@@ -162,6 +168,7 @@ fun ChannelTopBar(
                     drafts = drafts,
                     imageLoader = imageLoader,
                     anchorX = anchorX,
+                    width = barWidth - DROPDOWN_MARGIN * 2,
                     onDismiss = { expanded = false },
                     onSelect = { expanded = false; onSelect(it) },
                     onAdd = { expanded = false; onAdd() },
@@ -170,6 +177,8 @@ fun ChannelTopBar(
                     onRemove = onRemove,
                     onRename = { expanded = false; onRename(it) },
                     onMove = onMove,
+                    onShowBeside = onShowBeside?.let { show -> { page: String -> expanded = false; show(page) } },
+                    beside = beside,
                 )
             }
         },
@@ -186,19 +195,7 @@ fun ChannelTopBar(
                 imageLoader = imageLoader,
                 onSelect = onSelect,
             )
-            IconButton(onClick = onInbox) {
-                BadgedBox(
-                    badge = { if (inboxUnread > 0) Badge { Text(formatCount(inboxUnread)) } },
-                ) {
-                    Icon(Icons.Default.MailOutline, contentDescription = stringResource(R.string.inbox_title))
-                }
-            }
-            IconButton(onClick = onSettings) {
-                // The dot is the only hint out here that an update is waiting.
-                BadgedBox(badge = { if (settingsBadge) Badge() }) {
-                    Icon(Icons.Default.Settings, contentDescription = stringResource(R.string.settings))
-                }
-            }
+            if (showAppButtons) AppButtons(inboxUnread, onInbox, onSettings, settingsBadge)
         },
     )
 }
@@ -263,6 +260,7 @@ private fun ChannelDropdown(
     drafts: Set<String>,
     imageLoader: ImageLoader,
     anchorX: Dp,
+    width: Dp,
     onDismiss: () -> Unit,
     onSelect: (String) -> Unit,
     onAdd: () -> Unit,
@@ -271,9 +269,9 @@ private fun ChannelDropdown(
     onRemove: (String) -> Unit,
     onRename: (String) -> Unit,
     onMove: (String, Int) -> Unit,
+    onShowBeside: ((String) -> Unit)?,
+    beside: String?,
 ) {
-    // The window's width, not the screen's: they differ in split screen and on foldables.
-    val width = with(LocalDensity.current) { LocalWindowInfo.current.containerSize.width.toDp() } - DROPDOWN_MARGIN * 2
     DropdownMenu(
         expanded = expanded,
         onDismissRequest = onDismiss,
@@ -348,6 +346,11 @@ private fun ChannelDropdown(
                                 Icon(Icons.Default.MoreVert, contentDescription = stringResource(R.string.channel_options))
                             }
                             DropdownMenu(expanded = menu, onDismissRequest = { menu = false }) {
+                                if (onShowBeside != null && page != active && page != beside) DropdownMenuItem(
+                                    text = { Text(stringResource(R.string.show_beside)) },
+                                    leadingIcon = { Icon(painterResource(R.drawable.ic_show_beside), null) },
+                                    onClick = { menu = false; onShowBeside(page) },
+                                )
                                 if (index > 0) DropdownMenuItem(
                                     text = { Text(stringResource(R.string.move_up)) },
                                     leadingIcon = { Icon(Icons.Default.KeyboardArrowUp, null) },

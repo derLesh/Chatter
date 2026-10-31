@@ -20,10 +20,7 @@ import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
-import androidx.compose.material.icons.filled.MailOutline
-import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.Badge
-import androidx.compose.material3.BadgedBox
 import androidx.compose.material3.DropdownMenuGroup
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.DropdownMenuPopup
@@ -106,6 +103,12 @@ fun ChannelTabBar(
     settingsBadge: Boolean = false,
     /** Pages with an unsent draft. */
     drafts: Set<String> = emptySet(),
+    /** False while a pane beside the chat carries the inbox and settings buttons. */
+    showAppButtons: Boolean = true,
+    /** Puts a page in the pane beside the chat; null while the screen has room for one only. */
+    onShowBeside: ((String) -> Unit)? = null,
+    /** The page shown beside the chat, if any. */
+    beside: String? = null,
 ) {
     val activeGroup = active?.let { groups[it] }
     Surface(color = MaterialTheme.colorScheme.barColor) {
@@ -130,19 +133,11 @@ fun ChannelTabBar(
                     onRemove = onRemove,
                     onRename = onRename,
                     onMove = onMove,
+                    onShowBeside = onShowBeside,
+                    beside = beside,
                     modifier = Modifier.weight(1f),
                 )
-                IconButton(onClick = onInbox) {
-                    BadgedBox(badge = { if (inboxUnread > 0) Badge { Text(formatCount(inboxUnread)) } }) {
-                        Icon(Icons.Default.MailOutline, contentDescription = stringResource(R.string.inbox_title))
-                    }
-                }
-                IconButton(onClick = onSettings) {
-                    // The dot is the only hint out here that an update is waiting.
-                    BadgedBox(badge = { if (settingsBadge) Badge() }) {
-                        Icon(Icons.Default.Settings, contentDescription = stringResource(R.string.settings))
-                    }
-                }
+                if (showAppButtons) AppButtons(inboxUnread, onInbox, onSettings, settingsBadge)
             }
             // Decided here, since an empty status line would still take its padding.
             val hasStatus = when {
@@ -183,6 +178,8 @@ private fun ChannelTabs(
     onRemove: (String) -> Unit,
     onRename: (String) -> Unit,
     onMove: (String, Int) -> Unit,
+    onShowBeside: ((String) -> Unit)?,
+    beside: String?,
     modifier: Modifier,
 ) {
     // A combined chat's channels are unknown for a moment after start; its tab would have neither
@@ -228,8 +225,13 @@ private fun ChannelTabs(
                 hasNew = hasNew,
                 hasDraft = page in drafts,
                 onClick = { onSelect(page) },
-                // Grouped by effect: position, identity, removal.
+                // Grouped by effect: where it is shown, position, identity, removal.
                 actions = listOf(
+                    listOfNotNull(
+                        TabAction(stringResource(R.string.show_beside), { Icon(painterResource(R.drawable.ic_show_beside), null) }) {
+                            onShowBeside?.invoke(page)
+                        }.takeIf { onShowBeside != null && !isSelected && page != beside },
+                    ),
                     listOfNotNull(
                         TabAction(stringResource(R.string.move_left), { Icon(Icons.AutoMirrored.Filled.KeyboardArrowLeft, null) }) {
                             onMove(page, -1)

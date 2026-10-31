@@ -4,6 +4,8 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.WindowInsetsSides
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
@@ -11,6 +13,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.ime
 import androidx.compose.foundation.layout.navigationBars
+import androidx.compose.foundation.layout.only
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.union
 import androidx.compose.foundation.layout.windowInsetsPadding
@@ -22,6 +25,7 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
+import androidx.compose.material3.VerticalDivider
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -29,6 +33,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.saveable.rememberSaveableStateHolder
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
@@ -76,10 +81,15 @@ import me.lesh.chatter.ui.chat.noteTouches
 import me.lesh.chatter.ui.chat.rememberChatStyle
 import me.lesh.chatter.ui.chat.rememberEmoteFrameRate
 import me.lesh.chatter.ui.chat.screenOnWhileChatMoves
+import me.lesh.chatter.ui.inbox.InboxScreen
 import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.launch
 
+/**
+ * The chat. On a wide screen a second pane can sit beside it: the inbox, or another chat picked in
+ * the channel menu. Without one the chat takes the whole width.
+ */
 @Composable
 fun MainScreen(vm: MainViewModel, onInbox: () -> Unit, onSettings: () -> Unit) {
     val channels by vm.channels.collectAsStateWithLifecycle()
@@ -122,6 +132,14 @@ fun MainScreen(vm: MainViewModel, onInbox: () -> Unit, onSettings: () -> Unit) {
     }?.filterNotNull()
 
     // What may keep the user from writing where the next message goes, shown in the input.
+    val wide = isWideWindow()
+    val inboxBeside = wide && vm.inboxBeside
+    // The chat in front cannot also be beside.
+    val beside = vm.sidePage?.takeIf { wide && it in pageKeys && it != active }
+    val twoPanes = inboxBeside || beside != null
+    val openInbox = if (wide) ({ vm.openInboxBeside() }) else onInbox
+    val showBeside: ((String) -> Unit)? = if (wide) vm::showBeside else null
+
     val restriction = vm.sendChannel?.let { ch -> SendLimits.restriction(roomStates[ch], roles[ch], ch in subscribed) }
     val penalty = vm.sendChannel?.let { penalties[it] }
 
@@ -260,6 +278,11 @@ fun MainScreen(vm: MainViewModel, onInbox: () -> Unit, onSettings: () -> Unit) {
         snapshotFlow { pages.channelAt(pagerState.currentPage) }
             .collect { vm.selectChannel(it?.let(pageKeys::getOrNull)) }
     }
+    // A removed channel or combined chat closes the pane beside.
+    LaunchedEffect(pageKeys, restored) {
+        val side = vm.sidePage ?: return@LaunchedEffect
+        if (restored && side !in pageKeys) vm.showBeside(null)
+    }
     // Scrolls to a page requested by a notification, or just added or combined.
     LaunchedEffect(pageKeys, pages) {
         vm.requestedChannel.filterNotNull().collect { ch ->
@@ -271,164 +294,217 @@ fun MainScreen(vm: MainViewModel, onInbox: () -> Unit, onSettings: () -> Unit) {
         }
     }
 
-    Scaffold(
-        modifier = Modifier.noteTouches(activity),
-        contentWindowInsets = WindowInsets(0),
-        snackbarHost = { SnackbarHost(snackbar) },
-        topBar = {
-            val onSelect = { ch: String ->
-                scope.launch {
-                    pagerState.scrollToPage(pages.pageOf(pageKeys.indexOf(ch).coerceAtLeast(0), pagerState.currentPage))
-                }
-                Unit
-            }
-            val roomState = activeChannel?.let { roomStates[it] }
-            val role = activeChannel?.let { roles[it] }
-            // The tabs show the role as the color of the tab's underline, the menu bar as its badge.
-            val roleBadge = activeChannel?.let { ch -> role?.let { vm.roleBadge(ch, it) } }
-            if (settings.channelTabs) ChannelTabBar(
-                pages = pageKeys,
-                groups = groups,
-                active = active,
-                info = info,
-                unread = unread,
-                withNews = withNews,
-                roomState = roomState,
-                role = role,
-                sharedWith = sharedWith,
-                connection = connection,
-                showUnread = settings.unreadInTitleBar,
-                hiddenUnread = hiddenUnread,
-                imageLoader = vm.imageLoader,
-                onSelect = onSelect,
-                onAdd = { sheets.showAdd = true },
-                onCombine = sheets::startCombined,
-                onEditGroup = { sheets.combineTarget = it },
-                onRemove = vm::removeChannel,
-                onRename = { sheets.renameTarget = it },
-                onMove = vm::moveChannel,
-                onInbox = onInbox,
-                inboxUnread = inboxUnread,
-                onSettings = onSettings,
-                settingsBadge = update != null,
-                drafts = vm.draftPages,
-            ) else ChannelTopBar(
-                pages = pageKeys,
-                groups = groups,
-                active = active,
-                info = info,
-                unread = unread,
-                withNews = withNews,
-                unreadMessages = vm.unreadMessages,
-                roomState = roomState,
-                roleBadge = roleBadge,
-                sharedWith = sharedWith,
-                connection = connection,
-                showUnread = settings.unreadInTitleBar,
-                hiddenUnread = hiddenUnread,
-                imageLoader = vm.imageLoader,
-                onSelect = onSelect,
-                onAdd = { sheets.showAdd = true },
-                onCombine = { sheets.startCombined(null) },
-                onEditGroup = { sheets.combineTarget = it },
-                onRemove = vm::removeChannel,
-                onRename = { sheets.renameTarget = it },
-                onMove = vm::moveChannel,
-                onInbox = onInbox,
-                inboxUnread = inboxUnread,
-                onSettings = onSettings,
-                settingsBadge = update != null,
-                drafts = vm.draftPages,
-            )
-        },
-    ) { padding ->
-        Column(
-            Modifier
-                .fillMaxSize()
-                .padding(padding)
-                .windowInsetsPadding(WindowInsets.ime.union(WindowInsets.navigationBars))
-                .background(MaterialTheme.colorScheme.background),
-        ) {
-            if (pageKeys.isEmpty()) {
-                EmptyState(onAdd = { sheets.showAdd = true }, modifier = Modifier.weight(1f))
-            } else {
-                HorizontalPager(
-                    state = pagerState,
-                    // A wrapping pager shows a channel on many pages, so only the page index
-                    // identifies them. Otherwise keying on the channel keeps its state when
-                    // channels are reordered.
-                    key = { if (pages.wrapping) it else pageKeys.getOrElse(it) { "" } },
-                    modifier = Modifier.weight(1f),
-                ) { page ->
-                    val channel = pages.channelAt(page)?.let(pageKeys::getOrNull) ?: return@HorizontalPager
-                    // The channel of each message is only shown where channels mix.
-                    val members = groups[channel]?.channels
-                    val marks = remember(members, info) {
-                        members?.associateWith { ChannelMark(info[it]?.avatarUrl, info[it]?.displayName ?: it) }
+    // Keeps the scroll position of the chat beside while a fold hides the pane.
+    val sideStates = rememberSaveableStateHolder()
+    Row(Modifier.fillMaxSize().noteTouches(activity)) {
+        Scaffold(
+            modifier = Modifier.weight(1f),
+            contentWindowInsets = WindowInsets(0),
+            snackbarHost = { SnackbarHost(snackbar) },
+            topBar = {
+                val onSelect = { ch: String ->
+                    scope.launch {
+                        pagerState.scrollToPage(pages.pageOf(pageKeys.indexOf(ch).coerceAtLeast(0), pagerState.currentPage))
                     }
-                    // The pin floats over the chat, which keeps its full height behind it.
-                    Box(Modifier.fillMaxSize()) {
-                        ChatList(
-                            messages = remember(channel) { vm.chat(channel) },
-                            channels = marks,
-                            partners = partnerMarks,
-                            readMark = vm.readMark(channel),
-                            onSeen = if (channel == active) { mark -> vm.onSeen(channel, mark) } else null,
-                            onMentionsSeen = if (channel == active) vm::onMentionsSeen else null,
-                            onCatchUp = if (canCatchUp && channel == active) { missed -> vm.summarize(channel, missed) } else null,
-                            // Only the page in front: a wrapping pager may show the channel twice.
-                            jumpTo = jump?.takeIf { it.channel == channel && channel == active }?.id,
-                            onJumped = { found ->
-                                vm.requestedMessage.value = null
-                                if (!found) scope.launch { snackbar.showSnackbar(resources.getString(R.string.jump_message_gone)) }
-                            },
-                            style = style,
-                            imageLoader = loader,
-                            onGesture = { item, gesture ->
-                                // Holding always opens the user card, whatever taps are set to.
-                                val action = when (gesture) {
-                                    MessageGesture.Tap -> settings.messageTap
-                                    MessageGesture.NameTap -> settings.nameTap
-                                    MessageGesture.Hold -> TapAction.UserCard
-                                    // A tap on the reply line opens the conversation.
-                                    MessageGesture.Thread -> {
-                                        // Otherwise the input keeps focus under the sheet and gets the
-                                        // keyboard back when it closes.
-                                        focusManager.clearFocus()
-                                        sheets.threadOf = item
-                                        vm.startReply(item)
-                                        return@ChatList
+                    Unit
+                }
+                val roomState = activeChannel?.let { roomStates[it] }
+                val role = activeChannel?.let { roles[it] }
+                // The tabs show the role as the color of the tab's underline, the menu bar as its badge.
+                val roleBadge = activeChannel?.let { ch -> role?.let { vm.roleBadge(ch, it) } }
+                if (settings.channelTabs) ChannelTabBar(
+                    pages = pageKeys,
+                    groups = groups,
+                    active = active,
+                    info = info,
+                    unread = unread,
+                    withNews = withNews,
+                    roomState = roomState,
+                    role = role,
+                    sharedWith = sharedWith,
+                    connection = connection,
+                    showUnread = settings.unreadInTitleBar,
+                    hiddenUnread = hiddenUnread,
+                    imageLoader = vm.imageLoader,
+                    onSelect = onSelect,
+                    onAdd = { sheets.showAdd = true },
+                    onCombine = sheets::startCombined,
+                    onEditGroup = { sheets.combineTarget = it },
+                    onRemove = vm::removeChannel,
+                    onRename = { sheets.renameTarget = it },
+                    onMove = vm::moveChannel,
+                    onInbox = openInbox,
+                    inboxUnread = inboxUnread,
+                    onSettings = onSettings,
+                    settingsBadge = update != null,
+                    drafts = vm.draftPages,
+                    showAppButtons = !twoPanes,
+                    onShowBeside = showBeside,
+                    beside = beside,
+                ) else ChannelTopBar(
+                    pages = pageKeys,
+                    groups = groups,
+                    active = active,
+                    info = info,
+                    unread = unread,
+                    withNews = withNews,
+                    unreadMessages = vm.unreadMessages,
+                    roomState = roomState,
+                    roleBadge = roleBadge,
+                    sharedWith = sharedWith,
+                    connection = connection,
+                    showUnread = settings.unreadInTitleBar,
+                    hiddenUnread = hiddenUnread,
+                    imageLoader = vm.imageLoader,
+                    onSelect = onSelect,
+                    onAdd = { sheets.showAdd = true },
+                    onCombine = { sheets.startCombined(null) },
+                    onEditGroup = { sheets.combineTarget = it },
+                    onRemove = vm::removeChannel,
+                    onRename = { sheets.renameTarget = it },
+                    onMove = vm::moveChannel,
+                    onInbox = openInbox,
+                    inboxUnread = inboxUnread,
+                    onSettings = onSettings,
+                    settingsBadge = update != null,
+                    drafts = vm.draftPages,
+                    showAppButtons = !twoPanes,
+                    onShowBeside = showBeside,
+                    beside = beside,
+                )
+            },
+        ) { padding ->
+            Column(
+                Modifier
+                    .fillMaxSize()
+                    .padding(padding)
+                    // Beside another pane, a navigation bar on the far side is that pane's to keep clear.
+                    .windowInsetsPadding(
+                        WindowInsets.ime.union(
+                            if (twoPanes) WindowInsets.navigationBars.only(WindowInsetsSides.Bottom + WindowInsetsSides.Start)
+                            else WindowInsets.navigationBars,
+                        ),
+                    )
+                    .background(MaterialTheme.colorScheme.background),
+            ) {
+                if (pageKeys.isEmpty()) {
+                    EmptyState(onAdd = { sheets.showAdd = true }, modifier = Modifier.weight(1f))
+                } else {
+                    HorizontalPager(
+                        state = pagerState,
+                        // A wrapping pager shows a channel on many pages, so only the page index
+                        // identifies them. Otherwise keying on the channel keeps its state when
+                        // channels are reordered.
+                        key = { if (pages.wrapping) it else pageKeys.getOrElse(it) { "" } },
+                        modifier = Modifier.weight(1f),
+                    ) { page ->
+                        val channel = pages.channelAt(page)?.let(pageKeys::getOrNull) ?: return@HorizontalPager
+                        // The channel of each message is only shown where channels mix.
+                        val members = groups[channel]?.channels
+                        val marks = remember(members, info) {
+                            members?.associateWith { ChannelMark(info[it]?.avatarUrl, info[it]?.displayName ?: it) }
+                        }
+                        // The pin floats over the chat, which keeps its full height behind it.
+                        Box(Modifier.fillMaxSize()) {
+                            ChatList(
+                                messages = remember(channel) { vm.chat(channel) },
+                                channels = marks,
+                                partners = partnerMarks,
+                                readMark = vm.readMark(channel),
+                                onSeen = if (channel == active) { mark -> vm.onSeen(channel, mark) } else null,
+                                onMentionsSeen = if (channel == active) vm::onMentionsSeen else null,
+                                onCatchUp = if (canCatchUp && channel == active) { missed -> vm.summarize(channel, missed) } else null,
+                                // Only the page in front: a wrapping pager may show the channel twice.
+                                jumpTo = jump?.takeIf { it.channel == channel && channel == active }?.id,
+                                onJumped = { found ->
+                                    vm.requestedMessage.value = null
+                                    if (!found) scope.launch { snackbar.showSnackbar(resources.getString(R.string.jump_message_gone)) }
+                                },
+                                style = style,
+                                imageLoader = loader,
+                                onGesture = { item, gesture ->
+                                    // Holding always opens the user card, whatever taps are set to.
+                                    val action = when (gesture) {
+                                        MessageGesture.Tap -> settings.messageTap
+                                        MessageGesture.NameTap -> settings.nameTap
+                                        MessageGesture.Hold -> TapAction.UserCard
+                                        // A tap on the reply line opens the conversation.
+                                        MessageGesture.Thread -> {
+                                            // Otherwise the input keeps focus under the sheet and gets the
+                                            // keyboard back when it closes.
+                                            focusManager.clearFocus()
+                                            sheets.threadOf = item
+                                            vm.startReply(item)
+                                            return@ChatList
+                                        }
                                     }
-                                }
-                                // Messages that cannot be answered or mentioned (a notice, an
-                                // unconfirmed message, any while the user only reads) open the card.
-                                when (action) {
-                                    TapAction.Reply -> if (!vm.startReply(item)) sheets.actionItem = item
-                                    TapAction.Mention -> if (!vm.mention(item)) sheets.actionItem = item
-                                    TapAction.UserCard -> sheets.actionItem = item
-                                    TapAction.Nothing -> Unit
-                                }
-                            },
-                            modifier = Modifier.fillMaxSize(),
-                            // Battery saver stills it like the emotes: in a busy chat some row is always moving.
-                            smoothScrolling = settings.smoothScrolling && !powerSave,
-                            onEmoteClick = { sheets.emoteCard = it },
-                            onBadgeHold = { sheets.badgeToHide = it },
-                        )
-                        PinnedBar(
-                            pin = pins[channel]?.takeIf { it.item.id !in vm.hiddenPins },
-                            style = style,
-                            imageLoader = loader,
-                            onHide = vm::hidePin,
-                            onUnpin = vm::unpinMessage,
-                            modifier = Modifier.fillMaxWidth().align(Alignment.TopCenter),
-                        )
+                                    // Messages that cannot be answered or mentioned (a notice, an
+                                    // unconfirmed message, any while the user only reads) open the card.
+                                    when (action) {
+                                        TapAction.Reply -> if (!vm.startReply(item)) sheets.actionItem = item
+                                        TapAction.Mention -> if (!vm.mention(item)) sheets.actionItem = item
+                                        TapAction.UserCard -> sheets.actionItem = item
+                                        TapAction.Nothing -> Unit
+                                    }
+                                },
+                                modifier = Modifier.fillMaxSize(),
+                                // Battery saver stills it like the emotes: in a busy chat some row is always moving.
+                                smoothScrolling = settings.smoothScrolling && !powerSave,
+                                onEmoteClick = { sheets.emoteCard = it },
+                                onBadgeHold = { sheets.badgeToHide = it },
+                            )
+                            PinnedBar(
+                                pin = pins[channel]?.takeIf { it.item.id !in vm.hiddenPins },
+                                style = style,
+                                imageLoader = loader,
+                                onHide = vm::hidePin,
+                                onUnpin = vm::unpinMessage,
+                                modifier = Modifier.fillMaxWidth().align(Alignment.TopCenter),
+                            )
+                        }
                     }
                 }
+                ChatInput(
+                    vm, guest, connection, restriction, penalty, loader, activity, sheets, inThread = false,
+                    sendChannels = activeGroup?.channels.orEmpty(), channelInfo = info,
+                )
             }
-            ChatInput(
-                vm, guest, connection, restriction, penalty, loader, activity, sheets, inThread = false,
-                sendChannels = activeGroup?.channels.orEmpty(), channelInfo = info,
+        }
+        if (twoPanes) {
+            VerticalDivider()
+            val paneModifier = Modifier
+                .weight(1f)
+                .fillMaxSize()
+                .background(MaterialTheme.colorScheme.background)
+            if (beside != null) sideStates.SaveableStateProvider(beside) {
+                SideChat(
+                    vm = vm,
+                    page = beside,
+                    style = style,
+                    imageLoader = loader,
+                    partners = partnerMarks,
+                    smoothScrolling = settings.smoothScrolling && !powerSave,
+                    sheets = sheets,
+                    onThread = { item ->
+                        focusManager.clearFocus()
+                        sheets.threadOf = item
+                        vm.startReply(item)
+                    },
+                    inboxUnread = inboxUnread,
+                    onSettings = onSettings,
+                    settingsBadge = update != null,
+                    modifier = paneModifier.windowInsetsPadding(
+                        WindowInsets.navigationBars.only(WindowInsetsSides.Bottom + WindowInsetsSides.End),
+                    ),
+                )
+            } else InboxScreen(
+                vm,
+                onOpenMention = { mention -> vm.openMessage(mention.channel, mention.id) },
+                onBack = null,
+                modifier = paneModifier,
+                onClose = { vm.closeInboxBeside() },
+                onSettings = onSettings,
+                settingsBadge = update != null,
             )
         }
     }

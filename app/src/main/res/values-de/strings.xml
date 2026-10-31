@@ -111,6 +111,9 @@
     <string name="move_left">Nach links</string>
     <string name="move_right">Nach rechts</string>
     <string name="remove_channel">Entfernen</string>
+    <string name="show_beside">Daneben zeigen</string>
+    <string name="beside_to_front">Hier schreiben</string>
+    <string name="beside_close">Schließen</string>
     <string name="reload_emotes">Emotes neu laden</string>
     <string name="emotes_reloaded">Emotes neu geladen</string>
     <string name="emotes_reloaded_without">Emotes neu geladen, aber keine Antwort von %1$s</string>

@@ -68,6 +68,15 @@ fun AppRoot(vm: MainViewModel) {
                 NotificationIntroScreen(onDone = vm::markNotificationIntroSeen)
                 return
             }
+            // On a wide screen the inbox has its place beside the chat, also when unfolding with it
+            // open or when a notification asks for it.
+            val wide = isWideWindow()
+            LaunchedEffect(wide, showInbox) {
+                if (wide && showInbox) {
+                    showInbox = false
+                    vm.openInboxBeside()
+                }
+            }
             val screen = when {
                 showSettings -> Screen.Settings
                 showInbox -> Screen.Inbox
