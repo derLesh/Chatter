@@ -8,6 +8,10 @@ version: 2
 updates:
   - package-ecosystem: github-actions
     directory: /
+    # "ci(deps): Bump …", as AGENTS.md asks of every commit.
+    commit-message:
+      prefix: ci
+      include: scope
     schedule:
       interval: weekly
     groups:
@@ -16,6 +20,9 @@ updates:
 
   - package-ecosystem: gradle
     directory: /
+    commit-message:
+      prefix: build
+      include: scope
     schedule:
       interval: weekly
     # A dependency goes into the first group it matches.

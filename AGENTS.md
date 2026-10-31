@@ -28,8 +28,8 @@ Write the line for the person who will read it in the app, not for whoever revie
 they can now do, one line, no trailing dot, under 120 characters. Run `./gradlew checkChangelog` and
 it will tell you if the line does not hold up.
 
-The only changes that need no entry are the ones nobody using the app can notice: a refactor that
-keeps behaviour, a test, a build tweak, a doc. Say so in the commit message when you skip one.
+The commit type says whether a change needs one. `feat`, `fix` and `perf` do; `ref`, `docs`,
+`test`, `build`, `ci` and `chore` are for what nobody using the app can notice, and need none.
 
 ## Never edit these by hand
 
@@ -39,11 +39,44 @@ keeps behaviour, a test, a build tweak, a doc. Say so in the commit message when
   this very file as an asset and shows it under Settings → About → Changelog, so its shape matters:
   `## <version> — <date>` opens a release and `- <level>: <text>` is one entry.
 
+## Commit messages
+
+Every subject is `type(scope): what changed`, in the imperative, with no trailing dot and at most
+100 characters:
+
+```text
+feat(chat): count down in the input while timed out
+fix(emotes): keep a wrapped emote from covering the line above
+ref(irc): move tag parsing into its own class
+build!: move the app id and packages to me.lesh.chatter
+```
+
+| Type | For |
+| --- | --- |
+| `feat` | something users can now do |
+| `fix` | something that was broken for users |
+| `perf` | faster, lighter on the battery or memory |
+| `ref` | code changed, behaviour kept |
+| `docs` | README, AGENTS.md, docs/, comments only |
+| `test` | tests only |
+| `build` | Gradle, dependencies, checksums, the app id |
+| `ci` | workflows and their scripts |
+| `chore` | anything else nobody using the app notices: releases, the supporter list |
+| `revert` | undoing an earlier commit |
+
+The scope is optional and names the part of the app in lower case: `chat`, `irc`, `emotes`,
+`settings`, `notifications`, `release`, `deps`. A `!` before the colon marks a change that takes
+something away. `.github/scripts/check-commits.py` holds these rules, tested in
+`test_check_commits.py`: the `commit-msg` hook in `.githooks/` runs it on every commit, and CI runs
+it on every push and pull request, together with the check that a `feat`, `fix` or `perf` commit
+brings its file in `pending-changelog/`. Dependabot and the workflows that commit write the same
+form.
+
 ## CI does the releasing
 
-`.github/workflows/ci.yml` runs on every push and pull request: `checkChangelog`, the unit tests,
-Android lint on the release variant, a debug APK it keeps as an artifact, and a release bundle it
-throws away. Lint is part of the gate, so a new lint error fails the branch — and so is the release
+`.github/workflows/ci.yml` runs on every push and pull request: the commit messages,
+`checkChangelog`, the unit tests, Android lint on the release variant, a debug APK it keeps as an
+artifact, and a release bundle it throws away. Lint is part of the gate, so a new lint error fails the branch — and so is the release
 bundle, because R8, the resource shrinker and resource linking only ever run there, and a release
 is a bad time to find out one of them is unhappy.
 
@@ -188,6 +221,7 @@ says about the cold start and the chat frames, with the profile and without, int
 ## Commands
 
 ```sh
+git config core.hooksPath .githooks  # once per clone: check every commit message as it is written
 ./gradlew changelogStatus            # what is pending, and which version it would release
 ./gradlew checkChangelog             # are the pending entries well formed?
 ./gradlew releaseVersion             # fold them into CHANGELOG.md, bump the version, clear pending
@@ -230,5 +264,6 @@ A change is not confirmed by compiling. Install it and open the screen it touche
   (plus a line in `SEARCH_INDEX` in `SettingsScreen`, so the search finds it).
 - **Parsing gets a test.** Anything that reads a format — IRC tags, 7TV events, the changelog —
   belongs in `app/src/test/`, where the existing tests show the style.
-- **Commit subjects describe the change to the app**, in the imperative and without a prefix:
-  "Move the block list into a page of its own", not "feat(settings): add blocklist page".
+- **Commit subjects describe the change to the app** after their type, as
+  [Commit messages](#commit-messages) says: "feat(settings): move the block list into a page of
+  its own", not "feat(settings): add blocklist page".
