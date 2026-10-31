@@ -315,5 +315,12 @@
         <property
             android:name="android.app.appfunctions.app_metadata"
             android:resource="@xml/app_functions_metadata" />
+
+        <!-- ML Kit would start with every app start; ai/OnDeviceModel.kt starts it once the summary
+             is turned on, as the privacy policy says. -->
+        <provider
+            android:name="com.google.mlkit.common.internal.MlKitInitProvider"
+            android:authorities="${applicationId}.mlkitinitprovider"
+            tools:node="remove" />
     </application>
 </manifest>

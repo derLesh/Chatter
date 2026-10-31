@@ -233,7 +233,7 @@ class AppContainer(
     val liveAlerts = LiveAlerts(helix, auth, channels, settings.settings, activeUserId, chat.windows.anyVisible, notifier, scope)
 
     /** Gemini Nano, for the catch-up summary (beta). */
-    val onDeviceModel = OnDeviceModel()
+    val onDeviceModel = OnDeviceModel(context)
     private val assistantAccess = AssistantAccess(context)
 
     private val _powerSaveMode = MutableStateFlow(false)

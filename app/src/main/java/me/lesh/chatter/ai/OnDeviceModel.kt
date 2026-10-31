@@ -1,6 +1,8 @@
 package me.lesh.chatter.ai
 
+import android.content.Context
 import android.util.Log
+import com.google.mlkit.common.MlKit
 import com.google.mlkit.genai.common.DownloadStatus
 import com.google.mlkit.genai.common.FeatureStatus
 import com.google.mlkit.genai.common.GenAiException
@@ -33,11 +35,15 @@ class ModelFailure(val trouble: ModelTrouble, cause: Throwable? = null) : Except
  * Gemini Nano through Android's AICore, which runs it on the phone: nothing given to it leaves the
  * device. Not every phone has it, and AICore only answers the app on screen.
  *
- * The client is made on first use, since ML Kit reports usage to Google from then on; with the
- * setting off it is never made.
+ * ML Kit is started and the client made on first use, since ML Kit reports usage to Google from
+ * then on; with the setting off neither happens.
  */
-class OnDeviceModel {
-    private val model: GenerativeModel by lazy { Generation.getClient() }
+class OnDeviceModel(private val context: Context) {
+    private val model: GenerativeModel by lazy {
+        // The manifest removes ML Kit's provider, which would start it with every app start.
+        MlKit.initialize(context)
+        Generation.getClient()
+    }
     private val downloading = Mutex()
 
     private val _state = MutableStateFlow(ModelState.Unknown)
