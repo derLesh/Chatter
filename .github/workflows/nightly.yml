@@ -188,16 +188,19 @@ jobs:
         if: always()
         run: rm -f "$RUNNER_TEMP/upload.jks"
 
-      # Always the same name, so the download link never changes.
+      # Always the same name, so the download link never changes. The mapping turns the stack trace
+      # of a crash in this build back into readable names.
       - name: Name the APK
         id: artifacts
         run: |
           apk=chatter-nightly.apk
           mv app/build/outputs/apk/release/app-release.apk "$apk"
+          mv app/build/outputs/mapping/release/mapping.txt chatter-nightly-mapping.txt
           sha256sum "$apk" > "$apk.sha256"
           {
             echo "apk=$apk"
             echo "sha=$apk.sha256"
+            echo "mapping=chatter-nightly-mapping.txt"
           } >> "$GITHUB_OUTPUT"
 
       - name: Attest the APK
@@ -243,6 +246,7 @@ jobs:
           COMMIT: ${{ needs.check.outputs.commit }}
           APK: ${{ steps.artifacts.outputs.apk }}
           SHA: ${{ steps.artifacts.outputs.sha }}
+          MAPPING: ${{ steps.artifacts.outputs.mapping }}
         run: |
           if gh release view nightly > /dev/null 2>&1; then
             gh release delete nightly --cleanup-tag --yes
@@ -253,7 +257,7 @@ jobs:
             --latest=false \
             --title 'Chatter Nightly' \
             --notes-file "$RUNNER_TEMP/notes.md" \
-            "$APK" "$SHA"
+            "$APK" "$SHA" "$MAPPING"
 
       - name: Summarise the build
         env:

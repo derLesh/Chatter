@@ -277,13 +277,16 @@ jobs:
           CHATTER_REQUIRE_UPLOAD_KEY: ${{ !inputs.dry_run && '1' || '' }}
         run: |
           ./gradlew :app:assembleRelease -Pdistribution=github
+          # The bundle's R8 run writes a mapping of its own over this one.
+          cp app/build/outputs/mapping/release/mapping.txt "$RUNNER_TEMP/apk-mapping.txt"
           ./gradlew :app:bundleRelease
 
       - name: Delete the keystore
         if: always()
         run: rm -f "$RUNNER_TEMP/upload.jks"
 
-      # Named after the version, with a checksum next to the APK.
+      # Named after the version, with a checksum next to the APK. The mappings turn the stack trace
+      # of a crash in that build back into readable names.
       - name: Name the artifacts after the version
         id: artifacts
         env:
@@ -293,11 +296,15 @@ jobs:
           aab="chatter-$VERSION.aab"
           mv app/build/outputs/apk/release/app-release.apk "$apk"
           mv app/build/outputs/bundle/release/app-release.aab "$aab"
+          mv "$RUNNER_TEMP/apk-mapping.txt" "chatter-$VERSION-mapping.txt"
+          mv app/build/outputs/mapping/release/mapping.txt "chatter-$VERSION-bundle-mapping.txt"
           sha256sum "$apk" > "$apk.sha256"
           {
             echo "apk=$apk"
             echo "aab=$aab"
             echo "sha=$apk.sha256"
+            echo "mapping=chatter-$VERSION-mapping.txt"
+            echo "bundle_mapping=chatter-$VERSION-bundle-mapping.txt"
           } >> "$GITHUB_OUTPUT"
 
       # Signed by GitHub: this workflow, this commit and this run built these files. The checksum
@@ -368,6 +375,8 @@ jobs:
             ${{ steps.artifacts.outputs.apk }}
             ${{ steps.artifacts.outputs.sha }}
             ${{ steps.artifacts.outputs.aab }}
+            ${{ steps.artifacts.outputs.mapping }}
+            ${{ steps.artifacts.outputs.bundle_mapping }}
           if-no-files-found: error
 
       # Atomic, so the branch never gets the release commit without its tag or vice versa.
@@ -391,12 +400,13 @@ jobs:
           VERSION: ${{ steps.version.outputs.version }}
           APK: ${{ steps.artifacts.outputs.apk }}
           SHA: ${{ steps.artifacts.outputs.sha }}
+          MAPPING: ${{ steps.artifacts.outputs.mapping }}
         run: |
           gh release create "v$VERSION" \
             --verify-tag \
             --title "Chatter $VERSION" \
             --notes-file "$RUNNER_TEMP/notes.md" \
-            "$APK" "$SHA"
+            "$APK" "$SHA" "$MAPPING"
 
       # Play shows these under "What's new" and cuts after 500 characters, so entries are trimmed to
       # whole lines that fit.
@@ -418,6 +428,7 @@ jobs:
           serviceAccountJsonPlainText: ${{ secrets.PLAY_SERVICE_ACCOUNT_JSON }}
           packageName: me.lesh.chatter
           releaseFiles: ${{ steps.artifacts.outputs.aab }}
+          mappingFile: ${{ steps.artifacts.outputs.bundle_mapping }}
           track: ${{ inputs.play_track }}
           status: completed
           whatsNewDirectory: ${{ runner.temp }}/whatsnew
