@@ -27,7 +27,7 @@ plugins {
 enum class Level { PATCH, MINOR, MAJOR }
 
 /** Files in pending-changelog/ that are not entries. */
-val notEntries = listOf(".gitkeep", "README.md")
+val notEntries = listOf("README.md")
 
 val pendingDirFile = layout.projectDirectory.dir("pending-changelog").asFile
 val versionFile = layout.projectDirectory.file("version.properties").asFile

@@ -57,7 +57,7 @@ jobs:
               failed=1
             elif grep -qE '^(feat|fix|perf)[(!:]' <<< "$subject" &&
                  ! git diff-tree --no-commit-id -r --name-only --diff-filter=AMR "$commit" \
-                   | grep '^pending-changelog/' | grep -qvE '/(README\.md|\.gitkeep)$'; then
+                   | grep '^pending-changelog/' | grep -qv '/README\.md$'; then
               echo "::error::${commit:0:7} \"$subject\" changes what users get, so it needs its entry in pending-changelog/."
               failed=1
             fi

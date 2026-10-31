@@ -42,4 +42,4 @@ holds you to that.
 ./gradlew releaseVersion    # fold them into CHANGELOG.md, bump the version, empty this folder
 ```
 
-`.gitkeep` and this README are not entries: the release skips them and leaves them alone.
+This README is not an entry: the release skips it and leaves it alone, which keeps the folder.

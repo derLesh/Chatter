@@ -166,7 +166,7 @@ jobs:
 
       - name: Require something to release
         run: |
-          pending=$(find pending-changelog -type f ! -name 'README.md' ! -name '.gitkeep' | wc -l)
+          pending=$(find pending-changelog -type f ! -name 'README.md' | wc -l)
           if [ "$pending" -eq 0 ]; then
             echo "::error::pending-changelog/ is empty, so there is no version to release."
             exit 1
