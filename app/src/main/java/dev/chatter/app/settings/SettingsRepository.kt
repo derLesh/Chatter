@@ -54,6 +54,9 @@ object PostTextLines {
 /** Height of a chat line, as a multiple of the text size. */
 enum class LineSpacing(val factor: Float) { Compact(1.2f), Normal(1.45f), Roomy(1.75f) }
 
+/** How a chatter's name is shown; see [dev.chatter.app.chat.chatterName]. */
+enum class NameStyle { DisplayName, Login, OtherScripts, Both }
+
 /** How tall emotes are drawn in a message. */
 enum class EmoteSize { Normal, Large }
 
@@ -69,6 +72,7 @@ data class Settings(
     val lineSpacing: LineSpacing = LineSpacing.Normal,
     val emoteSize: EmoteSize = EmoteSize.Normal,
     val timestamps: TimestampFormat = TimestampFormat.Short,
+    val nameStyle: NameStyle = NameStyle.OtherScripts,
     val messageLimit: Int = 500,
     val mentionKeywords: List<String> = emptyList(),
     /** Messages containing one of these words are hidden. */
@@ -211,6 +215,7 @@ class SettingsRepository(
             // Falls back to the old on/off switch.
             timestamps = p[TIMESTAMP_FORMAT]?.let { v -> TimestampFormat.entries.firstOrNull { it.name == v } }
                 ?: if (p[TIMESTAMPS] == false) TimestampFormat.Off else TimestampFormat.Short,
+            nameStyle = p[NAME_STYLE]?.let { v -> NameStyle.entries.firstOrNull { it.name == v } } ?: NameStyle.OtherScripts,
             messageLimit = p[LIMIT] ?: 500,
             mentionKeywords = words(p[KEYWORDS]),
             muteKeywords = words(p[MUTE_KEYWORDS]),
@@ -277,6 +282,7 @@ class SettingsRepository(
     suspend fun setLineSpacing(v: LineSpacing) = store.edit { it[LINE_SPACING] = v.name }
     suspend fun setEmoteSize(v: EmoteSize) = store.edit { it[EMOTE_SIZE] = v.name }
     suspend fun setTimestamps(v: TimestampFormat) = store.edit { it[TIMESTAMP_FORMAT] = v.name }
+    suspend fun setNameStyle(v: NameStyle) = store.edit { it[NAME_STYLE] = v.name }
     suspend fun setMessageTap(v: TapAction) = store.edit { it[MESSAGE_TAP] = v.name }
     suspend fun setNameTap(v: TapAction) = store.edit { it[NAME_TAP] = v.name }
     suspend fun setCopyFirst(v: Boolean) = store.edit { it[COPY_FIRST] = v }
@@ -410,6 +416,7 @@ class SettingsRepository(
         p[LINE_SPACING] = s.lineSpacing.name
         p[EMOTE_SIZE] = s.emoteSize.name
         p[TIMESTAMP_FORMAT] = s.timestamps.name
+        p[NAME_STYLE] = s.nameStyle.name
         p[LIMIT] = s.messageLimit
         p[KEYWORDS] = s.mentionKeywords.joinToString(",")
         p[MUTE_KEYWORDS] = s.muteKeywords.joinToString(",")
@@ -511,6 +518,7 @@ class SettingsRepository(
         val EMOTE_SIZE = stringPreferencesKey("emote_size")
         val TIMESTAMPS = booleanPreferencesKey("timestamps")
         val TIMESTAMP_FORMAT = stringPreferencesKey("timestamp_format")
+        val NAME_STYLE = stringPreferencesKey("name_style")
         val LIMIT = intPreferencesKey("message_limit")
         val KEYWORDS = stringPreferencesKey("mention_keywords")
         val MUTE_KEYWORDS = stringPreferencesKey("mute_keywords")

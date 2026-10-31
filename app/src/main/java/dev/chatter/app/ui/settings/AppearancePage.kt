@@ -38,6 +38,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import dev.chatter.app.R
@@ -45,6 +46,7 @@ import dev.chatter.app.chat.ChatItem
 import dev.chatter.app.chat.MessageBody
 import dev.chatter.app.chat.MessageKind
 import dev.chatter.app.chat.Segment
+import dev.chatter.app.chat.chatterName
 import dev.chatter.app.emotes.Emote
 import dev.chatter.app.emotes.EmoteProvider
 import dev.chatter.app.emotes.twitchEmoteUrl
@@ -53,6 +55,7 @@ import dev.chatter.app.settings.LineSpacing
 import dev.chatter.app.settings.Settings
 import dev.chatter.app.settings.SpecialMessage
 import dev.chatter.app.settings.ThemeMode
+import dev.chatter.app.settings.NameStyle
 import dev.chatter.app.settings.TimestampFormat
 import dev.chatter.app.ui.MainViewModel
 import dev.chatter.app.ui.SettingsSubPage
@@ -112,6 +115,7 @@ internal fun AppearancePage(settings: Settings, vm: MainViewModel, open: (Settin
             )
         }
         item(R.string.settings_timestamps) { TimestampPicker(settings.timestamps, vm::setTimestamps) }
+        item(R.string.settings_name_style) { NameStylePicker(settings.nameStyle, vm::setNameStyle) }
     }
 
     // How a message behaves. Emotes have their own category.
@@ -317,6 +321,34 @@ private fun TimestampPicker(selected: TimestampFormat, onSelect: (TimestampForma
                 ?: stringResource(R.string.settings_timestamps_off)
         },
         onPick = onSelect,
+    )
+}
+
+internal val NAME_STYLES = listOf(
+    NameStyle.DisplayName to R.string.name_style_display,
+    NameStyle.Login to R.string.name_style_login,
+    NameStyle.OtherScripts to R.string.name_style_other_scripts,
+    NameStyle.Both to R.string.name_style_both,
+)
+
+/** How names are shown; each option shows a Korean and a Latin name that way. */
+@Composable
+private fun NameStylePicker(selected: NameStyle, onSelect: (NameStyle) -> Unit) {
+    ChoiceItem(
+        title = R.string.settings_name_style,
+        value = selected,
+        options = NAME_STYLES.map { it.first },
+        label = { style -> stringResource(NAME_STYLES.first { it.first == style }.second) },
+        onPick = onSelect,
+        preview = { style ->
+            Text(
+                "${chatterName("다니엘", "daniel", style)} · ${chatterName("Forsen", "forsen", style)}",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+        },
     )
 }
 

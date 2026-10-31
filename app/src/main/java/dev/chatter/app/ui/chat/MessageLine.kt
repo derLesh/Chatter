@@ -125,10 +125,10 @@ internal fun buildLine(item: ChatItem, style: ChatStyle, onName: LinkInteraction
         }
         nameStart = length
         withStyle(SpanStyle(color = nameColor, fontWeight = FontWeight.Bold)) {
-            if (onName == null) append(displayName(item, style))
+            if (onName == null) append(style.nameOf(item.login, item.displayName))
             // Styled like any name: every name can be tapped, so marking them would only add noise.
             else withLink(LinkAnnotation.Clickable("name", TextLinkStyles(SpanStyle()), onName)) {
-                append(displayName(item, style))
+                append(style.nameOf(item.login, item.displayName))
             }
         }
         nameEnd = length
@@ -244,15 +244,4 @@ private fun AnnotatedString.Builder.appendCheer(seg: Segment.Cheer, id: String, 
     inline[id] = InlineData.CheerData(picture)
     appendInlineContent(id, picture.name)
     withStyle(SpanStyle(color = Color(seg.color), fontWeight = FontWeight.Bold)) { append(seg.amount.toString()) }
-}
-
-/**
- * "Name" or "Name (login)" for localized display names like Japanese or Korean ones. A nickname
- * replaces both.
- */
-private fun displayName(item: ChatItem, style: ChatStyle): String {
-    val display = item.displayName ?: item.login ?: ""
-    val login = item.login ?: return display
-    style.nicknames[login.lowercase()]?.let { return it }
-    return if (display.equals(login, ignoreCase = true)) display else "$display ($login)"
 }

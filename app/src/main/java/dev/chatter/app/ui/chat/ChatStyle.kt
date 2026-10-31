@@ -8,7 +8,9 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.sp
 import dev.chatter.app.emotes.HiddenEmotes
+import dev.chatter.app.chat.chatterName
 import dev.chatter.app.settings.EmoteSize
+import dev.chatter.app.settings.NameStyle
 import dev.chatter.app.settings.LineSpacing
 import dev.chatter.app.settings.Settings
 import dev.chatter.app.settings.SpecialMessage
@@ -37,6 +39,7 @@ data class ChatStyle(
     val nameColors: NameColorPalette,
     /** Nicknames by lowercase login. */
     val nicknames: Map<String, String>,
+    val nameStyle: NameStyle = NameStyle.OtherScripts,
     /** Whether holding a message vibrates. */
     val haptics: Boolean,
     /** Hosts whose image links are shown as images. Empty when linked images are off. */
@@ -78,9 +81,9 @@ val ChatStyle.lineHeight: TextUnit get() = (fontSize * lineSpacing).sp
 @Immutable
 data class ChannelMark(val avatarUrl: String?, val name: String)
 
-/** The nickname for [login], or [fallback]. */
-fun ChatStyle.nameOf(login: String?, fallback: String): String =
-    login?.let { nicknames[it.lowercase()] } ?: fallback
+/** The name of the chatter [login], shown as the user chose; see [chatterName]. */
+fun ChatStyle.nameOf(login: String?, displayName: String?): String =
+    chatterName(displayName, login, nameStyle, login?.let { nicknames[it.lowercase()] })
 
 /**
  * The chat style from the settings, shared by the chat screen and the bubble.
@@ -102,7 +105,7 @@ fun rememberChatStyle(
     val dark = isAppInDarkTheme()
     val colors = MaterialTheme.colorScheme
     return remember(
-        settings.fontSize, settings.lineSpacing, settings.emoteSize, settings.timestamps, settings.highlightColor,
+        settings.fontSize, settings.lineSpacing, settings.emoteSize, settings.timestamps, settings.nameStyle, settings.highlightColor,
         settings.alternateBackground, settings.messageDividers,
         settings.nameColors, settings.highlightFirstMessages, settings.haptics, postCardStyle(settings),
         settings.inlineImages, settings.imageHosts, settings.showGifs, settings.fullLinks, settings.sevenTvPaints, settings.specialMessages, powerSave, saveData, emoteFrameRate, nicknames, hiddenEmotes, rewardNames, dark, colors,
@@ -124,6 +127,7 @@ fun rememberChatStyle(
             accent = colors.primary,
             nameColors = settings.nameColors,
             nicknames = nicknames,
+            nameStyle = settings.nameStyle,
             haptics = settings.haptics,
             // Off or either saver means no allowed hosts, so the row checks only one thing. Links
             // stay links.

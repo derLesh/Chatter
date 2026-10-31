@@ -25,6 +25,7 @@ import dev.chatter.app.channels.ChannelRepository
 import dev.chatter.app.chat.ChatItem
 import dev.chatter.app.chat.InboxWhisper
 import dev.chatter.app.chat.MessageKind
+import dev.chatter.app.chat.chatterName
 import dev.chatter.app.net.HelixApi
 import dev.chatter.app.net.HelixStream
 import dev.chatter.app.settings.Settings
@@ -62,6 +63,8 @@ class ChatNotifier(
     private val icons: ChannelIcons,
     /** True while saving data; see [dev.chatter.app.net.DataSaving]. */
     private val saveData: StateFlow<Boolean>,
+    /** The nickname the user gave a login, if any. */
+    private val nicknameOf: (String?) -> String?,
     /**
      * The active account's user id, read from the login itself rather than a flow derived from it,
      * which lags behind an account switch.
@@ -256,7 +259,7 @@ class ChatNotifier(
         lines.forEach { m ->
             // MessagingStyle reads a null person as the user.
             val from = if (m.isOwn) null else Person.Builder()
-                .setName(m.displayName ?: m.login ?: "?")
+                .setName(chatterName(m.displayName, m.login, settings.value.nameStyle, nicknameOf(m.login)).ifEmpty { "?" })
                 .setKey(m.login)
                 .setIcon(m.login?.lowercase()?.let { senderIcons[it] })
                 .build()
@@ -329,7 +332,7 @@ class ChatNotifier(
         addWhisperLine(
             owner = whisper.owner,
             login = whisper.login,
-            name = whisper.displayName,
+            name = chatterName(whisper.displayName, whisper.login, settings.value.nameStyle, nicknameOf(whisper.login)),
             userId = whisper.userId,
             line = WhisperConversations.Line(whisper.text, whisper.timestamp, own = false),
         )

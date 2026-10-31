@@ -218,7 +218,7 @@ fun MessageRow(
             )
         }
         val header = item.watchStreak?.let { streams ->
-            val name = style.nameOf(item.login, item.displayName ?: item.login.orEmpty())
+            val name = style.nameOf(item.login, item.displayName)
             pluralStringResource(R.plurals.watch_streak, streams, name, streams)
         } ?: item.systemText
         if (item.kind == MessageKind.UserNotice && header != null) {

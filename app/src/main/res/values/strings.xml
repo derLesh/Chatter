@@ -154,6 +154,11 @@
     <string name="settings_message_limit">Messages kept per channel: %1$d</string>
     <string name="settings_timestamps">Timestamps</string>
     <string name="settings_timestamps_off">No time</string>
+    <string name="settings_name_style">Show names as</string>
+    <string name="name_style_display">Display name</string>
+    <string name="name_style_login">Username</string>
+    <string name="name_style_other_scripts">Both for other scripts</string>
+    <string name="name_style_both">Always both</string>
     <string name="settings_animated_emotes">Animated emotes</string>
     <string name="settings_slow_idle_emotes">Slow down when left alone</string>
     <string name="settings_slow_idle_emotes_hint">After three minutes without a touch, animated emotes play slower. This saves battery when the screen stays on</string>

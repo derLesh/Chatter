@@ -148,6 +148,11 @@
     <string name="settings_message_limit">Gespeicherte Nachrichten pro Kanal: %1$d</string>
     <string name="settings_timestamps">Zeitstempel</string>
     <string name="settings_timestamps_off">Keine Zeit</string>
+    <string name="settings_name_style">Namen zeigen als</string>
+    <string name="name_style_display">Anzeigename</string>
+    <string name="name_style_login">Nutzername</string>
+    <string name="name_style_other_scripts">Beides bei anderer Schrift</string>
+    <string name="name_style_both">Immer beides</string>
     <string name="settings_animated_emotes">Animierte Emotes</string>
     <string name="settings_slow_idle_emotes">Langsamer, wenn unberührt</string>
     <string name="settings_slow_idle_emotes_hint">Nach drei Minuten ohne Berührung laufen animierte Emotes langsamer. Das spart Akku, wenn der Bildschirm an bleibt</string>

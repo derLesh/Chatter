@@ -54,6 +54,7 @@ import dev.chatter.app.settings.SettingsRepository
 import dev.chatter.app.settings.SpecialMessage
 import dev.chatter.app.settings.TapAction
 import dev.chatter.app.settings.ThemeMode
+import dev.chatter.app.settings.NameStyle
 import dev.chatter.app.settings.TimestampFormat
 import dev.chatter.app.stats.Stats
 import dev.chatter.app.ui.chat.ReadMark
@@ -859,6 +860,7 @@ class MainViewModel(private val c: AppContainer, savedState: SavedStateHandle) :
     }
 
     fun setTimestamps(v: TimestampFormat) = saveSetting { setTimestamps(v) }
+    fun setNameStyle(v: NameStyle) = saveSetting { setNameStyle(v) }
     fun setMessageTap(v: TapAction) = saveSetting { setMessageTap(v) }
     fun setNameTap(v: TapAction) = saveSetting { setNameTap(v) }
     fun setCopyFirst(v: Boolean) = saveSetting { setCopyFirst(v) }

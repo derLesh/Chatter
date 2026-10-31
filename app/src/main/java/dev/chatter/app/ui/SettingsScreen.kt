@@ -98,6 +98,7 @@ import dev.chatter.app.ui.settings.LocalSettingsTarget
 import dev.chatter.app.ui.settings.MediaPage
 import dev.chatter.app.ui.settings.MessagesPage
 import dev.chatter.app.ui.settings.MOBILE_DATA
+import dev.chatter.app.ui.settings.NAME_STYLES
 import dev.chatter.app.ui.settings.NotificationsPage
 import dev.chatter.app.ui.settings.PROVIDERS
 import dev.chatter.app.ui.settings.PostsPage
@@ -214,6 +215,7 @@ private val SEARCH_INDEX: List<SearchEntry> by lazy {
         add(SearchEntry(R.string.settings_message_dividers, appearance, R.string.settings_message_dividers_hint))
         add(SearchEntry(R.string.settings_alternate_background, appearance, R.string.settings_alternate_background_hint))
         add(SearchEntry(R.string.settings_timestamps, appearance))
+        add(SearchEntry(R.string.settings_name_style, appearance, also = NAME_STYLES.map { it.second }))
         add(SearchEntry(R.string.settings_smooth_scrolling, appearance, R.string.settings_smooth_scrolling_hint))
         add(SearchEntry(R.string.settings_show_deleted, appearance, R.string.settings_show_deleted_hint))
         add(SearchEntry(R.string.settings_first_messages, appearance, R.string.settings_first_messages_hint))

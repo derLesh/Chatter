@@ -58,6 +58,7 @@ import dev.chatter.app.R
 import dev.chatter.app.channels.ChannelInfo
 import dev.chatter.app.chat.InboxMention
 import dev.chatter.app.chat.InboxWhisper
+import dev.chatter.app.chat.chatterName
 import dev.chatter.app.ui.MainViewModel
 import dev.chatter.app.ui.channels.ChannelAvatar
 import dev.chatter.app.ui.theme.isAppInDarkTheme
@@ -76,6 +77,8 @@ fun InboxScreen(vm: MainViewModel, onOpenMention: (InboxMention) -> Unit, onBack
     val whisperUnread by vm.whisperUnread.collectAsStateWithLifecycle()
     val info by vm.channelInfo.collectAsStateWithLifecycle()
     val nicknames by vm.nicknames.collectAsStateWithLifecycle()
+    val settings by vm.settings.collectAsStateWithLifecycle()
+    val nameOf = { login: String, displayName: String -> chatterName(displayName, login, settings.nameStyle, nicknames[login.lowercase()]) }
 
     val pager = rememberPagerState { 2 }
     val scope = rememberCoroutineScope()
@@ -138,7 +141,7 @@ fun InboxScreen(vm: MainViewModel, onOpenMention: (InboxMention) -> Unit, onBack
                     INBOX_TAB_MENTIONS -> MentionList(
                         mentions = mentions,
                         info = info,
-                        nicknames = nicknames,
+                        nameOf = nameOf,
                         imageLoader = vm.imageLoader,
                         onOpen = { mention ->
                             vm.markInboxRead(mention)
@@ -147,7 +150,7 @@ fun InboxScreen(vm: MainViewModel, onOpenMention: (InboxMention) -> Unit, onBack
                     )
                     else -> WhisperList(
                         whispers = whispers,
-                        nicknames = nicknames,
+                        nameOf = nameOf,
                         onOpen = { whisper ->
                             vm.markWhisperRead(whisper)
                             replyTo = whisper
@@ -160,7 +163,7 @@ fun InboxScreen(vm: MainViewModel, onOpenMention: (InboxMention) -> Unit, onBack
 
     replyTo?.let { whisper ->
         WhisperReplyDialog(
-            name = nicknames[whisper.login.lowercase()] ?: whisper.displayName,
+            name = nameOf(whisper.login, whisper.displayName),
             quoted = whisper.text,
             onSend = { text ->
                 // Twitch may refuse a whisper; the snackbar shows its answer.
@@ -188,7 +191,7 @@ private fun InboxTab(label: Int, unread: Int, selected: Boolean, onClick: () -> 
 private fun MentionList(
     mentions: List<InboxMention>,
     info: Map<String, ChannelInfo>,
-    nicknames: Map<String, String>,
+    nameOf: (login: String, displayName: String) -> String,
     imageLoader: ImageLoader,
     onOpen: (InboxMention) -> Unit,
 ) {
@@ -201,7 +204,7 @@ private fun MentionList(
             InboxRow(
                 title = stringResource(
                     R.string.inbox_from,
-                    nicknames[mention.login.lowercase()] ?: mention.displayName,
+                    nameOf(mention.login, mention.displayName),
                     info[mention.channel]?.displayName ?: mention.channel,
                 ),
                 text = mention.text,
@@ -218,7 +221,7 @@ private fun MentionList(
 @Composable
 private fun WhisperList(
     whispers: List<InboxWhisper>,
-    nicknames: Map<String, String>,
+    nameOf: (login: String, displayName: String) -> String,
     onOpen: (InboxWhisper) -> Unit,
 ) {
     if (whispers.isEmpty()) {
@@ -228,7 +231,7 @@ private fun WhisperList(
     val dark = isAppInDarkTheme()
     LazyColumn(Modifier.fillMaxSize()) {
         items(whispers, key = { it.id }) { whisper ->
-            val name = nicknames[whisper.login.lowercase()] ?: whisper.displayName
+            val name = nameOf(whisper.login, whisper.displayName)
             InboxRow(
                 title = name,
                 text = whisper.text,
