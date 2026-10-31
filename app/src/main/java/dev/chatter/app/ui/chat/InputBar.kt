@@ -42,6 +42,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -72,6 +73,7 @@ import dev.chatter.app.R
 import dev.chatter.app.channels.ChannelInfo
 import dev.chatter.app.chat.ChatItem
 import dev.chatter.app.chat.ChatRestriction
+import dev.chatter.app.chat.Penalty
 import dev.chatter.app.chat.SendLimits
 import dev.chatter.app.ui.Suggestion
 import dev.chatter.app.ui.channels.ChannelAvatar
@@ -86,7 +88,9 @@ import kotlinx.coroutines.delay
  * itself cannot signal that, since it also returns with a page's draft.
  *
  * Twitch's limits are shown before sending: remaining characters for long messages, slow mode
- * seconds on the send button ([waitUntil]), and a [restriction] instead of the placeholder.
+ * seconds on the send button ([waitUntil]), and a [restriction] instead of the placeholder. A
+ * timeout ([penalty]) counts down there too and turns sending off until it ends; a ban only says
+ * so, since Twitch does not announce when it is lifted and a message is the only way to find out.
  */
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
@@ -105,6 +109,7 @@ fun InputBar(
     replyStarts: Int = 0,
     waitUntil: Long = 0L,
     restriction: ChatRestriction? = null,
+    penalty: Penalty? = null,
     sendChannels: List<String> = emptyList(),
     sendChannel: String? = null,
     channelInfo: Map<String, ChannelInfo> = emptyMap(),
@@ -123,9 +128,19 @@ fun InputBar(
             delay(250)
         }
     }
+    val timedOutUntil = (penalty as? Penalty.TimedOut)?.until ?: 0L
+    var timeoutLeft by remember { mutableLongStateOf(0L) }
+    LaunchedEffect(timedOutUntil) {
+        while (true) {
+            val left = ((timedOutUntil - System.currentTimeMillis() + 999) / 1000).coerceAtLeast(0)
+            timeoutLeft = left
+            if (left == 0L) break
+            delay(250)
+        }
+    }
     val length = remember(value.text) { SendLimits.length(value.text) }
     val tooLong = length > SendLimits.MAX_LENGTH
-    val canSend = enabled && value.text.isNotBlank() && !tooLong && waitLeft == 0
+    val canSend = enabled && value.text.isNotBlank() && !tooLong && waitLeft == 0 && timeoutLeft == 0L
     // No bar of its own: the input sits on the chat background.
     Column(modifier) {
         if (suggestions.isNotEmpty()) {
@@ -152,6 +167,8 @@ fun InputBar(
                     Text(
                         when {
                             !enabled -> stringResource(R.string.input_hint_disabled)
+                            timeoutLeft > 0 -> stringResource(R.string.input_hint_timed_out, timeLeft(timeoutLeft))
+                            penalty == Penalty.Banned -> stringResource(R.string.input_hint_banned)
                             restriction != null -> stringResource(restriction.hint)
                             choosing -> stringResource(R.string.input_hint_in, channelInfo[sendChannel]?.displayName ?: sendChannel)
                             else -> stringResource(R.string.input_hint)
@@ -160,7 +177,17 @@ fun InputBar(
                         overflow = TextOverflow.Ellipsis,
                     )
                 },
-                trailingIcon = if (length < SendLimits.COUNTER_FROM) null else {
+                // The placeholder is gone once something is typed; the timeout stays in sight here.
+                trailingIcon = if (timeoutLeft > 0 && value.text.isNotEmpty()) {
+                    {
+                        Text(
+                            timeLeft(timeoutLeft),
+                            style = MaterialTheme.typography.labelMedium,
+                            color = MaterialTheme.colorScheme.error,
+                            modifier = Modifier.padding(end = 12.dp),
+                        )
+                    }
+                } else if (length < SendLimits.COUNTER_FROM) null else {
                     {
                         val left = SendLimits.MAX_LENGTH - length
                         val said = if (tooLong) pluralStringResource(R.plurals.characters_too_many, -left, -left)
@@ -283,6 +310,19 @@ private class OnTopOfAnchor : DropdownMenuPopupPositionProvider {
             x.coerceIn(0, (windowSize.width - popupContentSize.width).coerceAtLeast(0)),
             (anchorBounds.top - popupContentSize.height).coerceAtLeast(0),
         )
+    }
+}
+
+/** A timeout's rest: "4:32", "1:04:32", or whole days for the long ones Twitch allows (up to 14). */
+@Composable
+private fun timeLeft(seconds: Long): String {
+    val hours = seconds / 3600
+    val minutes = seconds / 60 % 60
+    val secs = seconds % 60
+    return when {
+        hours >= 24 -> ((seconds + 86_399) / 86_400).toInt().let { pluralStringResource(R.plurals.timeout_days_left, it, it) }
+        hours > 0 -> "%d:%02d:%02d".format(hours, minutes, secs)
+        else -> "%d:%02d".format(minutes, secs)
     }
 }
 

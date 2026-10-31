@@ -69,6 +69,7 @@ fun BubbleScreen(vm: MainViewModel, channel: String?) {
     val roomStates by vm.roomStates.collectAsStateWithLifecycle()
     val roles by vm.roles.collectAsStateWithLifecycle()
     val subscribed by vm.subscribedChannels.collectAsStateWithLifecycle()
+    val penalties by vm.penalties.collectAsStateWithLifecycle()
     val partnerMarks = remember(chatPartners) {
         chatPartners.mapValues { (_, p) -> ChannelMark(p.avatarUrl, p.displayName) }
     }
@@ -166,6 +167,7 @@ fun BubbleScreen(vm: MainViewModel, channel: String?) {
                 replyStarts = vm.replyStarts,
                 waitUntil = vm.sendWaitUntil,
                 restriction = vm.sendChannel?.let { ch -> SendLimits.restriction(roomStates[ch], roles[ch], ch in subscribed) },
+                penalty = vm.sendChannel?.let { penalties[it] },
                 modifier = Modifier.fillMaxWidth(),
             )
         }

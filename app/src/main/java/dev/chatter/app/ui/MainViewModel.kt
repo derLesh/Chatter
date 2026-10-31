@@ -149,6 +149,8 @@ class MainViewModel(private val c: AppContainer, savedState: SavedStateHandle) :
     val roomStates = c.chat.rooms.states
     val roles = c.chat.rooms.roles
     val subscribedChannels = c.chat.rooms.subscribed
+    /** Channels where Twitch timed out or banned the user. */
+    val penalties = c.chat.rooms.penalties
     /** The pinned message per channel, where the user moderates. */
     val pins = c.chat.pins.pins
 

@@ -74,7 +74,10 @@ class IncomingMessagesTest {
         onWhisper = { whisper, watched -> whispered += whisper to watched },
         onRoomFound = { roomsFound += it },
         onRefused = { refused += it },
+        now = { clock },
     )
+
+    private var clock = 1_000_000L
 
     private val window = Any()
 
@@ -304,6 +307,44 @@ class IncomingMessagesTest {
         advanceUntilIdle()
         assertEquals("rulebreaker timed out for 600 seconds.", buffers.messages("forsen").value.single().systemText)
         watcher.cancel()
+    }
+
+    @Test
+    fun beingTimedOutCountsDownFromNow() {
+        incoming.handle(line("@ban-duration=600 :tmi.twitch.tv CLEARCHAT #forsen :Lukas"))
+        assertEquals(mapOf("forsen" to Penalty.TimedOut(clock + 600_000)), rooms.penalties.value)
+    }
+
+    @Test
+    fun beingBannedIsKeptPerChannel() {
+        incoming.handle(line(":tmi.twitch.tv CLEARCHAT #forsen :lukas"))
+        assertEquals(mapOf("forsen" to Penalty.Banned), rooms.penalties.value)
+    }
+
+    @Test
+    fun someoneElsesTimeoutLeavesTheInputAlone() {
+        incoming.handle(line("@ban-duration=600 :tmi.twitch.tv CLEARCHAT #forsen :rulebreaker"))
+        incoming.handle(line(":tmi.twitch.tv CLEARCHAT #forsen"))
+        assertTrue(rooms.penalties.value.isEmpty())
+    }
+
+    /** After a restart the CLEARCHAT is gone; Twitch's refusal says how long is left. */
+    @Test
+    fun aRefusalSaysHowLongTheTimeoutLasts() {
+        incoming.handle(line("@msg-id=msg_timedout :tmi.twitch.tv NOTICE #forsen :You are timed out for 297 more seconds."))
+        assertEquals(Penalty.TimedOut(clock + 297_000), rooms.penalties.value["forsen"])
+
+        incoming.handle(line("@msg-id=msg_banned :tmi.twitch.tv NOTICE #xqc :You are permanently banned from talking in xqc."))
+        assertEquals(Penalty.Banned, rooms.penalties.value["xqc"])
+    }
+
+    @Test
+    fun aMessageThatGetsThroughEndsABan() = runTest(dispatcher) {
+        buffers.open("forsen")
+        incoming.handle(line(":tmi.twitch.tv CLEARCHAT #forsen :lukas"))
+        incoming.sent(own("local-1"))
+        incoming.handle(line("@badges=;id=real-1 :tmi.twitch.tv USERSTATE #forsen"))
+        assertTrue(rooms.penalties.value.isEmpty())
     }
 
     @Test

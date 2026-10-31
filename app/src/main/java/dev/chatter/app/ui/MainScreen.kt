@@ -54,6 +54,7 @@ import dev.chatter.app.ai.ModelState
 import dev.chatter.app.auth.AuthState
 import dev.chatter.app.channels.ChannelInfo
 import dev.chatter.app.chat.ChatRestriction
+import dev.chatter.app.chat.Penalty
 import dev.chatter.app.chat.SendLimits
 import dev.chatter.app.irc.ConnectionState
 import dev.chatter.app.service.ChatService
@@ -100,6 +101,7 @@ fun MainScreen(vm: MainViewModel, onInbox: () -> Unit, onSettings: () -> Unit) {
     val roomStates by vm.roomStates.collectAsStateWithLifecycle()
     val roles by vm.roles.collectAsStateWithLifecycle()
     val subscribed by vm.subscribedChannels.collectAsStateWithLifecycle()
+    val penalties by vm.penalties.collectAsStateWithLifecycle()
     val nicknames by vm.nicknames.collectAsStateWithLifecycle()
     val hiddenEmotes by vm.hiddenEmotes.collectAsStateWithLifecycle()
     val hiddenBadges by vm.hiddenBadgeKinds.collectAsStateWithLifecycle()
@@ -121,6 +123,7 @@ fun MainScreen(vm: MainViewModel, onInbox: () -> Unit, onSettings: () -> Unit) {
 
     // What may keep the user from writing where the next message goes, shown in the input.
     val restriction = vm.sendChannel?.let { ch -> SendLimits.restriction(roomStates[ch], roles[ch], ch in subscribed) }
+    val penalty = vm.sendChannel?.let { penalties[it] }
 
     val context = LocalContext.current
     // Not context.resources: only this follows configuration changes, so a snackbar after a
@@ -424,14 +427,14 @@ fun MainScreen(vm: MainViewModel, onInbox: () -> Unit, onSettings: () -> Unit) {
                 }
             }
             ChatInput(
-                vm, guest, connection, restriction, loader, activity, sheets, inThread = false,
+                vm, guest, connection, restriction, penalty, loader, activity, sheets, inThread = false,
                 sendChannels = activeGroup?.channels.orEmpty(), channelInfo = info,
             )
         }
     }
 
     ChatSheets(vm, sheets, style, loader, guest, partnerMarks, snackbar) {
-        ChatInput(vm, guest, connection, restriction, loader, activity, sheets, inThread = true)
+        ChatInput(vm, guest, connection, restriction, penalty, loader, activity, sheets, inThread = true)
     }
 }
 
@@ -447,6 +450,7 @@ private fun ChatInput(
     guest: Boolean,
     connection: ConnectionState,
     restriction: ChatRestriction?,
+    penalty: Penalty?,
     loader: ImageLoader,
     activity: ChatActivity,
     sheets: ChatSheetState,
@@ -474,6 +478,7 @@ private fun ChatInput(
         replyStarts = vm.replyStarts,
         waitUntil = vm.sendWaitUntil,
         restriction = restriction,
+        penalty = penalty,
         modifier = Modifier.fillMaxWidth(),
         sendChannels = sendChannels,
         sendChannel = vm.sendChannel,

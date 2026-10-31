@@ -42,6 +42,14 @@ class Rooms {
      */
     val ready: StateFlow<Set<String>> = _ready
 
+    private val _penalties = MutableStateFlow<Map<String, Penalty>>(emptyMap())
+    /** Channels where Twitch timed out or banned the user; only what arrived since the start. */
+    val penalties: StateFlow<Map<String, Penalty>> = _penalties
+
+    fun penalize(channel: String, penalty: Penalty) = _penalties.update { it + (channel to penalty) }
+
+    fun lift(channel: String) = _penalties.update { if (channel in it) it - channel else it }
+
     /** The Twitch id of a channel, once known. */
     fun id(channel: String): String? = ids[channel]
 
@@ -91,6 +99,7 @@ class Rooms {
         _moderated.update { it - channel }
         _subscribed.update { it - channel }
         _ready.update { it - channel }
+        _penalties.update { it - channel }
     }
 
     /**
@@ -105,5 +114,6 @@ class Rooms {
         _moderated.value = emptySet()
         _subscribed.value = emptySet()
         _ready.value = emptySet()
+        _penalties.value = emptyMap()
     }
 }

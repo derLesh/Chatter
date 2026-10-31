@@ -59,6 +59,12 @@
     <string name="input_hint">Send a message</string>
     <string name="input_hint_disabled">Not connected</string>
     <string name="input_hint_subs_only">Subscribers-only chat</string>
+    <string name="input_hint_timed_out">Timed out – %1$s left</string>
+    <string name="input_hint_banned">Banned in this channel</string>
+    <plurals name="timeout_days_left">
+        <item quantity="one">%1$d day</item>
+        <item quantity="other">%1$d days</item>
+    </plurals>
     <string name="input_hint_followers_only">Followers-only chat</string>
     <string name="input_hint_emote_only">Emote-only chat</string>
     <plurals name="characters_left">

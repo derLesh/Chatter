@@ -51,6 +51,7 @@ class IncomingMessages(
     private val onRefused: (channel: String) -> Unit = {},
     /** A message entered for a channel point reward arrived; see [RewardNames.seen]. */
     private val onReward: (rewardId: String, channelId: String?) -> Unit = { _, _ -> },
+    private val now: () -> Long = System::currentTimeMillis,
 ) {
     /**
      * Shared ids of recently reported mentions. A Shared Chat message arrives in every channel of
@@ -113,6 +114,7 @@ class IncomingMessages(
                     buffers.markDeleted(channel) { it.id == refused.id }
                     onRefused(channel)
                 }
+                penaltyOf(msg)?.let { rooms.penalize(channel, it) }
                 builder.build(msg, "", null, filters().mentions)?.let(buffers::add)
             }
             "CLEARCHAT" -> if (channel != null) onClearChat(channel, msg)
@@ -128,6 +130,8 @@ class IncomingMessages(
                 // Only the USERSTATE answering a PRIVMSG carries an id: the message's.
                 msg.tag("id")?.let { id ->
                     answered(channel)?.let { buffers.rename(channel, it.id, id) }
+                    // Twitch took a message, so whatever kept the user out is over.
+                    rooms.lift(channel)
                 }
             }
             "GLOBALUSERSTATE" -> rooms.onGlobalUserState(msg.tags)
@@ -189,10 +193,25 @@ class IncomingMessages(
         }
         buffers.markDeleted(channel) { it.login == target }
         val duration = msg.tag("ban-duration")
+        if (target.equals(selfLogin(), ignoreCase = true)) {
+            val seconds = duration?.toLongOrNull()
+            rooms.penalize(channel, if (seconds == null) Penalty.Banned else Penalty.TimedOut(now() + seconds * 1000))
+        }
         system(
             channel,
             if (duration != null) notices.timeout(target, duration.toIntOrNull() ?: 0) else notices.ban(target),
         )
+    }
+
+    /**
+     * What a refusal says about the user's own timeout or ban. After a restart this is how one is
+     * learned: the CLEARCHAT came while the app was closed.
+     */
+    private fun penaltyOf(msg: IrcMessage): Penalty? = when (msg.tag("msg-id")) {
+        // "You are timed out for 297 more seconds."
+        "msg_timedout" -> msg.trailing?.let { SECONDS.find(it) }?.value?.toLongOrNull()?.let { Penalty.TimedOut(now() + it * 1000) }
+        "msg_banned" -> Penalty.Banned
+        else -> null
     }
 
     /** Everyone who writes can be completed and colored after an "@". */
@@ -214,5 +233,7 @@ class IncomingMessages(
 
         /** The copies of a message arrive within moments; a few are enough. */
         const val MENTIONS_REMEMBERED = 64
+
+        val SECONDS = Regex("\\d+")
     }
 }

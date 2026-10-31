@@ -57,6 +57,12 @@
     <string name="input_hint">Nachricht senden</string>
     <string name="input_hint_disabled">Nicht verbunden</string>
     <string name="input_hint_subs_only">Chat nur für Abonnenten</string>
+    <string name="input_hint_timed_out">Timeout – noch %1$s</string>
+    <string name="input_hint_banned">In diesem Kanal gebannt</string>
+    <plurals name="timeout_days_left">
+        <item quantity="one">%1$d Tag</item>
+        <item quantity="other">%1$d Tage</item>
+    </plurals>
     <string name="input_hint_followers_only">Chat nur für Follower</string>
     <string name="input_hint_emote_only">Chat nur mit Emotes</string>
     <plurals name="characters_left">

@@ -3,6 +3,15 @@ package dev.chatter.app.chat
 /** What keeps the user from writing freely, so the input can say so before Twitch does. */
 enum class ChatRestriction { SubsOnly, FollowersOnly, EmoteOnly }
 
+/** Twitch keeping the user out of a channel's chat, as the input shows it. */
+sealed interface Penalty {
+    /** [until] is epoch milliseconds; the timeout ends on its own then. */
+    data class TimedOut(val until: Long) : Penalty
+
+    /** Until a moderator lifts it, which Twitch does not announce; a message that gets through ends it. */
+    data object Banned : Penalty
+}
+
 /**
  * Twitch's message limits, checked before sending. Twitch enforces them itself; this only spares
  * the user writing a message to find out.
