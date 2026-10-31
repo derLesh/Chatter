@@ -47,27 +47,6 @@ jobs:
             exit 1
           fi
 
-      # Reports all missing secrets at once. No fallback to the debug key: switching keys later
-      # would make everybody uninstall Nightly to update it.
-      - name: Require the secrets
-        env:
-          TWITCH_CLIENT_ID: ${{ secrets.TWITCH_CLIENT_ID }}
-          KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
-          KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
-          KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
-          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
-        run: |
-          missing=()
-          for name in TWITCH_CLIENT_ID KEYSTORE_BASE64 KEYSTORE_PASSWORD KEY_ALIAS KEY_PASSWORD; do
-            [ -n "${!name}" ] || missing+=("$name")
-          done
-          if [ ${#missing[@]} -gt 0 ]; then
-            for name in "${missing[@]}"; do
-              echo "::error::The $name secret is not set."
-            done
-            exit 1
-          fi
-
       # Full history and tags, to find the commit the last nightly was built from.
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -112,6 +91,8 @@ jobs:
     needs: check
     if: ${{ needs.check.outputs.build == 'true' }}
     runs-on: ubuntu-latest
+    # The Nightly key lives only in this environment, apart from the release key.
+    environment: nightly
     timeout-minutes: 45
     # contents: write to replace the release and its tag; id-token and attestations only for the
     # attestation step.
@@ -120,6 +101,27 @@ jobs:
       id-token: write
       attestations: write
     steps:
+      # Reports all missing secrets at once. No fallback to the debug key: switching keys later
+      # would make everybody uninstall Nightly to update it.
+      - name: Require the secrets
+        env:
+          TWITCH_CLIENT_ID: ${{ secrets.TWITCH_CLIENT_ID }}
+          KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
+          KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
+        run: |
+          missing=()
+          for name in TWITCH_CLIENT_ID KEYSTORE_BASE64 KEYSTORE_PASSWORD KEY_ALIAS KEY_PASSWORD; do
+            [ -n "${!name}" ] || missing+=("$name")
+          done
+          if [ ${#missing[@]} -gt 0 ]; then
+            for name in "${missing[@]}"; do
+              echo "::error::The $name secret is not set."
+            done
+            exit 1
+          fi
+
       # The commit check looked at, even if master moved since. Full history for the versionCode and
       # the notes.
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1

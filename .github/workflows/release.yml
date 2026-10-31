@@ -39,6 +39,9 @@ jobs:
     name: Preflight
     runs-on: ubuntu-latest
     timeout-minutes: 5
+    # The signing secrets live only in this environment, which only master may use. A dry run from
+    # another branch gets no environment and signs with the debug key.
+    environment: ${{ github.ref_name == github.event.repository.default_branch && 'release' || '' }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -191,6 +194,8 @@ jobs:
     needs: [preflight, verify]
     runs-on: ubuntu-latest
     timeout-minutes: 45
+    # As in preflight.
+    environment: ${{ github.ref_name == github.event.repository.default_branch && 'release' || '' }}
     # id-token and attestations only for the attestation step; no other job may sign one.
     permissions:
       contents: write
@@ -330,8 +335,6 @@ jobs:
             echo 'certificate SHA-256 listed in the [README](https://github.com/'"$REPOSITORY"'#install).'
           } > "$RUNNER_TEMP/github-notes.md"
 
-      # What was built. Not who signed it: the certificate's owner is the maintainer's name and
-      # town, and run summaries are public.
       - name: Summarise the build
         env:
           VERSION: ${{ steps.version.outputs.version }}

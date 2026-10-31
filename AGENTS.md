@@ -140,7 +140,7 @@ secrets reach exactly one step, the one that builds; tests and lint never see th
 
 `.github/workflows/nightly.yml` builds Chatter Nightly from master every night, when master has a
 commit the last nightly did not and CI passed for it. Nightly is a release build made with
-`-Pnightly=<hash>`: its own app (`me.lesh.chatter.nightly`), signed with the upload key, only on
+`-Pnightly=<hash>`: its own app (`me.lesh.chatter.nightly`), signed with a key of its own, only on
 GitHub. Its versionCode is the number of commits on master, because Android refuses an update to a
 lower one; the hash is in the version name, `0.9.0-nightly+6d134cb`. There is one release, tagged
 `nightly`, which every run deletes and creates again on the new commit, as a pre-release so the
@@ -153,12 +153,14 @@ maintainer's machine, so a fresh clone does not have it. When the app's network 
 behaviour changes, `docs/privacy-policy.html` and `docs/play-store/data-safety.md` change with it:
 they are declarations, and a stale one is a policy violation.
 
-What it reads from Settings → Secrets and variables → Actions:
+What it reads from Settings → Secrets and variables → Actions. The four keystore secrets are not
+repository secrets: they live in the `release` and `nightly` environments (Settings → Environments),
+under the same names, each with its own key, and both environments only let `master` in.
 
 | Secret | What it is | Missing |
 | --- | --- | --- |
 | `TWITCH_CLIENT_ID` | what `local.properties` holds on a dev machine | the release stops, rather than ship an APK that cannot log in |
-| `KEYSTORE_BASE64` | the upload keystore, as `base64 -w0 upload.jks` | the release stops; only a `dry_run` falls back to the debug key |
+| `KEYSTORE_BASE64` | the keystore of that environment, as `base64 -w0 chatter-release.jks` | the release stops; only a `dry_run` falls back to the debug key |
 | `KEYSTORE_PASSWORD`, `KEY_ALIAS`, `KEY_PASSWORD` | how to open that keystore | same |
 | `PLAY_SERVICE_ACCOUNT_JSON` | the service account allowed to release to Play | only needed for a `play_track` other than `none`, which stops without it |
 | `SPONSORS_TOKEN` | a classic token of the sponsored account with `read:user`, for the sponsor sync | only that workflow, which fails without it; nothing else is affected |
