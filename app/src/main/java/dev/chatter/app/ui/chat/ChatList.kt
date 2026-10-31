@@ -67,6 +67,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil3.ImageLoader
 import dev.chatter.app.R
 import dev.chatter.app.ai.CatchUp
+import dev.chatter.app.badges.Badge
 import dev.chatter.app.chat.ChatItem
 import dev.chatter.app.chat.isHistoryLoading
 import dev.chatter.app.ui.BetaBadge
@@ -85,6 +86,8 @@ const val CHAT_LIST_TAG = "chat"
 /**
  * The message list of a channel or combined chat. Newest at the bottom (reverseLayout); follows new
  * messages unless the user scrolled up.
+ *
+ * [onBadgeHold] receives a badge held in a message, to offer hiding its kind.
  *
  * [channels] marks messages with their channel, by login; only combined chats pass it. [partners]
  * marks Shared Chat partner messages, by channel id, on every page.
@@ -106,6 +109,7 @@ fun ChatList(
     modifier: Modifier = Modifier,
     smoothScrolling: Boolean = false,
     onEmoteClick: ((EmoteTap) -> Unit)? = null,
+    onBadgeHold: ((Badge) -> Unit)? = null,
     channels: Map<String, ChannelMark>? = null,
     partners: Map<String, ChannelMark> = emptyMap(),
     readMark: ReadMark? = null,
@@ -254,10 +258,10 @@ fun ChatList(
                     // stays above its message.
                     Column(rowModifier) {
                         UnseenLine()
-                        MessageRow(item, style, imageLoader, onGesture, onEmoteClick, mark)
+                        MessageRow(item, style, imageLoader, onGesture, onEmoteClick, mark, onBadgeHold)
                     }
                 } else {
-                    Box(rowModifier) { MessageRow(item, style, imageLoader, onGesture, onEmoteClick, mark) }
+                    Box(rowModifier) { MessageRow(item, style, imageLoader, onGesture, onEmoteClick, mark, onBadgeHold) }
                 }
             }
         }

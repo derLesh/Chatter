@@ -30,7 +30,23 @@ class SupporterTitles(
 /** Where a badge comes from. Each can be turned off in the settings. */
 enum class BadgeProvider { Twitch, SevenTv, Chatterino, Chatter }
 
-data class Badge(val url: String, val title: String, val provider: BadgeProvider = BadgeProvider.Twitch)
+/**
+ * One badge picture. [set] names its kind within the provider, the same for every version of it:
+ * Twitch's set id ("subscriber", "predictions"), 7TV's cosmetic id, Chatterino's tooltip.
+ */
+data class Badge(
+    val url: String,
+    val title: String,
+    val provider: BadgeProvider = BadgeProvider.Twitch,
+    val set: String = "",
+) {
+    /** What hiding a kind of badge matches; see [HiddenBadge]. */
+    val kind: String = kindOf(provider, set)
+
+    companion object {
+        fun kindOf(provider: BadgeProvider, set: String) = "${provider.name}/$set"
+    }
+}
 
 /**
  * Resolves the `badges` IRC tag (e.g. "moderator/1,subscriber/12") to images, and adds badges from
@@ -84,6 +100,19 @@ class BadgeRepository(
 
     @Volatile private var lastRetry = 0L
 
+    /**
+     * One badge of every kind loaded so far, for the list in the settings: Twitch's global set and
+     * those of the joined channels, Chatterino's list, the 7TV badges described and the supporter.
+     */
+    fun knownKinds(): List<Badge> {
+        val byKind = LinkedHashMap<String, Badge>()
+        // Sorted by key, so a set shows its first version ("subscriber/0") whatever the map order.
+        val twitch = global.entries.sortedBy { it.key }.map { it.value } +
+            channels.values.flatMap { set -> set.entries.sortedBy { it.key }.map { it.value } }
+        (twitch + thirdPartyBadges.values.flatten() + sevenTvCosmetics.values).forEach { byKind.putIfAbsent(it.kind, it) }
+        return byKind.values.toList()
+    }
+
     /** Providers whose badges are shown. Set from the settings, read for every message. */
     @Volatile var enabled: Set<BadgeProvider> = BadgeProvider.entries.toSet()
 
@@ -129,6 +158,7 @@ class BadgeRepository(
             url = "https://cdn.7tv.app/badge/$id/2x.webp",
             title = tooltip.ifEmpty { name },
             provider = BadgeProvider.SevenTv,
+            set = id,
         )
     }
 
@@ -197,7 +227,7 @@ class BadgeRepository(
                     for (badge in list.badges) {
                         // Only from Chatterino's own host; see TrustedImages.
                         val url = TrustedImages.url(badge.image2.ifEmpty { badge.image1 }.ifEmpty { badge.image3 }) ?: continue
-                        val image = Badge(url, badge.tooltip, BadgeProvider.Chatterino)
+                        val image = Badge(url, badge.tooltip, BadgeProvider.Chatterino, set = badge.tooltip)
                         badge.users.forEach { byUser.getOrPut(it) { ArrayList(1) } += image }
                     }
                     chatterinoBadges = byUser
@@ -245,6 +275,7 @@ class BadgeRepository(
                 else -> titles.monthlyFor(months)
             },
             provider = BadgeProvider.Chatter,
+            set = SUPPORTER_SET,
         )
     }
 
@@ -263,7 +294,7 @@ class BadgeRepository(
         val map = HashMap<String, Badge>()
         for (set in this) for (v in set.versions) {
             val url = TrustedImages.url(v.url2x.ifEmpty { v.url1x }) ?: continue
-            map["${set.setId}/${v.id}"] = Badge(url, v.title, BadgeProvider.Twitch)
+            map["${set.setId}/${v.id}"] = Badge(url, v.title, BadgeProvider.Twitch, set.setId)
         }
         return map
     }
@@ -276,5 +307,7 @@ class BadgeRepository(
 
         /** Ships with the app; Coil loads it from the resources. */
         const val SUPPORTER_BADGE_URL = "android.resource://dev.chatter.app/drawable/ic_badge_supporter"
+
+        const val SUPPORTER_SET = "supporter"
     }
 }

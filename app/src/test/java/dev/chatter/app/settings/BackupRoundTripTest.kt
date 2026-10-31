@@ -1,5 +1,8 @@
 package dev.chatter.app.settings
 
+import dev.chatter.app.badges.Badge
+import dev.chatter.app.badges.BadgeProvider
+import dev.chatter.app.badges.HiddenBadgeRepository
 import dev.chatter.app.channels.ChannelRepository
 import dev.chatter.app.channels.LiveAlertChoices
 import dev.chatter.app.chat.NicknameRepository
@@ -32,12 +35,14 @@ class BackupRoundTripTest {
         val channels = ChannelRepository(store, HelixApi(OkHttpClient()) { null }, scope)
         val hiddenEmotes = HiddenEmoteRepository(store, scope)
         val notes = NoteRepository(store, scope)
+        val hiddenBadges = HiddenBadgeRepository(store, scope)
         val backups = BackupManager(
             SettingsRepository(store, scope),
             RuleRepository(store, scope),
             NicknameRepository(store, scope),
             notes,
             hiddenEmotes,
+            hiddenBadges,
             channels,
         )
 
@@ -81,6 +86,18 @@ class BackupRoundTripTest {
         new.backups.apply(new.backups.read(old.backups.export())!!)
 
         assertEquals(expected, withTimeout(5_000) { new.hiddenEmotes.hidden.first { !it.isEmpty() } })
+    }
+
+    @Test
+    fun hiddenBadgesMoveToANewPhone() = runBlocking {
+        val old = Phone()
+        old.hiddenBadges.hide(Badge("https://static-cdn.jtvnw.net/badges/v1/p/2", "Predicted Blue (1)", BadgeProvider.Twitch, "predictions"))
+        withTimeout(5_000) { old.hiddenBadges.hidden.first { it.isNotEmpty() } }
+
+        val new = Phone()
+        new.backups.apply(new.backups.read(old.backups.export())!!)
+
+        assertEquals(setOf("Twitch/predictions"), withTimeout(5_000) { new.hiddenBadges.hiddenKinds.first { it.isNotEmpty() } })
     }
 
     @Test

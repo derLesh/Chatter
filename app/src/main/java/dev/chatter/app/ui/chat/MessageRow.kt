@@ -57,6 +57,7 @@ import androidx.compose.ui.unit.sp
 import coil3.ImageLoader
 import coil3.compose.AsyncImage
 import dev.chatter.app.R
+import dev.chatter.app.badges.Badge
 import dev.chatter.app.badges.NamePaint
 import dev.chatter.app.chat.ChatItem
 import dev.chatter.app.chat.LinkText
@@ -98,6 +99,7 @@ enum class MessageGesture { Tap, NameTap, Hold, Thread }
 /**
  * One message. [onGesture] receives taps, holds and name taps; without it the row is display only,
  * as in the user card. [channel] shows the channel's picture in front, for mixed lists.
+ * [onBadgeHold] receives a held badge; a tap on one still counts as a tap on the message.
  */
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
@@ -108,6 +110,7 @@ fun MessageRow(
     onGesture: ((ChatItem, MessageGesture) -> Unit)?,
     onEmoteClick: ((EmoteTap) -> Unit)? = null,
     channel: ChannelMark? = null,
+    onBadgeHold: ((Badge) -> Unit)? = null,
 ) {
     val currentItem by rememberUpdatedState(item)
     val currentGesture by rememberUpdatedState(onGesture)
@@ -119,13 +122,21 @@ fun MessageRow(
     // Stable wrapper, so a new callback instance does not rebuild the inline content.
     val currentEmoteClick by rememberUpdatedState(onEmoteClick)
     val emoteClick = remember { { seg: Segment.EmoteSeg -> currentEmoteClick?.invoke(EmoteTap(seg, currentItem.channel)); Unit } }
+    val currentBadgeHold by rememberUpdatedState(onBadgeHold)
+    val badgeGestures = remember {
+        BadgeGestures(
+            onTap = { currentGesture?.invoke(currentItem, MessageGesture.Tap) },
+            onHold = { badge -> currentBadgeHold?.invoke(badge) },
+        )
+    }
     val measured = pendingAspects(built)
     val emoteEm = if (style.largeEmotes) LARGE_EMOTE_EM else EMOTE_EM
-    val inlineContent = remember(built, imageLoader, measured, style.smallEmotes, style.emoteFrameRate, style.largeEmotes) {
+    val holdBadges = onBadgeHold != null
+    val inlineContent = remember(built, imageLoader, measured, style.smallEmotes, style.emoteFrameRate, style.largeEmotes, holdBadges, style.haptics) {
         built.inline.mapValues { (_, data) ->
             inlineFor(
                 data, imageLoader, emoteClick.takeIf { onEmoteClick != null }, style.smallEmotes, style.emoteFrameRate,
-                emoteEm, style.largeEmotes,
+                emoteEm, style.largeEmotes, badgeGestures.takeIf { holdBadges }, style.haptics,
             )
         }
     }
@@ -359,6 +370,10 @@ internal fun linkText(url: String, style: ChatStyle, title: String? = null) = bu
     }
 }
 
+/** What a badge in a line does when touched; kept stable so the inline content is not rebuilt. */
+private class BadgeGestures(val onTap: () -> Unit, val onHold: (Badge) -> Unit)
+
+@OptIn(ExperimentalFoundationApi::class)
 private fun inlineFor(
     data: InlineData,
     loader: ImageLoader,
@@ -367,6 +382,8 @@ private fun inlineFor(
     frameRate: Float = EmoteFrameRate.ACTIVE,
     emoteEm: Float = EMOTE_EM,
     largeEmotes: Boolean = false,
+    badgeGestures: BadgeGestures? = null,
+    haptics: Boolean = true,
 ): InlineTextContent = when (data) {
     is InlineData.ChannelData -> InlineTextContent(
         Placeholder(BADGE_EM.em, BADGE_EM.em, PlaceholderVerticalAlign.Center),
@@ -381,7 +398,18 @@ private fun inlineFor(
     is InlineData.BadgeData -> InlineTextContent(
         Placeholder(BADGE_EM.em, BADGE_EM.em, PlaceholderVerticalAlign.Center),
     ) {
-        AsyncImage(model = data.badge.url, contentDescription = data.badge.title, imageLoader = loader, modifier = Modifier.fillMaxSize())
+        AsyncImage(
+            model = data.badge.url,
+            contentDescription = data.badge.title,
+            imageLoader = loader,
+            modifier = Modifier.fillMaxSize().then(
+                if (badgeGestures == null) Modifier else Modifier.combinedClickable(
+                    onClick = badgeGestures.onTap,
+                    onLongClick = { badgeGestures.onHold(data.badge) },
+                    hapticFeedbackEnabled = haptics,
+                ),
+            ),
+        )
     }
     is InlineData.CheerData -> InlineTextContent(
         Placeholder(emoteEm.em, emoteEm.em, PlaceholderVerticalAlign.Center),

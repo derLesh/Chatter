@@ -70,6 +70,8 @@ data class ChatStyle(
     val largeEmotes: Boolean = false,
     /** Emotes drawn as their name. */
     val hiddenEmotes: HiddenEmotes = HiddenEmotes.NONE,
+    /** Kinds of badges left out; see [dev.chatter.app.badges.Badge.kind]. */
+    val hiddenBadges: Set<String> = emptySet(),
 )
 
 val ChatStyle.lineHeight: TextUnit get() = (fontSize * lineSpacing).sp
@@ -101,6 +103,7 @@ fun rememberChatStyle(
     saveData: Boolean = false,
     emoteFrameRate: Float = EmoteFrameRate.ACTIVE,
     hiddenEmotes: HiddenEmotes = HiddenEmotes.NONE,
+    hiddenBadges: Set<String> = emptySet(),
 ): ChatStyle {
     val dark = isAppInDarkTheme()
     val colors = MaterialTheme.colorScheme
@@ -108,7 +111,7 @@ fun rememberChatStyle(
         settings.fontSize, settings.lineSpacing, settings.emoteSize, settings.timestamps, settings.nameStyle, settings.highlightColor,
         settings.alternateBackground, settings.messageDividers,
         settings.nameColors, settings.highlightFirstMessages, settings.haptics, postCardStyle(settings),
-        settings.inlineImages, settings.imageHosts, settings.showGifs, settings.fullLinks, settings.sevenTvPaints, settings.specialMessages, powerSave, saveData, emoteFrameRate, nicknames, hiddenEmotes, rewardNames, dark, colors,
+        settings.inlineImages, settings.imageHosts, settings.showGifs, settings.fullLinks, settings.sevenTvPaints, settings.specialMessages, powerSave, saveData, emoteFrameRate, nicknames, hiddenEmotes, hiddenBadges, rewardNames, dark, colors,
     ) {
         ChatStyle(
             fontSize = settings.fontSize,
@@ -145,6 +148,7 @@ fun rememberChatStyle(
             dividerColor = if (settings.messageDividers) colors.outlineVariant else null,
             largeEmotes = settings.emoteSize == EmoteSize.Large,
             hiddenEmotes = hiddenEmotes,
+            hiddenBadges = hiddenBadges,
         )
     }
 }

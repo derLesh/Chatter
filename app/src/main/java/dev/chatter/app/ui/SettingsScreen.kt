@@ -89,6 +89,7 @@ import dev.chatter.app.ui.settings.CreditsPage
 import dev.chatter.app.ui.settings.DeveloperPage
 import dev.chatter.app.ui.settings.EmotesPage
 import dev.chatter.app.ui.settings.HiddenEmotesPage
+import dev.chatter.app.ui.settings.BadgeKindsPage
 import dev.chatter.app.ui.settings.FiltersPage
 import dev.chatter.app.ui.settings.ImageHostsPage
 import dev.chatter.app.ui.settings.KeywordsPage
@@ -173,6 +174,7 @@ internal enum class SettingsSubPage(val title: Int) {
     MuteKeywords(R.string.settings_mute_keywords),
     ImageHosts(R.string.settings_image_hosts),
     HiddenEmotes(R.string.settings_hidden_emotes),
+    BadgeKinds(R.string.settings_badge_kinds),
     Posts(R.string.settings_posts),
     SpecialMessages(R.string.settings_special_messages),
     AppIcons(R.string.settings_app_icon),
@@ -260,6 +262,7 @@ private val SEARCH_INDEX: List<SearchEntry> by lazy {
         add(SearchEntry(R.string.settings_hidden_emotes, emotes, R.string.settings_hidden_emotes_hint))
         add(SearchEntry(R.string.settings_emote_providers, emotes, also = PROVIDERS.map { it.second }))
         add(SearchEntry(R.string.settings_badge_providers, emotes, also = BADGE_PROVIDERS.map { it.second }))
+        add(SearchEntry(R.string.settings_badge_kinds, emotes, R.string.settings_badge_kinds_hint))
         val filters = SettingsPage.Filters
         add(SearchEntry(R.string.settings_mute_keywords, filters, R.string.settings_mute_keywords_summary))
         add(SearchEntry(R.string.settings_rules, filters, R.string.settings_rules_summary))
@@ -447,6 +450,7 @@ fun SettingsScreen(vm: MainViewModel, onBack: () -> Unit) {
                 )
                 SettingsSubPage.ImageHosts -> ImageHostsPage(settings.imageHosts, vm)
                 SettingsSubPage.HiddenEmotes -> HiddenEmotesPage(vm)
+                SettingsSubPage.BadgeKinds -> BadgeKindsPage(vm)
                 SettingsSubPage.Posts -> PostsPage(settings, vm)
                 SettingsSubPage.SpecialMessages -> SpecialMessagesPage(settings, vm)
                 SettingsSubPage.AppIcons -> AppIconsPage(settings, vm)

@@ -635,6 +635,35 @@
     <string name="settings_badge_providers">Badges</string>
     <string name="settings_provider_chatterino">Chatterino</string>
     <string name="settings_provider_chatter">Chatter supporters</string>
+    <string name="settings_badge_kinds">Single badges</string>
+    <string name="settings_badge_kinds_hint">Turn a badge off to hide it in every channel. Holding a badge in chat does the same.</string>
+    <plurals name="settings_badge_kinds_more">
+        <item quantity="one">%1$d more badge. Search to find it</item>
+        <item quantity="other">%1$d more badges. Search to find them</item>
+    </plurals>
+    <string name="settings_badge_kinds_search">For example: prediction</string>
+    <string name="settings_badge_kinds_none">All shown</string>
+    <string name="settings_badge_kinds_empty">No badges loaded yet. Open a chat, then come back.</string>
+    <plurals name="settings_badge_kinds_hidden">
+        <item quantity="one">%1$d hidden</item>
+        <item quantity="other">%1$d hidden</item>
+    </plurals>
+    <string name="badge_hide">Hide this kind of badge</string>
+    <string name="badge_show">Show this kind of badge</string>
+    <string name="badge_hide_title">Hide this kind of badge?</string>
+    <string name="badge_hide_text">%1$s badges are left out in every channel. Settings → Emotes shows them again.</string>
+    <string name="badge_hide_confirm">Hide</string>
+    <string name="badge_kind_subscriber">Subscriber</string>
+    <string name="badge_kind_founder">Founder</string>
+    <string name="badge_kind_bits">Bits</string>
+    <string name="badge_kind_bits_leader">Bits leader</string>
+    <string name="badge_kind_sub_gifter">Sub gifter</string>
+    <string name="badge_kind_gift_leader">Gift leader</string>
+    <string name="badge_kind_prediction">Prediction</string>
+    <string name="badge_kind_hype_train">Hype Train</string>
+    <string name="badge_kind_prime">Prime Gaming</string>
+    <string name="badge_kind_turbo">Turbo</string>
+    <string name="badge_kind_verified">Verified</string>
     <string name="badge_supporter">Chatter supporter</string>
     <string name="badge_supporter_monthly">Chatter supporter, every month</string>
     <plurals name="badge_supporter_months">

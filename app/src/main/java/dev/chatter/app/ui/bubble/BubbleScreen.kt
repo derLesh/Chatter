@@ -60,6 +60,7 @@ fun BubbleScreen(vm: MainViewModel, channel: String?) {
     val settings by vm.settings.collectAsStateWithLifecycle()
     val nicknames by vm.nicknames.collectAsStateWithLifecycle()
     val hiddenEmotes by vm.hiddenEmotes.collectAsStateWithLifecycle()
+    val hiddenBadges by vm.hiddenBadgeKinds.collectAsStateWithLifecycle()
     val rewardNames by vm.rewardNames.collectAsStateWithLifecycle()
     val connection by vm.connection.collectAsStateWithLifecycle()
     val info by vm.channelInfo.collectAsStateWithLifecycle()
@@ -75,7 +76,7 @@ fun BubbleScreen(vm: MainViewModel, channel: String?) {
     // Same as the chat screen: either saver stills emotes and stops linked images.
     val powerSave by vm.powerSaveMode.collectAsStateWithLifecycle()
     val saveData by vm.saveData.collectAsStateWithLifecycle()
-    val style = rememberChatStyle(settings, nicknames, rewardNames, powerSave, saveData, hiddenEmotes = hiddenEmotes)
+    val style = rememberChatStyle(settings, nicknames, rewardNames, powerSave, saveData, hiddenEmotes = hiddenEmotes, hiddenBadges = hiddenBadges)
     val loader = if (settings.animatedEmotes && !powerSave && !saveData) vm.imageLoader else vm.staticImageLoader
     var emoteCard by remember { mutableStateOf<EmoteTap?>(null) }
     var showPicker by remember { mutableStateOf(false) }

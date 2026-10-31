@@ -627,6 +627,35 @@
     <string name="settings_badge_providers">Badges</string>
     <string name="settings_provider_chatterino">Chatterino</string>
     <string name="settings_provider_chatter">Chatter-Unterstützer</string>
+    <string name="settings_badge_kinds">Einzelne Badges</string>
+    <string name="settings_badge_kinds_hint">Schalte ein Badge aus, um es in allen Kanälen auszublenden. Ein Badge im Chat gedrückt halten geht auch.</string>
+    <plurals name="settings_badge_kinds_more">
+        <item quantity="one">%1$d weiteres Badge. Such danach, um es zu finden</item>
+        <item quantity="other">%1$d weitere Badges. Such danach, um sie zu finden</item>
+    </plurals>
+    <string name="settings_badge_kinds_search">Zum Beispiel: Vorhersage</string>
+    <string name="settings_badge_kinds_none">Alle sichtbar</string>
+    <string name="settings_badge_kinds_empty">Noch keine Badges geladen. Öffne einen Chat und komm dann zurück.</string>
+    <plurals name="settings_badge_kinds_hidden">
+        <item quantity="one">%1$d ausgeblendet</item>
+        <item quantity="other">%1$d ausgeblendet</item>
+    </plurals>
+    <string name="badge_hide">Diese Art Badge ausblenden</string>
+    <string name="badge_show">Diese Art Badge wieder zeigen</string>
+    <string name="badge_hide_title">Diese Art Badge ausblenden?</string>
+    <string name="badge_hide_text">Badges „%1$s“ fallen in allen Kanälen weg. Unter Einstellungen → Emotes kannst du sie wieder zeigen.</string>
+    <string name="badge_hide_confirm">Ausblenden</string>
+    <string name="badge_kind_subscriber">Abonnent</string>
+    <string name="badge_kind_founder">Gründer</string>
+    <string name="badge_kind_bits">Bits</string>
+    <string name="badge_kind_bits_leader">Bits-Rangliste</string>
+    <string name="badge_kind_sub_gifter">Sub-Schenker</string>
+    <string name="badge_kind_gift_leader">Geschenk-Rangliste</string>
+    <string name="badge_kind_prediction">Vorhersage</string>
+    <string name="badge_kind_hype_train">Hype Train</string>
+    <string name="badge_kind_prime">Prime Gaming</string>
+    <string name="badge_kind_turbo">Turbo</string>
+    <string name="badge_kind_verified">Verifiziert</string>
     <string name="badge_supporter">Chatter-Unterstützer</string>
     <string name="badge_supporter_monthly">Chatter-Unterstützer, monatlich</string>
     <plurals name="badge_supporter_months">

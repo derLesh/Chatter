@@ -118,6 +118,7 @@ internal fun buildLine(item: ChatItem, style: ChatStyle, onName: LinkInteraction
             append(' ')
         }
         item.badges.forEachIndexed { i, badge ->
+            if (badge.kind in style.hiddenBadges) return@forEachIndexed
             val id = "b$i"
             inline[id] = InlineData.BadgeData(badge)
             appendInlineContent(id, badge.title)

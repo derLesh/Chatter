@@ -33,6 +33,7 @@ import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.ButtonGroupDefaults
 import androidx.compose.material3.ButtonShapes
+import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuGroup
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.DropdownMenuPopup
@@ -57,6 +58,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalClipboardManager
@@ -71,6 +73,7 @@ import androidx.compose.ui.window.Dialog
 import coil3.ImageLoader
 import coil3.compose.AsyncImage
 import dev.chatter.app.R
+import dev.chatter.app.badges.Badge
 import dev.chatter.app.chat.ChatItem
 import dev.chatter.app.net.HelixUser
 import dev.chatter.app.ui.theme.readableNameColor
@@ -83,7 +86,8 @@ import java.time.format.FormatStyle
  * Opened from a message: the author (avatar, badges, account age, bio), actions, and their recent
  * messages in this channel. [onWhisper] receives the Twitch id once loaded, saving a lookup. A
  * [guest] gets no actions that write; without [onReply] and [onMention] those two are left out.
- * [note] is the user's private note on the author, empty if there is none.
+ * [note] is the user's private note on the author, empty if there is none. Tapping a badge offers
+ * to hide its kind, or to show it again; [onBadgeHidden] receives the choice.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -103,6 +107,7 @@ fun UserCardSheet(
     onBlockLogin: (String) -> Unit,
     onNickname: () -> Unit,
     onNote: () -> Unit,
+    onBadgeHidden: (Badge, Boolean) -> Unit,
     onReply: (() -> Unit)?,
     onMention: (() -> Unit)?,
     onWhisper: (userId: String?) -> Unit,
@@ -161,7 +166,7 @@ fun UserCardSheet(
                             ButtonAction(R.string.action_report, reportIcon, danger = true) { reporting = true },
                         ),
                     ).filter { it.isNotEmpty() }
-                    Header(item, user, style, imageLoader, menu, onAvatar = { avatarOpen = true })
+                    Header(item, user, style, imageLoader, menu, onAvatar = { avatarOpen = true }, onBadgeHidden = onBadgeHidden)
                 }
                 if (!item.isOwn) item { NoteRow(note, onNote) }
                 user?.description?.takeIf { it.isNotBlank() }?.let { bio ->
@@ -300,6 +305,7 @@ private fun Header(
     imageLoader: ImageLoader,
     menu: List<List<ButtonAction>>,
     onAvatar: () -> Unit,
+    onBadgeHidden: (Badge, Boolean) -> Unit,
 ) {
     Row(
         verticalAlignment = Alignment.CenterVertically,
@@ -343,7 +349,7 @@ private fun Header(
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
-            if (item.badges.isNotEmpty()) BadgeRow(item, imageLoader)
+            if (item.badges.isNotEmpty()) BadgeRow(item, style.hiddenBadges, imageLoader, onBadgeHidden)
         }
         if (menu.isNotEmpty()) MoreMenu(menu, Modifier.align(Alignment.Top))
     }
@@ -405,29 +411,44 @@ private fun MoreMenu(groups: List<List<ButtonAction>>, modifier: Modifier) {
     }
 }
 
-/** Badges in one line below the name, scrolling sideways if needed. */
+/**
+ * Badges in one line below the name, scrolling sideways if needed. All of them, hidden kinds faded,
+ * so a hidden kind can be shown again from here.
+ */
 @Composable
-private fun BadgeRow(item: ChatItem, imageLoader: ImageLoader) {
+private fun BadgeRow(item: ChatItem, hiddenKinds: Set<String>, imageLoader: ImageLoader, onHidden: (Badge, Boolean) -> Unit) {
     Row(
         horizontalArrangement = Arrangement.spacedBy(6.dp),
         modifier = Modifier.padding(top = 6.dp).horizontalScroll(rememberScrollState()),
     ) {
         item.badges.forEach { badge ->
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                modifier = Modifier
-                    .clip(RoundedCornerShape(6.dp))
-                    .background(MaterialTheme.colorScheme.secondaryContainer)
-                    .padding(horizontal = 6.dp, vertical = 3.dp),
-            ) {
-                AsyncImage(model = badge.url, contentDescription = null, imageLoader = imageLoader, modifier = Modifier.size(16.dp))
-                Spacer(Modifier.width(4.dp))
-                Text(
-                    badge.title,
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSecondaryContainer,
-                    maxLines = 1,
-                )
+            val hidden = badge.kind in hiddenKinds
+            var menuOpen by remember { mutableStateOf(false) }
+            Box {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(6.dp))
+                        .background(MaterialTheme.colorScheme.secondaryContainer)
+                        .clickable { menuOpen = true }
+                        .padding(horizontal = 6.dp, vertical = 3.dp)
+                        .alpha(if (hidden) 0.5f else 1f),
+                ) {
+                    AsyncImage(model = badge.url, contentDescription = null, imageLoader = imageLoader, modifier = Modifier.size(16.dp))
+                    Spacer(Modifier.width(4.dp))
+                    Text(
+                        badge.title,
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSecondaryContainer,
+                        maxLines = 1,
+                    )
+                }
+                DropdownMenu(expanded = menuOpen, onDismissRequest = { menuOpen = false }) {
+                    DropdownMenuItem(
+                        text = { Text(stringResource(if (hidden) R.string.badge_show else R.string.badge_hide)) },
+                        onClick = { menuOpen = false; onHidden(badge, !hidden) },
+                    )
+                }
             }
         }
     }

@@ -1,5 +1,7 @@
 package dev.chatter.app.settings
 
+import dev.chatter.app.badges.HiddenBadge
+import dev.chatter.app.badges.HiddenBadgeRepository
 import dev.chatter.app.channels.ChannelGroup
 import dev.chatter.app.channels.ChannelRepository
 import dev.chatter.app.chat.ChatRule
@@ -30,6 +32,7 @@ data class SettingsBackup(
     /** Names of the most recently used emotes, newest first. */
     val recentEmotes: List<String>? = null,
     val hiddenEmotes: List<HiddenEmote>? = null,
+    val hiddenBadges: List<HiddenBadge>? = null,
 ) {
     companion object {
         const val APP = "Chatter"
@@ -71,6 +74,7 @@ class BackupManager(
     private val nicknames: NicknameRepository,
     private val notes: NoteRepository,
     private val hiddenEmotes: HiddenEmoteRepository,
+    private val hiddenBadges: HiddenBadgeRepository,
     private val channels: ChannelRepository,
 ) {
     fun export(): String = SettingsBackup.json.encodeToString(
@@ -91,6 +95,7 @@ class BackupManager(
             ),
             recentEmotes = settings.recentEmotes.value,
             hiddenEmotes = hiddenEmotes.hidden.value.list,
+            hiddenBadges = hiddenBadges.hidden.value,
         )
     )
 
@@ -112,6 +117,7 @@ class BackupManager(
         backup.nicknames?.let { nicknames.replaceAll(it) }
         backup.notes?.let { notes.replaceAll(it) }
         backup.hiddenEmotes?.let { hiddenEmotes.replaceAll(it) }
+        backup.hiddenBadges?.let { hiddenBadges.replaceAll(it) }
         backup.channels?.let {
             channels.restore(it.logins, it.names, it.notificationsOff.toSet(), it.hiddenUnread.toSet(), it.groups)
             if (it.liveAlertsOn != null || it.liveAlertsOff != null) {

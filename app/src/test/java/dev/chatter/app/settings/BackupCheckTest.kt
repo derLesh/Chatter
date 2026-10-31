@@ -1,5 +1,7 @@
 package dev.chatter.app.settings
 
+import dev.chatter.app.badges.BadgeProvider
+import dev.chatter.app.badges.HiddenBadge
 import dev.chatter.app.chat.ChatRule
 import dev.chatter.app.chat.NoteRepository
 import dev.chatter.app.emotes.EmoteProvider
@@ -94,6 +96,23 @@ class BackupCheckTest {
         val notes = mapOf("Forsen" to " brother ", "not a login!" to "x", "xqc" to " ", "lirik" to "a".repeat(600))
         val cleaned = BackupCheck.clean(SettingsBackup(notes = notes)).notes
         assertEquals(mapOf("forsen" to "brother", "lirik" to "a".repeat(NoteRepository.MAX_LENGTH)), cleaned)
+    }
+
+    @Test
+    fun hiddenBadgesNeedAKindAndATrustedPicture() {
+        val hidden = listOf(
+            HiddenBadge(BadgeProvider.Twitch, " predictions ", "Predicted Blue (1)", "https://static-cdn.jtvnw.net/badges/v1/x/2"),
+            HiddenBadge(BadgeProvider.Twitch, "predictions", "again", null),
+            HiddenBadge(BadgeProvider.Twitch, " ", "no kind", null),
+            HiddenBadge(BadgeProvider.SevenTv, "abc", "7TV", "https://example.com/spy.png"),
+        )
+        assertEquals(
+            listOf(
+                HiddenBadge(BadgeProvider.Twitch, "predictions", "Predicted Blue (1)", "https://static-cdn.jtvnw.net/badges/v1/x/2"),
+                HiddenBadge(BadgeProvider.SevenTv, "abc", "7TV", null),
+            ),
+            BackupCheck.clean(SettingsBackup(hiddenBadges = hidden)).hiddenBadges,
+        )
     }
 
     @Test

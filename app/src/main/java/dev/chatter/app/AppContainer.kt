@@ -52,6 +52,7 @@ import dev.chatter.app.emotes.CheermoteRepository
 import dev.chatter.app.emotes.EmojiRepository
 import dev.chatter.app.emotes.EmoteRepository
 import dev.chatter.app.emotes.HiddenEmoteRepository
+import dev.chatter.app.badges.HiddenBadgeRepository
 import dev.chatter.app.emotes.SevenTvEventClient
 import dev.chatter.app.emotes.SevenTvLiveUpdates
 import dev.chatter.app.irc.ConnectionState
@@ -167,6 +168,7 @@ class AppContainer(
     val nicknames = NicknameRepository(context.nicknameStore, scope)
     val notes = NoteRepository(context.nicknameStore, scope)
     val hiddenEmotes = HiddenEmoteRepository(context.settingsStore, scope)
+    val hiddenBadges = HiddenBadgeRepository(context.settingsStore, scope)
     /** The active account's user id; null for a guest or nobody. */
     private val activeUserId: StateFlow<String?> =
         auth.state.map { (it as? AuthState.LoggedIn)?.account?.userId }.stateIn(scope, SharingStarted.Eagerly, null)
@@ -175,7 +177,7 @@ class AppContainer(
     val rules = RuleRepository(context.ruleStore, scope)
     val stats = StatsRepository(context.statsStore, scope)
     val backgroundHealth = BackgroundHealth(context, context.healthStore, scope)
-    val backup = BackupManager(settings, rules, nicknames, notes, hiddenEmotes, channels)
+    val backup = BackupManager(settings, rules, nicknames, notes, hiddenEmotes, hiddenBadges, channels)
     val changelog = ChangelogRepository(context, settings, BuildConfig.VERSION_NAME, scope)
     /** True while Chatter saves data; see [DataSaving]. */
     val dataSaving = DataSaving(context, settings.settings.map { it.mobileData }, scope)

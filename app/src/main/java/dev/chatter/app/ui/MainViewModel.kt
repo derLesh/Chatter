@@ -169,6 +169,8 @@ class MainViewModel(private val c: AppContainer, savedState: SavedStateHandle) :
     val nicknames = c.nicknames.nicknames
     val notes = c.notes.notes
     val hiddenEmotes = c.hiddenEmotes.hidden
+    val hiddenBadges = c.hiddenBadges.hidden
+    val hiddenBadgeKinds = c.hiddenBadges.hiddenKinds
     /** Reward titles by reward id, in the user's own channel. */
     val rewardNames = c.chat.rewards.names
     val rules = c.rules.rules
@@ -712,6 +714,19 @@ class MainViewModel(private val c: AppContainer, savedState: SavedStateHandle) :
     fun showEmote(hidden: HiddenEmote) {
         viewModelScope.launch { c.hiddenEmotes.show(hidden) }
     }
+
+    /** Leaves every badge of [badge]'s kind out, in every channel. */
+    fun hideBadge(badge: Badge) {
+        viewModelScope.launch { c.hiddenBadges.hide(badge) }
+    }
+
+    /** Shows the kind of badge [kind] names again; see [Badge.kind]. */
+    fun showBadge(kind: String) {
+        viewModelScope.launch { c.hiddenBadges.show(kind) }
+    }
+
+    /** One badge of every kind loaded so far; see [dev.chatter.app.badges.BadgeRepository.knownKinds]. */
+    fun knownBadgeKinds(): List<Badge> = c.badges.knownKinds()
 
     /** Sets a nickname for a chatter in every channel. Blank clears it. */
     fun setNickname(login: String, nickname: String) {

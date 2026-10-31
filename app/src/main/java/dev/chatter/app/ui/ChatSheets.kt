@@ -12,6 +12,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil3.ImageLoader
+import dev.chatter.app.badges.Badge
 import dev.chatter.app.chat.ChatItem
 import dev.chatter.app.ui.channels.AddChannelDialog
 import dev.chatter.app.ui.channels.CombineChannelsDialog
@@ -22,6 +23,7 @@ import dev.chatter.app.ui.chat.ChatStyle
 import dev.chatter.app.ui.chat.EmoteCardSheet
 import dev.chatter.app.ui.chat.EmoteTap
 import dev.chatter.app.ui.chat.EmotePickerSheet
+import dev.chatter.app.ui.chat.HideBadgeDialog
 import dev.chatter.app.ui.chat.NicknameDialog
 import dev.chatter.app.ui.chat.NoteDialog
 import dev.chatter.app.ui.chat.ThreadSheet
@@ -52,6 +54,9 @@ class ChatSheetState {
     /** The login whose note is being written. */
     var noteTarget by mutableStateOf<String?>(null)
 
+    /** A badge held in the chat, whose kind the user may hide. */
+    var badgeToHide by mutableStateOf<Badge?>(null)
+
     /** Whisper recipient from a user card: their message and their id if known. */
     var whisperTo by mutableStateOf<Pair<ChatItem, String?>?>(null)
 
@@ -66,7 +71,7 @@ class ChatSheetState {
 }
 
 /**
- * The sheets and dialogs of the chat screen: user card, conversation, whisper, nickname, note, emote card
+ * The sheets and dialogs of the chat screen: user card, conversation, whisper, nickname, note, hiding a badge, emote card
  * and picker, catch-up summary, and adding, combining and renaming channels. [threadInput] is the input inside the
  * conversation sheet.
  */
@@ -104,6 +109,7 @@ fun ChatSheets(
             onBlockLogin = vm::blockByLogin,
             onNickname = { sheets.nicknameTarget = item },
             onNote = { sheets.noteTarget = item.login },
+            onBadgeHidden = { badge, hidden -> if (hidden) vm.hideBadge(badge) else vm.showBadge(badge.kind) },
             // Both write into the input, which is gone while the user only reads.
             onReply = if (settings.readOnly) null else ({ vm.startReply(item) }),
             onMention = if (settings.readOnly) null else ({ vm.mention(item) }),
@@ -167,6 +173,14 @@ fun ChatSheets(
             currentNote = notes[login.lowercase()].orEmpty(),
             onSave = { vm.setNote(login, it) },
             onDismiss = { sheets.noteTarget = null },
+        )
+    }
+    sheets.badgeToHide?.let { badge ->
+        HideBadgeDialog(
+            badge = badge,
+            imageLoader = loader,
+            onHide = { vm.hideBadge(badge) },
+            onDismiss = { sheets.badgeToHide = null },
         )
     }
     sheets.emoteCard?.let { tap ->

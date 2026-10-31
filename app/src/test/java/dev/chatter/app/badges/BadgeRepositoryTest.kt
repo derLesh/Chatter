@@ -103,6 +103,45 @@ class BadgeRepositoryTest {
         assertEquals(listOf(BadgeProvider.Twitch), badges.resolve(null, "subscriber/0", userId = "42").map { it.provider })
     }
 
+    // ---- kinds of badges ----------------------------------------------------------------------
+
+    @Test
+    fun everyVersionOfATwitchBadgeIsOneKind() = runTest {
+        twitch.global = listOf(
+            FakeTwitchBadges.badgeSet("subscriber", "0", "Subscriber"),
+            FakeTwitchBadges.badgeSet("subscriber", "12", "1-Year Subscriber"),
+        )
+        badges.loadGlobal()
+
+        val kinds = badges.resolve(null, "subscriber/0", userId = null) + badges.resolve(null, "subscriber/12", userId = null)
+        assertEquals(setOf("Twitch/subscriber"), kinds.map { it.kind }.toSet())
+    }
+
+    @Test
+    fun theSameNameFromAnotherProviderIsAnotherKind() {
+        assertTrue(Badge.kindOf(BadgeProvider.Twitch, "subscriber") != Badge.kindOf(BadgeProvider.SevenTv, "subscriber"))
+    }
+
+    @Test
+    fun everyLoadedKindIsKnownOnce() = runTest {
+        twitch.global = listOf(
+            FakeTwitchBadges.badgeSet("subscriber", "12", "1-Year Subscriber"),
+            FakeTwitchBadges.badgeSet("subscriber", "0", "Subscriber"),
+            FakeTwitchBadges.badgeSet("bits", "100", "cheer 100"),
+        )
+        badges.loadGlobal()
+        badges.loadChannel("22484632")
+        badges.loadThirdParty(titles)
+        badges.sevenTvBadge("cosmetic-1", name = "Subscriber", tooltip = "7TV Subscriber")
+
+        val known = badges.knownKinds()
+        assertEquals(
+            setOf("Twitch/subscriber", "Twitch/bits", "Chatterino/Chatterino Fan", "Chatter/supporter", "SevenTv/cosmetic-1"),
+            known.map { it.kind }.toSet(),
+        )
+        assertEquals("the first version stands for the set", "Subscriber", known.first { it.kind == "Twitch/subscriber" }.title)
+    }
+
     // ---- lists that did not answer --------------------------------------------------------------
 
     @Test

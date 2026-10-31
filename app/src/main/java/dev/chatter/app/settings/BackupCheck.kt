@@ -1,5 +1,6 @@
 package dev.chatter.app.settings
 
+import dev.chatter.app.badges.HiddenBadge
 import dev.chatter.app.channels.ChannelGroup
 import dev.chatter.app.chat.ImageLinks
 import dev.chatter.app.chat.NoteRepository
@@ -29,6 +30,7 @@ object BackupCheck {
     const val MAX_NOTES = 2000
     const val MAX_CHANNELS = 200
     const val MAX_HIDDEN_EMOTES = 500
+    const val MAX_HIDDEN_BADGES = 500
 
     /** Longer than any emote name or id the providers hand out. */
     const val MAX_EMOTE_TEXT = 100
@@ -63,6 +65,7 @@ object BackupCheck {
         nicknames = backup.nicknames?.let { byLogin(it, MAX_NICKNAME, MAX_NICKNAMES) },
         notes = backup.notes?.let { byLogin(it, NoteRepository.MAX_LENGTH, MAX_NOTES) },
         hiddenEmotes = backup.hiddenEmotes?.mapNotNull(::hiddenEmote)?.distinctBy { it.key }?.take(MAX_HIDDEN_EMOTES),
+        hiddenBadges = backup.hiddenBadges?.mapNotNull(::hiddenBadge)?.distinctBy { it.kind }?.take(MAX_HIDDEN_BADGES),
         channels = backup.channels?.let { c ->
             // Group ids end up in the comma-separated page list; see ChannelGroup.isValidId.
             // Invalid ones are dropped together with their place in the list.
@@ -94,6 +97,13 @@ object BackupCheck {
         val channel = e.channel?.trim()?.lowercase()
         if (channel != null && !LOGIN.matches(channel)) return null
         return e.copy(id = id, name = name, url = e.url?.let(TrustedImages::url), channel = channel)
+    }
+
+    /** Like [hiddenEmote]: the picture is shown in the settings. */
+    private fun hiddenBadge(b: HiddenBadge): HiddenBadge? {
+        val set = b.set.trim()
+        if (set.isEmpty() || set.length > MAX_EMOTE_TEXT) return null
+        return b.copy(set = set, title = b.title.trim().take(MAX_EMOTE_TEXT), url = b.url?.let(TrustedImages::url))
     }
 
     /** Texts keyed by real logins, trimmed and cut to [maxLength]; empty ones are dropped. */

@@ -102,6 +102,7 @@ fun MainScreen(vm: MainViewModel, onInbox: () -> Unit, onSettings: () -> Unit) {
     val subscribed by vm.subscribedChannels.collectAsStateWithLifecycle()
     val nicknames by vm.nicknames.collectAsStateWithLifecycle()
     val hiddenEmotes by vm.hiddenEmotes.collectAsStateWithLifecycle()
+    val hiddenBadges by vm.hiddenBadgeKinds.collectAsStateWithLifecycle()
     val rewardNames by vm.rewardNames.collectAsStateWithLifecycle()
     val inboxUnread by vm.inboxUnread.collectAsStateWithLifecycle()
     val update by vm.availableUpdate.collectAsStateWithLifecycle()
@@ -149,7 +150,7 @@ fun MainScreen(vm: MainViewModel, onInbox: () -> Unit, onSettings: () -> Unit) {
     // An idle chat next to a stream keeps animating, at a lower frame rate.
     val activity = remember { ChatActivity() }
     val emoteFrameRate = rememberEmoteFrameRate(activity, settings.slowIdleEmotes)
-    val style = rememberChatStyle(settings, nicknames, rewardNames, powerSave, saveData, emoteFrameRate, hiddenEmotes)
+    val style = rememberChatStyle(settings, nicknames, rewardNames, powerSave, saveData, emoteFrameRate, hiddenEmotes, hiddenBadges)
     // Only while this screen is in front: the bubble draws the same shared emotes, and the main
     // window being idle should not slow them there.
     LifecycleStartEffect(emoteFrameRate) {
@@ -409,6 +410,7 @@ fun MainScreen(vm: MainViewModel, onInbox: () -> Unit, onSettings: () -> Unit) {
                             // Battery saver stills it like the emotes: in a busy chat some row is always moving.
                             smoothScrolling = settings.smoothScrolling && !powerSave,
                             onEmoteClick = { sheets.emoteCard = it },
+                            onBadgeHold = { sheets.badgeToHide = it },
                         )
                         PinnedBar(
                             pin = pins[channel]?.takeIf { it.item.id !in vm.hiddenPins },
