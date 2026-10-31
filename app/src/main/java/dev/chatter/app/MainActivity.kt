@@ -16,6 +16,7 @@ import dev.chatter.app.ui.AppRoot
 import dev.chatter.app.ui.MainViewModel
 import dev.chatter.app.ui.chat.LinkGuard
 import dev.chatter.app.ui.chat.LocalPosts
+import dev.chatter.app.settings.EmoteSize
 import dev.chatter.app.settings.ThemeMode
 import dev.chatter.app.ui.theme.ChatterTheme
 import dev.chatter.app.util.EXTRA_CHANNEL
@@ -26,6 +27,7 @@ import dev.chatter.app.util.EXTRA_PROFILING_ANIMATED_EMOTES
 import dev.chatter.app.util.EXTRA_PROFILING_CHANNEL
 import dev.chatter.app.util.EXTRA_PROFILING_DARK_THEME
 import dev.chatter.app.util.EXTRA_PROFILING_KEEP_SCREEN_ON
+import dev.chatter.app.util.EXTRA_PROFILING_LARGE_EMOTES
 import dev.chatter.app.util.EXTRA_PROFILING_PURE_BLACK
 import dev.chatter.app.util.EXTRA_PROFILING_SMOOTH_SCROLLING
 
@@ -89,6 +91,9 @@ class MainActivity : ComponentActivity() {
         intent.booleanExtraOrNull(EXTRA_PROFILING_ANIMATED_EMOTES)?.let(vm::setAnimatedEmotes)
         intent.booleanExtraOrNull(EXTRA_PROFILING_SMOOTH_SCROLLING)?.let(vm::setSmoothScrolling)
         intent.booleanExtraOrNull(EXTRA_PROFILING_KEEP_SCREEN_ON)?.let(vm::setKeepScreenOn)
+        intent.booleanExtraOrNull(EXTRA_PROFILING_LARGE_EMOTES)?.let { large ->
+            vm.setEmoteSize(if (large) EmoteSize.Large else EmoteSize.Normal)
+        }
         intent.getStringExtra(EXTRA_PROFILING_CHANNEL)?.let(vm::readAsGuest)
     }
 

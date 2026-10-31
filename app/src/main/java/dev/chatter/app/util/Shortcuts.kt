@@ -57,6 +57,7 @@ const val EXTRA_PROFILING_PURE_BLACK = "profiling_pure_black"
 const val EXTRA_PROFILING_ANIMATED_EMOTES = "profiling_animated_emotes"
 const val EXTRA_PROFILING_SMOOTH_SCROLLING = "profiling_smooth_scrolling"
 const val EXTRA_PROFILING_KEEP_SCREEN_ON = "profiling_keep_screen_on"
+const val EXTRA_PROFILING_LARGE_EMOTES = "profiling_large_emotes"
 
 private const val CHANNEL_PREFIX = "channel:"
 private const val INBOX_ID = "inbox"

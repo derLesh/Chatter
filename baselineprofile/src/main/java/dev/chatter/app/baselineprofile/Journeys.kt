@@ -54,8 +54,11 @@ fun startInChat(settings: Map<String, Boolean> = emptyMap()) {
     chat()
 }
 
-/** The chat list; fails if it does not appear. */
-fun chat(): UiObject2 = device.wait(Until.findObject(By.res(CHAT_LIST)), TIMEOUT_MS)
+/**
+ * The chat list; fails if it does not appear. Only in [PACKAGE]: the phone's own Chatter has the
+ * same list, and would stand in for a profiling build that crashed.
+ */
+fun chat(): UiObject2 = device.wait(Until.findObject(By.res(CHAT_LIST).pkg(PACKAGE)), TIMEOUT_MS)
     ?: error("The chat did not show up")
 
 /** Waits for messages, then scrolls back through them and down to the newest again. */
