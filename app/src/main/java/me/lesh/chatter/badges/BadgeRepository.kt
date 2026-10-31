@@ -9,6 +9,7 @@ import me.lesh.chatter.net.ServiceTrouble
 import me.lesh.chatter.net.ThirdPartyBadgeApi
 import me.lesh.chatter.net.TrustedImages
 import me.lesh.chatter.net.TwitchBadgeApi
+import me.lesh.chatter.util.runCatchingCancellable
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.SharedFlow
 import java.time.Instant
@@ -170,7 +171,7 @@ class BadgeRepository(
 
     suspend fun loadGlobal() {
         if (global.isNotEmpty()) return
-        runCatching { helix.globalBadges() }
+        runCatchingCancellable { helix.globalBadges() }
             .onSuccess {
                 global = it.toMap()
                 trouble.reachable(ServiceTrouble.TWITCH)
@@ -184,7 +185,7 @@ class BadgeRepository(
     }
 
     suspend fun loadChannel(channelId: String) {
-        runCatching { helix.channelBadges(channelId) }
+        runCatchingCancellable { helix.channelBadges(channelId) }
             .onSuccess {
                 channels[channelId] = it.toMap()
                 failedChannels.remove(channelId)
@@ -221,7 +222,7 @@ class BadgeRepository(
         var changed = false
 
         if (chatterinoBadges == null) {
-            runCatching { thirdParty.chatterinoBadges() }
+            runCatchingCancellable { thirdParty.chatterinoBadges() }
                 .onSuccess { list ->
                     val byUser = HashMap<String, MutableList<Badge>>()
                     for (badge in list.badges) {
@@ -241,7 +242,7 @@ class BadgeRepository(
 
         // Null while sponsoring is off; there is no list to fetch then.
         if (supporterTitles != null && supporterBadges == null) {
-            runCatching { thirdParty.chatterSupporters() }
+            runCatchingCancellable { thirdParty.chatterSupporters() }
                 .onSuccess { list ->
                     supporterBadges = list.supporters
                         .filter { it.twitch.isNotEmpty() }

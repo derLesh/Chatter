@@ -7,6 +7,7 @@ import me.lesh.chatter.net.HelixCheermote
 import me.lesh.chatter.net.NotLoggedInException
 import me.lesh.chatter.net.ServiceTrouble
 import me.lesh.chatter.net.TrustedImages
+import me.lesh.chatter.util.runCatchingCancellable
 import java.util.concurrent.ConcurrentHashMap
 
 /** Twitch's cheermotes, as the cheermote repository needs them. */
@@ -54,7 +55,7 @@ class CheermoteRepository(
 
     suspend fun loadChannel(channelId: String) {
         if (channels.containsKey(channelId)) return
-        runCatching { helix.cheermotes(channelId) }
+        runCatchingCancellable { helix.cheermotes(channelId) }
             .onSuccess { list ->
                 channels[channelId] = list.mapNotNull(Cheermote::from).associateBy { it.prefix.lowercase() }
                 failedChannels.remove(channelId)

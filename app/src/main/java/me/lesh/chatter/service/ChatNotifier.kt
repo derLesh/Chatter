@@ -42,6 +42,7 @@ import me.lesh.chatter.util.INBOX_TAB_WHISPERS
 import me.lesh.chatter.util.appLaunchIntent
 import me.lesh.chatter.util.channelShortcut
 import me.lesh.chatter.util.channelShortcutId
+import me.lesh.chatter.util.runCatchingCancellable
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.flow.StateFlow
@@ -304,7 +305,7 @@ class ChatNotifier(
         if (!settings.value.senderAvatars || saveData.value) return
         val missing = logins.map { it.lowercase() }.distinct().filterNot(senderIcons::containsKey).take(MAX_SENDER_ICONS)
         if (missing.isEmpty()) return
-        val users = runCatching { helix.users(missing) }.getOrNull() ?: return
+        val users = runCatchingCancellable { helix.users(missing) }.getOrNull() ?: return
         coroutineScope {
             users.forEach { user ->
                 val url = user.profileImageUrl.ifEmpty { null } ?: return@forEach

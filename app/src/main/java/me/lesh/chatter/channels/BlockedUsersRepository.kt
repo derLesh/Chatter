@@ -3,6 +3,7 @@ package me.lesh.chatter.channels
 import android.util.Log
 import me.lesh.chatter.net.HelixApi
 import me.lesh.chatter.net.HelixBlockedUser
+import me.lesh.chatter.util.runCatchingCancellable
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -25,14 +26,14 @@ class BlockedUsersRepository(private val helix: HelixApi, scope: CoroutineScope)
         .stateIn(scope, SharingStarted.Eagerly, emptySet())
 
     suspend fun load(userId: String) {
-        runCatching { helix.blockedUsers(userId) }
+        runCatchingCancellable { helix.blockedUsers(userId) }
             .onSuccess { list -> _blocked.value = list.sortedBy { it.userLogin } }
             .onFailure { Log.w(TAG, "Block list failed: ${it.message}") }
     }
 
     /** Blocks or unblocks on Twitch; the local list follows once Twitch confirmed. */
     suspend fun setBlocked(user: HelixBlockedUser, blocked: Boolean): Boolean {
-        val ok = runCatching { helix.setBlocked(user.userId, blocked) }
+        val ok = runCatchingCancellable { helix.setBlocked(user.userId, blocked) }
             .onFailure { Log.w(TAG, "Blocking ${user.userLogin} failed: ${it.message}") }
             .isSuccess
         if (ok) {

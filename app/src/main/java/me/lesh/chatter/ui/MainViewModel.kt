@@ -61,6 +61,7 @@ import me.lesh.chatter.ui.chat.ReadMark
 import me.lesh.chatter.ui.theme.NameColorPalette
 import me.lesh.chatter.util.AppIcon
 import me.lesh.chatter.util.Autocomplete
+import me.lesh.chatter.util.runCatchingCancellable
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.channels.Channel
@@ -593,7 +594,7 @@ class MainViewModel(private val c: AppContainer, savedState: SavedStateHandle) :
     /** The Twitch profile of [item]'s author; null if Twitch is unreachable. */
     suspend fun profileOf(item: ChatItem): HelixUser? {
         val login = item.login ?: return null
-        return runCatching { c.helix.users(listOf(login)).firstOrNull() }.getOrNull()
+        return runCatchingCancellable { c.helix.users(listOf(login)).firstOrNull() }.getOrNull()
     }
 
     /** Twitch badge image for the user's role in a channel (moderator sword etc.). */
@@ -621,7 +622,7 @@ class MainViewModel(private val c: AppContainer, savedState: SavedStateHandle) :
     fun blockByLogin(login: String) {
         viewModelScope.launch {
             val clean = login.trim().removePrefix("@").lowercase()
-            val user = runCatching { c.helix.users(listOf(clean)).firstOrNull() }.getOrNull()
+            val user = runCatchingCancellable { c.helix.users(listOf(clean)).firstOrNull() }.getOrNull()
             if (user == null) {
                 _messages.send(UiMessage(R.string.error_user_unknown))
                 return@launch
@@ -866,7 +867,7 @@ class MainViewModel(private val c: AppContainer, savedState: SavedStateHandle) :
     /** Every channel the account follows, for the live notification page; null without an answer. */
     suspend fun followedChannelList(): List<HelixFollowedChannel>? {
         val userId = c.auth.account?.userId ?: return null
-        return runCatching { c.helix.followedChannels(userId) }.getOrNull()
+        return runCatchingCancellable { c.helix.followedChannels(userId) }.getOrNull()
     }
 
     /**

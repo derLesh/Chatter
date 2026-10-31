@@ -12,6 +12,7 @@ import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.longPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import me.lesh.chatter.net.AppJson
+import me.lesh.chatter.util.runCatchingCancellable
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -102,7 +103,7 @@ class BackgroundHealth(
 
     /** Checks how previous processes ended; only possible once per process start. */
     fun start() {
-        scope.launch(Dispatchers.IO) { runCatching { lookBack() }.onFailure { Log.w(TAG, "Could not read exit reasons", it) } }
+        scope.launch(Dispatchers.IO) { runCatchingCancellable { lookBack() }.onFailure { Log.w(TAG, "Could not read exit reasons", it) } }
     }
 
     /** Reads the battery settings again, e.g. after the user returns from changing them. */

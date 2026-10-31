@@ -11,6 +11,7 @@ import me.lesh.chatter.net.HelixApi
 import me.lesh.chatter.net.HelixChannelSearch
 import me.lesh.chatter.net.HelixStream
 import me.lesh.chatter.net.decodeStored
+import me.lesh.chatter.util.runCatchingCancellable
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -336,7 +337,7 @@ class ChannelRepository(
     }
 
     suspend fun search(query: String): List<HelixChannelSearch> =
-        if (query.isBlank()) emptyList() else runCatching { helix.searchChannels(query.trim()) }.getOrDefault(emptyList())
+        if (query.isBlank()) emptyList() else runCatchingCancellable { helix.searchChannels(query.trim()) }.getOrDefault(emptyList())
 
     private suspend fun saveCache() {
         val list = _info.value.values.map { it.copy(isLive = false, viewers = 0, title = "", game = "") }

@@ -13,6 +13,7 @@ import me.lesh.chatter.net.HelixApi
 import me.lesh.chatter.net.HttpException
 import me.lesh.chatter.net.fetch
 import me.lesh.chatter.net.postForm
+import me.lesh.chatter.util.runCatchingCancellable
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -172,7 +173,7 @@ class AuthRepository(
      */
     private suspend fun learnScopes() {
         for (acc in _accounts.value.filter { it.scopes == null }) {
-            val granted = runCatching { helix.validate(acc.token).scopes.toSet() }.getOrNull() ?: continue
+            val granted = runCatchingCancellable { helix.validate(acc.token).scopes.toSet() }.getOrNull() ?: continue
             writeLock.withLock {
                 val at = _accounts.value.indexOfFirst { it.userId == acc.userId && it.token == acc.token }
                 if (at < 0) return@withLock
@@ -234,7 +235,7 @@ class AuthRepository(
         params["error"]?.let { return Result.failure(IllegalStateException(params["error_description"] ?: it)) }
         if (expected == null || params["state"] != expected) return Result.failure(IllegalStateException("State mismatch"))
         val token = params["access_token"] ?: return Result.failure(IllegalStateException("No token"))
-        val result = runCatching {
+        val result = runCatchingCancellable {
             val v = helix.validate(token)
             // expires_in == 0 means the token does not expire on its own.
             val expiresAt = if (v.expiresIn > 0) System.currentTimeMillis() + v.expiresIn * 1000L else Long.MAX_VALUE
@@ -375,9 +376,9 @@ class AuthRepository(
     suspend fun refreshProfiles() {
         val logins = _accounts.value.map { it.login }
         if (logins.isEmpty()) return
-        val byId = runCatching { helix.users(logins) }.getOrNull()?.associateBy { it.id } ?: return
+        val byId = runCatchingCancellable { helix.users(logins) }.getOrNull()?.associateBy { it.id } ?: return
         val activeUserId = account?.userId
-        val following = activeUserId?.let { id -> runCatching { helix.followedCount(id) }.getOrNull() }
+        val following = activeUserId?.let { id -> runCatchingCancellable { helix.followedCount(id) }.getOrNull() }
         profilesRefreshedAt = System.currentTimeMillis()
         writeLock.withLock {
             val updated = _accounts.value.map { acc ->

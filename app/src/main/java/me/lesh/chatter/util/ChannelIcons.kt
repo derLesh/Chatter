@@ -36,7 +36,7 @@ class ChannelIcons(
     suspend fun load(url: String): IconCompat? {
         // Hardware bitmaps cannot leave the process, and notification icons do.
         val request = ImageRequest.Builder(context).data(url).size(ICON_SIZE_PX).allowHardware(false).build()
-        val image = (runCatching { imageLoader.execute(request) }.getOrNull() as? SuccessResult)?.image
+        val image = (runCatchingCancellable { imageLoader.execute(request) }.getOrNull() as? SuccessResult)?.image
         return (image as? BitmapImage)?.bitmap?.let { IconCompat.createWithBitmap(it) }
     }
 

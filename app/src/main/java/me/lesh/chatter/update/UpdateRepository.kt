@@ -6,6 +6,7 @@ import me.lesh.chatter.net.AppJson
 import me.lesh.chatter.net.DataSaving
 import me.lesh.chatter.net.fetch
 import me.lesh.chatter.settings.SettingsRepository
+import me.lesh.chatter.util.runCatchingCancellable
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.SharingStarted
@@ -60,7 +61,7 @@ class UpdateRepository(
                 .url(UpdateCheck.LATEST_URL)
                 .header("Accept", "application/vnd.github+json")
                 .build()
-            val json = runCatching { http.fetch(request) }.getOrElse {
+            val json = runCatchingCancellable { http.fetch(request) }.getOrElse {
                 // The user did not ask for this, so nothing goes on screen.
                 Log.i(TAG, "Could not ask GitHub for the latest release", it)
                 return@launch
