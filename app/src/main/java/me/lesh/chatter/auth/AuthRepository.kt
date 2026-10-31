@@ -13,12 +13,14 @@ import me.lesh.chatter.net.HelixApi
 import me.lesh.chatter.net.HttpException
 import me.lesh.chatter.net.fetch
 import me.lesh.chatter.net.postForm
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
+import kotlinx.coroutines.withContext
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import okhttp3.FormBody
@@ -321,8 +323,9 @@ class AuthRepository(
      */
     private suspend fun queueRevoke(tokens: List<String>) {
         if (tokens.isEmpty()) return
+        val encrypted = withContext(Dispatchers.IO) { tokens.map(TokenCipher::encrypt) }
         store.edit { p ->
-            p[REVOKE_KEY] = AccountStore.encodeTokens(AccountStore.decodeTokens(p[REVOKE_KEY]) + tokens.map(TokenCipher::encrypt))
+            p[REVOKE_KEY] = AccountStore.encodeTokens(AccountStore.decodeTokens(p[REVOKE_KEY]) + encrypted)
         }
     }
 
@@ -333,7 +336,7 @@ class AuthRepository(
         // A token that cannot be decrypted cannot be revoked either. One the keystore did not
         // answer for stays queued.
         val left = queued.filter { encrypted ->
-            when (val t = TokenCipher.open(encrypted)) {
+            when (val t = withContext(Dispatchers.IO) { TokenCipher.open(encrypted) }) {
                 is Decrypted.Plain -> !revoke(t.text)
                 Decrypted.Lost -> false
                 Decrypted.Unavailable -> true
@@ -481,7 +484,8 @@ class AuthRepository(
     /** Writes the account list and the guest flag; call while holding [writeLock]. */
     private suspend fun persist() {
         // An account logged in again replaces its unreadable entry.
-        val list = _accounts.value.map { it.stored() } +
+        // The Keystore answers over IPC, and the callers include the UI.
+        val list = withContext(Dispatchers.IO) { _accounts.value.map { it.stored() } } +
             unreadable.filter { u -> _accounts.value.none { it.userId == u.userId } }
         val active = activeId
         store.edit { prefs ->
