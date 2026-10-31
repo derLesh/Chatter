@@ -5,6 +5,7 @@ import android.content.Context
 import android.content.Intent
 import android.os.SystemClock
 import android.provider.Settings as AndroidSettings
+import androidx.activity.compose.LocalActivity
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
@@ -39,6 +40,7 @@ import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableLongStateOf
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -72,11 +74,16 @@ fun openNotificationSettings(context: Context) {
 @Composable
 fun NotificationIntroScreen(onDone: () -> Unit) {
     val context = LocalContext.current
-    // Android answers without asking once the user has refused twice; an answer that fast means no
-    // dialog was shown, so the system setting is the only way left.
+    val activity = LocalActivity.current
+    // Android refuses without a dialog once the user has refused twice; then only the system setting
+    // is left. An answered dialog changes whether Android wants a reason shown, and a dismissed one
+    // takes longer than a refusal without dialog.
     var askedAt by remember { mutableLongStateOf(0L) }
+    var reasonBefore by remember { mutableStateOf(false) }
     val permission = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
-        if (!granted && SystemClock.elapsedRealtime() - askedAt < SILENT_REFUSAL_MS) openNotificationSettings(context)
+        val reasonAfter = activity?.shouldShowRequestPermissionRationale(Manifest.permission.POST_NOTIFICATIONS) == true
+        val noDialog = !reasonBefore && !reasonAfter && SystemClock.elapsedRealtime() - askedAt < SILENT_REFUSAL_MS
+        if (!granted && noDialog) openNotificationSettings(context)
         onDone()
     }
     // A Surface, not a background: the text takes its color from it.
@@ -98,6 +105,7 @@ fun NotificationIntroScreen(onDone: () -> Unit) {
                     Button(
                         onClick = {
                             askedAt = SystemClock.elapsedRealtime()
+                            reasonBefore = activity?.shouldShowRequestPermissionRationale(Manifest.permission.POST_NOTIFICATIONS) == true
                             permission.launch(Manifest.permission.POST_NOTIFICATIONS)
                         },
                         modifier = Modifier.fillMaxWidth(),

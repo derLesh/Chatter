@@ -1,0 +1,1 @@
+patch: Open the notification settings only when Android no longer asks, not after a quick "Don't allow"
