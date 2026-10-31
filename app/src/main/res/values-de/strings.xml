@@ -420,6 +420,17 @@
     <string name="shared_chat_with">Geteilter Chat mit %1$s</string>
     <string name="settings_group_text">Text</string>
     <string name="settings_text_size_sample">Hallo Chat, so groß werden Nachrichten angezeigt.</string>
+    <string name="settings_preview_emote">Das war knapp</string>
+    <string name="settings_preview_long">Längere Nachrichten gehen in der nächsten Zeile weiter, so siehst du den Abstand zwischen den Zeilen.</string>
+    <string name="settings_line_spacing">Zeilenabstand</string>
+    <string name="line_spacing_compact">Eng</string>
+    <string name="line_spacing_normal">Normal</string>
+    <string name="line_spacing_roomy">Weit</string>
+    <string name="settings_emote_size">Emote-Größe</string>
+    <string name="emote_size_normal">Normal</string>
+    <string name="emote_size_large">Groß</string>
+    <string name="settings_message_dividers">Linien zwischen Nachrichten</string>
+    <string name="settings_message_dividers_hint">Eine dünne Linie unter jeder Nachricht</string>
     <string name="settings_smooth_scrolling">Weiches Scrollen</string>
     <string name="settings_smooth_scrolling_hint">Neue Nachrichten gleiten ins Bild statt zu springen. Im Akkusparmodus aus.</string>
 

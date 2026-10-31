@@ -428,6 +428,17 @@
     <string name="shared_chat_with">Shared Chat with %1$s</string>
     <string name="settings_group_text">Text</string>
     <string name="settings_text_size_sample">Hello chat, this is how big messages will be.</string>
+    <string name="settings_preview_emote">That was close</string>
+    <string name="settings_preview_long">Longer messages go on to the next line, so you can see the space between lines.</string>
+    <string name="settings_line_spacing">Line spacing</string>
+    <string name="line_spacing_compact">Compact</string>
+    <string name="line_spacing_normal">Normal</string>
+    <string name="line_spacing_roomy">Roomy</string>
+    <string name="settings_emote_size">Emote size</string>
+    <string name="emote_size_normal">Normal</string>
+    <string name="emote_size_large">Large</string>
+    <string name="settings_message_dividers">Lines between messages</string>
+    <string name="settings_message_dividers_hint">A thin line under every message</string>
     <string name="settings_smooth_scrolling">Smooth scrolling</string>
     <string name="settings_smooth_scrolling_hint">New messages glide into view instead of jumping. Off in battery saver.</string>
 

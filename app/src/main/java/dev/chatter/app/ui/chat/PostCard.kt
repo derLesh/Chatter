@@ -138,7 +138,7 @@ internal fun PostCard(link: PostLink, card: PostCardStyle, style: ChatStyle, loa
         Text(
             text = remember(link.url, style.linkColor) { linkText(link.url, style) },
             fontSize = style.fontSize.sp,
-            lineHeight = (style.fontSize * 1.45f).sp,
+            lineHeight = style.lineHeight,
         )
         return
     }
@@ -188,7 +188,7 @@ internal fun PostCardContent(post: Post, site: PostSite, card: PostCardStyle, st
             Text(
                 text = post.text,
                 fontSize = style.fontSize.sp,
-                lineHeight = (style.fontSize * 1.45f).sp,
+                lineHeight = style.lineHeight,
                 maxLines = card.textLines,
                 overflow = TextOverflow.Ellipsis,
             )

@@ -5,6 +5,10 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.unit.TextUnit
+import androidx.compose.ui.unit.sp
+import dev.chatter.app.settings.EmoteSize
+import dev.chatter.app.settings.LineSpacing
 import dev.chatter.app.settings.Settings
 import dev.chatter.app.settings.SpecialMessage
 import dev.chatter.app.settings.TimestampFormat
@@ -54,7 +58,15 @@ data class ChatStyle(
     val highlightedBackground: Color = Color.Transparent,
     /** Channel point reward titles by reward id; only the user's own channel's are known. */
     val rewardNames: Map<String, String> = emptyMap(),
+    /** Line height as a multiple of [fontSize]; see [LineSpacing]. */
+    val lineSpacing: Float = LineSpacing.Normal.factor,
+    /** Line under every message, or null when dividers are off. */
+    val dividerColor: Color? = null,
+    /** Emotes drawn larger, from a sharper image. */
+    val largeEmotes: Boolean = false,
 )
+
+val ChatStyle.lineHeight: TextUnit get() = (fontSize * lineSpacing).sp
 
 /**
  * The channel a message was written in, for lists that mix channels: its picture, and its name for
@@ -86,7 +98,8 @@ fun rememberChatStyle(
     val dark = isAppInDarkTheme()
     val colors = MaterialTheme.colorScheme
     return remember(
-        settings.fontSize, settings.timestamps, settings.highlightColor, settings.alternateBackground,
+        settings.fontSize, settings.lineSpacing, settings.emoteSize, settings.timestamps, settings.highlightColor,
+        settings.alternateBackground, settings.messageDividers,
         settings.nameColors, settings.highlightFirstMessages, settings.haptics, postCardStyle(settings),
         settings.inlineImages, settings.imageHosts, settings.showGifs, settings.fullLinks, settings.sevenTvPaints, settings.specialMessages, powerSave, saveData, emoteFrameRate, nicknames, rewardNames, dark, colors,
     ) {
@@ -120,6 +133,9 @@ fun rememberChatStyle(
             specialMessages = settings.specialMessages,
             highlightedBackground = colors.primary.copy(alpha = 0.28f),
             rewardNames = rewardNames,
+            lineSpacing = settings.lineSpacing.factor,
+            dividerColor = if (settings.messageDividers) colors.outlineVariant else null,
+            largeEmotes = settings.emoteSize == EmoteSize.Large,
         )
     }
 }

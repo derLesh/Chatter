@@ -43,6 +43,8 @@ import dev.chatter.app.net.HelixBlockedUser
 import dev.chatter.app.net.HelixChannelSearch
 import dev.chatter.app.net.HelixFollowedChannel
 import dev.chatter.app.net.HelixUser
+import dev.chatter.app.settings.EmoteSize
+import dev.chatter.app.settings.LineSpacing
 import dev.chatter.app.settings.MobileData
 import dev.chatter.app.settings.PostPictureSize
 import dev.chatter.app.settings.SettingsBackup
@@ -948,6 +950,8 @@ class MainViewModel(private val c: AppContainer, savedState: SavedStateHandle) :
     }
 
     fun setFontSize(v: Float) = saveSetting { setFontSize(v) }
+    fun setLineSpacing(v: LineSpacing) = saveSetting { setLineSpacing(v) }
+    fun setEmoteSize(v: EmoteSize) = saveSetting { setEmoteSize(v) }
     fun setMessageLimit(v: Int) = saveSetting { setMessageLimit(v) }
 
     /** Adds highlight words. Commas split, so a pasted list becomes separate words. */
@@ -985,6 +989,7 @@ class MainViewModel(private val c: AppContainer, savedState: SavedStateHandle) :
     fun setSpecialMessage(kind: SpecialMessage, on: Boolean) = saveSetting { setSpecialMessage(kind, on) }
     fun setNameColors(v: NameColorPalette) = saveSetting { setNameColors(v) }
     fun setAlternateBackground(v: Boolean) = saveSetting { setAlternateBackground(v) }
+    fun setMessageDividers(v: Boolean) = saveSetting { setMessageDividers(v) }
     fun setHighlightColor(v: Int) = saveSetting { setHighlightColor(v) }
     fun setSmoothScrolling(v: Boolean) = saveSetting { setSmoothScrolling(v) }
     fun setInlineImages(v: Boolean) = saveSetting { setInlineImages(v) }

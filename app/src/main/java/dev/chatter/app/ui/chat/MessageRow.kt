@@ -25,9 +25,12 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.CompositingStrategy
+import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalDensity
@@ -71,6 +74,9 @@ private const val HIGHLIGHT_ALPHA = 0.2f
 private const val HISTORICAL_ALPHA = 0.5f
 private const val HISTORICAL_ALPHA_LIGHT = 0.65f
 private const val EMOTE_EM = 2.1f
+/** About twice the height of a normal line. */
+private const val LARGE_EMOTE_EM = 3f
+private val DIVIDER_WIDTH = 1.dp
 /** Large enough to recognize the picture, small enough not to fill the screen. */
 private val IMAGE_MAX_WIDTH = 220.dp
 private val IMAGE_MAX_HEIGHT = 180.dp
@@ -113,9 +119,12 @@ fun MessageRow(
     val currentEmoteClick by rememberUpdatedState(onEmoteClick)
     val emoteClick = remember { { seg: Segment.EmoteSeg -> currentEmoteClick?.invoke(seg); Unit } }
     val measured = pendingAspects(built)
-    val inlineContent = remember(built, imageLoader, measured, style.smallEmotes, style.emoteFrameRate) {
+    val inlineContent = remember(built, imageLoader, measured, style.smallEmotes, style.emoteFrameRate, style.largeEmotes) {
         built.inline.mapValues { (_, data) ->
-            inlineFor(data, imageLoader, emoteClick.takeIf { onEmoteClick != null }, style.smallEmotes, style.emoteFrameRate)
+            inlineFor(
+                data, imageLoader, emoteClick.takeIf { onEmoteClick != null }, style.smallEmotes, style.emoteFrameRate,
+                if (style.largeEmotes) LARGE_EMOTE_EM else EMOTE_EM, style.largeEmotes,
+            )
         }
     }
 
@@ -137,6 +146,7 @@ fun MessageRow(
         Modifier
             .fillMaxWidth()
             .background(background)
+            .then(style.dividerColor?.let { color -> Modifier.drawBehind { drawDivider(color) } } ?: Modifier)
             .then(
                 if (onGesture == null) Modifier else Modifier.combinedClickable(
                     onClick = { onGesture(item, MessageGesture.Tap) },
@@ -233,7 +243,7 @@ fun MessageRow(
                     text = built.text,
                     inlineContent = inlineContent,
                     fontSize = style.fontSize.sp,
-                    lineHeight = (style.fontSize * 1.45f).sp,
+                    lineHeight = style.lineHeight,
                 )
             } else {
                 PaintedLine(built, paint, inlineContent, style, imageLoader)
@@ -253,6 +263,12 @@ fun MessageRow(
         }
         style.postCard?.let { card -> built.posts.forEach { PostCard(it, card, style, imageLoader) } }
     }
+}
+
+/** A hairline along the row's bottom edge, across its full width. */
+private fun DrawScope.drawDivider(color: Color) {
+    val y = size.height - DIVIDER_WIDTH.toPx() / 2
+    drawLine(color, Offset(0f, y), Offset(size.width, y), strokeWidth = DIVIDER_WIDTH.toPx())
 }
 
 /**
@@ -280,7 +296,7 @@ private fun PaintedLine(
         text = text,
         inlineContent = inlineContent,
         fontSize = style.fontSize.sp,
-        lineHeight = (style.fontSize * 1.45f).sp,
+        lineHeight = style.lineHeight,
         onTextLayout = { layout ->
             val bounds = layout.boundsOf(range)
             if (bounds != nameBounds) nameBounds = bounds
@@ -300,7 +316,7 @@ private fun LinkedImage(url: String, style: ChatStyle, loader: ImageLoader, alon
         Text(
             text = remember(url, title, style.linkColor) { linkText(url, style, title) },
             fontSize = style.fontSize.sp,
-            lineHeight = (style.fontSize * 1.45f).sp,
+            lineHeight = style.lineHeight,
         )
         return
     }
@@ -336,6 +352,7 @@ private fun inlineFor(
     smallEmotes: Boolean = false,
     frameRate: Float = EmoteFrameRate.ACTIVE,
     emoteEm: Float = EMOTE_EM,
+    largeEmotes: Boolean = false,
 ): InlineTextContent = when (data) {
     is InlineData.ChannelData -> InlineTextContent(
         Placeholder(BADGE_EM.em, BADGE_EM.em, PlaceholderVerticalAlign.Center),
@@ -367,7 +384,8 @@ private fun inlineFor(
         val base = data.seg.emote
         // Wide zero-width overlays should not be clipped, so the widest aspect ratio is used.
         val aspect = (data.seg.overlays + base).maxOf { EmoteSizes.aspectRatio(it) }
-        val em = if (data.giant) emoteEm * GIANT_EMOTE_SCALE else emoteEm
+        // A giant emote keeps Twitch's size whatever the emote size.
+        val em = if (data.giant) EMOTE_EM * GIANT_EMOTE_SCALE else emoteEm
         InlineTextContent(
             Placeholder((em * aspect).em, em.em, PlaceholderVerticalAlign.Center),
         ) {
@@ -377,7 +395,7 @@ private fun inlineFor(
                         url = when {
                             smallEmotes -> e.smallUrl
                             // The usual size would be blurry this large.
-                            data.giant -> e.largeUrl
+                            data.giant || largeEmotes -> e.largeUrl
                             else -> e.url
                         },
                         contentDescription = e.name,

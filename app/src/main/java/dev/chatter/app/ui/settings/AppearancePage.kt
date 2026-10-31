@@ -45,14 +45,19 @@ import dev.chatter.app.chat.ChatItem
 import dev.chatter.app.chat.MessageBody
 import dev.chatter.app.chat.MessageKind
 import dev.chatter.app.chat.Segment
+import dev.chatter.app.emotes.Emote
+import dev.chatter.app.emotes.EmoteProvider
+import dev.chatter.app.emotes.twitchEmoteUrl
+import dev.chatter.app.settings.EmoteSize
+import dev.chatter.app.settings.LineSpacing
 import dev.chatter.app.settings.Settings
 import dev.chatter.app.settings.SpecialMessage
 import dev.chatter.app.settings.ThemeMode
 import dev.chatter.app.settings.TimestampFormat
 import dev.chatter.app.ui.MainViewModel
 import dev.chatter.app.ui.SettingsSubPage
-import dev.chatter.app.ui.chat.ChatStyle
 import dev.chatter.app.ui.chat.MessageRow
+import dev.chatter.app.ui.chat.rememberChatStyle
 import dev.chatter.app.ui.theme.NameColorPalette
 import dev.chatter.app.ui.theme.highlightBackground
 import dev.chatter.app.ui.theme.highlightColor
@@ -80,19 +85,37 @@ internal fun AppearancePage(settings: Settings, vm: MainViewModel, open: (Settin
         item(R.string.settings_app_icon) { AppIconItem(vm) { open(SettingsSubPage.AppIcons) } }
     }
 
+    // Everything that changes how the chat looks, under one preview that shows it.
+    var fontSize by remember(settings.fontSize) { mutableFloatStateOf(settings.fontSize) }
     SettingsGroup(R.string.settings_group_text) {
-        item(R.string.settings_font_size) { TextSizeItem(settings, vm) }
-        item(R.string.settings_timestamps) { TimestampPicker(settings.timestamps, vm::setTimestamps) }
-    }
-
-    // How a message is drawn. Emotes have their own category.
-    SettingsGroup(R.string.settings_group_messages) {
+        item {
+            val messages = previewMessages()
+            Box(Modifier.padding(16.dp)) { ChatPreview(messages, settings, fontSize, vm) }
+        }
+        item(R.string.settings_font_size) { TextSizeSlider(fontSize, { fontSize = it }, vm) }
+        item(R.string.settings_line_spacing) {
+            SegmentedItem(R.string.settings_line_spacing, settings.lineSpacing, LINE_SPACINGS, vm::setLineSpacing)
+        }
+        item(R.string.settings_emote_size) {
+            SegmentedItem(R.string.settings_emote_size, settings.emoteSize, EMOTE_SIZES, vm::setEmoteSize)
+        }
+        item(R.string.settings_message_dividers) {
+            SwitchItem(
+                R.string.settings_message_dividers, settings.messageDividers,
+                vm::setMessageDividers, R.string.settings_message_dividers_hint,
+            )
+        }
         item(R.string.settings_alternate_background) {
             SwitchItem(
                 R.string.settings_alternate_background, settings.alternateBackground,
                 vm::setAlternateBackground, R.string.settings_alternate_background_hint,
             )
         }
+        item(R.string.settings_timestamps) { TimestampPicker(settings.timestamps, vm::setTimestamps) }
+    }
+
+    // How a message behaves. Emotes have their own category.
+    SettingsGroup(R.string.settings_group_messages) {
         item(R.string.settings_smooth_scrolling) {
             SwitchItem(
                 R.string.settings_smooth_scrolling, settings.smoothScrolling,
@@ -171,61 +194,108 @@ internal fun ThemeModeItem(selected: ThemeMode, onSelect: (ThemeMode) -> Unit) {
     )
 }
 
-/** Chat text size with a live preview line. */
+/** Chat text size with a live preview line, for where the size is the only choice on screen. */
 @Composable
 internal fun TextSizeItem(settings: Settings, vm: MainViewModel) {
     var size by remember(settings.fontSize) { mutableFloatStateOf(settings.fontSize) }
-    val scheme = MaterialTheme.colorScheme
-    val dark = isAppInDarkTheme()
-    val sampleText = stringResource(R.string.settings_text_size_sample)
-    val sample = remember(sampleText) {
-        ChatItem(
-            id = "preview", channel = "", kind = MessageKind.Chat, timestamp = System.currentTimeMillis(),
-            login = "chatter", displayName = "Chatter", color = 0xFF1E90FF.toInt(),
-            body = MessageBody.of(listOf(Segment.Text(sampleText))), text = sampleText,
-        )
+    val messages = previewMessages().take(1)
+    TextSizeSlider(size, { size = it }, vm) {
+        ChatPreview(messages, settings, size, vm, Modifier.padding(top = 4.dp))
     }
-    val style = ChatStyle(
-        fontSize = size.roundToInt().toFloat(),
-        timestamps = settings.timestamps,
-        dark = dark,
-        secondaryText = scheme.onSurfaceVariant,
-        linkColor = scheme.primary,
-        mentionBackground = Color.Transparent,
-        alternateBackground = null,
-        noticeBackground = Color.Transparent,
-        firstMessageBackground = null,
-        accent = scheme.primary,
-        nameColors = settings.nameColors,
-        nicknames = emptyMap(),
-        haptics = false,
-        imageHosts = emptyList(),
-    )
+}
+
+/**
+ * The text size slider. [size] follows the finger and is saved on release, so a preview can follow
+ * it while dragging.
+ */
+@Composable
+private fun TextSizeSlider(size: Float, onSize: (Float) -> Unit, vm: MainViewModel, preview: @Composable () -> Unit = {}) {
     ListItem(
         headlineContent = { Text(stringResource(R.string.settings_font_size, size.roundToInt())) },
         supportingContent = {
             Column {
                 Slider(
                     value = size,
-                    onValueChange = { size = it },
+                    onValueChange = onSize,
                     onValueChangeFinished = { vm.setFontSize(size.roundToInt().toFloat()) },
                     valueRange = 10f..24f,
                     steps = 13,
                 )
-                Surface(
-                    color = scheme.surface,
-                    shape = RoundedCornerShape(12.dp),
-                    modifier = Modifier.fillMaxWidth().padding(top = 4.dp),
-                ) {
-                    Box(Modifier.padding(vertical = 8.dp)) {
-                        MessageRow(sample, style, vm.imageLoader, onGesture = null)
-                    }
+                preview()
+            }
+        },
+        colors = transparentItem(),
+    )
+}
+
+/** Made-up messages: a short one, one with an emote and one long enough to wrap. */
+@Composable
+private fun previewMessages(): List<ChatItem> {
+    val short = stringResource(R.string.settings_text_size_sample)
+    val emote = stringResource(R.string.settings_preview_emote)
+    val long = stringResource(R.string.settings_preview_long)
+    return remember(short, emote, long) {
+        val now = System.currentTimeMillis()
+        val kappa = Emote("Kappa", "25", twitchEmoteUrl("25"), EmoteProvider.Twitch)
+        fun message(i: Int, name: String, color: Int, body: List<Segment>, text: String) = ChatItem(
+            id = "preview$i", channel = "", kind = MessageKind.Chat, timestamp = now,
+            login = name.lowercase(), displayName = name, color = color,
+            body = MessageBody.of(body), text = text,
+            // As the chat alternates them, so the alternating background shows.
+            alternate = i % 2 == 1,
+        )
+        listOf(
+            message(0, "Chatter", 0xFF1E90FF.toInt(), listOf(Segment.Text(short)), short),
+            message(1, "NightOwl", 0xFF9ACD32.toInt(), listOf(Segment.Text("$emote "), Segment.EmoteSeg(kappa)), "$emote Kappa"),
+            message(2, "Lurker", 0xFFFF7F50.toInt(), listOf(Segment.Text(long)), long),
+        )
+    }
+}
+
+/** [messages] drawn the way the chat would draw them with [settings], at text size [fontSize]. */
+@Composable
+private fun ChatPreview(messages: List<ChatItem>, settings: Settings, fontSize: Float, vm: MainViewModel, modifier: Modifier = Modifier) {
+    val style = rememberChatStyle(settings, emptyMap()).copy(fontSize = fontSize.roundToInt().toFloat(), haptics = false)
+    Surface(
+        color = MaterialTheme.colorScheme.surface,
+        shape = RoundedCornerShape(12.dp),
+        modifier = modifier.fillMaxWidth(),
+    ) {
+        // No padding around the rows, so their backgrounds fill the preview.
+        Column { messages.forEach { MessageRow(it, style, vm.imageLoader, onGesture = null) } }
+    }
+}
+
+/** A choice of two or three short options, spelled out as buttons under the title. */
+@Composable
+private fun <T> SegmentedItem(title: Int, selected: T, options: List<Pair<T, Int>>, onSelect: (T) -> Unit) {
+    ListItem(
+        headlineContent = { Text(stringResource(title)) },
+        supportingContent = {
+            SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth().padding(top = 8.dp)) {
+                options.forEachIndexed { i, (option, label) ->
+                    SegmentedButton(
+                        selected = selected == option,
+                        onClick = { onSelect(option) },
+                        shape = SegmentedButtonDefaults.itemShape(i, options.size),
+                    ) { Text(stringResource(label)) }
                 }
             }
         },
         colors = transparentItem(),
     )
 }
+
+internal val LINE_SPACINGS = listOf(
+    LineSpacing.Compact to R.string.line_spacing_compact,
+    LineSpacing.Normal to R.string.line_spacing_normal,
+    LineSpacing.Roomy to R.string.line_spacing_roomy,
+)
+
+private val EMOTE_SIZES = listOf(
+    EmoteSize.Normal to R.string.emote_size_normal,
+    EmoteSize.Large to R.string.emote_size_large,
+)
 
 internal val THEME_MODES = listOf(
     ThemeMode.System to R.string.theme_system,

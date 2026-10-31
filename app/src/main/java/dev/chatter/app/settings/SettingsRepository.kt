@@ -50,6 +50,12 @@ object PostTextLines {
     val RANGE = NONE..ALL
 }
 
+/** Height of a chat line, as a multiple of the text size. */
+enum class LineSpacing(val factor: Float) { Compact(1.2f), Normal(1.45f), Roomy(1.75f) }
+
+/** How tall emotes are drawn in a message. */
+enum class EmoteSize { Normal, Large }
+
 /** What tapping a message or its name does. Holding always opens the user card. */
 enum class TapAction { Reply, UserCard, Mention, Nothing }
 
@@ -59,6 +65,8 @@ enum class SpecialMessage { GiantEmote, Highlighted, Effect, Reward, WatchStreak
 @Serializable
 data class Settings(
     val fontSize: Float = 14f,
+    val lineSpacing: LineSpacing = LineSpacing.Normal,
+    val emoteSize: EmoteSize = EmoteSize.Normal,
     val timestamps: TimestampFormat = TimestampFormat.Short,
     val messageLimit: Int = 500,
     val mentionKeywords: List<String> = emptyList(),
@@ -74,6 +82,8 @@ data class Settings(
     val pureBlack: Boolean = false,
     /** Different background on every other message. */
     val alternateBackground: Boolean = false,
+    /** A thin line under every message. */
+    val messageDividers: Boolean = false,
     /** Mention highlight: [HIGHLIGHT_DEFAULT] (red), [HIGHLIGHT_ACCENT] (theme color) or an ARGB color. */
     val highlightColor: Int = HIGHLIGHT_DEFAULT,
     /** Load recent messages from the recent-messages service when joining a channel. */
@@ -191,6 +201,8 @@ class SettingsRepository(
     val settings: StateFlow<Settings> = store.data.map { p ->
         Settings(
             fontSize = p[FONT_SIZE] ?: 14f,
+            lineSpacing = p[LINE_SPACING]?.let { v -> LineSpacing.entries.firstOrNull { it.name == v } } ?: LineSpacing.Normal,
+            emoteSize = p[EMOTE_SIZE]?.let { v -> EmoteSize.entries.firstOrNull { it.name == v } } ?: EmoteSize.Normal,
             // Falls back to the old on/off switch.
             timestamps = p[TIMESTAMP_FORMAT]?.let { v -> TimestampFormat.entries.firstOrNull { it.name == v } }
                 ?: if (p[TIMESTAMPS] == false) TimestampFormat.Off else TimestampFormat.Short,
@@ -203,6 +215,7 @@ class SettingsRepository(
             dynamicColor = p[DYNAMIC_COLOR] ?: true,
             pureBlack = p[PURE_BLACK] ?: false,
             alternateBackground = p[ALTERNATE_BG] ?: false,
+            messageDividers = p[MESSAGE_DIVIDERS] ?: false,
             highlightColor = p[HIGHLIGHT_COLOR] ?: Settings.HIGHLIGHT_DEFAULT,
             loadHistory = p[LOAD_HISTORY] ?: true,
             smoothScrolling = p[SMOOTH_SCROLLING] ?: true,
@@ -256,6 +269,8 @@ class SettingsRepository(
     }.stateIn(scope, SharingStarted.Eagerly, Settings())
 
     suspend fun setFontSize(v: Float) = store.edit { it[FONT_SIZE] = v }
+    suspend fun setLineSpacing(v: LineSpacing) = store.edit { it[LINE_SPACING] = v.name }
+    suspend fun setEmoteSize(v: EmoteSize) = store.edit { it[EMOTE_SIZE] = v.name }
     suspend fun setTimestamps(v: TimestampFormat) = store.edit { it[TIMESTAMP_FORMAT] = v.name }
     suspend fun setMessageTap(v: TapAction) = store.edit { it[MESSAGE_TAP] = v.name }
     suspend fun setNameTap(v: TapAction) = store.edit { it[NAME_TAP] = v.name }
@@ -275,6 +290,7 @@ class SettingsRepository(
     suspend fun setDynamicColor(v: Boolean) = store.edit { it[DYNAMIC_COLOR] = v }
     suspend fun setPureBlack(v: Boolean) = store.edit { it[PURE_BLACK] = v }
     suspend fun setAlternateBackground(v: Boolean) = store.edit { it[ALTERNATE_BG] = v }
+    suspend fun setMessageDividers(v: Boolean) = store.edit { it[MESSAGE_DIVIDERS] = v }
     suspend fun setHighlightColor(v: Int) = store.edit { it[HIGHLIGHT_COLOR] = v }
     suspend fun setLoadHistory(v: Boolean) = store.edit { it[LOAD_HISTORY] = v }
     suspend fun setSmoothScrolling(v: Boolean) = store.edit { it[SMOOTH_SCROLLING] = v }
@@ -375,6 +391,8 @@ class SettingsRepository(
      */
     suspend fun replaceAll(s: Settings) = store.edit { p ->
         p[FONT_SIZE] = s.fontSize
+        p[LINE_SPACING] = s.lineSpacing.name
+        p[EMOTE_SIZE] = s.emoteSize.name
         p[TIMESTAMP_FORMAT] = s.timestamps.name
         p[LIMIT] = s.messageLimit
         p[KEYWORDS] = s.mentionKeywords.joinToString(",")
@@ -385,6 +403,7 @@ class SettingsRepository(
         p[DYNAMIC_COLOR] = s.dynamicColor
         p[PURE_BLACK] = s.pureBlack
         p[ALTERNATE_BG] = s.alternateBackground
+        p[MESSAGE_DIVIDERS] = s.messageDividers
         p[HIGHLIGHT_COLOR] = s.highlightColor
         p[LOAD_HISTORY] = s.loadHistory
         p[SMOOTH_SCROLLING] = s.smoothScrolling
@@ -472,6 +491,8 @@ class SettingsRepository(
                 ?: EmoteProvider.entries.toSet()
 
         val FONT_SIZE = floatPreferencesKey("font_size")
+        val LINE_SPACING = stringPreferencesKey("line_spacing")
+        val EMOTE_SIZE = stringPreferencesKey("emote_size")
         val TIMESTAMPS = booleanPreferencesKey("timestamps")
         val TIMESTAMP_FORMAT = stringPreferencesKey("timestamp_format")
         val LIMIT = intPreferencesKey("message_limit")
@@ -484,6 +505,7 @@ class SettingsRepository(
         val DYNAMIC_COLOR = booleanPreferencesKey("dynamic_color")
         val PURE_BLACK = booleanPreferencesKey("pure_black")
         val ALTERNATE_BG = booleanPreferencesKey("alternate_background")
+        val MESSAGE_DIVIDERS = booleanPreferencesKey("message_dividers")
         val HIGHLIGHT_COLOR = intPreferencesKey("highlight_color")
         val LOAD_HISTORY = booleanPreferencesKey("load_history")
         val SMOOTH_SCROLLING = booleanPreferencesKey("smooth_scrolling")

@@ -1,0 +1,1 @@
+minor: Choose line spacing, lines between messages and larger emotes, with a preview of the chat in the settings

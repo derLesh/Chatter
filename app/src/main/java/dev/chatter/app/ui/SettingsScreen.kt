@@ -91,6 +91,7 @@ import dev.chatter.app.ui.settings.EmotesPage
 import dev.chatter.app.ui.settings.FiltersPage
 import dev.chatter.app.ui.settings.ImageHostsPage
 import dev.chatter.app.ui.settings.KeywordsPage
+import dev.chatter.app.ui.settings.LINE_SPACINGS
 import dev.chatter.app.ui.settings.LiveChannelsPage
 import dev.chatter.app.ui.settings.LocalSettingsTarget
 import dev.chatter.app.ui.settings.MediaPage
@@ -206,8 +207,11 @@ private val SEARCH_INDEX: List<SearchEntry> by lazy {
         add(SearchEntry(R.string.settings_name_colors, appearance, R.string.settings_name_colors_hint))
         add(SearchEntry(R.string.settings_app_icon, appearance, also = APP_ICON_TERMS))
         add(SearchEntry(R.string.settings_font_size, appearance))
-        add(SearchEntry(R.string.settings_timestamps, appearance))
+        add(SearchEntry(R.string.settings_line_spacing, appearance, also = LINE_SPACINGS.map { it.second }))
+        add(SearchEntry(R.string.settings_emote_size, appearance))
+        add(SearchEntry(R.string.settings_message_dividers, appearance, R.string.settings_message_dividers_hint))
         add(SearchEntry(R.string.settings_alternate_background, appearance, R.string.settings_alternate_background_hint))
+        add(SearchEntry(R.string.settings_timestamps, appearance))
         add(SearchEntry(R.string.settings_smooth_scrolling, appearance, R.string.settings_smooth_scrolling_hint))
         add(SearchEntry(R.string.settings_show_deleted, appearance, R.string.settings_show_deleted_hint))
         add(SearchEntry(R.string.settings_first_messages, appearance, R.string.settings_first_messages_hint))
