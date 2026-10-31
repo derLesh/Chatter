@@ -6,11 +6,9 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
@@ -34,6 +32,7 @@ import androidx.compose.ui.draw.blur
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.layout.layout
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.pluralStringResource
@@ -42,7 +41,6 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.min
 import androidx.compose.ui.unit.sp
 import coil3.ImageLoader
 import coil3.compose.AsyncImage
@@ -58,6 +56,7 @@ import me.lesh.chatter.settings.Settings
 import java.text.DateFormat
 import java.util.Date
 import java.util.Locale
+import kotlin.math.roundToInt
 
 /** Where post cards get their posts. Without one, as in the settings preview, links stay links. */
 val LocalPosts = staticCompositionLocalOf<PostRepository?> { null }
@@ -225,34 +224,44 @@ internal fun PostCardContent(post: Post, site: PostSite, card: PostCardStyle, st
 private fun PostMediaBox(media: PostMedia, blurred: Boolean, maxHeight: Dp, open: () -> Unit, picture: PostPicture) {
     var hidden by remember(media.pictureUrl, blurred) { mutableStateOf(blurred) }
     val aspect = (media.aspectRatio ?: PICTURE_DEFAULT_ASPECT).coerceIn(PICTURE_MIN_ASPECT, PICTURE_MAX_ASPECT)
-    BoxWithConstraints(Modifier.fillMaxWidth()) {
-        Box(
-            contentAlignment = Alignment.Center,
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(min(maxWidth / aspect, maxHeight))
-                .clip(RoundedCornerShape(8.dp))
-                .clickable { if (hidden) hidden = false else open() },
-        ) {
-            picture(
-                media.pictureUrl,
-                stringResource(R.string.post_picture),
-                Modifier.matchParentSize().then(if (hidden) Modifier.blur(NSFW_BLUR) else Modifier),
+    Box(
+        contentAlignment = Alignment.Center,
+        modifier = Modifier
+            .fillMaxWidth()
+            .heightByAspect(aspect, maxHeight)
+            .clip(RoundedCornerShape(8.dp))
+            .clickable { if (hidden) hidden = false else open() },
+    ) {
+        picture(
+            media.pictureUrl,
+            stringResource(R.string.post_picture),
+            Modifier.matchParentSize().then(if (hidden) Modifier.blur(NSFW_BLUR) else Modifier),
+        )
+        when {
+            hidden -> Overlay(stringResource(R.string.post_nsfw))
+            media.video -> Icon(
+                Icons.Default.PlayArrow,
+                contentDescription = stringResource(R.string.post_video),
+                tint = Color.White,
+                modifier = Modifier.background(Color.Black.copy(alpha = 0.5f), CircleShape).padding(6.dp).size(28.dp),
             )
-            when {
-                hidden -> Overlay(stringResource(R.string.post_nsfw))
-                media.video -> Icon(
-                    Icons.Default.PlayArrow,
-                    contentDescription = stringResource(R.string.post_video),
-                    tint = Color.White,
-                    modifier = Modifier.background(Color.Black.copy(alpha = 0.5f), CircleShape).padding(6.dp).size(28.dp),
-                )
-            }
-            if (media.more > 0) {
-                Overlay("+${media.more}", Modifier.align(Alignment.BottomEnd).padding(6.dp))
-            }
+        }
+        if (media.more > 0) {
+            Overlay("+${media.more}", Modifier.align(Alignment.BottomEnd).padding(6.dp))
         }
     }
+}
+
+/**
+ * The width divided by [aspect], but at most [maxHeight]. Worked out while measuring, since
+ * BoxWithConstraints would compose every picture in the chat list a second time.
+ */
+private fun Modifier.heightByAspect(aspect: Float, maxHeight: Dp) = layout { measurable, constraints ->
+    val limit = maxHeight.toPx()
+    val wanted = if (constraints.hasBoundedWidth) minOf(constraints.maxWidth / aspect, limit) else limit
+    val height = wanted.roundToInt().coerceIn(constraints.minHeight, constraints.maxHeight)
+    val placeable = measurable.measure(constraints.copy(minHeight = height, maxHeight = height))
+    layout(placeable.width, height) { placeable.place(0, 0) }
 }
 
 @Composable
