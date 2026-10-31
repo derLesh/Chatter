@@ -242,6 +242,7 @@ jobs:
           fi
           echo "version=$version" >> "$GITHUB_OUTPUT"
           echo "code=$code" >> "$GITHUB_OUTPUT"
+          echo "previous=$previous" >> "$GITHUB_OUTPUT"
 
       # Preflight already opened it; this only puts it where Gradle reads it.
       - name: Unpack the upload keystore
@@ -312,19 +313,29 @@ jobs:
             ${{ steps.artifacts.outputs.apk }}
             ${{ steps.artifacts.outputs.aab }}
 
-      # The entries this release folded in: from the newest heading to the previous one.
+      # notes.md holds the entries this release folded in, as CHANGELOG.md has them, for Play.
+      # github-notes.md groups them by level for the GitHub release, links the full diff and says how
+      # to check the download.
       - name: Write the release notes
-        run: awk '/^## /{ heading++ } heading == 1 && !/^## /' CHANGELOG.md > "$RUNNER_TEMP/notes.md"
-
-      # Only on GitHub; Play installs are checked by Play.
-      - name: Say how to check the download
         env:
+          VERSION: ${{ steps.version.outputs.version }}
+          PREVIOUS: ${{ steps.version.outputs.previous }}
           APK: ${{ steps.artifacts.outputs.apk }}
           REPOSITORY: ${{ github.repository }}
         run: |
+          awk '/^## /{ heading++ } heading == 1 && !/^## /' CHANGELOG.md > "$RUNNER_TEMP/notes.md"
+          section() {
+            entries=$(sed -n "s/^- $1: /- /p" "$RUNNER_TEMP/notes.md")
+            if [ -n "$entries" ]; then printf '### %s\n\n%s\n\n' "$2" "$entries"; fi
+          }
           {
-            cat "$RUNNER_TEMP/notes.md"
-            echo
+            section major 'Changed'
+            section minor 'New'
+            section patch 'Fixed and improved'
+            if [ -n "$PREVIOUS" ]; then
+              echo "**Full changelog:** https://github.com/$REPOSITORY/compare/$PREVIOUS...v$VERSION"
+              echo
+            fi
             echo '### Checking the download'
             echo
             echo 'That this APK was built by the release workflow from this repository:'
@@ -357,8 +368,9 @@ jobs:
             echo "| APK | \`$(sha256sum "$APK" | cut -d' ' -f1)\` |"
             echo "| Bundle | \`$(sha256sum "$AAB" | cut -d' ' -f1)\` |"
             echo
-            echo '### Release notes'
-            cat "$RUNNER_TEMP/notes.md"
+            echo '### Release notes, as the GitHub release will show them'
+            echo
+            cat "$RUNNER_TEMP/github-notes.md"
           } >> "$GITHUB_STEP_SUMMARY"
 
       - name: Upload the artifacts to the run
@@ -400,7 +412,7 @@ jobs:
           gh release create "v$VERSION" \
             --verify-tag \
             --title "Chatter $VERSION" \
-            --notes-file "$RUNNER_TEMP/notes.md" \
+            --notes-file "$RUNNER_TEMP/github-notes.md" \
             "$APK" "$SHA" "$MAPPING"
 
       # Play shows these under "What's new" and cuts after 500 characters, so entries are trimmed to
