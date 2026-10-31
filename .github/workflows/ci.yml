@@ -143,8 +143,9 @@ jobs:
       # Lint on the release variant, since that is what ships. R8, the resource shrinker and
       # bundling only run in release builds, and a release is a bad time to find out they fail.
       # Signed with the debug key, and without a Twitch Client ID: this only proves it builds.
+      # The runner has 16 GB; R8 and lint run inside Gradle, which gradle.properties keeps to 4.
       - name: Lint and the release bundle
-        run: ./gradlew :app:lintRelease :app:bundleRelease --continue
+        run: ./gradlew -Dorg.gradle.jvmargs="-Xmx6g -Dfile.encoding=UTF-8" :app:lintRelease :app:bundleRelease --continue
 
       - name: Upload the lint report and the mapping
         if: failure()
