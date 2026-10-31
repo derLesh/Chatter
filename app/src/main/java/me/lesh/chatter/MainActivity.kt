@@ -39,7 +39,9 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
-        handleIntent(intent, jump = savedInstanceState == null)
+        // A recreated activity gets its first intent again; handled twice, it would switch back to
+        // that notification's channel after every rotation.
+        if (savedInstanceState == null) handleIntent(intent)
         setContent {
             val settings by vm.settings.collectAsStateWithLifecycle()
             ChatterTheme(settings.themeMode, settings.dynamicColor, settings.pureBlack) {
@@ -63,14 +65,11 @@ class MainActivity : ComponentActivity() {
         super.onStop()
     }
 
-    /**
-     * Handles a channel from a mention or live notification, or the inbox from a shortcut. [jump] is
-     * false for a recreated activity, which would otherwise scroll back to the mention on rotation.
-     */
-    private fun handleIntent(intent: Intent?, jump: Boolean = true) {
+    /** Handles a channel from a mention or live notification, or the inbox from a shortcut. */
+    private fun handleIntent(intent: Intent?) {
         intent ?: return
         val channel = intent.getStringExtra(EXTRA_CHANNEL)
-        val message = intent.getStringExtra(EXTRA_MESSAGE)?.takeIf { jump }
+        val message = intent.getStringExtra(EXTRA_MESSAGE)
         when {
             channel != null && message != null -> vm.openMessage(channel, message)
             channel != null -> vm.requestedChannel.value = channel
