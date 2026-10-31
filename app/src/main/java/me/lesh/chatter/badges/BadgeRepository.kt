@@ -82,11 +82,11 @@ class BadgeRepository(
     private val sevenTvCosmetics = ConcurrentHashMap<String, Badge>()
 
     /** Twitch user id to the cosmetic they wear; 7TV shows one badge per person. */
-    private val sevenTvWearers = ConcurrentHashMap<String, String>()
+    private val sevenTvWearers = RecentWearers(MAX_WEARERS)
 
     /** 7TV paints by id, and who wears which, arriving like the badges. */
     private val sevenTvPaints = ConcurrentHashMap<String, NamePaint>()
-    private val sevenTvPaintWearers = ConcurrentHashMap<String, String>()
+    private val sevenTvPaintWearers = RecentWearers(MAX_WEARERS)
 
     /** Channels whose badges failed to load, retried when the app comes back. */
     private val failedChannels = ConcurrentHashMap.newKeySet<String>()
@@ -305,6 +305,9 @@ class BadgeRepository(
 
         /** Wait after a failed fetch before trying again. */
         const val RETRY_AFTER_MS = 5 * 60_000L
+
+        /** Per map, a few hundred kilobytes; far more chatters than a busy evening shows. */
+        const val MAX_WEARERS = 5_000
 
         /** Ships with the app; Coil loads it from the resources. */
         const val SUPPORTER_BADGE_URL = "android.resource://me.lesh.chatter/drawable/ic_badge_supporter"
