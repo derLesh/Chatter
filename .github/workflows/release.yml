@@ -165,17 +165,12 @@ jobs:
         with:
           cache-provider: basic
 
-      - name: Check the pending changelog entries
-        run: ./gradlew checkChangelog
-
-      - name: Unit tests
-        run: ./gradlew :app:testDebugUnitTest
-
-      - name: Check the sponsor scripts
+      - name: Check the workflow scripts
         run: python3 -m unittest discover -s .github/scripts -p 'test_*.py'
 
-      - name: Lint
-        run: ./gradlew :app:lintRelease
+      # One Gradle call, so the tasks share one configuration and run in parallel.
+      - name: Changelog entries, unit tests and lint
+        run: ./gradlew checkChangelog :app:testDebugUnitTest :app:lintRelease --continue
 
       - name: Upload the test and lint reports
         if: failure()

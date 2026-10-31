@@ -66,19 +66,22 @@ build!: move the app id and packages to me.lesh.chatter
 
 The scope is optional and names the part of the app in lower case: `chat`, `irc`, `emotes`,
 `settings`, `notifications`, `release`, `deps`. A `!` before the colon marks a change that takes
-something away. `.github/scripts/check-commits.py` holds these rules, tested in
-`test_check_commits.py`: the `commit-msg` hook in `.githooks/` runs it on every commit, and CI runs
-it on every push and pull request, together with the check that a `feat`, `fix` or `perf` commit
-brings its file in `pending-changelog/`. Dependabot and the workflows that commit write the same
-form.
+something away. CI checks every new commit on each push and pull request, and that a `feat`,
+`fix` or `perf` commit brings its file in `pending-changelog/`. Since master takes pushes directly,
+that check comes after the push: get the subject right before committing. Dependabot and the
+workflows that commit write the same form.
 
 ## CI does the releasing
 
-`.github/workflows/ci.yml` runs on every push and pull request: the commit messages,
-`checkChangelog`, the unit tests, Android lint on the release variant, a debug APK it keeps as an
-artifact, and a release bundle it throws away. Lint is part of the gate, so a new lint error fails the branch — and so is the release
-bundle, because R8, the resource shrinker and resource linking only ever run there, and a release
-is a bad time to find out one of them is unhappy.
+`.github/workflows/ci.yml` runs on every push and pull request, in two stages. `Checks` needs no
+Gradle and is done in seconds: the Gradle wrapper, the commit messages and the workflow scripts.
+Then two jobs run side by side, each with one Gradle call: `checkChangelog` with the unit tests,
+and Android lint on the release variant with a release bundle it throws away. A push that only
+touches Markdown or `docs/` skips the second stage and still counts as green. Lint is part of the
+gate, so a new lint error fails the branch — and so is the release bundle, because R8, the
+resource shrinker and resource linking only ever run there, and a release is a bad time to find
+out one of them is unhappy. Release builds skip lint's own cut-down check (`checkReleaseBuilds`),
+since CI and the release workflow run the full one first.
 
 Every action in the workflows is named by a commit, not by a tag, with the version in a comment
 next to it. A tag can be moved by whoever controls the action, and the release job hands actions
@@ -221,7 +224,6 @@ says about the cold start and the chat frames, with the profile and without, int
 ## Commands
 
 ```sh
-git config core.hooksPath .githooks  # once per clone: check every commit message as it is written
 ./gradlew changelogStatus            # what is pending, and which version it would release
 ./gradlew checkChangelog             # are the pending entries well formed?
 ./gradlew releaseVersion             # fold them into CHANGELOG.md, bump the version, clear pending

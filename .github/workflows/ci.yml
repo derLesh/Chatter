@@ -1,5 +1,9 @@
-# Builds every push and pull request like a release, minus signing: compile, tests, lint and
-# changelog entries. The release workflow relies on this being green.
+# Builds every push and pull request like a release, minus signing. The release workflow and Nightly
+# rely on this being green.
+#
+# Two stages. checks needs no Gradle and fails in seconds: the wrapper, the commit messages, the
+# workflow scripts. Only then do tests and release build start, side by side, each with a single
+# Gradle call so its tasks share one configuration and run in parallel.
 name: CI
 
 on:
@@ -17,25 +21,107 @@ permissions:
   contents: read
 
 jobs:
-  # A pull request is checked from its base, a push from where master stood before it.
-  commits:
-    name: Commit messages
+  checks:
+    name: Checks
     runs-on: ubuntu-latest
     timeout-minutes: 5
+    outputs:
+      build: ${{ steps.changes.outputs.build }}
+    # A pull request is checked from its base, a push from where master stood before it.
+    env:
+      BASE: ${{ github.event.pull_request.base.sha || github.event.before }}
+      HEAD: ${{ github.event.pull_request.head.sha || github.sha }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0
           persist-credentials: false
 
-      - name: Check the commit messages and their changelog entries
-        env:
-          BASE: ${{ github.event.pull_request.base.sha || github.event.before }}
-          HEAD: ${{ github.event.pull_request.head.sha || github.sha }}
-        run: python3 -I .github/scripts/check-commits.py range "$BASE" "$HEAD"
+      # gradle-wrapper.jar is a binary nobody reviews; this compares it with Gradle's published
+      # checksums before any job runs it.
+      - name: Check the Gradle wrapper
+        uses: gradle/actions/wrapper-validation@3f5f9adaf7d9fecd50b5935e54106014257a94e6 # v6.4.0
 
-  build:
-    name: Build and test
+      # The convention in AGENTS.md. Merges and the reverts git writes are left alone. Without a
+      # known base (a manual run) only the newest commit is checked.
+      - name: Check the commit messages and their changelog entries
+        run: |
+          types='feat|fix|perf|ref|docs|test|build|ci|chore|revert'
+          if git cat-file -e "$BASE^{commit}" 2>/dev/null; then range="$BASE..$HEAD"; else range="-1 $HEAD"; fi
+          failed=0
+          for commit in $(git rev-list --no-merges $range); do
+            subject=$(git log -1 --format=%s "$commit")
+            case "$subject" in 'Revert "'*) continue ;; esac
+            if ! grep -qE "^($types)(\([a-z0-9-]+\))?!?: [^ ].*[^.]$" <<< "$subject" || [ ${#subject} -gt 100 ]; then
+              echo "::error::${commit:0:7} \"$subject\" is not \"type(scope): what changed\", at most 100 characters and no trailing dot."
+              failed=1
+            elif grep -qE '^(feat|fix|perf)[(!:]' <<< "$subject" &&
+                 ! git diff-tree --no-commit-id -r --name-only --diff-filter=AMR "$commit" \
+                   | grep '^pending-changelog/' | grep -qvE '/(README\.md|\.gitkeep)$'; then
+              echo "::error::${commit:0:7} \"$subject\" changes what users get, so it needs its entry in pending-changelog/."
+              failed=1
+            fi
+          done
+          exit $failed
+
+      # The scripts other workflows run unattended: the supporter list rules, the benchmark summary
+      # and the check on Dependabot's checksums.
+      - name: Check the workflow scripts
+        run: python3 -m unittest discover -s .github/scripts -p 'test_*.py'
+
+      # Only Markdown and docs/ changed: the build stage is skipped, and the run still counts as
+      # green for Nightly.
+      - name: Decide whether to build
+        id: changes
+        run: |
+          if git cat-file -e "$BASE^{commit}" 2>/dev/null && ! git diff --name-only "$BASE...$HEAD" | grep -qvE '(\.md$|^docs/)'; then
+            echo "Only docs changed; nothing to build." >> "$GITHUB_STEP_SUMMARY"
+            echo "build=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "build=true" >> "$GITHUB_OUTPUT"
+          fi
+
+  tests:
+    name: Unit tests
+    needs: checks
+    if: ${{ needs.checks.outputs.build == 'true' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Set up JDK
+        uses: actions/setup-java@b843ebf9b913146b38da2eaa7aeddf76074ae1ad # v6.1.0
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@3f5f9adaf7d9fecd50b5935e54106014257a94e6 # v6.4.0
+        # v6 caches through a closed-source library by default; the open provider over actions/cache
+        # is enough.
+        with:
+          cache-provider: basic
+
+      - name: Changelog entries and unit tests
+        run: ./gradlew checkChangelog :app:testDebugUnitTest --continue
+
+      - name: Upload the test reports
+        if: failure()
+        continue-on-error: true
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: test-reports
+          retention-days: 7
+          path: app/build/reports/tests/
+          if-no-files-found: ignore
+
+  release-build:
+    name: Lint and release build
+    needs: checks
+    if: ${{ needs.checks.outputs.build == 'true' }}
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
@@ -49,64 +135,25 @@ jobs:
           distribution: temurin
           java-version: '21'
 
-      # gradle-wrapper.jar is a binary nobody reviews; this compares it with Gradle's published
-      # checksums.
-      - name: Check the Gradle wrapper
-        uses: gradle/actions/wrapper-validation@3f5f9adaf7d9fecd50b5935e54106014257a94e6 # v6.4.0
-
       - name: Set up Gradle
         uses: gradle/actions/setup-gradle@3f5f9adaf7d9fecd50b5935e54106014257a94e6 # v6.4.0
-        # v6 caches through a closed-source library by default; the open provider over actions/cache
-        # is enough.
         with:
           cache-provider: basic
 
-      - name: Check the pending changelog entries
-        run: ./gradlew checkChangelog
+      # Lint on the release variant, since that is what ships. R8, the resource shrinker and
+      # bundling only run in release builds, and a release is a bad time to find out they fail.
+      # Signed with the debug key, and without a Twitch Client ID: this only proves it builds.
+      - name: Lint and the release bundle
+        run: ./gradlew :app:lintRelease :app:bundleRelease --continue
 
-      - name: Unit tests
-        run: ./gradlew :app:testDebugUnitTest
-
-      # The scripts other workflows run unattended: the supporter list rules, the benchmark summary
-      # and the check on Dependabot's checksums.
-      - name: Check the workflow scripts
-        run: python3 -m unittest discover -s .github/scripts -p 'test_*.py'
-
-      # The release variant, since that is what ships; it also checks the minified build's
-      # configuration.
-      - name: Lint
-        run: ./gradlew :app:lintRelease
-
-      # No Twitch Client ID: CI only proves the app builds.
-      - name: Assemble the debug APK
-        run: ./gradlew :app:assembleDebug
-
-      # R8, the resource shrinker and bundling only run in release builds; a release is a bad time
-      # to find out they fail. Signed with the debug key here.
-      - name: Assemble the release bundle
-        run: ./gradlew :app:bundleRelease
-
-      # Only a spare copy; the gate is build, tests and lint. A full artifact store (an account-wide
-      # quota) must not fail the branch.
-      - name: Upload the debug APK
-        continue-on-error: true
-        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
-        with:
-          name: chatter-debug-apk
-          path: app/build/outputs/apk/debug/*.apk
-          if-no-files-found: error
-          retention-days: 7
-
-      # The reports often say more than the log.
-      - name: Upload the test and lint reports
+      - name: Upload the lint report and the mapping
         if: failure()
         continue-on-error: true
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
-          name: reports
+          name: lint-reports
           retention-days: 7
           path: |
-            app/build/reports/tests/
             app/build/reports/lint-results-*.html
             app/build/outputs/mapping/release/
           if-no-files-found: ignore
