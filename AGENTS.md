@@ -153,10 +153,10 @@ made-up lines by `BusyChannel`. It runs against the `microbenchmark` build type:
 not debuggable (a debuggable app runs unoptimized and would measure nothing a user runs), with an
 application id of its own, because a connected test uninstalls what it tested afterwards.
 
-`.github/workflows/screen-tests.yml` runs the screen tests in `app/src/androidTest/.../flows` on an
-emulator for every push and pull request: the real activity, recreated, must come back on the same
-screen and page. They read as a guest without channels, so they need no login and no message
-arrives. They share the `microbenchmark` build with the benchmark, so both commands below name
+The screen tests in `app/src/androidTest/.../flows` run on the connected phone, not in CI: the real
+activity, recreated, must come back on the same screen and page. Run them after a change to the
+navigation or to what a screen keeps. They read as a guest without channels, so they need no login
+and no message arrives. They share the `microbenchmark` build with the benchmark, so both commands below name
 their package. What is written, sent and restored is tested on the JVM instead, through
 `Composer` and a sender the test controls (`ComposerFlowTest`); a new composer flow goes there.
 
