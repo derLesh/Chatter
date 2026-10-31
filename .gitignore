@@ -11,3 +11,6 @@ __pycache__/
 # Play Console notes, kept out of the public repository
 docs/play-store/
 .DS_Store
+
+# A second copy of .agents/skills/ for Claude Code, linked locally
+.claude/skills/
