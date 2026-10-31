@@ -50,6 +50,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.text.withLink
+import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.em
 import androidx.compose.ui.unit.sp
@@ -119,14 +120,16 @@ fun MessageRow(
     val currentEmoteClick by rememberUpdatedState(onEmoteClick)
     val emoteClick = remember { { seg: Segment.EmoteSeg -> currentEmoteClick?.invoke(seg); Unit } }
     val measured = pendingAspects(built)
+    val emoteEm = if (style.largeEmotes) LARGE_EMOTE_EM else EMOTE_EM
     val inlineContent = remember(built, imageLoader, measured, style.smallEmotes, style.emoteFrameRate, style.largeEmotes) {
         built.inline.mapValues { (_, data) ->
             inlineFor(
                 data, imageLoader, emoteClick.takeIf { onEmoteClick != null }, style.smallEmotes, style.emoteFrameRate,
-                if (style.largeEmotes) LARGE_EMOTE_EM else EMOTE_EM, style.largeEmotes,
+                emoteEm, style.largeEmotes,
             )
         }
     }
+    val lineHeight = remember(built, style) { lineHeightOf(built, style, emoteEm) }
 
     val firstMessage = item.isFirstMessage && style.firstMessageBackground != null
     val background = when {
@@ -243,10 +246,10 @@ fun MessageRow(
                     text = built.text,
                     inlineContent = inlineContent,
                     fontSize = style.fontSize.sp,
-                    lineHeight = style.lineHeight,
+                    lineHeight = lineHeight,
                 )
             } else {
-                PaintedLine(built, paint, inlineContent, style, imageLoader)
+                PaintedLine(built, paint, inlineContent, style, lineHeight, imageLoader)
             }
         }
         if (built.images.isNotEmpty() || built.gifs.isNotEmpty()) {
@@ -265,6 +268,16 @@ fun MessageRow(
     }
 }
 
+/**
+ * Compose takes the line height from the first line and forces it on every line, so an emote that
+ * wraps further down would reach into the line above. Lines with emotes are as tall as one instead.
+ * A giant emote is left out: lines that tall would tear the rest of the message apart.
+ */
+private fun lineHeightOf(built: BuiltLine, style: ChatStyle, emoteEm: Float): TextUnit {
+    val emotes = built.inline.values.any { it is InlineData.CheerData || (it is InlineData.EmoteData && !it.giant) }
+    return if (emotes && emoteEm > style.lineSpacing) (style.fontSize * emoteEm).sp else style.lineHeight
+}
+
 /** A hairline along the row's bottom edge, across its full width. */
 private fun DrawScope.drawDivider(color: Color) {
     val y = size.height - DIVIDER_WIDTH.toPx() / 2
@@ -281,6 +294,7 @@ private fun PaintedLine(
     paint: NamePaint,
     inlineContent: Map<String, InlineTextContent>,
     style: ChatStyle,
+    lineHeight: TextUnit,
     imageLoader: ImageLoader,
 ) {
     val range = built.nameRange ?: return
@@ -296,7 +310,7 @@ private fun PaintedLine(
         text = text,
         inlineContent = inlineContent,
         fontSize = style.fontSize.sp,
-        lineHeight = style.lineHeight,
+        lineHeight = lineHeight,
         onTextLayout = { layout ->
             val bounds = layout.boundsOf(range)
             if (bounds != nameBounds) nameBounds = bounds

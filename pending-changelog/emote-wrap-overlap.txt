@@ -1,0 +1,1 @@
+patch: Keep an emote that wraps to the next line from covering the line above
