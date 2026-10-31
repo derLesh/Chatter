@@ -47,6 +47,8 @@ class BubbleActivity : ComponentActivity() {
 
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
+        // [channel] reads the activity's intent, which Android does not replace on its own.
+        setIntent(intent)
         requestJump(intent)
     }
 
