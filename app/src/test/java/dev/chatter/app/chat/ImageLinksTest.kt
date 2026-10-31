@@ -96,6 +96,22 @@ class ImageLinksTest {
     }
 
     @Test
+    fun aNewDefaultHostJoinsAStoredListOnce() {
+        val stored = listOf("imgur.com", "example.com")
+        assertEquals(stored + "kappa.lol", ImageLinks.withNewDefaults(stored, ImageLinks.FIRST_DEFAULT_HOSTS))
+        // Given before and removed since.
+        assertEquals(stored, ImageLinks.withNewDefaults(stored, ImageLinks.DEFAULT_HOSTS))
+        assertEquals(emptyList<String>(), ImageLinks.withNewDefaults(emptyList(), ImageLinks.FIRST_DEFAULT_HOSTS))
+    }
+
+    @Test
+    fun aKappaLolLinkWithoutAFileTypeIsThePictureItself() {
+        assertEquals("https://kappa.lol/mXYBA", ImageLinks.imageUrl("https://kappa.lol/mXYBA", hosts))
+        assertEquals("https://kappa.lol/mXYBA.png", ImageLinks.imageUrl("https://kappa.lol/mXYBA.png", hosts))
+        assertNull(ImageLinks.imageUrl("https://kappa.lol/mXYBA.mp4", hosts))
+    }
+
+    @Test
     fun anAlbumIsMoreThanOnePictureAndStaysALink() {
         assertNull(ImageLinks.imageUrl("https://imgur.com/a/AbC123", hosts))
         assertNull(ImageLinks.imageUrl("https://imgur.com/gallery/AbC123", hosts))

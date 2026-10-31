@@ -21,6 +21,7 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.launch
 import kotlinx.serialization.Serializable
 
 enum class ThemeMode { System, Light, Dark }
@@ -198,6 +199,10 @@ class SettingsRepository(
     private val store: DataStore<Preferences>,
     scope: CoroutineScope,
 ) {
+    init {
+        scope.launch { giveNewImageHosts() }
+    }
+
     val settings: StateFlow<Settings> = store.data.map { p ->
         Settings(
             fontSize = p[FONT_SIZE] ?: 14f,
@@ -309,6 +314,17 @@ class SettingsRepository(
     suspend fun setUpdateCheck(v: Boolean) = store.edit { it[UPDATE_CHECK] = v }
     suspend fun setInlineImages(v: Boolean) = store.edit { it[INLINE_IMAGES] = v }
     suspend fun setShowGifs(v: Boolean) = store.edit { it[SHOW_GIFS] = v }
+    /**
+     * Adds hosts new in [ImageLinks.DEFAULT_HOSTS] to an image host list the install has stored; a
+     * missing list already means the defaults.
+     */
+    private suspend fun giveNewImageHosts() = store.edit { p ->
+        val given = p[IMAGE_HOSTS_GIVEN]?.let(::words) ?: ImageLinks.FIRST_DEFAULT_HOSTS
+        if (given.containsAll(ImageLinks.DEFAULT_HOSTS)) return@edit
+        p[IMAGE_HOSTS]?.let { p[IMAGE_HOSTS] = ImageLinks.withNewDefaults(hosts(it), given).joinToString(",") }
+        p[IMAGE_HOSTS_GIVEN] = (given + ImageLinks.DEFAULT_HOSTS).distinct().joinToString(",")
+    }
+
     suspend fun updateImageHosts(change: (List<String>) -> List<String>) =
         store.edit { it[IMAGE_HOSTS] = change(hosts(it[IMAGE_HOSTS])).joinToString(",") }
     suspend fun setPostSite(site: PostSite, on: Boolean) = store.edit { p ->
@@ -535,6 +551,8 @@ class SettingsRepository(
         val FULL_LINKS = booleanPreferencesKey("full_links")
         val MOBILE_DATA = stringPreferencesKey("mobile_data")
         val IMAGE_HOSTS = stringPreferencesKey("image_hosts")
+        /** Default hosts this install has been given, so each is added only once. */
+        val IMAGE_HOSTS_GIVEN = stringPreferencesKey("image_hosts_given")
         val CAROUSEL_CHANNELS = booleanPreferencesKey("carousel_channels")
         val HAPTICS = booleanPreferencesKey("haptics")
         val KEEP_SCREEN_ON = booleanPreferencesKey("keep_screen_on")

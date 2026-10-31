@@ -20,7 +20,26 @@ object ImageLinks {
         "media.discordapp.net",
         "files.catbox.moe",
         "i.nuuls.com",
+        "kappa.lol",
     )
+
+    /** [DEFAULT_HOSTS] before the app noted which ones an install has been given. */
+    val FIRST_DEFAULT_HOSTS = listOf(
+        "imgur.com",
+        "gyazo.com",
+        "i.redd.it",
+        "cdn.discordapp.com",
+        "media.discordapp.net",
+        "files.catbox.moe",
+        "i.nuuls.com",
+    )
+
+    /**
+     * [stored] plus the default hosts not in [given]: a host joins a list the user already has once,
+     * and one they removed afterwards stays removed. An emptied list stays empty.
+     */
+    fun withNewDefaults(stored: List<String>, given: Collection<String>): List<String> =
+        if (stored.isEmpty()) stored else stored + DEFAULT_HOSTS.filter { it !in given && it !in stored }
 
     /**
      * The only file types fetched as pictures: raster formats Android decodes. Nothing that can
@@ -28,7 +47,7 @@ object ImageLinks {
      */
     private val IMAGE_TYPES = setOf("png", "jpg", "jpeg", "gif", "webp", "bmp", "avif", "heic", "heif")
 
-    /** Longest id an Imgur or Gyazo link is expected to have. */
+    /** Longest id an Imgur, Gyazo or kappa.lol link is expected to have. */
     private const val MAX_ID = 64
 
     /**
@@ -49,12 +68,13 @@ object ImageLinks {
         val file = segments.lastOrNull().orEmpty()
         if (file.substringAfterLast('.', "").lowercase() in IMAGE_TYPES) return parsed.toString()
         // Imgur and Gyazo links point to a page; the picture is on their image host under the same
-        // id. Albums and galleries stay links. The id goes into a URL built here, so only ASCII
-        // letters and digits are accepted.
+        // id. kappa.lol serves the file itself, with or without a file type. Albums and galleries
+        // stay links. The id goes into a URL built here, so only ASCII letters and digits pass.
         val id = segments.singleOrNull()?.takeIf { it.length in 1..MAX_ID && it.all(::isPlainAscii) } ?: return null
         return when {
             host == "imgur.com" || host.endsWith(".imgur.com") -> "https://i.imgur.com/$id.png"
             host == "gyazo.com" || host.endsWith(".gyazo.com") -> "https://i.gyazo.com/$id.png"
+            host == "kappa.lol" || host.endsWith(".kappa.lol") -> "https://kappa.lol/$id"
             else -> null
         }
     }
