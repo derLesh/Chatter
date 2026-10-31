@@ -57,7 +57,9 @@ enum class AppIcon(
     /** Whether it can be picked on [date]; a seasonal icon only on its days. */
     fun isOpen(date: LocalDate): Boolean = season?.isOn(date) ?: true
 
-    private fun component(context: Context) = ComponentName(context, context.packageName + alias)
+    // The manifest names the aliases after the namespace, which the benchmark and profiling builds
+    // do not share with their package name.
+    private fun component(context: Context) = ComponentName(context.packageName, LAUNCHER_NAMESPACE + alias)
 
     private fun isEnabled(pm: PackageManager, context: Context): Boolean =
         when (pm.getComponentEnabledSetting(component(context))) {
@@ -68,6 +70,9 @@ enum class AppIcon(
         }
 
     companion object {
+        /** `namespace` in build.gradle.kts. */
+        private const val LAUNCHER_NAMESPACE = "dev.chatter.app"
+
         fun current(context: Context): AppIcon {
             val pm = context.packageManager
             return entries.firstOrNull { it.isEnabled(pm, context) } ?: Light
