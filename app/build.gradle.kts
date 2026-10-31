@@ -24,13 +24,12 @@ fun env(name: String): String? = providers.environmentVariable(name).orNull?.tak
 val twitchClientId: String = localProps.getProperty("twitch.clientId").orEmpty()
     .ifBlank { env("TWITCH_CLIENT_ID").orEmpty() }
 
-// The upload keystore, decoded from a secret by the release workflow. Without it (a release build
-// on a dev machine) the debug key below keeps the APK installable.
-val uploadKeystore: String? = env("CHATTER_KEYSTORE_FILE")
-
-// Play rejects debug-signed builds, and the first upload fixes the signing key for good. Builds for
-// Play set this and fail instead of falling back to the debug key.
-val requireUploadKey: Boolean = env("CHATTER_REQUIRE_UPLOAD_KEY") != null
+/**
+ * `-Punsigned`: the release and nightly workflows build without a key and sign in a job of their
+ * own, so no Gradle plugin or library ever sees it. Without it a release build is signed with the
+ * debug key, which keeps it installable for testing.
+ */
+val unsigned = project.hasProperty("unsigned")
 
 // Written by "./gradlew releaseVersion" from the entries in pending-changelog/; never edited by
 // hand.
@@ -124,36 +123,6 @@ android {
         testInstrumentationRunnerArguments["androidx.benchmark.suppressErrors"] = "EMULATOR"
     }
 
-    signingConfigs {
-        if (uploadKeystore != null) {
-            // All four or none; a missing password otherwise fails deep in the signing task without
-            // naming the secret.
-            val missing = listOf(
-                "CHATTER_KEYSTORE_PASSWORD" to env("CHATTER_KEYSTORE_PASSWORD"),
-                "CHATTER_KEY_ALIAS" to env("CHATTER_KEY_ALIAS"),
-                "CHATTER_KEY_PASSWORD" to env("CHATTER_KEY_PASSWORD"),
-            ).filter { it.second == null }.map { it.first }
-            if (missing.isNotEmpty()) {
-                throw GradleException(
-                    "CHATTER_KEYSTORE_FILE is set, but $missing ${if (missing.size == 1) "is" else "are"} not. " +
-                        "The upload key needs the keystore, its password, the alias and the key password.",
-                )
-            }
-            create("upload") {
-                storeFile = file(uploadKeystore)
-                storePassword = env("CHATTER_KEYSTORE_PASSWORD")
-                keyAlias = env("CHATTER_KEY_ALIAS")
-                keyPassword = env("CHATTER_KEY_PASSWORD")
-            }
-        } else if (requireUploadKey) {
-            throw GradleException(
-                "CHATTER_REQUIRE_UPLOAD_KEY is set, so this build is meant for Play, but there is no " +
-                    "upload keystore in CHATTER_KEYSTORE_FILE. Signing it with the debug key would " +
-                    "produce an artifact Play refuses.",
-            )
-        }
-    }
-
     buildTypes {
         debug {
             // People building the app themselves get the link.
@@ -170,9 +139,7 @@ android {
             isMinifyEnabled = true
             isShrinkResources = true
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
-            // The upload key if there is one, otherwise the debug key, so release builds stay
-            // installable for testing.
-            signingConfig = signingConfigs.findByName("upload") ?: signingConfigs.getByName("debug")
+            signingConfig = if (unsigned) null else signingConfigs.getByName("debug")
         }
         // What the microbenchmark runs against: the debug build, not debuggable, since debuggable
         // apps run without optimizations. Not minified, so the benchmark can reach the classes R8

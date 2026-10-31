@@ -2,11 +2,10 @@
 # as with "./gradlew releaseVersion".
 #
 # preflight checks the setup in seconds without building: secrets, keystore, branch, something to
-# release. verify is the CI gate: changelog, unit tests, scripts, lint. release folds the changelog,
-# builds and signs APK and bundle, and only then pushes the release commit and tag and publishes, so
-# a failed build leaves the repository untouched.
-#
-# preflight and verify run in parallel without the signing key; it only reaches the step that signs.
+# release. verify is the CI gate: changelog, unit tests, scripts, lint. build folds the changelog
+# and builds APK and bundle without any key. sign signs them, with no Gradle in reach of the key.
+# publish only then pushes the release commit and tag and publishes, so a failed build or signing
+# leaves the repository untouched.
 name: Release
 
 on:
@@ -40,7 +39,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 5
     # The signing secrets live only in this environment, which only master may use. A dry run from
-    # another branch gets no environment and signs with the debug key.
+    # another branch gets no environment and signs with a throwaway key.
     environment: ${{ github.ref_name == github.event.repository.default_branch && 'release' || '' }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -75,7 +74,7 @@ jobs:
           # A published APK that cannot log in is worse than no release.
           [ -n "$TWITCH_CLIENT_ID" ] || missing+=(TWITCH_CLIENT_ID)
           # Play refuses the debug key, and the first upload's key is the only one allowed to update
-          # the app. Only a dry run may sign with the debug key.
+          # the app. Only a dry run may sign with a throwaway key.
           if [ "$DRY_RUN" != "true" ] || [ -n "$KEYSTORE_BASE64" ]; then
             for name in KEYSTORE_BASE64 KEYSTORE_PASSWORD KEY_ALIAS KEY_PASSWORD; do
               [ -n "${!name}" ] || missing+=("$name")
@@ -91,7 +90,7 @@ jobs:
             exit 1
           fi
           if [ -z "$KEYSTORE_BASE64" ]; then
-            echo "::warning::No KEYSTORE_BASE64 secret. This dry run signs with the debug key."
+            echo "::warning::No KEYSTORE_BASE64 secret. This dry run signs with a throwaway key."
           fi
 
       - name: Set up JDK
@@ -184,25 +183,21 @@ jobs:
             app/build/reports/lint-results-*.html
           if-no-files-found: ignore
 
-  release:
-    name: Release
+  # Builds without any key: the APK, the Play bundle, their mappings, the notes and the release
+  # commit, handed to the next jobs as an artifact.
+  build:
+    name: Build
     needs: [preflight, verify]
     runs-on: ubuntu-latest
     timeout-minutes: 45
-    # As in preflight.
-    environment: ${{ github.ref_name == github.event.repository.default_branch && 'release' || '' }}
-    # id-token and attestations only for the attestation step; no other job may sign one.
-    permissions:
-      contents: write
-      id-token: write
-      attestations: write
     outputs:
       version: ${{ steps.version.outputs.version }}
     steps:
-      # Full history, to push the release commit and tag and to read the previous tag's version.
+      # Full history, to read the previous tag's version.
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0
+          persist-credentials: false
 
       - name: Set up JDK
         uses: actions/setup-java@b843ebf9b913146b38da2eaa7aeddf76074ae1ad # v6.1.0
@@ -212,7 +207,7 @@ jobs:
 
       - name: Set up Gradle
         uses: gradle/actions/setup-gradle@3f5f9adaf7d9fecd50b5935e54106014257a94e6 # v6.4.0
-        # The signed build starts without any cache another run could have written.
+        # The release build starts without any cache another run could have written.
         with:
           cache-disabled: true
           cache-provider: basic
@@ -244,74 +239,27 @@ jobs:
           echo "code=$code" >> "$GITHUB_OUTPUT"
           echo "previous=$previous" >> "$GITHUB_OUTPUT"
 
-      # Preflight already opened it; this only puts it where Gradle reads it.
-      - name: Unpack the upload keystore
-        id: keystore
-        env:
-          KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
-        run: |
-          if [ -z "$KEYSTORE_BASE64" ]; then
-            echo "path=" >> "$GITHUB_OUTPUT"
-            exit 0
-          fi
-          printf '%s' "$KEYSTORE_BASE64" | tr -d '[:space:]' | base64 -d > "$RUNNER_TEMP/upload.jks"
-          echo "path=$RUNNER_TEMP/upload.jks" >> "$GITHUB_OUTPUT"
-
-      # The only step with the signing key. build.gradle.kts reads it as CHATTER_*;
-      # CHATTER_REQUIRE_UPLOAD_KEY makes a real release fail instead of falling back to the debug
-      # key.
-      #
       # Two invocations, because only the sideloaded APK may carry the GitHub Sponsors link (see
       # SPONSOR_LINK in build.gradle.kts). The bundle is built second without the flag.
-      - name: Build and sign the APK and the Play bundle
+      - name: Build the APK and the Play bundle
         env:
           TWITCH_CLIENT_ID: ${{ secrets.TWITCH_CLIENT_ID }}
-          CHATTER_KEYSTORE_FILE: ${{ steps.keystore.outputs.path }}
-          CHATTER_KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
-          CHATTER_KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
-          CHATTER_KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
-          CHATTER_REQUIRE_UPLOAD_KEY: ${{ !inputs.dry_run && '1' || '' }}
         run: |
-          ./gradlew :app:assembleRelease -Pdistribution=github
+          ./gradlew :app:assembleRelease -Pdistribution=github -Punsigned
           # The bundle's R8 run writes a mapping of its own over this one.
           cp app/build/outputs/mapping/release/mapping.txt "$RUNNER_TEMP/apk-mapping.txt"
-          ./gradlew :app:bundleRelease
+          ./gradlew :app:bundleRelease -Punsigned
 
-      - name: Delete the keystore
-        if: always()
-        run: rm -f "$RUNNER_TEMP/upload.jks"
-
-      # Named after the version, with a checksum next to the APK. The mappings turn the stack trace
-      # of a crash in that build back into readable names.
-      - name: Name the artifacts after the version
-        id: artifacts
+      # The mappings turn the stack trace of a crash in that build back into readable names.
+      - name: Collect the build
         env:
           VERSION: ${{ steps.version.outputs.version }}
         run: |
-          apk="chatter-$VERSION.apk"
-          aab="chatter-$VERSION.aab"
-          mv app/build/outputs/apk/release/app-release.apk "$apk"
-          mv app/build/outputs/bundle/release/app-release.aab "$aab"
-          mv "$RUNNER_TEMP/apk-mapping.txt" "chatter-$VERSION-mapping.txt"
-          mv app/build/outputs/mapping/release/mapping.txt "chatter-$VERSION-bundle-mapping.txt"
-          sha256sum "$apk" > "$apk.sha256"
-          {
-            echo "apk=$apk"
-            echo "aab=$aab"
-            echo "sha=$apk.sha256"
-            echo "mapping=chatter-$VERSION-mapping.txt"
-            echo "bundle_mapping=chatter-$VERSION-bundle-mapping.txt"
-          } >> "$GITHUB_OUTPUT"
-
-      # Signed by GitHub: this workflow, this commit and this run built these files. The checksum
-      # next to the APK only proves the download is whole, since the same job uploads both.
-      - name: Attest the APK and the bundle
-        if: ${{ !inputs.dry_run }}
-        uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8 # v4.2.2
-        with:
-          subject-path: |
-            ${{ steps.artifacts.outputs.apk }}
-            ${{ steps.artifacts.outputs.aab }}
+          mkdir build-out
+          mv app/build/outputs/apk/release/app-release-unsigned.apk build-out/unsigned.apk
+          mv app/build/outputs/bundle/release/app-release.aab build-out/unsigned.aab
+          mv "$RUNNER_TEMP/apk-mapping.txt" "build-out/chatter-$VERSION-mapping.txt"
+          mv app/build/outputs/mapping/release/mapping.txt "build-out/chatter-$VERSION-bundle-mapping.txt"
 
       # notes.md holds the entries this release folded in, as CHANGELOG.md has them, for Play.
       # github-notes.md groups them by level for the GitHub release, links the full diff and says how
@@ -320,12 +268,12 @@ jobs:
         env:
           VERSION: ${{ steps.version.outputs.version }}
           PREVIOUS: ${{ steps.version.outputs.previous }}
-          APK: ${{ steps.artifacts.outputs.apk }}
           REPOSITORY: ${{ github.repository }}
         run: |
-          awk '/^## /{ heading++ } heading == 1 && !/^## /' CHANGELOG.md > "$RUNNER_TEMP/notes.md"
+          apk="chatter-$VERSION.apk"
+          awk '/^## /{ heading++ } heading == 1 && !/^## /' CHANGELOG.md > build-out/notes.md
           section() {
-            entries=$(sed -n "s/^- $1: /- /p" "$RUNNER_TEMP/notes.md")
+            entries=$(sed -n "s/^- $1: /- /p" build-out/notes.md)
             if [ -n "$entries" ]; then printf '### %s\n\n%s\n\n' "$2" "$entries"; fi
           }
           {
@@ -341,19 +289,28 @@ jobs:
             echo 'That this APK was built by the release workflow from this repository:'
             echo
             echo '```sh'
-            echo "gh attestation verify $APK --repo $REPOSITORY"
+            echo "gh attestation verify $apk --repo $REPOSITORY"
             echo '```'
             echo
             echo 'That it is signed with the release key: `apksigner verify --print-certs` shows the'
             echo 'certificate SHA-256 listed in the [README](https://github.com/'"$REPOSITORY"'#install).'
-          } > "$RUNNER_TEMP/github-notes.md"
+          } > build-out/github-notes.md
+
+      # Made here, from exactly the changelog and version this build used; publish applies it.
+      - name: Write the release commit
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add -A version.properties CHANGELOG.md pending-changelog
+          git commit -q -m "chore(release): $VERSION"
+          git format-patch -1 --stdout > build-out/release.patch
 
       - name: Summarise the build
         env:
           VERSION: ${{ steps.version.outputs.version }}
           CODE: ${{ steps.version.outputs.code }}
-          APK: ${{ steps.artifacts.outputs.apk }}
-          AAB: ${{ steps.artifacts.outputs.aab }}
           DRY_RUN: ${{ inputs.dry_run }}
           PLAY_TRACK: ${{ inputs.play_track }}
         run: |
@@ -365,55 +322,173 @@ jobs:
             echo "| versionCode | $CODE |"
             echo "| Dry run | $DRY_RUN |"
             echo "| Play track | $PLAY_TRACK |"
-            echo "| APK | \`$(sha256sum "$APK" | cut -d' ' -f1)\` |"
-            echo "| Bundle | \`$(sha256sum "$AAB" | cut -d' ' -f1)\` |"
             echo
             echo '### Release notes, as the GitHub release will show them'
             echo
-            cat "$RUNNER_TEMP/github-notes.md"
+            cat build-out/github-notes.md
           } >> "$GITHUB_STEP_SUMMARY"
 
-      - name: Upload the artifacts to the run
-        continue-on-error: true
+      - name: Hand the build to the next jobs
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
-          name: chatter-${{ steps.version.outputs.version }}
-          path: |
-            ${{ steps.artifacts.outputs.apk }}
-            ${{ steps.artifacts.outputs.sha }}
-            ${{ steps.artifacts.outputs.aab }}
-            ${{ steps.artifacts.outputs.mapping }}
-            ${{ steps.artifacts.outputs.bundle_mapping }}
+          name: build
+          path: build-out/
+          retention-days: 7
           if-no-files-found: error
+
+  # The only job with the signing key, and it runs no Gradle: apksigner and jarsigner from the
+  # runner's Android SDK sign what build made.
+  sign:
+    name: Sign
+    needs: build
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    # As in preflight.
+    environment: ${{ github.ref_name == github.event.repository.default_branch && 'release' || '' }}
+    steps:
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: build
+          path: build-out
+
+      - name: Set up JDK
+        uses: actions/setup-java@b843ebf9b913146b38da2eaa7aeddf76074ae1ad # v6.1.0
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      # The keystore exists only inside this step. A dry run without one signs with a throwaway key,
+      # so it takes the same path as a release; preflight already refused a real run without it.
+      - name: Sign the APK and the Play bundle
+        id: signed
+        env:
+          VERSION: ${{ needs.build.outputs.version }}
+          DRY_RUN: ${{ inputs.dry_run }}
+          KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
+          KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
+        run: |
+          keystore="$RUNNER_TEMP/upload.jks"
+          trap 'rm -f "$keystore"' EXIT
+          if [ -n "$KEYSTORE_BASE64" ]; then
+            printf '%s' "$KEYSTORE_BASE64" | tr -d '[:space:]' | base64 -d > "$keystore"
+          elif [ "$DRY_RUN" = true ]; then
+            export KEY_ALIAS=dry-run KEYSTORE_PASSWORD=dry-run-only KEY_PASSWORD=dry-run-only
+            keytool -genkeypair -keystore "$keystore" -storetype PKCS12 -alias "$KEY_ALIAS" \
+              -keyalg RSA -keysize 2048 -validity 1 -dname 'CN=Chatter dry run' \
+              -storepass:env KEYSTORE_PASSWORD -keypass:env KEY_PASSWORD
+            echo "::warning::No KEYSTORE_BASE64 secret. This dry run signs with a throwaway key."
+          else
+            echo "::error::A release needs the KEYSTORE_BASE64 secret."
+            exit 1
+          fi
+          apk="chatter-$VERSION.apk"
+          aab="chatter-$VERSION.aab"
+          tools=$(ls -d "$ANDROID_HOME"/build-tools/* | sort -V | tail -1)
+          "$tools/zipalign" -P 16 -f 4 build-out/unsigned.apk "$RUNNER_TEMP/aligned.apk"
+          "$tools/apksigner" sign --ks "$keystore" --ks-key-alias "$KEY_ALIAS" \
+            --ks-pass env:KEYSTORE_PASSWORD --key-pass env:KEY_PASSWORD \
+            --out "$apk" "$RUNNER_TEMP/aligned.apk"
+          jarsigner -keystore "$keystore" -storepass:env KEYSTORE_PASSWORD -keypass:env KEY_PASSWORD \
+            -sigalg SHA256withRSA -digestalg SHA-256 -signedjar "$aab" build-out/unsigned.aab "$KEY_ALIAS" > /dev/null
+          certificate=$("$tools/apksigner" verify --print-certs "$apk" | sed -n 's/^.*certificate SHA-256 digest: //p' | head -1)
+          # Exits 0 for an unsigned file too; -strict would fail on what every Android key is: self-signed.
+          jarsigner -verify "$aab" | grep -q 'jar verified'
+          sha256sum "$apk" > "$apk.sha256"
+          {
+            echo "apk=$apk"
+            echo "aab=$aab"
+            echo "sha=$apk.sha256"
+            echo "certificate=$certificate"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Summarise the signing
+        env:
+          APK: ${{ steps.signed.outputs.apk }}
+          AAB: ${{ steps.signed.outputs.aab }}
+          CERTIFICATE: ${{ steps.signed.outputs.certificate }}
+          DRY_RUN: ${{ inputs.dry_run }}
+          VERSION: ${{ needs.build.outputs.version }}
+        run: |
+          {
+            echo '| | |'
+            echo '| --- | --- |'
+            echo "| APK | \`$(sha256sum "$APK" | cut -d' ' -f1)\` |"
+            echo "| Bundle | \`$(sha256sum "$AAB" | cut -d' ' -f1)\` |"
+            echo "| Certificate | \`$CERTIFICATE\` |"
+            if [ "$DRY_RUN" = true ]; then
+              echo
+              echo "**Dry run:** nothing is pushed or published. A real run would release v$VERSION."
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload the signed files to the run
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: chatter-${{ needs.build.outputs.version }}
+          path: |
+            ${{ steps.signed.outputs.apk }}
+            ${{ steps.signed.outputs.sha }}
+            ${{ steps.signed.outputs.aab }}
+          if-no-files-found: error
+
+  # Attests, pushes the release commit and tag, and publishes. No signing key here.
+  publish:
+    name: Publish
+    needs: [build, sign]
+    if: ${{ !inputs.dry_run }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    # id-token and attestations only for the attestation step; no other job may sign one.
+    permissions:
+      contents: write
+      id-token: write
+      attestations: write
+    env:
+      VERSION: ${{ needs.build.outputs.version }}
+    steps:
+      # The commit the build started from; the release commit goes on top of it.
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: build
+          path: build-out
+
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: chatter-${{ needs.build.outputs.version }}
+
+      # Signed by GitHub: this workflow, this commit and this run built these files. The checksum
+      # next to the APK only proves the download is whole, since the same job uploads both.
+      - name: Attest the APK and the bundle
+        uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8 # v4.2.2
+        with:
+          subject-path: |
+            chatter-${{ needs.build.outputs.version }}.apk
+            chatter-${{ needs.build.outputs.version }}.aab
 
       # Atomic, so the branch never gets the release commit without its tag or vice versa.
       - name: Push the release commit and tag
-        if: ${{ !inputs.dry_run }}
         env:
-          VERSION: ${{ steps.version.outputs.version }}
           BRANCH: ${{ github.ref_name }}
         run: |
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git add -A version.properties CHANGELOG.md pending-changelog
-          git commit -m "chore(release): $VERSION"
+          git am -q build-out/release.patch
           git tag -a "v$VERSION" -m "Chatter $VERSION"
           git push --atomic origin "HEAD:refs/heads/$BRANCH" "refs/tags/v$VERSION"
 
       - name: Publish the GitHub release
-        if: ${{ !inputs.dry_run }}
         env:
           GH_TOKEN: ${{ github.token }}
-          VERSION: ${{ steps.version.outputs.version }}
-          APK: ${{ steps.artifacts.outputs.apk }}
-          SHA: ${{ steps.artifacts.outputs.sha }}
-          MAPPING: ${{ steps.artifacts.outputs.mapping }}
         run: |
           gh release create "v$VERSION" \
             --verify-tag \
             --title "Chatter $VERSION" \
-            --notes-file "$RUNNER_TEMP/github-notes.md" \
-            "$APK" "$SHA" "$MAPPING"
+            --notes-file build-out/github-notes.md \
+            "chatter-$VERSION.apk" "chatter-$VERSION.apk.sha256" "build-out/chatter-$VERSION-mapping.txt"
 
       # Play shows these under "What's new" and cuts after 500 characters, so entries are trimmed to
       # whole lines that fit.
@@ -421,7 +496,7 @@ jobs:
         if: ${{ inputs.play_track != 'none' }}
         run: |
           mkdir -p "$RUNNER_TEMP/whatsnew"
-          sed 's/^- [a-z]*: /• /' "$RUNNER_TEMP/notes.md" | grep -v '^$' | awk '
+          sed 's/^- [a-z]*: /• /' build-out/notes.md | grep -v '^$' | awk '
             { if (length(out) + length($0) + 1 > 500) exit; out = out $0 "\n"; print }
           ' > "$RUNNER_TEMP/whatsnew/whatsnew-en-US"
           cp "$RUNNER_TEMP/whatsnew/whatsnew-en-US" "$RUNNER_TEMP/whatsnew/whatsnew-de-DE"
@@ -429,23 +504,13 @@ jobs:
       # The only third-party action handed a credential (the Play service account). Pinned to a
       # reviewed commit; review new versions before merging Dependabot's pull request.
       - name: Upload the bundle to Play
-        if: ${{ !inputs.dry_run && inputs.play_track != 'none' }}
+        if: ${{ inputs.play_track != 'none' }}
         uses: r0adkll/upload-google-play@e738b9dd8f2476ea806d921b64aacd24f34515a5 # v1.1.5
         with:
           serviceAccountJsonPlainText: ${{ secrets.PLAY_SERVICE_ACCOUNT_JSON }}
           packageName: me.lesh.chatter
-          releaseFiles: ${{ steps.artifacts.outputs.aab }}
-          mappingFile: ${{ steps.artifacts.outputs.bundle_mapping }}
+          releaseFiles: chatter-${{ needs.build.outputs.version }}.aab
+          mappingFile: build-out/chatter-${{ needs.build.outputs.version }}-bundle-mapping.txt
           track: ${{ inputs.play_track }}
           status: completed
           whatsNewDirectory: ${{ runner.temp }}/whatsnew
-
-      - name: Say what a dry run would have done
-        if: ${{ inputs.dry_run }}
-        env:
-          VERSION: ${{ steps.version.outputs.version }}
-        run: |
-          {
-            echo
-            echo "**Dry run:** nothing was pushed or published. A real run would have released v$VERSION."
-          } >> "$GITHUB_STEP_SUMMARY"

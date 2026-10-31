@@ -162,22 +162,26 @@ their package. What is written, sent and restored is tested on the JVM instead, 
 `.github/workflows/release.yml` is the release itself, started by hand from the Actions tab. Nobody
 picks a version there either — it runs `releaseVersion`, so the pending entries decide it. It then
 builds and signs both the APK and the Play bundle, pushes the release commit and the `v<version>`
-tag, and publishes a GitHub release carrying that version's changelog section, the APK and its
-SHA-256. GitHub attests the APK and the bundle as built by that run, and the README lists the
-signing certificate's SHA-256; a new upload key means a new line there. The build comes before the push, so a failed one leaves the repository untouched, and
-`dry_run` does everything except push and publish — and is the only run allowed off `master`.
+tag, and publishes a GitHub release carrying that version's changelog section, grouped by level
+in English, the APK, its SHA-256 and its R8 mapping. GitHub attests the APK and the bundle as built
+by that run, and the README lists the signing certificate's SHA-256; a new upload key means a new
+line there. Building and signing come before the push, so a failed one leaves the repository
+untouched, and `dry_run` does everything except push and publish — and is the only run allowed off
+`master`.
 
-It is three jobs: `preflight` and `verify` side by side, then `release`. Everything that could be
-wrong is checked before anything is built: every missing secret at once, that the keystore opens,
-holds the alias and that `KEY_PASSWORD` unlocks the key, that there is something to release, that
-the tag is free and that the versionCode is above the one the last tag released. The signing
-secrets reach exactly one step, the one that builds; tests and lint never see them. The
-`play_track` input uploads the bundle to that Play track; `none`, the default, uploads nowhere.
+It is five jobs: `preflight` and `verify` side by side, then `build`, `sign` and `publish`.
+Everything that could be wrong is checked before anything is built: every missing secret at once,
+that the keystore opens, holds the alias and that `KEY_PASSWORD` unlocks the key, that there is
+something to release, that the tag is free and that the versionCode is above the one the last tag
+released. `build` runs Gradle with `-Punsigned` and no key. `sign` is the only job with the signing
+secrets, and it runs no Gradle: `apksigner` and `jarsigner` from the runner's SDK sign what `build`
+made, so no plugin or library can ever reach the key. The `play_track` input uploads the bundle to
+that Play track; `none`, the default, uploads nowhere.
 
 `.github/workflows/nightly.yml` builds Chatter Nightly from master every night, when master has a
 commit the last nightly did not and CI passed for it. Nightly is a release build made with
-`-Pnightly=<hash>`: its own app (`me.lesh.chatter.nightly`), signed with a key of its own, only on
-GitHub. Its versionCode is the number of commits on master, because Android refuses an update to a
+`-Pnightly=<hash>`: its own app (`me.lesh.chatter.nightly`), signed with a key of its own in a job
+without Gradle, the way the release is, only on GitHub. Its versionCode is the number of commits on master, because Android refuses an update to a
 lower one; the hash is in the version name, `0.9.0-nightly+6d134cb`. There is one release, tagged
 `nightly`, which every run deletes and creates again on the new commit, as a pre-release so the
 update check never sees it. Release tags are `v*` for that reason; anything reading the last
@@ -196,7 +200,7 @@ under the same names, each with its own key, and both environments only let `mas
 | Secret | What it is | Missing |
 | --- | --- | --- |
 | `TWITCH_CLIENT_ID` | what `local.properties` holds on a dev machine | the release stops, rather than ship an APK that cannot log in |
-| `KEYSTORE_BASE64` | the keystore of that environment, as `base64 -w0 chatter-release.jks` | the release stops; only a `dry_run` falls back to the debug key |
+| `KEYSTORE_BASE64` | the keystore of that environment, as `base64 -w0 chatter-release.jks` | the release stops; only a `dry_run` signs with a throwaway key instead |
 | `KEYSTORE_PASSWORD`, `KEY_ALIAS`, `KEY_PASSWORD` | how to open that keystore | same |
 | `PLAY_SERVICE_ACCOUNT_JSON` | the service account allowed to release to Play | only needed for a `play_track` other than `none`, which stops without it |
 | `SPONSORS_TOKEN` | a classic token of the sponsored account with `read:user`, for the sponsor sync | only that workflow, which fails without it; nothing else is affected |
