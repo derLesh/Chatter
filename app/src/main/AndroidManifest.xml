@@ -44,7 +44,7 @@
              build and seasonal ones are only offered in their build or on their days. -->
         <activity-alias
             android:name=".LauncherLight"
-            android:enabled="true"
+            android:enabled="${lightIconEnabled}"
             android:exported="true"
             android:icon="@mipmap/ic_launcher"
             android:roundIcon="@mipmap/ic_launcher_round"
@@ -252,7 +252,7 @@
 
         <activity-alias
             android:name=".LauncherNightly"
-            android:enabled="false"
+            android:enabled="${nightlyIconEnabled}"
             android:exported="true"
             android:icon="@mipmap/ic_launcher_night"
             android:roundIcon="@mipmap/ic_launcher_night"

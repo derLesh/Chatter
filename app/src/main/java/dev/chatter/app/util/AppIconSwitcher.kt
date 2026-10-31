@@ -88,5 +88,5 @@ class AppIconSwitcher(
     private suspend fun own(current: AppIcon): AppIcon =
         settings.ownAppIcon()?.let { name -> AppIcon.entries.firstOrNull { it.name == name && it.season == null && it.listed } }
             ?: current.takeIf { it.season == null }
-            ?: AppIcon.Light
+            ?: AppIcon.default
 }

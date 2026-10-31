@@ -64,8 +64,8 @@ enum class AppIcon(
     private fun isEnabled(pm: PackageManager, context: Context): Boolean =
         when (pm.getComponentEnabledSetting(component(context))) {
             PackageManager.COMPONENT_ENABLED_STATE_ENABLED -> true
-            // Never changed: the manifest enables Light.
-            PackageManager.COMPONENT_ENABLED_STATE_DEFAULT -> this == Light
+            // Never changed: the manifest enables the default.
+            PackageManager.COMPONENT_ENABLED_STATE_DEFAULT -> this == default
             else -> false
         }
 
@@ -73,9 +73,12 @@ enum class AppIcon(
         /** `namespace` in build.gradle.kts. */
         private const val LAUNCHER_NAMESPACE = "dev.chatter.app"
 
+        /** The icon a fresh install starts with; Nightly's own, so it differs from Chatter's. */
+        val default: AppIcon get() = if (BuildConfig.NIGHTLY) Nightly else Light
+
         fun current(context: Context): AppIcon {
             val pm = context.packageManager
-            return entries.firstOrNull { it.isEnabled(pm, context) } ?: Light
+            return entries.firstOrNull { it.isEnabled(pm, context) } ?: default
         }
 
         fun set(context: Context, icon: AppIcon) {

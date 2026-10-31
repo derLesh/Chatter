@@ -109,6 +109,9 @@ android {
         buildConfigField("boolean", "SPONSORING", "$sponsoring")
         buildConfigField("boolean", "ASSISTANT_ACCESS", "$assistantAccess")
         buildConfigField("boolean", "NIGHTLY", "$nightly")
+        // Which launcher alias the manifest enables; AppIcon.default must agree.
+        manifestPlaceholders["lightIconEnabled"] = "${!nightly}"
+        manifestPlaceholders["nightlyIconEnabled"] = "$nightly"
         // True in debug builds, which offer the Dev build app icon.
         buildConfigField("boolean", "DEV_BUILD", "false")
         // True only in profilingBuildTypes.

@@ -172,6 +172,15 @@ internal fun AboutPage(settings: Settings, vm: MainViewModel, open: (SettingsSub
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
+        if (BuildConfig.NIGHTLY) {
+            Text(
+                stringResource(R.string.settings_nightly),
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.primary,
+                textAlign = TextAlign.Center,
+                modifier = Modifier.padding(horizontal = 24.dp),
+            )
+        }
     }
     SettingsGroup {
         item(R.string.settings_changelog) {
