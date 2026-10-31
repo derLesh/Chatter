@@ -1,12 +1,22 @@
 package me.lesh.chatter.ui.chat
 
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Notifications
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
+import androidx.compose.material3.FilledTonalButton
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.SheetValue
 import androidx.compose.material3.Text
@@ -16,6 +26,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.snapshotFlow
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
@@ -36,11 +47,14 @@ import kotlinx.coroutines.flow.filter
  * One conversation: its first message and all answers still in the channel, oldest at the top. Read
  * from the channel's list, so new answers appear while it is open. Tapping a message makes it the
  * target of [onAnswer]; Twitch files the answer under the same conversation. [input] is the field.
+ * [following] is null where the user cannot follow, as a guest.
  */
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 fun ThreadSheet(
     threadId: String,
+    following: Boolean?,
+    onFollow: (Boolean) -> Unit,
     messages: StateFlow<List<ChatItem>>,
     style: ChatStyle,
     imageLoader: ImageLoader,
@@ -80,11 +94,17 @@ fun ThreadSheet(
                 }
         }
         Column {
-            Text(
-                stringResource(R.string.thread_title),
-                style = MaterialTheme.typography.titleMediumEmphasized,
-                modifier = Modifier.padding(start = 20.dp, end = 20.dp, bottom = 8.dp),
-            )
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier.padding(start = 20.dp, end = 12.dp, bottom = 8.dp),
+            ) {
+                Text(
+                    stringResource(R.string.thread_title),
+                    style = MaterialTheme.typography.titleMediumEmphasized,
+                    modifier = Modifier.weight(1f),
+                )
+                following?.let { FollowButton(it, onFollow) }
+            }
             // Reversed like the chat, so the list stays at the newest end.
             LazyColumn(reverseLayout = true, modifier = Modifier.weight(1f, fill = false).fillMaxWidth()) {
                 val count = thread.size
@@ -95,6 +115,20 @@ fun ThreadSheet(
                 lostRoot?.let { root -> item(key = "root") { LostRoot(root, style) } }
             }
             input()
+        }
+    }
+}
+
+/** Replies in a followed conversation notify like a mention. */
+@Composable
+private fun FollowButton(following: Boolean, onFollow: (Boolean) -> Unit) {
+    if (following) {
+        OutlinedButton(onClick = { onFollow(false) }) { Text(stringResource(R.string.thread_unfollow)) }
+    } else {
+        FilledTonalButton(onClick = { onFollow(true) }) {
+            Icon(Icons.Filled.Notifications, contentDescription = null, modifier = Modifier.size(ButtonDefaults.IconSize))
+            Spacer(Modifier.width(ButtonDefaults.IconSpacing))
+            Text(stringResource(R.string.thread_follow))
         }
     }
 }

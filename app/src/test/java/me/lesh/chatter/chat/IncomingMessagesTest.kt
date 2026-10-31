@@ -59,6 +59,8 @@ class IncomingMessagesTest {
     private val roomsFound = mutableListOf<String>()
     private val refused = mutableListOf<String>()
 
+    private val threads = FollowedThreads { clock }
+
     private val incoming = IncomingMessages(
         builder = builder,
         buffers = buffers,
@@ -74,6 +76,7 @@ class IncomingMessagesTest {
         onWhisper = { whisper, watched -> whispered += whisper to watched },
         onRoomFound = { roomsFound += it },
         onRefused = { refused += it },
+        threads = threads,
         now = { clock },
     )
 
@@ -271,6 +274,49 @@ class IncomingMessagesTest {
         assertEquals(emptyList<Pair<ChatItem, Boolean>>(), mentioned)
         assertEquals("nothing arrived from anybody else", 0, stats.received)
         assertEquals(emptyMap<String, Int>(), unreadAfterPublish())
+    }
+
+    private fun reply(from: String, to: String, thread: String, id: String) = line(
+        "@id=$id;display-name=$from;reply-parent-msg-id=$thread;reply-parent-user-login=$to;" +
+            "reply-thread-parent-msg-id=$thread :$from!$from@$from.tmi.twitch.tv PRIVMSG #forsen :@$to sure",
+    )
+
+    @Test
+    fun othersGoingOnInAThreadTheUserStartedAreMentions() = runTest(dispatcher) {
+        buffers.open("forsen")
+        incoming.handle(reply("someone", to = "lukas", thread = "root", id = "a"))
+        incoming.handle(reply("other", to = "someone", thread = "root", id = "b"))
+        assertEquals(listOf("a", "b"), mentioned.map { it.first.id })
+    }
+
+    @Test
+    fun answeringInAThreadFollowsIt() = runTest(dispatcher) {
+        buffers.open("forsen")
+        incoming.sent(own("local-1").copy(reply = ReplyInfo("root", "someone", "someone", "question", threadId = "root")))
+        incoming.handle(reply("other", to = "someone", thread = "root", id = "b"))
+        incoming.handle(reply("other", to = "someone", thread = "elsewhere", id = "c"))
+        assertEquals(listOf("b"), mentioned.map { it.first.id })
+    }
+
+    @Test
+    fun anUnfollowedThreadStaysQuietEvenAfterTheNextAnswer() = runTest(dispatcher) {
+        buffers.open("forsen")
+        incoming.handle(reply("someone", to = "lukas", thread = "root", id = "a"))
+        threads.unfollow("root")
+        incoming.handle(reply("someone", to = "lukas", thread = "root", id = "b"))
+        incoming.handle(reply("other", to = "someone", thread = "root", id = "c"))
+        assertEquals("only direct answers still mention", listOf("a", "b"), mentioned.map { it.first.id })
+    }
+
+    @Test
+    fun aThreadQuietForHoursIsLetGo() = runTest(dispatcher) {
+        buffers.open("forsen")
+        incoming.handle(reply("someone", to = "lukas", thread = "root", id = "a"))
+        clock += FollowedThreads.QUIET_MS - 1
+        incoming.handle(reply("other", to = "someone", thread = "root", id = "b"))
+        clock += FollowedThreads.QUIET_MS
+        incoming.handle(reply("other", to = "someone", thread = "root", id = "c"))
+        assertEquals("each reply keeps it going", listOf("a", "b"), mentioned.map { it.first.id })
     }
 
     private fun TestScope.unreadAfterPublish(): Map<String, Int> {

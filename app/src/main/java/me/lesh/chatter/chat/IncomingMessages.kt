@@ -51,6 +51,7 @@ class IncomingMessages(
     private val onRefused: (channel: String) -> Unit = {},
     /** A message entered for a channel point reward arrived; see [RewardNames.seen]. */
     private val onReward: (rewardId: String, channelId: String?) -> Unit = { _, _ -> },
+    private val threads: FollowedThreads = FollowedThreads(),
     private val now: () -> Long = System::currentTimeMillis,
 ) {
     /**
@@ -77,6 +78,7 @@ class IncomingMessages(
 
     /** A message the user just sent, shown under a temporary id until Twitch confirms it. */
     fun sent(item: ChatItem) {
+        item.reply?.let { threads.wroteIn(it.threadId) }
         buffers.add(item)
         unconfirmed.getOrPut(item.channel) { ArrayDeque() }.addLast(item)
     }
@@ -153,7 +155,7 @@ class IncomingMessages(
         }
         if (current.hides(built)) return
         built.rewardId?.let { onReward(it, rooms.id(channel)) }
-        val item = rules.apply(built) ?: return
+        val item = rules.apply(built)?.let(::followThread) ?: return
         rememberChatter(channel, item)
         buffers.add(item)
         // Live messages only; the history was received long ago.
@@ -164,6 +166,19 @@ class IncomingMessages(
             stats.countMention()
             onMention(item, watched)
         }
+    }
+
+    /**
+     * Follows a thread the user takes part in, and makes a reply in a followed thread a mention.
+     * Twitch only marks the user in a reply that answers them directly.
+     */
+    private fun followThread(item: ChatItem): ChatItem {
+        val reply = item.reply ?: return item
+        if (item.isOwn || reply.parentLogin.equals(selfLogin(), ignoreCase = true)) {
+            threads.wroteIn(reply.threadId)
+            return item
+        }
+        return if (threads.replied(reply.threadId) && !item.isMention) item.copy(isMention = true) else item
     }
 
     /** False for a Shared Chat message already reported through another channel of the session. */

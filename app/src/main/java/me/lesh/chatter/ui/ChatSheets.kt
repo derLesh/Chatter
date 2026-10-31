@@ -127,8 +127,12 @@ fun ChatSheets(
         // conversation.
         var target by remember(opened) { mutableStateOf(opened) }
         LaunchedEffect(target, vm.replyTo) { if (vm.replyTo == null) vm.startReply(target) }
+        val threadId = opened.reply?.threadId ?: opened.id
+        val followed by vm.followedThreads.collectAsStateWithLifecycle()
         ThreadSheet(
-            threadId = opened.reply?.threadId ?: opened.id,
+            threadId = threadId,
+            following = if (guest) null else remember(followed, threadId) { vm.isFollowingThread(threadId) },
+            onFollow = { vm.followThread(threadId, it) },
             messages = remember(opened.channel) { vm.chat(opened.channel) },
             style = style,
             imageLoader = loader,

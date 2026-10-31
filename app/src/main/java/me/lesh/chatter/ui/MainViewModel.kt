@@ -781,6 +781,14 @@ class MainViewModel(private val c: AppContainer, savedState: SavedStateHandle) :
 
     fun cancelReply() = composer.cancelReply()
 
+    /** Changes with every follow and every reply in a followed thread; read through [isFollowingThread]. */
+    val followedThreads = c.chat.threads.followed
+
+    fun isFollowingThread(threadId: String) = c.chat.threads.isFollowing(threadId)
+
+    fun followThread(threadId: String, follow: Boolean) =
+        if (follow) c.chat.threads.follow(threadId) else c.chat.threads.unfollow(threadId)
+
     fun send() = composer.send()
 
     // ---- Bug reports -------------------------------------------------------------------------

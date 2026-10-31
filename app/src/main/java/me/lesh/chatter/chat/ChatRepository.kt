@@ -107,6 +107,9 @@ class ChatRepository(
     /** Reward titles in the user's own channel; see [RewardNames]. */
     val rewards = RewardNames(helix, auth, scope)
 
+    /** Conversations whose replies count as mentions; see [FollowedThreads]. */
+    val threads = FollowedThreads()
+
     // --- state touched only on `worker` ---
     private val lastSent = HashMap<String, Pair<String, Long>>()
     private val rateLimiter = RateLimiter(30_000)
@@ -142,6 +145,7 @@ class ChatRepository(
         onPartnersFound = { ids -> scope.launch { describePartners(ids) } },
         onRefused = { _refused.tryEmit(it) },
         onReward = rewards::seen,
+        threads = threads,
     )
 
     private val _refused = MutableSharedFlow<String>(extraBufferCapacity = 8)
@@ -358,6 +362,7 @@ class ChatRepository(
         rooms.clear()
         incoming.clear()
         sharedChats.clear()
+        threads.clear()
         pins.clear()
         rewards.clear()
         loadedChannels.clear()

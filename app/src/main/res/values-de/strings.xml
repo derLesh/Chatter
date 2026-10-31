@@ -80,6 +80,8 @@
     <string name="send">Senden</string>
     <string name="replying_to">Antwort an @%1$s: %2$s</string>
     <string name="thread_title">Unterhaltung</string>
+    <string name="thread_follow">Folgen</string>
+    <string name="thread_unfollow">Entfolgen</string>
     <string name="cancel">Abbrechen</string>
     <string name="ok">OK</string>
     <string name="emotes_recent">Zuletzt</string>
