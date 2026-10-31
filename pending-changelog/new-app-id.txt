@@ -1,1 +1,1 @@
-major: Chatter is a new app now: back up your settings in the old one, restore them here, then remove it
+minor: Chatter is a new app now: back up your settings in the old one, restore them here, then remove it
