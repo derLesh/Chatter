@@ -5,25 +5,37 @@
       "source": "android/skills",
       "sourceType": "github",
       "skillPath": "jetpack-compose/adaptive/SKILL.md",
-      "computedHash": "84674dffa9a90eb5fdb751c0f266b29b331fe1779c71383356c3d0713bbcab5f"
+      "computedHash": "ef25a01831ff41ad268f1488d6fcba0c3d2d36b1058f32d34ec4518ff64efdb0"
     },
     "android-intent-security": {
       "source": "android/skills",
       "sourceType": "github",
       "skillPath": "security/android-intent-security/SKILL.md",
-      "computedHash": "8ffeb8c4c97808ce9658a338afe94739d95f2cc6f6f6f9b23658ba2d9559c3b3"
+      "computedHash": "e90597939253d57e55fa2c44dd5b522b0bd50e507c4b858b014d42ef97231224"
+    },
+    "android-permissions-security": {
+      "source": "android/skills",
+      "sourceType": "github",
+      "skillPath": "security/android-permissions-security/SKILL.md",
+      "computedHash": "767d764274c3182e4383c68e03b8620895c758034da07f37ce0b65062c831dbd"
     },
     "android-profiler": {
       "source": "android/skills",
       "sourceType": "github",
       "skillPath": "profilers/android-profiler/SKILL.md",
-      "computedHash": "965d7c65ddf4f3972421edacf02dce91f85e4d272ee0a464ed793091d92de9b2"
+      "computedHash": "95166bd527ba3dcb9bc68db7b314876b19411adc14f2a263ef9c43d56c97b511"
+    },
+    "anr-audit-and-fix": {
+      "source": "android/skills",
+      "sourceType": "github",
+      "skillPath": "performance/anr-audit-and-fix/SKILL.md",
+      "computedHash": "361f9dc0bde520a7ca500272556c05c0649c4f21d5b1779f32ccd4a441cad13f"
     },
     "appfunctions": {
       "source": "android/skills",
       "sourceType": "github",
       "skillPath": "device-ai/appfunctions/SKILL.md",
-      "computedHash": "61e3920d9d86a820f6c87c4dfabb9562edaf4e248b6a0753fcd7f4f3673a208b"
+      "computedHash": "240b29c88e740b44ddd16e421616807716fcb69a62b9b9a8b286758974fe34e1"
     },
     "edge-to-edge": {
       "source": "android/skills",
@@ -31,29 +43,41 @@
       "skillPath": "system/edge-to-edge/SKILL.md",
       "computedHash": "7ccf71d4ff4d16509ee07df3312d6475741cd68006156c1a90e0638aa67b5fa0"
     },
+    "jetpack-compose-performance": {
+      "source": "android/skills",
+      "sourceType": "github",
+      "skillPath": "jetpack-compose/jetpack-compose-performance/SKILL.md",
+      "computedHash": "5ddd50960de268e7c7d6ee33b9529d2e07cfed05c3de034c2f4e833e72e7ecc7"
+    },
     "navigation-3": {
       "source": "android/skills",
       "sourceType": "github",
       "skillPath": "navigation/navigation-3/SKILL.md",
-      "computedHash": "d559093f308c26da9816073a6171cf355e03a3147f9ce2f58161b15f9a13bcee"
+      "computedHash": "8f9ecceee72b2b8c46ed70ec67ec35c2beaf4b4e160575d1adfe14e4a435bbea"
     },
     "navigation-event": {
       "source": "android/skills",
       "sourceType": "github",
       "skillPath": "navigation/navigation-event/SKILL.md",
-      "computedHash": "e20797195f0783581d51fb1002c9fe4abc7ca73d8e3bc8aa4cafbe2fbebe9e77"
+      "computedHash": "fbcc79979d18c31272a59902e4f2fb1a6e83285b30db277ac6aefadbfd32db69"
     },
     "play-policy-insights": {
       "source": "android/skills",
       "sourceType": "github",
       "skillPath": "play/play-policy-insights/SKILL.md",
-      "computedHash": "647e6e6a17ec00c159959a9d29df84a044b9fa2c52f0156db4ce09b4d4e83b95"
+      "computedHash": "be04243a343915b08c633cd4356b58969d125aa7339f291e7a0d1a7e60e4ea8d"
     },
     "r8-analyzer": {
       "source": "android/skills",
       "sourceType": "github",
       "skillPath": "performance/r8-analyzer/SKILL.md",
-      "computedHash": "041a28dc521b9ecd8d21aef9ebe3297bec07213e0f33f59022c7f8131fef3332"
+      "computedHash": "f8463f44ea1f51cf9d4c592c2f45a930bb91162e0ce89a303b07c71154a69eba"
+    },
+    "testing-setup": {
+      "source": "android/skills",
+      "sourceType": "github",
+      "skillPath": "testing/testing-setup/SKILL.md",
+      "computedHash": "823537d239f2ba61e0ed04e3858b77346d01167e77e953007a814a1f5bb87264"
     }
   }
 }
