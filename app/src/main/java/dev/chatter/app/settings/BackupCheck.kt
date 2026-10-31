@@ -2,6 +2,7 @@ package dev.chatter.app.settings
 
 import dev.chatter.app.channels.ChannelGroup
 import dev.chatter.app.chat.ImageLinks
+import dev.chatter.app.chat.NoteRepository
 import dev.chatter.app.emotes.HiddenEmote
 import dev.chatter.app.net.TrustedImages
 import java.io.InputStream
@@ -25,6 +26,7 @@ object BackupCheck {
     const val MAX_PATTERN = 500
     const val MAX_NICKNAMES = 2000
     const val MAX_NICKNAME = 50
+    const val MAX_NOTES = 2000
     const val MAX_CHANNELS = 200
     const val MAX_HIDDEN_EMOTES = 500
 
@@ -58,11 +60,8 @@ object BackupCheck {
             ?.filter { it.pattern.isNotBlank() && it.pattern.length <= MAX_PATTERN }
             ?.distinctBy { it.id }
             ?.take(MAX_RULES),
-        nicknames = backup.nicknames
-            ?.mapKeys { it.key.trim().lowercase() }
-            ?.mapValues { it.value.trim().take(MAX_NICKNAME) }
-            ?.filter { (login, name) -> LOGIN.matches(login) && name.isNotEmpty() }
-            ?.entries?.take(MAX_NICKNAMES)?.associate { it.key to it.value },
+        nicknames = backup.nicknames?.let { byLogin(it, MAX_NICKNAME, MAX_NICKNAMES) },
+        notes = backup.notes?.let { byLogin(it, NoteRepository.MAX_LENGTH, MAX_NOTES) },
         hiddenEmotes = backup.hiddenEmotes?.mapNotNull(::hiddenEmote)?.distinctBy { it.key }?.take(MAX_HIDDEN_EMOTES),
         channels = backup.channels?.let { c ->
             // Group ids end up in the comma-separated page list; see ChannelGroup.isValidId.
@@ -96,6 +95,13 @@ object BackupCheck {
         if (channel != null && !LOGIN.matches(channel)) return null
         return e.copy(id = id, name = name, url = e.url?.let(TrustedImages::url), channel = channel)
     }
+
+    /** Texts keyed by real logins, trimmed and cut to [maxLength]; empty ones are dropped. */
+    private fun byLogin(texts: Map<String, String>, maxLength: Int, maxCount: Int): Map<String, String> = texts
+        .mapKeys { it.key.trim().lowercase() }
+        .mapValues { it.value.trim().take(maxLength) }
+        .filter { (login, text) -> LOGIN.matches(login) && text.isNotEmpty() }
+        .entries.take(maxCount).associate { it.key to it.value }
 
     private fun liveAlertLogins(list: List<String>) =
         list.map { it.trim().lowercase() }.filter(LOGIN::matches).distinct().take(MAX_LIVE_ALERTS)

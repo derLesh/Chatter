@@ -4,6 +4,7 @@ import dev.chatter.app.channels.ChannelGroup
 import dev.chatter.app.channels.ChannelRepository
 import dev.chatter.app.chat.ChatRule
 import dev.chatter.app.chat.NicknameRepository
+import dev.chatter.app.chat.NoteRepository
 import dev.chatter.app.chat.RuleRepository
 import dev.chatter.app.emotes.HiddenEmote
 import dev.chatter.app.emotes.HiddenEmoteRepository
@@ -23,6 +24,8 @@ data class SettingsBackup(
     val rules: List<ChatRule>? = null,
     /** Nickname by lowercase login. */
     val nicknames: Map<String, String>? = null,
+    /** Private note by lowercase login. */
+    val notes: Map<String, String>? = null,
     val channels: ChannelBackup? = null,
     /** Names of the most recently used emotes, newest first. */
     val recentEmotes: List<String>? = null,
@@ -66,6 +69,7 @@ class BackupManager(
     private val settings: SettingsRepository,
     private val rules: RuleRepository,
     private val nicknames: NicknameRepository,
+    private val notes: NoteRepository,
     private val hiddenEmotes: HiddenEmoteRepository,
     private val channels: ChannelRepository,
 ) {
@@ -75,6 +79,7 @@ class BackupManager(
             settings = settings.settings.value,
             rules = rules.rules.value,
             nicknames = nicknames.nicknames.value,
+            notes = notes.notes.value,
             channels = ChannelBackup(
                 logins = channels.pages.value,
                 names = channels.customNames.value,
@@ -105,6 +110,7 @@ class BackupManager(
         backup.recentEmotes?.let { settings.setRecentEmotes(it) }
         backup.rules?.let { rules.replaceAll(it) }
         backup.nicknames?.let { nicknames.replaceAll(it) }
+        backup.notes?.let { notes.replaceAll(it) }
         backup.hiddenEmotes?.let { hiddenEmotes.replaceAll(it) }
         backup.channels?.let {
             channels.restore(it.logins, it.names, it.notificationsOff.toSet(), it.hiddenUnread.toSet(), it.groups)

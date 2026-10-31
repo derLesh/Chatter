@@ -1,6 +1,7 @@
 package dev.chatter.app.settings
 
 import dev.chatter.app.chat.ChatRule
+import dev.chatter.app.chat.NoteRepository
 import dev.chatter.app.emotes.EmoteProvider
 import dev.chatter.app.emotes.HiddenEmote
 import org.junit.Assert.assertEquals
@@ -86,6 +87,13 @@ class BackupCheckTest {
     fun nicknamesNeedARealLogin() {
         val nicknames = mapOf("Forsen" to " The Man ", "not a login!" to "x", "xqc" to "")
         assertEquals(mapOf("forsen" to "The Man"), BackupCheck.clean(SettingsBackup(nicknames = nicknames)).nicknames)
+    }
+
+    @Test
+    fun notesNeedARealLoginAndAreCut() {
+        val notes = mapOf("Forsen" to " brother ", "not a login!" to "x", "xqc" to " ", "lirik" to "a".repeat(600))
+        val cleaned = BackupCheck.clean(SettingsBackup(notes = notes)).notes
+        assertEquals(mapOf("forsen" to "brother", "lirik" to "a".repeat(NoteRepository.MAX_LENGTH)), cleaned)
     }
 
     @Test

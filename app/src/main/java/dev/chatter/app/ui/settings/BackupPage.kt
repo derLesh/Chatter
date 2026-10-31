@@ -85,6 +85,7 @@ internal fun BackupPage(vm: MainViewModel) {
                             R.string.backup_confirm_counts,
                             backup.rules?.size ?: 0,
                             backup.nicknames?.size ?: 0,
+                            backup.notes?.size ?: 0,
                             backup.channels?.logins?.size ?: 0,
                         ),
                     )

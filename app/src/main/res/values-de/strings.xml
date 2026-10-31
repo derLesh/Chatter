@@ -617,6 +617,12 @@
     <string name="nickname_title">Spitzname</string>
     <string name="nickname_hint">Wird statt des Twitch-Namens angezeigt. Leer lassen, um ihn zu entfernen</string>
 
+    <!-- Notizen -->
+    <string name="note_title">Notiz</string>
+    <string name="note_add">Notiz hinzufügen</string>
+    <string name="note_example">Zum Beispiel: der Bruder des Streamers</string>
+    <string name="note_hint">Nur du siehst sie, auf diesem Telefon. Leer lassen, um sie zu löschen</string>
+
     <!-- Badges -->
     <string name="settings_badge_providers">Badges</string>
     <string name="settings_provider_chatterino">Chatterino</string>
@@ -785,7 +791,7 @@
     <string name="backup_failed">Die Datei konnte nicht gelesen werden</string>
     <string name="backup_confirm_title">Dieses Backup wiederherstellen?</string>
     <string name="backup_confirm_text">Es ersetzt deine Einstellungen durch die aus der Datei. Öffne nur Backups von Leuten, denen du vertraust.</string>
-    <string name="backup_confirm_counts">Regeln: %1$d · Spitznamen: %2$d · Kanäle: %3$d</string>
+    <string name="backup_confirm_counts">Regeln: %1$d · Spitznamen: %2$d · Notizen: %3$d · Kanäle: %4$d</string>
     <string name="backup_confirm_hosts">Verlinkte Bilder werden geladen von: %1$s</string>
     <string name="backup_confirm_no_hosts">Verlinkte Bilder werden von keiner Seite geladen</string>
     <string name="backup_restore">Wiederherstellen</string>

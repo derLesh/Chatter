@@ -48,6 +48,7 @@ import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -82,6 +83,7 @@ import java.time.format.FormatStyle
  * Opened from a message: the author (avatar, badges, account age, bio), actions, and their recent
  * messages in this channel. [onWhisper] receives the Twitch id once loaded, saving a lookup. A
  * [guest] gets no actions that write; without [onReply] and [onMention] those two are left out.
+ * [note] is the user's private note on the author, empty if there is none.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -94,11 +96,13 @@ fun UserCardSheet(
     recentMessages: suspend () -> List<ChatItem>,
     profile: suspend () -> HelixUser?,
     blocked: Boolean,
+    note: String,
     /** Copy first and Reply last in the row, instead of the reverse. */
     copyFirst: Boolean,
     onBlock: (HelixUser, Boolean) -> Unit,
     onBlockLogin: (String) -> Unit,
     onNickname: () -> Unit,
+    onNote: () -> Unit,
     onReply: (() -> Unit)?,
     onMention: (() -> Unit)?,
     onWhisper: (userId: String?) -> Unit,
@@ -159,6 +163,7 @@ fun UserCardSheet(
                     ).filter { it.isNotEmpty() }
                     Header(item, user, style, imageLoader, menu, onAvatar = { avatarOpen = true })
                 }
+                if (!item.isOwn) item { NoteRow(note, onNote) }
                 user?.description?.takeIf { it.isNotBlank() }?.let { bio ->
                     item {
                         Text(
@@ -341,6 +346,33 @@ private fun Header(
             if (item.badges.isNotEmpty()) BadgeRow(item, imageLoader)
         }
         if (menu.isNotEmpty()) MoreMenu(menu, Modifier.align(Alignment.Top))
+    }
+}
+
+/** The private note below the name, or a quiet way to add one. Tapping either opens the editor. */
+@Composable
+private fun NoteRow(note: String, onClick: () -> Unit) {
+    val icon = ImageVector.vectorResource(R.drawable.ic_edit_note)
+    if (note.isEmpty()) {
+        TextButton(onClick = onClick, modifier = Modifier.padding(horizontal = 8.dp)) {
+            Icon(icon, contentDescription = null, modifier = Modifier.size(18.dp))
+            Spacer(Modifier.width(8.dp))
+            Text(stringResource(R.string.note_add))
+        }
+        return
+    }
+    Surface(
+        onClick = onClick,
+        color = MaterialTheme.colorScheme.tertiaryContainer,
+        contentColor = MaterialTheme.colorScheme.onTertiaryContainer,
+        shape = RoundedCornerShape(12.dp),
+        modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp),
+    ) {
+        Row(Modifier.padding(horizontal = 12.dp, vertical = 10.dp)) {
+            Icon(icon, contentDescription = stringResource(R.string.note_title), modifier = Modifier.size(18.dp))
+            Spacer(Modifier.width(10.dp))
+            Text(note, style = MaterialTheme.typography.bodyMedium)
+        }
     }
 }
 

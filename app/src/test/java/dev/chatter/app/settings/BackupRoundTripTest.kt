@@ -3,6 +3,7 @@ package dev.chatter.app.settings
 import dev.chatter.app.channels.ChannelRepository
 import dev.chatter.app.channels.LiveAlertChoices
 import dev.chatter.app.chat.NicknameRepository
+import dev.chatter.app.chat.NoteRepository
 import dev.chatter.app.chat.RuleRepository
 import dev.chatter.app.emotes.Emote
 import dev.chatter.app.emotes.EmoteProvider
@@ -30,10 +31,12 @@ class BackupRoundTripTest {
         private val store = MemoryStore()
         val channels = ChannelRepository(store, HelixApi(OkHttpClient()) { null }, scope)
         val hiddenEmotes = HiddenEmoteRepository(store, scope)
+        val notes = NoteRepository(store, scope)
         val backups = BackupManager(
             SettingsRepository(store, scope),
             RuleRepository(store, scope),
             NicknameRepository(store, scope),
+            notes,
             hiddenEmotes,
             channels,
         )
@@ -78,6 +81,19 @@ class BackupRoundTripTest {
         new.backups.apply(new.backups.read(old.backups.export())!!)
 
         assertEquals(expected, withTimeout(5_000) { new.hiddenEmotes.hidden.first { !it.isEmpty() } })
+    }
+
+    @Test
+    fun notesMoveToANewPhone() = runBlocking {
+        val old = Phone()
+        old.notes.set("Forsen", "  Banned before for spam ")
+        val expected = mapOf("forsen" to "Banned before for spam")
+        withTimeout(5_000) { old.notes.notes.first { it == expected } }
+
+        val new = Phone()
+        new.backups.apply(new.backups.read(old.backups.export())!!)
+
+        assertEquals(expected, withTimeout(5_000) { new.notes.notes.first { it.isNotEmpty() } })
     }
 
     @Test

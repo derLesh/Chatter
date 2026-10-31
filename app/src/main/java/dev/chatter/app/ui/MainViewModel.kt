@@ -167,6 +167,7 @@ class MainViewModel(private val c: AppContainer, savedState: SavedStateHandle) :
     val blockedUsers = c.blocked.blocked
     val blockedLogins = c.blocked.logins
     val nicknames = c.nicknames.nicknames
+    val notes = c.notes.notes
     val hiddenEmotes = c.hiddenEmotes.hidden
     /** Reward titles by reward id, in the user's own channel. */
     val rewardNames = c.chat.rewards.names
@@ -715,6 +716,11 @@ class MainViewModel(private val c: AppContainer, savedState: SavedStateHandle) :
     /** Sets a nickname for a chatter in every channel. Blank clears it. */
     fun setNickname(login: String, nickname: String) {
         viewModelScope.launch { c.nicknames.set(login, nickname) }
+    }
+
+    /** Keeps a private note on a chatter for every channel. Blank removes it. */
+    fun setNote(login: String, note: String) {
+        viewModelScope.launch { c.notes.set(login, note) }
     }
 
     fun deleteMessage(item: ChatItem) {

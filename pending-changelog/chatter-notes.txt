@@ -1,0 +1,1 @@
+minor: Keep a private note on a chatter, shown on their user card

@@ -23,6 +23,7 @@ import dev.chatter.app.ui.chat.EmoteCardSheet
 import dev.chatter.app.ui.chat.EmoteTap
 import dev.chatter.app.ui.chat.EmotePickerSheet
 import dev.chatter.app.ui.chat.NicknameDialog
+import dev.chatter.app.ui.chat.NoteDialog
 import dev.chatter.app.ui.chat.ThreadSheet
 import dev.chatter.app.ui.chat.UserCardSheet
 import dev.chatter.app.ui.inbox.WhisperReplyDialog
@@ -48,6 +49,9 @@ class ChatSheetState {
     var combineWith by mutableStateOf<String?>(null)
     var nicknameTarget by mutableStateOf<ChatItem?>(null)
 
+    /** The login whose note is being written. */
+    var noteTarget by mutableStateOf<String?>(null)
+
     /** Whisper recipient from a user card: their message and their id if known. */
     var whisperTo by mutableStateOf<Pair<ChatItem, String?>?>(null)
 
@@ -62,7 +66,7 @@ class ChatSheetState {
 }
 
 /**
- * The sheets and dialogs of the chat screen: user card, conversation, whisper, nickname, emote card
+ * The sheets and dialogs of the chat screen: user card, conversation, whisper, nickname, note, emote card
  * and picker, catch-up summary, and adding, combining and renaming channels. [threadInput] is the input inside the
  * conversation sheet.
  */
@@ -82,6 +86,7 @@ fun ChatSheets(
     val modChannels by vm.modChannels.collectAsStateWithLifecycle()
     val blockedLogins by vm.blockedLogins.collectAsStateWithLifecycle()
     val nicknames by vm.nicknames.collectAsStateWithLifecycle()
+    val notes by vm.notes.collectAsStateWithLifecycle()
 
     sheets.actionItem?.let { item ->
         UserCardSheet(
@@ -93,10 +98,12 @@ fun ChatSheets(
             recentMessages = { vm.recentMessagesOf(item) },
             profile = { vm.profileOf(item) },
             blocked = item.login?.lowercase() in blockedLogins,
+            note = item.login?.let { notes[it.lowercase()] }.orEmpty(),
             copyFirst = settings.copyFirst,
             onBlock = vm::setBlocked,
             onBlockLogin = vm::blockByLogin,
             onNickname = { sheets.nicknameTarget = item },
+            onNote = { sheets.noteTarget = item.login },
             // Both write into the input, which is gone while the user only reads.
             onReply = if (settings.readOnly) null else ({ vm.startReply(item) }),
             onMention = if (settings.readOnly) null else ({ vm.mention(item) }),
@@ -153,6 +160,14 @@ fun ChatSheets(
                 onDismiss = { sheets.nicknameTarget = null },
             )
         }
+    }
+    sheets.noteTarget?.let { login ->
+        NoteDialog(
+            login = login,
+            currentNote = notes[login.lowercase()].orEmpty(),
+            onSave = { vm.setNote(login, it) },
+            onDismiss = { sheets.noteTarget = null },
+        )
     }
     sheets.emoteCard?.let { tap ->
         EmoteCardSheet(

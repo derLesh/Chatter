@@ -6,7 +6,7 @@
     allowBackup="false" in the manifest only ever covered the cloud: since Android 12 a transfer
     from one phone to the next ignores it and takes what is listed here. The login could not be
     read there anyway, since its key is in the old phone's Keystore. The inboxes, statistics and
-    crash reports stay behind; nicknames and rules move with the file saved under Settings → Backup.
+    crash reports stay behind; nicknames, notes and rules move with the file saved under Settings → Backup.
     docs/privacy-policy.html says so; it changes with this file.
 -->
 <data-extraction-rules>

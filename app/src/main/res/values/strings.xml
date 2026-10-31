@@ -625,6 +625,12 @@
     <string name="nickname_title">Nickname</string>
     <string name="nickname_hint">Shown instead of the Twitch username. Leave empty to reset it</string>
 
+    <!-- Notes -->
+    <string name="note_title">Note</string>
+    <string name="note_add">Add a note</string>
+    <string name="note_example">For example: the streamer\'s brother</string>
+    <string name="note_hint">Only you can see it, on this phone. Leave empty to delete it</string>
+
     <!-- Badges -->
     <string name="settings_badge_providers">Badges</string>
     <string name="settings_provider_chatterino">Chatterino</string>
@@ -796,7 +802,7 @@
     <string name="backup_failed">The file could not be read</string>
     <string name="backup_confirm_title">Restore this backup?</string>
     <string name="backup_confirm_text">It replaces your settings with the ones in the file. Only open backups from people you trust.</string>
-    <string name="backup_confirm_counts">Rules: %1$d · Nicknames: %2$d · Channels: %3$d</string>
+    <string name="backup_confirm_counts">Rules: %1$d · Nicknames: %2$d · Notes: %3$d · Channels: %4$d</string>
     <string name="backup_confirm_hosts">Pictures linked in chat will be loaded from: %1$s</string>
     <string name="backup_confirm_no_hosts">Pictures linked in chat will not be loaded from any site</string>
     <string name="backup_restore">Restore</string>
