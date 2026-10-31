@@ -12,18 +12,18 @@
 #   L  a class to load and initialize early
 
 # The message path: the socket, parsing, building, the filters and the buffers.
-HSPLdev/chatter/app/irc/**;->**(**)**
-Ldev/chatter/app/irc/**;
-HSPLdev/chatter/app/chat/**;->**(**)**
-Ldev/chatter/app/chat/**;
-HSPLdev/chatter/app/emotes/EmoteRepository;->**(**)**
-HSPLdev/chatter/app/emotes/ProviderEmotes;->**(**)**
-HSPLdev/chatter/app/emotes/Emote;->**(**)**
-HSPLdev/chatter/app/badges/BadgeRepository;->**(**)**
-HSPLdev/chatter/app/stats/StatsRepository;->**(**)**
-HSPLdev/chatter/app/service/ChatNotifier;->**(**)**
+HSPLme/lesh/chatter/irc/**;->**(**)**
+Lme/lesh/chatter/irc/**;
+HSPLme/lesh/chatter/chat/**;->**(**)**
+Lme/lesh/chatter/chat/**;
+HSPLme/lesh/chatter/emotes/EmoteRepository;->**(**)**
+HSPLme/lesh/chatter/emotes/ProviderEmotes;->**(**)**
+HSPLme/lesh/chatter/emotes/Emote;->**(**)**
+HSPLme/lesh/chatter/badges/BadgeRepository;->**(**)**
+HSPLme/lesh/chatter/stats/StatsRepository;->**(**)**
+HSPLme/lesh/chatter/service/ChatNotifier;->**(**)**
 
 # Drawing the chat: the list, a message row, emotes, colors.
-HSPLdev/chatter/app/ui/chat/**;->**(**)**
-Ldev/chatter/app/ui/chat/**;
-HSPLdev/chatter/app/ui/theme/**;->**(**)**
+HSPLme/lesh/chatter/ui/chat/**;->**(**)**
+Lme/lesh/chatter/ui/chat/**;
+HSPLme/lesh/chatter/ui/theme/**;->**(**)**

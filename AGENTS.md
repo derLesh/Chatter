@@ -140,7 +140,7 @@ secrets reach exactly one step, the one that builds; tests and lint never see th
 
 `.github/workflows/nightly.yml` builds Chatter Nightly from master every night, when master has a
 commit the last nightly did not and CI passed for it. Nightly is a release build made with
-`-Pnightly=<hash>`: its own app (`dev.chatter.app.nightly`), signed with the upload key, only on
+`-Pnightly=<hash>`: its own app (`me.lesh.chatter.nightly`), signed with the upload key, only on
 GitHub. Its versionCode is the number of commits on master, because Android refuses an update to a
 lower one; the hash is in the version name, `0.9.0-nightly+6d134cb`. There is one release, tagged
 `nightly`, which every run deletes and creates again on the new commit, as a pre-release so the
@@ -174,7 +174,7 @@ is renamed. A new hot package goes into the hand-written file.
 
 The journeys read a busy channel as a guest, so they need no Twitch login, and the phone's own
 Chatter is never touched: the builds the profile is recorded and measured on are an app of their
-own (`dev.chatter.app.profiling`), and the only ones that can be told from outside to read a
+own (`me.lesh.chatter.profiling`), and the only ones that can be told from outside to read a
 channel. `-Pandroid.testInstrumentationRunnerArguments.chatterChannel=<login>` picks another
 channel when the default is offline — a chat with nothing arriving profiles next to nothing.
 
@@ -191,17 +191,17 @@ says about the cold start and the chat frames, with the profile and without, int
 ./gradlew releaseVersion             # fold them into CHANGELOG.md, bump the version, clear pending
 ./gradlew :app:testDebugUnitTest     # unit tests
 ./gradlew :app:installDebug          # build and install on the connected phone
-./gradlew :app:connectedMicrobenchmarkAndroidTest -Pandroid.testInstrumentationRunnerArguments.package=dev.chatter.app.benchmark   # what a message costs, on the connected phone
-./gradlew :app:connectedMicrobenchmarkAndroidTest -Pandroid.testInstrumentationRunnerArguments.package=dev.chatter.app.flows       # the screen tests, on the connected phone
+./gradlew :app:connectedMicrobenchmarkAndroidTest -Pandroid.testInstrumentationRunnerArguments.package=me.lesh.chatter.benchmark   # what a message costs, on the connected phone
+./gradlew :app:connectedMicrobenchmarkAndroidTest -Pandroid.testInstrumentationRunnerArguments.package=me.lesh.chatter.flows       # the screen tests, on the connected phone
 ./gradlew :app:generateReleaseBaselineProfile       # record the baseline profile on the connected phone
 ./gradlew :baselineprofile:connectedBenchmarkReleaseAndroidTest   # what the profile is worth
-./gradlew :baselineprofile:connectedBenchmarkReleaseAndroidTest -Pandroid.testInstrumentationRunnerArguments.class=dev.chatter.app.baselineprofile.PowerBenchmark   # what an open chat draws, per power rail; see docs/power.md
+./gradlew :baselineprofile:connectedBenchmarkReleaseAndroidTest -Pandroid.testInstrumentationRunnerArguments.class=me.lesh.chatter.baselineprofile.PowerBenchmark   # what an open chat draws, per power rail; see docs/power.md
 ```
 
 A change is not confirmed by compiling. Install it and open the screen it touches:
 
 ```sh
-./gradlew :app:installDebug && adb shell am start -n dev.chatter.app/.MainActivity
+./gradlew :app:installDebug && adb shell am start -n me.lesh.chatter/.MainActivity
 ```
 
 ## Conventions worth matching

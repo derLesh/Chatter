@@ -13,7 +13,7 @@ if ! grep -q 'testBuildType = "microbenchmark"' app/build.gradle.kts; then
 fi
 
 # Only the benchmark: the screen tests in the same build have a workflow of their own.
-./gradlew :app:connectedMicrobenchmarkAndroidTest -Pandroid.testInstrumentationRunnerArguments.package=dev.chatter.app.benchmark
+./gradlew :app:connectedMicrobenchmarkAndroidTest -Pandroid.testInstrumentationRunnerArguments.package=me.lesh.chatter.benchmark
 
 result=$(find app/build/outputs/connected_android_test_additional_output -name '*benchmarkData.json' | head -n 1)
 if [ -z "$result" ]; then

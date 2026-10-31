@@ -40,7 +40,7 @@ and puts it back afterwards, so that the light in the room does not decide the d
 
 ```sh
 ./gradlew :baselineprofile:connectedBenchmarkReleaseAndroidTest \
-  -Pandroid.testInstrumentationRunnerArguments.class=dev.chatter.app.baselineprofile.PowerBenchmark \
+  -Pandroid.testInstrumentationRunnerArguments.class=me.lesh.chatter.baselineprofile.PowerBenchmark \
   -Pandroid.testInstrumentationRunnerArguments.chatterChannel=<a busy channel that is live>
 ```
 
@@ -81,12 +81,12 @@ too, so they stay connected like a logged-in account; what they lack is whispers
 
 ```sh
 ./gradlew :app:installBenchmarkRelease
-adb shell am start -n dev.chatter.app.profiling/dev.chatter.app.MainActivity --es profiling_channel <channel>
+adb shell am start -n me.lesh.chatter.profiling/me.lesh.chatter.MainActivity --es profiling_channel <channel>
 # Wait until messages arrive, then:
 adb shell input keyevent KEYCODE_HOME
 adb push chatter_background_power.pftxt /data/misc/perfetto-configs/
 
-# Once with the channel joined, once after `adb shell am force-stop dev.chatter.app.profiling`:
+# Once with the channel joined, once after `adb shell am force-stop me.lesh.chatter.profiling`:
 adb shell "dumpsys battery unplug; input keyevent KEYCODE_SLEEP"
 adb shell perfetto --txt -c /data/misc/perfetto-configs/chatter_background_power.pftxt \
   -o /data/misc/perfetto-traces/with-chatter.pftrace
@@ -119,11 +119,11 @@ The app's CPU time, how often its threads got the CPU and how often they were wo
 ```sql
 select sum(s.dur) / 1e9 as cpu_seconds, count(*) as times_on_cpu
 from sched s join thread using (utid) join process using (upid)
-where process.name = 'dev.chatter.app.profiling';
+where process.name = 'me.lesh.chatter.profiling';
 
 select count(*) as wakeups
 from thread_state ts join thread using (utid) join process using (upid)
-where process.name = 'dev.chatter.app.profiling' and ts.state = 'R';
+where process.name = 'me.lesh.chatter.profiling' and ts.state = 'R';
 ```
 
 Packets per app, and how often the radio could have rested in between — a burst begins after more

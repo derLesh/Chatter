@@ -1,0 +1,128 @@
+package me.lesh.chatter.settings
+
+import me.lesh.chatter.badges.HiddenBadge
+import me.lesh.chatter.badges.HiddenBadgeRepository
+import me.lesh.chatter.channels.ChannelGroup
+import me.lesh.chatter.channels.ChannelRepository
+import me.lesh.chatter.chat.ChatRule
+import me.lesh.chatter.chat.NicknameRepository
+import me.lesh.chatter.chat.NoteRepository
+import me.lesh.chatter.chat.RuleRepository
+import me.lesh.chatter.emotes.HiddenEmote
+import me.lesh.chatter.emotes.HiddenEmoteRepository
+import kotlinx.serialization.Serializable
+import kotlinx.serialization.json.Json
+
+/**
+ * All user settings in one file, Chatter's own format, for moving to a new phone or keeping a copy.
+ * Every part is optional; an older or hand-written backup restores what it has.
+ */
+@Serializable
+data class SettingsBackup(
+    val app: String = APP,
+    val version: Int = VERSION,
+    val createdAt: Long = 0,
+    val settings: Settings? = null,
+    val rules: List<ChatRule>? = null,
+    /** Nickname by lowercase login. */
+    val nicknames: Map<String, String>? = null,
+    /** Private note by lowercase login. */
+    val notes: Map<String, String>? = null,
+    val channels: ChannelBackup? = null,
+    /** Names of the most recently used emotes, newest first. */
+    val recentEmotes: List<String>? = null,
+    val hiddenEmotes: List<HiddenEmote>? = null,
+    val hiddenBadges: List<HiddenBadge>? = null,
+) {
+    companion object {
+        const val APP = "Chatter"
+        const val VERSION = 1
+
+        // Readable, users may edit backups by hand.
+        val json = Json {
+            prettyPrint = true
+            ignoreUnknownKeys = true
+            encodeDefaults = true
+        }
+    }
+}
+
+@Serializable
+data class ChannelBackup(
+    /**
+     * Channels in the user's order, with combined chats as their key ("+" and id) in their place.
+     * Versions without combined chats drop those keys as invalid logins.
+     */
+    val logins: List<String> = emptyList(),
+    /** Names the user gave channels, by login. */
+    val names: Map<String, String> = emptyMap(),
+    val notificationsOff: List<String> = emptyList(),
+    val hiddenUnread: List<String> = emptyList(),
+    val groups: List<ChannelGroup> = emptyList(),
+    /**
+     * Channels outside the list that notify when they go live, and channels in the list that do
+     * not. Null in a backup from before these were saved; the phone's own choices then stay.
+     */
+    val liveAlertsOn: List<String>? = null,
+    val liveAlertsOff: List<String>? = null,
+)
+
+/** Writes and reads [SettingsBackup] files. */
+class BackupManager(
+    private val settings: SettingsRepository,
+    private val rules: RuleRepository,
+    private val nicknames: NicknameRepository,
+    private val notes: NoteRepository,
+    private val hiddenEmotes: HiddenEmoteRepository,
+    private val hiddenBadges: HiddenBadgeRepository,
+    private val channels: ChannelRepository,
+) {
+    fun export(): String = SettingsBackup.json.encodeToString(
+        SettingsBackup(
+            createdAt = System.currentTimeMillis(),
+            settings = settings.settings.value,
+            rules = rules.rules.value,
+            nicknames = nicknames.nicknames.value,
+            notes = notes.notes.value,
+            channels = ChannelBackup(
+                logins = channels.pages.value,
+                names = channels.customNames.value,
+                notificationsOff = channels.mutedChannels.value.toList(),
+                hiddenUnread = channels.hiddenUnread.value.toList(),
+                groups = channels.groups.value.values.toList(),
+                liveAlertsOn = channels.liveAlerts.value.on.toList(),
+                liveAlertsOff = channels.liveAlerts.value.off.toList(),
+            ),
+            recentEmotes = settings.recentEmotes.value,
+            hiddenEmotes = hiddenEmotes.hidden.value.list,
+            hiddenBadges = hiddenBadges.hidden.value,
+        )
+    )
+
+    /**
+     * The backup in [text] after [BackupCheck], or null if it is not a Chatter backup. Nothing is
+     * written; [apply] does that once the user has seen the changes.
+     */
+    fun read(text: String): SettingsBackup? {
+        val backup = runCatching { SettingsBackup.json.decodeFromString<SettingsBackup>(text) }.getOrNull() ?: return null
+        if (backup.app != SettingsBackup.APP) return null
+        return BackupCheck.clean(backup)
+    }
+
+    /** Applies [backup] as [read] returned it. */
+    suspend fun apply(backup: SettingsBackup) {
+        backup.settings?.let { settings.replaceAll(it) }
+        backup.recentEmotes?.let { settings.setRecentEmotes(it) }
+        backup.rules?.let { rules.replaceAll(it) }
+        backup.nicknames?.let { nicknames.replaceAll(it) }
+        backup.notes?.let { notes.replaceAll(it) }
+        backup.hiddenEmotes?.let { hiddenEmotes.replaceAll(it) }
+        backup.hiddenBadges?.let { hiddenBadges.replaceAll(it) }
+        backup.channels?.let {
+            channels.restore(it.logins, it.names, it.notificationsOff.toSet(), it.hiddenUnread.toSet(), it.groups)
+            if (it.liveAlertsOn != null || it.liveAlertsOff != null) {
+                channels.restoreLiveAlerts(it.liveAlertsOn.orEmpty(), it.liveAlertsOff.orEmpty())
+            }
+        }
+    }
+}

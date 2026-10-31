@@ -1,0 +1,67 @@
+package me.lesh.chatter.ui.changelog
+
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.Button
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.dp
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import me.lesh.chatter.BuildConfig
+import me.lesh.chatter.R
+import me.lesh.chatter.ui.MainViewModel
+
+/**
+ * What an update brought. Only shows when the repository reports unread releases, which excludes
+ * patch releases and fresh installs.
+ */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun UpdateNotesSheet(vm: MainViewModel) {
+    val releases by vm.unreadReleases.collectAsStateWithLifecycle()
+    if (releases.isEmpty()) return
+
+    // Swiping it away counts as read, like the button.
+    ModalBottomSheet(
+        onDismissRequest = vm::markChangelogRead,
+        containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
+    ) {
+        Column(
+            Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 20.dp)
+                .verticalScroll(rememberScrollState()),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+            Text(
+                stringResource(R.string.changelog_whats_new),
+                style = MaterialTheme.typography.headlineSmall,
+                fontWeight = FontWeight.Bold,
+            )
+            Text(
+                stringResource(R.string.changelog_updated_to, BuildConfig.VERSION_NAME),
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            releases.forEach { ReleaseCard(it) }
+            Button(
+                onClick = vm::markChangelogRead,
+                modifier = Modifier.fillMaxWidth().padding(top = 4.dp),
+            ) { Text(stringResource(R.string.changelog_got_it)) }
+            Spacer(Modifier.height(16.dp))
+        }
+    }
+}

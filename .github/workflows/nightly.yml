@@ -1,5 +1,5 @@
 # Builds Chatter Nightly from master every night and puts the APK into the one GitHub release
-# tagged "nightly", replacing the one before. Nightly is an app of its own (dev.chatter.app.nightly),
+# tagged "nightly", replacing the one before. Nightly is an app of its own (me.lesh.chatter.nightly),
 # so it installs next to Chatter; it is only on GitHub, never on Play.
 #
 # check decides whether there is anything to build: a commit the last nightly did not have, and

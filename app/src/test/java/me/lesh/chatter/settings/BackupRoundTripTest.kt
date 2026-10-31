@@ -1,0 +1,136 @@
+package me.lesh.chatter.settings
+
+import me.lesh.chatter.badges.Badge
+import me.lesh.chatter.badges.BadgeProvider
+import me.lesh.chatter.badges.HiddenBadgeRepository
+import me.lesh.chatter.channels.ChannelRepository
+import me.lesh.chatter.channels.LiveAlertChoices
+import me.lesh.chatter.chat.NicknameRepository
+import me.lesh.chatter.chat.NoteRepository
+import me.lesh.chatter.chat.RuleRepository
+import me.lesh.chatter.emotes.Emote
+import me.lesh.chatter.emotes.EmoteProvider
+import me.lesh.chatter.emotes.HiddenEmoteRepository
+import me.lesh.chatter.net.HelixApi
+import me.lesh.chatter.testing.MemoryStore
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancel
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.withTimeout
+import okhttp3.OkHttpClient
+import org.junit.After
+import org.junit.Assert.assertEquals
+import org.junit.Test
+
+/** A backup written on one phone and restored on a fresh install, through the real repositories. */
+class BackupRoundTripTest {
+    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+
+    /** One install: its own store, and a Twitch API that is never logged in. */
+    private inner class Phone {
+        private val store = MemoryStore()
+        val channels = ChannelRepository(store, HelixApi(OkHttpClient()) { null }, scope)
+        val hiddenEmotes = HiddenEmoteRepository(store, scope)
+        val notes = NoteRepository(store, scope)
+        val hiddenBadges = HiddenBadgeRepository(store, scope)
+        val backups = BackupManager(
+            SettingsRepository(store, scope),
+            RuleRepository(store, scope),
+            NicknameRepository(store, scope),
+            notes,
+            hiddenEmotes,
+            hiddenBadges,
+            channels,
+        )
+
+        /** The choices once something is stored; a missing choice fails instead of waiting forever. */
+        suspend fun liveAlerts(): LiveAlertChoices =
+            withTimeout(5_000) { channels.liveAlerts.first { it != LiveAlertChoices() } }
+
+        /** Waits for [expected]; the store's flow can still show the first of two changes. */
+        suspend fun liveAlertsReach(expected: LiveAlertChoices) {
+            withTimeout(5_000) { channels.liveAlerts.first { it == expected } }
+        }
+    }
+
+    @After
+    fun stop() = scope.cancel()
+
+    @Test
+    fun liveAlertChoicesMoveToANewPhone() = runBlocking {
+        val old = Phone()
+        old.channels.add("forsen")
+        // Only followed, not in the list.
+        old.channels.setLiveAlert("xqc", enabled = true)
+        old.channels.setLiveAlert("forsen", enabled = false)
+        val expected = LiveAlertChoices(on = setOf("xqc"), off = setOf("forsen"))
+        old.liveAlertsReach(expected)
+
+        val new = Phone()
+        new.backups.apply(new.backups.read(old.backups.export())!!)
+
+        new.liveAlertsReach(expected)
+    }
+
+    @Test
+    fun hiddenEmotesMoveToANewPhone() = runBlocking {
+        val old = Phone()
+        val kekw = Emote("KEKW", "1", "https://cdn.7tv.app/emote/1/2x.webp", EmoteProvider.SevenTv)
+        old.hiddenEmotes.hide(kekw, "xqc")
+        val expected = withTimeout(5_000) { old.hiddenEmotes.hidden.first { !it.isEmpty() } }
+
+        val new = Phone()
+        new.backups.apply(new.backups.read(old.backups.export())!!)
+
+        assertEquals(expected, withTimeout(5_000) { new.hiddenEmotes.hidden.first { !it.isEmpty() } })
+    }
+
+    @Test
+    fun hiddenBadgesMoveToANewPhone() = runBlocking {
+        val old = Phone()
+        old.hiddenBadges.hide(Badge("https://static-cdn.jtvnw.net/badges/v1/p/2", "Predicted Blue (1)", BadgeProvider.Twitch, "predictions"))
+        withTimeout(5_000) { old.hiddenBadges.hidden.first { it.isNotEmpty() } }
+
+        val new = Phone()
+        new.backups.apply(new.backups.read(old.backups.export())!!)
+
+        assertEquals(setOf("Twitch/predictions"), withTimeout(5_000) { new.hiddenBadges.hiddenKinds.first { it.isNotEmpty() } })
+    }
+
+    @Test
+    fun notesMoveToANewPhone() = runBlocking {
+        val old = Phone()
+        old.notes.set("Forsen", "  Banned before for spam ")
+        val expected = mapOf("forsen" to "Banned before for spam")
+        withTimeout(5_000) { old.notes.notes.first { it == expected } }
+
+        val new = Phone()
+        new.backups.apply(new.backups.read(old.backups.export())!!)
+
+        assertEquals(expected, withTimeout(5_000) { new.notes.notes.first { it.isNotEmpty() } })
+    }
+
+    @Test
+    fun aBackupFromBeforeLiveAlertsKeepsThePhonesOwn() = runBlocking {
+        val phone = Phone()
+        phone.channels.setLiveAlert("xqc", enabled = true)
+        val before = phone.liveAlerts()
+
+        phone.backups.apply(phone.backups.read("""{"app":"Chatter","channels":{"logins":["forsen"]}}""")!!)
+
+        assertEquals(before, phone.channels.liveAlerts.value)
+    }
+
+    @Test
+    fun liveAlertsForNamesThatAreNoLoginsAreDropped() = runBlocking {
+        val phone = Phone()
+        val text = """{"app":"Chatter","channels":{"liveAlertsOn":["XQC","x,y","a b"],"liveAlertsOff":["#nope"]}}"""
+
+        phone.backups.apply(phone.backups.read(text)!!)
+
+        assertEquals(LiveAlertChoices(on = setOf("xqc")), phone.liveAlerts())
+    }
+}

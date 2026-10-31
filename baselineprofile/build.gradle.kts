@@ -12,7 +12,7 @@ plugins {
  * effect: `./gradlew :baselineprofile:connectedBenchmarkReleaseAndroidTest`.
  */
 android {
-    namespace = "dev.chatter.app.baselineprofile"
+    namespace = "me.lesh.chatter.baselineprofile"
     compileSdk = 36
 
     defaultConfig {

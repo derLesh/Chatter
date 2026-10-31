@@ -1,0 +1,436 @@
+package me.lesh.chatter.chat
+
+import me.lesh.chatter.emotes.Emote
+import me.lesh.chatter.irc.IrcMessage
+import me.lesh.chatter.settings.Settings
+import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.test.StandardTestDispatcher
+import kotlinx.coroutines.test.TestScope
+import kotlinx.coroutines.test.advanceUntilIdle
+import kotlinx.coroutines.test.runTest
+import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
+import org.junit.Assert.assertTrue
+import org.junit.Test
+
+/**
+ * How the app handles what Twitch sends (bans, deletions, mentions, a channel's first ROOMSTATE),
+ * fed with nothing but IRC lines.
+ */
+@OptIn(ExperimentalCoroutinesApi::class)
+class IncomingMessagesTest {
+    private val dispatcher = StandardTestDispatcher()
+    private val scope = TestScope(dispatcher)
+    private val settings = MutableStateFlow(Settings(messageLimit = 50))
+
+    private val buffers = MessageBuffers(scope, dispatcher, settings)
+    private val rooms = Rooms()
+    private val windows = ChatWindows()
+    private val chatters = ChatterRegistry()
+
+    private val emotes = object : EmoteSource {
+        override fun lookup(channelId: String?, word: String): Emote? = null
+        override fun lookupOwnTwitch(channelId: String?, word: String): Emote? = null
+    }
+    private val builder = MessageBuilder(emotes, { _, _, _ -> emptyList() }, chatters)
+
+    private val notices = object : ChatNotices {
+        override fun chatCleared() = "Chat cleared."
+        override fun timeout(name: String, seconds: Int) = "$name timed out for $seconds seconds."
+        override fun ban(name: String) = "$name banned."
+    }
+
+    private class CountedStats : ChatStats {
+        var received = 0
+        var mentions = 0
+        var sent = 0
+        override fun countReceived(channel: String) { received++ }
+        override fun countMention() { mentions++ }
+        override fun countSent(channel: String) { sent++ }
+    }
+
+    private val stats = CountedStats()
+    private var filters = ChatFilters(mentions = MentionMatcher("lukas", emptyList()))
+
+    private val mentioned = mutableListOf<Pair<ChatItem, Boolean>>()
+    private val whispered = mutableListOf<Pair<InboxWhisper, Boolean>>()
+    private val roomsFound = mutableListOf<String>()
+    private val refused = mutableListOf<String>()
+
+    private val incoming = IncomingMessages(
+        builder = builder,
+        buffers = buffers,
+        rooms = rooms,
+        windows = windows,
+        chatters = chatters,
+        notices = notices,
+        stats = stats,
+        filters = { filters },
+        selfLogin = { "lukas" },
+        accountOf = { login -> mapOf("lukas" to "1", "second" to "2")[login.lowercase()] },
+        onMention = { item, watched -> mentioned += item to watched },
+        onWhisper = { whisper, watched -> whispered += whisper to watched },
+        onRoomFound = { roomsFound += it },
+        onRefused = { refused += it },
+        now = { clock },
+    )
+
+    private var clock = 1_000_000L
+
+    private val window = Any()
+
+    private fun line(raw: String) = IrcMessage.parse(raw)!!
+
+    private fun privmsg(from: String, text: String, channel: String = "forsen", id: String = text.hashCode().toString()) =
+        line("@id=$id;display-name=$from :$from!$from@$from.tmi.twitch.tv PRIVMSG #$channel :$text")
+
+    // ---- messages ------------------------------------------------------------------------------
+
+    @Test
+    fun aMessageLandsInItsChannelAndIsCounted() = runTest(dispatcher) {
+        buffers.open("forsen")
+        incoming.handle(privmsg("someone", "hello"))
+        assertEquals(1, stats.received)
+        assertEquals(listOf("someone"), chatters.names("forsen"))
+    }
+
+    @Test
+    fun aMutedWordNeverReachesTheChannel() = runTest(dispatcher) {
+        buffers.open("forsen")
+        filters = filters.copy(muted = MuteFilter(keywords = listOf("spoiler")))
+        incoming.handle(privmsg("someone", "spoiler ahead"))
+        incoming.handle(privmsg("someone", "nothing to see"))
+
+        val watcher = launch { buffers.messages("forsen").collect {} }
+        advanceUntilIdle()
+        assertEquals(listOf("nothing to see"), buffers.messages("forsen").value.map { it.text })
+        assertEquals("only what reaches the chat is counted", 1, stats.received)
+        watcher.cancel()
+    }
+
+    @Test
+    fun watchStreaksTurnedOffNeverReachTheChannel() = runTest(dispatcher) {
+        buffers.open("forsen")
+        filters = filters.copy(watchStreaks = false)
+        incoming.handle(
+            line(
+                "@id=w;login=someone;display-name=someone;msg-id=viewermilestone;msg-param-category=watch-streak;" +
+                    "msg-param-value=5 :tmi.twitch.tv USERNOTICE #forsen",
+            ),
+        )
+        incoming.handle(privmsg("someone", "hello"))
+
+        val watcher = launch { buffers.messages("forsen").collect {} }
+        advanceUntilIdle()
+        assertEquals(listOf("hello"), buffers.messages("forsen").value.map { it.text })
+        watcher.cancel()
+    }
+
+    @Test
+    fun aMutedMessageStillMarksHowFarTheChannelHasBeenRead() = runTest(dispatcher) {
+        buffers.open("forsen")
+        filters = filters.copy(muted = MuteFilter(keywords = listOf("spoiler")))
+        incoming.handle(
+            line("@id=1;tmi-sent-ts=1700000000000 :someone!someone@someone.tmi.twitch.tv PRIVMSG #forsen :spoiler ahead")
+        )
+        // Otherwise the next reconnect would fetch it from the history again.
+        assertEquals(1700000000000L, incoming.lastLive("forsen"))
+    }
+
+    @Test
+    fun aRuleThatHidesAMessageHidesIt() = runTest(dispatcher) {
+        buffers.open("forsen")
+        filters = filters.copy(
+            rules = RuleEngine(listOf(ChatRule(id = "r1", pattern = "bet", action = RuleAction.Hide))),
+        )
+        incoming.handle(privmsg("someone", "bet"))
+        incoming.handle(privmsg("someone", "hello"))
+
+        val watcher = launch { buffers.messages("forsen").collect {} }
+        advanceUntilIdle()
+        assertEquals(listOf("hello"), buffers.messages("forsen").value.map { it.text })
+        watcher.cancel()
+    }
+
+    // ---- own messages ---------------------------------------------------------------------------
+
+    private fun own(id: String, text: String = id, sentAt: Long = System.currentTimeMillis()) = ChatItem(
+        id = id, channel = "forsen", kind = MessageKind.Chat, timestamp = sentAt,
+        login = "lukas", text = text, isOwn = true,
+    )
+
+    private fun ids() = buffers.messages("forsen").value.map { it.id }
+
+    @Test
+    fun aSentMessageTakesTheIdTwitchAnswersWith() = runTest(dispatcher) {
+        buffers.open("forsen")
+        val watcher = launch { buffers.messages("forsen").collect {} }
+        incoming.sent(own("local-1"))
+        incoming.handle(line("@badges=;id=real-1 :tmi.twitch.tv USERSTATE #forsen"))
+        advanceUntilIdle()
+        assertEquals(listOf("real-1"), ids())
+        watcher.cancel()
+    }
+
+    @Test
+    fun aJoinsUserstateNamesNoMessage() = runTest(dispatcher) {
+        buffers.open("forsen")
+        val watcher = launch { buffers.messages("forsen").collect {} }
+        incoming.sent(own("local-1"))
+        incoming.handle(line("@badges= :tmi.twitch.tv USERSTATE #forsen"))
+        incoming.handle(line("@badges=;id=real-1 :tmi.twitch.tv USERSTATE #forsen"))
+        advanceUntilIdle()
+        assertEquals(listOf("real-1"), ids())
+        watcher.cancel()
+    }
+
+    @Test
+    fun aRefusedMessageLeavesTheNextOneItsOwnId() = runTest(dispatcher) {
+        buffers.open("forsen")
+        val watcher = launch { buffers.messages("forsen").collect {} }
+        incoming.sent(own("local-1"))
+        incoming.sent(own("local-2"))
+        incoming.handle(line("@msg-id=msg_duplicate :tmi.twitch.tv NOTICE #forsen :Your message is identical."))
+        incoming.handle(line("@badges=;id=real-2 :tmi.twitch.tv USERSTATE #forsen"))
+        advanceUntilIdle()
+        assertEquals(listOf("local-1", "real-2"), ids().filter { it.startsWith("local-") || it.startsWith("real-") })
+        watcher.cancel()
+    }
+
+    @Test
+    fun aRefusedMessageIsStruckOutAndHandedBack() = runTest(dispatcher) {
+        buffers.open("forsen")
+        val watcher = launch { buffers.messages("forsen").collect {} }
+        incoming.sent(own("local-1"))
+        incoming.handle(line("@msg-id=msg_slowmode :tmi.twitch.tv NOTICE #forsen :This room is in slow mode."))
+        advanceUntilIdle()
+        assertEquals(listOf("forsen"), refused)
+        assertTrue(buffers.messages("forsen").value.first { it.id == "local-1" }.deleted)
+        watcher.cancel()
+    }
+
+    @Test
+    fun aNoticeWithNothingWaitingRefusesNothing() = runTest(dispatcher) {
+        incoming.handle(line("@msg-id=msg_channel_suspended :tmi.twitch.tv NOTICE #forsen :This channel does not exist."))
+        assertTrue(refused.isEmpty())
+    }
+
+    @Test
+    fun aMessageWhoseAnswerWasLostIsNotGivenTheNextOnesId() = runTest(dispatcher) {
+        buffers.open("forsen")
+        val watcher = launch { buffers.messages("forsen").collect {} }
+        incoming.sent(own("local-1", sentAt = System.currentTimeMillis() - 60_000))
+        incoming.sent(own("local-2"))
+        incoming.handle(line("@badges=;id=real-2 :tmi.twitch.tv USERSTATE #forsen"))
+        advanceUntilIdle()
+        assertEquals(listOf("local-1", "real-2"), ids())
+        watcher.cancel()
+    }
+
+    // ---- mentions -------------------------------------------------------------------------------
+
+    @Test
+    fun aMentionInTheChannelOnScreenIsNotSomethingToRingAbout() = runTest(dispatcher) {
+        buffers.open("forsen")
+        windows.setVisible(window, visible = true, channels = setOf("forsen"))
+        incoming.handle(privmsg("someone", "hey lukas"))
+
+        assertEquals(1, mentioned.size)
+        assertTrue("the user was looking at it", mentioned.single().second)
+        assertEquals(1, stats.mentions)
+    }
+
+    @Test
+    fun aMentionInAChannelNobodyIsLookingAtIsUnreadAndWorthRinging() = runTest(dispatcher) {
+        buffers.open("forsen")
+        windows.setVisible(window, visible = true, channels = setOf("xqc"))
+        incoming.handle(privmsg("someone", "hey lukas"))
+
+        assertFalse(mentioned.single().second)
+        assertEquals(mapOf("forsen" to 1), unreadAfterPublish())
+    }
+
+    @Test
+    fun aSharedChatMentionInTwoOpenChannelsRingsOnce() = runTest(dispatcher) {
+        buffers.open("forsen")
+        buffers.open("xqc")
+        val tags = "source-room-id=1;source-id=s1"
+        incoming.handle(line("@id=a;room-id=1;$tags :someone!someone@someone.tmi.twitch.tv PRIVMSG #forsen :hey lukas"))
+        incoming.handle(line("@id=b;room-id=2;$tags :someone!someone@someone.tmi.twitch.tv PRIVMSG #xqc :hey lukas"))
+
+        assertEquals(listOf("a"), mentioned.map { it.first.id })
+        assertEquals(1, stats.mentions)
+    }
+
+    @Test
+    fun theUsersOwnMessagesAreNeitherUnreadNorMentions() = runTest(dispatcher) {
+        buffers.open("forsen")
+        incoming.handle(privmsg("lukas", "lukas talking to himself"))
+        assertEquals(emptyList<Pair<ChatItem, Boolean>>(), mentioned)
+        assertEquals("nothing arrived from anybody else", 0, stats.received)
+        assertEquals(emptyMap<String, Int>(), unreadAfterPublish())
+    }
+
+    private fun TestScope.unreadAfterPublish(): Map<String, Int> {
+        val watcher = launch { buffers.messages("forsen").collect {} }
+        advanceUntilIdle()
+        watcher.cancel()
+        return buffers.unreadMessages.value
+    }
+
+    // ---- moderation ------------------------------------------------------------------------------
+
+    @Test
+    fun aBanStrikesThroughEverythingThatChatterSaidAndSaysSo() = runTest(dispatcher) {
+        buffers.open("forsen")
+        incoming.handle(privmsg("rulebreaker", "one"))
+        incoming.handle(privmsg("rulebreaker", "two"))
+        incoming.handle(privmsg("someone", "three"))
+        incoming.handle(line(":tmi.twitch.tv CLEARCHAT #forsen :rulebreaker"))
+
+        val watcher = launch { buffers.messages("forsen").collect {} }
+        advanceUntilIdle()
+        val shown = buffers.messages("forsen").value
+        assertEquals(listOf(true, true, false, false), shown.map { it.deleted })
+        assertEquals("rulebreaker banned.", shown.last().systemText)
+        watcher.cancel()
+    }
+
+    @Test
+    fun aTimeoutSaysHowLong() = runTest(dispatcher) {
+        buffers.open("forsen")
+        incoming.handle(line("@ban-duration=600 :tmi.twitch.tv CLEARCHAT #forsen :rulebreaker"))
+
+        val watcher = launch { buffers.messages("forsen").collect {} }
+        advanceUntilIdle()
+        assertEquals("rulebreaker timed out for 600 seconds.", buffers.messages("forsen").value.single().systemText)
+        watcher.cancel()
+    }
+
+    @Test
+    fun beingTimedOutCountsDownFromNow() {
+        incoming.handle(line("@ban-duration=600 :tmi.twitch.tv CLEARCHAT #forsen :Lukas"))
+        assertEquals(mapOf("forsen" to Penalty.TimedOut(clock + 600_000)), rooms.penalties.value)
+    }
+
+    @Test
+    fun beingBannedIsKeptPerChannel() {
+        incoming.handle(line(":tmi.twitch.tv CLEARCHAT #forsen :lukas"))
+        assertEquals(mapOf("forsen" to Penalty.Banned), rooms.penalties.value)
+    }
+
+    @Test
+    fun someoneElsesTimeoutLeavesTheInputAlone() {
+        incoming.handle(line("@ban-duration=600 :tmi.twitch.tv CLEARCHAT #forsen :rulebreaker"))
+        incoming.handle(line(":tmi.twitch.tv CLEARCHAT #forsen"))
+        assertTrue(rooms.penalties.value.isEmpty())
+    }
+
+    /** After a restart the CLEARCHAT is gone; Twitch's refusal says how long is left. */
+    @Test
+    fun aRefusalSaysHowLongTheTimeoutLasts() {
+        incoming.handle(line("@msg-id=msg_timedout :tmi.twitch.tv NOTICE #forsen :You are timed out for 297 more seconds."))
+        assertEquals(Penalty.TimedOut(clock + 297_000), rooms.penalties.value["forsen"])
+
+        incoming.handle(line("@msg-id=msg_banned :tmi.twitch.tv NOTICE #xqc :You are permanently banned from talking in xqc."))
+        assertEquals(Penalty.Banned, rooms.penalties.value["xqc"])
+    }
+
+    @Test
+    fun aMessageThatGetsThroughEndsABan() = runTest(dispatcher) {
+        buffers.open("forsen")
+        incoming.handle(line(":tmi.twitch.tv CLEARCHAT #forsen :lukas"))
+        incoming.sent(own("local-1"))
+        incoming.handle(line("@badges=;id=real-1 :tmi.twitch.tv USERSTATE #forsen"))
+        assertTrue(rooms.penalties.value.isEmpty())
+    }
+
+    @Test
+    fun aClearedChatKeepsItsMessagesAndSaysWhatHappened() = runTest(dispatcher) {
+        buffers.open("forsen")
+        incoming.handle(privmsg("someone", "hello"))
+        incoming.handle(line(":tmi.twitch.tv CLEARCHAT #forsen"))
+
+        val watcher = launch { buffers.messages("forsen").collect {} }
+        advanceUntilIdle()
+        val shown = buffers.messages("forsen").value
+        assertEquals(listOf("hello", "Chat cleared."), shown.map { it.text })
+        assertFalse("clearing is not deleting, the user can still read back", shown.first().deleted)
+        watcher.cancel()
+    }
+
+    @Test
+    fun aDeletedMessageIsStruckThroughByItsId() = runTest(dispatcher) {
+        buffers.open("forsen")
+        incoming.handle(privmsg("someone", "oops", id = "msg-1"))
+        incoming.handle(privmsg("someone", "fine", id = "msg-2"))
+        incoming.handle(line("@target-msg-id=msg-1 :tmi.twitch.tv CLEARMSG #forsen :oops"))
+
+        val watcher = launch { buffers.messages("forsen").collect {} }
+        advanceUntilIdle()
+        assertEquals(listOf(true, false), buffers.messages("forsen").value.map { it.deleted })
+        watcher.cancel()
+    }
+
+    // ---- what Twitch says about the room -----------------------------------------------------------
+
+    @Test
+    fun theFirstRoomStateOfAChannelIsWhenItsEmotesCanBeFetched() = runTest(dispatcher) {
+        incoming.handle(line("@room-id=22484632;slow=30 :tmi.twitch.tv ROOMSTATE #forsen"))
+        assertEquals(listOf("22484632"), roomsFound)
+        assertEquals(30, rooms.states.value["forsen"]?.slow)
+
+        incoming.handle(line("@room-id=22484632;slow=0 :tmi.twitch.tv ROOMSTATE #forsen"))
+        assertEquals("the id was known, so nothing is fetched twice", listOf("22484632"), roomsFound)
+        assertEquals(0, rooms.states.value["forsen"]?.slow)
+    }
+
+    @Test
+    fun theBadgesInAUserStateSayWhatTheUserMayDoHere() = runTest(dispatcher) {
+        incoming.handle(line("@badges=moderator/1 :tmi.twitch.tv USERSTATE #forsen"))
+        assertEquals(ChatRole.Moderator, rooms.roles.value["forsen"])
+        assertTrue(rooms.isPrivileged("forsen"))
+        assertFalse("forsen" in rooms.subscribed.value)
+        incoming.handle(line("@badges=subscriber/12,premium/1 :tmi.twitch.tv USERSTATE #forsen"))
+        assertTrue("forsen" in rooms.subscribed.value)
+        incoming.handle(line("@badges=founder/0 :tmi.twitch.tv USERSTATE #forsen"))
+        assertTrue("a founder is a subscriber", "forsen" in rooms.subscribed.value)
+    }
+
+    // ---- whispers ------------------------------------------------------------------------------------
+
+    @Test
+    fun aWhisperIsReadAlreadyWhenItsTabIsInFront() = runTest(dispatcher) {
+        windows.setVisible(window, visible = true, channels = emptySet())
+        windows.whispersVisible.value = true
+        incoming.handle(line("@display-name=Someone;user-id=7 :someone!someone@someone.tmi.twitch.tv WHISPER lukas :hello"))
+        assertTrue(whispered.single().second)
+
+        windows.whispersVisible.value = false
+        incoming.handle(line("@display-name=Someone;user-id=7 :someone!someone@someone.tmi.twitch.tv WHISPER lukas :again"))
+        assertFalse(whispered.last().second)
+    }
+
+    @Test
+    fun aWhisperBelongsToTheAccountTwitchSentItTo() = runTest(dispatcher) {
+        incoming.handle(line("@user-id=7 :someone!someone@someone.tmi.twitch.tv WHISPER lukas :hello"))
+        incoming.handle(line("@user-id=7 :someone!someone@someone.tmi.twitch.tv WHISPER Second :hi"))
+        assertEquals(listOf("1", "2"), whispered.map { it.first.owner })
+    }
+
+    /** One still in the queue when its account was removed has nobody left to be shown to. */
+    @Test
+    fun aWhisperForAnAccountThatIsGoneIsDropped() = runTest(dispatcher) {
+        incoming.handle(line("@user-id=7 :someone!someone@someone.tmi.twitch.tv WHISPER removed :hello"))
+        assertEquals(emptyList<Pair<InboxWhisper, Boolean>>(), whispered)
+    }
+
+    @Test
+    fun aMutedWhisperNeverArrives() = runTest(dispatcher) {
+        filters = filters.copy(muted = MuteFilter(blocked = setOf("someone")))
+        incoming.handle(line("@display-name=Someone;user-id=7 :someone!someone@someone.tmi.twitch.tv WHISPER lukas :hello"))
+        assertEquals(emptyList<Pair<InboxWhisper, Boolean>>(), whispered)
+    }
+}

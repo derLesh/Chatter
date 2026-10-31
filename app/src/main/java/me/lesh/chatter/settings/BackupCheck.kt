@@ -1,0 +1,132 @@
+package me.lesh.chatter.settings
+
+import me.lesh.chatter.badges.HiddenBadge
+import me.lesh.chatter.channels.ChannelGroup
+import me.lesh.chatter.chat.ImageLinks
+import me.lesh.chatter.chat.NoteRepository
+import me.lesh.chatter.emotes.HiddenEmote
+import me.lesh.chatter.net.TrustedImages
+import java.io.InputStream
+
+/**
+ * Limits for what a backup may bring in. Backups get passed around, so they are untrusted input and
+ * held to what the settings screen allows: an image host list of just "com" would load every linked
+ * picture and reveal the user's IP address to whoever posted it.
+ */
+object BackupCheck {
+    /** The font size slider's range. */
+    val FONT_SIZES = 10f..24f
+
+    /** The message limit slider's range. */
+    val MESSAGE_LIMITS = 100..2000
+
+    const val MAX_HOSTS = 50
+    const val MAX_KEYWORDS = 200
+    const val MAX_RECENT_EMOTES = 50
+    const val MAX_RULES = 200
+    const val MAX_PATTERN = 500
+    const val MAX_NICKNAMES = 2000
+    const val MAX_NICKNAME = 50
+    const val MAX_NOTES = 2000
+    const val MAX_CHANNELS = 200
+    const val MAX_HIDDEN_EMOTES = 500
+    const val MAX_HIDDEN_BADGES = 500
+
+    /** Longer than any emote name or id the providers hand out. */
+    const val MAX_EMOTE_TEXT = 100
+
+    /** Live alerts also cover followed channels, which may be many more than are in the list. */
+    const val MAX_LIVE_ALERTS = 2000
+
+    /**
+     * Well above a backup at all limits. Reading a large file into memory just to reject it could
+     * run out of memory.
+     */
+    const val MAX_FILE_BYTES = 2 * 1024 * 1024
+
+    /** The text of a backup file, or null if it is too large to be one. */
+    fun readLimited(input: InputStream): String? {
+        val bytes = input.readNBytes(MAX_FILE_BYTES + 1)
+        return if (bytes.size > MAX_FILE_BYTES) null else bytes.decodeToString()
+    }
+
+    private val LOGIN = Regex("^[a-z0-9_]{1,25}$")
+    private val HOST_LABEL = Regex("^[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?$")
+
+    /** [backup] with everything out of bounds dropped or clamped. */
+    fun clean(backup: SettingsBackup): SettingsBackup = backup.copy(
+        settings = backup.settings?.let(::clean),
+        // Stored space-separated.
+        recentEmotes = backup.recentEmotes?.filter { it.isNotBlank() && ' ' !in it }?.distinct()?.take(MAX_RECENT_EMOTES),
+        rules = backup.rules
+            ?.filter { it.pattern.isNotBlank() && it.pattern.length <= MAX_PATTERN }
+            ?.distinctBy { it.id }
+            ?.take(MAX_RULES),
+        nicknames = backup.nicknames?.let { byLogin(it, MAX_NICKNAME, MAX_NICKNAMES) },
+        notes = backup.notes?.let { byLogin(it, NoteRepository.MAX_LENGTH, MAX_NOTES) },
+        hiddenEmotes = backup.hiddenEmotes?.mapNotNull(::hiddenEmote)?.distinctBy { it.key }?.take(MAX_HIDDEN_EMOTES),
+        hiddenBadges = backup.hiddenBadges?.mapNotNull(::hiddenBadge)?.distinctBy { it.kind }?.take(MAX_HIDDEN_BADGES),
+        channels = backup.channels?.let { c ->
+            // Group ids end up in the comma-separated page list; see ChannelGroup.isValidId.
+            // Invalid ones are dropped together with their place in the list.
+            val groups = c.groups.filter { ChannelGroup.isValidId(it.id) }
+            val keys = groups.map { it.key }.toSet()
+            c.copy(
+                logins = c.logins.filter { !ChannelGroup.isKey(it) || it in keys }.take(MAX_CHANNELS),
+                groups = groups,
+                liveAlertsOn = c.liveAlertsOn?.let(::liveAlertLogins),
+                liveAlertsOff = c.liveAlertsOff?.let(::liveAlertLogins),
+            )
+        },
+    )
+
+    private fun clean(s: Settings) = s.copy(
+        fontSize = s.fontSize.takeIf { !it.isNaN() }?.coerceIn(FONT_SIZES) ?: Settings().fontSize,
+        messageLimit = s.messageLimit.coerceIn(MESSAGE_LIMITS),
+        postTextLines = s.postTextLines.coerceIn(PostTextLines.RANGE),
+        mentionKeywords = keywords(s.mentionKeywords),
+        muteKeywords = keywords(s.muteKeywords),
+        imageHosts = hosts(s.imageHosts),
+    )
+
+    /** The picture is shown in the settings, so it must come from an emote host like any emote's. */
+    private fun hiddenEmote(e: HiddenEmote): HiddenEmote? {
+        val id = e.id.trim()
+        val name = e.name.trim()
+        if (id.isEmpty() || name.isEmpty() || id.length > MAX_EMOTE_TEXT || name.length > MAX_EMOTE_TEXT) return null
+        val channel = e.channel?.trim()?.lowercase()
+        if (channel != null && !LOGIN.matches(channel)) return null
+        return e.copy(id = id, name = name, url = e.url?.let(TrustedImages::url), channel = channel)
+    }
+
+    /** Like [hiddenEmote]: the picture is shown in the settings. */
+    private fun hiddenBadge(b: HiddenBadge): HiddenBadge? {
+        val set = b.set.trim()
+        if (set.isEmpty() || set.length > MAX_EMOTE_TEXT) return null
+        return b.copy(set = set, title = b.title.trim().take(MAX_EMOTE_TEXT), url = b.url?.let(TrustedImages::url))
+    }
+
+    /** Texts keyed by real logins, trimmed and cut to [maxLength]; empty ones are dropped. */
+    private fun byLogin(texts: Map<String, String>, maxLength: Int, maxCount: Int): Map<String, String> = texts
+        .mapKeys { it.key.trim().lowercase() }
+        .mapValues { it.value.trim().take(maxLength) }
+        .filter { (login, text) -> LOGIN.matches(login) && text.isNotEmpty() }
+        .entries.take(maxCount).associate { it.key to it.value }
+
+    private fun liveAlertLogins(list: List<String>) =
+        list.map { it.trim().lowercase() }.filter(LOGIN::matches).distinct().take(MAX_LIVE_ALERTS)
+
+    /** Stored comma-separated. */
+    private fun keywords(list: List<String>) =
+        list.map { it.replace(",", "").trim() }.filter { it.isNotEmpty() }.distinct().take(MAX_KEYWORDS)
+
+    /**
+     * Hosts as the settings screen takes them ([ImageLinks.cleanHost]), and only real ones with a
+     * dot. A bare top-level domain would match every site under it.
+     */
+    fun hosts(list: List<String>): List<String> = list
+        .map(ImageLinks::cleanHost)
+        .filter { host -> '.' in host && host.split('.').all { HOST_LABEL.matches(it) } }
+        .distinct()
+        .take(MAX_HOSTS)
+}

@@ -1,0 +1,198 @@
+package me.lesh.chatter.chat
+
+import me.lesh.chatter.badges.Badge
+import me.lesh.chatter.badges.NamePaint
+import me.lesh.chatter.emotes.Emote
+
+/** A piece of a chat message, computed once when the message arrives. */
+sealed interface Segment {
+    data class Text(val text: String) : Segment
+    data class EmoteSeg(val emote: Emote, val overlays: List<Emote> = emptyList()) : Segment
+    data class Link(val text: String, val url: String) : Segment
+    /**
+     * "@name". [login] and [color] are only set while that user is chatting in the channel, so
+     * unknown names keep the default color.
+     */
+    data class Mention(val name: String, val login: String? = null, val color: Int? = null) : Segment
+    /**
+     * "Cheer100" in a message with bits: the cheermote's picture in both themes and the amount in
+     * its tier's [color].
+     */
+    data class Cheer(val dark: Emote, val light: Emote, val amount: Int, val color: Int) : Segment
+    /**
+     * A GIF from Twitch's `gifs` tag, which Tier 2 and 3 subs post from Giphy. [title] is the text
+     * it stands in for, "[Yes GIF by …]"; [url] is checked by [TwitchGifs.url].
+     */
+    data class Gif(val title: String, val url: String) : Segment
+}
+
+enum class MessageKind { Chat, Action, UserNotice, Notice }
+
+/** What a chatter paid channel points or bits for, from the message's `msg-id`. */
+enum class PowerUp {
+    /** `gigantified-emote-message`: the message's last emote, drawn large. */
+    GiantEmote,
+    /** `highlighted-message`. */
+    Highlighted,
+    /** `animated-message`: an animation Twitch plays over the message. */
+    Effect,
+}
+
+/**
+ * The parts of a message only drawing needs: emote, link and mention segments, the sender's badges,
+ * and the segments of the message a reply answers. Built on first use, because filtering, mentions
+ * and rules only read the plain text; messages nobody looks at, in the background or in the
+ * history, are never parsed for emotes.
+ *
+ * Building reads the emote tables and the chatter registry, which belong to [ChatRepository]'s
+ * worker, so the repository builds messages before handing them to the UI (see `snapshot`).
+ */
+class MessageBody private constructor(
+    private var source: Source?,
+    @Volatile private var parts: Parts?,
+) {
+    /**
+     * What a body is built from on first use. One object per message rather than a lambda per
+     * part: this is made for every message in every channel.
+     */
+    interface Source {
+        fun segments(): List<Segment>
+        fun badges(): List<Badge>
+
+        /** The sender's 7TV paint. */
+        fun paint(): NamePaint? = null
+
+        /** The message a reply answers; empty otherwise. */
+        fun quote(): List<Segment> = emptyList()
+
+        /** Asked after building: true keeps the source for [rebuilt]. */
+        fun worthKeeping(): Boolean = false
+    }
+
+    private class Parts(val segments: List<Segment>, val badges: List<Badge>, val quote: List<Segment>, val paint: NamePaint?)
+
+    val segments: List<Segment> get() = parts().segments
+    val badges: List<Badge> get() = parts().badges
+    val paint: NamePaint? get() = parts().paint
+    val quote: List<Segment> get() = parts().quote
+
+    /** Builds the parts now on the calling thread, if not built yet. */
+    fun prepare() {
+        parts()
+    }
+
+    /**
+     * The same message, to be built again for emotes that arrived later. A body that was never
+     * built, or no longer knows how it was built, is returned as is.
+     */
+    fun rebuilt(): MessageBody =
+        if (parts == null) this else source?.let { MessageBody(it, null) } ?: this
+
+    private fun parts(): Parts = parts ?: synchronized(this) {
+        parts ?: source!!.let { from ->
+            Parts(from.segments(), from.badges(), from.quote(), from.paint()).also {
+                parts = it
+                // Drops the source unless the message could still change, i.e. while a provider
+                // owes emotes; [rebuilt] needs it then.
+                if (!from.worthKeeping()) source = null
+            }
+        }
+    }
+
+    companion object {
+        val EMPTY = of(emptyList())
+
+        /** For lines the app writes itself. */
+        fun of(segments: List<Segment>, badges: List<Badge> = emptyList()) =
+            MessageBody(null, Parts(segments, badges, emptyList(), null))
+
+        fun from(source: Source) = MessageBody(source, null)
+
+        /** A body from one lambda per part, where the extra objects do not matter, as in tests. */
+        fun lazily(
+            segments: () -> List<Segment>,
+            badges: () -> List<Badge>,
+            worthKeeping: () -> Boolean = { false },
+        ) = from(object : Source {
+            override fun segments() = segments()
+            override fun badges() = badges()
+            override fun worthKeeping() = worthKeeping()
+        })
+    }
+}
+
+data class ReplyInfo(
+    val parentId: String,
+    val parentLogin: String,
+    val parentDisplayName: String,
+    val parentBody: String,
+    /**
+     * The first message of the conversation, from `reply-thread-parent-msg-id`. Equals [parentId]
+     * for a direct answer to it.
+     */
+    val threadId: String = parentId,
+)
+
+/** An immutable, render-ready chat line. */
+data class ChatItem(
+    val id: String,
+    val channel: String,
+    val kind: MessageKind,
+    val timestamp: Long,
+    val login: String? = null,
+    val displayName: String? = null,
+    /** ARGB color from the `color` tag, or null if the user never picked one. */
+    val color: Int? = null,
+    /** What only drawing needs; see [MessageBody]. */
+    val body: MessageBody = MessageBody.EMPTY,
+    /** Header of sub/raid notices, or the whole text of NOTICE and system lines. */
+    val systemText: String? = null,
+    /** Plain text, for copying and reply previews. */
+    val text: String = "",
+    val isMention: Boolean = false,
+    /** ARGB background from a matching highlight rule, or [MENTION_HIGHLIGHT]. */
+    val highlight: Int? = null,
+    /** Twitch's `first-msg`: the user's first message in this channel ever. */
+    val isFirstMessage: Boolean = false,
+    val isOwn: Boolean = false,
+    val reply: ReplyInfo? = null,
+    val deleted: Boolean = false,
+    val historical: Boolean = false,
+    /**
+     * Every other message in a channel, fixed when added. Stored on the item so the pattern does
+     * not flip when old messages are dropped from the top.
+     */
+    val alternate: Boolean = false,
+    /**
+     * Twitch's `source-id` during Shared Chat: each channel of the session gets a copy under its
+     * own id, and this one is common to all copies.
+     */
+    val sharedId: String? = null,
+    /** The Shared Chat partner this was written in; null for messages written here. */
+    val sourceRoomId: String? = null,
+    /** Bits cheered with this message, from the `bits` tag. */
+    val bits: Int = 0,
+    val powerUp: PowerUp? = null,
+    /** `custom-reward-id`: the channel point reward this message's text was entered for. */
+    val rewardId: String? = null,
+    /** Streams in a row of a watch streak notice; Twitch's own text is English only. */
+    val watchStreak: Int? = null,
+) {
+    val canReply: Boolean get() = kind == MessageKind.Chat || kind == MessageKind.Action
+
+    val segments: List<Segment> get() = body.segments
+    val badges: List<Badge> get() = body.badges
+    /** The sender's 7TV paint, drawn on the name. */
+    val paint: NamePaint? get() = body.paint
+
+    /** The message this one answers, as segments; empty if it answers nothing. */
+    val quote: List<Segment> get() = body.quote
+
+    companion object {
+        /**
+         * [highlight] of a rule without a color of its own: the mention color from the settings,
+         * which only the screen knows. Fully transparent, so no rule color can be it.
+         */
+        const val MENTION_HIGHLIGHT = 0
+    }
+}

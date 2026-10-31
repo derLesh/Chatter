@@ -92,11 +92,11 @@ val assistantAccess = false
 val profilingBuildTypes = listOf("nonMinifiedRelease", "benchmarkRelease")
 
 android {
-    namespace = "dev.chatter.app"
+    namespace = "me.lesh.chatter"
     compileSdk = 37
 
     defaultConfig {
-        applicationId = "dev.chatter.app"
+        applicationId = "me.lesh.chatter"
         minSdk = 33
         // Moving to 37 brings Android 17's behaviour changes, which want trying on a phone rather
         // than following a warning; it gets a change of its own.
@@ -255,7 +255,7 @@ androidComponents {
     }
     for (buildType in profilingBuildTypes) {
         onVariants(selector().withBuildType(buildType)) { variant ->
-            variant.applicationId.set("dev.chatter.app.profiling")
+            variant.applicationId.set("me.lesh.chatter.profiling")
             variant.buildConfigFields?.put("PROFILING", BuildConfigField("boolean", "true", null))
         }
     }

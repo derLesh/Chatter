@@ -1,0 +1,14 @@
+package me.lesh.chatter.chat
+
+import android.content.Context
+import me.lesh.chatter.R
+
+/** [ChatNotices] in the phone's language. */
+class AppChatNotices(private val context: Context) : ChatNotices {
+    override fun chatCleared(): String = context.getString(R.string.chat_cleared)
+
+    override fun timeout(name: String, seconds: Int): String =
+        context.resources.getQuantityString(R.plurals.chat_timeout, seconds, name, seconds)
+
+    override fun ban(name: String): String = context.getString(R.string.chat_ban, name)
+}
