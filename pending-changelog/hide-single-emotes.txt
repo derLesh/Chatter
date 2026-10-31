@@ -1,0 +1,1 @@
+minor: Hide a single emote from its card, everywhere or in one channel. It then shows as its name

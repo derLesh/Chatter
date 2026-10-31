@@ -88,6 +88,7 @@ import dev.chatter.app.ui.settings.ChannelsPage
 import dev.chatter.app.ui.settings.CreditsPage
 import dev.chatter.app.ui.settings.DeveloperPage
 import dev.chatter.app.ui.settings.EmotesPage
+import dev.chatter.app.ui.settings.HiddenEmotesPage
 import dev.chatter.app.ui.settings.FiltersPage
 import dev.chatter.app.ui.settings.ImageHostsPage
 import dev.chatter.app.ui.settings.KeywordsPage
@@ -170,6 +171,7 @@ internal enum class SettingsSubPage(val title: Int) {
     MentionKeywords(R.string.settings_keywords),
     MuteKeywords(R.string.settings_mute_keywords),
     ImageHosts(R.string.settings_image_hosts),
+    HiddenEmotes(R.string.settings_hidden_emotes),
     Posts(R.string.settings_posts),
     SpecialMessages(R.string.settings_special_messages),
     AppIcons(R.string.settings_app_icon),
@@ -253,6 +255,7 @@ private val SEARCH_INDEX: List<SearchEntry> by lazy {
         add(SearchEntry(R.string.settings_unlisted_7tv, emotes, R.string.settings_unlisted_7tv_hint))
         add(SearchEntry(R.string.settings_seventv_events, emotes, R.string.settings_seventv_events_hint))
         add(SearchEntry(R.string.settings_seventv_paints, emotes, R.string.settings_seventv_paints_hint))
+        add(SearchEntry(R.string.settings_hidden_emotes, emotes, R.string.settings_hidden_emotes_hint))
         add(SearchEntry(R.string.settings_emote_providers, emotes, also = PROVIDERS.map { it.second }))
         add(SearchEntry(R.string.settings_badge_providers, emotes, also = BADGE_PROVIDERS.map { it.second }))
         val filters = SettingsPage.Filters
@@ -441,6 +444,7 @@ fun SettingsScreen(vm: MainViewModel, onBack: () -> Unit) {
                     onRemove = vm::removeMuteKeyword,
                 )
                 SettingsSubPage.ImageHosts -> ImageHostsPage(settings.imageHosts, vm)
+                SettingsSubPage.HiddenEmotes -> HiddenEmotesPage(vm)
                 SettingsSubPage.Posts -> PostsPage(settings, vm)
                 SettingsSubPage.SpecialMessages -> SpecialMessagesPage(settings, vm)
                 SettingsSubPage.AppIcons -> AppIconsPage(settings, vm)
@@ -463,7 +467,7 @@ fun SettingsScreen(vm: MainViewModel, onBack: () -> Unit) {
                     SettingsPage.Messages -> MessagesPage(settings, vm)
                     SettingsPage.Media -> MediaPage(settings, vm) { subPage = it }
                     SettingsPage.Typing -> TypingPage(settings, vm)
-                    SettingsPage.Emotes -> EmotesPage(settings, vm)
+                    SettingsPage.Emotes -> EmotesPage(settings, vm) { subPage = it }
                     SettingsPage.Filters -> FiltersPage(settings, vm) { subPage = it }
                     SettingsPage.Notifications -> NotificationsPage(settings, vm) { subPage = it }
                     SettingsPage.Channels -> ChannelsPage(vm, settings)

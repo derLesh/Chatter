@@ -13,7 +13,6 @@ import androidx.compose.runtime.setValue
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil3.ImageLoader
 import dev.chatter.app.chat.ChatItem
-import dev.chatter.app.chat.Segment
 import dev.chatter.app.ui.channels.AddChannelDialog
 import dev.chatter.app.ui.channels.CombineChannelsDialog
 import dev.chatter.app.ui.channels.RenameChannelDialog
@@ -21,6 +20,7 @@ import dev.chatter.app.ui.chat.CatchUpSheet
 import dev.chatter.app.ui.chat.ChannelMark
 import dev.chatter.app.ui.chat.ChatStyle
 import dev.chatter.app.ui.chat.EmoteCardSheet
+import dev.chatter.app.ui.chat.EmoteTap
 import dev.chatter.app.ui.chat.EmotePickerSheet
 import dev.chatter.app.ui.chat.NicknameDialog
 import dev.chatter.app.ui.chat.ThreadSheet
@@ -36,7 +36,7 @@ import kotlinx.coroutines.launch
 class ChatSheetState {
     /** The message whose user card is open. */
     var actionItem by mutableStateOf<ChatItem?>(null)
-    var emoteCard by mutableStateOf<Segment.EmoteSeg?>(null)
+    var emoteCard by mutableStateOf<EmoteTap?>(null)
     var showPicker by mutableStateOf(false)
     var showAdd by mutableStateOf(false)
     var renameTarget by mutableStateOf<String?>(null)
@@ -154,11 +154,13 @@ fun ChatSheets(
             )
         }
     }
-    sheets.emoteCard?.let { seg ->
+    sheets.emoteCard?.let { tap ->
         EmoteCardSheet(
-            emotes = listOf(seg.emote) + seg.overlays,
+            emotes = listOf(tap.seg.emote) + tap.seg.overlays,
+            channel = tap.channel,
             imageLoader = loader,
             onInsert = { vm.insertEmote(it) },
+            onHide = vm::hideEmote,
             onDismiss = { sheets.emoteCard = null },
         )
     }

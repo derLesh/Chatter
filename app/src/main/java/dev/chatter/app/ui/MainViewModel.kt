@@ -39,6 +39,8 @@ import dev.chatter.app.emotes.Emoji
 import dev.chatter.app.emotes.EmojiCatalog
 import dev.chatter.app.emotes.Emote
 import dev.chatter.app.emotes.EmoteProvider
+import dev.chatter.app.emotes.HiddenEmote
+import dev.chatter.app.emotes.HiddenEmotes
 import dev.chatter.app.net.HelixBlockedUser
 import dev.chatter.app.net.HelixChannelSearch
 import dev.chatter.app.net.HelixFollowedChannel
@@ -164,6 +166,7 @@ class MainViewModel(private val c: AppContainer, savedState: SavedStateHandle) :
     val blockedUsers = c.blocked.blocked
     val blockedLogins = c.blocked.logins
     val nicknames = c.nicknames.nicknames
+    val hiddenEmotes = c.hiddenEmotes.hidden
     /** Reward titles by reward id, in the user's own channel. */
     val rewardNames = c.chat.rewards.names
     val rules = c.rules.rules
@@ -547,27 +550,31 @@ class MainViewModel(private val c: AppContainer, savedState: SavedStateHandle) :
         val version: Int,
         val providers: Set<EmoteProvider>,
         val unlisted: Boolean,
+        val hidden: HiddenEmotes,
         val emotes: List<Emote>,
     )
 
     @Volatile private var lastEmoteList: EmoteList? = null
 
     /**
-     * Emotes the user can type in [channel]; unlisted 7TV emotes only if enabled. Cached until an
-     * input changes, since building it walks every emote and autocomplete asks per keystroke.
+     * Emotes the user can type in [channel]; unlisted 7TV emotes only if enabled, hidden ones never.
+     * Cached until an input changes, since building it walks every emote and autocomplete asks per
+     * keystroke.
      */
     fun emotesFor(channel: String?): List<Emote> {
         val s = settings.value
         val version = emoteVersion.value
+        val hidden = hiddenEmotes.value
         lastEmoteList?.let {
             if (it.channel == channel && it.version == version &&
-                it.providers == s.emoteProviders && it.unlisted == s.showUnlisted7tv
+                it.providers == s.emoteProviders && it.unlisted == s.showUnlisted7tv && it.hidden == hidden
             ) return it.emotes
         }
         val emotes = c.emotes.available(channel?.let { c.chat.rooms.id(it) })
             .filter { it.provider in s.emoteProviders }
             .filterNot { !s.showUnlisted7tv && it.unlisted }
-        lastEmoteList = EmoteList(channel, version, s.emoteProviders, s.showUnlisted7tv, emotes)
+            .filterNot { hidden.hides(it, channel) }
+        lastEmoteList = EmoteList(channel, version, s.emoteProviders, s.showUnlisted7tv, hidden, emotes)
         return emotes
     }
 
@@ -693,6 +700,15 @@ class MainViewModel(private val c: AppContainer, savedState: SavedStateHandle) :
 
     fun clearWhispers() {
         viewModelScope.launch { c.whisperInbox.clear() }
+    }
+
+    /** Shows [emote] as its name from now on: in [channel] only, or everywhere for null. */
+    fun hideEmote(emote: Emote, channel: String?) {
+        viewModelScope.launch { c.hiddenEmotes.hide(emote, channel) }
+    }
+
+    fun showEmote(hidden: HiddenEmote) {
+        viewModelScope.launch { c.hiddenEmotes.show(hidden) }
     }
 
     /** Sets a nickname for a chatter in every channel. Blank clears it. */

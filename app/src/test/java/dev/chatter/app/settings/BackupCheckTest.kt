@@ -1,6 +1,8 @@
 package dev.chatter.app.settings
 
 import dev.chatter.app.chat.ChatRule
+import dev.chatter.app.emotes.EmoteProvider
+import dev.chatter.app.emotes.HiddenEmote
 import org.junit.Assert.assertEquals
 import org.junit.Test
 
@@ -28,6 +30,28 @@ class BackupCheckTest {
         assertEquals(2000, s.messageLimit)
         assertEquals(10f, clean(Settings(fontSize = -1f)).fontSize)
         assertEquals(Settings().fontSize, clean(Settings(fontSize = Float.NaN)).fontSize)
+    }
+
+    @Test
+    fun hiddenEmotesKeepOnlyPicturesFromEmoteHostsAndRealChannels() {
+        val hidden = BackupCheck.clean(
+            SettingsBackup(
+                hiddenEmotes = listOf(
+                    HiddenEmote(EmoteProvider.SevenTv, "1", "KEKW", "https://cdn.7tv.app/emote/1/2x.webp", channel = "XQC"),
+                    HiddenEmote(EmoteProvider.SevenTv, "1", "KEKW"),
+                    HiddenEmote(EmoteProvider.Bttv, "2", "LUL", "https://evil.example/a.png"),
+                    HiddenEmote(EmoteProvider.Ffz, "3", "x", channel = "not a login"),
+                    HiddenEmote(EmoteProvider.Twitch, " ", "Kappa"),
+                ),
+            ),
+        ).hiddenEmotes
+        assertEquals(
+            listOf(
+                HiddenEmote(EmoteProvider.SevenTv, "1", "KEKW", "https://cdn.7tv.app/emote/1/2x.webp", channel = "xqc"),
+                HiddenEmote(EmoteProvider.Bttv, "2", "LUL", url = null),
+            ),
+            hidden,
+        )
     }
 
     /** Stored space-separated: a space inside would split one into two. */

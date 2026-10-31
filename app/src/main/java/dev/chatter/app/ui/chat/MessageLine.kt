@@ -97,7 +97,7 @@ internal fun buildLine(item: ChatItem, style: ChatStyle, onName: LinkInteraction
                 append(item.systemText ?: item.text)
                 if (segments.isNotEmpty()) {
                     append(' ')
-                    appendSegments(segments, inline, style)
+                    appendSegments(segments, inline, style, item.channel)
                 }
             }
         }
@@ -140,7 +140,7 @@ internal fun buildLine(item: ChatItem, style: ChatStyle, onName: LinkInteraction
             textDecoration = if (item.deleted) TextDecoration.LineThrough else null,
         )
         val giantAt = if (item.powerUp == PowerUp.GiantEmote && SpecialMessage.GiantEmote in style.specialMessages) segments.indexOfLast { it is Segment.EmoteSeg } else -1
-        withStyle(body) { appendSegments(segments, inline, style, giantAt) }
+        withStyle(body) { appendSegments(segments, inline, style, item.channel, giantAt) }
     }
     return BuiltLine(text, inline, pulled.images, pulled.posts, pulled.gifs, (nameStart until nameEnd).takeIf { !it.isEmpty() })
 }
@@ -151,7 +151,7 @@ internal fun buildLine(item: ChatItem, style: ChatStyle, onName: LinkInteraction
  * always shortened and not clickable: the whole line opens the conversation and has room for one
  * line only.
  */
-internal fun buildQuote(template: String, quote: List<Segment>, fallback: String, style: ChatStyle): BuiltLine {
+internal fun buildQuote(template: String, quote: List<Segment>, fallback: String, style: ChatStyle, channel: String): BuiltLine {
     val inline = HashMap<String, InlineData>()
     val at = template.indexOf(QUOTE_MARK)
     val text = buildAnnotatedString {
@@ -164,11 +164,7 @@ internal fun buildQuote(template: String, quote: List<Segment>, fallback: String
         else quote.forEachIndexed { i, seg ->
             when (seg) {
                 is Segment.Text -> append(seg.text)
-                is Segment.EmoteSeg -> {
-                    val id = "q$i"
-                    inline[id] = InlineData.EmoteData(seg)
-                    appendInlineContent(id, seg.emote.name)
-                }
+                is Segment.EmoteSeg -> appendEmote(seg, "q$i", inline, style, channel)
                 is Segment.Link -> withStyle(SpanStyle(color = style.linkColor)) { append(LinkText.display(seg.text, short = true)) }
                 is Segment.Mention -> append(seg.name)
                 is Segment.Cheer -> appendCheer(seg, "q$i", inline, style)
@@ -187,16 +183,13 @@ private fun AnnotatedString.Builder.appendSegments(
     segments: List<Segment>,
     inline: MutableMap<String, InlineData>,
     style: ChatStyle,
+    channel: String,
     giantAt: Int = -1,
 ) {
     segments.forEachIndexed { i, seg ->
         when (seg) {
             is Segment.Text -> append(seg.text)
-            is Segment.EmoteSeg -> {
-                val id = "e$i"
-                inline[id] = InlineData.EmoteData(seg, giant = i == giantAt)
-                appendInlineContent(id, seg.emote.name)
-            }
+            is Segment.EmoteSeg -> appendEmote(seg, "e$i", inline, style, channel, giant = i == giantAt)
             is Segment.Link -> withLink(
                 LinkAnnotation.Url(seg.url, TextLinkStyles(SpanStyle(color = style.linkColor, textDecoration = TextDecoration.Underline))),
             ) { append(LinkText.display(seg.text, style.shortLinks)) }
@@ -211,6 +204,38 @@ private fun AnnotatedString.Builder.appendSegments(
             ) { append(seg.title) }
         }
     }
+}
+
+/**
+ * [seg] as a picture, with emotes the user hid in [channel] as their name. The layers still shown
+ * stay stacked; a hidden bottom emote's name goes before them, hidden layers' names after.
+ */
+private fun AnnotatedString.Builder.appendEmote(
+    seg: Segment.EmoteSeg,
+    id: String,
+    inline: MutableMap<String, InlineData>,
+    style: ChatStyle,
+    channel: String,
+    giant: Boolean = false,
+) {
+    val hidden = style.hiddenEmotes
+    val layers = listOf(seg.emote) + seg.overlays
+    val shown = if (hidden.isEmpty()) layers else layers.filterNot { hidden.hides(it, channel) }
+    if (shown.size == layers.size) {
+        inline[id] = InlineData.EmoteData(seg, giant)
+        appendInlineContent(id, seg.emote.name)
+        return
+    }
+    val hiddenNames = layers.filter { it !in shown }.map { it.name }
+    val baseHidden = seg.emote !in shown
+    if (baseHidden) append(hiddenNames.first())
+    if (shown.isNotEmpty()) {
+        if (baseHidden) append(' ')
+        val stack = Segment.EmoteSeg(shown.first(), shown.drop(1))
+        inline[id] = InlineData.EmoteData(stack, giant)
+        appendInlineContent(id, stack.emote.name)
+    }
+    (if (baseHidden) hiddenNames.drop(1) else hiddenNames).forEach { append(' '); append(it) }
 }
 
 /** The cheermote in the theme's variant, then the amount in its tier's color. */

@@ -5,6 +5,8 @@ import dev.chatter.app.channels.ChannelRepository
 import dev.chatter.app.chat.ChatRule
 import dev.chatter.app.chat.NicknameRepository
 import dev.chatter.app.chat.RuleRepository
+import dev.chatter.app.emotes.HiddenEmote
+import dev.chatter.app.emotes.HiddenEmoteRepository
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
 
@@ -24,6 +26,7 @@ data class SettingsBackup(
     val channels: ChannelBackup? = null,
     /** Names of the most recently used emotes, newest first. */
     val recentEmotes: List<String>? = null,
+    val hiddenEmotes: List<HiddenEmote>? = null,
 ) {
     companion object {
         const val APP = "Chatter"
@@ -63,6 +66,7 @@ class BackupManager(
     private val settings: SettingsRepository,
     private val rules: RuleRepository,
     private val nicknames: NicknameRepository,
+    private val hiddenEmotes: HiddenEmoteRepository,
     private val channels: ChannelRepository,
 ) {
     fun export(): String = SettingsBackup.json.encodeToString(
@@ -81,6 +85,7 @@ class BackupManager(
                 liveAlertsOff = channels.liveAlerts.value.off.toList(),
             ),
             recentEmotes = settings.recentEmotes.value,
+            hiddenEmotes = hiddenEmotes.hidden.value.list,
         )
     )
 
@@ -100,6 +105,7 @@ class BackupManager(
         backup.recentEmotes?.let { settings.setRecentEmotes(it) }
         backup.rules?.let { rules.replaceAll(it) }
         backup.nicknames?.let { nicknames.replaceAll(it) }
+        backup.hiddenEmotes?.let { hiddenEmotes.replaceAll(it) }
         backup.channels?.let {
             channels.restore(it.logins, it.names, it.notificationsOff.toSet(), it.hiddenUnread.toSet(), it.groups)
             if (it.liveAlertsOn != null || it.liveAlertsOff != null) {

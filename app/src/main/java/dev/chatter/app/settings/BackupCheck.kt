@@ -2,6 +2,8 @@ package dev.chatter.app.settings
 
 import dev.chatter.app.channels.ChannelGroup
 import dev.chatter.app.chat.ImageLinks
+import dev.chatter.app.emotes.HiddenEmote
+import dev.chatter.app.net.TrustedImages
 import java.io.InputStream
 
 /**
@@ -24,6 +26,10 @@ object BackupCheck {
     const val MAX_NICKNAMES = 2000
     const val MAX_NICKNAME = 50
     const val MAX_CHANNELS = 200
+    const val MAX_HIDDEN_EMOTES = 500
+
+    /** Longer than any emote name or id the providers hand out. */
+    const val MAX_EMOTE_TEXT = 100
 
     /** Live alerts also cover followed channels, which may be many more than are in the list. */
     const val MAX_LIVE_ALERTS = 2000
@@ -57,6 +63,7 @@ object BackupCheck {
             ?.mapValues { it.value.trim().take(MAX_NICKNAME) }
             ?.filter { (login, name) -> LOGIN.matches(login) && name.isNotEmpty() }
             ?.entries?.take(MAX_NICKNAMES)?.associate { it.key to it.value },
+        hiddenEmotes = backup.hiddenEmotes?.mapNotNull(::hiddenEmote)?.distinctBy { it.key }?.take(MAX_HIDDEN_EMOTES),
         channels = backup.channels?.let { c ->
             // Group ids end up in the comma-separated page list; see ChannelGroup.isValidId.
             // Invalid ones are dropped together with their place in the list.
@@ -79,6 +86,16 @@ object BackupCheck {
         muteKeywords = keywords(s.muteKeywords),
         imageHosts = hosts(s.imageHosts),
     )
+
+    /** The picture is shown in the settings, so it must come from an emote host like any emote's. */
+    private fun hiddenEmote(e: HiddenEmote): HiddenEmote? {
+        val id = e.id.trim()
+        val name = e.name.trim()
+        if (id.isEmpty() || name.isEmpty() || id.length > MAX_EMOTE_TEXT || name.length > MAX_EMOTE_TEXT) return null
+        val channel = e.channel?.trim()?.lowercase()
+        if (channel != null && !LOGIN.matches(channel)) return null
+        return e.copy(id = id, name = name, url = e.url?.let(TrustedImages::url), channel = channel)
+    }
 
     private fun liveAlertLogins(list: List<String>) =
         list.map { it.trim().lowercase() }.filter(LOGIN::matches).distinct().take(MAX_LIVE_ALERTS)

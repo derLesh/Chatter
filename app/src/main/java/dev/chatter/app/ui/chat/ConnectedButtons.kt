@@ -49,8 +49,8 @@ internal class ButtonAction(
     val onClick: () -> Unit = {},
 )
 
-/** One entry in the menu of a [ButtonAction] with choices. */
-internal class ButtonChoice(val label: Int, val onClick: () -> Unit)
+/** One entry in the menu of a [ButtonAction] with choices; [arg] fills a %1$s in [label]. */
+internal class ButtonChoice(val label: Int, val arg: String? = null, val onClick: () -> Unit)
 
 /**
  * A row of buttons joined into one group (Material 3 Expressive): round outer corners, tight inner
@@ -136,7 +136,7 @@ private fun ChoicesButton(action: ButtonAction, shapes: ButtonShapes, tonal: Boo
             DropdownMenuGroup(shapes = MenuDefaults.groupShape(0, 1)) {
                 action.choices.forEachIndexed { i, choice ->
                     DropdownMenuItem(
-                        text = { Text(stringResource(choice.label)) },
+                        text = { Text(if (choice.arg == null) stringResource(choice.label) else stringResource(choice.label, choice.arg)) },
                         shape = MenuDefaults.itemShape(i, action.choices.size).shape,
                         onClick = { open = false; choice.onClick() },
                     )

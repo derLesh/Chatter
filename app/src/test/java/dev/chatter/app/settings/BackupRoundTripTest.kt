@@ -4,6 +4,9 @@ import dev.chatter.app.channels.ChannelRepository
 import dev.chatter.app.channels.LiveAlertChoices
 import dev.chatter.app.chat.NicknameRepository
 import dev.chatter.app.chat.RuleRepository
+import dev.chatter.app.emotes.Emote
+import dev.chatter.app.emotes.EmoteProvider
+import dev.chatter.app.emotes.HiddenEmoteRepository
 import dev.chatter.app.net.HelixApi
 import dev.chatter.app.testing.MemoryStore
 import kotlinx.coroutines.CoroutineScope
@@ -26,10 +29,12 @@ class BackupRoundTripTest {
     private inner class Phone {
         private val store = MemoryStore()
         val channels = ChannelRepository(store, HelixApi(OkHttpClient()) { null }, scope)
+        val hiddenEmotes = HiddenEmoteRepository(store, scope)
         val backups = BackupManager(
             SettingsRepository(store, scope),
             RuleRepository(store, scope),
             NicknameRepository(store, scope),
+            hiddenEmotes,
             channels,
         )
 
@@ -60,6 +65,19 @@ class BackupRoundTripTest {
         new.backups.apply(new.backups.read(old.backups.export())!!)
 
         new.liveAlertsReach(expected)
+    }
+
+    @Test
+    fun hiddenEmotesMoveToANewPhone() = runBlocking {
+        val old = Phone()
+        val kekw = Emote("KEKW", "1", "https://cdn.7tv.app/emote/1/2x.webp", EmoteProvider.SevenTv)
+        old.hiddenEmotes.hide(kekw, "xqc")
+        val expected = withTimeout(5_000) { old.hiddenEmotes.hidden.first { !it.isEmpty() } }
+
+        val new = Phone()
+        new.backups.apply(new.backups.read(old.backups.export())!!)
+
+        assertEquals(expected, withTimeout(5_000) { new.hiddenEmotes.hidden.first { !it.isEmpty() } })
     }
 
     @Test

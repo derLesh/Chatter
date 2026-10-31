@@ -36,7 +36,6 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import dev.chatter.app.R
 import dev.chatter.app.auth.AuthState
-import dev.chatter.app.chat.Segment
 import dev.chatter.app.chat.SendLimits
 import dev.chatter.app.irc.ConnectionState
 import dev.chatter.app.ui.MainViewModel
@@ -45,6 +44,7 @@ import dev.chatter.app.ui.channels.connectionStatus
 import dev.chatter.app.ui.chat.ChannelMark
 import dev.chatter.app.ui.chat.ChatList
 import dev.chatter.app.ui.chat.EmoteCardSheet
+import dev.chatter.app.ui.chat.EmoteTap
 import dev.chatter.app.ui.chat.EmotePickerSheet
 import dev.chatter.app.ui.chat.InputBar
 import dev.chatter.app.ui.chat.rememberChatStyle
@@ -59,6 +59,7 @@ fun BubbleScreen(vm: MainViewModel, channel: String?) {
     val auth by vm.authState.collectAsStateWithLifecycle()
     val settings by vm.settings.collectAsStateWithLifecycle()
     val nicknames by vm.nicknames.collectAsStateWithLifecycle()
+    val hiddenEmotes by vm.hiddenEmotes.collectAsStateWithLifecycle()
     val rewardNames by vm.rewardNames.collectAsStateWithLifecycle()
     val connection by vm.connection.collectAsStateWithLifecycle()
     val info by vm.channelInfo.collectAsStateWithLifecycle()
@@ -74,9 +75,9 @@ fun BubbleScreen(vm: MainViewModel, channel: String?) {
     // Same as the chat screen: either saver stills emotes and stops linked images.
     val powerSave by vm.powerSaveMode.collectAsStateWithLifecycle()
     val saveData by vm.saveData.collectAsStateWithLifecycle()
-    val style = rememberChatStyle(settings, nicknames, rewardNames, powerSave, saveData)
+    val style = rememberChatStyle(settings, nicknames, rewardNames, powerSave, saveData, hiddenEmotes = hiddenEmotes)
     val loader = if (settings.animatedEmotes && !powerSave && !saveData) vm.imageLoader else vm.staticImageLoader
-    var emoteCard by remember { mutableStateOf<Segment.EmoteSeg?>(null) }
+    var emoteCard by remember { mutableStateOf<EmoteTap?>(null) }
     var showPicker by remember { mutableStateOf(false) }
     val jump by vm.requestedMessage.collectAsStateWithLifecycle()
     val snackbar = remember { SnackbarHostState() }
@@ -169,11 +170,13 @@ fun BubbleScreen(vm: MainViewModel, channel: String?) {
         }
     }
 
-    emoteCard?.let { seg ->
+    emoteCard?.let { tap ->
         EmoteCardSheet(
-            emotes = listOf(seg.emote) + seg.overlays,
+            emotes = listOf(tap.seg.emote) + tap.seg.overlays,
+            channel = tap.channel,
             imageLoader = loader,
             onInsert = { vm.insertEmote(it) },
+            onHide = vm::hideEmote,
             onDismiss = { emoteCard = null },
         )
     }

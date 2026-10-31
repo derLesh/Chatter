@@ -453,6 +453,13 @@
     <string name="emote_copy_name">Name kopieren</string>
     <string name="emote_open_page">Seite öffnen</string>
     <string name="emote_stack">Übereinander gelegte Emotes</string>
+    <string name="emote_hide">Ausblenden</string>
+    <string name="emote_hide_everywhere">Überall</string>
+    <string name="emote_hide_in_channel">Nur in %1$s</string>
+    <string name="settings_hidden_emotes">Ausgeblendete Emotes</string>
+    <string name="settings_hidden_emotes_none">Keine ausgeblendet</string>
+    <string name="settings_hidden_emotes_hint">Tippe im Chat auf ein Emote, um es auszublenden. Dann steht dort sein Name.</string>
+    <string name="settings_hidden_emotes_show">%1$s wieder zeigen</string>
 
     <!-- 7TV activity -->
     <string name="settings_seventv_events">7TV-Aktivität</string>
@@ -552,6 +559,10 @@
     <plurals name="post_likes">
         <item quantity="one">%1$s Like</item>
         <item quantity="other">%1$s Likes</item>
+    </plurals>
+    <plurals name="settings_hidden_emotes_count">
+        <item quantity="one">%1$d Emote</item>
+        <item quantity="other">%1$d Emotes</item>
     </plurals>
     <plurals name="settings_image_hosts_count">
         <item quantity="one">%1$d Seite</item>

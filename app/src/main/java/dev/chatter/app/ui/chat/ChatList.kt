@@ -68,7 +68,6 @@ import coil3.ImageLoader
 import dev.chatter.app.R
 import dev.chatter.app.ai.CatchUp
 import dev.chatter.app.chat.ChatItem
-import dev.chatter.app.chat.Segment
 import dev.chatter.app.chat.isHistoryLoading
 import dev.chatter.app.ui.BetaBadge
 import dev.chatter.app.ui.channels.formatCount
@@ -106,7 +105,7 @@ fun ChatList(
     onGesture: (ChatItem, MessageGesture) -> Unit,
     modifier: Modifier = Modifier,
     smoothScrolling: Boolean = false,
-    onEmoteClick: ((Segment.EmoteSeg) -> Unit)? = null,
+    onEmoteClick: ((EmoteTap) -> Unit)? = null,
     channels: Map<String, ChannelMark>? = null,
     partners: Map<String, ChannelMark> = emptyMap(),
     readMark: ReadMark? = null,

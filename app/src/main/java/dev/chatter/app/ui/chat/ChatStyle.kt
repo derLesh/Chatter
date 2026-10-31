@@ -7,6 +7,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.sp
+import dev.chatter.app.emotes.HiddenEmotes
 import dev.chatter.app.settings.EmoteSize
 import dev.chatter.app.settings.LineSpacing
 import dev.chatter.app.settings.Settings
@@ -64,6 +65,8 @@ data class ChatStyle(
     val dividerColor: Color? = null,
     /** Emotes drawn larger, from a sharper image. */
     val largeEmotes: Boolean = false,
+    /** Emotes drawn as their name. */
+    val hiddenEmotes: HiddenEmotes = HiddenEmotes.NONE,
 )
 
 val ChatStyle.lineHeight: TextUnit get() = (fontSize * lineSpacing).sp
@@ -94,6 +97,7 @@ fun rememberChatStyle(
     powerSave: Boolean = false,
     saveData: Boolean = false,
     emoteFrameRate: Float = EmoteFrameRate.ACTIVE,
+    hiddenEmotes: HiddenEmotes = HiddenEmotes.NONE,
 ): ChatStyle {
     val dark = isAppInDarkTheme()
     val colors = MaterialTheme.colorScheme
@@ -101,7 +105,7 @@ fun rememberChatStyle(
         settings.fontSize, settings.lineSpacing, settings.emoteSize, settings.timestamps, settings.highlightColor,
         settings.alternateBackground, settings.messageDividers,
         settings.nameColors, settings.highlightFirstMessages, settings.haptics, postCardStyle(settings),
-        settings.inlineImages, settings.imageHosts, settings.showGifs, settings.fullLinks, settings.sevenTvPaints, settings.specialMessages, powerSave, saveData, emoteFrameRate, nicknames, rewardNames, dark, colors,
+        settings.inlineImages, settings.imageHosts, settings.showGifs, settings.fullLinks, settings.sevenTvPaints, settings.specialMessages, powerSave, saveData, emoteFrameRate, nicknames, hiddenEmotes, rewardNames, dark, colors,
     ) {
         ChatStyle(
             fontSize = settings.fontSize,
@@ -136,6 +140,7 @@ fun rememberChatStyle(
             lineSpacing = settings.lineSpacing.factor,
             dividerColor = if (settings.messageDividers) colors.outlineVariant else null,
             largeEmotes = settings.emoteSize == EmoteSize.Large,
+            hiddenEmotes = hiddenEmotes,
         )
     }
 }

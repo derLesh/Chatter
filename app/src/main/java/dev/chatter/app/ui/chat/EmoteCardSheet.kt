@@ -42,20 +42,27 @@ import androidx.core.net.toUri
 import coil3.ImageLoader
 import coil3.compose.AsyncImage
 import dev.chatter.app.R
+import dev.chatter.app.chat.Segment
 import dev.chatter.app.emotes.Emote
 import dev.chatter.app.emotes.label
 
+/** An emote tapped in a message, and the [channel] login that message is in. */
+data class EmoteTap(val seg: Segment.EmoteSeg, val channel: String)
+
 /**
  * Details of a tapped emote: large image, name, provider, scope, author and flags, with actions to
- * insert it, copy its name or open its page. Every layer of a stacked (zero-width) emote can be
- * selected.
+ * insert it, copy its name, open its page or hide it. Every layer of a stacked (zero-width) emote
+ * can be selected.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun EmoteCardSheet(
     emotes: List<Emote>,
+    channel: String,
     imageLoader: ImageLoader,
     onInsert: (Emote) -> Unit,
+    /** Hides the emote in the given channel, or everywhere for null. */
+    onHide: (Emote, String?) -> Unit,
     onDismiss: () -> Unit,
 ) {
     var selected by remember(emotes) { mutableIntStateOf(0) }
@@ -159,6 +166,14 @@ fun EmoteCardSheet(
                 },
             )
             ConnectedButtons(actions, tonal = true)
+            val hide = ButtonAction(
+                R.string.emote_hide,
+                choices = listOf(
+                    ButtonChoice(R.string.emote_hide_everywhere) { onHide(emote, null); onDismiss() },
+                    ButtonChoice(R.string.emote_hide_in_channel, channel) { onHide(emote, channel); onDismiss() },
+                ),
+            )
+            ConnectedButtons(listOf(hide), tonal = false, compact = true, modifier = Modifier.padding(top = 8.dp))
         }
     }
 }

@@ -106,7 +106,7 @@ fun MessageRow(
     style: ChatStyle,
     imageLoader: ImageLoader,
     onGesture: ((ChatItem, MessageGesture) -> Unit)?,
-    onEmoteClick: ((Segment.EmoteSeg) -> Unit)? = null,
+    onEmoteClick: ((EmoteTap) -> Unit)? = null,
     channel: ChannelMark? = null,
 ) {
     val currentItem by rememberUpdatedState(item)
@@ -118,7 +118,7 @@ fun MessageRow(
     val built = remember(item, style, nameClickable, channel) { buildLine(item, style, nameTap.takeIf { nameClickable }, channel) }
     // Stable wrapper, so a new callback instance does not rebuild the inline content.
     val currentEmoteClick by rememberUpdatedState(onEmoteClick)
-    val emoteClick = remember { { seg: Segment.EmoteSeg -> currentEmoteClick?.invoke(seg); Unit } }
+    val emoteClick = remember { { seg: Segment.EmoteSeg -> currentEmoteClick?.invoke(EmoteTap(seg, currentItem.channel)); Unit } }
     val measured = pendingAspects(built)
     val emoteEm = if (style.largeEmotes) LARGE_EMOTE_EM else EMOTE_EM
     val inlineContent = remember(built, imageLoader, measured, style.smallEmotes, style.emoteFrameRate, style.largeEmotes) {
@@ -197,7 +197,7 @@ fun MessageRow(
         item.reply?.let { reply ->
             // The quote is inserted where the string puts it, whatever order a language uses.
             val template = stringResource(R.string.reply_to, style.nameOf(reply.parentLogin, reply.parentDisplayName), QUOTE_MARK)
-            val quote = remember(template, item, style) { buildQuote(template, item.quote, reply.parentBody, style) }
+            val quote = remember(template, item, style) { buildQuote(template, item.quote, reply.parentBody, style, item.channel) }
             val quoteMeasured = pendingAspects(quote)
             val quoteContent = remember(quote, imageLoader, quoteMeasured, style.smallEmotes, style.emoteFrameRate) {
                 quote.inline.mapValues { (_, data) ->
