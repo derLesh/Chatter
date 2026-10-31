@@ -1,0 +1,1 @@
+patch: Show the text on the notification screen after login in the dark theme too

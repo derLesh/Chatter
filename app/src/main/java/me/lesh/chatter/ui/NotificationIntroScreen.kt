@@ -33,6 +33,7 @@ import androidx.compose.material.icons.filled.Star
 import androidx.compose.material3.Button
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -78,37 +79,40 @@ fun NotificationIntroScreen(onDone: () -> Unit) {
         if (!granted && SystemClock.elapsedRealtime() - askedAt < SILENT_REFUSAL_MS) openNotificationSettings(context)
         onDone()
     }
-    BoxWithConstraints(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.surface).safeDrawingPadding()) {
-        // At least the screen's height, so the explanation sits in the middle and the buttons at
-        // the bottom; a small screen scrolls instead.
-        Column(
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.SpaceBetween,
-            modifier = Modifier
-                .verticalScroll(rememberScrollState())
-                .heightIn(min = maxHeight)
-                .padding(horizontal = 28.dp, vertical = 32.dp),
-        ) {
-            Spacer(Modifier.height(0.dp))
-            IntroExplanation()
-            Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.padding(top = 28.dp)) {
-                Button(
-                    onClick = {
-                        askedAt = SystemClock.elapsedRealtime()
-                        permission.launch(Manifest.permission.POST_NOTIFICATIONS)
-                    },
-                    modifier = Modifier.fillMaxWidth(),
-                ) { Text(stringResource(R.string.notification_intro_allow)) }
-                TextButton(onClick = onDone, modifier = Modifier.fillMaxWidth()) {
-                    Text(stringResource(R.string.notification_intro_later))
+    // A Surface, not a background: the text takes its color from it.
+    Surface(Modifier.fillMaxSize()) {
+        BoxWithConstraints(Modifier.fillMaxSize().safeDrawingPadding()) {
+            // At least the screen's height, so the explanation sits in the middle and the buttons at
+            // the bottom; a small screen scrolls instead.
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.SpaceBetween,
+                modifier = Modifier
+                    .verticalScroll(rememberScrollState())
+                    .heightIn(min = maxHeight)
+                    .padding(horizontal = 28.dp, vertical = 32.dp),
+            ) {
+                Spacer(Modifier.height(0.dp))
+                IntroExplanation()
+                Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.padding(top = 28.dp)) {
+                    Button(
+                        onClick = {
+                            askedAt = SystemClock.elapsedRealtime()
+                            permission.launch(Manifest.permission.POST_NOTIFICATIONS)
+                        },
+                        modifier = Modifier.fillMaxWidth(),
+                    ) { Text(stringResource(R.string.notification_intro_allow)) }
+                    TextButton(onClick = onDone, modifier = Modifier.fillMaxWidth()) {
+                        Text(stringResource(R.string.notification_intro_later))
+                    }
+                    Text(
+                        stringResource(R.string.notification_intro_settings_hint),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        textAlign = TextAlign.Center,
+                        modifier = Modifier.padding(top = 8.dp),
+                    )
                 }
-                Text(
-                    stringResource(R.string.notification_intro_settings_hint),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    textAlign = TextAlign.Center,
-                    modifier = Modifier.padding(top = 8.dp),
-                )
             }
         }
     }
