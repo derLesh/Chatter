@@ -177,8 +177,8 @@ android {
         // Dependabot offers new versions (.github/dependabot.yml). As lint warnings they would fail
         // every build the day a release comes out.
         disable += setOf("NewerVersionAvailable", "GradleDependency", "AndroidGradlePluginVersion")
-        // The cut-down lint every release build would run; CI and the release run the full
-        // lintRelease before anything is built, so it would only analyse the same code twice.
+        // The cut-down lint every release build would run; CI runs the full lintRelease and a
+        // release only builds a commit CI passed, so it would only analyse the same code twice.
         checkReleaseBuilds = false
     }
 

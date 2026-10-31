@@ -81,7 +81,7 @@ touches Markdown or `docs/` skips the second stage and still counts as green. Li
 gate, so a new lint error fails the branch — and so is the release bundle, because R8, the
 resource shrinker and resource linking only ever run there, and a release is a bad time to find
 out one of them is unhappy. Release builds skip lint's own cut-down check (`checkReleaseBuilds`),
-since CI and the release workflow run the full one first.
+since CI runs the full one and a release only builds a commit CI passed.
 
 Every action in the workflows is named by a commit, not by a tag, with the version in a comment
 next to it. A tag can be moved by whoever controls the action, and the release job hands actions
@@ -169,11 +169,12 @@ line there. Building and signing come before the push, so a failed one leaves th
 untouched, and `dry_run` does everything except push and publish — and is the only run allowed off
 `master`.
 
-It is five jobs: `preflight` and `verify` side by side, then `build`, `sign` and `publish`.
-Everything that could be wrong is checked before anything is built: every missing secret at once,
-that the keystore opens, holds the alias and that `KEY_PASSWORD` unlocks the key, that there is
-something to release, that the tag is free and that the versionCode is above the one the last tag
-released. `build` runs Gradle with `-Punsigned` and no key. `sign` is the only job with the signing
+It is four jobs: `preflight`, `build`, `sign` and `publish`. The release does not test again:
+`preflight` asks for a green CI run of the newest commit that changed more than Markdown or
+`docs/`. Everything that could be wrong is checked before anything is built: every missing secret
+at once, that the keystore opens, holds the alias and that `KEY_PASSWORD` unlocks the key, that CI
+passed, that there is something to release, that the tag is free and that the versionCode is
+above the one the last tag released. `build` runs Gradle with `-Punsigned` and no key. `sign` is the only job with the signing
 secrets, and it runs no Gradle: `apksigner` and `jarsigner` from the runner's SDK sign what `build`
 made, so no plugin or library can ever reach the key. The `play_track` input uploads the bundle to
 that Play track; `none`, the default, uploads nowhere.

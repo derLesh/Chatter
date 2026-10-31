@@ -1,11 +1,10 @@
 # Releases Chatter from the Actions tab. The version comes from the entries in pending-changelog/,
 # as with "./gradlew releaseVersion".
 #
-# preflight checks the setup in seconds without building: secrets, keystore, branch, something to
-# release. verify is the CI gate: changelog, unit tests, scripts, lint. build folds the changelog
-# and builds APK and bundle without any key. sign signs them, with no Gradle in reach of the key.
-# publish only then pushes the release commit and tag and publishes, so a failed build or signing
-# leaves the repository untouched.
+# preflight checks the setup in seconds without building: secrets, keystore, branch, a green CI
+# run, something to release. build folds the changelog and builds APK and bundle without any key.
+# sign signs them, with no Gradle in reach of the key. publish only then pushes the release commit
+# and tag and publishes, so a failed build or signing leaves the repository untouched.
 name: Release
 
 on:
@@ -41,9 +40,15 @@ jobs:
     # The signing secrets live only in this environment, which only master may use. A dry run from
     # another branch gets no environment and signs with a throwaway key.
     environment: ${{ github.ref_name == github.event.repository.default_branch && 'release' || '' }}
+    # actions: read for the CI runs of the commit.
+    permissions:
+      contents: read
+      actions: read
     steps:
+      # Full history, to find the newest commit CI built.
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
+          fetch-depth: 0
           persist-credentials: false
 
       # The release commit goes to the branch the run started on; a tag on a side branch would be a
@@ -55,6 +60,35 @@ jobs:
         run: |
           if [ "$GITHUB_REF" != "refs/heads/$DEFAULT_BRANCH" ]; then
             echo "::error::A release starts from $DEFAULT_BRANCH, not from $GITHUB_REF. Start a dry run to try another branch."
+            exit 1
+          fi
+
+      # The release does not test again; it builds what CI passed. CI skips the build for commits
+      # that only touch Markdown or docs/, so the check falls on the newest commit that does not.
+      - name: Require a green CI run
+        env:
+          GH_TOKEN: ${{ github.token }}
+          DRY_RUN: ${{ inputs.dry_run }}
+        run: |
+          commit=$(git log -1 --format=%H HEAD -- . ':(exclude,glob)**/*.md' ':(exclude)docs')
+          run=$(gh run list --repo "$GITHUB_REPOSITORY" --workflow ci.yml --commit "$commit" \
+            --limit 1 --json status,conclusion,url --jq '.[0] // empty | "\(.status)|\(.conclusion)|\(.url)"')
+          # "|" keeps the empty conclusion of a run that is still going.
+          IFS='|' read -r status conclusion url <<< "$run"
+          if [ "$conclusion" = success ]; then
+            echo "CI passed for ${commit:0:7}: $url"
+            exit 0
+          fi
+          if [ -z "$run" ]; then
+            message="CI has not run for ${commit:0:7}."
+          else
+            message="CI for ${commit:0:7} is ${conclusion:-$status}: $url"
+          fi
+          # A dry run publishes nothing, so a branch commit without a CI run of its own may still try.
+          if [ "$DRY_RUN" = true ]; then
+            echo "::warning::$message"
+          else
+            echo "::error::$message"
             exit 1
           fi
 
@@ -139,55 +173,11 @@ jobs:
           fi
           echo "Releasing $pending pending entr$([ "$pending" -eq 1 ] && echo y || echo ies)."
 
-  verify:
-    name: Verify
-    runs-on: ubuntu-latest
-    timeout-minutes: 30
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          persist-credentials: false
-
-      - name: Set up JDK
-        uses: actions/setup-java@b843ebf9b913146b38da2eaa7aeddf76074ae1ad # v6.1.0
-        with:
-          distribution: temurin
-          java-version: '21'
-
-      # gradle-wrapper.jar is a binary nobody reviews; this compares it with Gradle's published
-      # checksums.
-      - name: Check the Gradle wrapper
-        uses: gradle/actions/wrapper-validation@3f5f9adaf7d9fecd50b5935e54106014257a94e6 # v6.4.0
-
-      - name: Set up Gradle
-        uses: gradle/actions/setup-gradle@3f5f9adaf7d9fecd50b5935e54106014257a94e6 # v6.4.0
-        with:
-          cache-provider: basic
-
-      - name: Check the workflow scripts
-        run: python3 -m unittest discover -s .github/scripts -p 'test_*.py'
-
-      # One Gradle call, so the tasks share one configuration and run in parallel.
-      - name: Changelog entries, unit tests and lint
-        run: ./gradlew checkChangelog :app:testDebugUnitTest :app:lintRelease --continue
-
-      - name: Upload the test and lint reports
-        if: failure()
-        continue-on-error: true
-        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
-        with:
-          name: reports
-          retention-days: 7
-          path: |
-            app/build/reports/tests/
-            app/build/reports/lint-results-*.html
-          if-no-files-found: ignore
-
   # Builds without any key: the APK, the Play bundle, their mappings, the notes and the release
   # commit, handed to the next jobs as an artifact.
   build:
     name: Build
-    needs: [preflight, verify]
+    needs: preflight
     runs-on: ubuntu-latest
     timeout-minutes: 45
     outputs:
