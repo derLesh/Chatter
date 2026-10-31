@@ -76,7 +76,6 @@ import me.lesh.chatter.update.UpdateRepository
 import me.lesh.chatter.util.AppIconSwitcher
 import me.lesh.chatter.util.ChannelIcons
 import me.lesh.chatter.util.ChannelShortcuts
-import me.lesh.chatter.util.isFirstInstall
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -128,6 +127,8 @@ class AppContainer(
     private val context: Context,
     /** The last few crashes, for bug reports; see [CrashLog]. */
     val crashLog: CrashLog,
+    /** See [me.lesh.chatter.util.isFirstStart]; decided before any store is written. */
+    private val firstStart: Boolean,
 ) {
     val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
 
@@ -179,7 +180,7 @@ class AppContainer(
     val stats = StatsRepository(context.statsStore, scope)
     val backgroundHealth = BackgroundHealth(context, context.healthStore, scope)
     val backup = BackupManager(settings, rules, nicknames, notes, hiddenEmotes, hiddenBadges, channels)
-    val changelog = ChangelogRepository(context, settings, BuildConfig.VERSION_NAME, scope)
+    val changelog = ChangelogRepository(context, settings, BuildConfig.VERSION_NAME, firstStart, scope)
     /** True while Chatter saves data; see [DataSaving]. */
     val dataSaving = DataSaving(context, settings.settings.map { it.mobileData }, scope)
     val updates = UpdateRepository(http, settings, BuildConfig.VERSION_NAME, BuildConfig.UPDATE_CHECK, dataSaving.active, scope)
@@ -245,7 +246,7 @@ class AppContainer(
         stats.start(chat.windows.anyVisible)
         backgroundHealth.start()
         changelog.start()
-        scope.launch { settings.decideOnboarding(isFirstInstall(context)) }
+        scope.launch { settings.decideOnboarding(firstStart) }
         // Read for every message, so mirrored onto the repository.
         scope.launch { settings.settings.collect { badges.enabled = it.badgeProviders } }
         // A provider switched on is loaded now; one switched off is no longer waited for.

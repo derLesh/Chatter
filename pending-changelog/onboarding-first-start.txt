@@ -1,0 +1,1 @@
+patch: Show the tour of the app on the first start even after its data was cleared

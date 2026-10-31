@@ -2,7 +2,6 @@ package me.lesh.chatter.changelog
 
 import android.content.Context
 import me.lesh.chatter.settings.SettingsRepository
-import me.lesh.chatter.util.isFirstInstall
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -20,6 +19,7 @@ class ChangelogRepository(
     private val context: Context,
     private val settings: SettingsRepository,
     private val versionName: String,
+    private val firstStart: Boolean,
     private val scope: CoroutineScope,
 ) {
     private val _releases = MutableStateFlow<List<Release>>(emptyList())
@@ -55,7 +55,7 @@ class ChangelogRepository(
         if (seen == null) {
             // Nothing recorded yet. A fresh install has nothing to report; an update from a version
             // that did not track this shows the current release.
-            if (isFirstInstall(context)) {
+            if (firstStart) {
                 settings.setSeenVersion(versionName)
                 return emptyList()
             }

@@ -381,8 +381,8 @@ class SettingsRepository(
     suspend fun setOnboardingSeen(v: Boolean) = store.edit { it[ONBOARDING_SEEN] = v }
 
     /** Somebody who updates from a version without the onboarding knows the app already. */
-    suspend fun decideOnboarding(firstInstall: Boolean) = store.edit {
-        if (it[ONBOARDING_SEEN] == null) it[ONBOARDING_SEEN] = !firstInstall
+    suspend fun decideOnboarding(firstStart: Boolean) = store.edit {
+        if (it[ONBOARDING_SEEN] == null) it[ONBOARDING_SEEN] = !firstStart
     }
 
     /**
