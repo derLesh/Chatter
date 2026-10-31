@@ -231,7 +231,8 @@ jobs:
           fi
           # Play refuses a versionCode it has seen, and the tags record what was released; anything
           # but an increase is a mistake.
-          previous=$(git describe --tags --abbrev=0 2>/dev/null || true)
+          # Only release tags; the nightly workflow keeps a tag of its own.
+          previous=$(git describe --tags --abbrev=0 --match 'v*' 2>/dev/null || true)
           if [ -n "$previous" ]; then
             was=$(git show "$previous:version.properties" 2>/dev/null | sed -n 's/^versionCode=//p')
             if [ -n "$was" ] && [ "$code" -le "$was" ]; then

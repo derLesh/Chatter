@@ -69,6 +69,10 @@
 Download the APK from the [latest release](https://github.com/derLesh/Chatter/releases/latest).
 Chatter needs Android 13 or newer and a Twitch account.
 
+Want the newest changes before a release? [Chatter Nightly](https://github.com/derLesh/Chatter/releases/tag/nightly)
+is built from master every night. It may break, and it is an app of its own: it installs next to
+Chatter, with its own login and settings.
+
 Three ways to check the download:
 
 - The SHA-256 next to the APK says it arrived whole.

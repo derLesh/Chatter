@@ -58,10 +58,23 @@ val sideloaded = (project.findProperty("distribution") as String?) == "github"
 val sponsorLink = sponsoring && sideloaded
 
 /**
- * Whether this is a nightly build: a release build made with `-Pnightly`. For now that only offers
- * the Nightly app icon; nothing builds one yet.
+ * The short hash of the commit a nightly build is made from, `-Pnightly=<hash>`; null for every
+ * other build. Nightly is a release build under its own application id, so it installs next to
+ * Chatter. The nightly workflow builds it.
  */
-val nightly = project.hasProperty("nightly")
+val nightlyCommit: String? = (project.findProperty("nightly") as String?)?.takeIf { it.isNotBlank() }
+val nightly = nightlyCommit != null
+
+/**
+ * The number of commits on master, `-PnightlyVersionCode=<n>`. Android refuses an update to a lower
+ * versionCode, and this one only grows, so every nightly installs over the one before.
+ */
+val nightlyVersionCode: Int? = if (nightly) {
+    (project.findProperty("nightlyVersionCode") as String?)?.toIntOrNull()
+        ?: throw GradleException("-Pnightly needs -PnightlyVersionCode, the number of commits on master.")
+} else {
+    null
+}
 
 /**
  * Whether assistants may be let into Chatter (Settings → Beta features). Off while Gemini only calls
@@ -89,8 +102,9 @@ android {
         // than following a warning; it gets a change of its own.
         //noinspection OldTargetApi
         targetSdk = 36
-        versionCode = versionProps.getProperty("versionCode").toInt()
-        versionName = versionProps.getProperty("version")
+        versionCode = nightlyVersionCode ?: versionProps.getProperty("versionCode").toInt()
+        // A nightly names the last release and its commit: "0.9.0-nightly+6d134cb".
+        versionName = versionProps.getProperty("version") + (nightlyCommit?.let { "-nightly+$it" } ?: "")
         buildConfigField("String", "TWITCH_CLIENT_ID", "\"$twitchClientId\"")
         buildConfigField("boolean", "SPONSORING", "$sponsoring")
         buildConfigField("boolean", "ASSISTANT_ACCESS", "$assistantAccess")
@@ -147,8 +161,9 @@ android {
         release {
             buildConfigField("boolean", "SPONSOR_LINK", "$sponsorLink")
             // Play updates its own installs and forbids pointing elsewhere, so only the sideloaded
-            // APK checks GitHub.
-            buildConfigField("boolean", "UPDATE_CHECK", "$sideloaded")
+            // APK checks GitHub. Not a nightly: the latest release is the other app.
+            buildConfigField("boolean", "UPDATE_CHECK", "${sideloaded && !nightly}")
+            if (nightly) applicationIdSuffix = ".nightly"
             isMinifyEnabled = true
             isShrinkResources = true
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")

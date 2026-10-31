@@ -138,6 +138,15 @@ the tag is free and that the versionCode is above the one the last tag released.
 secrets reach exactly one step, the one that builds; tests and lint never see them. The
 `play_track` input uploads the bundle to that Play track; `none`, the default, uploads nowhere.
 
+`.github/workflows/nightly.yml` builds Chatter Nightly from master every night, when master has a
+commit the last nightly did not and CI passed for it. Nightly is a release build made with
+`-Pnightly=<hash>`: its own app (`dev.chatter.app.nightly`), signed with the upload key, only on
+GitHub. Its versionCode is the number of commits on master, because Android refuses an update to a
+lower one; the hash is in the version name, `0.9.0-nightly+6d134cb`. There is one release, tagged
+`nightly`, which every run deletes and creates again on the new commit, as a pre-release so the
+update check never sees it. Release tags are `v*` for that reason; anything reading the last
+release asks for `--match 'v*'`. Starting it by hand builds even when master has not moved.
+
 `docs/play-store/` holds what the Play Console needs — the data safety answers, the foreground
 service justification and the listing text. It is in `.gitignore` and lives only on the
 maintainer's machine, so a fresh clone does not have it. When the app's network or storage
