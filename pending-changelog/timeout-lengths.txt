@@ -1,1 +1,0 @@
-patch: Choose how long a timeout lasts when you tap Timeout on the user card

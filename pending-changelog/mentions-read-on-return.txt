@@ -1,1 +1,0 @@
-patch: Coming back to a channel reads all its mentions, also those above the part on screen

@@ -1,1 +1,0 @@
-minor: See the pinned message above the chat in channels you moderate, and pin a message from the user card

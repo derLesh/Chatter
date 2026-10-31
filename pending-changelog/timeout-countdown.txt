@@ -1,1 +1,0 @@
-minor: Count down in the input while you are timed out, and say when you are banned in a channel

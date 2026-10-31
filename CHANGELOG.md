@@ -3,6 +3,34 @@
 Every release of Chatter, newest first. Written from the entries in `pending-changelog/` by
 `./gradlew releaseVersion`, and shown in the app under Settings → About → Changelog.
 
+## 0.10.0 — 2026-10-31
+- minor: Beta: let Gemini Nano sum up on your phone what you missed in a busy chat, under Settings → Beta features
+- minor: Chatter is a new app now: back up your settings in the old one, restore them here, then remove it
+- minor: Choose how names are shown: display name, username, or both, under Settings → Appearance
+- minor: Choose line spacing, lines between messages and larger emotes, with a preview of the chat in the settings
+- minor: Choose which special messages to show under Appearance, each with a preview
+- minor: Count down in the input while you are timed out, and say when you are banned in a channel
+- minor: Follow a conversation and get notified about new replies in it, not only answers to you
+- minor: Hide a single emote from its card, everywhere or in one channel. It then shows as its name
+- minor: Hide single kinds of badges, like predictions or bits, by holding one in chat or under Settings → Emotes
+- minor: Keep a private note on a chatter, shown on their user card
+- minor: Pick an app icon in eight colors or Pride, and get a special one on Halloween, Christmas and other days
+- minor: See giant emotes, highlighted messages, message effects, rewards and watch streaks like on Twitch
+- minor: See the pinned message above the chat in channels you moderate, and pin a message from the user card
+- minor: See what space Chatter takes on your phone and clear its cache, under Settings → Storage and data
+- minor: Show pictures linked from kappa.lol in chat
+- minor: Tapping a mention notification or the inbox opens the chat at that message
+- patch: Choose how long a timeout lasts when you tap Timeout on the user card
+- patch: Coming back to a channel reads all its mentions, also those above the part on screen
+- patch: Draw bright names darker in the light theme, so they stand out from the white chat
+- patch: Join the buttons on user and emote cards, put rare user actions in a menu and fill the send button when ready
+- patch: Keep an emote that wraps to the next line from covering the line above
+- patch: Keep bright names readable in the light theme with the loop name colors, instead of nearly black
+- patch: Show older messages less faded in the light theme, so they stay easy to read
+- patch: Show the text on the notification screen after login in the dark theme too
+- patch: Show the tour of the app on the first start even after its data was cleared
+- patch: The button back to the newest messages springs in and counts what arrived since you scrolled up
+
 ## 0.9.0 — 2026-10-18
 - minor: Choose to keep the screen on even when the chat is quiet
 - minor: Draw 7TV paints on names, gradients and pictures with their shadows, with a setting to turn them off

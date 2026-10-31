@@ -1,1 +1,0 @@
-patch: Join the buttons on user and emote cards, put rare user actions in a menu and fill the send button when ready

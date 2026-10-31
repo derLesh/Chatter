@@ -1,1 +1,0 @@
-minor: Tapping a mention notification or the inbox opens the chat at that message

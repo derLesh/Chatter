@@ -1,1 +1,0 @@
-minor: Follow a conversation and get notified about new replies in it, not only answers to you
