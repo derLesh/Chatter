@@ -2,7 +2,7 @@ package me.lesh.chatter.badges
 
 import android.util.Log
 import me.lesh.chatter.chat.BadgeSource
-import me.lesh.chatter.net.ChatterSupporter
+import me.lesh.chatter.net.ChatterBadgeApi
 import me.lesh.chatter.net.HelixBadgeSet
 import me.lesh.chatter.net.NotLoggedInException
 import me.lesh.chatter.net.ServiceTrouble
@@ -12,21 +12,8 @@ import me.lesh.chatter.net.TwitchBadgeApi
 import me.lesh.chatter.util.runCatchingCancellable
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.SharedFlow
-import java.time.Instant
-import java.time.LocalDate
-import java.time.ZoneId
-import java.time.temporal.ChronoUnit
+import java.io.IOException
 import java.util.concurrent.ConcurrentHashMap
-
-/** Names of the supporter badge, depending on how and how long someone supports. */
-class SupporterTitles(
-    /** Supported Chatter at some point. */
-    val once: String,
-    /** Monthly sponsorship, less than a month so far. */
-    val monthly: String,
-    /** Monthly sponsorship for a number of months, like a subscriber badge. */
-    val monthlyFor: (months: Int) -> String,
-)
 
 /** Where a badge comes from. Each can be turned off in the settings. */
 enum class BadgeProvider { Twitch, SevenTv, Chatterino, Chatter }
@@ -40,6 +27,8 @@ data class Badge(
     val title: String,
     val provider: BadgeProvider = BadgeProvider.Twitch,
     val set: String = "",
+    /** A picture for light themes, where the provider has one; [url] is then the dark one. */
+    val urlOnLight: String? = null,
 ) {
     /** What hiding a kind of badge matches; see [HiddenBadge]. */
     val kind: String = kindOf(provider, set)
@@ -56,6 +45,9 @@ data class Badge(
 class BadgeRepository(
     private val helix: TwitchBadgeApi,
     private val thirdParty: ThirdPartyBadgeApi,
+    private val chatter: ChatterBadgeApi,
+    /** What the supporter badge says when touched, in the app's language. */
+    private val supporterTitle: () -> String,
     /** Where unreachable lists are reported. */
     private val trouble: ServiceTrouble = ServiceTrouble(),
     /** Injected for tests. */
@@ -203,13 +195,13 @@ class BadgeRepository(
      * Fetches what failed to load earlier: the global set, the other clients' lists and unreachable
      * channels. Loaded data is left alone, so the usual return to the app costs nothing.
      */
-    suspend fun retryMissing(supporterTitles: SupporterTitles?) {
+    suspend fun retryMissing() {
         // Throttled: a provider that is down stays down for a while, and the app is opened often.
         val at = now()
         if (at - lastRetry < RETRY_AFTER_MS) return
         lastRetry = at
         loadGlobal()
-        loadThirdParty(supporterTitles)
+        loadThirdParty()
         failedChannels.toList().forEach { loadChannel(it) }
     }
 
@@ -218,7 +210,7 @@ class BadgeRepository(
      * up by user id. Only missing lists are fetched, so one that failed at start is picked up
      * later. 7TV badges arrive over the EventAPI.
      */
-    suspend fun loadThirdParty(supporterTitles: SupporterTitles?) {
+    suspend fun loadThirdParty() {
         var changed = false
 
         if (chatterinoBadges == null) {
@@ -240,17 +232,15 @@ class BadgeRepository(
                 }
         }
 
-        // Null while sponsoring is off; there is no list to fetch then.
-        if (supporterTitles != null && supporterBadges == null) {
-            runCatchingCancellable { thirdParty.chatterSupporters() }
-                .onSuccess { list ->
-                    supporterBadges = list.supporters
-                        .filter { it.twitch.isNotEmpty() }
-                        .associate { it.twitch to listOf(supporterBadge(it, supporterTitles)) }
+        if (supporterBadges == null) {
+            runCatchingCancellable { loadSupporters() }
+                .onSuccess {
+                    supporterBadges = it
+                    trouble.reachable(ServiceTrouble.CHATTER_API)
                     changed = true
                 }
                 .onFailure {
-                    trouble.report(ServiceTrouble.SUPPORTERS)
+                    if (it !is NotLoggedInException) trouble.report(ServiceTrouble.CHATTER_API)
                     Log.w(TAG, "Supporter list failed: ${it.message}")
                 }
         }
@@ -261,27 +251,16 @@ class BadgeRepository(
         }
     }
 
-    /**
-     * The supporter's badge. A running monthly sponsorship shows its length; everything else,
-     * including unreadable dates or unknown fields, gets the plain badge.
-     */
-    private fun supporterBadge(supporter: ChatterSupporter, titles: SupporterTitles): Badge {
-        val since = supporter.monthlySince?.let { runCatching { LocalDate.parse(it) }.getOrNull() }
-        val months = since?.let { ChronoUnit.MONTHS.between(it, today()) }?.toInt() ?: -1
-        return Badge(
-            url = SUPPORTER_BADGE_URL,
-            title = when {
-                since == null -> titles.once
-                months < 1 -> titles.monthly
-                else -> titles.monthlyFor(months)
-            },
-            provider = BadgeProvider.Chatter,
-            set = SUPPORTER_SET,
-        )
+    /** Who supports Chatter, each wearing the badge the API serves for them. */
+    private suspend fun loadSupporters(): Map<String, List<Badge>> {
+        val sponsors = chatter.sponsors().sponsors
+        val images = chatter.badges().badges.firstOrNull { it.id == SUPPORTER_BADGE_ID }?.images.orEmpty()
+        fun picture(theme: String) = images[theme]?.let { it["2x"] ?: it["1x"] ?: it["4x"] }?.let(chatter::imageUrl)
+        val onLight = picture("light")
+        val onDark = picture("dark") ?: onLight ?: throw IOException("no supporter badge among Chatter's badges")
+        val badge = listOf(Badge(onDark, supporterTitle(), BadgeProvider.Chatter, SUPPORTER_SET, urlOnLight = onLight))
+        return sponsors.filter { it.isNotEmpty() }.associateWith { badge }
     }
-
-    private fun today(): LocalDate =
-        Instant.ofEpochMilli(now()).atZone(ZoneId.systemDefault()).toLocalDate()
 
     private fun mergeThirdParty(): Map<String, List<Badge>> {
         val merged = HashMap<String, MutableList<Badge>>()
@@ -309,8 +288,8 @@ class BadgeRepository(
         /** Per map, a few hundred kilobytes; far more chatters than a busy evening shows. */
         const val MAX_WEARERS = 5_000
 
-        /** Ships with the app; Coil loads it from the resources. */
-        const val SUPPORTER_BADGE_URL = "android.resource://me.lesh.chatter/drawable/ic_badge_supporter"
+        /** The supporter badge's id in Chatter's badge list. */
+        const val SUPPORTER_BADGE_ID = "chatter"
 
         const val SUPPORTER_SET = "supporter"
     }

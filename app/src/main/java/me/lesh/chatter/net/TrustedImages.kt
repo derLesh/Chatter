@@ -22,6 +22,8 @@ object TrustedImages {
         "7tv.app", "7tv.io",
         // Where Chatterino keeps its badge pictures.
         "fourtf.com",
+        // Chatter's own API, for the supporter badge; the host alone.
+        "api.lesh.me",
     )
 
     /**

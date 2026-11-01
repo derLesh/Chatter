@@ -1,13 +1,19 @@
 package me.lesh.chatter.badges
 
-import me.lesh.chatter.net.ChatterSupporter
-import me.lesh.chatter.net.ChatterSupporters
+import me.lesh.chatter.net.ChatterBadge
+import me.lesh.chatter.net.ChatterBadgeApi
+import me.lesh.chatter.net.ChatterBadges
+import me.lesh.chatter.net.ChatterSponsors
 import me.lesh.chatter.net.ChatterinoBadge
 import me.lesh.chatter.net.ChatterinoBadges
 import me.lesh.chatter.net.HelixBadgeSet
 import me.lesh.chatter.net.HelixBadgeVersion
+import me.lesh.chatter.net.NotLoggedInException
+import me.lesh.chatter.net.ServiceTrouble
 import me.lesh.chatter.net.ThirdPartyBadgeApi
 import me.lesh.chatter.net.TwitchBadgeApi
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
@@ -18,16 +24,10 @@ import java.io.IOException
 class BadgeRepositoryTest {
     private val twitch = FakeTwitchBadges()
     private val others = FakeOtherClients()
-    /** Midday on 2026-09-21, so month counts do not depend on the hour. */
+    private val chatter = FakeChatterApi()
+    private val trouble = ServiceTrouble()
     private var clock = 1_789_992_000_000L
-    private val badges = BadgeRepository(twitch, others) { clock }
-
-    private val titles = SupporterTitles(
-        once = "Supporter",
-        monthly = "Supporter, every month",
-        monthlyFor = { months -> "Supporter, $months months" },
-    )
-
+    private val badges = BadgeRepository(twitch, others, chatter, supporterTitle = { "Supporter" }, trouble) { clock }
 
     // ---- the fakes --------------------------------------------------------------------------
 
@@ -57,20 +57,40 @@ class BadgeRepositoryTest {
 
     private class FakeOtherClients : ThirdPartyBadgeApi {
         var chatterino: List<String>? = listOf("42")
-        var supporters: List<ChatterSupporter>? = listOf(ChatterSupporter(twitch = "7"))
         var chatterinoCalls = 0
-        var supporterCalls = 0
 
         override suspend fun chatterinoBadges(): ChatterinoBadges {
             chatterinoCalls++
             val users = chatterino ?: throw IOException("Chatterino is down")
             return ChatterinoBadges(listOf(ChatterinoBadge(tooltip = "Chatterino Fan", image2 = "https://fourtf.com/chatterino/badges/fan.png", users = users)))
         }
+    }
 
-        override suspend fun chatterSupporters(): ChatterSupporters {
-            supporterCalls++
-            return ChatterSupporters(supporters ?: throw IOException("the list is not there"))
+    private class FakeChatterApi : ChatterBadgeApi {
+        var loggedIn = true
+        /** Null makes the API unreachable. */
+        var sponsors: List<String>? = listOf("7")
+        var badges = listOf(
+            ChatterBadge(
+                id = "chatter",
+                title = "Chatter",
+                images = mapOf(
+                    "dark" to mapOf("1x" to "/badges/chatter/dark/1x.png", "2x" to "/badges/chatter/dark/2x.png"),
+                    "light" to mapOf("1x" to "/badges/chatter/light/1x.png", "2x" to "/badges/chatter/light/2x.png"),
+                ),
+            ),
+        )
+        var sponsorCalls = 0
+
+        override suspend fun sponsors(): ChatterSponsors {
+            if (!loggedIn) throw NotLoggedInException()
+            sponsorCalls++
+            return ChatterSponsors(sponsors ?: throw IOException("the API is down"))
         }
+
+        override suspend fun badges() = ChatterBadges(badges)
+
+        override fun imageUrl(path: String) = "https://api.lesh.me$path"
     }
 
     // ---- reading the tag ----------------------------------------------------------------------
@@ -96,7 +116,7 @@ class BadgeRepositoryTest {
     @Test
     fun aProviderTheUserTurnedOffIsLeftOut() = runTest {
         badges.loadGlobal()
-        badges.loadThirdParty(titles)
+        badges.loadThirdParty()
         assertEquals(2, badges.resolve(null, "subscriber/0", userId = "42").size)
 
         badges.enabled = setOf(BadgeProvider.Twitch)
@@ -131,7 +151,7 @@ class BadgeRepositoryTest {
         )
         badges.loadGlobal()
         badges.loadChannel("22484632")
-        badges.loadThirdParty(titles)
+        badges.loadThirdParty()
         badges.sevenTvBadge("cosmetic-1", name = "Subscriber", tooltip = "7TV Subscriber")
 
         val known = badges.knownKinds()
@@ -152,28 +172,28 @@ class BadgeRepositoryTest {
 
         twitch.global = listOf(FakeTwitchBadges.badgeSet("subscriber", "0", "Subscriber"))
         clock += 6 * 60_000L
-        badges.retryMissing(titles)
+        badges.retryMissing()
         assertEquals(listOf("Subscriber"), badges.resolve(null, "subscriber/0", userId = null).map { it.title })
 
         val calls = twitch.globalCalls
         clock += 6 * 60_000L
-        badges.retryMissing(titles)
+        badges.retryMissing()
         assertEquals("once they are in, they are not asked for again", calls, twitch.globalCalls)
     }
 
     @Test
     fun aListThatAnsweredIsNotThrownAwayWhenAnotherIsRetried() = runTest {
         others.chatterino = null
-        badges.loadThirdParty(titles)
+        badges.loadThirdParty()
         assertEquals(listOf("Supporter"), badges.resolve(null, null, userId = "7").map { it.title })
 
         others.chatterino = listOf("42")
         clock += 6 * 60_000L
-        badges.retryMissing(titles)
+        badges.retryMissing()
 
         assertEquals("the one that answered is still here", listOf("Supporter"), badges.resolve(null, null, userId = "7").map { it.title })
         assertEquals(listOf("Chatterino Fan"), badges.resolve(null, null, userId = "42").map { it.title })
-        assertEquals("and was not asked twice", 1, others.supporterCalls)
+        assertEquals("and was not asked twice", 1, chatter.sponsorCalls)
     }
 
     @Test
@@ -184,7 +204,7 @@ class BadgeRepositoryTest {
 
         twitch.channel = listOf(FakeTwitchBadges.badgeSet("subscriber", "0", "Subscriber of this channel"))
         clock += 6 * 60_000L
-        badges.retryMissing(titles)
+        badges.retryMissing()
         assertTrue(twitch.channelCalls > afterFirst)
         assertEquals(
             listOf("Subscriber of this channel"),
@@ -193,72 +213,96 @@ class BadgeRepositoryTest {
 
         val calls = twitch.channelCalls
         clock += 6 * 60_000L
-        badges.retryMissing(titles)
+        badges.retryMissing()
         assertEquals("a channel that answered is left alone", calls, twitch.channelCalls)
     }
 
     @Test
     fun aProviderThatIsDownIsNotAskedAgainStraightAway() = runTest {
         twitch.global = null
-        badges.retryMissing(titles)
+        badges.retryMissing()
         val calls = twitch.globalCalls
 
         clock += 60_000L
-        badges.retryMissing(titles)
+        badges.retryMissing()
         assertEquals("coming back to the app every minute must not mean asking every minute", calls, twitch.globalCalls)
 
         clock += 5 * 60_000L
-        badges.retryMissing(titles)
+        badges.retryMissing()
         assertTrue(twitch.globalCalls > calls)
     }
 
-    // ---- who supports Chatter, and how ------------------------------------------------------------
+    // ---- who supports Chatter ----------------------------------------------------------------------
 
     @Test
-    fun withoutSupportTheListIsNotEvenAskedFor() = runTest {
-        // Sponsoring is off: no list to ask for.
-        badges.loadThirdParty(null)
-        assertEquals(0, others.supporterCalls)
-        assertEquals("the other lists are still fetched", 1, others.chatterinoCalls)
+    fun aSupporterWearsTheBadgeTheApiServes() = runTest {
+        badges.loadThirdParty()
+
+        val shown = badges.resolve(null, null, userId = "7").single()
+        assertEquals("Supporter", shown.title)
+        assertEquals(BadgeProvider.Chatter, shown.provider)
+        assertEquals("the size Twitch's badges are loaded in", "https://api.lesh.me/badges/chatter/dark/2x.png", shown.url)
+        assertEquals("https://api.lesh.me/badges/chatter/light/2x.png", shown.urlOnLight)
+    }
+
+    @Test
+    fun aGuestIsNotToldTheApiIsDown() = runTest {
+        val said = mutableListOf<String>()
+        val watching = launch { trouble.unreachable.collect { said += it } }
+        runCurrent()
+
+        // The API checks the Twitch token; a guest has none to send.
+        chatter.loggedIn = false
+        badges.loadThirdParty()
+        runCurrent()
+        assertTrue(said.isEmpty())
+
+        chatter.loggedIn = true
+        clock += 6 * 60_000L
+        badges.retryMissing()
+        assertEquals("asked for once there is a login", listOf("Supporter"), badges.resolve(null, null, userId = "7").map { it.title })
+        watching.cancel()
+    }
+
+    @Test
+    fun anApiThatIsDownIsNamedAndTriedAgain() = runTest {
+        val said = mutableListOf<String>()
+        val watching = launch { trouble.unreachable.collect { said += it } }
+        runCurrent()
+
+        chatter.sponsors = null
+        badges.loadThirdParty()
+        runCurrent()
+        assertEquals(listOf(ServiceTrouble.CHATTER_API), said)
+
+        chatter.sponsors = listOf("7")
+        clock += 6 * 60_000L
+        badges.retryMissing()
+        assertEquals(1, badges.resolve(null, null, userId = "7").size)
+        watching.cancel()
+    }
+
+    @Test
+    fun withoutTheBadgePictureNobodyWearsIt() = runTest {
+        // A badge without a picture would be an empty gap in every line of the supporter.
+        chatter.badges = emptyList()
+        badges.loadThirdParty()
         assertTrue(badges.resolve(null, null, userId = "7").isEmpty())
-    }
 
-    @Test
-    fun aOneTimeSupporterWearsThePlainBadge() = runTest {
-        others.supporters = listOf(ChatterSupporter(twitch = "7", since = "2026-01-01", oneTime = 3))
-        badges.loadThirdParty(titles)
-        assertEquals(listOf("Supporter"), badges.resolve(null, null, userId = "7").map { it.title })
-    }
-
-    @Test
-    fun aMonthlySupporterCarriesHowLongItHasBeenRunning() = runTest {
-        others.supporters = listOf(
-            ChatterSupporter(twitch = "7", monthlySince = "2026-09-10"),
-            ChatterSupporter(twitch = "8", monthlySince = "2026-01-10"),
+        chatter.badges = listOf(ChatterBadge(id = "chatter", images = mapOf("light" to mapOf("4x" to "/badges/chatter/light/4x.png"))))
+        clock += 6 * 60_000L
+        badges.retryMissing()
+        assertEquals(
+            "any size and theme will do",
+            "https://api.lesh.me/badges/chatter/light/4x.png",
+            badges.resolve(null, null, userId = "7").single().url,
         )
-        badges.loadThirdParty(titles)
-
-        assertEquals("not a whole month yet", listOf("Supporter, every month"), badges.resolve(null, null, userId = "7").map { it.title })
-        assertEquals(listOf("Supporter, 8 months"), badges.resolve(null, null, userId = "8").map { it.title })
     }
 
     @Test
-    fun aDateThatCannotBeReadStillWearsTheBadge() = runTest {
-        // An unexpected value must not cost someone their badge.
-        others.supporters = listOf(ChatterSupporter(twitch = "7", monthlySince = "last winter"))
-        badges.loadThirdParty(titles)
-        assertEquals(listOf("Supporter"), badges.resolve(null, null, userId = "7").map { it.title })
-    }
-
-    @Test
-    fun anEntryWithoutATwitchAccountIsLeftOut() = runTest {
-        // GitHub does not know a sponsor's Twitch account; until it is filled in there is nobody to
-        // show the badge for.
-        others.supporters = listOf(
-            ChatterSupporter(twitch = "", github = "someone"),
-            ChatterSupporter(twitch = "7"),
-        )
-        badges.loadThirdParty(titles)
+    fun anEmptyIdIsLeftOut() = runTest {
+        chatter.sponsors = listOf("", "7")
+        badges.loadThirdParty()
         assertEquals(1, badges.resolve(null, null, userId = "7").size)
         assertTrue(badges.resolve(null, null, userId = "").isEmpty())
     }

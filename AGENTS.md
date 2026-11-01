@@ -113,10 +113,12 @@ changed or extra checksum, a removed entry or anything new in `<configuration>` 
 it to you; its rules are tested in `.github/scripts/test_check_verification_metadata.py`. It pushes to Dependabot's branch, after which Dependabot no longer rebases it on its own —
 comment `@dependabot recreate` to start the pull request over.
 
-Supporting Chatter is **switched off** everywhere until GitHub Sponsors is set up: `sponsoring`
-in `app/build.gradle.kts` takes the settings category out of every build and keeps the app from
-asking for a supporter list nobody serves. The supporter list and the badges will come from an API
-of their own.
+The supporter badge comes from Chatter's own API on `api.lesh.me` (`net/ChatterApi.kt`):
+`/v2/chatter/sponsors` lists the supporters' Twitch ids and wants the user's Twitch token, so a
+guest sees no supporter badges; `/v2/chatter/badges` serves the picture, one for light and one
+for dark themes. A new supporter goes into the API's database, not into a release. Asking
+people to support Chatter is still **switched off** until GitHub Sponsors is set up: `sponsoring`
+in `app/build.gradle.kts` takes the settings category and its link out of every build.
 
 Letting assistants into Chatter is **switched off** the same way: `assistantAccess` in
 `app/build.gradle.kts` hides its switch under Settings → Beta features, because Gemini only calls

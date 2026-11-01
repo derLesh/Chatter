@@ -38,8 +38,8 @@ val versionProps = Properties().apply {
 }
 
 /**
- * Whether supporting Chatter is enabled. Off until GitHub Sponsors is set up: nothing to link to,
- * claim or fetch. Everything is built and tested; enabling it is this line.
+ * Whether the app offers to support Chatter. Off until GitHub Sponsors is set up: nothing to link
+ * to or claim. The supporter badge does not depend on it; it comes from Chatter's API.
  */
 val sponsoring = false
 
@@ -105,7 +105,6 @@ android {
         // A nightly names the last release and its commit: "0.9.0-nightly+6d134cb".
         versionName = versionProps.getProperty("version") + (nightlyCommit?.let { "-nightly+$it" } ?: "")
         buildConfigField("String", "TWITCH_CLIENT_ID", "\"$twitchClientId\"")
-        buildConfigField("boolean", "SPONSORING", "$sponsoring")
         buildConfigField("boolean", "ASSISTANT_ACCESS", "$assistantAccess")
         buildConfigField("boolean", "NIGHTLY", "$nightly")
         // Which launcher alias the manifest enables; AppIcon.default must agree.

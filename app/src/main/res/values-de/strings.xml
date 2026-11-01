@@ -679,11 +679,6 @@
     <string name="badge_kind_turbo">Turbo</string>
     <string name="badge_kind_verified">Verifiziert</string>
     <string name="badge_supporter">Chatter-Unterstützer</string>
-    <string name="badge_supporter_monthly">Chatter-Unterstützer, monatlich</string>
-    <plurals name="badge_supporter_months">
-        <item quantity="one">Chatter-Unterstützer, %1$d Monat</item>
-        <item quantity="other">Chatter-Unterstützer, %1$d Monate</item>
-    </plurals>
     <!-- Changelog -->
     <string name="settings_changelog">Changelog</string>
     <string name="settings_changelog_summary">Was sich in jeder Version geändert hat</string>

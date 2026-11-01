@@ -26,7 +26,6 @@ import me.lesh.chatter.assistant.AssistantAccess
 import me.lesh.chatter.auth.AuthRepository
 import me.lesh.chatter.auth.AuthState
 import me.lesh.chatter.badges.BadgeRepository
-import me.lesh.chatter.badges.SupporterTitles
 import me.lesh.chatter.changelog.ChangelogRepository
 import me.lesh.chatter.channels.BlockedUsersRepository
 import me.lesh.chatter.channels.ChannelRepository
@@ -58,6 +57,7 @@ import me.lesh.chatter.emotes.SevenTvLiveUpdates
 import me.lesh.chatter.irc.ConnectionState
 import me.lesh.chatter.irc.IrcConnection
 import me.lesh.chatter.net.BlueskyApi
+import me.lesh.chatter.net.ChatterApi
 import me.lesh.chatter.net.DataSaving
 import me.lesh.chatter.net.FxTwitterApi
 import me.lesh.chatter.net.HelixApi
@@ -163,7 +163,11 @@ class AppContainer(
     val posts = PostRepository(listOf(XPostSource(FxTwitterApi(http)), BlueskyPostSource(BlueskyApi(http))), scope)
     val emotes = EmoteRepository(helix, thirdParty, trouble, providersOn = { settings.settings.value.emoteProvidersOn })
     val emoji = EmojiRepository(context)
-    val badges = BadgeRepository(helix, thirdParty, trouble)
+    val badges = BadgeRepository(
+        helix, thirdParty, ChatterApi(http) { auth.freshToken() },
+        supporterTitle = { context.getString(R.string.badge_supporter) },
+        trouble = trouble,
+    )
     private val cheermotes = CheermoteRepository(helix, trouble)
     val channels = ChannelRepository(context.channelStore, helix, scope)
     val blocked = BlockedUsersRepository(helix, scope)
@@ -302,7 +306,7 @@ class AppContainer(
                             userId = state.account.userId
                             chat.resync()
                             launch { emotes.loadGlobal() }
-                            launch { badges.retryMissing(supporterTitles()) }
+                            launch { badges.retryMissing() }
                             launch { emotes.loadTwitchUserEmotes(state.account.userId) }
                             launch { channels.refreshUsers(channels.currentChannels()) }
                             launch { blocked.load(state.account.userId) }
@@ -315,7 +319,7 @@ class AppContainer(
                         connect()
                         chat.resync()
                         launch { emotes.loadGlobal() }
-                        launch { badges.retryMissing(supporterTitles()) }
+                        launch { badges.retryMissing() }
                     }
                     AuthState.LoggedOut -> {
                         userId = null
@@ -365,7 +369,7 @@ class AppContainer(
                 if (!visible) inbox.saveNow()
                 // The global set comes from Helix, which needs a login.
                 if (visible && auth.account != null) {
-                    badges.retryMissing(supporterTitles())
+                    badges.retryMissing()
                     cheermotes.retryMissing()
                     emotes.retryMissing()
                 }
@@ -390,15 +394,6 @@ class AppContainer(
         registerNetworkCallback()
         watchPowerSaveMode()
     }
-
-    /** Null while sponsoring is off; see `sponsoring` in build.gradle.kts. */
-    private fun supporterTitles() = if (!BuildConfig.SPONSORING) null else SupporterTitles(
-        once = context.getString(R.string.badge_supporter),
-        monthly = context.getString(R.string.badge_supporter_monthly),
-        monthlyFor = { months ->
-            context.resources.getQuantityString(R.plurals.badge_supporter_months, months, months)
-        },
-    )
 
     /** Opens the chat connection for an account or a guest. Safe to call repeatedly. */
     fun connect() {

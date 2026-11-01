@@ -7,6 +7,7 @@ import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.ReadOnlyComposable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
@@ -16,6 +17,7 @@ import coil3.compose.AsyncImage
 import me.lesh.chatter.R
 import me.lesh.chatter.badges.Badge
 import me.lesh.chatter.badges.BadgeProvider
+import me.lesh.chatter.ui.theme.isAppInDarkTheme
 
 /**
  * The name of a kind of badge. A Twitch badge's title names one version ("1-Year Subscriber"), so
@@ -27,6 +29,12 @@ fun badgeKindName(provider: BadgeProvider, set: String, title: String): String {
     val name = TWITCH_KIND_NAMES[set] ?: return title
     return stringResource(name)
 }
+
+/** The badge picture that suits the app theme; see [Badge.urlOnLight]. */
+@Composable
+@ReadOnlyComposable
+fun badgePicture(url: String?, urlOnLight: String?): String? =
+    if (urlOnLight != null && !isAppInDarkTheme()) urlOnLight else url
 
 /** Whether a badge is one people know by name, which the settings list shows without a search. */
 fun isWellKnownBadge(provider: BadgeProvider, set: String) = provider == BadgeProvider.Twitch && set in TWITCH_KIND_NAMES
@@ -40,7 +48,12 @@ fun HideBadgeDialog(badge: Badge, imageLoader: ImageLoader, onHide: () -> Unit, 
         title = { Text(stringResource(R.string.badge_hide_title)) },
         text = {
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                AsyncImage(model = badge.url, contentDescription = null, imageLoader = imageLoader, modifier = Modifier.size(32.dp))
+                AsyncImage(
+                    model = badgePicture(badge.url, badge.urlOnLight),
+                    contentDescription = null,
+                    imageLoader = imageLoader,
+                    modifier = Modifier.size(32.dp),
+                )
                 Text(stringResource(R.string.badge_hide_text, name))
             }
         },

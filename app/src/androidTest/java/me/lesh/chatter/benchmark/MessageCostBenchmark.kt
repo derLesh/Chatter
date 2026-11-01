@@ -23,7 +23,9 @@ import me.lesh.chatter.emotes.EmoteRepository
 import me.lesh.chatter.irc.IrcMessage
 import me.lesh.chatter.net.BttvChannel
 import me.lesh.chatter.net.BttvEmote
-import me.lesh.chatter.net.ChatterSupporters
+import me.lesh.chatter.net.ChatterBadgeApi
+import me.lesh.chatter.net.ChatterBadges
+import me.lesh.chatter.net.ChatterSponsors
 import me.lesh.chatter.net.ChatterinoBadge
 import me.lesh.chatter.net.ChatterinoBadges
 import me.lesh.chatter.net.FfzEmote
@@ -83,10 +85,10 @@ class MessageCostBenchmark {
         val emotes = EmoteRepository(NoTwitchEmotes, ThirdPartyEmotes)
         emotes.loadGlobal()
         emotes.loadChannel(BusyChannel.ROOM_ID, userId = null)
-        val badges = BadgeRepository(TwitchBadges, OtherClientBadges)
+        val badges = BadgeRepository(TwitchBadges, OtherClientBadges, NoSupporters, supporterTitle = { "Chatter supporter" })
         badges.loadGlobal()
         badges.loadChannel(BusyChannel.ROOM_ID)
-        badges.loadThirdParty(supporterTitles = null)
+        badges.loadThirdParty()
 
         val chatters = ChatterRegistry()
         // The default limit. There are more lines than that, so the buffer trims as it would all
@@ -212,7 +214,12 @@ private object OtherClientBadges : ThirdPartyBadgeApi {
     override suspend fun chatterinoBadges() = ChatterinoBadges(
         listOf(ChatterinoBadge(tooltip = "Chatterino Top Donator", image2 = "https://c.invalid/2", users = (0 until 50).map { (100_000 + it * 370).toString() })),
     )
-    override suspend fun chatterSupporters() = ChatterSupporters()
+}
+
+private object NoSupporters : ChatterBadgeApi {
+    override suspend fun sponsors() = ChatterSponsors()
+    override suspend fun badges() = ChatterBadges()
+    override fun imageUrl(path: String) = null
 }
 
 private object Notices : ChatNotices {

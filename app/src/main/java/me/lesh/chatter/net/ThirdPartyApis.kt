@@ -102,27 +102,6 @@ data class ChatterinoBadge(
     val users: List<String> = emptyList(),
 )
 
-/** Supporters of Chatter, fetched so a new supporter needs no release. */
-@Serializable
-data class ChatterSupporters(val supporters: List<ChatterSupporter> = emptyList())
-
-@Serializable
-data class ChatterSupporter(
-    /**
-     * Twitch user id the badge is shown for. Empty until filled in by hand; GitHub does not know a
-     * sponsor's Twitch account.
-     */
-    val twitch: String = "",
-    /** The GitHub account the sponsorship is under. */
-    val github: String = "",
-    /** First day of any support (ISO date, e.g. 2026-09-21). */
-    val since: String = "",
-    /** Number of one-time sponsorships. Never decreases. */
-    val oneTime: Int = 0,
-    /** Start of the running monthly sponsorship, or null if none is running. */
-    val monthlySince: String? = null,
-)
-
 // ---- Recent messages (history) -----------------------------------------------
 
 @Serializable
@@ -144,7 +123,6 @@ interface ThirdPartyEmoteApi {
 /** The badge lists of other clients, as the badge repository needs them. */
 interface ThirdPartyBadgeApi {
     suspend fun chatterinoBadges(): ChatterinoBadges
-    suspend fun chatterSupporters(): ChatterSupporters
 }
 
 class ThirdPartyApi(private val http: OkHttpClient) : ThirdPartyEmoteApi, ThirdPartyBadgeApi {
@@ -162,13 +140,6 @@ class ThirdPartyApi(private val http: OkHttpClient) : ThirdPartyEmoteApi, ThirdP
 
     override suspend fun chatterinoBadges(): ChatterinoBadges =
         http.getJson("https://api.chatterino.com/badges")
-
-    /**
-     * From GitHub Pages (`docs/` on master): raw.githubusercontent.com answers 404 for a private
-     * repo.
-     */
-    override suspend fun chatterSupporters(): ChatterSupporters =
-        http.getJson("https://derlesh.github.io/Chatter/supporters.json")
 
     suspend fun recentMessages(channel: String, limit: Int): RecentMessages =
         http.getJson("https://recent-messages.robotty.de/api/v2/recent-messages/$channel?limit=$limit")

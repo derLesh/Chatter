@@ -397,7 +397,7 @@ private fun inlineFor(
         Placeholder(BADGE_EM.em, BADGE_EM.em, PlaceholderVerticalAlign.Center),
     ) {
         AsyncImage(
-            model = data.badge.url,
+            model = badgePicture(data.badge.url, data.badge.urlOnLight),
             contentDescription = data.badge.title,
             imageLoader = loader,
             modifier = Modifier.fillMaxSize().then(

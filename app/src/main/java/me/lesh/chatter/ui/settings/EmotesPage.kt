@@ -31,6 +31,7 @@ import me.lesh.chatter.R
 import me.lesh.chatter.badges.Badge
 import me.lesh.chatter.badges.BadgeProvider
 import me.lesh.chatter.ui.chat.badgeKindName
+import me.lesh.chatter.ui.chat.badgePicture
 import me.lesh.chatter.ui.chat.isWellKnownBadge
 import me.lesh.chatter.emotes.EmoteProvider
 import me.lesh.chatter.emotes.label
@@ -110,8 +111,8 @@ internal fun BadgeKindsPage(vm: MainViewModel) {
     val known = remember { vm.knownBadgeKinds() }
     val hiddenOnOpen = remember { hiddenKinds }
     var query by rememberSaveable { mutableStateOf("") }
-    val rows = (hidden.map { BadgeKindRow(it.kind, it.provider, it.set, it.title, it.url) } +
-        known.map { BadgeKindRow(it.kind, it.provider, it.set, it.title, it.url) })
+    val rows = (hidden.map { BadgeKindRow(it.kind, it.provider, it.set, it.title, it.url, it.urlOnLight) } +
+        known.map { BadgeKindRow(it.kind, it.provider, it.set, it.title, it.url, it.urlOnLight) })
         .distinctBy { it.kind }
     val search = query.trim()
     val matches = rows.map { it to badgeKindName(it.provider, it.set, it.title) }
@@ -146,7 +147,12 @@ internal fun BadgeKindsPage(vm: MainViewModel) {
                     headlineContent = { Text(name) },
                     supportingContent = { Text(stringResource(BADGE_PROVIDERS.first { it.first == row.provider }.second)) },
                     leadingContent = {
-                        AsyncImage(model = row.url, contentDescription = null, imageLoader = vm.imageLoader, modifier = Modifier.size(24.dp))
+                        AsyncImage(
+                            model = badgePicture(row.url, row.urlOnLight),
+                            contentDescription = null,
+                            imageLoader = vm.imageLoader,
+                            modifier = Modifier.size(24.dp),
+                        )
                     },
                     trailingContent = { Switch(checked = shown, onCheckedChange = change) },
                     colors = transparentItem(),
@@ -167,8 +173,15 @@ internal fun BadgeKindsPage(vm: MainViewModel) {
 
 private const val MAX_BADGE_ROWS = 50
 
-private class BadgeKindRow(val kind: String, val provider: BadgeProvider, val set: String, val title: String, val url: String?) {
-    fun toBadge() = Badge(url.orEmpty(), title, provider, set)
+private class BadgeKindRow(
+    val kind: String,
+    val provider: BadgeProvider,
+    val set: String,
+    val title: String,
+    val url: String?,
+    val urlOnLight: String?,
+) {
+    fun toBadge() = Badge(url.orEmpty(), title, provider, set, urlOnLight)
 }
 
 /** The emotes the user hid, each with where it is hidden and a button to show it again. */

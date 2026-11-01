@@ -434,7 +434,12 @@ private fun BadgeRow(item: ChatItem, hiddenKinds: Set<String>, imageLoader: Imag
                         .padding(horizontal = 6.dp, vertical = 3.dp)
                         .alpha(if (hidden) 0.5f else 1f),
                 ) {
-                    AsyncImage(model = badge.url, contentDescription = null, imageLoader = imageLoader, modifier = Modifier.size(16.dp))
+                    AsyncImage(
+                        model = badgePicture(badge.url, badge.urlOnLight),
+                        contentDescription = null,
+                        imageLoader = imageLoader,
+                        modifier = Modifier.size(16.dp),
+                    )
                     Spacer(Modifier.width(4.dp))
                     Text(
                         badge.title,
