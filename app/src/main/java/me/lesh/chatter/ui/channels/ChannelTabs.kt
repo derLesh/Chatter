@@ -5,6 +5,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.height
@@ -144,24 +145,16 @@ fun ChannelTabBar(
                     }
                 }
             }
-            // Decided here, since an empty status line would still take its padding.
-            val hasStatus = when {
-                active == null -> false
-                connection != ConnectionState.Connected -> true
-                activeGroup != null -> activeGroup.name.isNotBlank()
-                else -> sharedWith != null || roomState?.hasModes() == true
+            val status = when {
+                active == null -> null
+                activeGroup != null -> groupStatus(connection, activeGroup, info)
+                else -> channelStatus(connection, roomState, roleBadge = null, sharedWith)
             }
             // A little room above, so the line does not stick to the tab underline.
-            if (hasStatus) Box(Modifier.padding(start = 16.dp, end = 16.dp, top = 4.dp, bottom = 6.dp)) {
-                if (activeGroup != null) GroupStatus(connection, activeGroup, info)
-                else ChannelStatus(connection, roomState, roleBadge = null, sharedWith, imageLoader)
-            }
+            StatusLineView(status, imageLoader, PaddingValues(start = 16.dp, end = 16.dp, top = 4.dp, bottom = 6.dp))
         }
     }
 }
-
-private fun RoomState.hasModes(): Boolean =
-    slow > 0 || followersOnly >= 0 || subsOnly || emoteOnly || uniqueChat
 
 @Composable
 private fun ChannelTabs(

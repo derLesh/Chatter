@@ -136,7 +136,7 @@ fun ChannelTopBar(
                                 maxLines = 1,
                                 overflow = TextOverflow.Ellipsis,
                             )
-                            GroupStatus(connection, activeGroup, info)
+                            StatusLineView(groupStatus(connection, activeGroup, info), imageLoader)
                         }
                     } else if (active != null) {
                         val i = info[active]
@@ -144,7 +144,7 @@ fun ChannelTopBar(
                         Spacer(Modifier.width(10.dp))
                         Column(Modifier.weight(1f, fill = false)) {
                             Text(i?.displayName ?: active, style = MaterialTheme.typography.titleMedium, maxLines = 1)
-                            ChannelStatus(connection, roomState, roleBadge, sharedWith, imageLoader)
+                            StatusLineView(channelStatus(connection, roomState, roleBadge, sharedWith), imageLoader)
                         }
                     } else {
                         Text(stringResource(R.string.no_channels_title), style = MaterialTheme.typography.titleMedium)
