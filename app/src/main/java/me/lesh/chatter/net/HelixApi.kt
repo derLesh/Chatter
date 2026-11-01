@@ -256,6 +256,7 @@ class HelixApi(
 data class ValidateResponse(
     val login: String,
     @SerialName("user_id") val userId: String,
+    @SerialName("client_id") val clientId: String = "",
     val scopes: List<String> = emptyList(),
     @SerialName("expires_in") val expiresIn: Long = 0,
 )

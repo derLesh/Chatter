@@ -1,7 +1,10 @@
 import com.android.build.api.variant.BuildConfigField
 import com.android.build.api.variant.HasHostTestsBuilder
 import com.android.build.api.variant.HostTestBuilder
+import java.net.URLEncoder
 import java.util.Properties
+import javax.inject.Inject
+import org.gradle.process.ExecOperations
 
 plugins {
     alias(libs.plugins.android.application)
@@ -213,6 +216,86 @@ val copyChangelog = tasks.register<CopyChangelog>("copyChangelog") {
     changelog.set(rootProject.layout.projectDirectory.file("CHANGELOG.md"))
 }
 
+/**
+ * Logs the debug build on the connected phone or emulator in, for emulators Twitch's login page
+ * turns away. Without `-Ptoken` it prints the address to get one in a desktop browser; with it, it
+ * leaves the token where the app's DevLogin reads it on start, and restarts the app.
+ */
+abstract class DevLoginTask : DefaultTask() {
+    @get:Inject
+    abstract val exec: ExecOperations
+
+    @get:Internal
+    abstract val adb: RegularFileProperty
+
+    @get:Internal
+    abstract val appId: Property<String>
+
+    @get:Internal
+    abstract val authorizeUrl: Property<String>
+
+    /** The token, or the whole `http://localhost/#access_token=...` address it came back in. */
+    @get:Internal
+    abstract val token: Property<String>
+
+    /** Which device, by the serial `adb devices` lists; only needed when more than one is connected. */
+    @get:Internal
+    abstract val device: Property<String>
+
+    @TaskAction
+    fun run() {
+        val given = token.orNull?.trim()
+        if (given.isNullOrEmpty()) {
+            logger.lifecycle(
+                """
+                |Open this in a desktop browser and log in:
+                |
+                |${authorizeUrl.get()}
+                |
+                |Twitch then sends the browser to http://localhost/#access_token=..., which does not load.
+                |Copy that address from the address bar and run:
+                |
+                |./gradlew devLogin -Ptoken="<the address>"
+                |
+                |With more than one device connected, add -Pdevice=<serial from adb devices>.
+                """.trimMargin(),
+            )
+            return
+        }
+        val accessToken = Regex("access_token=([^&]+)").find(given)?.groupValues?.get(1) ?: given
+        // Also keeps the shell command below free of anything the device shell would interpret.
+        require(accessToken.matches(Regex("[a-z0-9]{20,}"))) { "That does not look like a Twitch token." }
+        val app = appId.get()
+        adb("shell", "run-as $app sh -c 'mkdir -p files && echo $accessToken > files/dev-login-token'")
+        adb("shell", "am force-stop $app")
+        adb("shell", "am start -n $app/me.lesh.chatter.MainActivity")
+        logger.lifecycle("Token handed over, Chatter restarted. adb logcat -s DevLogin says how it went.")
+    }
+
+    private fun adb(vararg args: String) {
+        val target = device.orNull?.let { listOf("-s", it) }.orEmpty()
+        exec.exec { commandLine(listOf(adb.get().asFile.absolutePath) + target + args) }
+    }
+}
+
+tasks.register<DevLoginTask>("devLogin") {
+    description = "Logs the installed debug build in with a token, for emulators Twitch's login turns away."
+    adb.set(androidComponents.sdkComponents.adb)
+    appId.set(android.defaultConfig.applicationId)
+    token.set(providers.gradleProperty("token"))
+    device.set(providers.gradleProperty("device"))
+    // TwitchScopes.kt is the one list of scopes; read here so the token can do what the app does.
+    val scopes = Regex("\"([a-z]+(?::[a-z_]+)+)\"")
+        .findAll(file("src/main/java/me/lesh/chatter/auth/TwitchScopes.kt").readText())
+        .map { it.groupValues[1] }
+        .joinToString(" ")
+    fun encode(value: String) = URLEncoder.encode(value, Charsets.UTF_8)
+    authorizeUrl.set(
+        "https://id.twitch.tv/oauth2/authorize?response_type=token&client_id=${encode(twitchClientId)}" +
+            "&redirect_uri=${encode("http://localhost")}&scope=${encode(scopes)}&force_verify=true",
+    )
+}
+
 androidComponents {
     // Unit tests only come with the testBuildType, which is the microbenchmark now; they belong to
     // the debug build, and CI runs testDebugUnitTest.
@@ -230,6 +313,9 @@ androidComponents {
     }
     onVariants { variant ->
         variant.sources.assets?.addGeneratedSourceDirectory(copyChangelog, CopyChangelog::assets)
+        // The real DevLogin is in src/debug. Every other build, a new build type included, gets
+        // the empty one, so a token from outside can never log in a build that is handed out.
+        if (variant.buildType != "debug") variant.sources.kotlin?.addStaticSourceDirectory("src/withoutDevLogin/java")
     }
 }
 

@@ -235,8 +235,18 @@ class AuthRepository(
         params["error"]?.let { return Result.failure(IllegalStateException(params["error_description"] ?: it)) }
         if (expected == null || params["state"] != expected) return Result.failure(IllegalStateException("State mismatch"))
         val token = params["access_token"] ?: return Result.failure(IllegalStateException("No token"))
+        return addToken(token)
+    }
+
+    /**
+     * Logs in with [token]. Internal for the debug build's DevLogin, which hands in tokens from
+     * outside; release builds have no caller but [handleRedirect].
+     * [requireClient]: a token made for another client ID fails every Helix call, so it is refused.
+     */
+    internal suspend fun addToken(token: String, requireClient: String? = null): Result<Unit> {
         val result = runCatchingCancellable {
             val v = helix.validate(token)
+            check(requireClient == null || v.clientId == requireClient) { "Token belongs to client ${v.clientId}" }
             // expires_in == 0 means the token does not expire on its own.
             val expiresAt = if (v.expiresIn > 0) System.currentTimeMillis() + v.expiresIn * 1000L else Long.MAX_VALUE
             saveAccount(

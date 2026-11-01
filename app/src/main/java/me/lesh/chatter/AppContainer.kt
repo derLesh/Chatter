@@ -25,6 +25,7 @@ import me.lesh.chatter.ai.OnDeviceModel
 import me.lesh.chatter.assistant.AssistantAccess
 import me.lesh.chatter.auth.AuthRepository
 import me.lesh.chatter.auth.AuthState
+import me.lesh.chatter.auth.DevLogin
 import me.lesh.chatter.badges.BadgeRepository
 import me.lesh.chatter.changelog.ChangelogRepository
 import me.lesh.chatter.channels.BlockedUsersRepository
@@ -281,6 +282,7 @@ class AppContainer(
         scope.launch {
             channels.loadCache()
             auth.restore()
+            DevLogin.logInIfWaiting(context.filesDir, auth)
             // Collected after restore(), so the list is the real one. Inbox and whispers of
             // accounts that are gone (logged out, ended by Twitch, key lost) are dropped; accounts
             // the keystore could not read at start still count.

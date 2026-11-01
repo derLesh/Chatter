@@ -215,6 +215,7 @@ says about the cold start and the chat frames, with the profile and without, int
 ./gradlew releaseVersion             # fold them into CHANGELOG.md, bump the version, clear pending
 ./gradlew :app:testDebugUnitTest     # unit tests
 ./gradlew :app:installDebug          # build and install on the connected phone
+./gradlew devLogin                   # log the debug build in where Twitch's login page refuses, e.g. on an emulator
 ./gradlew :app:connectedMicrobenchmarkAndroidTest -Pandroid.testInstrumentationRunnerArguments.package=me.lesh.chatter.benchmark   # what a message costs, on the connected phone
 ./gradlew :app:connectedMicrobenchmarkAndroidTest -Pandroid.testInstrumentationRunnerArguments.package=me.lesh.chatter.flows       # the screen tests, on the connected phone
 ./gradlew :app:generateReleaseBaselineProfile       # record the baseline profile on the connected phone
