@@ -64,8 +64,7 @@ jobs:
           done
           exit $failed
 
-      # The scripts other workflows run unattended: the supporter list rules, the benchmark summary
-      # and the check on Dependabot's checksums.
+      # The script another workflow runs unattended: the check on Dependabot's checksums.
       - name: Check the workflow scripts
         run: python3 -m unittest discover -s .github/scripts -p 'test_*.py'
 

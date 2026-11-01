@@ -115,10 +115,8 @@ comment `@dependabot recreate` to start the pull request over.
 
 Supporting Chatter is **switched off** everywhere until GitHub Sponsors is set up: `sponsoring`
 in `app/build.gradle.kts` takes the settings category out of every build and keeps the app from
-asking for a supporter list nobody serves, and the two workflows below have their triggers
-commented out. Everything is built and tested and waiting; turning it on is that one line, those
-two triggers and the issue form `.github/ISSUE_TEMPLATE/supporter.yml` back as commit b5d8722 had
-it. The form is out until then, since GitHub offers every form to everyone and nobody would answer.
+asking for a supporter list nobody serves. The supporter list and the badges will come from an API
+of their own.
 
 Letting assistants into Chatter is **switched off** the same way: `assistantAccess` in
 `app/build.gradle.kts` hides its switch under Settings → Beta features, because Gemini only calls
@@ -126,32 +124,12 @@ the AppFunctions of apps in Google's preview. The functions in `assistant/` are 
 with `adb shell cmd app_function`. Turning it on is that line plus the assistant sections of the
 privacy policy and `data-safety.md`, as commit 81a8da3 had them.
 
-`.github/workflows/sponsors.yml` folds what GitHub Sponsors knows into `docs/supporters.json`.
-Its schedule is commented out for now, so it only runs when started by hand; put it back once
-`SPONSORS_TOKEN` exists. It is meant to run every few hours — GitHub has no trigger for "somebody sponsored", so it asks. It writes every
-field but one: **the Twitch id is filled in by hand**, because GitHub does not know which Twitch
-account a sponsor has and a badge in front of the wrong name is worse than none. New entries
-arrive with an empty `twitch`, the app skips them, and the run's summary says whose is missing.
-Private sponsorships are left out of the public list on purpose. Nothing is ever removed: a
-one-time sponsorship on top of an earlier one counts up, and somebody who stops keeps their entry
-without the monthly mark. Those rules are the one thing here with tests of their own
-(`.github/scripts/test_sync_sponsors.py`), which CI runs as well.
-
-`.github/workflows/supporter-claim.yml` is how the one field the sync cannot fill gets filled.
-Chatter opens an issue from the supporter form with the Twitch id already in it; the workflow
-checks the **author** against the supporter list and writes the id into that account's own entry,
-then says so and closes the issue. Somebody who does not sponsor changes nothing. Nothing from the
-issue ever reaches a shell — the body goes to the script as an environment variable, because it is
-whatever somebody typed. Its rules are tested in `.github/scripts/test_claim_supporter.py`.
-
-`.github/workflows/benchmark.yml` measures what one message costs on its way in — parsing,
-building, the mute list, the rules, the buffer — for the branch it is started on and for master,
-one after the other on the same emulator, and puts both into the job summary with the change
-between them. It is started by hand; run it on a pull request that touches `irc/` or `chat/`. The
-benchmark itself is `MessageCostBenchmark` in `app/src/androidTest`, fed a busy channel's worth of
-made-up lines by `BusyChannel`. It runs against the `microbenchmark` build type: the debug build,
-not debuggable (a debuggable app runs unoptimized and would measure nothing a user runs), with an
-application id of its own, because a connected test uninstalls what it tested afterwards.
+`MessageCostBenchmark` in `app/src/androidTest` measures what one message costs on its way in —
+parsing, building, the mute list, the rules, the buffer — fed a busy channel's worth of made-up
+lines by `BusyChannel`. Run it on the connected phone before and after a change to `irc/` or
+`chat/`. It runs against the `microbenchmark` build type: the debug build, not debuggable (a
+debuggable app runs unoptimized and would measure nothing a user runs), with an application id of
+its own, because a connected test uninstalls what it tested afterwards.
 
 The screen tests in `app/src/androidTest/.../flows` run on the connected phone, not in CI: the real
 activity, recreated, must come back on the same screen and page. Run them after a change to the
@@ -206,7 +184,6 @@ under the same names, each with its own key, and both environments only let `mas
 | `KEYSTORE_BASE64` | the keystore of that environment, as `base64 -w0 chatter-release.jks` | the release stops; only a `dry_run` signs with a throwaway key instead |
 | `KEYSTORE_PASSWORD`, `KEY_ALIAS`, `KEY_PASSWORD` | how to open that keystore | same |
 | `PLAY_SERVICE_ACCOUNT_JSON` | the service account allowed to release to Play | only needed for a `play_track` other than `none`, which stops without it |
-| `SPONSORS_TOKEN` | a classic token of the sponsored account with `read:user`, for the sponsor sync | only that workflow, which fails without it; nothing else is affected |
 
 ## The baseline profile
 
