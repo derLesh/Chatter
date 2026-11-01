@@ -1,1 +1,0 @@
-patch: Use less memory over a long night in busy chats

@@ -1,1 +1,0 @@
-patch: Keep the app from freezing for a moment while logging in, switching accounts or logging out

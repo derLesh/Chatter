@@ -1,1 +1,0 @@
-patch: Scroll past link previews with pictures with less work

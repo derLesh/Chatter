@@ -3,6 +3,16 @@
 Every release of Chatter, newest first. Written from the entries in `pending-changelog/` by
 `./gradlew releaseVersion`, and shown in the app under Settings → About → Changelog.
 
+## 0.10.1 — 2026-11-01
+- patch: Keep the app from freezing for a moment while logging in, switching accounts or logging out
+- patch: Keep the search results in place while you type in the channel and block search
+- patch: Open the notification settings only when Android no longer asks, not after a quick "Don't allow"
+- patch: Scroll past link previews with pictures with less work
+- patch: Show 7TV paints on names right away, and scroll past them with less work
+- patch: Start a little faster, since the catch-up summary is only set up once it is turned on
+- patch: Stay on the open chat when the phone turns after opening Chatter from a notification
+- patch: Use less memory over a long night in busy chats
+
 ## 0.10.0 — 2026-10-31
 - minor: Beta: let Gemini Nano sum up on your phone what you missed in a busy chat, under Settings → Beta features
 - minor: Chatter is a new app now: back up your settings in the old one, restore them here, then remove it

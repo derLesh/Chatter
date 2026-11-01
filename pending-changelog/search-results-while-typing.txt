@@ -1,1 +1,0 @@
-patch: Keep the search results in place while you type in the channel and block search

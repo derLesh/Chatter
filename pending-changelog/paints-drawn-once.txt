@@ -1,1 +1,0 @@
-patch: Show 7TV paints on names right away, and scroll past them with less work

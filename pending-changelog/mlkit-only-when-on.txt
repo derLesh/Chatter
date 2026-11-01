@@ -1,1 +1,0 @@
-patch: Start a little faster, since the catch-up summary is only set up once it is turned on

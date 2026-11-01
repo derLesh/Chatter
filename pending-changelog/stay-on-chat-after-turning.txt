@@ -1,1 +1,0 @@
-patch: Stay on the open chat when the phone turns after opening Chatter from a notification
