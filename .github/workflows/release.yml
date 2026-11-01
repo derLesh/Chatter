@@ -64,13 +64,15 @@ jobs:
           fi
 
       # The release does not test again; it builds what CI passed. CI skips the build for commits
-      # that only touch Markdown or docs/, so the check falls on the newest commit that does not.
+      # that only touch Markdown or docs/, and never runs for the last release commit, pushed with
+      # the workflow token; so the check falls on the newest commit that touches more.
       - name: Require a green CI run
         env:
           GH_TOKEN: ${{ github.token }}
           DRY_RUN: ${{ inputs.dry_run }}
         run: |
-          commit=$(git log -1 --format=%H HEAD -- . ':(exclude,glob)**/*.md' ':(exclude)docs')
+          commit=$(git log -1 --format=%H HEAD -- . ':(exclude,glob)**/*.md' ':(exclude)docs' \
+            ':(exclude)version.properties' ':(exclude)pending-changelog')
           run=$(gh run list --repo "$GITHUB_REPOSITORY" --workflow ci.yml --commit "$commit" \
             --limit 1 --json status,conclusion,url --jq '.[0] // empty | "\(.status)|\(.conclusion)|\(.url)"')
           # "|" keeps the empty conclusion of a run that is still going.

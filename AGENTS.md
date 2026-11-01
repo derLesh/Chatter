@@ -171,8 +171,9 @@ untouched, and `dry_run` does everything except push and publish — and is the 
 `master`.
 
 It is four jobs: `preflight`, `build`, `sign` and `publish`. The release does not test again:
-`preflight` asks for a green CI run of the newest commit that changed more than Markdown or
-`docs/`. Everything that could be wrong is checked before anything is built: every missing secret
+`preflight` asks for a green CI run of the newest commit that changed more than Markdown, `docs/`,
+`version.properties` and `pending-changelog/`. The release commit touches only those, and CI never
+runs for it: a push with the workflow token starts no workflow. Everything that could be wrong is checked before anything is built: every missing secret
 at once, that the keystore opens, holds the alias and that `KEY_PASSWORD` unlocks the key, that CI
 passed, that there is something to release, that the tag is free and that the versionCode is
 above the one the last tag released. `build` runs Gradle with `-Punsigned` and no key. `sign` is the only job with the signing
@@ -181,7 +182,7 @@ made, so no plugin or library can ever reach the key. The `play_track` input upl
 that Play track; `none`, the default, uploads nowhere.
 
 `.github/workflows/nightly.yml` builds Chatter Nightly from master every night, when master has a
-commit the last nightly did not and CI passed for it. Nightly is a release build made with
+commit the last nightly did not and CI passed for it, checked the way the release checks it. Nightly is a release build made with
 `-Pnightly=<hash>`: its own app (`me.lesh.chatter.nightly`), signed with a key of its own in a job
 without Gradle, the way the release is, only on GitHub. Its versionCode is the number of commits on master, because Android refuses an update to a
 lower one; the hash is in the version name, `0.9.0-nightly+6d134cb`. There is one release, tagged

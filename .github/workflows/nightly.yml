@@ -67,25 +67,29 @@ jobs:
             echo "build=true" >> "$GITHUB_OUTPUT"
           fi
 
-      # The nightly does not run the tests again; it relies on CI having passed for this commit.
+      # The nightly does not run the tests again; it relies on CI having passed. The release commit
+      # is pushed with the workflow token, which starts no CI, and only touches Markdown,
+      # version.properties and pending-changelog/, so the check falls on the newest other commit.
       - name: Require a green CI run
         if: ${{ steps.commit.outputs.build == 'true' }}
         env:
           GH_TOKEN: ${{ github.token }}
-          COMMIT: ${{ steps.commit.outputs.commit }}
         run: |
-          run=$(gh run list --repo "$GITHUB_REPOSITORY" --workflow ci.yml --commit "$COMMIT" --event push \
+          commit=$(git log -1 --format=%H HEAD -- . ':(exclude,glob)**/*.md' ':(exclude)docs' \
+            ':(exclude)version.properties' ':(exclude)pending-changelog')
+          run=$(gh run list --repo "$GITHUB_REPOSITORY" --workflow ci.yml --commit "$commit" --event push \
             --limit 1 --json status,conclusion,url --jq '.[0] // empty | "\(.status)|\(.conclusion)|\(.url)"')
           # "|" keeps the empty conclusion of a run that is still going.
           IFS='|' read -r status conclusion url <<< "$run"
           if [ "$conclusion" != success ]; then
             if [ -z "$run" ]; then
-              echo "::error::CI has not run for $COMMIT."
+              echo "::error::CI has not run for $commit."
             else
-              echo "::error::CI for $COMMIT is ${conclusion:-$status}: $url"
+              echo "::error::CI for $commit is ${conclusion:-$status}: $url"
             fi
             exit 1
           fi
+          echo "CI passed for ${commit:0:7}: $url"
 
   # Builds without any key and hands the APK, its mapping and the notes to publish.
   build:
