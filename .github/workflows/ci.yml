@@ -12,9 +12,10 @@ on:
   pull_request:
   workflow_dispatch:
 
-# A new push to the same branch makes the previous run pointless.
+# A new push to a pull request makes the previous run pointless. On master every commit finishes:
+# Nightly and the release ask for the newest commit beyond docs, which a docs push would cancel.
 concurrency:
-  group: ci-${{ github.ref }}
+  group: ci-${{ github.event_name == 'pull_request' && github.ref || github.sha }}
   cancel-in-progress: true
 
 permissions:
