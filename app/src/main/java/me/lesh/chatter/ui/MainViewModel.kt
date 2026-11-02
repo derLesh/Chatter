@@ -38,6 +38,7 @@ import me.lesh.chatter.crash.DeviceInfo
 import me.lesh.chatter.emotes.Emoji
 import me.lesh.chatter.emotes.EmojiCatalog
 import me.lesh.chatter.emotes.Emote
+import me.lesh.chatter.emotes.EmoteOwner
 import me.lesh.chatter.emotes.EmoteProvider
 import me.lesh.chatter.emotes.HiddenEmote
 import me.lesh.chatter.emotes.HiddenEmotes
@@ -584,6 +585,9 @@ class MainViewModel(private val c: AppContainer, savedState: SavedStateHandle) :
         lastEmoteList = EmoteList(channel, version, s.emoteProviders, s.showUnlisted7tv, hidden, emotes)
         return emotes
     }
+
+    /** The channels the Twitch emotes belong to, by channel id; changes with [emoteVersion]. */
+    fun emoteOwners(): Map<String, EmoteOwner> = c.emotes.twitchOwners
 
     /** What the author of [item] said in its channel lately, oldest first. From memory. */
     suspend fun recentMessagesOf(item: ChatItem): List<ChatItem> {

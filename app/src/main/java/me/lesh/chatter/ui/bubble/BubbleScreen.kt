@@ -186,8 +186,10 @@ fun BubbleScreen(vm: MainViewModel, channel: String?) {
     if (showPicker) {
         val emotes = remember(channel, emoteVersion) { vm.emotesFor(channel) }
         val emoji by produceState(emptyList()) { value = vm.emoji() }
+        val owners = remember(emoteVersion) { vm.emoteOwners() }
         EmotePickerSheet(
             emotes = emotes,
+            owners = owners,
             emoji = emoji,
             recent = vm.recentEmotes.collectAsStateWithLifecycle().value,
             imageLoader = loader,

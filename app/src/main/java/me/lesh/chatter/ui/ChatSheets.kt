@@ -201,8 +201,10 @@ fun ChatSheets(
         val emoteVersion by vm.emoteVersion.collectAsStateWithLifecycle()
         val emotes = remember(vm.sendChannel, emoteVersion) { vm.emotesFor(vm.sendChannel) }
         val emoji by produceState(emptyList()) { value = vm.emoji() }
+        val owners = remember(emoteVersion) { vm.emoteOwners() }
         EmotePickerSheet(
             emotes = emotes,
+            owners = owners,
             emoji = emoji,
             recent = vm.recentEmotes.collectAsStateWithLifecycle().value,
             imageLoader = loader,

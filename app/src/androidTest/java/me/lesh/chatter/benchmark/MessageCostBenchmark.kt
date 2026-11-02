@@ -35,6 +35,7 @@ import me.lesh.chatter.net.FfzSet
 import me.lesh.chatter.net.HelixBadgeSet
 import me.lesh.chatter.net.HelixBadgeVersion
 import me.lesh.chatter.net.HelixEmote
+import me.lesh.chatter.net.HelixUser
 import me.lesh.chatter.net.SevenTvActiveEmote
 import me.lesh.chatter.net.SevenTvEmoteData
 import me.lesh.chatter.net.SevenTvEmoteSet
@@ -170,6 +171,7 @@ private object NoTwitchEmotes : TwitchEmoteApi {
     override suspend fun userEmotes(userId: String): List<HelixEmote> = emptyList()
     override suspend fun channelEmotes(channelId: String): List<HelixEmote> = emptyList()
     override suspend fun isFollowing(userId: String, channelId: String) = false
+    override suspend fun usersById(ids: List<String>): List<HelixUser> = emptyList()
 }
 
 private object ThirdPartyEmotes : ThirdPartyEmoteApi {

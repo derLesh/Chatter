@@ -91,6 +91,7 @@
     <string name="emotes_7tv" translatable="false">7TV</string>
     <string name="emotes_bttv" translatable="false">BTTV</string>
     <string name="emotes_ffz" translatable="false">FFZ</string>
+    <string name="emotes_other_channels">Other channels</string>
     <string name="emotes_empty">No emotes here yet</string>
     <string name="emoji">Emoji</string>
     <string name="emoji_smileys">Smileys &amp; emotion</string>

@@ -41,6 +41,16 @@ class EmoteRepository(
     /** Twitch follower emotes the user may use, by channel id. */
     private val channelTwitch = ConcurrentHashMap<String, Map<String, Emote>>()
 
+    /** Names and avatars of the channels the Twitch emotes belong to, by id; see [loadOwners]. */
+    @Volatile private var ownerProfiles: Map<String, EmoteOwner> = emptyMap()
+
+    /** Channels the user has sub emotes of, by id. */
+    @Volatile private var subscribedChannels: Set<String> = emptySet()
+
+    /** The channels the Twitch emotes belong to, by channel id, marked where the user is subscribed. */
+    val twitchOwners: Map<String, EmoteOwner>
+        get() = ownerProfiles.mapValues { (id, owner) -> if (id in subscribedChannels) owner.copy(subscribed = true) else owner }
+
     /** When a channel last loaded from all three providers; see [refreshChannel]. */
     private val lastFullLoad = ConcurrentHashMap<String, Long>()
 
@@ -151,7 +161,22 @@ class EmoteRepository(
 
     suspend fun loadTwitchUserEmotes(userId: String) {
         val list = safe("Twitch user emotes") { helix.userEmotes(userId) } ?: return
-        twitchUser = list.associate { it.name to Emote(it.name, it.id, twitchEmoteUrl(it.id), EmoteProvider.Twitch, isChannel = it.emoteType != "globals" && it.emoteType != "smilies") }
+        twitchUser = list.associate {
+            val owner = twitchOwnerId(it.ownerId)
+            it.name to Emote(it.name, it.id, twitchEmoteUrl(it.id), EmoteProvider.Twitch, isChannel = owner != null, ownerId = owner)
+        }
+        // Follower and bits emotes come from channels too, but only sub emotes mean a sub.
+        subscribedChannels = list.filter { it.emoteType == "subscriptions" }.mapNotNullTo(HashSet()) { twitchOwnerId(it.ownerId) }
+        _version.update { it + 1 }
+        loadOwners(twitchUser.values.mapNotNullTo(HashSet()) { it.ownerId })
+    }
+
+    /** Asks Twitch for the channels in [ids] not known yet, for the picker's channel groups. */
+    private suspend fun loadOwners(ids: Set<String>) {
+        val missing = ids - ownerProfiles.keys
+        if (missing.isEmpty()) return
+        val users = safe("emote channels") { helix.usersById(missing.toList()) } ?: return
+        ownerProfiles = ownerProfiles + users.associate { it.id to EmoteOwner(it.id, it.displayName.ifEmpty { it.login }, it.profileImageUrl.ifEmpty { null }) }
         _version.update { it + 1 }
     }
 
@@ -232,7 +257,8 @@ class EmoteRepository(
         // The broadcaster can always use their own emotes.
         val usable = userId == channelId || safe("follow status") { helix.isFollowing(userId, channelId) } == true
         if (usable) {
-            channelTwitch[channelId] = emotes.associate { it.name to Emote(it.name, it.id, twitchEmoteUrl(it.id), EmoteProvider.Twitch, isChannel = true) }
+            channelTwitch[channelId] = emotes.associate { it.name to Emote(it.name, it.id, twitchEmoteUrl(it.id), EmoteProvider.Twitch, isChannel = true, ownerId = channelId) }
+            loadOwners(setOf(channelId))
         }
     }
 
@@ -276,6 +302,8 @@ class EmoteRepository(
         sevenTvUsers.clear()
         channelTwitch.clear()
         twitchUser = emptyMap()
+        ownerProfiles = emptyMap()
+        subscribedChannels = emptySet()
     }
 
     /** Asks [wanted] concurrently; null for a provider that did not answer. */

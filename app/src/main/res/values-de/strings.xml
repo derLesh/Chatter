@@ -85,6 +85,7 @@
     <string name="cancel">Abbrechen</string>
     <string name="ok">OK</string>
     <string name="emotes_recent">Zuletzt</string>
+    <string name="emotes_other_channels">Andere Kanäle</string>
     <string name="emotes_empty">Hier gibt es noch keine Emotes</string>
     <string name="emoji">Emoji</string>
     <string name="emoji_smileys">Smileys &amp; Emotionen</string>

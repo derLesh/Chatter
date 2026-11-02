@@ -24,6 +24,8 @@ data class Emote(
     val zeroWidth: Boolean = false,
     /** Channel emote rather than a global one. */
     val isChannel: Boolean = false,
+    /** Twitch id of the channel a Twitch emote belongs to; null for Twitch's own and other providers. */
+    val ownerId: String? = null,
     /** 7TV emote not approved for public listing. */
     val unlisted: Boolean = false,
     /** Creator or uploader, if the provider reports one. */

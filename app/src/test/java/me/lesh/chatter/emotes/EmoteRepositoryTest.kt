@@ -7,6 +7,7 @@ import me.lesh.chatter.net.FfzGlobal
 import me.lesh.chatter.net.FfzRoom
 import me.lesh.chatter.net.FfzSet
 import me.lesh.chatter.net.HelixEmote
+import me.lesh.chatter.net.HelixUser
 import me.lesh.chatter.net.ServiceTrouble
 import me.lesh.chatter.net.SevenTvActiveEmote
 import me.lesh.chatter.net.SevenTvEmoteData
@@ -88,11 +89,35 @@ class EmoteRepositoryTest {
 
     private class FakeTwitch : TwitchEmoteApi {
         var own: List<String> = emptyList()
+        /** Sub emotes the user has, per channel id. */
+        var subs: Map<String, List<String>> = emptyMap()
+        /** Follower emotes the user has, per channel id. */
+        var followed: Map<String, List<String>> = emptyMap()
+        /** Bits emotes the user unlocked, per channel id. */
+        var bits: Map<String, List<String>> = emptyMap()
         var follower: List<String> = emptyList()
         var follows = true
 
+        /** Display names by channel id; ids not in here are not found. */
+        var users: Map<String, String> = emptyMap()
+        val usersAsked = mutableListOf<List<String>>()
+
         override suspend fun userEmotes(userId: String) =
-            own.map { HelixEmote(id = "twitch-$it", name = it, emoteType = "subscriptions") }
+            own.map { HelixEmote(id = "twitch-$it", name = it, emoteType = "globals", ownerId = "0") } +
+                subs.flatMap { (owner, names) ->
+                    names.map { HelixEmote(id = "twitch-$it", name = it, emoteType = "subscriptions", ownerId = owner) }
+                } +
+                followed.flatMap { (owner, names) ->
+                    names.map { HelixEmote(id = "twitch-$it", name = it, emoteType = "follower", ownerId = owner) }
+                } +
+                bits.flatMap { (owner, names) ->
+                    names.map { HelixEmote(id = "twitch-$it", name = it, emoteType = "bitstier", ownerId = owner) }
+                }
+
+        override suspend fun usersById(ids: List<String>): List<HelixUser> {
+            usersAsked += ids
+            return ids.mapNotNull { id -> users[id]?.let { HelixUser(id, it.lowercase(), it, "https://example.com/$id.png") } }
+        }
 
         var followerAsked = 0
 
@@ -334,6 +359,61 @@ class EmoteRepositoryTest {
         twitch.follows = true
         emotes.loadChannel(channel, userId = "me")
         assertEquals(EmoteProvider.Twitch, emotes.lookupOwnTwitch(channel, "channelSmile")?.provider)
+    }
+
+    @Test
+    fun twitchEmotesKnowTheirChannelAndItsName() = runTest {
+        twitch.own = listOf("Kappa")
+        twitch.subs = mapOf("1" to listOf("forsenE"))
+        twitch.users = mapOf("1" to "forsen")
+        emotes.loadTwitchUserEmotes("me")
+
+        val available = emotes.available(null).associateBy { it.name }
+        assertEquals("1", available["forsenE"]?.ownerId)
+        assertNull("Twitch's own have no channel", available["Kappa"]?.ownerId)
+        assertEquals(EmoteOwner("1", "forsen", "https://example.com/1.png", subscribed = true), emotes.twitchOwners["1"])
+    }
+
+    @Test
+    fun onlySubEmotesMakeAChannelASubscription() = runTest {
+        twitch.subs = mapOf("1" to listOf("leshHi"))
+        twitch.followed = mapOf("2" to listOf("forsenE"))
+        twitch.users = mapOf("1" to "Lesh", "2" to "forsen")
+        emotes.loadTwitchUserEmotes("me")
+
+        assertTrue(emotes.twitchOwners.getValue("1").subscribed)
+        assertFalse(emotes.twitchOwners.getValue("2").subscribed)
+        assertEquals("a follower emote still belongs to its channel", "2", emotes.available(null).single { it.name == "forsenE" }.ownerId)
+    }
+
+    @Test
+    fun bitsEmotesBelongToTheirChannelWithoutMakingItASubscription() = runTest {
+        twitch.subs = mapOf("1" to listOf("leshHi"))
+        twitch.bits = mapOf("1" to listOf("leshBits"), "3" to listOf("HyperCrown"))
+        twitch.users = mapOf("1" to "Lesh", "3" to "HyperScapeEmotes")
+        emotes.loadTwitchUserEmotes("me")
+
+        assertEquals("1", emotes.available(null).single { it.name == "leshBits" }.ownerId)
+        assertEquals("3", emotes.available(null).single { it.name == "HyperCrown" }.ownerId)
+        assertFalse(emotes.twitchOwners.getValue("3").subscribed)
+    }
+
+    @Test
+    fun aChannelNameIsAskedForOnlyOnce() = runTest {
+        twitch.subs = mapOf("1" to listOf("forsenE"))
+        twitch.users = mapOf("1" to "forsen")
+        emotes.loadTwitchUserEmotes("me")
+        emotes.loadTwitchUserEmotes("me")
+        assertEquals(listOf(listOf("1")), twitch.usersAsked)
+    }
+
+    @Test
+    fun followerEmotesBelongToTheirChannel() = runTest {
+        twitch.follower = listOf("channelSmile")
+        twitch.users = mapOf(channel to "xQc")
+        emotes.loadChannel(channel, userId = "me")
+        assertEquals(channel, emotes.lookupOwnTwitch(channel, "channelSmile")?.ownerId)
+        assertEquals("xQc", emotes.twitchOwners[channel]?.name)
     }
 
     // ---- reloading by hand ---------------------------------------------------------------------

@@ -23,6 +23,8 @@ interface TwitchEmoteApi {
     suspend fun userEmotes(userId: String): List<HelixEmote>
     suspend fun channelEmotes(channelId: String): List<HelixEmote>
     suspend fun isFollowing(userId: String, channelId: String): Boolean
+    /** Names and avatars of the channels the emotes belong to. */
+    suspend fun usersById(ids: List<String>): List<HelixUser>
 }
 
 /** Twitch badges, as the badge repository needs them. */
@@ -69,7 +71,7 @@ class HelixApi(
     }
 
     /** Like [users], for channels only known by id, e.g. Shared Chat partners. */
-    suspend fun usersById(ids: List<String>): List<HelixUser> = ids.chunked(100).flatMap { batch ->
+    override suspend fun usersById(ids: List<String>): List<HelixUser> = ids.chunked(100).flatMap { batch ->
         val u = "https://api.twitch.tv/helix/users".toHttpUrl().newBuilder()
             .apply { batch.forEach { addQueryParameter("id", it) } }.build().toString()
         http.getJson<HelixList<HelixUser>>(u, headers()).data
