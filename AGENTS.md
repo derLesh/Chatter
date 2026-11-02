@@ -114,7 +114,7 @@ it to you; its rules are tested in `.github/scripts/test_check_verification_meta
 comment `@dependabot recreate` to start the pull request over.
 
 The supporter badge comes from Chatter's own API on `api.lesh.me` (`net/ChatterApi.kt`):
-`/v2/chatter/sponsors` lists the supporters' Twitch ids and wants the user's Twitch token, so a
+`/v2/chatter/supporters` lists the supporters' Twitch ids and wants the user's Twitch token, so a
 guest sees no supporter badges; `/v2/chatter/badges` serves the picture, one for light and one
 for dark themes. A new supporter goes into the API's database, not into a release. Asking
 people to support Chatter is still **switched off** until GitHub Sponsors is set up: `sponsoring`

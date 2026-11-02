@@ -25,7 +25,7 @@ import me.lesh.chatter.net.BttvChannel
 import me.lesh.chatter.net.BttvEmote
 import me.lesh.chatter.net.ChatterBadgeApi
 import me.lesh.chatter.net.ChatterBadges
-import me.lesh.chatter.net.ChatterSponsors
+import me.lesh.chatter.net.ChatterSupporters
 import me.lesh.chatter.net.ChatterinoBadge
 import me.lesh.chatter.net.ChatterinoBadges
 import me.lesh.chatter.net.FfzEmote
@@ -217,7 +217,7 @@ private object OtherClientBadges : ThirdPartyBadgeApi {
 }
 
 private object NoSupporters : ChatterBadgeApi {
-    override suspend fun sponsors() = ChatterSponsors()
+    override suspend fun supporters() = ChatterSupporters()
     override suspend fun badges() = ChatterBadges()
     override fun imageUrl(path: String) = null
 }

@@ -24,8 +24,8 @@ class ChatterApiTest {
     }
 
     @Test
-    fun theSponsorListAsTheApiSendsIt() {
-        assertEquals(listOf("12345678", "87654321"), read<ChatterSponsors>("""{"sponsors":["12345678","87654321"]}""").sponsors)
+    fun theSupporterListAsTheApiSendsIt() {
+        assertEquals(listOf("12345678", "87654321"), read<ChatterSupporters>("""{"supporters":["12345678","87654321"]}""").supporters)
     }
 
     @Test

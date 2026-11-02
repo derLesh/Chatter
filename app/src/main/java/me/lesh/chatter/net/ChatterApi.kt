@@ -6,7 +6,7 @@ import okhttp3.OkHttpClient
 
 /** Twitch user ids of the people who support Chatter. */
 @Serializable
-data class ChatterSponsors(val sponsors: List<String> = emptyList())
+data class ChatterSupporters(val supporters: List<String> = emptyList())
 
 @Serializable
 data class ChatterBadges(val badges: List<ChatterBadge> = emptyList())
@@ -25,7 +25,7 @@ data class ChatterBadge(
 /** Chatter's own API, as the badge repository needs it. */
 interface ChatterBadgeApi {
     /** Needs a login: the API checks the Twitch token, so a guest's request is never sent. */
-    suspend fun sponsors(): ChatterSponsors
+    suspend fun supporters(): ChatterSupporters
     suspend fun badges(): ChatterBadges
 
     /** [path] from [badges] as a URL to load. */
@@ -38,8 +38,8 @@ class ChatterApi(
     /** A currently valid Twitch access token, refreshed if needed. */
     private val token: suspend () -> String?,
 ) : ChatterBadgeApi {
-    override suspend fun sponsors(): ChatterSponsors = http.getJson(
-        "$BASE_URL/v2/chatter/sponsors",
+    override suspend fun supporters(): ChatterSupporters = http.getJson(
+        "$BASE_URL/v2/chatter/supporters",
         mapOf("Authorization" to "Bearer ${token() ?: throw NotLoggedInException()}"),
     )
 

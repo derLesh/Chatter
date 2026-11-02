@@ -253,13 +253,13 @@ class BadgeRepository(
 
     /** Who supports Chatter, each wearing the badge the API serves for them. */
     private suspend fun loadSupporters(): Map<String, List<Badge>> {
-        val sponsors = chatter.sponsors().sponsors
+        val supporters = chatter.supporters().supporters
         val images = chatter.badges().badges.firstOrNull { it.id == SUPPORTER_BADGE_ID }?.images.orEmpty()
         fun picture(theme: String) = images[theme]?.let { it["2x"] ?: it["1x"] ?: it["4x"] }?.let(chatter::imageUrl)
         val onLight = picture("light")
         val onDark = picture("dark") ?: onLight ?: throw IOException("no supporter badge among Chatter's badges")
         val badge = listOf(Badge(onDark, supporterTitle(), BadgeProvider.Chatter, SUPPORTER_SET, urlOnLight = onLight))
-        return sponsors.filter { it.isNotEmpty() }.associateWith { badge }
+        return supporters.filter { it.isNotEmpty() }.associateWith { badge }
     }
 
     private fun mergeThirdParty(): Map<String, List<Badge>> {

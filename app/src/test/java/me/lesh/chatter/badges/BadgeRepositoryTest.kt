@@ -3,7 +3,7 @@ package me.lesh.chatter.badges
 import me.lesh.chatter.net.ChatterBadge
 import me.lesh.chatter.net.ChatterBadgeApi
 import me.lesh.chatter.net.ChatterBadges
-import me.lesh.chatter.net.ChatterSponsors
+import me.lesh.chatter.net.ChatterSupporters
 import me.lesh.chatter.net.ChatterinoBadge
 import me.lesh.chatter.net.ChatterinoBadges
 import me.lesh.chatter.net.HelixBadgeSet
@@ -69,7 +69,7 @@ class BadgeRepositoryTest {
     private class FakeChatterApi : ChatterBadgeApi {
         var loggedIn = true
         /** Null makes the API unreachable. */
-        var sponsors: List<String>? = listOf("7")
+        var supporters: List<String>? = listOf("7")
         var badges = listOf(
             ChatterBadge(
                 id = "chatter",
@@ -80,12 +80,12 @@ class BadgeRepositoryTest {
                 ),
             ),
         )
-        var sponsorCalls = 0
+        var supporterCalls = 0
 
-        override suspend fun sponsors(): ChatterSponsors {
+        override suspend fun supporters(): ChatterSupporters {
             if (!loggedIn) throw NotLoggedInException()
-            sponsorCalls++
-            return ChatterSponsors(sponsors ?: throw IOException("the API is down"))
+            supporterCalls++
+            return ChatterSupporters(supporters ?: throw IOException("the API is down"))
         }
 
         override suspend fun badges() = ChatterBadges(badges)
@@ -193,7 +193,7 @@ class BadgeRepositoryTest {
 
         assertEquals("the one that answered is still here", listOf("Supporter"), badges.resolve(null, null, userId = "7").map { it.title })
         assertEquals(listOf("Chatterino Fan"), badges.resolve(null, null, userId = "42").map { it.title })
-        assertEquals("and was not asked twice", 1, chatter.sponsorCalls)
+        assertEquals("and was not asked twice", 1, chatter.supporterCalls)
     }
 
     @Test
@@ -270,12 +270,12 @@ class BadgeRepositoryTest {
         val watching = launch { trouble.unreachable.collect { said += it } }
         runCurrent()
 
-        chatter.sponsors = null
+        chatter.supporters = null
         badges.loadThirdParty()
         runCurrent()
         assertEquals(listOf(ServiceTrouble.CHATTER_API), said)
 
-        chatter.sponsors = listOf("7")
+        chatter.supporters = listOf("7")
         clock += 6 * 60_000L
         badges.retryMissing()
         assertEquals(1, badges.resolve(null, null, userId = "7").size)
@@ -301,7 +301,7 @@ class BadgeRepositoryTest {
 
     @Test
     fun anEmptyIdIsLeftOut() = runTest {
-        chatter.sponsors = listOf("", "7")
+        chatter.supporters = listOf("", "7")
         badges.loadThirdParty()
         assertEquals(1, badges.resolve(null, null, userId = "7").size)
         assertTrue(badges.resolve(null, null, userId = "").isEmpty())
