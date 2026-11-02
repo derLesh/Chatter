@@ -83,6 +83,11 @@ resource shrinker and resource linking only ever run there, and a release is a b
 out one of them is unhappy. Release builds skip lint's own cut-down check (`checkReleaseBuilds`),
 since CI runs the full one and a release only builds a commit CI passed.
 
+`.github/workflows/codeql.yml` is the code scanning. It replaces GitHub's default setup, which
+built every variant and wrote 2.4 GB of cache per commit. It compiles only debug and release, and
+reads CI's dependency cache without writing one. Default setup must stay off (Settings → Code
+security), or GitHub refuses the results.
+
 Every action in the workflows is named by a commit, not by a tag, with the version in a comment
 next to it. A tag can be moved by whoever controls the action, and the release job hands actions
 the upload key and the Play credentials. Dependabot (`.github/dependabot.yml`) opens a pull request
