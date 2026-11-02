@@ -75,8 +75,9 @@ workflows that commit write the same form.
 
 `.github/workflows/ci.yml` runs on every push and pull request, in two stages. `Checks` needs no
 Gradle and is done in seconds: the Gradle wrapper, the commit messages and the workflow scripts.
-Then two jobs run side by side, each with one Gradle call: `checkChangelog` with the unit tests,
-and Android lint on the release variant with a release bundle it throws away. A push that only
+Then three jobs run side by side, each with one Gradle call: `checkChangelog` with the unit tests,
+Android lint on the release variant, and a release bundle it throws away. Lint and R8 get a job
+each because in one Gradle call they share the runner's cores and both take twice as long. A push that only
 touches Markdown or `docs/` skips the second stage and still counts as green. Lint is part of the
 gate, so a new lint error fails the branch — and so is the release bundle, because R8, the
 resource shrinker and resource linking only ever run there, and a release is a bad time to find

@@ -2,8 +2,8 @@
 # rely on this being green.
 #
 # Two stages. checks needs no Gradle and fails in seconds: the wrapper, the commit messages, the
-# workflow scripts. Only then do tests and release build start, side by side, each with a single
-# Gradle call so its tasks share one configuration and run in parallel.
+# workflow scripts. Only then do tests, lint and release build start, side by side, each with a
+# single Gradle call.
 name: CI
 
 on:
@@ -139,12 +139,14 @@ jobs:
           path: app/build/reports/tests/
           if-no-files-found: ignore
 
-  release-build:
-    name: Lint and release build
+  # Lint and R8 in one Gradle call share the runner's four cores and each takes twice as long, so
+  # they run in jobs of their own; compiling twice costs less than that.
+  lint:
+    name: Lint
     needs: checks
     if: ${{ needs.checks.outputs.build == 'true' }}
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -179,20 +181,73 @@ jobs:
           key: gradle-build-cache-${{ github.job }}-${{ github.sha }}
           restore-keys: gradle-build-cache-${{ github.job }}-
 
-      # Lint on the release variant, since that is what ships. R8, the resource shrinker and
-      # bundling only run in release builds, and a release is a bad time to find out they fail.
-      # Signed with the debug key, and without a Twitch Client ID: this only proves it builds.
-      - name: Lint and the release bundle
-        run: ./gradlew :app:lintRelease :app:bundleRelease --continue
+      # On the release variant, since that is what ships.
+      - name: Lint
+        run: ./gradlew :app:lintRelease
 
-      - name: Upload the lint report and the mapping
+      - name: Upload the lint report
         if: failure()
         continue-on-error: true
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: lint-reports
           retention-days: 7
+          path: app/build/reports/lint-results-*.html
+          if-no-files-found: ignore
+
+  # The job id names its cache, which codeql.yml reads.
+  release-build:
+    name: Release build
+    needs: checks
+    if: ${{ needs.checks.outputs.build == 'true' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Set up JDK
+        uses: actions/setup-java@b843ebf9b913146b38da2eaa7aeddf76074ae1ad # v6.1.0
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@3f5f9adaf7d9fecd50b5935e54106014257a94e6 # v6.4.0
+        with:
+          cache-disabled: true
+
+      # As in the tests job.
+      - name: Restore the Gradle home
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
           path: |
-            app/build/reports/lint-results-*.html
-            app/build/outputs/mapping/release/
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+            !~/.gradle/caches/build-cache-1
+          key: gradle-home-${{ github.job }}-${{ hashFiles('**/*.gradle.kts', 'gradle/libs.versions.toml', 'gradle/wrapper/gradle-wrapper.properties') }}
+          restore-keys: gradle-home-${{ github.job }}-
+
+      - name: Restore the build cache
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/.gradle/caches/build-cache-1
+          key: gradle-build-cache-${{ github.job }}-${{ github.sha }}
+          restore-keys: gradle-build-cache-${{ github.job }}-
+
+      # R8, the resource shrinker and bundling only run in release builds, and a release is a bad
+      # time to find out they fail. Signed with the debug key, and without a Twitch Client ID: this
+      # only proves it builds.
+      - name: Release bundle
+        run: ./gradlew :app:bundleRelease
+
+      - name: Upload the mapping
+        if: failure()
+        continue-on-error: true
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: mapping
+          retention-days: 7
+          path: app/build/outputs/mapping/release/
           if-no-files-found: ignore
