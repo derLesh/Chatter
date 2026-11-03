@@ -39,9 +39,11 @@ class ModelFailure(val trouble: ModelTrouble, cause: Throwable? = null) : Except
  * then on; with the setting off neither happens.
  */
 class OnDeviceModel(private val context: Context) {
+    // The manifest removes ML Kit's provider, which would start it with every app start. Apart from
+    // the client, because a second start throws and the client is made again after a failure.
+    private val mlKit by lazy { MlKit.initialize(context) }
     private val model: GenerativeModel by lazy {
-        // The manifest removes ML Kit's provider, which would start it with every app start.
-        MlKit.initialize(context)
+        mlKit
         Generation.getClient()
     }
     private val downloading = Mutex()

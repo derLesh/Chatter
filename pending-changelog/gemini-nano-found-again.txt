@@ -1,0 +1,1 @@
+patch: Fix the catch-up summary saying that no phone has Gemini Nano
