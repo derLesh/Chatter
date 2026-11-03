@@ -1,11 +1,17 @@
 package me.lesh.chatter.ui.chat
 
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.animate
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.Orientation
+import androidx.compose.foundation.gestures.draggable
+import androidx.compose.foundation.gestures.rememberDraggableState
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -16,6 +22,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
@@ -30,6 +37,8 @@ import androidx.compose.material3.DropdownMenuPopupPositionProvider
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.FilledIconButton
 import androidx.compose.material3.FilledTonalButton
+import androidx.compose.material3.FilterChip
+import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.IconButtonDefaults
@@ -43,6 +52,7 @@ import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -52,10 +62,13 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.TransformOrigin
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
@@ -79,12 +92,15 @@ import coil3.compose.AsyncImage
 import me.lesh.chatter.R
 import me.lesh.chatter.channels.ChannelInfo
 import me.lesh.chatter.chat.ChatItem
+import me.lesh.chatter.chat.ChatModes
 import me.lesh.chatter.chat.ChatRestriction
 import me.lesh.chatter.chat.Penalty
+import me.lesh.chatter.chat.RoomState
 import me.lesh.chatter.chat.SendLimits
 import me.lesh.chatter.settings.RecentlySentButton
 import me.lesh.chatter.ui.Suggestion
 import me.lesh.chatter.ui.channels.ChannelAvatar
+import me.lesh.chatter.ui.channels.formatMinutes
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
@@ -104,6 +120,10 @@ import kotlinx.coroutines.launch
  * While the input is empty a clock opens the user's last messages ([recentlySent]) above it, on
  * the send button or in the input as [recentlySentButton] says; a tap on one puts it back into
  * the input ([onReuseSent]).
+ *
+ * Given [chatModes], those of the channel the input sends to when the user moderates it, a shield
+ * in front of the emotes opens them above the input; a change goes to [onChatModes] as the wished
+ * state.
  */
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
@@ -130,6 +150,8 @@ fun InputBar(
     channelInfo: Map<String, ChannelInfo> = emptyMap(),
     onSendChannel: (String) -> Unit = {},
     recentlySentButton: RecentlySentButton = RecentlySentButton.ReplacesSend,
+    chatModes: RoomState? = null,
+    onChatModes: (RoomState) -> Unit = {},
 ) {
     val choosing = sendChannels.size > 1 && sendChannel != null
     val focus = remember { FocusRequester() }
@@ -162,20 +184,29 @@ fun InputBar(
     val recentOnSend = recentlySentButton == RecentlySentButton.ReplacesSend && value.text.isEmpty() && waitLeft == 0
     val offersRecent = recentInInput || recentOnSend
     val scope = rememberCoroutineScope()
-    var recentOpen by remember { mutableStateOf(false) }
+    // One panel at a time above the input, so the chat keeps its room.
+    var openPanel by remember { mutableStateOf<InputPanel?>(null) }
+    val recentOpen = openPanel == InputPanel.RecentlySent
+    val modesOpen = openPanel == InputPanel.ChatModes
     var recent by remember { mutableStateOf(emptyList<String>()) }
     val toggleRecent = {
-        if (recentOpen) recentOpen = false
+        if (recentOpen) openPanel = null
         // Loaded before opening, so the panel unfolds at its final height.
-        else scope.launch { recent = recentlySent(); recentOpen = true }
+        else scope.launch { recent = recentlySent(); openPanel = InputPanel.RecentlySent }
         Unit
     }
     // The list belongs to the channel the input sends to, and typing takes the button away.
-    LaunchedEffect(offersRecent, enabled, sendChannel) { if (!offersRecent || !enabled) recentOpen = false }
+    LaunchedEffect(offersRecent, enabled, sendChannel) {
+        if (recentOpen && (!offersRecent || !enabled)) openPanel = null
+    }
+    val offersModes = chatModes != null
+    LaunchedEffect(offersModes, enabled, sendChannel) {
+        if (modesOpen && (!offersModes || !enabled)) openPanel = null
+    }
     NavigationBackHandler(
         state = rememberNavigationEventState(currentInfo = NavigationEventInfo.None),
-        isBackEnabled = recentOpen,
-        onBackCompleted = { recentOpen = false },
+        isBackEnabled = openPanel != null,
+        onBackCompleted = { openPanel = null },
     )
     // No bar of its own: the input sits on the chat background.
     Column(modifier) {
@@ -183,7 +214,10 @@ fun InputBar(
             SuggestionRow(suggestions, imageLoader, onSuggestion)
         }
         AnimatedVisibility(recentOpen) {
-            RecentlySentPanel(recent, onPick = { recentOpen = false; onReuseSent(it) })
+            RecentlySentPanel(recent, onPick = { openPanel = null; onReuseSent(it) }, onClose = { openPanel = null })
+        }
+        AnimatedVisibility(modesOpen) {
+            ChatModesPanel(chatModes ?: RoomState(), onChatModes, onClose = { openPanel = null })
         }
         if (replyTo != null) {
             ReplyBar(replyTo, onCancelReply)
@@ -192,11 +226,22 @@ fun InputBar(
             verticalAlignment = Alignment.CenterVertically,
             modifier = Modifier.padding(horizontal = 4.dp, vertical = 4.dp),
         ) {
-            if (choosing) {
-                SendChannelPicker(sendChannels, sendChannel, channelInfo, imageLoader, enabled, onSendChannel)
-            }
-            IconButton(onClick = onEmotePicker, shapes = IconButtonDefaults.shapes(), enabled = enabled) {
-                Icon(Icons.Default.Face, contentDescription = stringResource(R.string.emotes))
+            // Closer than two whole touch targets side by side; each button keeps most of its own.
+            Row(
+                horizontalArrangement = Arrangement.spacedBy((-8).dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                if (choosing) {
+                    SendChannelPicker(sendChannels, sendChannel, channelInfo, imageLoader, enabled, onSendChannel)
+                }
+                if (offersModes) {
+                    PanelToggle(modesOpen, enabled, onClick = { openPanel = if (modesOpen) null else InputPanel.ChatModes }) {
+                        Icon(painterResource(R.drawable.ic_shield), contentDescription = stringResource(R.string.chat_modes))
+                    }
+                }
+                IconButton(onClick = onEmotePicker, shapes = IconButtonDefaults.shapes(), enabled = enabled) {
+                    Icon(Icons.Default.Face, contentDescription = stringResource(R.string.emotes))
+                }
             }
             TextField(
                 value = value,
@@ -292,10 +337,26 @@ fun InputBar(
     }
 }
 
-/** Opens and closes the [RecentlySentPanel]; drawn in the accent color while it is open. */
-@OptIn(ExperimentalMaterial3ExpressiveApi::class)
+private enum class InputPanel { RecentlySent, ChatModes }
+
+/** Opens and closes the [RecentlySentPanel]. */
 @Composable
 private fun RecentlySentClock(open: Boolean, enabled: Boolean, onClick: () -> Unit, modifier: Modifier = Modifier) {
+    PanelToggle(open, enabled, onClick, modifier) {
+        Icon(painterResource(R.drawable.ic_history), contentDescription = stringResource(R.string.recently_sent))
+    }
+}
+
+/** Opens and closes a panel above the input; drawn in the accent color while it is open. */
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
+@Composable
+private fun PanelToggle(
+    open: Boolean,
+    enabled: Boolean,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+    icon: @Composable () -> Unit,
+) {
     IconButton(
         onClick = onClick,
         shapes = IconButtonDefaults.shapes(),
@@ -304,46 +365,170 @@ private fun RecentlySentClock(open: Boolean, enabled: Boolean, onClick: () -> Un
             contentColor = if (open) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
         ),
         modifier = modifier,
-    ) {
-        Icon(painterResource(R.drawable.ic_history), contentDescription = stringResource(R.string.recently_sent))
+        content = icon,
+    )
+}
+
+/**
+ * Slow mode, followers-only and the switches Twitch gives a mod, each one tap away. A wait set by
+ * command that Twitch's own list lacks still shows, selected, among the others.
+ */
+@Composable
+private fun ChatModesPanel(modes: RoomState, onChange: (RoomState) -> Unit, onClose: () -> Unit) {
+    InputPanelSurface(R.string.chat_modes, onClose) {
+        ModeTitle(R.string.chat_modes_slow)
+        ChoiceRow(
+            choices = (listOf(0) + ChatModes.SLOW_SECONDS + modes.slow).distinct().sorted(),
+            selected = modes.slow,
+            label = { if (it == 0) stringResource(R.string.chat_modes_off) else "${it}s" },
+            onSelect = { onChange(modes.copy(slow = it)) },
+        )
+        ModeTitle(R.string.chat_modes_followers)
+        ChoiceRow(
+            choices = (listOf(-1) + ChatModes.FOLLOW_MINUTES + modes.followersOnly).distinct().sorted(),
+            selected = modes.followersOnly,
+            label = {
+                when (it) {
+                    -1 -> stringResource(R.string.chat_modes_off)
+                    0 -> stringResource(R.string.chat_modes_any_follower)
+                    else -> formatMinutes(it)
+                }
+            },
+            onSelect = { onChange(modes.copy(followersOnly = it)) },
+        )
+        Row(
+            horizontalArrangement = Arrangement.spacedBy(6.dp),
+            modifier = Modifier
+                .horizontalScroll(rememberScrollState())
+                .padding(horizontal = 12.dp)
+                .padding(top = 4.dp, bottom = 4.dp),
+        ) {
+            ModeChip(R.string.chat_modes_subs, modes.subsOnly) { onChange(modes.copy(subsOnly = it)) }
+            ModeChip(R.string.mode_emotes, modes.emoteOnly) { onChange(modes.copy(emoteOnly = it)) }
+            ModeChip(R.string.chat_modes_unique, modes.uniqueChat) { onChange(modes.copy(uniqueChat = it)) }
+        }
     }
 }
 
-/** The user's last messages, one line each, to send one of them again. */
+/**
+ * A panel above the input with a handle and a [title]. Dragged down it follows the finger and
+ * closes ([onClose]) once pulled far or flung; a short pull springs back.
+ */
 @Composable
-private fun RecentlySentPanel(texts: List<String>, onPick: (String) -> Unit) {
+private fun InputPanelSurface(title: Int, onClose: () -> Unit, content: @Composable ColumnScope.() -> Unit) {
+    var pulled by remember { mutableFloatStateOf(0f) }
+    val density = LocalDensity.current
+    val closeAfter = with(density) { 64.dp.toPx() }
+    val closeFaster = with(density) { 800.dp.toPx() }
+    val drag = rememberDraggableState { delta -> pulled = (pulled + delta).coerceAtLeast(0f) }
     Surface(
         shape = RoundedCornerShape(16.dp),
         color = MaterialTheme.colorScheme.surfaceContainerHigh,
-        modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 4.dp),
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 8.dp, vertical = 4.dp)
+            // Pulled down it sinks into its own edge instead of sliding under the input.
+            .clipToBounds()
+            // Before the layer, so the drag is measured where the finger is and not where the panel went.
+            .draggable(
+                state = drag,
+                orientation = Orientation.Vertical,
+                onDragStopped = { velocity ->
+                    if (pulled > closeAfter || velocity > closeFaster) onClose()
+                    // Through the drag state, so touching it again stops the spring at once.
+                    else drag.drag {
+                        var last = pulled
+                        animate(pulled, 0f) { value, _ -> dragBy(value - last); last = value }
+                    }
+                },
+            )
+            .graphicsLayer {
+                translationY = pulled
+                alpha = 1f - (pulled / (closeAfter * 2)).coerceAtMost(0.6f)
+            },
     ) {
-        Column(Modifier.padding(vertical = 4.dp)) {
+        Column(Modifier.padding(bottom = 4.dp)) {
+            Box(
+                Modifier
+                    .padding(top = 8.dp)
+                    .size(width = 32.dp, height = 4.dp)
+                    .clip(RoundedCornerShape(2.dp))
+                    .background(MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f))
+                    .align(Alignment.CenterHorizontally),
+            )
             Text(
-                stringResource(R.string.recently_sent),
+                stringResource(title),
                 style = MaterialTheme.typography.labelMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.padding(horizontal = 16.dp, vertical = 6.dp),
             )
-            if (texts.isEmpty()) {
-                Text(
-                    stringResource(R.string.recently_sent_none),
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 10.dp),
-                )
-            }
-            texts.forEach { text ->
-                Text(
-                    text,
-                    style = MaterialTheme.typography.bodyMedium,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clickable { onPick(text) }
-                        .padding(horizontal = 16.dp, vertical = 10.dp),
-                )
-            }
+            content()
+        }
+    }
+}
+
+@Composable
+private fun ModeTitle(res: Int) {
+    Text(
+        stringResource(res),
+        style = MaterialTheme.typography.bodyMedium,
+        modifier = Modifier.padding(start = 16.dp, end = 16.dp, top = 4.dp),
+    )
+}
+
+/** One of several values as chips side by side, which scroll when they do not fit. */
+@Composable
+private fun ChoiceRow(choices: List<Int>, selected: Int, label: @Composable (Int) -> String, onSelect: (Int) -> Unit) {
+    LazyRow(
+        contentPadding = PaddingValues(horizontal = 12.dp),
+        horizontalArrangement = Arrangement.spacedBy(6.dp),
+        modifier = Modifier.fillMaxWidth(),
+    ) {
+        items(choices, key = { it }) { choice ->
+            FilterChip(
+                selected = choice == selected,
+                onClick = { if (choice != selected) onSelect(choice) },
+                label = { Text(label(choice)) },
+            )
+        }
+    }
+}
+
+@Composable
+private fun ModeChip(label: Int, on: Boolean, onChange: (Boolean) -> Unit) {
+    FilterChip(
+        selected = on,
+        onClick = { onChange(!on) },
+        label = { Text(stringResource(label)) },
+        leadingIcon = if (on) {
+            { Icon(Icons.Default.Check, contentDescription = null, modifier = Modifier.size(FilterChipDefaults.IconSize)) }
+        } else null,
+    )
+}
+
+/** The user's last messages, one line each, to send one of them again. */
+@Composable
+private fun RecentlySentPanel(texts: List<String>, onPick: (String) -> Unit, onClose: () -> Unit) {
+    InputPanelSurface(R.string.recently_sent, onClose) {
+        if (texts.isEmpty()) {
+            Text(
+                stringResource(R.string.recently_sent_none),
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(horizontal = 16.dp, vertical = 10.dp),
+            )
+        }
+        texts.forEach { text ->
+            Text(
+                text,
+                style = MaterialTheme.typography.bodyMedium,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable { onPick(text) }
+                    .padding(horizontal = 16.dp, vertical = 10.dp),
+            )
         }
     }
 }

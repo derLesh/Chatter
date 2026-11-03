@@ -238,7 +238,7 @@ private fun fadeThrough(): ContentTransform =
     (fadeIn(fadeInSpec) + scaleIn(fadeInSpec, initialScale = 0.92f, transformOrigin = TransformOrigin(0f, 0.5f))) togetherWith
         fadeOut(fadeOutSpec)
 
-private fun formatMinutes(minutes: Int): String = when {
+internal fun formatMinutes(minutes: Int): String = when {
     minutes % 10_080 == 0 -> "${minutes / 10_080}w"
     minutes % 1440 == 0 -> "${minutes / 1440}d"
     minutes % 60 == 0 -> "${minutes / 60}h"

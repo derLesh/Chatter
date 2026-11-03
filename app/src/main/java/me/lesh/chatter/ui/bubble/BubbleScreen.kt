@@ -36,6 +36,7 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import me.lesh.chatter.R
 import me.lesh.chatter.auth.AuthState
+import me.lesh.chatter.chat.RoomState
 import me.lesh.chatter.chat.SendLimits
 import me.lesh.chatter.irc.ConnectionState
 import me.lesh.chatter.ui.MainViewModel
@@ -70,6 +71,7 @@ fun BubbleScreen(vm: MainViewModel, channel: String?) {
     val roles by vm.roles.collectAsStateWithLifecycle()
     val subscribed by vm.subscribedChannels.collectAsStateWithLifecycle()
     val penalties by vm.penalties.collectAsStateWithLifecycle()
+    val modChannels by vm.modChannels.collectAsStateWithLifecycle()
     val partnerMarks = remember(chatPartners) {
         chatPartners.mapValues { (_, p) -> ChannelMark(p.avatarUrl, p.displayName) }
     }
@@ -172,6 +174,10 @@ fun BubbleScreen(vm: MainViewModel, channel: String?) {
                 penalty = vm.sendChannel?.let { penalties[it] },
                 modifier = Modifier.fillMaxWidth(),
                 recentlySentButton = settings.recentlySentButton,
+                chatModes = vm.sendChannel
+                    ?.takeIf { settings.chatModesButton && it in modChannels }
+                    ?.let { roomStates[it] ?: RoomState() },
+                onChatModes = vm::changeChatModes,
             )
         }
     }

@@ -23,12 +23,14 @@ import me.lesh.chatter.channels.RemovedPage
 import me.lesh.chatter.channels.displayName
 import me.lesh.chatter.chat.ChatCommand
 import me.lesh.chatter.chat.ChatItem
+import me.lesh.chatter.chat.ChatModes
 import me.lesh.chatter.chat.ChatRole
 import me.lesh.chatter.chat.ChatRule
 import me.lesh.chatter.chat.CommandParser
 import me.lesh.chatter.chat.ImageLinks
 import me.lesh.chatter.chat.PinnedMessage
 import me.lesh.chatter.chat.PostSite
+import me.lesh.chatter.chat.RoomState
 import me.lesh.chatter.chat.InboxMention
 import me.lesh.chatter.chat.InboxWhisper
 import me.lesh.chatter.chat.SendLimits
@@ -602,6 +604,13 @@ class MainViewModel(private val c: AppContainer, savedState: SavedStateHandle) :
         updateSuggestions()
     }
 
+    /** Asks Twitch to switch the chat modes where the input sends to; ROOMSTATE then shows them. */
+    fun changeChatModes(modes: RoomState) {
+        val channel = sendChannel ?: return
+        val changes = ChatModes.changes(roomStates.value[channel] ?: RoomState(), modes)
+        if (changes.isNotEmpty()) c.chat.runCommand(channel, ChatCommand.Settings(changes))
+    }
+
     /** What the author of [item] said in its channel lately, oldest first. From memory. */
     suspend fun recentMessagesOf(item: ChatItem): List<ChatItem> {
         val login = item.login ?: return emptyList()
@@ -920,6 +929,7 @@ class MainViewModel(private val c: AppContainer, savedState: SavedStateHandle) :
     fun setMentionWithAt(v: Boolean) = saveSetting { setMentionWithAt(v) }
 
     fun setRecentlySentButton(v: RecentlySentButton) = saveSetting { setRecentlySentButton(v) }
+    fun setChatModesButton(v: Boolean) = saveSetting { setChatModesButton(v) }
     fun setReadOnly(v: Boolean) = saveSetting { setReadOnly(v) }
     fun setUserSuggestions(v: Boolean) = saveSetting { setUserSuggestions(v) }
 

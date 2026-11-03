@@ -82,6 +82,13 @@
     <string name="send">Send</string>
     <string name="recently_sent">Recently sent</string>
     <string name="recently_sent_none">Nothing sent here yet</string>
+    <string name="chat_modes">Chat modes</string>
+    <string name="chat_modes_slow">Slow mode</string>
+    <string name="chat_modes_followers">Followers only</string>
+    <string name="chat_modes_off">Off</string>
+    <string name="chat_modes_any_follower">Right away</string>
+    <string name="chat_modes_subs">Subs only</string>
+    <string name="chat_modes_unique">Unique chat</string>
     <string name="replying_to">Replying to @%1$s: %2$s</string>
     <string name="thread_title">Conversation</string>
     <string name="thread_follow">Follow</string>
@@ -378,6 +385,8 @@
     <string name="recently_sent_replaces_send">Instead of send</string>
     <string name="recently_sent_in_input">In the field</string>
     <string name="recently_sent_hidden">Off</string>
+    <string name="settings_chat_modes_button">Chat modes</string>
+    <string name="settings_chat_modes_button_hint">Quick access to chat modes</string>
     <string-array name="input_preview_sent">
         <item>GG</item>
         <item>What\'s this song?</item>

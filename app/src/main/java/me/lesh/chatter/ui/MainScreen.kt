@@ -55,6 +55,7 @@ import me.lesh.chatter.auth.AuthState
 import me.lesh.chatter.channels.ChannelInfo
 import me.lesh.chatter.chat.ChatRestriction
 import me.lesh.chatter.chat.Penalty
+import me.lesh.chatter.chat.RoomState
 import me.lesh.chatter.chat.SendLimits
 import me.lesh.chatter.irc.ConnectionState
 import me.lesh.chatter.service.ChatService
@@ -464,6 +465,11 @@ private fun ChatInput(
         GuestBar(onLogIn = vm::leaveGuest, modifier = Modifier.fillMaxWidth())
         return
     }
+    val roomStates by vm.roomStates.collectAsStateWithLifecycle()
+    val modChannels by vm.modChannels.collectAsStateWithLifecycle()
+    val chatModes = vm.sendChannel
+        ?.takeIf { settings.chatModesButton && it in modChannels }
+        ?.let { roomStates[it] ?: RoomState() }
     InputBar(
         value = vm.input,
         onValueChange = { activity.note(); vm.onInputChange(it) },
@@ -488,6 +494,8 @@ private fun ChatInput(
         channelInfo = channelInfo,
         onSendChannel = vm::selectSendChannel,
         recentlySentButton = settings.recentlySentButton,
+        chatModes = chatModes,
+        onChatModes = vm::changeChatModes,
     )
 }
 

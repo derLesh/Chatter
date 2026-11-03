@@ -17,6 +17,7 @@ import androidx.compose.ui.text.TextRange
 import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.unit.dp
 import me.lesh.chatter.R
+import me.lesh.chatter.chat.RoomState
 import me.lesh.chatter.settings.RecentlySentButton
 import me.lesh.chatter.settings.Settings
 import me.lesh.chatter.ui.MainViewModel
@@ -44,17 +45,22 @@ internal fun TypingPage(settings: Settings, vm: MainViewModel) {
                 vm::setRecentlySentButton, R.string.settings_recently_sent_hint,
             )
         }
+        item(R.string.settings_chat_modes_button) {
+            SwitchItem(R.string.settings_chat_modes_button, settings.chatModesButton, vm::setChatModesButton, R.string.settings_chat_modes_button_hint)
+        }
     }
 }
 
 /**
  * The real input on the chat's background, to try out: what is typed stays here, sending only
- * empties it, and the last messages are made up.
+ * empties it, and the last messages are made up. The shield shows as for a mod, and its modes
+ * change only here.
  */
 @Composable
 private fun InputPreview(settings: Settings, vm: MainViewModel) {
     var input by remember { mutableStateOf(TextFieldValue("")) }
     val sent = stringArrayResource(R.array.input_preview_sent).toList()
+    var modes by remember { mutableStateOf(RoomState()) }
     Surface(
         color = MaterialTheme.colorScheme.surface,
         shape = RoundedCornerShape(16.dp),
@@ -74,6 +80,8 @@ private fun InputPreview(settings: Settings, vm: MainViewModel) {
             recentlySent = { sent },
             onReuseSent = { input = TextFieldValue(it, TextRange(it.length)) },
             recentlySentButton = settings.recentlySentButton,
+            chatModes = modes.takeIf { settings.chatModesButton },
+            onChatModes = { modes = it },
         )
     }
 }

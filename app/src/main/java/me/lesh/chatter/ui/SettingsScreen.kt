@@ -253,6 +253,7 @@ private val SEARCH_INDEX: List<SearchEntry> by lazy {
         add(SearchEntry(R.string.settings_user_suggestions, typing, R.string.settings_user_suggestions_hint))
         add(SearchEntry(R.string.settings_mention_with_at, typing, R.string.settings_mention_with_at_hint))
         add(SearchEntry(R.string.settings_recently_sent, typing, R.string.settings_recently_sent_hint))
+        add(SearchEntry(R.string.settings_chat_modes_button, typing, R.string.settings_chat_modes_button_hint))
         val emotes = SettingsPage.Emotes
         add(SearchEntry(R.string.settings_emotes_enabled, emotes, R.string.settings_emotes_new_messages_hint))
         add(SearchEntry(R.string.settings_animated_emotes, emotes))

@@ -80,6 +80,13 @@
     <string name="send">Senden</string>
     <string name="recently_sent">Zuletzt gesendet</string>
     <string name="recently_sent_none">Hier noch nichts gesendet</string>
+    <string name="chat_modes">Chat-Modi</string>
+    <string name="chat_modes_slow">Langsamer Modus</string>
+    <string name="chat_modes_followers">Nur Follower</string>
+    <string name="chat_modes_off">Aus</string>
+    <string name="chat_modes_any_follower">Sofort</string>
+    <string name="chat_modes_subs">Nur Subs</string>
+    <string name="chat_modes_unique">Unique Chat</string>
     <string name="replying_to">Antwort an @%1$s: %2$s</string>
     <string name="thread_title">Unterhaltung</string>
     <string name="thread_follow">Folgen</string>
@@ -370,6 +377,8 @@
     <string name="recently_sent_replaces_send">Statt Senden</string>
     <string name="recently_sent_in_input">Im Feld</string>
     <string name="recently_sent_hidden">Aus</string>
+    <string name="settings_chat_modes_button">Chat-Modi</string>
+    <string name="settings_chat_modes_button_hint">Schnellzugriff auf Chat-Modi</string>
     <string-array name="input_preview_sent">
         <item>GG</item>
         <item>Wie heißt der Song?</item>
