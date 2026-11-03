@@ -1,1 +1,0 @@
-minor: Show a badge next to the names of people who support Chatter

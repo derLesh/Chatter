@@ -3,6 +3,11 @@
 Every release of Chatter, newest first. Written from the entries in `pending-changelog/` by
 `./gradlew releaseVersion`, and shown in the app under Settings → About → Changelog.
 
+## 0.11.0 — 2026-11-03
+- minor: Show a badge next to the names of people who support Chatter
+- minor: Sort Twitch emotes in the picker by channel, your subs first, with a column on the left to jump to each
+- patch: Fold the line with the chat modes, like sub-only or unique, smoothly in and out
+
 ## 0.10.1 — 2026-11-01
 - patch: Keep the app from freezing for a moment while logging in, switching accounts or logging out
 - patch: Keep the search results in place while you type in the channel and block search
