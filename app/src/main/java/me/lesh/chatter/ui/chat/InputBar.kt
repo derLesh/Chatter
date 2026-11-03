@@ -1,5 +1,6 @@
 package me.lesh.chatter.ui.chat
 
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -35,6 +36,7 @@ import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.MenuDefaults
 import androidx.compose.material3.SelectableDropdownMenuItem
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextField
 import androidx.compose.material3.TextFieldDefaults
@@ -45,6 +47,7 @@ import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -53,6 +56,7 @@ import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.TransformOrigin
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
@@ -68,6 +72,9 @@ import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil3.ImageLoader
+import androidx.navigationevent.NavigationEventInfo
+import androidx.navigationevent.compose.NavigationBackHandler
+import androidx.navigationevent.compose.rememberNavigationEventState
 import coil3.compose.AsyncImage
 import me.lesh.chatter.R
 import me.lesh.chatter.channels.ChannelInfo
@@ -75,9 +82,11 @@ import me.lesh.chatter.chat.ChatItem
 import me.lesh.chatter.chat.ChatRestriction
 import me.lesh.chatter.chat.Penalty
 import me.lesh.chatter.chat.SendLimits
+import me.lesh.chatter.settings.RecentlySentButton
 import me.lesh.chatter.ui.Suggestion
 import me.lesh.chatter.ui.channels.ChannelAvatar
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 
 /**
  * The message input with emote picker, suggestions and reply strip.
@@ -91,6 +100,10 @@ import kotlinx.coroutines.delay
  * seconds on the send button ([waitUntil]), and a [restriction] instead of the placeholder. A
  * timeout ([penalty]) counts down there too and turns sending off until it ends; a ban only says
  * so, since Twitch does not announce when it is lifted and a message is the only way to find out.
+ *
+ * While the input is empty a clock opens the user's last messages ([recentlySent]) above it, on
+ * the send button or in the input as [recentlySentButton] says; a tap on one puts it back into
+ * the input ([onReuseSent]).
  */
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
@@ -105,6 +118,8 @@ fun InputBar(
     onCancelReply: (() -> Unit)?,
     onEmotePicker: () -> Unit,
     onSend: () -> Unit,
+    recentlySent: suspend () -> List<String>,
+    onReuseSent: (String) -> Unit,
     modifier: Modifier = Modifier,
     replyStarts: Int = 0,
     waitUntil: Long = 0L,
@@ -114,6 +129,7 @@ fun InputBar(
     sendChannel: String? = null,
     channelInfo: Map<String, ChannelInfo> = emptyMap(),
     onSendChannel: (String) -> Unit = {},
+    recentlySentButton: RecentlySentButton = RecentlySentButton.ReplacesSend,
 ) {
     val choosing = sendChannels.size > 1 && sendChannel != null
     val focus = remember { FocusRequester() }
@@ -141,10 +157,33 @@ fun InputBar(
     val length = remember(value.text) { SendLimits.length(value.text) }
     val tooLong = length > SendLimits.MAX_LENGTH
     val canSend = enabled && value.text.isNotBlank() && !tooLong && waitLeft == 0 && timeoutLeft == 0L
+    val recentInInput = recentlySentButton == RecentlySentButton.InInput && value.text.isEmpty()
+    // Slow mode's countdown keeps the button: it is what the user waits for right after sending.
+    val recentOnSend = recentlySentButton == RecentlySentButton.ReplacesSend && value.text.isEmpty() && waitLeft == 0
+    val offersRecent = recentInInput || recentOnSend
+    val scope = rememberCoroutineScope()
+    var recentOpen by remember { mutableStateOf(false) }
+    var recent by remember { mutableStateOf(emptyList<String>()) }
+    val toggleRecent = {
+        if (recentOpen) recentOpen = false
+        // Loaded before opening, so the panel unfolds at its final height.
+        else scope.launch { recent = recentlySent(); recentOpen = true }
+        Unit
+    }
+    // The list belongs to the channel the input sends to, and typing takes the button away.
+    LaunchedEffect(offersRecent, enabled, sendChannel) { if (!offersRecent || !enabled) recentOpen = false }
+    NavigationBackHandler(
+        state = rememberNavigationEventState(currentInfo = NavigationEventInfo.None),
+        isBackEnabled = recentOpen,
+        onBackCompleted = { recentOpen = false },
+    )
     // No bar of its own: the input sits on the chat background.
     Column(modifier) {
         if (suggestions.isNotEmpty()) {
             SuggestionRow(suggestions, imageLoader, onSuggestion)
+        }
+        AnimatedVisibility(recentOpen) {
+            RecentlySentPanel(recent, onPick = { recentOpen = false; onReuseSent(it) })
         }
         if (replyTo != null) {
             ReplyBar(replyTo, onCancelReply)
@@ -178,7 +217,9 @@ fun InputBar(
                     )
                 },
                 // The placeholder is gone once something is typed; the timeout stays in sight here.
-                trailingIcon = if (timeoutLeft > 0 && value.text.isNotEmpty()) {
+                trailingIcon = if (recentInInput) {
+                    { RecentlySentClock(recentOpen, enabled, toggleRecent) }
+                } else if (timeoutLeft > 0 && value.text.isNotEmpty()) {
                     {
                         Text(
                             timeLeft(timeoutLeft),
@@ -217,31 +258,91 @@ fun InputBar(
                 ),
                 modifier = Modifier.weight(1f).focusRequester(focus),
             )
-            // Filled once there is something to send, and squarer while pressed (Expressive).
-            FilledIconButton(
-                onClick = onSend,
-                shapes = IconButtonDefaults.shapes(),
-                enabled = canSend,
-                // Spelled out: the defaults drew the arrow too faint to make out on the filled
-                // button, and the empty one should look like the plain button it replaces.
-                colors = IconButtonDefaults.filledIconButtonColors(
-                    containerColor = MaterialTheme.colorScheme.primary,
-                    contentColor = MaterialTheme.colorScheme.onPrimary,
-                    disabledContainerColor = Color.Transparent,
-                    disabledContentColor = MaterialTheme.colorScheme.onSurfaceVariant,
-                ),
-                modifier = Modifier.padding(start = 4.dp),
-            ) {
-                if (waitLeft > 0) {
-                    val wait = pluralStringResource(R.plurals.send_wait, waitLeft, waitLeft)
-                    Text(
-                        "$waitLeft",
-                        style = MaterialTheme.typography.labelLarge,
-                        modifier = Modifier.semantics { contentDescription = wait },
-                    )
-                } else {
-                    Icon(Icons.AutoMirrored.Filled.Send, contentDescription = stringResource(R.string.send))
+            if (recentOnSend) {
+                RecentlySentClock(recentOpen, enabled, toggleRecent, Modifier.padding(start = 4.dp))
+            } else {
+                // Filled once there is something to send, and squarer while pressed (Expressive).
+                FilledIconButton(
+                    onClick = onSend,
+                    shapes = IconButtonDefaults.shapes(),
+                    enabled = canSend,
+                    // Spelled out: the defaults drew the arrow too faint to make out on the filled
+                    // button, and the empty one should look like the plain button it replaces.
+                    colors = IconButtonDefaults.filledIconButtonColors(
+                        containerColor = MaterialTheme.colorScheme.primary,
+                        contentColor = MaterialTheme.colorScheme.onPrimary,
+                        disabledContainerColor = Color.Transparent,
+                        disabledContentColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                    ),
+                    modifier = Modifier.padding(start = 4.dp),
+                ) {
+                    if (waitLeft > 0) {
+                        val wait = pluralStringResource(R.plurals.send_wait, waitLeft, waitLeft)
+                        Text(
+                            "$waitLeft",
+                            style = MaterialTheme.typography.labelLarge,
+                            modifier = Modifier.semantics { contentDescription = wait },
+                        )
+                    } else {
+                        Icon(Icons.AutoMirrored.Filled.Send, contentDescription = stringResource(R.string.send))
+                    }
                 }
+            }
+        }
+    }
+}
+
+/** Opens and closes the [RecentlySentPanel]; drawn in the accent color while it is open. */
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
+@Composable
+private fun RecentlySentClock(open: Boolean, enabled: Boolean, onClick: () -> Unit, modifier: Modifier = Modifier) {
+    IconButton(
+        onClick = onClick,
+        shapes = IconButtonDefaults.shapes(),
+        enabled = enabled,
+        colors = IconButtonDefaults.iconButtonColors(
+            contentColor = if (open) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+        ),
+        modifier = modifier,
+    ) {
+        Icon(painterResource(R.drawable.ic_history), contentDescription = stringResource(R.string.recently_sent))
+    }
+}
+
+/** The user's last messages, one line each, to send one of them again. */
+@Composable
+private fun RecentlySentPanel(texts: List<String>, onPick: (String) -> Unit) {
+    Surface(
+        shape = RoundedCornerShape(16.dp),
+        color = MaterialTheme.colorScheme.surfaceContainerHigh,
+        modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 4.dp),
+    ) {
+        Column(Modifier.padding(vertical = 4.dp)) {
+            Text(
+                stringResource(R.string.recently_sent),
+                style = MaterialTheme.typography.labelMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(horizontal = 16.dp, vertical = 6.dp),
+            )
+            if (texts.isEmpty()) {
+                Text(
+                    stringResource(R.string.recently_sent_none),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 10.dp),
+                )
+            }
+            texts.forEach { text ->
+                Text(
+                    text,
+                    style = MaterialTheme.typography.bodyMedium,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable { onPick(text) }
+                        .padding(horizontal = 16.dp, vertical = 10.dp),
+                )
             }
         }
     }

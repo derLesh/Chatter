@@ -1,0 +1,2 @@
+minor: Tap the clock next to an empty input to see your last three messages and send one again
+minor: Choose in Settings → Typing whether the clock replaces the send button, sits in the input or is off

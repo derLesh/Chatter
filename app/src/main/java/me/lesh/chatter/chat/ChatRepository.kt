@@ -301,6 +301,13 @@ class ChatRepository(
     suspend fun messagesFrom(channel: String, login: String, limit: Int = 30): List<ChatItem> =
         buffers.from(channel, login, limit)
 
+    /** What the logged-in user last wrote in [channel], newest first, ready to go into the input. */
+    suspend fun recentlySent(channel: String, limit: Int): List<String> {
+        val login = auth.account?.login ?: return emptyList()
+        // Read further back than [limit], since repeats are left out.
+        return RecentlySent.texts(buffers.from(channel, login, limit * 10), limit)
+    }
+
     /** The newest messages in memory across all channels, oldest first, for trying a rule on. */
     suspend fun newestMessages(limit: Int): List<ChatItem> = buffers.newest(limit)
 

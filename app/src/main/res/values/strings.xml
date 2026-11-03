@@ -80,6 +80,8 @@
         <item quantity="other">Slow mode: %d seconds until the next message</item>
     </plurals>
     <string name="send">Send</string>
+    <string name="recently_sent">Recently sent</string>
+    <string name="recently_sent_none">Nothing sent here yet</string>
     <string name="replying_to">Replying to @%1$s: %2$s</string>
     <string name="thread_title">Conversation</string>
     <string name="thread_follow">Follow</string>
@@ -257,7 +259,7 @@
     <string name="settings_media">Links &amp; images</string>
     <string name="settings_media_summary">Image previews, GIFs, posts</string>
     <string name="settings_typing">Typing</string>
-    <string name="settings_typing_summary">Read only, suggestions, mentions</string>
+    <string name="settings_typing_summary">Read only, suggestions, mentions, input</string>
     <string name="settings_backup_summary">Save and restore your settings</string>
     <string name="settings_storage">Storage and data</string>
     <string name="settings_storage_summary">Data used, space on the phone, cache</string>
@@ -370,6 +372,17 @@
     <string name="settings_user_suggestions_hint">Suggest names from the chat</string>
     <string name="settings_mention_with_at">Insert names with @</string>
     <string name="settings_mention_with_at_hint">Put an @ before the name</string>
+    <string name="settings_group_input">Input</string>
+    <string name="settings_recently_sent">Recently sent</string>
+    <string name="settings_recently_sent_hint">Your last three messages. Typing brings the send button back</string>
+    <string name="recently_sent_replaces_send">Instead of send</string>
+    <string name="recently_sent_in_input">In the field</string>
+    <string name="recently_sent_hidden">Off</string>
+    <string-array name="input_preview_sent">
+        <item>GG</item>
+        <item>What\'s this song?</item>
+        <item>Pog</item>
+    </string-array>
     <string name="settings_group_colors">Colors</string>
     <string name="settings_group_messages">Messages</string>
     <string name="settings_message_tap">Tap a message</string>

@@ -50,6 +50,7 @@ import me.lesh.chatter.settings.EmoteSize
 import me.lesh.chatter.settings.LineSpacing
 import me.lesh.chatter.settings.MobileData
 import me.lesh.chatter.settings.PostPictureSize
+import me.lesh.chatter.settings.RecentlySentButton
 import me.lesh.chatter.settings.SettingsBackup
 import me.lesh.chatter.settings.SettingsRepository
 import me.lesh.chatter.settings.SpecialMessage
@@ -589,6 +590,18 @@ class MainViewModel(private val c: AppContainer, savedState: SavedStateHandle) :
     /** The channels the Twitch emotes belong to, by channel id; changes with [emoteVersion]. */
     fun emoteOwners(): Map<String, EmoteOwner> = c.emotes.twitchOwners
 
+    /** The user's last three messages where the input sends to, newest first. From memory. */
+    suspend fun recentlySent(): List<String> {
+        val channel = sendChannel ?: return emptyList()
+        return c.chat.recentlySent(channel, limit = 3)
+    }
+
+    /** Puts [text] into the input to send it again, with the cursor at its end. */
+    fun reuseSent(text: String) {
+        composer.input = TextFieldValue(text, TextRange(text.length))
+        updateSuggestions()
+    }
+
     /** What the author of [item] said in its channel lately, oldest first. From memory. */
     suspend fun recentMessagesOf(item: ChatItem): List<ChatItem> {
         val login = item.login ?: return emptyList()
@@ -905,6 +918,8 @@ class MainViewModel(private val c: AppContainer, savedState: SavedStateHandle) :
     fun setShowDeleted(v: Boolean) = saveSetting { setShowDeleted(v) }
     fun setEmoteSuggestions(v: Boolean) = saveSetting { setEmoteSuggestions(v) }
     fun setMentionWithAt(v: Boolean) = saveSetting { setMentionWithAt(v) }
+
+    fun setRecentlySentButton(v: RecentlySentButton) = saveSetting { setRecentlySentButton(v) }
     fun setReadOnly(v: Boolean) = saveSetting { setReadOnly(v) }
     fun setUserSuggestions(v: Boolean) = saveSetting { setUserSuggestions(v) }
 

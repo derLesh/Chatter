@@ -78,6 +78,8 @@
         <item quantity="other">Langsamer Modus: noch %d Sekunden bis zur nächsten Nachricht</item>
     </plurals>
     <string name="send">Senden</string>
+    <string name="recently_sent">Zuletzt gesendet</string>
+    <string name="recently_sent_none">Hier noch nichts gesendet</string>
     <string name="replying_to">Antwort an @%1$s: %2$s</string>
     <string name="thread_title">Unterhaltung</string>
     <string name="thread_follow">Folgen</string>
@@ -251,7 +253,7 @@
     <string name="settings_media">Links &amp; Bilder</string>
     <string name="settings_media_summary">Bildvorschau, GIFs, Posts</string>
     <string name="settings_typing">Schreiben</string>
-    <string name="settings_typing_summary">Nur lesen, Vorschläge, Erwähnungen</string>
+    <string name="settings_typing_summary">Nur lesen, Vorschläge, Erwähnungen, Eingabefeld</string>
     <string name="settings_backup_summary">Einstellungen sichern und wiederherstellen</string>
     <string name="settings_storage">Speicher und Daten</string>
     <string name="settings_storage_summary">Datenverbrauch, Platz auf dem Handy, Cache</string>
@@ -362,6 +364,17 @@
     <string name="settings_user_suggestions_hint">Namen aus dem Chat vorschlagen</string>
     <string name="settings_mention_with_at">Namen mit @ einfügen</string>
     <string name="settings_mention_with_at_hint">Setzt ein @ vor den Namen</string>
+    <string name="settings_group_input">Eingabefeld</string>
+    <string name="settings_recently_sent">Zuletzt gesendet</string>
+    <string name="settings_recently_sent_hint">Deine letzten drei Nachrichten. Beim Tippen kommt der Senden-Button zurück</string>
+    <string name="recently_sent_replaces_send">Statt Senden</string>
+    <string name="recently_sent_in_input">Im Feld</string>
+    <string name="recently_sent_hidden">Aus</string>
+    <string-array name="input_preview_sent">
+        <item>GG</item>
+        <item>Wie heißt der Song?</item>
+        <item>Pog</item>
+    </string-array>
     <string name="settings_group_colors">Farben</string>
     <string name="settings_group_messages">Nachrichten</string>
     <string name="settings_message_tap">Tipp auf eine Nachricht</string>

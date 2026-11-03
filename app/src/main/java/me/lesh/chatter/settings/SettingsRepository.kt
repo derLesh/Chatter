@@ -60,6 +60,9 @@ enum class NameStyle { DisplayName, Login, OtherScripts, Both }
 /** How tall emotes are drawn in a message. */
 enum class EmoteSize { Normal, Large }
 
+/** Where the clock that offers the user's last messages sits: on the empty send button, in the input or nowhere. */
+enum class RecentlySentButton { ReplacesSend, InInput, Hidden }
+
 /** What tapping a message or its name does. Holding always opens the user card. */
 enum class TapAction { Reply, UserCard, Mention, Nothing }
 
@@ -115,6 +118,7 @@ data class Settings(
     val userSuggestions: Boolean = true,
     /** Put an "@" in front of a suggested name. */
     val mentionWithAt: Boolean = true,
+    val recentlySentButton: RecentlySentButton = RecentlySentButton.ReplacesSend,
     /** Show deleted messages struck through instead of hiding them. */
     val showDeleted: Boolean = true,
     /** Check GitHub daily for a newer version; only in the GitHub APK. */
@@ -240,6 +244,8 @@ class SettingsRepository(
             emoteSuggestions = p[EMOTE_SUGGESTIONS] ?: true,
             userSuggestions = p[USER_SUGGESTIONS] ?: true,
             mentionWithAt = p[MENTION_WITH_AT] ?: true,
+            recentlySentButton = p[RECENTLY_SENT_BUTTON]?.let { v -> RecentlySentButton.entries.firstOrNull { it.name == v } }
+                ?: RecentlySentButton.ReplacesSend,
             showDeleted = p[SHOW_DELETED] ?: true,
             updateCheck = p[UPDATE_CHECK] ?: true,
             inlineImages = p[INLINE_IMAGES] ?: true,
@@ -315,6 +321,7 @@ class SettingsRepository(
     suspend fun setEmoteSuggestions(v: Boolean) = store.edit { it[EMOTE_SUGGESTIONS] = v }
     suspend fun setUserSuggestions(v: Boolean) = store.edit { it[USER_SUGGESTIONS] = v }
     suspend fun setMentionWithAt(v: Boolean) = store.edit { it[MENTION_WITH_AT] = v }
+    suspend fun setRecentlySentButton(v: RecentlySentButton) = store.edit { it[RECENTLY_SENT_BUTTON] = v.name }
     suspend fun setReadOnly(v: Boolean) = store.edit { it[READ_ONLY] = v }
     suspend fun setShowDeleted(v: Boolean) = store.edit { it[SHOW_DELETED] = v }
     suspend fun setUpdateCheck(v: Boolean) = store.edit { it[UPDATE_CHECK] = v }
@@ -440,6 +447,7 @@ class SettingsRepository(
         p[EMOTE_SUGGESTIONS] = s.emoteSuggestions
         p[USER_SUGGESTIONS] = s.userSuggestions
         p[MENTION_WITH_AT] = s.mentionWithAt
+        p[RECENTLY_SENT_BUTTON] = s.recentlySentButton.name
         p[READ_ONLY] = s.readOnly
         p[SHOW_DELETED] = s.showDeleted
         p[UPDATE_CHECK] = s.updateCheck
@@ -543,6 +551,7 @@ class SettingsRepository(
         val EMOTE_SUGGESTIONS = booleanPreferencesKey("emote_suggestions")
         val USER_SUGGESTIONS = booleanPreferencesKey("user_suggestions")
         val MENTION_WITH_AT = booleanPreferencesKey("mention_with_at")
+        val RECENTLY_SENT_BUTTON = stringPreferencesKey("recently_sent_button")
         val READ_ONLY = booleanPreferencesKey("read_only")
         val SHOW_DELETED = booleanPreferencesKey("show_deleted")
         val UPDATE_CHECK = booleanPreferencesKey("update_check")

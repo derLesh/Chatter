@@ -458,7 +458,8 @@ private fun ChatInput(
     sendChannels: List<String> = emptyList(),
     channelInfo: Map<String, ChannelInfo> = emptyMap(),
 ) {
-    if (vm.settings.collectAsStateWithLifecycle().value.readOnly) return
+    val settings = vm.settings.collectAsStateWithLifecycle().value
+    if (settings.readOnly) return
     if (guest) {
         GuestBar(onLogIn = vm::leaveGuest, modifier = Modifier.fillMaxWidth())
         return
@@ -475,6 +476,8 @@ private fun ChatInput(
         onCancelReply = if (inThread) null else vm::cancelReply,
         onEmotePicker = { sheets.showPicker = true },
         onSend = vm::send,
+        recentlySent = vm::recentlySent,
+        onReuseSent = vm::reuseSent,
         replyStarts = vm.replyStarts,
         waitUntil = vm.sendWaitUntil,
         restriction = restriction,
@@ -484,6 +487,7 @@ private fun ChatInput(
         sendChannel = vm.sendChannel,
         channelInfo = channelInfo,
         onSendChannel = vm::selectSendChannel,
+        recentlySentButton = settings.recentlySentButton,
     )
 }
 

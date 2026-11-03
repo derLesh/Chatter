@@ -272,17 +272,20 @@ private fun ChatPreview(messages: List<ChatItem>, settings: Settings, fontSize: 
 
 /** A choice of two or three short options, spelled out as buttons under the title. */
 @Composable
-private fun <T> SegmentedItem(title: Int, selected: T, options: List<Pair<T, Int>>, onSelect: (T) -> Unit) {
+internal fun <T> SegmentedItem(title: Int, selected: T, options: List<Pair<T, Int>>, onSelect: (T) -> Unit, hint: Int? = null) {
     ListItem(
         headlineContent = { Text(stringResource(title)) },
         supportingContent = {
-            SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth().padding(top = 8.dp)) {
-                options.forEachIndexed { i, (option, label) ->
-                    SegmentedButton(
-                        selected = selected == option,
-                        onClick = { onSelect(option) },
-                        shape = SegmentedButtonDefaults.itemShape(i, options.size),
-                    ) { Text(stringResource(label)) }
+            Column {
+                hint?.let { Text(stringResource(it)) }
+                SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth().padding(top = 8.dp)) {
+                    options.forEachIndexed { i, (option, label) ->
+                        SegmentedButton(
+                            selected = selected == option,
+                            onClick = { onSelect(option) },
+                            shape = SegmentedButtonDefaults.itemShape(i, options.size),
+                        ) { Text(stringResource(label)) }
+                    }
                 }
             }
         },

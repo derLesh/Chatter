@@ -164,11 +164,14 @@ fun BubbleScreen(vm: MainViewModel, channel: String?) {
                 onCancelReply = vm::cancelReply,
                 onEmotePicker = { showPicker = true },
                 onSend = vm::send,
+                recentlySent = vm::recentlySent,
+                onReuseSent = vm::reuseSent,
                 replyStarts = vm.replyStarts,
                 waitUntil = vm.sendWaitUntil,
                 restriction = vm.sendChannel?.let { ch -> SendLimits.restriction(roomStates[ch], roles[ch], ch in subscribed) },
                 penalty = vm.sendChannel?.let { penalties[it] },
                 modifier = Modifier.fillMaxWidth(),
+                recentlySentButton = settings.recentlySentButton,
             )
         }
     }
