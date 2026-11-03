@@ -86,6 +86,7 @@ import me.lesh.chatter.ui.settings.BlockedUsersPage
 import me.lesh.chatter.ui.settings.CategoryIcon
 import me.lesh.chatter.ui.settings.ChannelsPage
 import me.lesh.chatter.ui.settings.CreditsPage
+import me.lesh.chatter.ui.settings.DebugStatsPage
 import me.lesh.chatter.ui.settings.DeveloperPage
 import me.lesh.chatter.ui.settings.EmotesPage
 import me.lesh.chatter.ui.settings.HiddenEmotesPage
@@ -185,6 +186,7 @@ internal enum class SettingsSubPage(val title: Int) {
     Changelog(R.string.settings_changelog),
     Update(R.string.update_page_title),
     Credits(R.string.settings_credits),
+    DebugStats(R.string.debug_stats),
 }
 
 /**
@@ -304,6 +306,7 @@ private val SEARCH_INDEX: List<SearchEntry> by lazy {
         if (BuildConfig.UPDATE_CHECK) add(SearchEntry(R.string.settings_update_check, about, R.string.settings_update_check_hint))
         if (BuildConfig.DEBUG) {
             add(SearchEntry(R.string.settings_show_onboarding, SettingsPage.Developer, R.string.settings_show_onboarding_hint))
+            add(SearchEntry(R.string.debug_stats, SettingsPage.Developer, R.string.debug_stats_hint))
         }
     }
 }
@@ -465,6 +468,7 @@ fun SettingsScreen(vm: MainViewModel, onBack: () -> Unit) {
                 SettingsSubPage.LiveChannels -> LiveChannelsPage(vm)
                 SettingsSubPage.Rules -> RulesPage(vm) { rule = it?.id ?: NEW_RULE }
                 SettingsSubPage.Credits -> CreditsPage()
+                SettingsSubPage.DebugStats -> DebugStatsPage(vm)
                 SettingsSubPage.Changelog -> {
                     val releases by vm.releases.collectAsStateWithLifecycle()
                     ChangelogPage(releases, BuildConfig.VERSION_NAME)
@@ -497,7 +501,7 @@ fun SettingsScreen(vm: MainViewModel, onBack: () -> Unit) {
                     SettingsPage.Beta -> BetaPage(settings, vm)
                     SettingsPage.Support -> SupportPage(vm)
                     SettingsPage.About -> AboutPage(settings, vm) { subPage = it }
-                    SettingsPage.Developer -> DeveloperPage(vm)
+                    SettingsPage.Developer -> DeveloperPage(vm) { subPage = it }
                 }
             }
           }

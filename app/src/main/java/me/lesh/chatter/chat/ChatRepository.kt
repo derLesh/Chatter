@@ -311,6 +311,8 @@ class ChatRepository(
     /** The newest messages in memory across all channels, oldest first, for trying a rule on. */
     suspend fun newestMessages(limit: Int): List<ChatItem> = buffers.newest(limit)
 
+    suspend fun messagesInMemory(): Int = buffers.totalMessages()
+
     /** Display names of recently active chatters, most recent first. */
     suspend fun chatters(channel: String): List<String> = withContext(worker) {
         chatterRegistry.names(channel)

@@ -122,6 +122,11 @@ class EmoteRepository(
         return result.values.toList()
     }
 
+    /** Every emote held in memory, counted once per channel it is loaded for. */
+    fun loadedCount(): Int =
+        global.byName.size + twitchUser.size +
+            channels.values.sumOf { it.byName.size } + channelTwitch.values.sumOf { it.size }
+
     /** Asks the providers that still owe global emotes; no request once all are loaded. */
     suspend fun loadGlobal() {
         loadGlobal(globalMissing)

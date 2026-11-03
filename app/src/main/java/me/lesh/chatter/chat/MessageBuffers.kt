@@ -252,6 +252,8 @@ class MessageBuffers(
         buffers[channel]?.lastOrNull { it.id == id }?.also { it.body.prepare() }
     }
 
+    suspend fun totalMessages(): Int = withContext(worker) { buffers.values.sumOf { it.size } }
+
     /** The newest [limit] messages of all channels together, oldest first. Not built for drawing. */
     suspend fun newest(limit: Int): List<ChatItem> = withContext(worker) {
         buffers.values.flatMap { it.takeLast(limit) }.sortedBy { it.timestamp }.takeLast(limit)

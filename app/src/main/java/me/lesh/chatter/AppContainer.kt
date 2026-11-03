@@ -48,6 +48,7 @@ import me.lesh.chatter.chat.WhisperResult
 import me.lesh.chatter.chat.WhisperSender
 import me.lesh.chatter.chat.XPostSource
 import me.lesh.chatter.crash.CrashLog
+import me.lesh.chatter.debug.DebugStats
 import me.lesh.chatter.emotes.CheermoteRepository
 import me.lesh.chatter.emotes.EmojiRepository
 import me.lesh.chatter.emotes.EmoteRepository
@@ -224,11 +225,21 @@ class AppContainer(
     private val sevenTvLive = SevenTvLiveUpdates(context, sevenTvEvents, emotes, badges, chat, settings.settings, scope)
 
     val imageLoader: ImageLoader = imageLoader(animated = true)
+    private val staticImageLoaderOnce = lazy { imageLoader(animated = false) }
     /**
      * For animated emotes turned off: decodes the first frame only. Lazy, since it has its own
      * memory cache and is rarely needed.
      */
-    val staticImageLoader: ImageLoader by lazy { imageLoader(animated = false) }
+    val staticImageLoader: ImageLoader by staticImageLoaderOnce
+
+    /** For the developer page; built when it is first opened. */
+    val debugStats by lazy {
+        DebugStats(
+            context, irc, chat, channels, emotes, auth, storage, http, imageLoader,
+            staticImages = { staticImageLoaderOnce.takeIf { it.isInitialized() }?.value },
+            crashLog, powerSaveMode, dataSaving.active, backgroundHealth.restrictions,
+        )
+    }
 
     // Needs the image loader: mention notifications use the channel avatar as icon.
     private val channelIcons = ChannelIcons(context, channels, imageLoader)

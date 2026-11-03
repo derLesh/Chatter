@@ -1140,6 +1140,10 @@ class MainViewModel(private val c: AppContainer, savedState: SavedStateHandle) :
     /** For the developer page: the onboarding comes up again as on a fresh install. */
     fun showOnboardingAgain() = saveSetting { setOnboardingSeen(false) }
 
+    suspend fun debugStats() = c.debugStats.snapshot()
+
+    suspend fun collectGarbage() = c.debugStats.collectGarbage()
+
     /** A newer GitHub release, for the GitHub APK; null otherwise. */
     val availableUpdate = c.updates.available
 
