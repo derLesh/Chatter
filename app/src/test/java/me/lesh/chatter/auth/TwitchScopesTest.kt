@@ -12,10 +12,10 @@ class TwitchScopesTest {
         assertTrue(TwitchScopes.ALL.containsAll(listOf("chat:read", "chat:edit", "moderator:manage:banned_users")))
     }
 
-    /** Scopes for features Chatter does not have stay out of the token. */
+    /** A stolen token must not reach past the chat. */
     @Test
-    fun theLoginAsksForNothingChatterDoesNotUse() {
-        listOf("channel:manage:broadcast", "channel:edit:commercial", "channel:manage:polls", "channel:manage:redemptions")
+    fun theLoginAsksForNothingBeyondTheChat() {
+        listOf("channel:read:stream_key", "user:read:email", "user:edit", "channel:manage:videos", "channel:manage:extensions")
             .forEach { assertFalse(it, it in TwitchScopes.ALL) }
         assertEquals(TwitchScopes.ALL.size, TwitchScopes.ALL.toSet().size)
     }
