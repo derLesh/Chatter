@@ -1,1 +1,0 @@
-minor: Sort Twitch emotes in the picker by channel, your subs first, with a column on the left to jump to each

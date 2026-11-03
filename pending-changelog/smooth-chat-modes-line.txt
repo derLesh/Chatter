@@ -1,1 +1,0 @@
-patch: Fold the line with the chat modes, like sub-only or unique, smoothly in and out
