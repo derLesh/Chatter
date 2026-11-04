@@ -1003,11 +1003,13 @@
     <string name="live_channels_followed">Other followed channels</string>
     <string name="live_channels_loading">Asking Twitch whom you follow…</string>
     <string name="live_channels_none">No other followed channels</string>
-    <!-- Beta features -->
+    <!-- Labs -->
     <string name="beta">Beta</string>
-    <string name="settings_beta">Beta features</string>
+    <string name="settings_beta">Labs</string>
     <string name="settings_beta_summary">Try what is new and not finished yet</string>
     <string name="settings_beta_intro">New and not finished yet.</string>
+    <string name="settings_colorful_categories">Colorful categories</string>
+    <string name="settings_colorful_categories_hint">Gives every settings category its own color</string>
     <string name="settings_catch_up">Sum up what you missed</string>
     <string name="settings_catch_up_hint">From 30 new messages on, Gemini Nano sums up on your phone what happened. Google only gets usage numbers.</string>
     <string name="model_state_checking">Checking…</string>

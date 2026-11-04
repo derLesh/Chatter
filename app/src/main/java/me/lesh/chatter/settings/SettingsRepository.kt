@@ -194,6 +194,8 @@ data class Settings(
      * one, through Android's AppFunctions. Off until turned on: it writes as the user.
      */
     val assistantActions: Boolean = false,
+    /** Beta: a colour of its own for each category in the settings, instead of the theme's one. */
+    val colorfulCategories: Boolean = false,
 ) {
     /** The emote providers whose lists are loaded: none while emotes are off. */
     val emoteProvidersOn: Set<EmoteProvider> get() = if (emotesEnabled) emoteProviders else emptySet()
@@ -281,6 +283,7 @@ class SettingsRepository(
             copyFirst = p[COPY_FIRST] ?: false,
             catchUpSummary = p[CATCH_UP_SUMMARY] ?: false,
             assistantActions = p[ASSISTANT_ACTIONS] ?: false,
+            colorfulCategories = p[COLORFUL_CATEGORIES] ?: false,
             nameTap = p[NAME_TAP]?.let { v -> TapAction.entries.firstOrNull { it.name == v } } ?: TapAction.UserCard,
             badgeProviders = badgeProviders(p[BADGE_PROVIDERS]),
             emoteProviders = emoteProviders(p[EMOTE_PROVIDERS]),
@@ -297,6 +300,7 @@ class SettingsRepository(
     suspend fun setCopyFirst(v: Boolean) = store.edit { it[COPY_FIRST] = v }
     suspend fun setCatchUpSummary(v: Boolean) = store.edit { it[CATCH_UP_SUMMARY] = v }
     suspend fun setAssistantActions(v: Boolean) = store.edit { it[ASSISTANT_ACTIONS] = v }
+    suspend fun setColorfulCategories(v: Boolean) = store.edit { it[COLORFUL_CATEGORIES] = v }
     suspend fun setMessageLimit(v: Int) = store.edit { it[LIMIT] = v }
     // List settings are changed from the stored value inside one edit, so quick successive changes
     // cannot undo each other. Stored comma-separated, as they always were.
@@ -485,6 +489,7 @@ class SettingsRepository(
         p[COPY_FIRST] = s.copyFirst
         p[CATCH_UP_SUMMARY] = s.catchUpSummary
         p[ASSISTANT_ACTIONS] = s.assistantActions
+        p[COLORFUL_CATEGORIES] = s.colorfulCategories
         p[BADGE_PROVIDERS] = s.badgeProviders.joinToString(",") { it.name }
         p[EMOTE_PROVIDERS] = s.emoteProviders.joinToString(",") { it.name }
     }
@@ -595,6 +600,7 @@ class SettingsRepository(
         val COPY_FIRST = booleanPreferencesKey("copy_first")
         val CATCH_UP_SUMMARY = booleanPreferencesKey("catch_up_summary")
         val ASSISTANT_ACTIONS = booleanPreferencesKey("assistant_actions")
+        val COLORFUL_CATEGORIES = booleanPreferencesKey("colorful_categories")
         val SEEN_VERSION = stringPreferencesKey("seen_changelog_version")
         val NOTIFICATION_INTRO_SEEN = booleanPreferencesKey("notification_intro_seen")
         val ONBOARDING_SEEN = booleanPreferencesKey("onboarding_seen")

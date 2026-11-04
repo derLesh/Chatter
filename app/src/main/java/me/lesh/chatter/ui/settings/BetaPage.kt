@@ -43,6 +43,14 @@ internal fun BetaPage(settings: Settings, vm: MainViewModel) {
         }
         if (settings.catchUpSummary) item { ModelStateItem(vm) }
     }
+    SettingsGroup {
+        item(R.string.settings_colorful_categories) {
+            BetaSwitchItem(
+                R.string.settings_colorful_categories, settings.colorfulCategories,
+                vm::setColorfulCategories, R.string.settings_colorful_categories_hint,
+            )
+        }
+    }
     if (BuildConfig.ASSISTANT_ACCESS) SettingsGroup {
         item(R.string.settings_assistant) {
             // AppFunctions came with Android 16.

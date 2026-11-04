@@ -175,7 +175,7 @@ private enum class SettingsPage(
     Backup(R.string.settings_group_backup, R.string.settings_backup_summary, SettingsSection.Data, { drawableIcon(R.drawable.ic_backup) }, CategoryHue.Sky),
     /** Only in the build people install themselves; see SPONSOR_LINK in build.gradle.kts. */
     /** What is new and not finished; marked as beta wherever it shows. */
-    Beta(R.string.settings_beta, R.string.settings_beta_summary, SettingsSection.App, { drawableIcon(R.drawable.ic_auto_awesome) }, CategoryHue.Lime),
+    Beta(R.string.settings_beta, R.string.settings_beta_summary, SettingsSection.App, { drawableIcon(R.drawable.ic_science) }, CategoryHue.Lime),
     Support(R.string.settings_support, R.string.settings_support_summary, SettingsSection.App, { Icons.Default.Favorite }, CategoryHue.Pink),
     About(R.string.settings_about, R.string.settings_about_summary, SettingsSection.App, { Icons.Default.Info }, CategoryHue.Gray),
     /** Only in debug builds. */
@@ -318,6 +318,7 @@ private val SEARCH_INDEX: List<SearchEntry> by lazy {
         val account = SettingsPage.Account
         add(SearchEntry(R.string.settings_group_accounts, account, also = listOf(R.string.logout, R.string.account_add_short)))
         add(SearchEntry(R.string.settings_catch_up, SettingsPage.Beta, R.string.settings_catch_up_hint))
+        add(SearchEntry(R.string.settings_colorful_categories, SettingsPage.Beta, R.string.settings_colorful_categories_hint))
         if (BuildConfig.ASSISTANT_ACCESS) add(SearchEntry(R.string.settings_assistant, SettingsPage.Beta, R.string.settings_assistant_hint))
         val about = SettingsPage.About
         add(SearchEntry(R.string.settings_changelog, about, R.string.settings_changelog_summary))
@@ -471,6 +472,7 @@ fun SettingsScreen(vm: MainViewModel, onBack: () -> Unit) {
         if (current == null && currentSearching) {
             SearchPage(
                 modifier = searchBar,
+                colorful = settings.colorfulCategories,
                 query = query,
                 onQuery = { query = it },
                 onOpen = { entry ->
@@ -530,7 +532,7 @@ fun SettingsScreen(vm: MainViewModel, onBack: () -> Unit) {
                         EnterInOrder { SearchField(searchBar) { searching = true } }
                         EnterInOrder { AccountSummaryCard(auth, vm.imageLoader) { page = SettingsPage.Account } }
                         update?.let { EnterInOrder { UpdateCard(it, BuildConfig.VERSION_NAME) { subPage = SettingsSubPage.Update } } }
-                        Home { page = it }
+                        Home(settings.colorfulCategories) { page = it }
                     }
                     SettingsPage.Appearance -> AppearancePage(settings, vm) { subPage = it }
                     SettingsPage.Messages -> MessagesPage(settings, vm) { subPage = it }
@@ -570,7 +572,7 @@ private const val SEARCH_BAR = "settings-search-bar"
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun SearchPage(modifier: Modifier, query: String, onQuery: (String) -> Unit, onOpen: (SearchEntry) -> Unit, onBack: () -> Unit) {
+private fun SearchPage(modifier: Modifier, colorful: Boolean, query: String, onQuery: (String) -> Unit, onOpen: (SearchEntry) -> Unit, onBack: () -> Unit) {
     val resources = LocalResources.current
     val focus = remember { FocusRequester() }
     LaunchedEffect(Unit) { focus.requestFocus() }
@@ -653,7 +655,7 @@ private fun SearchPage(modifier: Modifier, query: String, onQuery: (String) -> U
                         ListItem(
                             headlineContent = { Text(highlighted(title, query)) },
                             supportingContent = { Text(highlighted(subtitle, query), maxLines = 2, overflow = TextOverflow.Ellipsis) },
-                            leadingContent = { CategoryIcon(entry.page.icon(), entry.page.hue) },
+                            leadingContent = { CategoryIcon(entry.page.icon(), entry.page.hue.takeIf { colorful }) },
                             colors = transparentItem(),
                             modifier = Modifier.tileClickable { onOpen(entry) },
                         )
@@ -759,7 +761,7 @@ private fun SearchField(modifier: Modifier, onClick: () -> Unit) {
 
 /** The categories, in their sections. */
 @Composable
-private fun Home(open: (SettingsPage) -> Unit) {
+private fun Home(colorful: Boolean, open: (SettingsPage) -> Unit) {
     val pages = SettingsPage.entries.filter { it.shown }
     SettingsSection.entries.forEach { section ->
         SettingsGroup(section.title) {
@@ -768,7 +770,7 @@ private fun Home(open: (SettingsPage) -> Unit) {
                     ListItem(
                         headlineContent = { Text(stringResource(p.title), fontWeight = FontWeight.Medium) },
                         supportingContent = { Text(stringResource(p.summary)) },
-                        leadingContent = { CategoryIcon(p.icon(), p.hue) },
+                        leadingContent = { CategoryIcon(p.icon(), p.hue.takeIf { colorful }) },
                         colors = transparentItem(),
                         modifier = Modifier.tileClickable { open(p) },
                     )

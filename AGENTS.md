@@ -127,7 +127,7 @@ people to support Chatter is still **switched off** until GitHub Sponsors is set
 in `app/build.gradle.kts` takes the settings category and its link out of every build.
 
 Letting assistants into Chatter is **switched off** the same way: `assistantAccess` in
-`app/build.gradle.kts` hides its switch under Settings → Beta features, because Gemini only calls
+`app/build.gradle.kts` hides its switch under Settings → Labs, because Gemini only calls
 the AppFunctions of apps in Google's preview. The functions in `assistant/` are built and tested
 with `adb shell cmd app_function`. Turning it on is that line plus the assistant sections of the
 privacy policy and `data-safety.md`, as commit 81a8da3 had them.
