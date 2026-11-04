@@ -408,6 +408,13 @@
     <string name="settings_alternate_background_hint">Shade every other message for easier reading</string>
     <string name="settings_highlight_color">Highlight color</string>
     <string name="settings_highlight_color_hint">Background of messages that mention you</string>
+    <string name="highlight_custom">Custom color</string>
+    <string name="highlight_default">Red (default)</string>
+    <string name="highlight_accent">Theme color</string>
+    <string name="highlight_color_value">Color %1$s</string>
+    <string name="highlight_hue">Hue</string>
+    <string name="highlight_saturation">Saturation</string>
+    <string name="highlight_brightness">Brightness</string>
     <string name="settings_highlight_preview_name">viewer</string>
     <string name="settings_highlight_preview_text">hey @you, look at this!</string>
     <string name="settings_load_history">Load recent messages</string>

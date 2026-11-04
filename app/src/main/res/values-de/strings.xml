@@ -400,6 +400,13 @@
     <string name="settings_alternate_background_hint">Jede zweite Nachricht leicht hinterlegen, für bessere Lesbarkeit</string>
     <string name="settings_highlight_color">Farbe für Erwähnungen</string>
     <string name="settings_highlight_color_hint">Hintergrund von Nachrichten, die dich erwähnen</string>
+    <string name="highlight_custom">Eigene Farbe</string>
+    <string name="highlight_default">Rot (Standard)</string>
+    <string name="highlight_accent">Designfarbe</string>
+    <string name="highlight_color_value">Farbe %1$s</string>
+    <string name="highlight_hue">Farbton</string>
+    <string name="highlight_saturation">Sättigung</string>
+    <string name="highlight_brightness">Helligkeit</string>
     <string name="settings_highlight_preview_name">zuschauer</string>
     <string name="settings_highlight_preview_text">hey @du, schau mal!</string>
     <string name="settings_load_history">Letzte Nachrichten laden</string>

@@ -1,22 +1,15 @@
 package me.lesh.chatter.ui.settings
 
-import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowForward
-import androidx.compose.material.icons.filled.Check
 import androidx.compose.material3.Icon
 import androidx.compose.material3.ListItem
 import androidx.compose.material3.MaterialTheme
@@ -33,9 +26,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -62,8 +53,6 @@ import me.lesh.chatter.ui.SettingsSubPage
 import me.lesh.chatter.ui.chat.MessageRow
 import me.lesh.chatter.ui.chat.rememberChatStyle
 import me.lesh.chatter.ui.theme.NameColorPalette
-import me.lesh.chatter.ui.theme.highlightBackground
-import me.lesh.chatter.ui.theme.highlightColor
 import me.lesh.chatter.ui.theme.isAppInDarkTheme
 import me.lesh.chatter.ui.theme.readableNameColor
 import java.text.SimpleDateFormat
@@ -412,71 +401,5 @@ private fun NameColorPicker(selected: NameColorPalette, onSelect: (NameColorPale
                 )
             }
         },
-    )
-}
-
-/** Mention highlight swatches and a preview line. */
-@Composable
-internal fun HighlightColorPicker(selected: Int, onSelect: (Int) -> Unit) {
-    val scheme = MaterialTheme.colorScheme
-    val options = listOf(
-        Settings.HIGHLIGHT_DEFAULT, Settings.HIGHLIGHT_ACCENT,
-        0xFFFF9800.toInt(), 0xFFFFC107.toInt(), 0xFF4CAF50.toInt(), 0xFF00BCD4.toInt(),
-        0xFF2196F3.toInt(), 0xFF9C27B0.toInt(), 0xFFE91E63.toInt(),
-    )
-    ListItem(
-        headlineContent = { Text(stringResource(R.string.settings_highlight_color)) },
-        supportingContent = {
-            Column {
-                Text(stringResource(R.string.settings_highlight_color_hint))
-                // A plain scrolling Row: ListItem measures intrinsically, which lazy lists do not
-                // support.
-                Row(
-                    horizontalArrangement = Arrangement.spacedBy(10.dp),
-                    modifier = Modifier.padding(top = 12.dp).horizontalScroll(rememberScrollState()),
-                ) {
-                    options.forEach { option ->
-                        val color = highlightColor(option, scheme)
-                        Box(
-                            contentAlignment = Alignment.Center,
-                            modifier = Modifier
-                                .size(40.dp)
-                                .clip(CircleShape)
-                                .background(color)
-                                .then(
-                                    if (option == selected) Modifier.border(3.dp, scheme.onSurface, CircleShape) else Modifier
-                                )
-                                .clickable { onSelect(option) },
-                        ) {
-                            if (option == selected) {
-                                Icon(
-                                    Icons.Default.Check,
-                                    contentDescription = null,
-                                    tint = if (color.luminance() > 0.5f) Color.Black else Color.White,
-                                )
-                            }
-                        }
-                    }
-                }
-                // Preview of a highlighted chat line.
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    modifier = Modifier
-                        .padding(top = 12.dp)
-                        .fillMaxWidth()
-                        .clip(RoundedCornerShape(12.dp))
-                        .background(highlightBackground(selected, scheme))
-                        .padding(horizontal = 12.dp, vertical = 10.dp),
-                ) {
-                    Text(
-                        stringResource(R.string.settings_highlight_preview_name) + ": ",
-                        fontWeight = FontWeight.Bold,
-                        color = scheme.primary,
-                    )
-                    Text(stringResource(R.string.settings_highlight_preview_text), color = scheme.onSurface)
-                }
-            }
-        },
-        colors = transparentItem(),
     )
 }

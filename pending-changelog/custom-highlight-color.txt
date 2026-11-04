@@ -1,0 +1,1 @@
+minor: Pick your own color for messages that mention you

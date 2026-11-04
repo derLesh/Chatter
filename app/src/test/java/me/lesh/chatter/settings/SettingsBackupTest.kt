@@ -18,6 +18,7 @@ class SettingsBackupTest {
             createdAt = 1_700_000_000_000,
             settings = Settings(
                 fontSize = 18f,
+                highlightColor = 0xFF23B7A5.toInt(),
                 timestamps = TimestampFormat.Seconds,
                 muteKeywords = listOf("bot", "spam"),
                 emoteProviders = setOf(EmoteProvider.SevenTv),
