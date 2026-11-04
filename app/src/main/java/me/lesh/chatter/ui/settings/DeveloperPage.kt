@@ -1,9 +1,6 @@
 package me.lesh.chatter.ui.settings
 
-import androidx.compose.foundation.clickable
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowForward
-import androidx.compose.material3.Icon
 import androidx.compose.material3.ListItem
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -21,18 +18,18 @@ internal fun DeveloperPage(vm: MainViewModel, open: (SettingsSubPage) -> Unit) {
             ListItem(
                 headlineContent = { Text(stringResource(R.string.debug_stats)) },
                 supportingContent = { Text(stringResource(R.string.debug_stats_hint)) },
-                trailingContent = { Icon(Icons.AutoMirrored.Filled.ArrowForward, contentDescription = null) },
+                trailingContent = { NavChevron() },
                 colors = transparentItem(),
-                modifier = Modifier.clickable { open(SettingsSubPage.DebugStats) },
+                modifier = Modifier.tileClickable { open(SettingsSubPage.DebugStats) },
             )
         }
         item(R.string.settings_show_onboarding) {
             ListItem(
                 headlineContent = { Text(stringResource(R.string.settings_show_onboarding)) },
                 supportingContent = { Text(stringResource(R.string.settings_show_onboarding_hint)) },
-                trailingContent = { Icon(Icons.AutoMirrored.Filled.ArrowForward, contentDescription = null) },
+                trailingContent = { NavChevron() },
                 colors = transparentItem(),
-                modifier = Modifier.clickable(onClick = vm::showOnboardingAgain),
+                modifier = Modifier.tileClickable(onClick = vm::showOnboardingAgain),
             )
         }
     }

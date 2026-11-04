@@ -1,7 +1,23 @@
 package me.lesh.chatter.ui
 
+import androidx.compose.animation.ExperimentalSharedTransitionApi
+import androidx.compose.animation.SharedTransitionLayout
+import androidx.compose.animation.SharedTransitionScope
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.togetherWith
+import androidx.compose.runtime.SideEffect
+import me.lesh.chatter.ui.settings.EnterInOrder
+import me.lesh.chatter.ui.settings.LocalPageEntrance
+import me.lesh.chatter.ui.settings.PageEntrance
 import androidx.compose.animation.AnimatedContent
-import androidx.compose.foundation.clickable
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.ui.Alignment
+import androidx.compose.material3.Surface
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
@@ -10,6 +26,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawingPadding
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
@@ -59,9 +76,13 @@ import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.res.vectorResource
+import androidx.compose.ui.text.AnnotatedString
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigationevent.NavigationEventInfo
@@ -83,6 +104,7 @@ import me.lesh.chatter.ui.settings.BADGE_PROVIDERS
 import me.lesh.chatter.ui.settings.BackupPage
 import me.lesh.chatter.ui.settings.BetaPage
 import me.lesh.chatter.ui.settings.BlockedUsersPage
+import me.lesh.chatter.ui.settings.CategoryHue
 import me.lesh.chatter.ui.settings.CategoryIcon
 import me.lesh.chatter.ui.settings.ChannelsPage
 import me.lesh.chatter.ui.settings.CreditsPage
@@ -115,6 +137,7 @@ import me.lesh.chatter.ui.settings.StoragePage
 import me.lesh.chatter.ui.settings.SupportPage
 import me.lesh.chatter.ui.settings.THEME_MODES
 import me.lesh.chatter.ui.settings.TypingPage
+import me.lesh.chatter.ui.settings.tileClickable
 import me.lesh.chatter.ui.settings.transparentItem
 import me.lesh.chatter.ui.update.UpdateCard
 import me.lesh.chatter.ui.update.UpdatePage
@@ -137,25 +160,26 @@ private enum class SettingsPage(
     val summary: Int,
     val section: SettingsSection?,
     val icon: @Composable () -> ImageVector,
+    val hue: CategoryHue? = null,
 ) {
-    Appearance(R.string.settings_appearance, R.string.settings_appearance_summary, SettingsSection.Chat, { drawableIcon(R.drawable.ic_palette) }),
-    Messages(R.string.settings_messages, R.string.settings_messages_summary, SettingsSection.Chat, { drawableIcon(R.drawable.ic_chat) }),
-    Media(R.string.settings_media, R.string.settings_media_summary, SettingsSection.Chat, { drawableIcon(R.drawable.ic_image) }),
-    Typing(R.string.settings_typing, R.string.settings_typing_summary, SettingsSection.Chat, { drawableIcon(R.drawable.ic_keyboard) }),
-    Emotes(R.string.settings_emotes, R.string.settings_emotes_summary, SettingsSection.Chat, { Icons.Default.Face }),
-    Filters(R.string.settings_filters, R.string.settings_filters_summary, SettingsSection.Chat, { drawableIcon(R.drawable.ic_filter_list) }),
-    Channels(R.string.settings_channels, R.string.settings_channels_summary, SettingsSection.Channels, { Icons.Default.Person }),
-    Notifications(R.string.settings_notifications, R.string.settings_notifications_summary, SettingsSection.Channels, { Icons.Default.Notifications }),
-    Stats(R.string.settings_stats, R.string.settings_stats_summary, SettingsSection.Data, { drawableIcon(R.drawable.ic_bar_chart) }),
-    Storage(R.string.settings_storage, R.string.settings_storage_summary, SettingsSection.Data, { drawableIcon(R.drawable.ic_storage) }),
-    Backup(R.string.settings_group_backup, R.string.settings_backup_summary, SettingsSection.Data, { drawableIcon(R.drawable.ic_backup) }),
+    Appearance(R.string.settings_appearance, R.string.settings_appearance_summary, SettingsSection.Chat, { drawableIcon(R.drawable.ic_palette) }, CategoryHue.Pink),
+    Messages(R.string.settings_messages, R.string.settings_messages_summary, SettingsSection.Chat, { drawableIcon(R.drawable.ic_chat) }, CategoryHue.Blue),
+    Media(R.string.settings_media, R.string.settings_media_summary, SettingsSection.Chat, { drawableIcon(R.drawable.ic_image) }, CategoryHue.Green),
+    Typing(R.string.settings_typing, R.string.settings_typing_summary, SettingsSection.Chat, { drawableIcon(R.drawable.ic_keyboard) }, CategoryHue.Orange),
+    Emotes(R.string.settings_emotes, R.string.settings_emotes_summary, SettingsSection.Chat, { Icons.Default.Face }, CategoryHue.Amber),
+    Filters(R.string.settings_filters, R.string.settings_filters_summary, SettingsSection.Chat, { drawableIcon(R.drawable.ic_filter_list) }, CategoryHue.Purple),
+    Channels(R.string.settings_channels, R.string.settings_channels_summary, SettingsSection.Channels, { Icons.Default.Person }, CategoryHue.Teal),
+    Notifications(R.string.settings_notifications, R.string.settings_notifications_summary, SettingsSection.Channels, { Icons.Default.Notifications }, CategoryHue.Red),
+    Stats(R.string.settings_stats, R.string.settings_stats_summary, SettingsSection.Data, { drawableIcon(R.drawable.ic_bar_chart) }, CategoryHue.Indigo),
+    Storage(R.string.settings_storage, R.string.settings_storage_summary, SettingsSection.Data, { drawableIcon(R.drawable.ic_storage) }, CategoryHue.Gray),
+    Backup(R.string.settings_group_backup, R.string.settings_backup_summary, SettingsSection.Data, { drawableIcon(R.drawable.ic_backup) }, CategoryHue.Sky),
     /** Only in the build people install themselves; see SPONSOR_LINK in build.gradle.kts. */
     /** What is new and not finished; marked as beta wherever it shows. */
-    Beta(R.string.settings_beta, R.string.settings_beta_summary, SettingsSection.App, { drawableIcon(R.drawable.ic_auto_awesome) }),
-    Support(R.string.settings_support, R.string.settings_support_summary, SettingsSection.App, { Icons.Default.Favorite }),
-    About(R.string.settings_about, R.string.settings_about_summary, SettingsSection.App, { Icons.Default.Info }),
+    Beta(R.string.settings_beta, R.string.settings_beta_summary, SettingsSection.App, { drawableIcon(R.drawable.ic_science) }, CategoryHue.Lime),
+    Support(R.string.settings_support, R.string.settings_support_summary, SettingsSection.App, { Icons.Default.Favorite }, CategoryHue.Pink),
+    About(R.string.settings_about, R.string.settings_about_summary, SettingsSection.App, { Icons.Default.Info }, CategoryHue.Gray),
     /** Only in debug builds. */
-    Developer(R.string.settings_developer, R.string.settings_developer_summary, SettingsSection.App, { Icons.Default.Build }),
+    Developer(R.string.settings_developer, R.string.settings_developer_summary, SettingsSection.App, { Icons.Default.Build }, CategoryHue.Gray),
     /** Opened from the profile card above the sections. */
     Account(R.string.settings_account, R.string.settings_account_summary, null, { Icons.Default.AccountCircle }),
     ;
@@ -222,19 +246,18 @@ private val SEARCH_INDEX: List<SearchEntry> by lazy {
         add(SearchEntry(R.string.settings_alternate_background, appearance, R.string.settings_alternate_background_hint))
         add(SearchEntry(R.string.settings_timestamps, appearance))
         add(SearchEntry(R.string.settings_name_style, appearance, also = NAME_STYLES.map { it.second }))
-        add(SearchEntry(R.string.settings_smooth_scrolling, appearance, R.string.settings_smooth_scrolling_hint))
-        add(SearchEntry(R.string.settings_show_deleted, appearance, R.string.settings_show_deleted_hint))
-        add(SearchEntry(R.string.settings_first_messages, appearance, R.string.settings_first_messages_hint))
-        add(SearchEntry(R.string.settings_special_messages, appearance, also = SPECIAL_MESSAGE_TITLES.map { it.second }))
-        add(SearchEntry(R.string.settings_keep_screen_on, appearance, R.string.settings_keep_screen_on_hint))
-        add(SearchEntry(R.string.settings_keep_screen_on_when_quiet, appearance, R.string.settings_keep_screen_on_when_quiet_hint))
-        add(SearchEntry(R.string.settings_haptics, appearance, R.string.settings_haptics_hint))
         val messages = SettingsPage.Messages
+        add(SearchEntry(R.string.settings_smooth_scrolling, messages, R.string.settings_smooth_scrolling_hint))
+        add(SearchEntry(R.string.settings_show_deleted, messages, R.string.settings_show_deleted_hint))
+        add(SearchEntry(R.string.settings_first_messages, messages, R.string.settings_first_messages_hint))
+        add(SearchEntry(R.string.settings_special_messages, messages, also = SPECIAL_MESSAGE_TITLES.map { it.second }))
         add(SearchEntry(R.string.settings_message_limit, messages))
         add(SearchEntry(R.string.settings_load_history, messages, R.string.settings_load_history_hint))
         add(SearchEntry(R.string.settings_message_tap, messages))
         add(SearchEntry(R.string.settings_name_tap, messages))
         add(SearchEntry(R.string.settings_copy_first, messages, R.string.settings_copy_first_hint))
+        add(SearchEntry(R.string.settings_keep_screen_on, messages, R.string.settings_keep_screen_on_hint))
+        add(SearchEntry(R.string.settings_keep_screen_on_when_quiet, messages, R.string.settings_keep_screen_on_when_quiet_hint))
         val media = SettingsPage.Media
         add(SearchEntry(R.string.settings_inline_images, media, R.string.settings_inline_images_hint))
         add(SearchEntry(R.string.settings_image_hosts, media))
@@ -275,6 +298,7 @@ private val SEARCH_INDEX: List<SearchEntry> by lazy {
         val notifications = SettingsPage.Notifications
         add(SearchEntry(R.string.settings_keywords, notifications, R.string.settings_keywords_summary))
         add(SearchEntry(R.string.settings_sender_avatars, notifications, R.string.settings_sender_avatars_hint))
+        add(SearchEntry(R.string.settings_haptics, notifications, R.string.settings_haptics_hint))
         add(SearchEntry(R.string.settings_system_notifications, notifications, R.string.settings_notifications_hint))
         add(SearchEntry(R.string.settings_bubbles, notifications, R.string.settings_bubbles_hint))
         add(SearchEntry(R.string.settings_live_notifications, notifications, R.string.settings_live_notifications_hint))
@@ -294,6 +318,7 @@ private val SEARCH_INDEX: List<SearchEntry> by lazy {
         val account = SettingsPage.Account
         add(SearchEntry(R.string.settings_group_accounts, account, also = listOf(R.string.logout, R.string.account_add_short)))
         add(SearchEntry(R.string.settings_catch_up, SettingsPage.Beta, R.string.settings_catch_up_hint))
+        add(SearchEntry(R.string.settings_colorful_categories, SettingsPage.Beta, R.string.settings_colorful_categories_hint))
         if (BuildConfig.ASSISTANT_ACCESS) add(SearchEntry(R.string.settings_assistant, SettingsPage.Beta, R.string.settings_assistant_hint))
         val about = SettingsPage.About
         add(SearchEntry(R.string.settings_changelog, about, R.string.settings_changelog_summary))
@@ -310,6 +335,8 @@ private val SEARCH_INDEX: List<SearchEntry> by lazy {
         }
     }
 }
+
+private data class SearchResult(val entry: SearchEntry, val title: String, val subtitle: String)
 
 /**
  * Twitch's login page over the settings. [signedOut] starts without Twitch's session, needed for
@@ -329,10 +356,13 @@ private data class SettingsPlace(
     /** The id of the rule in the editor, or [NEW_RULE]. */
     val rule: String? = null,
 ) {
+    val isHomeOrSearch: Boolean get() = page == null && subPage == null && rule == null
+
     /** Decides whether a transition goes forward or back. */
     val depth: Int get() = listOf(searching, page != null, subPage != null, rule != null).count { it }
 }
 
+@OptIn(ExperimentalSharedTransitionApi::class)
 @Composable
 fun SettingsScreen(vm: MainViewModel, onBack: () -> Unit) {
     var page by rememberSaveable { mutableStateOf<SettingsPage?>(null) }
@@ -401,9 +431,29 @@ fun SettingsScreen(vm: MainViewModel, onBack: () -> Unit) {
         searching -> place.copy(searching = false)
         else -> null
     }
+    // The home comes in group by group as the settings open; later it is simply there.
+    val opening = remember { booleanArrayOf(true) }
+    SideEffect { opening[0] = false }
+    SharedTransitionLayout {
     rememberPredictiveTransition(place, backTo, onBack = goBack, label = "settings-page").AnimatedContent(
-        transitionSpec = { slideBetweenScreens(forward = targetState.depth > initialState.depth) },
+        transitionSpec = {
+            // The search opens in place: its field grows into the bar while the rest fades.
+            if (targetState.isHomeOrSearch && initialState.isHomeOrSearch) {
+                fadeIn(tween(durationMillis = 220, delayMillis = 60)) togetherWith fadeOut(tween(durationMillis = 120))
+            } else {
+                slideBetweenScreens(forward = targetState.depth > initialState.depth)
+            }
+        },
     ) { (current, currentSub, currentSearching, currentRule) ->
+        val searchBar = Modifier.sharedBounds(
+            rememberSharedContentState(SEARCH_BAR),
+            animatedVisibilityScope = this,
+            // The old label is gone before the new one shows, so the two never sit on each other.
+            enter = fadeIn(tween(durationMillis = 120, delayMillis = 80)),
+            exit = fadeOut(tween(durationMillis = 60)),
+            resizeMode = SharedTransitionScope.ResizeMode.RemeasureToBounds,
+            clipInOverlayDuringTransition = OverlayClip(CircleShape),
+        )
         if (currentRule != null) {
             // Looked up once; the editor keeps its own copy from then on.
             val editing = remember(currentRule) { vm.rules.value.find { it.id == currentRule } }
@@ -421,6 +471,8 @@ fun SettingsScreen(vm: MainViewModel, onBack: () -> Unit) {
         }
         if (current == null && currentSearching) {
             SearchPage(
+                modifier = searchBar,
+                colorful = settings.colorfulCategories,
                 query = query,
                 onQuery = { query = it },
                 onOpen = { entry ->
@@ -437,9 +489,9 @@ fun SettingsScreen(vm: MainViewModel, onBack: () -> Unit) {
             current == SettingsPage.About -> null
             else -> current?.title ?: R.string.settings
         }
-        // Search is only offered on the category list.
+        // The search field scrolls away with the home; the collapsed bar then offers it as an icon.
         val onSearch = if (current == null && currentSub == null) ({ searching = true }) else null
-        SettingsPageScaffold(title = title, onBack = goBack, onSearch = onSearch, snackbar = snackbar) {
+        SettingsPageScaffold(title = title, onBack = goBack, onSearch = onSearch, snackbar = snackbar, enterInOrder = opening[0] && current == null && currentSub == null) {
           CompositionLocalProvider(LocalSettingsTarget provides target.takeIf { currentSub == null }) {
             when (currentSub) {
                 SettingsSubPage.BlockedUsers -> BlockedUsersPage(vm)
@@ -477,12 +529,13 @@ fun SettingsScreen(vm: MainViewModel, onBack: () -> Unit) {
                 SettingsSubPage.Update -> update?.let { UpdatePage(it) }
                 null -> when (current) {
                     null -> {
-                        AccountSummaryCard(auth, vm.imageLoader) { page = SettingsPage.Account }
-                        update?.let { UpdateCard(it, BuildConfig.VERSION_NAME) { subPage = SettingsSubPage.Update } }
-                        Home { page = it }
+                        EnterInOrder { SearchField(searchBar) { searching = true } }
+                        EnterInOrder { AccountSummaryCard(auth, vm.imageLoader) { page = SettingsPage.Account } }
+                        update?.let { EnterInOrder { UpdateCard(it, BuildConfig.VERSION_NAME) { subPage = SettingsSubPage.Update } } }
+                        Home(settings.colorfulCategories) { page = it }
                     }
                     SettingsPage.Appearance -> AppearancePage(settings, vm) { subPage = it }
-                    SettingsPage.Messages -> MessagesPage(settings, vm)
+                    SettingsPage.Messages -> MessagesPage(settings, vm) { subPage = it }
                     SettingsPage.Media -> MediaPage(settings, vm) { subPage = it }
                     SettingsPage.Typing -> TypingPage(settings, vm)
                     SettingsPage.Emotes -> EmotesPage(settings, vm) { subPage = it }
@@ -507,15 +560,19 @@ fun SettingsScreen(vm: MainViewModel, onBack: () -> Unit) {
           }
         }
     }
+    }
 }
+
+/** Shared between the search field on the home and the bar of the search page. */
+private const val SEARCH_BAR = "settings-search-bar"
 
 /**
  * Search over all settings: a field in the title bar and the matches below, each with its category.
- * A result opens its category at the setting.
+ * A result opens its category at the setting. [modifier] goes on the search bar.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun SearchPage(query: String, onQuery: (String) -> Unit, onOpen: (SearchEntry) -> Unit, onBack: () -> Unit) {
+private fun SearchPage(modifier: Modifier, colorful: Boolean, query: String, onQuery: (String) -> Unit, onOpen: (SearchEntry) -> Unit, onBack: () -> Unit) {
     val resources = LocalResources.current
     val focus = remember { FocusRequester() }
     LaunchedEffect(Unit) { focus.requestFocus() }
@@ -524,18 +581,38 @@ private fun SearchPage(query: String, onQuery: (String) -> Unit, onOpen: (Search
         val matching = SEARCH_INDEX.filter { e ->
             SettingsSearch.matches(query, (listOfNotNull(e.title, e.hint, e.page.title) + e.also).map(::text))
         }
-        // Titles matching the query come before entries that only mention it.
-        val (named, mentioned) = matching.partition { SettingsSearch.matches(query, listOf(text(it.title))) }
-        (named + mentioned).map { it to text(it.title) }
+        // Pages first, as the place to look around; then titles matching the query, then entries
+        // that only mention it.
+        val (pages, settings) = matching.partition { it.key == null }
+        val (named, mentioned) = settings.partition { SettingsSearch.matches(query, listOf(text(it.title))) }
+        // The subtitle says why a result matched: a page's summary, a setting's page, and for a
+        // setting found by another word, that word too.
+        fun why(e: SearchEntry): String {
+            if (e.key == null) return text(e.page.summary)
+            val page = text(e.page.title)
+            if (e in named) return page
+            val reason = (listOfNotNull(e.hint) + e.also).map(::text).firstOrNull { SettingsSearch.matches(query, listOf(it)) }
+            return if (reason == null) page else "$page · $reason"
+        }
+        (pages + named + mentioned).map { SearchResult(it, text(it.title), why(it)) }
     }
     Scaffold(
         containerColor = MaterialTheme.colorScheme.surface,
         topBar = {
-            TopAppBar(
-                navigationIcon = {
+            // The same pill as the field on the home, moved to the top, so opening the search
+            // reads as that field growing rather than a new page.
+            Surface(
+                shape = CircleShape,
+                color = MaterialTheme.colorScheme.surfaceContainerHigh,
+                modifier = Modifier
+                    .statusBarsPadding()
+                    .padding(horizontal = 16.dp, vertical = 8.dp)
+                    .then(modifier)
+                    .fillMaxWidth()
+                    .height(56.dp),
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(horizontal = 4.dp)) {
                     IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Filled.ArrowBack, stringResource(R.string.back)) }
-                },
-                title = {
                     TextField(
                         value = query,
                         onValueChange = onQuery,
@@ -548,15 +625,13 @@ private fun SearchPage(query: String, onQuery: (String) -> Unit, onOpen: (Search
                             focusedIndicatorColor = Color.Transparent,
                             unfocusedIndicatorColor = Color.Transparent,
                         ),
-                        modifier = Modifier.fillMaxWidth().focusRequester(focus),
+                        modifier = Modifier.weight(1f).focusRequester(focus),
                     )
-                },
-                actions = {
                     if (query.isNotEmpty()) IconButton(onClick = { onQuery("") }) {
                         Icon(Icons.Default.Close, stringResource(R.string.settings_search_clear))
                     }
-                },
-            )
+                }
+            }
         },
     ) { padding ->
         Column(
@@ -575,20 +650,35 @@ private fun SearchPage(query: String, onQuery: (String) -> Unit, onOpen: (Search
                 )
             }
             if (results.isNotEmpty()) SettingsGroup {
-                results.forEach { (entry, title) ->
+                results.forEach { (entry, title, subtitle) ->
                     item {
                         ListItem(
-                            headlineContent = { Text(title) },
-                            // A category found as itself needs no category below.
-                            supportingContent = if (entry.key == null) null else ({ Text(stringResource(entry.page.title)) }),
-                            leadingContent = { CategoryIcon(entry.page.icon()) },
+                            headlineContent = { Text(highlighted(title, query)) },
+                            supportingContent = { Text(highlighted(subtitle, query), maxLines = 2, overflow = TextOverflow.Ellipsis) },
+                            leadingContent = { CategoryIcon(entry.page.icon(), entry.page.hue.takeIf { colorful }) },
                             colors = transparentItem(),
-                            modifier = Modifier.clickable { onOpen(entry) },
+                            modifier = Modifier.tileClickable { onOpen(entry) },
                         )
                     }
                 }
             }
             Spacer(Modifier.height(16.dp))
+        }
+    }
+}
+
+/** [text] with the words of [query] in bold, to show why a result matched. */
+@Composable
+private fun highlighted(text: String, query: String): AnnotatedString {
+    val bold = SpanStyle(fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
+    return buildAnnotatedString {
+        append(text)
+        query.split(' ').filter { it.isNotBlank() }.forEach { word ->
+            var from = text.indexOf(word, ignoreCase = true)
+            while (from >= 0) {
+                addStyle(bold, from, from + word.length)
+                from = text.indexOf(word, from + word.length, ignoreCase = true)
+            }
         }
     }
 }
@@ -601,6 +691,7 @@ private fun SettingsPageScaffold(
     onBack: () -> Unit,
     onSearch: (() -> Unit)? = null,
     snackbar: SnackbarHostState? = null,
+    enterInOrder: Boolean = false,
     content: @Composable () -> Unit,
 ) {
     val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior(rememberTopAppBarState())
@@ -622,8 +713,10 @@ private fun SettingsPageScaffold(
                     title = { Text(stringResource(title)) },
                     navigationIcon = back,
                     actions = {
-                        if (onSearch != null) IconButton(onClick = onSearch) {
-                            Icon(Icons.Default.Search, stringResource(R.string.settings_search))
+                        if (onSearch != null) {
+                            AnimatedVisibility(scrollBehavior.state.collapsedFraction > 0.9f, enter = fadeIn(), exit = fadeOut()) {
+                                IconButton(onClick = onSearch) { Icon(Icons.Default.Search, stringResource(R.string.settings_search)) }
+                            }
                         }
                     },
                     scrollBehavior = scrollBehavior,
@@ -639,15 +732,36 @@ private fun SettingsPageScaffold(
                 .padding(horizontal = 16.dp, vertical = 8.dp),
             verticalArrangement = Arrangement.spacedBy(24.dp),
         ) {
-            content()
+            CompositionLocalProvider(LocalPageEntrance provides remember { PageEntrance(enterInOrder) }) { content() }
             Spacer(Modifier.height(16.dp))
+        }
+    }
+}
+
+/** Opens the search; a field rather than an icon, so it is the first thing seen on the home. */
+@Composable
+private fun SearchField(modifier: Modifier, onClick: () -> Unit) {
+    Surface(
+        onClick = onClick,
+        shape = CircleShape,
+        color = MaterialTheme.colorScheme.surfaceContainerHigh,
+        modifier = modifier.fillMaxWidth().height(56.dp),
+    ) {
+        Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(horizontal = 20.dp)) {
+            Icon(Icons.Default.Search, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
+            Spacer(Modifier.width(16.dp))
+            Text(
+                stringResource(R.string.settings_search),
+                style = MaterialTheme.typography.bodyLarge,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
         }
     }
 }
 
 /** The categories, in their sections. */
 @Composable
-private fun Home(open: (SettingsPage) -> Unit) {
+private fun Home(colorful: Boolean, open: (SettingsPage) -> Unit) {
     val pages = SettingsPage.entries.filter { it.shown }
     SettingsSection.entries.forEach { section ->
         SettingsGroup(section.title) {
@@ -656,9 +770,9 @@ private fun Home(open: (SettingsPage) -> Unit) {
                     ListItem(
                         headlineContent = { Text(stringResource(p.title), fontWeight = FontWeight.Medium) },
                         supportingContent = { Text(stringResource(p.summary)) },
-                        leadingContent = { CategoryIcon(p.icon()) },
+                        leadingContent = { CategoryIcon(p.icon(), p.hue.takeIf { colorful }) },
                         colors = transparentItem(),
-                        modifier = Modifier.clickable { open(p) },
+                        modifier = Modifier.tileClickable { open(p) },
                     )
                 }
             }

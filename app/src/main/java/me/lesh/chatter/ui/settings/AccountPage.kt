@@ -354,7 +354,7 @@ private fun AccountsGroup(
                 supportingContent = { Text(active.name) },
                 leadingContent = { CategoryIcon(Icons.AutoMirrored.Filled.ExitToApp) },
                 colors = transparentItem(),
-                modifier = Modifier.clickable { onLogout(active) },
+                modifier = Modifier.tileClickable { onLogout(active) },
             )
         }
     }

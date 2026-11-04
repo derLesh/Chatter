@@ -1,6 +1,5 @@
 package me.lesh.chatter.ui.settings
 
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -8,7 +7,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.automirrored.filled.List
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Delete
@@ -60,9 +58,9 @@ internal fun MediaPage(settings: Settings, vm: MainViewModel, open: (SettingsSub
                         )
                     )
                 },
-                trailingContent = { Icon(Icons.AutoMirrored.Filled.ArrowForward, contentDescription = null) },
+                trailingContent = { NavChevron() },
                 colors = transparentItem(),
-                modifier = Modifier.clickable { open(SettingsSubPage.ImageHosts) },
+                modifier = Modifier.tileClickable { open(SettingsSubPage.ImageHosts) },
             )
         }
         item(R.string.settings_show_gifs) {
@@ -75,9 +73,9 @@ internal fun MediaPage(settings: Settings, vm: MainViewModel, open: (SettingsSub
                     val sites = PostSite.entries.filter { it in settings.postSites }.map { stringResource(siteName(it)) }
                     Text(sites.joinToString(", ").ifEmpty { stringResource(R.string.settings_off) })
                 },
-                trailingContent = { Icon(Icons.AutoMirrored.Filled.ArrowForward, contentDescription = null) },
+                trailingContent = { NavChevron() },
                 colors = transparentItem(),
-                modifier = Modifier.clickable { open(SettingsSubPage.Posts) },
+                modifier = Modifier.tileClickable { open(SettingsSubPage.Posts) },
             )
         }
         item(R.string.settings_full_links) { SwitchItem(R.string.settings_full_links, settings.fullLinks, vm::setFullLinks, R.string.settings_full_links_hint) }

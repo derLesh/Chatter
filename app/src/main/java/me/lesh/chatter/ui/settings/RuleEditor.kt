@@ -32,7 +32,6 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
-import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
@@ -174,7 +173,7 @@ internal fun RuleEditorPage(
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 }
-                Switch(checked = draft.regex, onCheckedChange = { draft = draft.copy(regex = it) })
+                SettingsSwitch(checked = draft.regex, onCheckedChange = { draft = draft.copy(regex = it) })
             }
 
             Label(R.string.rule_target)

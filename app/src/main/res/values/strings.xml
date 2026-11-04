@@ -19,7 +19,7 @@
     <string name="notif_whisper_public">New whisper</string>
 
     <string name="settings_sender_avatars">Profile pictures</string>
-    <string name="settings_sender_avatars_hint">Show the sender\'s profile picture in the notification</string>
+    <string name="settings_sender_avatars_hint">Shows the sender\'s profile picture in the notification</string>
 
     <!-- Chat system messages -->
     <string name="chat_reconnected">Reconnected.</string>
@@ -168,8 +168,8 @@
     <string name="settings">Settings</string>
     <string name="back">Back</string>
     <string name="settings_chat">Chat</string>
-    <string name="settings_font_size">Text size: %1$d</string>
-    <string name="settings_message_limit">Messages kept per channel: %1$d</string>
+    <string name="settings_font_size">Text size</string>
+    <string name="settings_message_limit">Messages kept per channel</string>
     <string name="settings_timestamps">Timestamps</string>
     <string name="settings_timestamps_off">No time</string>
     <string name="settings_name_style">Show names as</string>
@@ -179,13 +179,13 @@
     <string name="name_style_both">Always both</string>
     <string name="settings_animated_emotes">Animated emotes</string>
     <string name="settings_slow_idle_emotes">Slow down when left alone</string>
-    <string name="settings_slow_idle_emotes_hint">After three minutes without a touch, animated emotes play slower. This saves battery when the screen stays on</string>
+    <string name="settings_slow_idle_emotes_hint">After three minutes without a touch they play slower. Saves battery.</string>
     <string name="settings_keywords">Highlighted words</string>
     <string name="settings_keywords_summary">Words that alert you like your own name does</string>
     <string name="settings_keywords_hint">Your username is always highlighted</string>
     <string name="save">Save</string>
     <string name="settings_notifications">Notifications</string>
-    <string name="settings_notifications_hint">Sound, vibration and more in the system settings</string>
+    <string name="settings_notifications_hint">In Android\'s settings</string>
     <string name="open">Open</string>
     <string name="settings_account">Account</string>
     <string name="logout">Log out</string>
@@ -220,7 +220,7 @@
     <string name="theme_light">Light</string>
     <string name="theme_dark">Dark</string>
     <string name="settings_dynamic_color">Material You colors</string>
-    <string name="settings_dynamic_color_hint">Use the colors of your wallpaper</string>
+    <string name="settings_dynamic_color_hint">Uses the colors of your wallpaper</string>
     <string name="settings_pure_black">Pure black</string>
     <string name="settings_pure_black_hint">Black background for OLED screens</string>
     <string name="cmd_usage">Usage: %1$s</string>
@@ -254,21 +254,21 @@
     <string name="user_created">Account created %1$s</string>
 
     <!-- Settings pages -->
-    <string name="settings_appearance_summary">Theme, colors, how a message looks</string>
+    <string name="settings_appearance_summary">Theme, colors, text size</string>
     <string name="settings_emotes">Emotes &amp; badges</string>
     <string name="settings_emotes_summary">Providers, animation, badges</string>
     <string name="settings_filters">Filters</string>
     <string name="settings_filters_summary">Hidden words, rules, blocked users</string>
-    <string name="settings_notifications_summary">Mentions, highlighted words</string>
+    <string name="settings_notifications_summary">Mentions, highlighted words, vibration</string>
     <string name="settings_account_summary">Switch accounts, log out</string>
     <string name="settings_messages">Messages</string>
-    <string name="settings_messages_summary">History, tapping, user card</string>
+    <string name="settings_messages_summary">Scrolling, history, tapping, screen on</string>
     <string name="settings_media">Links &amp; images</string>
     <string name="settings_media_summary">Image previews, GIFs, posts</string>
     <string name="settings_typing">Typing</string>
     <string name="settings_typing_summary">Read only, suggestions, mentions, input</string>
     <string name="settings_backup_summary">Save and restore your settings</string>
-    <string name="settings_storage">Storage and data</string>
+    <string name="settings_storage">Storage &amp; data</string>
     <string name="settings_storage_summary">Data used, space on the phone, cache</string>
     <string name="storage_group">On this phone</string>
     <string name="storage_images">Images</string>
@@ -287,7 +287,7 @@
     <string name="settings_about">About</string>
     <string name="settings_about_summary">Version, credits</string>
     <string name="settings_channels">Channels</string>
-    <string name="settings_channels_summary">Order, names, notifications</string>
+    <string name="settings_channels_summary">Order, names, tabs</string>
     <string name="reorder_channel">Drag to reorder</string>
     <string name="channel_notify_on">Notifications on</string>
     <string name="channel_notify_off">Notifications off</string>
@@ -296,19 +296,18 @@
     <string name="settings_channel_tabs">Channels as tabs</string>
     <string name="settings_channel_tabs_hint">All channels in a row at the top. Hold a tab for more options.</string>
     <string name="settings_unread_title_bar">Show unread channels in the title bar</string>
-    <string name="settings_unread_title_bar_hint">Shows the profile picture of channels with new messages at the top, or a mark on their tab. You can leave out a channel in its menu.</string>
-    <string name="settings_group_device">On this phone</string>
+    <string name="settings_unread_title_bar_hint">Shows channels with new messages at the top. Leave one out in its menu.</string>
     <string name="settings_keep_screen_on">Keep the screen on</string>
     <string name="settings_keep_screen_on_hint">The screen stays on while messages arrive in the chat</string>
     <string name="settings_keep_screen_on_when_quiet">Also when the chat is quiet</string>
-    <string name="settings_keep_screen_on_when_quiet_hint">The screen stays on even after 10 minutes without a message or touch. This uses more battery</string>
+    <string name="settings_keep_screen_on_when_quiet_hint">Stays on even after 10 minutes without a message. Uses more battery.</string>
     <string name="settings_emote_providers">Emote providers</string>
     <string name="settings_provider_twitch">Twitch</string>
     <string name="settings_provider_seventv">7TV</string>
     <string name="settings_provider_bttv">BetterTTV</string>
     <string name="settings_provider_ffz">FrankerFaceZ</string>
     <string name="settings_show_deleted">Show deleted messages</string>
-    <string name="settings_show_deleted_hint">Keep them struck through instead of hiding them.</string>
+    <string name="settings_show_deleted_hint">Keeps them struck through instead of hiding them</string>
     <string name="settings_full_links">Show links in full</string>
     <string name="settings_full_links_hint">Otherwise long links are shortened</string>
     <string name="settings_mobile_data">On mobile data</string>
@@ -318,13 +317,13 @@
     <string name="mobile_data_saver_on">%1$s, but Data Saver is on</string>
     <string name="background_restricted_title">Battery use is restricted</string>
     <string name="background_restricted_text">Android can stop Chatter in the background at any time. Then mentions and whispers only arrive again once you open Chatter. Set the battery use to Unrestricted in the app settings.</string>
-    <string name="background_stopped_title">Android stopped the background connection</string>
-    <string name="background_stopped_text">On %1$s, Chatter was stopped in the background. %2$s. Until you opened it again, no mentions or whispers arrived.</string>
-    <string name="background_unrestricted_hint">Setting Chatter\'s battery use to Unrestricted keeps most phones from doing this.</string>
-    <string name="background_reason_memory">The phone was short of memory</string>
-    <string name="background_reason_resources">Android thought it used too much battery or power</string>
-    <string name="background_reason_user">It was stopped from the app settings or a task manager</string>
-    <string name="background_reason_system">The phone\'s battery saving ended it</string>
+    <string name="background_stopped_title">Background connection cut off</string>
+    <string name="background_stopped_text">On %1$s, Android stopped Chatter in the background. %2$s. Until you opened it, no mentions or whispers arrived.</string>
+    <string name="background_unrestricted_hint">With battery use set to Unrestricted, this rarely happens.</string>
+    <string name="background_reason_memory">Reason: the phone was short of memory</string>
+    <string name="background_reason_resources">Reason: too much battery or power use</string>
+    <string name="background_reason_user">Reason: the app settings or a task manager</string>
+    <string name="background_reason_system">Reason: the phone\'s battery saving</string>
     <string name="background_dismiss">Dismiss</string>
     <string name="background_why">Why?</string>
     <string name="background_battery_settings">App settings</string>
@@ -355,14 +354,15 @@
     <string name="settings_post_date">Date</string>
     <string name="settings_post_media">Picture or video</string>
     <string name="settings_post_counts">Replies, reposts and likes</string>
-    <string name="settings_post_text_none">Text: hidden</string>
-    <string name="settings_post_text_all">Text: all of it</string>
+    <string name="settings_post_text_none">Hidden</string>
+    <string name="settings_post_text_all">All of it</string>
+    <string name="settings_post_text">Text</string>
     <string name="settings_post_picture_size">Picture size</string>
     <string name="post_picture_small">Small</string>
     <string name="post_picture_medium">Medium</string>
     <string name="post_picture_large">Large</string>
     <string name="post_preview_message">look at this</string>
-    <string name="post_preview_text">Chatter can show posts from X and Bluesky right in the chat. Here you choose what the card shows: how much text, how big the picture is, and whether the date, profile picture and numbers are there. A tap on the card opens the post.</string>
+    <string name="post_preview_text">This is how a post looks in the chat. Tapping the card opens it.</string>
     <string name="settings_blur_nsfw_posts">Blur NSFW posts</string>
     <string name="settings_blur_nsfw_posts_hint">Pictures marked NSFW stay blurred until tapped</string>
     <string name="post_picture">Picture of the post</string>
@@ -372,28 +372,29 @@
     <string name="settings_carousel">Swipe in a circle</string>
     <string name="settings_carousel_hint">After the last channel comes the first again</string>
     <string name="settings_read_only">Only read</string>
-    <string name="settings_read_only_hint">Hide the input at the bottom of the chat, for watching a chat without writing in it</string>
+    <string name="settings_read_only_hint">Hides the input. Good for just reading along.</string>
     <string name="settings_emote_suggestions">Emote suggestions</string>
-    <string name="settings_emote_suggestions_hint">Suggest emotes while typing, and emoji after a colon, as in :smile</string>
+    <string name="settings_emote_suggestions_hint">Suggests emotes while typing, and emoji after a colon, like :smile</string>
     <string name="settings_user_suggestions">Name suggestions</string>
-    <string name="settings_user_suggestions_hint">Suggest names from the chat</string>
+    <string name="settings_user_suggestions_hint">Suggests names from the chat</string>
     <string name="settings_mention_with_at">Insert names with @</string>
-    <string name="settings_mention_with_at_hint">Put an @ before the name</string>
+    <string name="settings_mention_with_at_hint">Puts an @ before the name</string>
     <string name="settings_group_input">Input</string>
     <string name="settings_recently_sent">Recently sent</string>
-    <string name="settings_recently_sent_hint">Your last three messages. Typing brings the send button back</string>
+    <string name="settings_recently_sent_hint">Shows your last three messages to send again</string>
     <string name="recently_sent_replaces_send">Instead of send</string>
     <string name="recently_sent_in_input">In the field</string>
     <string name="recently_sent_hidden">Off</string>
     <string name="settings_chat_modes_button">Chat modes</string>
-    <string name="settings_chat_modes_button_hint">Quick access to chat modes</string>
+    <string name="settings_chat_modes_button_hint">Shows mods a shield by the input for slow mode, emote-only and more</string>
     <string-array name="input_preview_sent">
         <item>GG</item>
         <item>What\'s this song?</item>
         <item>Pog</item>
     </string-array>
     <string name="settings_group_colors">Colors</string>
-    <string name="settings_group_messages">Messages</string>
+    <string name="settings_group_in_chat">In the chat</string>
+    <string name="settings_group_screen">Screen</string>
     <string name="settings_message_tap">Tap a message</string>
     <string name="settings_name_tap">Tap a name</string>
     <string name="settings_tap_hint">Holding a message always opens the user card</string>
@@ -402,10 +403,10 @@
     <string name="tap_action_mention">Mention</string>
     <string name="tap_action_nothing">Nothing</string>
     <string name="settings_copy_first">Copy first</string>
-    <string name="settings_copy_first_hint">Put Copy before Reply</string>
+    <string name="settings_copy_first_hint">The user card shows Copy before Reply</string>
     <string name="settings_group_mentions">Mentions</string>
     <string name="settings_alternate_background">Alternating background</string>
-    <string name="settings_alternate_background_hint">Shade every other message for easier reading</string>
+    <string name="settings_alternate_background_hint">Shades every other message a little lighter</string>
     <string name="settings_highlight_color">Highlight color</string>
     <string name="settings_highlight_color_hint">Background of messages that mention you</string>
     <string name="highlight_custom">Custom color</string>
@@ -417,9 +418,9 @@
     <string name="highlight_brightness">Brightness</string>
     <string name="settings_highlight_preview_name">viewer</string>
     <string name="settings_highlight_preview_text">hey @you, look at this!</string>
-    <string name="settings_load_history">Load recent messages</string>
+    <string name="settings_load_history">Load earlier messages</string>
     <string name="settings_load_history_hint">Loads earlier messages from recent-messages.robotty.de when you open a chat</string>
-    <string name="settings_system_notifications">Notification settings</string>
+    <string name="settings_system_notifications">Sound and more</string>
     <string name="settings_group_accounts">Accounts</string>
     <string name="account_scopes_title">Log in again to use everything</string>
     <string name="account_scopes_text">Your login is from an older version of Chatter. Log in again</string>
@@ -506,7 +507,7 @@
     <string name="settings_zero_width">Zero-width emotes</string>
     <string name="settings_zero_width_hint">Some emotes are placed on top of the emote before them</string>
     <string name="settings_unlisted_7tv">Unlisted 7TV emotes</string>
-    <string name="settings_unlisted_7tv_hint">Show 7TV emotes that are not publicly listed</string>
+    <string name="settings_unlisted_7tv_hint">Shows 7TV emotes that are not publicly listed</string>
 
     <!-- Emote card -->
     <string name="emote_channel">Channel emote</string>
@@ -528,9 +529,9 @@
 
     <!-- 7TV activity -->
     <string name="settings_seventv_events">7TV activity</string>
-    <string name="settings_seventv_events_hint">Show in the chat when 7TV emotes are added, removed or renamed</string>
+    <string name="settings_seventv_events_hint">Shows in the chat when 7TV emotes are added, removed or renamed</string>
     <string name="settings_seventv_paints">7TV paints</string>
-    <string name="settings_seventv_paints_hint">Names in the colors and patterns their owners picked on 7TV. Some are hard to read</string>
+    <string name="settings_seventv_paints_hint">Names in their 7TV colors and patterns. Some are hard to read.</string>
     <string name="seventv_added">7TV: %1$s added</string>
     <string name="seventv_removed">7TV: %1$s removed %2$s</string>
     <string name="seventv_renamed">7TV: %1$s renamed %2$s to</string>
@@ -566,7 +567,7 @@
 
     <!-- Name colors -->
     <string name="settings_name_colors">Name colors</string>
-    <string name="settings_name_colors_hint">Adjust name colors so they are easier to read</string>
+    <string name="settings_name_colors_hint">Adjusts name colors so they are easier to read</string>
     <string name="settings_name_colors_sample">Aa</string>
     <string name="name_colors_none">No color</string>
     <string name="name_colors_twitch">Twitch</string>
@@ -584,8 +585,9 @@
         <item quantity="other">%1$s watched %2$d streams in a row</item>
     </plurals>
     <string name="settings_first_messages">Highlight first messages</string>
-    <string name="settings_first_messages_hint">Mark it when someone writes in a channel for the first time</string>
+    <string name="settings_first_messages_hint">Marks it when someone writes in a channel for the first time</string>
     <string name="settings_special_messages">Special messages</string>
+    <string name="settings_special_messages_examples">Giant emotes, effects, rewards</string>
     <string name="settings_special_messages_on">%1$d of %2$d on</string>
     <string name="special_giant_emotes">Giant emotes</string>
     <string name="special_giant_emotes_hint">An emote someone made big with bits</string>
@@ -610,8 +612,8 @@
     <string name="keyword_word">Word</string>
     <string name="keyword_remove">Remove %s</string>
     <plurals name="settings_post_text_lines">
-        <item quantity="one">Text: %1$d line</item>
-        <item quantity="other">Text: %1$d lines</item>
+        <item quantity="one">%1$d line</item>
+        <item quantity="other">%1$d lines</item>
     </plurals>
     <plurals name="post_replies">
         <item quantity="one">%1$s reply</item>
@@ -721,7 +723,7 @@
     <string name="settings_changelog">Changelog</string>
     <string name="settings_changelog_summary">Changes in each Chatter version</string>
     <string name="settings_update_check">Look for updates</string>
-    <string name="settings_update_check_hint">Ask GitHub once a day whether a newer version is out</string>
+    <string name="settings_update_check_hint">Asks GitHub once a day whether a newer version is out</string>
     <string name="update_available">Chatter %1$s is out</string>
     <string name="update_installed">You have %1$s</string>
     <string name="update_whats_new">What\'s new</string>
@@ -746,7 +748,6 @@
     <string name="jump_message_gone">That message is no longer in the chat</string>
 
     <string name="settings_group_controls">Controls</string>
-    <string name="settings_group_user_card">User card</string>
     <string name="settings_haptics">Vibration</string>
     <string name="settings_haptics_hint">A short buzz when you are mentioned</string>
 
@@ -1009,11 +1010,13 @@
     <string name="live_channels_followed">Other followed channels</string>
     <string name="live_channels_loading">Asking Twitch whom you follow…</string>
     <string name="live_channels_none">No other followed channels</string>
-    <!-- Beta features -->
+    <!-- Labs -->
     <string name="beta">Beta</string>
-    <string name="settings_beta">Beta features</string>
+    <string name="settings_beta">Labs</string>
     <string name="settings_beta_summary">Try what is new and not finished yet</string>
     <string name="settings_beta_intro">New and not finished yet.</string>
+    <string name="settings_colorful_categories">Colorful categories</string>
+    <string name="settings_colorful_categories_hint">Gives every settings category its own color</string>
     <string name="settings_catch_up">Sum up what you missed</string>
     <string name="settings_catch_up_hint">From 30 new messages on, Gemini Nano sums up on your phone what happened. Google only gets usage numbers.</string>
     <string name="model_state_checking">Checking…</string>

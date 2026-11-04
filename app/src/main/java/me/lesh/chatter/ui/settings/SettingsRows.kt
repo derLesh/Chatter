@@ -1,5 +1,13 @@
 package me.lesh.chatter.ui.settings
 
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.SizeTransform
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
+import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -13,7 +21,6 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.automirrored.filled.List
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Delete
@@ -26,10 +33,12 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Slider
-import androidx.compose.material3.Switch
+import androidx.compose.material3.SliderDefaults
+import androidx.compose.material3.SliderState
 import androidx.compose.material3.Text
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -37,10 +46,12 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import me.lesh.chatter.R
 import kotlinx.coroutines.launch
@@ -71,17 +82,19 @@ internal fun <T> ChoiceItem(
         headlineContent = { Text(stringResource(title)) },
         // The row shows the preview too; for a palette the look is the thing being chosen.
         supportingContent = {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Text(label(value))
+            // On one baseline: centred, a preview in a taller fallback font (Korean) put the two
+            // baselines apart, and ListItem then took the row for three lines.
+            Row {
+                Text(label(value), Modifier.alignByBaseline())
                 preview?.let {
                     Spacer(Modifier.width(12.dp))
-                    it(value)
+                    Row(Modifier.alignByBaseline()) { it(value) }
                 }
             }
         },
-        trailingContent = { Icon(Icons.AutoMirrored.Filled.ArrowForward, contentDescription = null) },
+        trailingContent = { NavChevron() },
         colors = transparentItem(),
-        modifier = Modifier.clickable { open = true },
+        modifier = Modifier.tileClickable { open = true },
     )
     if (!open) return
 
@@ -138,9 +151,9 @@ internal fun SwitchItem(res: Int, checked: Boolean, onChange: (Boolean) -> Unit,
     ListItem(
         headlineContent = { Text(stringResource(res)) },
         supportingContent = hint?.let { { Text(stringResource(it)) } },
-        trailingContent = { Switch(checked = checked, onCheckedChange = onChange) },
+        trailingContent = { SettingsSwitch(checked = checked, onCheckedChange = onChange) },
         colors = transparentItem(),
-        modifier = Modifier.clickable { onChange(!checked) },
+        modifier = Modifier.tileClickable { onChange(!checked) },
     )
 }
 
@@ -155,9 +168,9 @@ internal fun KeywordListItem(title: Int, summary: Int, words: List<String>, onCl
                 else pluralStringResource(R.plurals.keywords_count, words.size, words.size)
             )
         },
-        trailingContent = { Icon(Icons.AutoMirrored.Filled.ArrowForward, contentDescription = null) },
+        trailingContent = { NavChevron() },
         colors = transparentItem(),
-        modifier = Modifier.clickable(onClick = onClick),
+        modifier = Modifier.tileClickable(onClick = onClick),
     )
 }
 
@@ -213,20 +226,68 @@ internal fun KeywordsPage(
     }
 }
 
+/**
+ * A number picked on a slider, its value at the end of the title line. [below] goes under the
+ * slider, for a preview that follows the finger.
+ */
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 internal fun SliderItem(
-    title: String,
+    title: Int,
+    valueLabel: String,
     value: Float,
     onChange: (Float) -> Unit,
     onDone: () -> Unit,
     range: ClosedFloatingPointRange<Float>,
     steps: Int,
+    below: @Composable () -> Unit = {},
 ) {
     ListItem(
-        headlineContent = { Text(title) },
+        headlineContent = {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(stringResource(title), Modifier.weight(1f))
+                // The number rolls up or down with the slider, like a counter.
+                AnimatedContent(
+                    targetState = value to valueLabel,
+                    transitionSpec = {
+                        // Short, so a drag through several steps still shows a readable number.
+                        val up = targetState.first > initialState.first
+                        val roll = tween<IntOffset>(ROLL_MS)
+                        (slideInVertically(roll) { if (up) it else -it } + fadeIn(tween(ROLL_MS))) togetherWith
+                            (slideOutVertically(roll) { if (up) -it else it } + fadeOut(tween(ROLL_MS))) using SizeTransform(clip = true)
+                    },
+                    contentAlignment = Alignment.CenterEnd,
+                    modifier = Modifier.clipToBounds(),
+                    label = "slider-value",
+                ) { (_, label) ->
+                    Text(
+                        label,
+                        style = MaterialTheme.typography.titleMedium,
+                        color = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.padding(start = 12.dp),
+                    )
+                }
+            }
+        },
         supportingContent = {
-            Slider(value = value, onValueChange = onChange, onValueChangeFinished = onDone, valueRange = range, steps = steps)
+            Column {
+                val state = remember(range, steps) { SliderState(value, steps, range) }
+                LaunchedEffect(value) { if (state.value != value) state.value = value }
+                // The end dot would sit on the last tick; the ticks alone show the steps.
+                Slider(
+                    state = state,
+                    onValueChange = {
+                        state.value = it
+                        onChange(state.value)
+                    },
+                    onValueChangeFinished = onDone,
+                    track = { SliderDefaults.Track(sliderState = it, drawStopIndicator = null) },
+                )
+                below()
+            }
         },
         colors = transparentItem(),
     )
 }
+
+private const val ROLL_MS = 110

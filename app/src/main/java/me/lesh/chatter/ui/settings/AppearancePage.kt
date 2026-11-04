@@ -8,15 +8,11 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowForward
-import androidx.compose.material3.Icon
 import androidx.compose.material3.ListItem
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.SegmentedButton
 import androidx.compose.material3.SegmentedButtonDefaults
 import androidx.compose.material3.SingleChoiceSegmentedButtonRow
-import androidx.compose.material3.Slider
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -44,7 +40,6 @@ import me.lesh.chatter.emotes.twitchEmoteUrl
 import me.lesh.chatter.settings.EmoteSize
 import me.lesh.chatter.settings.LineSpacing
 import me.lesh.chatter.settings.Settings
-import me.lesh.chatter.settings.SpecialMessage
 import me.lesh.chatter.settings.ThemeMode
 import me.lesh.chatter.settings.NameStyle
 import me.lesh.chatter.settings.TimestampFormat
@@ -64,7 +59,7 @@ import kotlin.math.roundToInt
 internal fun AppearancePage(settings: Settings, vm: MainViewModel, open: (SettingsSubPage) -> Unit) {
     val dark = isAppInDarkTheme()
     SettingsGroup(R.string.settings_group_colors) {
-        item(R.string.settings_theme) { ThemeModeItem(settings.themeMode, vm::setThemeMode) }
+        item(R.string.settings_theme) { ThemeModeItem(settings.themeMode, vm::setThemeMode, R.string.settings_theme) }
         item(R.string.settings_dynamic_color) { SwitchItem(R.string.settings_dynamic_color, settings.dynamicColor, vm::setDynamicColor, R.string.settings_dynamic_color_hint) }
         // Only while the app is dark (chosen, or dark via System); a light theme has no black.
         if (dark) {
@@ -106,80 +101,23 @@ internal fun AppearancePage(settings: Settings, vm: MainViewModel, open: (Settin
         item(R.string.settings_timestamps) { TimestampPicker(settings.timestamps, vm::setTimestamps) }
         item(R.string.settings_name_style) { NameStylePicker(settings.nameStyle, vm::setNameStyle) }
     }
-
-    // How a message behaves. Emotes have their own category.
-    SettingsGroup(R.string.settings_group_messages) {
-        item(R.string.settings_smooth_scrolling) {
-            SwitchItem(
-                R.string.settings_smooth_scrolling, settings.smoothScrolling,
-                vm::setSmoothScrolling, R.string.settings_smooth_scrolling_hint,
-            )
-        }
-        item(R.string.settings_show_deleted) { SwitchItem(R.string.settings_show_deleted, settings.showDeleted, vm::setShowDeleted, R.string.settings_show_deleted_hint) }
-        item(R.string.settings_first_messages) {
-            SwitchItem(
-                R.string.settings_first_messages, settings.highlightFirstMessages,
-                vm::setHighlightFirstMessages, R.string.settings_first_messages_hint,
-            )
-        }
-        item(R.string.settings_special_messages) {
-            ListItem(
-                headlineContent = { Text(stringResource(R.string.settings_special_messages)) },
-                supportingContent = {
-                    val on = settings.specialMessages.size
-                    Text(
-                        if (on == 0) stringResource(R.string.settings_off)
-                        else stringResource(R.string.settings_special_messages_on, on, SpecialMessage.entries.size),
-                    )
-                },
-                trailingContent = { Icon(Icons.AutoMirrored.Filled.ArrowForward, contentDescription = null) },
-                colors = transparentItem(),
-                modifier = Modifier.clickable { open(SettingsSubPage.SpecialMessages) },
-            )
-        }
-    }
-
-    // The phone-related settings, in one group.
-    SettingsGroup(R.string.settings_group_device) {
-        item(R.string.settings_keep_screen_on) {
-            SwitchItem(
-                R.string.settings_keep_screen_on, settings.keepScreenOn,
-                vm::setKeepScreenOn, R.string.settings_keep_screen_on_hint,
-            )
-        }
-        // Only relevant while the screen is kept on.
-        if (settings.keepScreenOn) {
-            item(R.string.settings_keep_screen_on_when_quiet) {
-                SwitchItem(
-                    R.string.settings_keep_screen_on_when_quiet, settings.keepScreenOnWhenQuiet,
-                    vm::setKeepScreenOnWhenQuiet, R.string.settings_keep_screen_on_when_quiet_hint,
-                )
-            }
-        }
-        item(R.string.settings_haptics) {
-            SwitchItem(
-                R.string.settings_haptics, settings.haptics,
-                vm::setHaptics, R.string.settings_haptics_hint,
-            )
-        }
-    }
 }
 
-/**
- * The buttons are the row: three one-word options are clearer than a sheet, and need no extra
- * label under the "Colors" heading.
- */
+/** Three one-word options, spelled out as buttons rather than a sheet. [title] goes above them. */
 @Composable
-internal fun ThemeModeItem(selected: ThemeMode, onSelect: (ThemeMode) -> Unit) {
+internal fun ThemeModeItem(selected: ThemeMode, onSelect: (ThemeMode) -> Unit, title: Int? = null) {
     ListItem(
         headlineContent = {
-            SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth()) {
-                THEME_MODES.forEachIndexed { i, (mode, label) ->
-                    SegmentedButton(
-                        selected = selected == mode,
-                        onClick = { onSelect(mode) },
-                        shape = SegmentedButtonDefaults.itemShape(i, THEME_MODES.size),
-                    ) { Text(stringResource(label)) }
+            Column {
+                title?.let { Text(stringResource(it), Modifier.padding(bottom = 8.dp)) }
+                SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth()) {
+                    THEME_MODES.forEachIndexed { i, (mode, label) ->
+                        SegmentedButton(
+                            selected = selected == mode,
+                            onClick = { onSelect(mode) },
+                            shape = SegmentedButtonDefaults.itemShape(i, THEME_MODES.size),
+                        ) { Text(stringResource(label)) }
+                    }
                 }
             }
         },
@@ -203,21 +141,15 @@ internal fun TextSizeItem(settings: Settings, vm: MainViewModel) {
  */
 @Composable
 private fun TextSizeSlider(size: Float, onSize: (Float) -> Unit, vm: MainViewModel, preview: @Composable () -> Unit = {}) {
-    ListItem(
-        headlineContent = { Text(stringResource(R.string.settings_font_size, size.roundToInt())) },
-        supportingContent = {
-            Column {
-                Slider(
-                    value = size,
-                    onValueChange = onSize,
-                    onValueChangeFinished = { vm.setFontSize(size.roundToInt().toFloat()) },
-                    valueRange = 10f..24f,
-                    steps = 13,
-                )
-                preview()
-            }
-        },
-        colors = transparentItem(),
+    SliderItem(
+        title = R.string.settings_font_size,
+        valueLabel = size.roundToInt().toString(),
+        value = size,
+        onChange = onSize,
+        onDone = { vm.setFontSize(size.roundToInt().toFloat()) },
+        range = 10f..24f,
+        steps = 13,
+        below = preview,
     )
 }
 
@@ -354,11 +286,11 @@ private fun AppIconItem(vm: MainViewModel, onOpen: () -> Unit) {
         trailingContent = {
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                 AppIconPreview(current, size = 40.dp)
-                Icon(Icons.AutoMirrored.Filled.ArrowForward, contentDescription = null)
+                NavChevron()
             }
         },
         colors = transparentItem(),
-        modifier = Modifier.clickable(onClick = onOpen),
+        modifier = Modifier.tileClickable(onClick = onOpen),
     )
 }
 
