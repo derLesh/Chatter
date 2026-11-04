@@ -6,11 +6,11 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.shape.CircleShape
@@ -63,6 +63,9 @@ private val HIGHLIGHT_COLORS = listOf(
     0xFF2196F3.toInt(), 0xFF9C27B0.toInt(), 0xFFE91E63.toInt(),
 )
 
+private const val SWATCHES_PER_ROW = 5
+private val SWATCH_TOUCH_SIZE = 48.dp
+
 /** Presets and a custom color, shared by appearance settings and onboarding. */
 @Composable
 internal fun HighlightColorPicker(selected: Int, onSelect: (Int) -> Unit) {
@@ -74,57 +77,32 @@ internal fun HighlightColorPicker(selected: Int, onSelect: (Int) -> Unit) {
         supportingContent = {
             Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 Text(stringResource(R.string.settings_highlight_color_hint))
-                // ListItem measures intrinsically, which lazy lists do not support.
-                Row(
-                    horizontalArrangement = Arrangement.spacedBy(4.dp),
-                    modifier = Modifier.horizontalScroll(rememberScrollState()),
-                ) {
-                    HIGHLIGHT_COLORS.forEach { option ->
-                        val color = highlightColor(option, scheme)
-                        val label = when (option) {
-                            Settings.HIGHLIGHT_DEFAULT -> stringResource(R.string.highlight_default)
-                            Settings.HIGHLIGHT_ACCENT -> stringResource(R.string.highlight_accent)
-                            else -> stringResource(R.string.highlight_color_value, colorHex(color))
-                        }
-                        Box(
-                            contentAlignment = Alignment.Center,
-                            modifier = Modifier
-                                .size(48.dp)
-                                .selectable(selected == option, role = Role.RadioButton) { onSelect(option) }
-                                .semantics { contentDescription = label },
-                        ) {
-                            Box(
-                                contentAlignment = Alignment.Center,
-                                modifier = Modifier.size(40.dp).clip(CircleShape).background(color)
-                                    .border(if (option == selected) 3.dp else 1.dp,
-                                        if (option == selected) scheme.onSurface else scheme.outline, CircleShape),
-                            ) {
-                                if (option == selected) {
-                                    Icon(Icons.Default.Check, null,
-                                        tint = if (color.luminance() > 0.179f) Color.Black else Color.White)
+                val customLabel = stringResource(R.string.highlight_custom)
+                // Five to a row from edge to edge, so none hides behind the edge; the last place is
+                // the custom color. ListItem measures intrinsically, which lazy grids do not support.
+                Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                    (0..HIGHLIGHT_COLORS.size).chunked(SWATCHES_PER_ROW).forEach { row ->
+                        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                            row.forEach { index ->
+                                val option = HIGHLIGHT_COLORS.getOrNull(index)
+                                if (option != null) {
+                                    val color = highlightColor(option, scheme)
+                                    val label = when (option) {
+                                        Settings.HIGHLIGHT_DEFAULT -> stringResource(R.string.highlight_default)
+                                        Settings.HIGHLIGHT_ACCENT -> stringResource(R.string.highlight_accent)
+                                        else -> stringResource(R.string.highlight_color_value, colorHex(color))
+                                    }
+                                    Swatch(color, selected == option, label, { onSelect(option) }) {
+                                        if (option == selected) Icon(Icons.Default.Check, null, tint = contentColorOn(color))
+                                    }
+                                } else {
+                                    val customColor = if (customSelected) Color(selected) else scheme.surfaceContainerHigh
+                                    Swatch(customColor, customSelected, customLabel, { customOpen = true }) {
+                                        Icon(Icons.Default.Edit, null, tint = contentColorOn(customColor))
+                                    }
                                 }
                             }
-                        }
-                    }
-                    val customColor = if (customSelected) Color(selected) else scheme.surfaceContainerHigh
-                    val customLabel = stringResource(R.string.highlight_custom)
-                    Box(
-                        contentAlignment = Alignment.Center,
-                        modifier = Modifier
-                            .size(48.dp)
-                            .selectable(customSelected, role = Role.RadioButton) { customOpen = true }
-                            .semantics { contentDescription = customLabel },
-                    ) {
-                        Box(
-                            contentAlignment = Alignment.Center,
-                            modifier = Modifier.size(40.dp).clip(CircleShape).background(customColor)
-                                .border(if (customSelected) 3.dp else 1.dp,
-                                    if (customSelected) scheme.onSurface else scheme.outline, CircleShape),
-                        ) {
-                            Icon(
-                                Icons.Default.Edit, null,
-                                tint = if (customColor.luminance() > 0.179f) Color.Black else Color.White,
-                            )
+                            repeat(SWATCHES_PER_ROW - row.size) { Spacer(Modifier.size(SWATCH_TOUCH_SIZE)) }
                         }
                     }
                 }
@@ -141,6 +119,26 @@ internal fun HighlightColorPicker(selected: Int, onSelect: (Int) -> Unit) {
         )
     }
 }
+
+@Composable
+private fun Swatch(color: Color, selected: Boolean, label: String, onClick: () -> Unit, mark: @Composable () -> Unit) {
+    val scheme = MaterialTheme.colorScheme
+    Box(
+        contentAlignment = Alignment.Center,
+        modifier = Modifier
+            .size(SWATCH_TOUCH_SIZE)
+            .selectable(selected, role = Role.RadioButton, onClick = onClick)
+            .semantics { contentDescription = label },
+    ) {
+        Box(
+            contentAlignment = Alignment.Center,
+            modifier = Modifier.size(40.dp).clip(CircleShape).background(color)
+                .border(if (selected) 3.dp else 1.dp, if (selected) scheme.onSurface else scheme.outline, CircleShape),
+        ) { mark() }
+    }
+}
+
+private fun contentColorOn(color: Color) = if (color.luminance() > 0.179f) Color.Black else Color.White
 
 /** Keep the draft separate so dismissing the dialog leaves the saved color untouched. */
 @Composable

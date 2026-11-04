@@ -1,6 +1,14 @@
 package me.lesh.chatter.ui
 
 import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.ui.Alignment
+import androidx.compose.material3.Surface
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -59,9 +67,13 @@ import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.res.vectorResource
+import androidx.compose.ui.text.AnnotatedString
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigationevent.NavigationEventInfo
@@ -222,19 +234,18 @@ private val SEARCH_INDEX: List<SearchEntry> by lazy {
         add(SearchEntry(R.string.settings_alternate_background, appearance, R.string.settings_alternate_background_hint))
         add(SearchEntry(R.string.settings_timestamps, appearance))
         add(SearchEntry(R.string.settings_name_style, appearance, also = NAME_STYLES.map { it.second }))
-        add(SearchEntry(R.string.settings_smooth_scrolling, appearance, R.string.settings_smooth_scrolling_hint))
-        add(SearchEntry(R.string.settings_show_deleted, appearance, R.string.settings_show_deleted_hint))
-        add(SearchEntry(R.string.settings_first_messages, appearance, R.string.settings_first_messages_hint))
-        add(SearchEntry(R.string.settings_special_messages, appearance, also = SPECIAL_MESSAGE_TITLES.map { it.second }))
-        add(SearchEntry(R.string.settings_keep_screen_on, appearance, R.string.settings_keep_screen_on_hint))
-        add(SearchEntry(R.string.settings_keep_screen_on_when_quiet, appearance, R.string.settings_keep_screen_on_when_quiet_hint))
-        add(SearchEntry(R.string.settings_haptics, appearance, R.string.settings_haptics_hint))
         val messages = SettingsPage.Messages
+        add(SearchEntry(R.string.settings_smooth_scrolling, messages, R.string.settings_smooth_scrolling_hint))
+        add(SearchEntry(R.string.settings_show_deleted, messages, R.string.settings_show_deleted_hint))
+        add(SearchEntry(R.string.settings_first_messages, messages, R.string.settings_first_messages_hint))
+        add(SearchEntry(R.string.settings_special_messages, messages, also = SPECIAL_MESSAGE_TITLES.map { it.second }))
         add(SearchEntry(R.string.settings_message_limit, messages))
         add(SearchEntry(R.string.settings_load_history, messages, R.string.settings_load_history_hint))
         add(SearchEntry(R.string.settings_message_tap, messages))
         add(SearchEntry(R.string.settings_name_tap, messages))
         add(SearchEntry(R.string.settings_copy_first, messages, R.string.settings_copy_first_hint))
+        add(SearchEntry(R.string.settings_keep_screen_on, messages, R.string.settings_keep_screen_on_hint))
+        add(SearchEntry(R.string.settings_keep_screen_on_when_quiet, messages, R.string.settings_keep_screen_on_when_quiet_hint))
         val media = SettingsPage.Media
         add(SearchEntry(R.string.settings_inline_images, media, R.string.settings_inline_images_hint))
         add(SearchEntry(R.string.settings_image_hosts, media))
@@ -275,6 +286,7 @@ private val SEARCH_INDEX: List<SearchEntry> by lazy {
         val notifications = SettingsPage.Notifications
         add(SearchEntry(R.string.settings_keywords, notifications, R.string.settings_keywords_summary))
         add(SearchEntry(R.string.settings_sender_avatars, notifications, R.string.settings_sender_avatars_hint))
+        add(SearchEntry(R.string.settings_haptics, notifications, R.string.settings_haptics_hint))
         add(SearchEntry(R.string.settings_system_notifications, notifications, R.string.settings_notifications_hint))
         add(SearchEntry(R.string.settings_bubbles, notifications, R.string.settings_bubbles_hint))
         add(SearchEntry(R.string.settings_live_notifications, notifications, R.string.settings_live_notifications_hint))
@@ -310,6 +322,8 @@ private val SEARCH_INDEX: List<SearchEntry> by lazy {
         }
     }
 }
+
+private data class SearchResult(val entry: SearchEntry, val title: String, val subtitle: String)
 
 /**
  * Twitch's login page over the settings. [signedOut] starts without Twitch's session, needed for
@@ -437,7 +451,7 @@ fun SettingsScreen(vm: MainViewModel, onBack: () -> Unit) {
             current == SettingsPage.About -> null
             else -> current?.title ?: R.string.settings
         }
-        // Search is only offered on the category list.
+        // The search field scrolls away with the home; the collapsed bar then offers it as an icon.
         val onSearch = if (current == null && currentSub == null) ({ searching = true }) else null
         SettingsPageScaffold(title = title, onBack = goBack, onSearch = onSearch, snackbar = snackbar) {
           CompositionLocalProvider(LocalSettingsTarget provides target.takeIf { currentSub == null }) {
@@ -477,12 +491,13 @@ fun SettingsScreen(vm: MainViewModel, onBack: () -> Unit) {
                 SettingsSubPage.Update -> update?.let { UpdatePage(it) }
                 null -> when (current) {
                     null -> {
+                        SearchField { searching = true }
                         AccountSummaryCard(auth, vm.imageLoader) { page = SettingsPage.Account }
                         update?.let { UpdateCard(it, BuildConfig.VERSION_NAME) { subPage = SettingsSubPage.Update } }
                         Home { page = it }
                     }
                     SettingsPage.Appearance -> AppearancePage(settings, vm) { subPage = it }
-                    SettingsPage.Messages -> MessagesPage(settings, vm)
+                    SettingsPage.Messages -> MessagesPage(settings, vm) { subPage = it }
                     SettingsPage.Media -> MediaPage(settings, vm) { subPage = it }
                     SettingsPage.Typing -> TypingPage(settings, vm)
                     SettingsPage.Emotes -> EmotesPage(settings, vm) { subPage = it }
@@ -524,9 +539,20 @@ private fun SearchPage(query: String, onQuery: (String) -> Unit, onOpen: (Search
         val matching = SEARCH_INDEX.filter { e ->
             SettingsSearch.matches(query, (listOfNotNull(e.title, e.hint, e.page.title) + e.also).map(::text))
         }
-        // Titles matching the query come before entries that only mention it.
-        val (named, mentioned) = matching.partition { SettingsSearch.matches(query, listOf(text(it.title))) }
-        (named + mentioned).map { it to text(it.title) }
+        // Pages first, as the place to look around; then titles matching the query, then entries
+        // that only mention it.
+        val (pages, settings) = matching.partition { it.key == null }
+        val (named, mentioned) = settings.partition { SettingsSearch.matches(query, listOf(text(it.title))) }
+        // The subtitle says why a result matched: a page's summary, a setting's page, and for a
+        // setting found by another word, that word too.
+        fun why(e: SearchEntry): String {
+            if (e.key == null) return text(e.page.summary)
+            val page = text(e.page.title)
+            if (e in named) return page
+            val reason = (listOfNotNull(e.hint) + e.also).map(::text).firstOrNull { SettingsSearch.matches(query, listOf(it)) }
+            return if (reason == null) page else "$page · $reason"
+        }
+        (pages + named + mentioned).map { SearchResult(it, text(it.title), why(it)) }
     }
     Scaffold(
         containerColor = MaterialTheme.colorScheme.surface,
@@ -575,12 +601,11 @@ private fun SearchPage(query: String, onQuery: (String) -> Unit, onOpen: (Search
                 )
             }
             if (results.isNotEmpty()) SettingsGroup {
-                results.forEach { (entry, title) ->
+                results.forEach { (entry, title, subtitle) ->
                     item {
                         ListItem(
-                            headlineContent = { Text(title) },
-                            // A category found as itself needs no category below.
-                            supportingContent = if (entry.key == null) null else ({ Text(stringResource(entry.page.title)) }),
+                            headlineContent = { Text(highlighted(title, query)) },
+                            supportingContent = { Text(highlighted(subtitle, query), maxLines = 2, overflow = TextOverflow.Ellipsis) },
                             leadingContent = { CategoryIcon(entry.page.icon()) },
                             colors = transparentItem(),
                             modifier = Modifier.clickable { onOpen(entry) },
@@ -589,6 +614,22 @@ private fun SearchPage(query: String, onQuery: (String) -> Unit, onOpen: (Search
                 }
             }
             Spacer(Modifier.height(16.dp))
+        }
+    }
+}
+
+/** [text] with the words of [query] in bold, to show why a result matched. */
+@Composable
+private fun highlighted(text: String, query: String): AnnotatedString {
+    val bold = SpanStyle(fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
+    return buildAnnotatedString {
+        append(text)
+        query.split(' ').filter { it.isNotBlank() }.forEach { word ->
+            var from = text.indexOf(word, ignoreCase = true)
+            while (from >= 0) {
+                addStyle(bold, from, from + word.length)
+                from = text.indexOf(word, from + word.length, ignoreCase = true)
+            }
         }
     }
 }
@@ -622,8 +663,10 @@ private fun SettingsPageScaffold(
                     title = { Text(stringResource(title)) },
                     navigationIcon = back,
                     actions = {
-                        if (onSearch != null) IconButton(onClick = onSearch) {
-                            Icon(Icons.Default.Search, stringResource(R.string.settings_search))
+                        if (onSearch != null) {
+                            AnimatedVisibility(scrollBehavior.state.collapsedFraction > 0.9f, enter = fadeIn(), exit = fadeOut()) {
+                                IconButton(onClick = onSearch) { Icon(Icons.Default.Search, stringResource(R.string.settings_search)) }
+                            }
                         }
                     },
                     scrollBehavior = scrollBehavior,
@@ -641,6 +684,27 @@ private fun SettingsPageScaffold(
         ) {
             content()
             Spacer(Modifier.height(16.dp))
+        }
+    }
+}
+
+/** Opens the search; a field rather than an icon, so it is the first thing seen on the home. */
+@Composable
+private fun SearchField(onClick: () -> Unit) {
+    Surface(
+        onClick = onClick,
+        shape = CircleShape,
+        color = MaterialTheme.colorScheme.surfaceContainerHigh,
+        modifier = Modifier.fillMaxWidth().height(56.dp),
+    ) {
+        Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(horizontal = 20.dp)) {
+            Icon(Icons.Default.Search, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
+            Spacer(Modifier.width(16.dp))
+            Text(
+                stringResource(R.string.settings_search),
+                style = MaterialTheme.typography.bodyLarge,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
         }
     }
 }

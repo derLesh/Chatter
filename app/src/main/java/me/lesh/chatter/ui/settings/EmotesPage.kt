@@ -11,7 +11,6 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.size
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -65,7 +64,7 @@ internal fun EmotesPage(settings: Settings, vm: MainViewModel, open: (SettingsSu
                         else pluralStringResource(R.plurals.settings_hidden_emotes_count, hidden.list.size, hidden.list.size)
                     )
                 },
-                trailingContent = { Icon(Icons.AutoMirrored.Filled.ArrowForward, contentDescription = null) },
+                trailingContent = { NavChevron() },
                 colors = transparentItem(),
                 modifier = Modifier.clickable { open(SettingsSubPage.HiddenEmotes) },
             )
@@ -90,7 +89,7 @@ internal fun EmotesPage(settings: Settings, vm: MainViewModel, open: (SettingsSu
                         else pluralStringResource(R.plurals.settings_badge_kinds_hidden, hidden.size, hidden.size)
                     )
                 },
-                trailingContent = { Icon(Icons.AutoMirrored.Filled.ArrowForward, contentDescription = null) },
+                trailingContent = { NavChevron() },
                 colors = transparentItem(),
                 modifier = Modifier.clickable { open(SettingsSubPage.BadgeKinds) },
             )

@@ -99,13 +99,14 @@ internal fun SiteItem(site: PostSite, on: Boolean, onChange: (Boolean) -> Unit) 
 private fun TextLinesItem(lines: Int, vm: MainViewModel) {
     var value by remember(lines) { mutableFloatStateOf(lines.toFloat()) }
     val shown = value.roundToInt()
-    val title = when (shown) {
+    val valueLabel = when (shown) {
         PostTextLines.NONE -> stringResource(R.string.settings_post_text_none)
         PostTextLines.ALL -> stringResource(R.string.settings_post_text_all)
         else -> pluralStringResource(R.plurals.settings_post_text_lines, shown, shown)
     }
     SliderItem(
-        title = title,
+        title = R.string.settings_post_text,
+        valueLabel = valueLabel,
         value = value,
         onChange = {
             value = it
@@ -165,12 +166,13 @@ internal fun PostPreview(settings: Settings, vm: MainViewModel, text: Int = R.st
     Column {
         Text(
             stringResource(R.string.settings_post_preview),
-            style = MaterialTheme.typography.labelLarge,
+            style = MaterialTheme.typography.titleSmall,
             color = scheme.primary,
-            modifier = Modifier.padding(start = 12.dp, bottom = 8.dp),
+            modifier = Modifier.padding(start = 16.dp, bottom = 8.dp),
         )
         Surface(color = scheme.surfaceContainer, shape = RoundedCornerShape(12.dp), modifier = Modifier.fillMaxWidth()) {
-            Column(Modifier.padding(vertical = 8.dp)) {
+            // In line with the text of the tiles around it.
+            Column(Modifier.padding(horizontal = 8.dp, vertical = 8.dp)) {
                 MessageRow(message, style, vm.imageLoader, onGesture = null)
                 Box(Modifier.padding(horizontal = 8.dp)) {
                     PostCardContent(post, site, postCardStyle(settings), style, open = {}) { url, _, modifier ->

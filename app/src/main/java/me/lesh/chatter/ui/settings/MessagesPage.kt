@@ -1,25 +1,62 @@
 package me.lesh.chatter.ui.settings
 
+import androidx.compose.foundation.clickable
+import androidx.compose.material3.ListItem
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import me.lesh.chatter.R
 import me.lesh.chatter.settings.Settings
+import me.lesh.chatter.settings.SpecialMessage
 import me.lesh.chatter.settings.TapAction
 import me.lesh.chatter.ui.MainViewModel
+import me.lesh.chatter.ui.SettingsSubPage
 import kotlin.math.roundToInt
 
-/** How much of a chat is kept and loaded, and what tapping a message does. */
+/** What the chat shows, how much of it is kept, what a tap does, and the screen while reading. */
 @Composable
-internal fun MessagesPage(settings: Settings, vm: MainViewModel) {
+internal fun MessagesPage(settings: Settings, vm: MainViewModel, open: (SettingsSubPage) -> Unit) {
+    SettingsGroup(R.string.settings_group_in_chat) {
+        item(R.string.settings_smooth_scrolling) {
+            SwitchItem(
+                R.string.settings_smooth_scrolling, settings.smoothScrolling,
+                vm::setSmoothScrolling, R.string.settings_smooth_scrolling_hint,
+            )
+        }
+        item(R.string.settings_show_deleted) { SwitchItem(R.string.settings_show_deleted, settings.showDeleted, vm::setShowDeleted, R.string.settings_show_deleted_hint) }
+        item(R.string.settings_first_messages) {
+            SwitchItem(
+                R.string.settings_first_messages, settings.highlightFirstMessages,
+                vm::setHighlightFirstMessages, R.string.settings_first_messages_hint,
+            )
+        }
+        item(R.string.settings_special_messages) {
+            ListItem(
+                headlineContent = { Text(stringResource(R.string.settings_special_messages)) },
+                supportingContent = {
+                    // Examples say what the page holds; a count alone did not.
+                    val on = settings.specialMessages.size
+                    val state = if (on == 0) stringResource(R.string.settings_off)
+                    else stringResource(R.string.settings_special_messages_on, on, SpecialMessage.entries.size)
+                    Text("${stringResource(R.string.settings_special_messages_examples)} · $state")
+                },
+                trailingContent = { NavChevron() },
+                colors = transparentItem(),
+                modifier = Modifier.clickable { open(SettingsSubPage.SpecialMessages) },
+            )
+        }
+    }
     SettingsGroup(R.string.settings_group_history) {
         item(R.string.settings_message_limit) {
             var limit by remember(settings.messageLimit) { mutableFloatStateOf(settings.messageLimit.toFloat()) }
             SliderItem(
-                title = stringResource(R.string.settings_message_limit, limit.roundToInt()),
+                title = R.string.settings_message_limit,
+                valueLabel = limit.roundToInt().toString(),
                 value = limit,
                 onChange = { limit = it },
                 onDone = { vm.setMessageLimit(limit.roundToInt()) },
@@ -32,9 +69,24 @@ internal fun MessagesPage(settings: Settings, vm: MainViewModel) {
     SettingsGroup(R.string.settings_group_controls) {
         item(R.string.settings_message_tap) { TapActionPicker(R.string.settings_message_tap, settings.messageTap, vm::setMessageTap) }
         item(R.string.settings_name_tap) { TapActionPicker(R.string.settings_name_tap, settings.nameTap, vm::setNameTap) }
-    }
-    SettingsGroup(R.string.settings_group_user_card) {
         item(R.string.settings_copy_first) { SwitchItem(R.string.settings_copy_first, settings.copyFirst, vm::setCopyFirst, R.string.settings_copy_first_hint) }
+    }
+    SettingsGroup(R.string.settings_group_screen) {
+        item(R.string.settings_keep_screen_on) {
+            SwitchItem(
+                R.string.settings_keep_screen_on, settings.keepScreenOn,
+                vm::setKeepScreenOn, R.string.settings_keep_screen_on_hint,
+            )
+        }
+        // Only relevant while the screen is kept on.
+        if (settings.keepScreenOn) {
+            item(R.string.settings_keep_screen_on_when_quiet) {
+                SwitchItem(
+                    R.string.settings_keep_screen_on_when_quiet, settings.keepScreenOnWhenQuiet,
+                    vm::setKeepScreenOnWhenQuiet, R.string.settings_keep_screen_on_when_quiet_hint,
+                )
+            }
+        }
     }
 }
 
