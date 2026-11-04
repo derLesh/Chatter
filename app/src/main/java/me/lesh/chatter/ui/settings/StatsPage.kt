@@ -1,7 +1,6 @@
 package me.lesh.chatter.ui.settings
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.size
 import androidx.compose.material.icons.Icons
@@ -117,7 +116,7 @@ internal fun StatsPage(vm: MainViewModel, onChannels: () -> Unit) {
                         { NavChevron() }
                     } else null,
                     colors = transparentItem(),
-                    modifier = if (busy) Modifier.clickable(onClick = onChannels) else Modifier,
+                    modifier = if (busy) Modifier.tileClickable(onClick = onChannels) else Modifier,
                 )
             }
         }

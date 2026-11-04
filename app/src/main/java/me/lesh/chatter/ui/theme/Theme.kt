@@ -1,6 +1,9 @@
 package me.lesh.chatter.ui.theme
 
 import android.app.Activity
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.material3.ColorScheme
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
@@ -13,7 +16,9 @@ import androidx.compose.material3.dynamicLightColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.ReadOnlyComposable
-import androidx.compose.runtime.SideEffect
+import kotlinx.coroutines.delay
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.graphics.toArgb
@@ -117,13 +122,17 @@ fun ChatterTheme(
         dark -> DarkColors
         else -> LightColors
     }
-    val colors = if (pureBlack && dark) pureBlack(base) else base
+    val colors = animateColorScheme(if (pureBlack && dark) pureBlack(base) else base)
 
-    // Status and navigation bar icons follow the app theme, not the system theme.
+    // Status and navigation bar icons follow the app theme, not the system theme. On a change they
+    // switch halfway, with the text, so they never sit dark on a still dark background.
     val view = LocalView.current
+    val firstTheme = remember { booleanArrayOf(true) }
     if (!view.isInEditMode) {
-        SideEffect {
-            val window = (view.context as? Activity)?.window ?: return@SideEffect
+        LaunchedEffect(dark) {
+            if (!firstTheme[0]) delay(THEME_BLEND_MS / 2L)
+            firstTheme[0] = false
+            val window = (view.context as? Activity)?.window ?: return@LaunchedEffect
             WindowCompat.getInsetsController(window, view).apply {
                 isAppearanceLightStatusBars = !dark
                 isAppearanceLightNavigationBars = !dark
@@ -135,6 +144,56 @@ fun ChatterTheme(
     // bounce, and components pick their expressive shapes.
     MaterialExpressiveTheme(colorScheme = colors, motionScheme = MotionScheme.expressive(), content = content)
 }
+
+/**
+ * Changing theme, wallpaper colours or pure black blends the surfaces over instead of switching at
+ * once. Text and accents switch halfway: blended too, they would pass through the same grey as the
+ * surfaces behind them and be unreadable for a moment.
+ */
+@Composable
+private fun animateColorScheme(target: ColorScheme): ColorScheme {
+    val blendSpec = tween<Color>(durationMillis = THEME_BLEND_MS, easing = FastOutSlowInEasing)
+    val switchSpec = tween<Color>(durationMillis = 1, delayMillis = THEME_BLEND_MS / 2)
+    @Composable
+    fun blend(color: Color) = animateColorAsState(color, blendSpec, label = "theme-surface").value
+    @Composable
+    fun switch(color: Color) = animateColorAsState(color, switchSpec, label = "theme-text").value
+    return target.copy(
+        primary = switch(target.primary),
+        onPrimary = switch(target.onPrimary),
+        primaryContainer = blend(target.primaryContainer),
+        onPrimaryContainer = switch(target.onPrimaryContainer),
+        inversePrimary = switch(target.inversePrimary),
+        secondary = switch(target.secondary),
+        onSecondary = switch(target.onSecondary),
+        secondaryContainer = blend(target.secondaryContainer),
+        onSecondaryContainer = switch(target.onSecondaryContainer),
+        tertiary = switch(target.tertiary),
+        onTertiary = switch(target.onTertiary),
+        tertiaryContainer = blend(target.tertiaryContainer),
+        onTertiaryContainer = switch(target.onTertiaryContainer),
+        background = blend(target.background),
+        onBackground = switch(target.onBackground),
+        surface = blend(target.surface),
+        onSurface = switch(target.onSurface),
+        surfaceVariant = blend(target.surfaceVariant),
+        onSurfaceVariant = switch(target.onSurfaceVariant),
+        surfaceTint = blend(target.surfaceTint),
+        inverseSurface = blend(target.inverseSurface),
+        inverseOnSurface = switch(target.inverseOnSurface),
+        outline = switch(target.outline),
+        outlineVariant = switch(target.outlineVariant),
+        surfaceBright = blend(target.surfaceBright),
+        surfaceDim = blend(target.surfaceDim),
+        surfaceContainer = blend(target.surfaceContainer),
+        surfaceContainerHigh = blend(target.surfaceContainerHigh),
+        surfaceContainerHighest = blend(target.surfaceContainerHighest),
+        surfaceContainerLow = blend(target.surfaceContainerLow),
+        surfaceContainerLowest = blend(target.surfaceContainerLowest),
+    )
+}
+
+private const val THEME_BLEND_MS = 250
 
 /**
  * [dark] with black behind everything that is on screen for hours (chat and bars), since black OLED

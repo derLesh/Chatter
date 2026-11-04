@@ -1,7 +1,6 @@
 package me.lesh.chatter.ui.settings
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -13,7 +12,6 @@ import androidx.compose.material3.SegmentedButton
 import androidx.compose.material3.SegmentedButtonDefaults
 import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import androidx.compose.material3.Surface
-import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -88,9 +86,9 @@ internal fun SiteItem(site: PostSite, on: Boolean, onChange: (Boolean) -> Unit) 
     ListItem(
         headlineContent = { Text(stringResource(R.string.settings_post_site, stringResource(siteName(site)))) },
         supportingContent = { Text(stringResource(siteHint(site))) },
-        trailingContent = { Switch(checked = on, onCheckedChange = onChange) },
+        trailingContent = { SettingsSwitch(checked = on, onCheckedChange = onChange) },
         colors = transparentItem(),
-        modifier = Modifier.clickable { onChange(!on) },
+        modifier = Modifier.tileClickable { onChange(!on) },
     )
 }
 

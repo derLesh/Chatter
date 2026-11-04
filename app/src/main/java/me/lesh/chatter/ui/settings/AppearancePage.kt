@@ -304,7 +304,7 @@ private fun AppIconItem(vm: MainViewModel, onOpen: () -> Unit) {
             }
         },
         colors = transparentItem(),
-        modifier = Modifier.clickable(onClick = onOpen),
+        modifier = Modifier.tileClickable(onClick = onOpen),
     )
 }
 

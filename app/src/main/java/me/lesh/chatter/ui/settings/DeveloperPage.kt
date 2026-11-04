@@ -1,6 +1,5 @@
 package me.lesh.chatter.ui.settings
 
-import androidx.compose.foundation.clickable
 import androidx.compose.material.icons.Icons
 import androidx.compose.material3.ListItem
 import androidx.compose.material3.Text
@@ -21,7 +20,7 @@ internal fun DeveloperPage(vm: MainViewModel, open: (SettingsSubPage) -> Unit) {
                 supportingContent = { Text(stringResource(R.string.debug_stats_hint)) },
                 trailingContent = { NavChevron() },
                 colors = transparentItem(),
-                modifier = Modifier.clickable { open(SettingsSubPage.DebugStats) },
+                modifier = Modifier.tileClickable { open(SettingsSubPage.DebugStats) },
             )
         }
         item(R.string.settings_show_onboarding) {
@@ -30,7 +29,7 @@ internal fun DeveloperPage(vm: MainViewModel, open: (SettingsSubPage) -> Unit) {
                 supportingContent = { Text(stringResource(R.string.settings_show_onboarding_hint)) },
                 trailingContent = { NavChevron() },
                 colors = transparentItem(),
-                modifier = Modifier.clickable(onClick = vm::showOnboardingAgain),
+                modifier = Modifier.tileClickable(onClick = vm::showOnboardingAgain),
             )
         }
     }

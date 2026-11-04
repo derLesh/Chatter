@@ -1,10 +1,8 @@
 package me.lesh.chatter.ui.settings
 
-import androidx.compose.foundation.clickable
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.List
 import androidx.compose.material3.ListItem
-import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -65,7 +63,7 @@ internal fun NotificationsPage(settings: Settings, vm: MainViewModel, open: (Set
                 supportingContent = { Text(stringResource(R.string.settings_notifications_hint)) },
                 trailingContent = { LeavesAppMark() },
                 colors = transparentItem(),
-                modifier = Modifier.clickable { openNotificationSettings(context) },
+                modifier = Modifier.tileClickable { openNotificationSettings(context) },
             )
         }
     }
@@ -81,7 +79,7 @@ internal fun NotificationsPage(settings: Settings, vm: MainViewModel, open: (Set
                     supportingContent = { Text(stringResource(R.string.settings_live_channels_summary)) },
                     trailingContent = { NavChevron() },
                     colors = transparentItem(),
-                    modifier = Modifier.clickable { open(SettingsSubPage.LiveChannels) },
+                    modifier = Modifier.tileClickable { open(SettingsSubPage.LiveChannels) },
                 )
             }
         }
@@ -136,8 +134,8 @@ private fun LiveAlertSwitch(name: String, on: Boolean, onChange: (Boolean) -> Un
     ListItem(
         headlineContent = { Text(name) },
         leadingContent = avatar,
-        trailingContent = { Switch(checked = on, onCheckedChange = onChange) },
+        trailingContent = { SettingsSwitch(checked = on, onCheckedChange = onChange) },
         colors = transparentItem(),
-        modifier = Modifier.clickable { onChange(!on) },
+        modifier = Modifier.tileClickable { onChange(!on) },
     )
 }

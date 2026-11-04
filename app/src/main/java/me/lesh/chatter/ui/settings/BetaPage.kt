@@ -1,7 +1,6 @@
 package me.lesh.chatter.ui.settings
 
 import android.os.Build
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.padding
@@ -11,7 +10,6 @@ import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.ListItem
 import androidx.compose.material3.LoadingIndicator
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -73,9 +71,9 @@ private fun BetaSwitchItem(res: Int, checked: Boolean, onChange: (Boolean) -> Un
             }
         },
         supportingContent = { Text(stringResource(hint)) },
-        trailingContent = { Switch(checked = checked, onCheckedChange = onChange, enabled = enabled) },
+        trailingContent = { SettingsSwitch(checked = checked, onCheckedChange = onChange, enabled = enabled) },
         colors = transparentItem(),
-        modifier = Modifier.clickable(enabled = enabled) { onChange(!checked) },
+        modifier = Modifier.tileClickable(enabled = enabled) { onChange(!checked) },
     )
 }
 

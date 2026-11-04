@@ -1,7 +1,6 @@
 package me.lesh.chatter.ui.settings
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -19,7 +18,6 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.ListItem
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -71,7 +69,7 @@ internal fun FiltersPage(settings: Settings, vm: MainViewModel, open: (SettingsS
                 },
                 trailingContent = { NavChevron() },
                 colors = transparentItem(),
-                modifier = Modifier.clickable { open(SettingsSubPage.Rules) },
+                modifier = Modifier.tileClickable { open(SettingsSubPage.Rules) },
             )
         }
         item(R.string.settings_blocked_users) {
@@ -85,7 +83,7 @@ internal fun FiltersPage(settings: Settings, vm: MainViewModel, open: (SettingsS
                 },
                 trailingContent = { NavChevron() },
                 colors = transparentItem(),
-                modifier = Modifier.clickable { open(SettingsSubPage.BlockedUsers) },
+                modifier = Modifier.tileClickable { open(SettingsSubPage.BlockedUsers) },
             )
         }
     }
@@ -200,7 +198,7 @@ internal fun RulesPage(vm: MainViewModel, edit: (ChatRule?) -> Unit) {
                     trailingContent = {
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             // Off and greyed out while unusable; tapping the rule opens it to fix.
-                            Switch(
+                            SettingsSwitch(
                                 checked = rule.enabled && usable,
                                 onCheckedChange = { vm.setRuleEnabled(rule, it) },
                                 enabled = usable,
@@ -211,7 +209,7 @@ internal fun RulesPage(vm: MainViewModel, edit: (ChatRule?) -> Unit) {
                         }
                     },
                     colors = transparentItem(),
-                    modifier = Modifier.clickable { edit(rule) },
+                    modifier = Modifier.tileClickable { edit(rule) },
                 )
             }
         }
@@ -220,7 +218,7 @@ internal fun RulesPage(vm: MainViewModel, edit: (ChatRule?) -> Unit) {
                 headlineContent = { Text(stringResource(R.string.rule_new)) },
                 leadingContent = { CategoryIcon(Icons.Default.Add) },
                 colors = transparentItem(),
-                modifier = Modifier.clickable { edit(null) },
+                modifier = Modifier.tileClickable { edit(null) },
             )
         }
     }
