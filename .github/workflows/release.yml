@@ -254,15 +254,13 @@ jobs:
           mv app/build/outputs/mapping/release/mapping.txt "build-out/chatter-$VERSION-bundle-mapping.txt"
 
       # notes.md holds the entries this release folded in, as CHANGELOG.md has them, for Play.
-      # github-notes.md groups them by level for the GitHub release, links the full diff and says how
-      # to check the download.
+      # github-notes.md groups them by level for the GitHub release and links the full diff.
       - name: Write the release notes
         env:
           VERSION: ${{ steps.version.outputs.version }}
           PREVIOUS: ${{ steps.version.outputs.previous }}
           REPOSITORY: ${{ github.repository }}
         run: |
-          apk="chatter-$VERSION.apk"
           awk '/^## /{ heading++ } heading == 1 && !/^## /' CHANGELOG.md > build-out/notes.md
           section() {
             entries=$(sed -n "s/^- $1: /- /p" build-out/notes.md)
@@ -274,18 +272,7 @@ jobs:
             section patch 'Fixed and improved'
             if [ -n "$PREVIOUS" ]; then
               echo "**Full changelog:** https://github.com/$REPOSITORY/compare/$PREVIOUS...v$VERSION"
-              echo
             fi
-            echo '### Checking the download'
-            echo
-            echo 'That this APK was built by the release workflow from this repository:'
-            echo
-            echo '```sh'
-            echo "gh attestation verify $apk --repo $REPOSITORY"
-            echo '```'
-            echo
-            echo 'That it is signed with the release key: `apksigner verify --print-certs` shows the'
-            echo 'certificate SHA-256 listed in the [README](https://github.com/'"$REPOSITORY"'#install).'
           } > build-out/github-notes.md
 
       # Made here, from exactly the changelog and version this build used; publish applies it.

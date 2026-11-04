@@ -166,9 +166,6 @@ jobs:
           {
             echo "Chatter Nightly $NAME, built from [\`$(git rev-parse --short=7 HEAD)\`](https://github.com/$REPOSITORY/commit/$(git rev-parse HEAD))."
             echo
-            echo 'Nightly is built from master every night and may break. It is an app of its own, so it'
-            echo 'installs next to Chatter, with its own login and settings.'
-            echo
             echo '### New since the last nightly'
             echo
             if [ -n "$since" ] && [ "$since" != "$(git rev-parse HEAD)" ]; then
@@ -176,12 +173,6 @@ jobs:
             else
               echo 'Nothing; this nightly was built again from the same commit.'
             fi
-            echo
-            echo '### Checking the download'
-            echo
-            echo '```sh'
-            echo "gh attestation verify chatter-nightly.apk --repo $REPOSITORY"
-            echo '```'
           } > build-out/notes.md
 
       - name: Hand the build to publish
