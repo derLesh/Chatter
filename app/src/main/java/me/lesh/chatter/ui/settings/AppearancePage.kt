@@ -3,19 +3,17 @@ package me.lesh.chatter.ui.settings
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material3.Icon
 import androidx.compose.material3.ListItem
@@ -75,7 +73,7 @@ import kotlin.math.roundToInt
 internal fun AppearancePage(settings: Settings, vm: MainViewModel, open: (SettingsSubPage) -> Unit) {
     val dark = isAppInDarkTheme()
     SettingsGroup(R.string.settings_group_colors) {
-        item(R.string.settings_theme) { ThemeModeItem(settings.themeMode, vm::setThemeMode) }
+        item(R.string.settings_theme) { ThemeModeItem(settings.themeMode, vm::setThemeMode, R.string.settings_theme) }
         item(R.string.settings_dynamic_color) { SwitchItem(R.string.settings_dynamic_color, settings.dynamicColor, vm::setDynamicColor, R.string.settings_dynamic_color_hint) }
         // Only while the app is dark (chosen, or dark via System); a light theme has no black.
         if (dark) {
@@ -117,80 +115,23 @@ internal fun AppearancePage(settings: Settings, vm: MainViewModel, open: (Settin
         item(R.string.settings_timestamps) { TimestampPicker(settings.timestamps, vm::setTimestamps) }
         item(R.string.settings_name_style) { NameStylePicker(settings.nameStyle, vm::setNameStyle) }
     }
-
-    // How a message behaves. Emotes have their own category.
-    SettingsGroup(R.string.settings_group_messages) {
-        item(R.string.settings_smooth_scrolling) {
-            SwitchItem(
-                R.string.settings_smooth_scrolling, settings.smoothScrolling,
-                vm::setSmoothScrolling, R.string.settings_smooth_scrolling_hint,
-            )
-        }
-        item(R.string.settings_show_deleted) { SwitchItem(R.string.settings_show_deleted, settings.showDeleted, vm::setShowDeleted, R.string.settings_show_deleted_hint) }
-        item(R.string.settings_first_messages) {
-            SwitchItem(
-                R.string.settings_first_messages, settings.highlightFirstMessages,
-                vm::setHighlightFirstMessages, R.string.settings_first_messages_hint,
-            )
-        }
-        item(R.string.settings_special_messages) {
-            ListItem(
-                headlineContent = { Text(stringResource(R.string.settings_special_messages)) },
-                supportingContent = {
-                    val on = settings.specialMessages.size
-                    Text(
-                        if (on == 0) stringResource(R.string.settings_off)
-                        else stringResource(R.string.settings_special_messages_on, on, SpecialMessage.entries.size),
-                    )
-                },
-                trailingContent = { Icon(Icons.AutoMirrored.Filled.ArrowForward, contentDescription = null) },
-                colors = transparentItem(),
-                modifier = Modifier.clickable { open(SettingsSubPage.SpecialMessages) },
-            )
-        }
-    }
-
-    // The phone-related settings, in one group.
-    SettingsGroup(R.string.settings_group_device) {
-        item(R.string.settings_keep_screen_on) {
-            SwitchItem(
-                R.string.settings_keep_screen_on, settings.keepScreenOn,
-                vm::setKeepScreenOn, R.string.settings_keep_screen_on_hint,
-            )
-        }
-        // Only relevant while the screen is kept on.
-        if (settings.keepScreenOn) {
-            item(R.string.settings_keep_screen_on_when_quiet) {
-                SwitchItem(
-                    R.string.settings_keep_screen_on_when_quiet, settings.keepScreenOnWhenQuiet,
-                    vm::setKeepScreenOnWhenQuiet, R.string.settings_keep_screen_on_when_quiet_hint,
-                )
-            }
-        }
-        item(R.string.settings_haptics) {
-            SwitchItem(
-                R.string.settings_haptics, settings.haptics,
-                vm::setHaptics, R.string.settings_haptics_hint,
-            )
-        }
-    }
 }
 
-/**
- * The buttons are the row: three one-word options are clearer than a sheet, and need no extra
- * label under the "Colors" heading.
- */
+/** Three one-word options, spelled out as buttons rather than a sheet. [title] goes above them. */
 @Composable
-internal fun ThemeModeItem(selected: ThemeMode, onSelect: (ThemeMode) -> Unit) {
+internal fun ThemeModeItem(selected: ThemeMode, onSelect: (ThemeMode) -> Unit, title: Int? = null) {
     ListItem(
         headlineContent = {
-            SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth()) {
-                THEME_MODES.forEachIndexed { i, (mode, label) ->
-                    SegmentedButton(
-                        selected = selected == mode,
-                        onClick = { onSelect(mode) },
-                        shape = SegmentedButtonDefaults.itemShape(i, THEME_MODES.size),
-                    ) { Text(stringResource(label)) }
+            Column {
+                title?.let { Text(stringResource(it), Modifier.padding(bottom = 8.dp)) }
+                SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth()) {
+                    THEME_MODES.forEachIndexed { i, (mode, label) ->
+                        SegmentedButton(
+                            selected = selected == mode,
+                            onClick = { onSelect(mode) },
+                            shape = SegmentedButtonDefaults.itemShape(i, THEME_MODES.size),
+                        ) { Text(stringResource(label)) }
+                    }
                 }
             }
         },
@@ -214,21 +155,15 @@ internal fun TextSizeItem(settings: Settings, vm: MainViewModel) {
  */
 @Composable
 private fun TextSizeSlider(size: Float, onSize: (Float) -> Unit, vm: MainViewModel, preview: @Composable () -> Unit = {}) {
-    ListItem(
-        headlineContent = { Text(stringResource(R.string.settings_font_size, size.roundToInt())) },
-        supportingContent = {
-            Column {
-                Slider(
-                    value = size,
-                    onValueChange = onSize,
-                    onValueChangeFinished = { vm.setFontSize(size.roundToInt().toFloat()) },
-                    valueRange = 10f..24f,
-                    steps = 13,
-                )
-                preview()
-            }
-        },
-        colors = transparentItem(),
+    SliderItem(
+        title = R.string.settings_font_size,
+        valueLabel = size.roundToInt().toString(),
+        value = size,
+        onChange = onSize,
+        onDone = { vm.setFontSize(size.roundToInt().toFloat()) },
+        range = 10f..24f,
+        steps = 13,
+        below = preview,
     )
 }
 
@@ -365,7 +300,7 @@ private fun AppIconItem(vm: MainViewModel, onOpen: () -> Unit) {
         trailingContent = {
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                 AppIconPreview(current, size = 40.dp)
-                Icon(Icons.AutoMirrored.Filled.ArrowForward, contentDescription = null)
+                NavChevron()
             }
         },
         colors = transparentItem(),
@@ -415,6 +350,9 @@ private fun NameColorPicker(selected: NameColorPalette, onSelect: (NameColorPale
     )
 }
 
+private const val SWATCHES_PER_ROW = 5
+private val SWATCH_SIZE = 44.dp
+
 /** Mention highlight swatches and a preview line. */
 @Composable
 internal fun HighlightColorPicker(selected: Int, onSelect: (Int) -> Unit) {
@@ -429,32 +367,35 @@ internal fun HighlightColorPicker(selected: Int, onSelect: (Int) -> Unit) {
         supportingContent = {
             Column {
                 Text(stringResource(R.string.settings_highlight_color_hint))
-                // A plain scrolling Row: ListItem measures intrinsically, which lazy lists do not
-                // support.
-                Row(
-                    horizontalArrangement = Arrangement.spacedBy(10.dp),
-                    modifier = Modifier.padding(top = 12.dp).horizontalScroll(rememberScrollState()),
-                ) {
-                    options.forEach { option ->
-                        val color = highlightColor(option, scheme)
-                        Box(
-                            contentAlignment = Alignment.Center,
-                            modifier = Modifier
-                                .size(40.dp)
-                                .clip(CircleShape)
-                                .background(color)
-                                .then(
-                                    if (option == selected) Modifier.border(3.dp, scheme.onSurface, CircleShape) else Modifier
-                                )
-                                .clickable { onSelect(option) },
-                        ) {
-                            if (option == selected) {
-                                Icon(
-                                    Icons.Default.Check,
-                                    contentDescription = null,
-                                    tint = if (color.luminance() > 0.5f) Color.Black else Color.White,
-                                )
+                // A fixed grid of five from edge to edge, so the rows line up and none hides behind the edge.
+                Column(Modifier.padding(top = 12.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    options.chunked(SWATCHES_PER_ROW).forEach { row ->
+                        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                            row.forEach { option ->
+                                Box(contentAlignment = Alignment.Center) {
+                                    val color = highlightColor(option, scheme)
+                                    Box(
+                                        contentAlignment = Alignment.Center,
+                                        modifier = Modifier
+                                            .size(SWATCH_SIZE)
+                                            .clip(CircleShape)
+                                            .background(color)
+                                            .then(
+                                                if (option == selected) Modifier.border(3.dp, scheme.onSurface, CircleShape) else Modifier
+                                            )
+                                            .clickable { onSelect(option) },
+                                    ) {
+                                        if (option == selected) {
+                                            Icon(
+                                                Icons.Default.Check,
+                                                contentDescription = null,
+                                                tint = if (color.luminance() > 0.5f) Color.Black else Color.White,
+                                            )
+                                        }
+                                    }
+                                }
                             }
+                            repeat(SWATCHES_PER_ROW - row.size) { Spacer(Modifier.size(SWATCH_SIZE)) }
                         }
                     }
                 }

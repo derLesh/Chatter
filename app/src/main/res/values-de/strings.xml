@@ -162,24 +162,24 @@
     <string name="settings">Einstellungen</string>
     <string name="back">Zurück</string>
     <string name="settings_chat">Chat</string>
-    <string name="settings_font_size">Textgröße: %1$d</string>
-    <string name="settings_message_limit">Gespeicherte Nachrichten pro Kanal: %1$d</string>
+    <string name="settings_font_size">Textgröße</string>
+    <string name="settings_message_limit">Gespeicherte Nachrichten pro Kanal</string>
     <string name="settings_timestamps">Zeitstempel</string>
     <string name="settings_timestamps_off">Keine Zeit</string>
     <string name="settings_name_style">Namen zeigen als</string>
     <string name="name_style_display">Anzeigename</string>
     <string name="name_style_login">Nutzername</string>
-    <string name="name_style_other_scripts">Beides bei anderer Schrift</string>
+    <string name="name_style_other_scripts">Beides bei fremder Schrift</string>
     <string name="name_style_both">Immer beides</string>
     <string name="settings_animated_emotes">Animierte Emotes</string>
     <string name="settings_slow_idle_emotes">Langsamer, wenn unberührt</string>
-    <string name="settings_slow_idle_emotes_hint">Nach drei Minuten ohne Berührung laufen animierte Emotes langsamer. Das spart Akku, wenn der Bildschirm an bleibt</string>
+    <string name="settings_slow_idle_emotes_hint">Nach drei Minuten ohne Berührung laufen sie langsamer. Spart Akku.</string>
     <string name="settings_keywords">Hervorgehobene Wörter</string>
     <string name="settings_keywords_summary">Wörter, die dich wie dein Name benachrichtigen</string>
     <string name="settings_keywords_hint">Dein Nutzername wird immer hervorgehoben</string>
     <string name="save">Speichern</string>
     <string name="settings_notifications">Benachrichtigungen</string>
-    <string name="settings_notifications_hint">Ton, Vibration und mehr in den Systemeinstellungen</string>
+    <string name="settings_notifications_hint">In den Android-Einstellungen</string>
     <string name="open">Öffnen</string>
     <string name="settings_account">Konto</string>
     <string name="logout">Abmelden</string>
@@ -214,7 +214,7 @@
     <string name="theme_light">Hell</string>
     <string name="theme_dark">Dunkel</string>
     <string name="settings_dynamic_color">Material-You Farben</string>
-    <string name="settings_dynamic_color_hint">Die Farben deines Hintergrundbilds verwenden</string>
+    <string name="settings_dynamic_color_hint">Nimmt die Farben deines Hintergrundbilds</string>
     <string name="settings_pure_black">Reines Schwarz</string>
     <string name="settings_pure_black_hint">Schwarzer Hintergrund für OLED-Bildschirme</string>
     <string name="cmd_usage">Verwendung: %1$s</string>
@@ -248,21 +248,21 @@
     <string name="user_created">Konto erstellt am %1$s</string>
 
     <!-- Settings pages -->
-    <string name="settings_appearance_summary">Design, Farben, Aussehen der Nachrichten</string>
+    <string name="settings_appearance_summary">Design, Farben, Textgröße</string>
     <string name="settings_emotes">Emotes &amp; Badges</string>
     <string name="settings_emotes_summary">Anbieter, Animation, Badges</string>
     <string name="settings_filters">Filter</string>
     <string name="settings_filters_summary">Ausgeblendete Wörter, Regeln, Blockierte</string>
-    <string name="settings_notifications_summary">Erwähnungen, Hervorgehobene Wörter</string>
+    <string name="settings_notifications_summary">Erwähnungen, hervorgehobene Wörter, Vibration</string>
     <string name="settings_account_summary">Konten wechseln, abmelden</string>
     <string name="settings_messages">Nachrichten</string>
-    <string name="settings_messages_summary">Verlauf, Antippen, Nutzerkarte</string>
+    <string name="settings_messages_summary">Scrollen, Verlauf, Antippen, Bildschirm anlassen</string>
     <string name="settings_media">Links &amp; Bilder</string>
     <string name="settings_media_summary">Bildvorschau, GIFs, Posts</string>
     <string name="settings_typing">Schreiben</string>
     <string name="settings_typing_summary">Nur lesen, Vorschläge, Erwähnungen, Eingabefeld</string>
     <string name="settings_backup_summary">Einstellungen sichern und wiederherstellen</string>
-    <string name="settings_storage">Speicher und Daten</string>
+    <string name="settings_storage">Speicher &amp; Daten</string>
     <string name="settings_storage_summary">Datenverbrauch, Platz auf dem Handy, Cache</string>
     <string name="storage_group">Auf diesem Handy</string>
     <string name="storage_images">Bilder</string>
@@ -281,28 +281,27 @@
     <string name="settings_about">Über</string>
     <string name="settings_about_summary">Version, Credits</string>
     <string name="settings_channels">Kanäle</string>
-    <string name="settings_channels_summary">Reihenfolge, Namen, Benachrichtigungen</string>
+    <string name="settings_channels_summary">Reihenfolge, Namen, Tabs</string>
     <string name="reorder_channel">Zum Sortieren ziehen</string>
     <string name="channel_notify_on">Benachrichtigungen an</string>
     <string name="channel_notify_off">Benachrichtigungen aus</string>
     <string name="channel_notification_settings">Ton &amp; Vibration</string>
     <string name="channel_in_title_bar">Ungelesene anzeigen</string>
     <string name="settings_channel_tabs">Kanäle als Tabs</string>
-    <string name="settings_channel_tabs_hint">Alle Kanäle in einer Reihe oben. Halte einen Tab gedrückt für mehr Optionen.</string>
+    <string name="settings_channel_tabs_hint">Alle Kanäle in einer Reihe oben. Halte einen Tab für mehr Optionen.</string>
     <string name="settings_unread_title_bar">Ungelesene Kanäle in der Titelleiste</string>
-    <string name="settings_unread_title_bar_hint">Zeigt das Profilbild von Kanälen mit neuen Nachrichten oben, oder eine Markierung an ihrem Tab. Einzelne Kanäle kannst du in ihrem Menü ausnehmen.</string>
-    <string name="settings_group_device">Auf diesem Handy</string>
+    <string name="settings_unread_title_bar_hint">Zeigt Kanäle mit neuen Nachrichten oben. Ausnehmen geht im Kanalmenü.</string>
     <string name="settings_keep_screen_on">Bildschirm anlassen</string>
     <string name="settings_keep_screen_on_hint">Der Bildschirm bleibt an, solange Nachrichten im Chat ankommen</string>
     <string name="settings_keep_screen_on_when_quiet">Auch bei ruhigem Chat</string>
-    <string name="settings_keep_screen_on_when_quiet_hint">Der Bildschirm bleibt auch nach 10 Minuten ohne Nachricht oder Berührung an. Das braucht mehr Akku</string>
+    <string name="settings_keep_screen_on_when_quiet_hint">Bleibt auch nach 10 Minuten ohne Nachricht an. Braucht mehr Akku.</string>
     <string name="settings_emote_providers">Emote-Anbieter</string>
     <string name="settings_provider_twitch">Twitch</string>
     <string name="settings_provider_seventv">7TV</string>
     <string name="settings_provider_bttv">BetterTTV</string>
     <string name="settings_provider_ffz">FrankerFaceZ</string>
     <string name="settings_show_deleted">Entfernte Nachrichten anzeigen</string>
-    <string name="settings_show_deleted_hint">Durchgestrichen stehen lassen, statt sie auszublenden.</string>
+    <string name="settings_show_deleted_hint">Lässt sie durchgestrichen stehen, statt sie auszublenden</string>
     <string name="settings_full_links">Links vollständig anzeigen</string>
     <string name="settings_full_links_hint">Sonst werden lange Links gekürzt</string>
     <string name="settings_mobile_data">Bei mobilen Daten</string>
@@ -312,20 +311,20 @@
     <string name="mobile_data_saver_on">%1$s, aber der Datensparmodus ist an</string>
     <string name="background_restricted_title">Akkunutzung ist eingeschränkt</string>
     <string name="background_restricted_text">Android kann Chatter im Hintergrund jederzeit beenden. Dann kommen Erwähnungen und Flüsternachrichten erst wieder an, wenn du Chatter öffnest. Stell die Akkunutzung in den App-Einstellungen auf „Nicht eingeschränkt“.</string>
-    <string name="background_stopped_title">Android hat die Hintergrundverbindung beendet</string>
-    <string name="background_stopped_text">Am %1$s wurde Chatter im Hintergrund beendet. %2$s. Bis du es wieder geöffnet hast, kamen keine Erwähnungen oder Flüsternachrichten an.</string>
-    <string name="background_unrestricted_hint">Mit der Akkunutzung auf „Nicht eingeschränkt“ tun das die meisten Handys nicht mehr.</string>
-    <string name="background_reason_memory">Das Handy hatte zu wenig Arbeitsspeicher</string>
-    <string name="background_reason_resources">Android fand, dass es zu viel Akku oder Leistung braucht</string>
-    <string name="background_reason_user">Es wurde in den App-Einstellungen oder von einem Task-Manager beendet</string>
-    <string name="background_reason_system">Der Akkusparmodus des Handys hat es beendet</string>
+    <string name="background_stopped_title">Hintergrundverbindung unterbrochen</string>
+    <string name="background_stopped_text">Android hat Chatter am %1$s im Hintergrund gestoppt. %2$s. Bis zum Öffnen kamen keine Erwähnungen oder Flüsternachrichten an.</string>
+    <string name="background_unrestricted_hint">Mit der Akkunutzung „Nicht eingeschränkt“ passiert das selten.</string>
+    <string name="background_reason_memory">Grund: zu wenig Arbeitsspeicher</string>
+    <string name="background_reason_resources">Grund: zu viel Akku- oder Leistungsverbrauch</string>
+    <string name="background_reason_user">Grund: die App-Einstellungen oder ein Task-Manager</string>
+    <string name="background_reason_system">Grund: der Akkusparmodus des Handys</string>
     <string name="background_dismiss">Ausblenden</string>
     <string name="background_why">Warum?</string>
     <string name="background_battery_settings">App-Einstellungen</string>
     <string name="settings_inline_images">Verlinkte Bilder anzeigen</string>
-    <string name="settings_inline_images_hint">Links zu Bildern zeigen das Bild. Im Akkusparmodus aus.</string>
+    <string name="settings_inline_images_hint">Links zu Bildern zeigen das Bild. Nicht im Akkusparmodus.</string>
     <string name="settings_show_gifs">GIFs anzeigen</string>
-    <string name="settings_show_gifs_hint">GIFs, die Subs im Chat posten. Im Akkusparmodus aus.</string>
+    <string name="settings_show_gifs_hint">GIFs, die Subs im Chat posten. Nicht im Akkusparmodus.</string>
     <string name="settings_image_hosts">Seiten zum Laden</string>
     <string name="settings_image_hosts_none">Keine Seiten</string>
     <string name="settings_image_hosts_hint">Die Adresse einer Seite, z. B. imgur.com. Adressen wie i.imgur.com zählen mit.</string>
@@ -347,14 +346,15 @@
     <string name="settings_post_date">Datum</string>
     <string name="settings_post_media">Bild oder Video</string>
     <string name="settings_post_counts">Antworten, Reposts und Likes</string>
-    <string name="settings_post_text_none">Text: ausgeblendet</string>
-    <string name="settings_post_text_all">Text: vollständig</string>
+    <string name="settings_post_text_none">Ausgeblendet</string>
+    <string name="settings_post_text_all">Vollständig</string>
+    <string name="settings_post_text">Text</string>
     <string name="settings_post_picture_size">Bildgröße</string>
     <string name="post_picture_small">Klein</string>
     <string name="post_picture_medium">Mittel</string>
     <string name="post_picture_large">Groß</string>
     <string name="post_preview_message">schau mal</string>
-    <string name="post_preview_text">Chatter kann Posts von X und Bluesky direkt im Chat zeigen. Hier wählst du, was die Karte zeigt: wie viel Text, wie groß das Bild ist und ob Datum, Profilbild und Zahlen dabei sind. Ein Tipp auf die Karte öffnet den Post.</string>
+    <string name="post_preview_text">So sieht ein Post im Chat aus. Ein Tipp auf die Karte öffnet ihn.</string>
     <string name="settings_blur_nsfw_posts">NSFW-Posts unscharf</string>
     <string name="settings_blur_nsfw_posts_hint">Als NSFW markierte Bilder bleiben unscharf, bis du draufgetippt hast</string>
     <string name="post_picture">Bild des Posts</string>
@@ -364,28 +364,29 @@
     <string name="settings_carousel">Im Kreis wischen</string>
     <string name="settings_carousel_hint">Nach dem letzten Kanal kommt wieder der erste</string>
     <string name="settings_read_only">Nur lesen</string>
-    <string name="settings_read_only_hint">Blendet die Eingabe unten im Chat aus, wenn du nur mitlesen und nichts schreiben willst</string>
+    <string name="settings_read_only_hint">Blendet das Eingabefeld aus. Gut, wenn du nur mitliest.</string>
     <string name="settings_emote_suggestions">Emote-Vorschläge</string>
-    <string name="settings_emote_suggestions_hint">Emotes beim Tippen vorschlagen, und Emoji nach einem Doppelpunkt, wie bei :smile</string>
+    <string name="settings_emote_suggestions_hint">Schlägt beim Tippen Emotes vor, nach einem Doppelpunkt auch Emoji wie :smile</string>
     <string name="settings_user_suggestions">Namensvorschläge</string>
-    <string name="settings_user_suggestions_hint">Namen aus dem Chat vorschlagen</string>
+    <string name="settings_user_suggestions_hint">Schlägt Namen aus dem Chat vor</string>
     <string name="settings_mention_with_at">Namen mit @ einfügen</string>
     <string name="settings_mention_with_at_hint">Setzt ein @ vor den Namen</string>
     <string name="settings_group_input">Eingabefeld</string>
     <string name="settings_recently_sent">Zuletzt gesendet</string>
-    <string name="settings_recently_sent_hint">Deine letzten drei Nachrichten. Beim Tippen kommt der Senden-Button zurück</string>
+    <string name="settings_recently_sent_hint">Zeigt deine letzten drei Nachrichten zum erneuten Senden</string>
     <string name="recently_sent_replaces_send">Statt Senden</string>
     <string name="recently_sent_in_input">Im Feld</string>
     <string name="recently_sent_hidden">Aus</string>
     <string name="settings_chat_modes_button">Chat-Modi</string>
-    <string name="settings_chat_modes_button_hint">Schnellzugriff auf Chat-Modi</string>
+    <string name="settings_chat_modes_button_hint">Zeigt Mods ein Schild am Eingabefeld für Slow-Mode, Emote-Only und mehr</string>
     <string-array name="input_preview_sent">
         <item>GG</item>
         <item>Wie heißt der Song?</item>
         <item>Pog</item>
     </string-array>
     <string name="settings_group_colors">Farben</string>
-    <string name="settings_group_messages">Nachrichten</string>
+    <string name="settings_group_in_chat">Im Chat</string>
+    <string name="settings_group_screen">Bildschirm</string>
     <string name="settings_message_tap">Tipp auf eine Nachricht</string>
     <string name="settings_name_tap">Tipp auf einen Namen</string>
     <string name="settings_tap_hint">Halten einer Nachricht öffnet immer die Nutzerkarte</string>
@@ -394,17 +395,17 @@
     <string name="tap_action_mention">Erwähnen</string>
     <string name="tap_action_nothing">Nichts</string>
     <string name="settings_copy_first">Kopieren zuerst</string>
-    <string name="settings_copy_first_hint">Kopieren vor Antworten zeigen</string>
+    <string name="settings_copy_first_hint">Die Nutzerkarte zeigt Kopieren vor Antworten</string>
     <string name="settings_group_mentions">Erwähnungen</string>
     <string name="settings_alternate_background">Abwechselnder Hintergrund</string>
-    <string name="settings_alternate_background_hint">Jede zweite Nachricht leicht hinterlegen, für bessere Lesbarkeit</string>
+    <string name="settings_alternate_background_hint">Hinterlegt jede zweite Nachricht etwas heller</string>
     <string name="settings_highlight_color">Farbe für Erwähnungen</string>
     <string name="settings_highlight_color_hint">Hintergrund von Nachrichten, die dich erwähnen</string>
     <string name="settings_highlight_preview_name">zuschauer</string>
     <string name="settings_highlight_preview_text">hey @du, schau mal!</string>
-    <string name="settings_load_history">Letzte Nachrichten laden</string>
-    <string name="settings_load_history_hint">Lädt frühere Nachrichten von recent-messages.robotty.de, wenn du einen Chat öffnest</string>
-    <string name="settings_system_notifications">Benachrichtigungseinstellungen</string>
+    <string name="settings_load_history">Frühere Nachrichten laden</string>
+    <string name="settings_load_history_hint">Lädt beim Öffnen eines Chats frühere Nachrichten von recent-messages.robotty.de</string>
+    <string name="settings_system_notifications">Ton und mehr</string>
     <string name="settings_group_accounts">Konten</string>
     <string name="account_scopes_title">Melde dich neu an, um alles zu nutzen</string>
     <string name="account_scopes_text">Deine Anmeldung stammt aus einer älteren Version von Chatter. Melde dich neu an</string>
@@ -482,7 +483,7 @@
     <string name="settings_message_dividers">Linien zwischen Nachrichten</string>
     <string name="settings_message_dividers_hint">Eine dünne Linie unter jeder Nachricht</string>
     <string name="settings_smooth_scrolling">Weiches Scrollen</string>
-    <string name="settings_smooth_scrolling_hint">Neue Nachrichten gleiten ins Bild statt zu springen. Im Akkusparmodus aus.</string>
+    <string name="settings_smooth_scrolling_hint">Neue Nachrichten gleiten ins Bild statt zu springen. Nicht im Akkusparmodus.</string>
 
     <!-- Emote settings -->
     <string name="settings_group_emotes">Emotes</string>
@@ -491,7 +492,7 @@
     <string name="settings_zero_width">Zero-Width-Emotes</string>
     <string name="settings_zero_width_hint">Manche Emotes werden über das Emote davor gelegt</string>
     <string name="settings_unlisted_7tv">Ungelistete 7TV-Emotes</string>
-    <string name="settings_unlisted_7tv_hint">7TV-Emotes anzeigen, die nicht öffentlich gelistet sind</string>
+    <string name="settings_unlisted_7tv_hint">Zeigt auch 7TV-Emotes, die nicht öffentlich gelistet sind</string>
 
     <!-- Emote card -->
     <string name="emote_channel">Kanal-Emote</string>
@@ -513,9 +514,9 @@
 
     <!-- 7TV activity -->
     <string name="settings_seventv_events">7TV-Aktivität</string>
-    <string name="settings_seventv_events_hint">Im Chat anzeigen, wenn 7TV-Emotes hinzugefügt, entfernt oder umbenannt werden</string>
+    <string name="settings_seventv_events_hint">Zeigt im Chat, wenn 7TV-Emotes hinzukommen, wegfallen oder umbenannt werden</string>
     <string name="settings_seventv_paints">7TV-Paints</string>
-    <string name="settings_seventv_paints_hint">Namen in den Farben und Mustern, die ihre Besitzer bei 7TV gewählt haben. Manche sind schwer zu lesen</string>
+    <string name="settings_seventv_paints_hint">Namen in ihren 7TV-Farben und -Mustern. Manche sind schwer zu lesen.</string>
     <string name="seventv_added">7TV: %1$s hat hinzugefügt:</string>
     <string name="seventv_removed">7TV: %1$s hat %2$s entfernt</string>
     <string name="seventv_renamed">7TV: %1$s hat %2$s umbenannt in</string>
@@ -569,8 +570,9 @@
         <item quantity="other">%1$s hat %2$d Streams in Folge geschaut</item>
     </plurals>
     <string name="settings_first_messages">Erste Nachrichten hervorheben</string>
-    <string name="settings_first_messages_hint">Markieren, wenn jemand zum ersten Mal in einem Kanal schreibt</string>
+    <string name="settings_first_messages_hint">Markiert, wenn jemand zum ersten Mal in einem Kanal schreibt</string>
     <string name="settings_special_messages">Besondere Nachrichten</string>
+    <string name="settings_special_messages_examples">Riesige Emotes, Effekte, Belohnungen</string>
     <string name="settings_special_messages_on">%1$d von %2$d an</string>
     <string name="special_giant_emotes">Riesige Emotes</string>
     <string name="special_giant_emotes_hint">Ein Emote, das jemand mit Bits groß gemacht hat</string>
@@ -595,8 +597,8 @@
     <string name="keyword_word">Wort</string>
     <string name="keyword_remove">%s entfernen</string>
     <plurals name="settings_post_text_lines">
-        <item quantity="one">Text: %1$d Zeile</item>
-        <item quantity="other">Text: %1$d Zeilen</item>
+        <item quantity="one">%1$d Zeile</item>
+        <item quantity="other">%1$d Zeilen</item>
     </plurals>
     <plurals name="post_replies">
         <item quantity="one">%1$s Antwort</item>
@@ -706,7 +708,7 @@
     <string name="settings_changelog">Changelog</string>
     <string name="settings_changelog_summary">Was sich in jeder Version geändert hat</string>
     <string name="settings_update_check">Nach Updates suchen</string>
-    <string name="settings_update_check_hint">Frage einmal am Tag bei GitHub nach, ob es eine neue Version gibt</string>
+    <string name="settings_update_check_hint">Fragt einmal am Tag bei GitHub nach einer neuen Version</string>
     <string name="update_available">Chatter %1$s ist da</string>
     <string name="update_installed">Du hast %1$s</string>
     <string name="update_whats_new">Was ist neu</string>
@@ -732,7 +734,6 @@
 
     <!-- Erwähnungen -->
     <string name="settings_group_controls">Bedienung</string>
-    <string name="settings_group_user_card">Nutzerkarte</string>
     <string name="settings_haptics">Vibration</string>
     <string name="settings_haptics_hint">Kurzes Vibrieren, wenn du erwähnt wirst</string>
 

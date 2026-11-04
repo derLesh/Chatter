@@ -11,7 +11,6 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material3.Button
@@ -70,7 +69,7 @@ internal fun FiltersPage(settings: Settings, vm: MainViewModel, open: (SettingsS
                         else pluralStringResource(R.plurals.settings_rules_count, rules.size, rules.size)
                     )
                 },
-                trailingContent = { Icon(Icons.AutoMirrored.Filled.ArrowForward, contentDescription = null) },
+                trailingContent = { NavChevron() },
                 colors = transparentItem(),
                 modifier = Modifier.clickable { open(SettingsSubPage.Rules) },
             )
@@ -84,7 +83,7 @@ internal fun FiltersPage(settings: Settings, vm: MainViewModel, open: (SettingsS
                         else pluralStringResource(R.plurals.settings_blocked_count, blocked.size, blocked.size)
                     )
                 },
-                trailingContent = { Icon(Icons.AutoMirrored.Filled.ArrowForward, contentDescription = null) },
+                trailingContent = { NavChevron() },
                 colors = transparentItem(),
                 modifier = Modifier.clickable { open(SettingsSubPage.BlockedUsers) },
             )

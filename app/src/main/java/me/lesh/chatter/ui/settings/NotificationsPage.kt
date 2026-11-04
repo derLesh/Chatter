@@ -2,11 +2,8 @@ package me.lesh.chatter.ui.settings
 
 import androidx.compose.foundation.clickable
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.automirrored.filled.List
-import androidx.compose.material3.Icon
 import androidx.compose.material3.ListItem
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -59,14 +56,16 @@ internal fun NotificationsPage(settings: Settings, vm: MainViewModel, open: (Set
                 vm::setSenderAvatars, R.string.settings_sender_avatars_hint,
             )
         }
+        item(R.string.settings_haptics) {
+            SwitchItem(R.string.settings_haptics, settings.haptics, vm::setHaptics, R.string.settings_haptics_hint)
+        }
         item(R.string.settings_system_notifications) {
             ListItem(
                 headlineContent = { Text(stringResource(R.string.settings_system_notifications)) },
                 supportingContent = { Text(stringResource(R.string.settings_notifications_hint)) },
-                trailingContent = {
-                    OutlinedButton(onClick = { openNotificationSettings(context) }) { Text(stringResource(R.string.open)) }
-                },
+                trailingContent = { LeavesAppMark() },
                 colors = transparentItem(),
+                modifier = Modifier.clickable { openNotificationSettings(context) },
             )
         }
     }
@@ -80,7 +79,7 @@ internal fun NotificationsPage(settings: Settings, vm: MainViewModel, open: (Set
                 ListItem(
                     headlineContent = { Text(stringResource(R.string.settings_live_channels)) },
                     supportingContent = { Text(stringResource(R.string.settings_live_channels_summary)) },
-                    trailingContent = { Icon(Icons.AutoMirrored.Filled.ArrowForward, contentDescription = null) },
+                    trailingContent = { NavChevron() },
                     colors = transparentItem(),
                     modifier = Modifier.clickable { open(SettingsSubPage.LiveChannels) },
                 )

@@ -14,11 +14,9 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.Icon
 import androidx.compose.material3.ListItem
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
@@ -104,7 +102,7 @@ private fun ReportIssueItem(reportIssue: () -> Unit) {
     ListItem(
         headlineContent = { Text(stringResource(R.string.settings_report_issue)) },
         supportingContent = { Text(stringResource(R.string.settings_report_issue_summary)) },
-        trailingContent = { Icon(Icons.AutoMirrored.Filled.ArrowForward, contentDescription = null) },
+        trailingContent = { LeavesAppMark() },
         colors = transparentItem(),
         modifier = Modifier.clickable(onClick = reportIssue),
     )
@@ -194,7 +192,7 @@ internal fun AboutPage(settings: Settings, vm: MainViewModel, open: (SettingsSub
             ListItem(
                 headlineContent = { Text(stringResource(R.string.settings_changelog)) },
                 supportingContent = { Text(stringResource(R.string.settings_changelog_summary)) },
-                trailingContent = { Icon(Icons.AutoMirrored.Filled.ArrowForward, contentDescription = null) },
+                trailingContent = { NavChevron() },
                 colors = transparentItem(),
                 modifier = Modifier.clickable { open(SettingsSubPage.Changelog) },
             )
@@ -208,7 +206,7 @@ internal fun AboutPage(settings: Settings, vm: MainViewModel, open: (SettingsSub
             ListItem(
                 headlineContent = { Text(stringResource(R.string.settings_credits)) },
                 supportingContent = { Text(stringResource(R.string.settings_credits_summary)) },
-                trailingContent = { Icon(Icons.AutoMirrored.Filled.ArrowForward, contentDescription = null) },
+                trailingContent = { NavChevron() },
                 colors = transparentItem(),
                 modifier = Modifier.clickable { open(SettingsSubPage.Credits) },
             )
@@ -250,7 +248,7 @@ internal fun CreditsPage() {
                 ListItem(
                     headlineContent = { Text(dependency.name) },
                     supportingContent = { Text(stringResource(dependency.license)) },
-                    trailingContent = { Icon(Icons.AutoMirrored.Filled.ArrowForward, contentDescription = null) },
+                    trailingContent = { NavChevron() },
                     colors = transparentItem(),
                     modifier = Modifier.clickable { shownLicense = dependency },
                 )
