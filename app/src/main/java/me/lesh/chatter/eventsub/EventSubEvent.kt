@@ -44,6 +44,9 @@ sealed interface EventSubEvent {
     /** A mod decided on the user's held message, or it expired. */
     data class OwnMessageResolved(override val channelId: String, val messageId: String, val status: HoldStatus) : EventSubEvent
 
+    /** The channel's title or category changed, or something else about the stream. */
+    data class ChannelUpdated(override val channelId: String, val title: String, val category: String) : EventSubEvent
+
     /** A mod did [action]; [moderator] is their display name. */
     data class Moderation(
         override val channelId: String,
@@ -120,6 +123,7 @@ internal sealed interface EventSubFrame {
                     val status = holdStatus(e.str("status")) ?: return null
                     EventSubEvent.OwnMessageResolved(channelId, messageId, status)
                 }
+                "channel.update" -> EventSubEvent.ChannelUpdated(channelId, e.str("title").orEmpty(), e.str("category_name").orEmpty())
                 "channel.moderate" -> ModAction.parse(e, sentAt ?: System.currentTimeMillis())?.let { action ->
                     val moderator = e.str("moderator_user_name")?.ifEmpty { null } ?: e.str("moderator_user_login") ?: return null
                     EventSubEvent.Moderation(channelId, moderator, action)

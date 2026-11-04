@@ -40,6 +40,11 @@ object EventSubPlan {
                     add(EventSubSubscription("channel.chat.user_message_update", "1", asUser))
                 }
             }
+            // Needs no scope, so Twitch counts it against a small budget per account, which a second
+            // phone with Chatter shares.
+            for (channelId in visited.take(MAX_TITLE_CHANNELS)) {
+                add(EventSubSubscription("channel.update", "2", mapOf("broadcaster_user_id" to channelId)))
+            }
         }
     }
 
@@ -48,6 +53,9 @@ object EventSubPlan {
 
     /** How many of the channels looked at hear of the user's held messages. */
     const val MAX_VISITED = 20
+
+    /** Twitch allows ten subscriptions that need no scope; this leaves room for another phone. */
+    const val MAX_TITLE_CHANNELS = 5
 
     /** `channel.moderate` reports every kind of action, so Twitch wants a scope to read each. */
     private val MOD_LOG_SCOPES = listOf(

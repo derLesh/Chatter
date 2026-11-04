@@ -28,6 +28,8 @@
         <item quantity="other">%1$s wurde für %2$d Sekunden stummgeschaltet.</item>
     </plurals>
     <string name="chat_ban">%1$s wurde gebannt.</string>
+    <string name="channel_new_title">Neuer Titel: %1$s</string>
+    <string name="channel_new_category">Jetzt in der Kategorie: %1$s</string>
     <string name="own_held_allowed">Ein Mod hat deine zurückgehaltene Nachricht in den Chat gelassen.</string>
     <string name="own_held_denied">Ein Mod hat deine zurückgehaltene Nachricht abgelehnt. Niemand sonst hat sie gesehen.</string>
     <string name="mod_ban">%1$s hat %2$s gebannt.</string>

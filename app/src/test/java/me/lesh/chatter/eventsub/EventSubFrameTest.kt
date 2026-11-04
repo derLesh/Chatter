@@ -176,4 +176,15 @@ class EventSubFrameTest {
             ).event,
         )
     }
+
+    @Test
+    fun aChannelUpdateCarriesTitleAndCategory() {
+        assertEquals(
+            EventSubEvent.ChannelUpdated("1", "Ranked grind", "Valorant"),
+            notification(
+                "channel.update",
+                """{"broadcaster_user_id":"1","title":"Ranked grind","language":"en","category_id":"516575","category_name":"Valorant","content_classification_labels":[]}""",
+            ).event,
+        )
+    }
 }

@@ -125,6 +125,8 @@ class ChatRepository(
     /** The user's own messages AutoMod holds; see [OwnHolds]. */
     private val ownHolds = OwnHolds(buffers, holdNotices)
 
+    private val channelChanges = ChannelChanges { ch -> channelRepo.info.value[ch].let { it?.title.orEmpty() to it?.game.orEmpty() } }
+
     // --- state touched only on `worker` ---
     private val lastSent = HashMap<String, Pair<String, Long>>()
     private val rateLimiter = RateLimiter(30_000)
@@ -404,6 +406,7 @@ class ChatRepository(
         autoMod.clear()
         modLog.clear()
         ownHolds.clear()
+        channelChanges.clear()
         loadedChannels.clear()
         listLoads.clear()
         joinedChannels = emptyList()
@@ -433,6 +436,7 @@ class ChatRepository(
             sharedChats.forget(ch)
             pins.forget(ch)
             autoMod.forget(ch)
+            channelChanges.forget(ch)
             loadedChannels.remove(ch)
             _unreadMentions.update { it - ch }
         }
@@ -593,6 +597,11 @@ class ChatRepository(
             is EventSubEvent.Moderation -> rooms.channelOf(event.channelId)?.let { modLog.fromEventSub(it, event.moderator, event.action) }
             is EventSubEvent.OwnMessageHeld -> rooms.channelOf(event.channelId)?.let { ownHolds.onHeld(it, event.messageId, event.text) }
             is EventSubEvent.OwnMessageResolved -> rooms.channelOf(event.channelId)?.let { ownHolds.onResolved(it, event.messageId, event.status) }
+            is EventSubEvent.ChannelUpdated -> rooms.channelOf(event.channelId)?.let { channel ->
+                val change = channelChanges.changed(channel, event.title, event.category) ?: return@let
+                change.title?.let { system(channel, context.getString(R.string.channel_new_title, it)) }
+                change.category?.let { system(channel, context.getString(R.string.channel_new_category, it)) }
+            }
         }
     }
 

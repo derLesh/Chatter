@@ -1,0 +1,1 @@
+minor: See in the chat when a channel you watch changes its title or category

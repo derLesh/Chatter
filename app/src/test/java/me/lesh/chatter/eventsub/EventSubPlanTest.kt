@@ -48,7 +48,16 @@ class EventSubPlanTest {
     fun onlyTheLatestChannelsLookedAtCount() {
         val visited = (1..30).map { it.toString() }
         val subs = EventSubPlan.subscriptions("me", scopes = null, moderated = emptyList(), visited = visited)
-        assertEquals(EventSubPlan.MAX_VISITED * 2, subs.size)
+            .filter { it.type == "channel.chat.user_message_hold" }
+        assertEquals(EventSubPlan.MAX_VISITED, subs.size)
         assertEquals("1", subs.first().condition["broadcaster_user_id"])
+    }
+
+    @Test
+    fun titlesAreHeardForAFewOfTheLatestChannelsOnly() {
+        val visited = (1..30).map { it.toString() }
+        val updates = EventSubPlan.subscriptions("me", scopes = setOf("chat:read"), moderated = emptyList(), visited = visited)
+        assertEquals((1..EventSubPlan.MAX_TITLE_CHANNELS).map { it.toString() }, updates.map { it.condition["broadcaster_user_id"] })
+        assertTrue(updates.all { it.type == "channel.update" })
     }
 }

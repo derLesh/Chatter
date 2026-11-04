@@ -59,6 +59,8 @@ class EventSubClient(
     /** Twitch closed an unused socket; nothing is tried until the subscriptions change. */
     private var idle = false
     private var attempt = 0
+    /** Grows with each failed round, so a full budget is not asked about every half minute. */
+    private var retryMs = FIRST_RETRY_MS
     private var reconnectJob: Job? = null
     private var watchdogJob: Job? = null
 
@@ -205,9 +207,12 @@ class EventSubClient(
                 }
             }
         }
-        if (retryLater) scope.launch {
-            delay(RETRY_MS)
-            syncRequests.trySend(Unit)
+        if (retryLater) {
+            val wait = synchronized(lock) { retryMs.also { retryMs = (it * 2).coerceAtMost(MAX_RETRY_MS) } }
+            scope.launch {
+                delay(wait)
+                syncRequests.trySend(Unit)
+            }
         }
     }
 
@@ -276,6 +281,7 @@ class EventSubClient(
             }
             sessionId = frame.sessionId
             attempt = 0
+            retryMs = FIRST_RETRY_MS
             silenceLimitMs = (frame.keepaliveSeconds ?: KEEPALIVE_SECONDS) * 1000L + KEEPALIVE_GRACE_MS
             startWatchdog(webSocket)
             syncRequests.trySend(Unit)
@@ -317,7 +323,8 @@ class EventSubClient(
         const val WELCOME_TIMEOUT_MS = 15_000L
         const val KEEPALIVE_GRACE_MS = 15_000L
         const val MAX_BACKOFF_MS = 60_000L
-        const val RETRY_MS = 30_000L
+        const val FIRST_RETRY_MS = 30_000L
+        const val MAX_RETRY_MS = 30 * 60_000L
 
         /** Twitch's limit per socket. */
         const val MAX_SUBSCRIPTIONS = 300
