@@ -999,11 +999,13 @@
     <string name="live_channels_followed">Andere gefolgte Kanäle</string>
     <string name="live_channels_loading">Frage Twitch, wem du folgst…</string>
     <string name="live_channels_none">Keine weiteren gefolgten Kanäle</string>
-    <!-- Beta-Funktionen -->
+    <!-- Labs -->
     <string name="beta">Beta</string>
-    <string name="settings_beta">Beta-Funktionen</string>
+    <string name="settings_beta">Labs</string>
     <string name="settings_beta_summary">Neues ausprobieren, das noch nicht fertig ist</string>
     <string name="settings_beta_intro">Neu und noch nicht fertig.</string>
+    <string name="settings_colorful_categories">Farbige Kategorien</string>
+    <string name="settings_colorful_categories_hint">Gibt jeder Kategorie in den Einstellungen eine eigene Farbe</string>
     <string name="settings_catch_up">Verpasstes zusammenfassen</string>
     <string name="settings_catch_up_hint">Ab 30 neuen Nachrichten fasst Gemini Nano auf dem Handy zusammen, was los war. Google bekommt nur Nutzungszahlen.</string>
     <string name="model_state_checking">Wird geprüft…</string>

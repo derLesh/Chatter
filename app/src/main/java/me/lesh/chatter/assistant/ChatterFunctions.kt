@@ -53,7 +53,7 @@ data class ChatterMention(
 
 /**
  * What Gemini and other assistants may do in Chatter, through Android's AppFunctions. Every
- * function starts disabled; the beta switch under Settings → Beta features enables them (see
+ * function starts disabled; the beta switch under Settings → Labs enables them (see
  * [AssistantAccess]).
  */
 @RequiresApi(36)
