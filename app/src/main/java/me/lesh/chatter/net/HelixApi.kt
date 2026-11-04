@@ -33,12 +33,20 @@ interface TwitchBadgeApi {
     suspend fun channelBadges(channelId: String): List<HelixBadgeSet>
 }
 
+/** EventSub subscriptions, as the EventSub socket needs them. */
+interface EventSubApi {
+    /** Subscribes [sessionId] and returns the subscription's id. */
+    suspend fun subscribe(type: String, version: String, condition: Map<String, String>, sessionId: String): String
+
+    suspend fun unsubscribe(subscriptionId: String)
+}
+
 /** Client for the parts of the Twitch Helix API the app uses. */
 class HelixApi(
     private val http: OkHttpClient,
     /** A currently valid access token, refreshed if needed. */
     private val token: suspend () -> String?,
-) : TwitchEmoteApi, TwitchBadgeApi, TwitchCheermoteApi {
+) : TwitchEmoteApi, TwitchBadgeApi, TwitchCheermoteApi, EventSubApi {
     private suspend fun headers() = mapOf(
         "Client-Id" to BuildConfig.TWITCH_CLIENT_ID,
         "Authorization" to "Bearer ${token() ?: throw NotLoggedInException()}",
@@ -252,7 +260,38 @@ class HelixApi(
     suspend fun setChatColor(userId: String, color: String) {
         http.send("PUT", url("chat/color", "user_id" to userId, "color" to color), headers())
     }
+
+    /** Lets a message AutoMod held into the chat, or throws it away. */
+    suspend fun resolveHeldMessage(modId: String, messageId: String, allow: Boolean) {
+        val body = buildJsonObject {
+            put("user_id", modId)
+            put("msg_id", messageId)
+            put("action", if (allow) "ALLOW" else "DENY")
+        }
+        http.send("POST", url("moderation/automod/message"), headers(), body.toString())
+    }
+
+    override suspend fun subscribe(type: String, version: String, condition: Map<String, String>, sessionId: String): String {
+        val body = buildJsonObject {
+            put("type", type)
+            put("version", version)
+            putJsonObject("condition") { condition.forEach { (k, v) -> put(k, v) } }
+            putJsonObject("transport") {
+                put("method", "websocket")
+                put("session_id", sessionId)
+            }
+        }
+        val answer = http.send("POST", url("eventsub/subscriptions"), headers(), body.toString())
+        return AppJson.decodeFromString<HelixList<HelixSubscription>>(answer).data.firstOrNull()?.id.orEmpty()
+    }
+
+    override suspend fun unsubscribe(subscriptionId: String) {
+        http.send("DELETE", url("eventsub/subscriptions", "id" to subscriptionId), headers())
+    }
 }
+
+@Serializable
+data class HelixSubscription(val id: String = "")
 
 @Serializable
 data class ValidateResponse(

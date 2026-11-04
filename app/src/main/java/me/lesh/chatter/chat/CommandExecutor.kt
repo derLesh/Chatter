@@ -4,6 +4,7 @@ import android.content.Context
 import me.lesh.chatter.R
 import me.lesh.chatter.auth.AuthRepository
 import me.lesh.chatter.auth.TwitchScopes
+import me.lesh.chatter.eventsub.EventSubPlan
 import me.lesh.chatter.net.HelixApi
 import me.lesh.chatter.net.HttpException
 import kotlinx.coroutines.CancellationException
@@ -26,17 +27,32 @@ class CommandExecutor(
         }
         return try {
             run(command, channelId.orEmpty(), me)
-        } catch (e: HttpException) {
-            when {
-                e.code == 401 && e.apiMessage?.contains("scope", ignoreCase = true) == true -> str(R.string.cmd_error_scope)
-                e.code == 401 || e.code == 403 -> str(R.string.cmd_error_permission, e.apiMessage ?: "")
-                else -> str(R.string.cmd_error_generic, e.apiMessage ?: "HTTP ${e.code}")
-            }
         } catch (e: CancellationException) {
             throw e
         } catch (e: Exception) {
-            str(R.string.cmd_error_generic, e.message ?: e.toString())
+            failure(e)
         }
+    }
+
+    /** Lets a message AutoMod held into the chat or denies it; null if Twitch took it. */
+    suspend fun resolveHeld(messageId: String, allow: Boolean): String? {
+        val me = auth.account?.userId ?: return str(R.string.error_not_connected)
+        if (!TwitchScopes.allows(auth.account?.scopes, EventSubPlan.AUTOMOD_SCOPE)) return str(R.string.cmd_error_scope)
+        return try {
+            helix.resolveHeldMessage(me, messageId, allow)
+            null
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            failure(e)
+        }
+    }
+
+    private fun failure(e: Exception): String = when {
+        e !is HttpException -> str(R.string.cmd_error_generic, e.message ?: e.toString())
+        e.code == 401 && e.apiMessage?.contains("scope", ignoreCase = true) == true -> str(R.string.cmd_error_scope)
+        e.code == 401 || e.code == 403 -> str(R.string.cmd_error_permission, e.apiMessage ?: "")
+        else -> str(R.string.cmd_error_generic, e.apiMessage ?: "HTTP ${e.code}")
     }
 
     private suspend fun run(command: ChatCommand, channel: String, me: String): String = when (command) {

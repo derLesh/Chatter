@@ -64,6 +64,7 @@ import me.lesh.chatter.ui.channels.ChannelPages
 import me.lesh.chatter.ui.channels.ChannelTabBar
 import me.lesh.chatter.ui.channels.ChannelTopBar
 import me.lesh.chatter.ui.channels.OfferUndoRemoval
+import me.lesh.chatter.ui.chat.AutoModBar
 import me.lesh.chatter.ui.chat.ChannelMark
 import me.lesh.chatter.ui.chat.ChatActivity
 import me.lesh.chatter.ui.chat.ChatList
@@ -112,6 +113,7 @@ fun MainScreen(vm: MainViewModel, onInbox: () -> Unit, onSettings: () -> Unit) {
     val sharedChats by vm.sharedChats.collectAsStateWithLifecycle()
     val chatPartners by vm.chatPartners.collectAsStateWithLifecycle()
     val pins by vm.pins.collectAsStateWithLifecycle()
+    val heldMessages by vm.heldMessages.collectAsStateWithLifecycle()
     val jump by vm.requestedMessage.collectAsStateWithLifecycle()
     val modChannels by vm.modChannels.collectAsStateWithLifecycle()
     val partnerMarks = remember(chatPartners) {
@@ -416,14 +418,28 @@ fun MainScreen(vm: MainViewModel, onInbox: () -> Unit, onSettings: () -> Unit) {
                             onEmoteClick = { sheets.emoteCard = it },
                             onBadgeHold = { sheets.badgeToHide = it },
                         )
-                        PinnedBar(
-                            pin = pins[channel]?.takeIf { it.item.id !in vm.hiddenPins },
-                            style = style,
-                            imageLoader = loader,
-                            onHide = vm::hidePin,
-                            onUnpin = vm::unpinMessage,
-                            modifier = Modifier.fillMaxWidth().align(Alignment.TopCenter),
-                        )
+                        Column(Modifier.fillMaxWidth().align(Alignment.TopCenter)) {
+                            PinnedBar(
+                                pin = pins[channel]?.takeIf { it.item.id !in vm.hiddenPins },
+                                style = style,
+                                imageLoader = loader,
+                                onHide = vm::hidePin,
+                                onUnpin = vm::unpinMessage,
+                                modifier = Modifier.fillMaxWidth(),
+                            )
+                            // A combined chat shows the held messages of all its channels, oldest first.
+                            val held = remember(heldMessages, channel, members) {
+                                members?.flatMap { heldMessages[it].orEmpty() }?.sortedBy { it.heldAt }
+                                    ?: heldMessages[channel].orEmpty()
+                            }
+                            AutoModBar(
+                                held = held,
+                                style = style,
+                                imageLoader = loader,
+                                onResolve = vm::resolveHeld,
+                                modifier = Modifier.fillMaxWidth(),
+                            )
+                        }
                     }
                 }
             }

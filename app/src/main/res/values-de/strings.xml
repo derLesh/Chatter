@@ -209,6 +209,22 @@
     <string name="pinned_by">Angepinnt von %1$s</string>
     <string name="pin_show_all">Alles zeigen</string>
     <string name="pin_show_less">Weniger zeigen</string>
+    <plurals name="automod_held">
+        <item quantity="one">AutoMod hält %d Nachricht zurück</item>
+        <item quantity="other">AutoMod hält %d Nachrichten zurück</item>
+    </plurals>
+    <string name="automod_allow">Erlauben</string>
+    <string name="automod_deny">Ablehnen</string>
+    <string name="automod_blocked_term">Gesperrtes Wort</string>
+    <string name="automod_reason_level">%1$s, Stufe %2$d</string>
+    <string name="automod_aggression">Aggression</string>
+    <string name="automod_bullying">Mobbing</string>
+    <string name="automod_disability">Behinderung</string>
+    <string name="automod_sexuality">Sexualität oder Geschlecht</string>
+    <string name="automod_misogyny">Frauenfeindlichkeit</string>
+    <string name="automod_race">Herkunft oder Religion</string>
+    <string name="automod_sex_terms">Sexuelle Wörter</string>
+    <string name="automod_swearing">Fluchen</string>
     <string name="settings_appearance">Darstellung</string>
     <string name="theme_system">System</string>
     <string name="theme_light">Hell</string>

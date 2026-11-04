@@ -56,6 +56,8 @@ import me.lesh.chatter.emotes.HiddenEmoteRepository
 import me.lesh.chatter.badges.HiddenBadgeRepository
 import me.lesh.chatter.emotes.SevenTvEventClient
 import me.lesh.chatter.emotes.SevenTvLiveUpdates
+import me.lesh.chatter.eventsub.EventSubClient
+import me.lesh.chatter.eventsub.EventSubFeeds
 import me.lesh.chatter.irc.ConnectionState
 import me.lesh.chatter.irc.IrcConnection
 import me.lesh.chatter.net.BlueskyApi
@@ -194,13 +196,15 @@ class AppContainer(
     val irc: IrcConnection = IrcConnection(socketHttp, scope) { chat.priority(it) }
     val whisperSender = WhisperSender(context, helix, auth)
     private val chatters = ChatterRegistry()
+    private val eventSub = EventSubClient(socketHttp, helix, scope)
 
     val chat: ChatRepository = ChatRepository(
         context, irc, MessageBuilder(emotes, badges, chatters, cheermotes, ::emoteOptions), emotes, badges, cheermotes, channels,
         thirdParty, helix, auth,
         CommandExecutor(context, helix, auth, whisperSender), AppChatNotices(context), chatters, blocked, stats,
-        rules.rules, settings.settings, scope,
+        rules.rules, settings.settings, eventSub.events, scope,
     )
+    private val eventSubFeeds = EventSubFeeds(eventSub, auth, chat.rooms, chat::priority, scope)
 
     // One disk cache for both loaders; two caches on one directory would corrupt it.
     private val diskCache by lazy {
@@ -278,6 +282,7 @@ class AppContainer(
                 .collect { assistantAccess.allow(it) }
         }
         sevenTvLive.start()
+        eventSubFeeds.start()
         shortcuts.start()
         appIcons.start()
         liveAlerts.start()
@@ -474,6 +479,7 @@ class AppContainer(
             val caps = network?.let { cm.getNetworkCapabilities(it) }
             irc.setNetwork(up = network != null, validated = caps?.hasCapability(NetworkCapabilities.NET_CAPABILITY_VALIDATED) == true)
             sevenTvEvents.setNetwork(up = network != null)
+            eventSub.setNetwork(up = network != null)
         }
         tellChat(cm.activeNetwork)
         cm.registerDefaultNetworkCallback(object : ConnectivityManager.NetworkCallback() {
@@ -488,6 +494,7 @@ class AppContainer(
             override fun onCapabilitiesChanged(network: Network, caps: NetworkCapabilities) {
                 irc.setNetwork(up = true, validated = caps.hasCapability(NetworkCapabilities.NET_CAPABILITY_VALIDATED))
                 sevenTvEvents.setNetwork(up = true)
+                eventSub.setNetwork(up = true)
                 dataSaving.networkChanged()
             }
         })
