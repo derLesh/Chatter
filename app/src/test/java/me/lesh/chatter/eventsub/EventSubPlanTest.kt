@@ -35,4 +35,20 @@ class EventSubPlanTest {
         )
         assertTrue(partly.none { it.type == "channel.moderate" })
     }
+
+    @Test
+    fun ownHoldsAreHeardInChannelsLookedAtButNotWhereTheUserModerates() {
+        val subs = EventSubPlan.subscriptions("me", scopes = null, moderated = listOf("10"), visited = listOf("10", "20", "30"))
+        val holdChannels = subs.filter { it.type == "channel.chat.user_message_hold" }.map { it.condition["broadcaster_user_id"] }
+        assertEquals(listOf("20", "30"), holdChannels)
+        assertTrue(subs.filter { it.type.startsWith("channel.chat.") }.all { it.condition["user_id"] == "me" })
+    }
+
+    @Test
+    fun onlyTheLatestChannelsLookedAtCount() {
+        val visited = (1..30).map { it.toString() }
+        val subs = EventSubPlan.subscriptions("me", scopes = null, moderated = emptyList(), visited = visited)
+        assertEquals(EventSubPlan.MAX_VISITED * 2, subs.size)
+        assertEquals("1", subs.first().condition["broadcaster_user_id"])
+    }
 }

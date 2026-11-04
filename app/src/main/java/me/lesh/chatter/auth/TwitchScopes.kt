@@ -33,10 +33,12 @@ object TwitchScopes {
         // With the moderation scopes above: which mod did what, over EventSub.
         "moderator:manage:blocked_terms", "moderator:manage:unban_requests", "moderator:manage:warnings",
         "moderator:read:moderators", "moderator:read:vips",
+        // Whether a mod let the user's own message through after AutoMod held it, over EventSub.
+        "user:read:chat",
 
-        // Not used yet. Chat and whispers over EventSub, the channels the user moderates, their
-        // subs, and /clip.
-        "user:read:chat", "user:write:chat", "user:read:whispers",
+        // Not used yet. Sending chat and whispers over EventSub, the channels the user moderates,
+        // their subs, and /clip.
+        "user:write:chat", "user:read:whispers",
         "user:read:moderated_channels", "user:read:subscriptions", "clips:edit",
         // Not used yet. More moderation: /warn, AutoMod settings, shield mode, suspicious users and how
         // long someone follows.

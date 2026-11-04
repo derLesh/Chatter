@@ -26,9 +26,14 @@ class ChatWindows {
         _anyVisible.value = open.isNotEmpty()
     }
 
+    private val _watched = MutableStateFlow<Set<String>>(emptySet())
+    /** Every channel on screen in any window. */
+    val watched: StateFlow<Set<String>> = _watched
+
     /** The channels a window shows now; empty while it shows no chat. */
     fun setChannels(window: Any, channels: Set<String>) {
         if (channels.isEmpty()) shown.remove(window) else shown[window] = channels
+        _watched.value = shown.values.flatMapTo(HashSet()) { it }
     }
 
     /** Whether [channel] is on screen in any window. */

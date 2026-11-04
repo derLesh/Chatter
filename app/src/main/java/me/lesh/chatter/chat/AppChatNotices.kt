@@ -6,14 +6,18 @@ import me.lesh.chatter.eventsub.ModAction
 import me.lesh.chatter.eventsub.ModAction.ChatModeKind
 import me.lesh.chatter.eventsub.ModAction.RoleKind
 
-/** [ChatNotices] and [ModLogNotices] in the phone's language. */
-class AppChatNotices(private val context: Context) : ChatNotices, ModLogNotices {
+/** [ChatNotices], [ModLogNotices] and [OwnHoldNotices] in the phone's language. */
+class AppChatNotices(private val context: Context) : ChatNotices, ModLogNotices, OwnHoldNotices {
     override fun chatCleared(): String = context.getString(R.string.chat_cleared)
 
     override fun timeout(name: String, seconds: Int): String =
         context.resources.getQuantityString(R.plurals.chat_timeout, seconds, name, seconds)
 
     override fun ban(name: String): String = context.getString(R.string.chat_ban, name)
+
+    override fun allowed(): String = str(R.string.own_held_allowed)
+
+    override fun denied(): String = str(R.string.own_held_denied)
 
     override fun describe(moderator: String, action: ModAction): String? = when (action) {
         is ModAction.Ban -> withReason(str(R.string.mod_ban, moderator, action.target.name), action.reason)

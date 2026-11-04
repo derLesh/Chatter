@@ -30,6 +30,8 @@
         <item quantity="other">%1$s has been timed out for %2$d seconds.</item>
     </plurals>
     <string name="chat_ban">%1$s has been banned.</string>
+    <string name="own_held_allowed">A mod let your held message into the chat.</string>
+    <string name="own_held_denied">A mod turned down your held message. Nobody else saw it.</string>
     <string name="mod_ban">%1$s banned %2$s.</string>
     <plurals name="mod_timeout">
         <item quantity="one">%1$s timed out %2$s for %3$d second.</item>

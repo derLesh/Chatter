@@ -83,6 +83,7 @@ class ChatRepository(
     private val commands: CommandExecutor,
     private val notices: ChatNotices,
     private val modNotices: ModLogNotices,
+    private val holdNotices: OwnHoldNotices,
     private val chatterRegistry: ChatterRegistry,
     private val blocked: BlockedUsersRepository,
     private val stats: ChatStats,
@@ -120,6 +121,9 @@ class ChatRepository(
 
     /** Who moderated what, where the user moderates; see [ModLog]. */
     private val modLog = ModLog(buffers, modNotices)
+
+    /** The user's own messages AutoMod holds; see [OwnHolds]. */
+    private val ownHolds = OwnHolds(buffers, holdNotices)
 
     // --- state touched only on `worker` ---
     private val lastSent = HashMap<String, Pair<String, Long>>()
@@ -399,6 +403,7 @@ class ChatRepository(
         rewards.clear()
         autoMod.clear()
         modLog.clear()
+        ownHolds.clear()
         loadedChannels.clear()
         listLoads.clear()
         joinedChannels = emptyList()
@@ -586,6 +591,8 @@ class ChatRepository(
             is EventSubEvent.AutoModHeld -> autoMod.onHeld(event)
             is EventSubEvent.AutoModResolved -> autoMod.onResolved(event)
             is EventSubEvent.Moderation -> rooms.channelOf(event.channelId)?.let { modLog.fromEventSub(it, event.moderator, event.action) }
+            is EventSubEvent.OwnMessageHeld -> rooms.channelOf(event.channelId)?.let { ownHolds.onHeld(it, event.messageId, event.text) }
+            is EventSubEvent.OwnMessageResolved -> rooms.channelOf(event.channelId)?.let { ownHolds.onResolved(it, event.messageId, event.status) }
         }
     }
 

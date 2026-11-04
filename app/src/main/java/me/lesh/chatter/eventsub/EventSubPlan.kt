@@ -9,12 +9,14 @@ import me.lesh.chatter.auth.TwitchScopes
 object EventSubPlan {
     /**
      * [moderated] are the ids of the joined channels where [userId] is mod or broadcaster, most
-     * important first. Null [scopes] are an account stored before scopes were kept; Twitch decides.
+     * important first; [visited] those of the joined channels the user had on screen lately, newest
+     * first. Null [scopes] are an account stored before scopes were kept; Twitch decides.
      */
     fun subscriptions(
         userId: String,
         scopes: Set<String>?,
         moderated: List<String>,
+        visited: List<String> = emptyList(),
     ): List<EventSubSubscription> {
         fun allows(scope: String) = TwitchScopes.allows(scopes, scope)
         val autoMod = allows(AUTOMOD_SCOPE)
@@ -28,10 +30,24 @@ object EventSubPlan {
                 }
                 if (modLog) add(EventSubSubscription("channel.moderate", "2", asMod))
             }
+            // AutoMod never holds a mod's message. Only channels the user looked at: they are the
+            // ones written in, and every new session subscribes again.
+            if (allows(CHAT_SCOPE)) {
+                val moderatedSet = moderated.toHashSet()
+                for (channelId in visited.asSequence().filter { it !in moderatedSet }.take(MAX_VISITED)) {
+                    val asUser = mapOf("broadcaster_user_id" to channelId, "user_id" to userId)
+                    add(EventSubSubscription("channel.chat.user_message_hold", "1", asUser))
+                    add(EventSubSubscription("channel.chat.user_message_update", "1", asUser))
+                }
+            }
         }
     }
 
     const val AUTOMOD_SCOPE = "moderator:manage:automod"
+    private const val CHAT_SCOPE = "user:read:chat"
+
+    /** How many of the channels looked at hear of the user's held messages. */
+    const val MAX_VISITED = 20
 
     /** `channel.moderate` reports every kind of action, so Twitch wants a scope to read each. */
     private val MOD_LOG_SCOPES = listOf(

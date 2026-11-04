@@ -158,4 +158,22 @@ class EventSubFrameTest {
         assertNull(moderation("delete", ""","delete":{"user_id":"2","user_login":"viewer","user_name":"Viewer","message_id":"x","message_body":"hi"}"""))
         assertNull(moderation("shared_chat_ban"))
     }
+
+    @Test
+    fun theUsersOwnHoldAndItsEnd() {
+        assertEquals(
+            EventSubEvent.OwnMessageHeld("1", "h", "hello there"),
+            notification(
+                "channel.chat.user_message_hold",
+                """{"broadcaster_user_id":"1","user_id":"2","user_login":"me","message_id":"h","message":{"text":"hello there","fragments":[]}}""",
+            ).event,
+        )
+        assertEquals(
+            EventSubEvent.OwnMessageResolved("1", "h", HoldStatus.Approved),
+            notification(
+                "channel.chat.user_message_update",
+                """{"broadcaster_user_id":"1","user_id":"2","user_login":"me","message_id":"h","status":"approved","message":{"text":"hello there"}}""",
+            ).event,
+        )
+    }
 }

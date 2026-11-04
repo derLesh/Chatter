@@ -202,10 +202,10 @@ class AppContainer(
     val chat: ChatRepository = ChatRepository(
         context, irc, MessageBuilder(emotes, badges, chatters, cheermotes, ::emoteOptions), emotes, badges, cheermotes, channels,
         thirdParty, helix, auth,
-        CommandExecutor(context, helix, auth, whisperSender), chatNotices, chatNotices, chatters, blocked, stats,
+        CommandExecutor(context, helix, auth, whisperSender), chatNotices, chatNotices, chatNotices, chatters, blocked, stats,
         rules.rules, settings.settings, eventSub.events, scope,
     )
-    private val eventSubFeeds = EventSubFeeds(eventSub, auth, chat.rooms, chat::priority, scope)
+    private val eventSubFeeds = EventSubFeeds(eventSub, auth, chat.rooms, chat.windows, chat::priority, scope)
 
     // One disk cache for both loaders; two caches on one directory would corrupt it.
     private val diskCache by lazy {

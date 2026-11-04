@@ -38,6 +38,12 @@ sealed interface EventSubEvent {
         val moderator: String?,
     ) : EventSubEvent
 
+    /** AutoMod held a message the user wrote; a mod decides on it. */
+    data class OwnMessageHeld(override val channelId: String, val messageId: String, val text: String) : EventSubEvent
+
+    /** A mod decided on the user's held message, or it expired. */
+    data class OwnMessageResolved(override val channelId: String, val messageId: String, val status: HoldStatus) : EventSubEvent
+
     /** A mod did [action]; [moderator] is their display name. */
     data class Moderation(
         override val channelId: String,
@@ -104,6 +110,15 @@ internal sealed interface EventSubFrame {
                     val messageId = e.str("message_id") ?: return null
                     val status = holdStatus(e.str("status")) ?: return null
                     EventSubEvent.AutoModResolved(channelId, messageId, status, e.str("moderator_user_name"))
+                }
+                "channel.chat.user_message_hold" -> {
+                    val messageId = e.str("message_id") ?: return null
+                    EventSubEvent.OwnMessageHeld(channelId, messageId, e.obj("message")?.str("text").orEmpty())
+                }
+                "channel.chat.user_message_update" -> {
+                    val messageId = e.str("message_id") ?: return null
+                    val status = holdStatus(e.str("status")) ?: return null
+                    EventSubEvent.OwnMessageResolved(channelId, messageId, status)
                 }
                 "channel.moderate" -> ModAction.parse(e, sentAt ?: System.currentTimeMillis())?.let { action ->
                     val moderator = e.str("moderator_user_name")?.ifEmpty { null } ?: e.str("moderator_user_login") ?: return null
