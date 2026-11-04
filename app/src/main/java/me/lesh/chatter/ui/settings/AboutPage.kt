@@ -4,7 +4,6 @@ import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Intent
 import androidx.compose.foundation.Image
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -104,7 +103,7 @@ private fun ReportIssueItem(reportIssue: () -> Unit) {
         supportingContent = { Text(stringResource(R.string.settings_report_issue_summary)) },
         trailingContent = { LeavesAppMark() },
         colors = transparentItem(),
-        modifier = Modifier.clickable(onClick = reportIssue),
+        modifier = Modifier.tileClickable(onClick = reportIssue),
     )
 }
 
@@ -165,26 +164,28 @@ private fun bugReportUrl(device: DeviceInfo): String =
 internal fun AboutPage(settings: Settings, vm: MainViewModel, open: (SettingsSubPage) -> Unit) {
     val reportIssue = rememberReportIssue(vm)
     // The wordmark already shows the name, so no heading below.
-    Column(
-        horizontalAlignment = Alignment.CenterHorizontally,
-        modifier = Modifier.fillMaxWidth().padding(top = 16.dp),
-    ) {
-        Image(
-            painterResource(R.drawable.ic_chatter_wordmark),
-            contentDescription = stringResource(R.string.app_name),
-            colorFilter = ColorFilter.tint(MaterialTheme.colorScheme.onSurface),
-            modifier = Modifier.width(208.dp),
-        )
-        Spacer(Modifier.height(10.dp))
-        Text(
-            stringResource(R.string.settings_version, BuildConfig.VERSION_NAME),
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-        )
-        // New bugs show up in Nightly first, so reporting one moves up from the list below.
-        if (BuildConfig.NIGHTLY) {
-            Spacer(Modifier.height(16.dp))
-            Button(onClick = reportIssue) { Text(stringResource(R.string.settings_report_issue)) }
+    EnterInOrder {
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally,
+            modifier = Modifier.fillMaxWidth().padding(top = 16.dp),
+        ) {
+            Image(
+                painterResource(R.drawable.ic_chatter_wordmark),
+                contentDescription = stringResource(R.string.app_name),
+                colorFilter = ColorFilter.tint(MaterialTheme.colorScheme.onSurface),
+                modifier = Modifier.width(208.dp),
+            )
+            Spacer(Modifier.height(10.dp))
+            Text(
+                stringResource(R.string.settings_version, BuildConfig.VERSION_NAME),
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            // New bugs show up in Nightly first, so reporting one moves up from the list below.
+            if (BuildConfig.NIGHTLY) {
+                Spacer(Modifier.height(16.dp))
+                Button(onClick = reportIssue) { Text(stringResource(R.string.settings_report_issue)) }
+            }
         }
     }
     SettingsGroup {
@@ -194,7 +195,7 @@ internal fun AboutPage(settings: Settings, vm: MainViewModel, open: (SettingsSub
                 supportingContent = { Text(stringResource(R.string.settings_changelog_summary)) },
                 trailingContent = { NavChevron() },
                 colors = transparentItem(),
-                modifier = Modifier.clickable { open(SettingsSubPage.Changelog) },
+                modifier = Modifier.tileClickable { open(SettingsSubPage.Changelog) },
             )
         }
         item(R.string.settings_source_code) { LinkItem(R.string.settings_source_code, R.string.settings_source_code_summary, REPO_URL) }
@@ -208,7 +209,7 @@ internal fun AboutPage(settings: Settings, vm: MainViewModel, open: (SettingsSub
                 supportingContent = { Text(stringResource(R.string.settings_credits_summary)) },
                 trailingContent = { NavChevron() },
                 colors = transparentItem(),
-                modifier = Modifier.clickable { open(SettingsSubPage.Credits) },
+                modifier = Modifier.tileClickable { open(SettingsSubPage.Credits) },
             )
         }
     }
@@ -250,7 +251,7 @@ internal fun CreditsPage() {
                     supportingContent = { Text(stringResource(dependency.license)) },
                     trailingContent = { NavChevron() },
                     colors = transparentItem(),
-                    modifier = Modifier.clickable { shownLicense = dependency },
+                    modifier = Modifier.tileClickable { shownLicense = dependency },
                 )
             }
         }

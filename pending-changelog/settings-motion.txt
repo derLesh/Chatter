@@ -1,0 +1,1 @@
+patch: Settings feel more alive: colored categories, tiles that react to a touch and smooth changes

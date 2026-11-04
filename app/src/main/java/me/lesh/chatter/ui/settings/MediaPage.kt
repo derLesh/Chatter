@@ -1,6 +1,5 @@
 package me.lesh.chatter.ui.settings
 
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -61,7 +60,7 @@ internal fun MediaPage(settings: Settings, vm: MainViewModel, open: (SettingsSub
                 },
                 trailingContent = { NavChevron() },
                 colors = transparentItem(),
-                modifier = Modifier.clickable { open(SettingsSubPage.ImageHosts) },
+                modifier = Modifier.tileClickable { open(SettingsSubPage.ImageHosts) },
             )
         }
         item(R.string.settings_show_gifs) {
@@ -76,7 +75,7 @@ internal fun MediaPage(settings: Settings, vm: MainViewModel, open: (SettingsSub
                 },
                 trailingContent = { NavChevron() },
                 colors = transparentItem(),
-                modifier = Modifier.clickable { open(SettingsSubPage.Posts) },
+                modifier = Modifier.tileClickable { open(SettingsSubPage.Posts) },
             )
         }
         item(R.string.settings_full_links) { SwitchItem(R.string.settings_full_links, settings.fullLinks, vm::setFullLinks, R.string.settings_full_links_hint) }
