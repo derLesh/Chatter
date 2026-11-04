@@ -52,6 +52,9 @@ class IncomingMessages(
     /** A message entered for a channel point reward arrived; see [RewardNames.seen]. */
     private val onReward: (rewardId: String, channelId: String?) -> Unit = { _, _ -> },
     private val threads: FollowedThreads = FollowedThreads(),
+    /** Where the user moderates, timeouts, bans and clears go through it; see [ModLog]. */
+    private val modLog: ModLog? = null,
+    private val moderates: (channel: String) -> Boolean = { false },
     private val now: () -> Long = System::currentTimeMillis,
 ) {
     /**
@@ -202,8 +205,9 @@ class IncomingMessages(
 
     private fun onClearChat(channel: String, msg: IrcMessage) {
         val target = msg.trailing
+        val log = modLog?.takeIf { moderates(channel) }
         if (target == null) {
-            system(channel, notices.chatCleared())
+            log?.fromIrc(channel, null, null, notices.chatCleared()) ?: system(channel, notices.chatCleared())
             return
         }
         buffers.markDeleted(channel) { it.login == target }
@@ -212,10 +216,9 @@ class IncomingMessages(
             val seconds = duration?.toLongOrNull()
             rooms.penalize(channel, if (seconds == null) Penalty.Banned else Penalty.TimedOut(now() + seconds * 1000))
         }
-        system(
-            channel,
-            if (duration != null) notices.timeout(target, duration.toIntOrNull() ?: 0) else notices.ban(target),
-        )
+        val seconds = duration?.toIntOrNull()
+        val text = if (duration != null) notices.timeout(target, seconds ?: 0) else notices.ban(target)
+        log?.fromIrc(channel, target, seconds, text) ?: system(channel, text)
     }
 
     /**

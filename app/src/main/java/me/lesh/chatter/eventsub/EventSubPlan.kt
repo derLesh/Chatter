@@ -18,6 +18,7 @@ object EventSubPlan {
     ): List<EventSubSubscription> {
         fun allows(scope: String) = TwitchScopes.allows(scopes, scope)
         val autoMod = allows(AUTOMOD_SCOPE)
+        val modLog = MOD_LOG_SCOPES.all(::allows)
         return buildList {
             for (channelId in moderated) {
                 val asMod = mapOf("broadcaster_user_id" to channelId, "moderator_user_id" to userId)
@@ -25,9 +26,17 @@ object EventSubPlan {
                     add(EventSubSubscription("automod.message.hold", "2", asMod))
                     add(EventSubSubscription("automod.message.update", "2", asMod))
                 }
+                if (modLog) add(EventSubSubscription("channel.moderate", "2", asMod))
             }
         }
     }
 
     const val AUTOMOD_SCOPE = "moderator:manage:automod"
+
+    /** `channel.moderate` reports every kind of action, so Twitch wants a scope to read each. */
+    private val MOD_LOG_SCOPES = listOf(
+        "moderator:manage:banned_users", "moderator:manage:chat_messages", "moderator:manage:chat_settings",
+        "moderator:manage:blocked_terms", "moderator:manage:unban_requests", "moderator:manage:warnings",
+        "moderator:read:moderators", "moderator:read:vips",
+    )
 }

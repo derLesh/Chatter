@@ -82,6 +82,7 @@ class ChatRepository(
     private val auth: AuthRepository,
     private val commands: CommandExecutor,
     private val notices: ChatNotices,
+    private val modNotices: ModLogNotices,
     private val chatterRegistry: ChatterRegistry,
     private val blocked: BlockedUsersRepository,
     private val stats: ChatStats,
@@ -116,6 +117,9 @@ class ChatRepository(
 
     /** Messages AutoMod holds where the user moderates; see [AutoModQueue]. */
     val autoMod = AutoModQueue(builder, rooms)
+
+    /** Who moderated what, where the user moderates; see [ModLog]. */
+    private val modLog = ModLog(buffers, modNotices)
 
     // --- state touched only on `worker` ---
     private val lastSent = HashMap<String, Pair<String, Long>>()
@@ -153,6 +157,8 @@ class ChatRepository(
         onRefused = { _refused.tryEmit(it) },
         onReward = rewards::seen,
         threads = threads,
+        modLog = modLog,
+        moderates = { it in rooms.moderated.value },
     )
 
     private val _refused = MutableSharedFlow<String>(extraBufferCapacity = 8)
@@ -392,6 +398,7 @@ class ChatRepository(
         pins.clear()
         rewards.clear()
         autoMod.clear()
+        modLog.clear()
         loadedChannels.clear()
         listLoads.clear()
         joinedChannels = emptyList()
@@ -578,6 +585,7 @@ class ChatRepository(
         when (event) {
             is EventSubEvent.AutoModHeld -> autoMod.onHeld(event)
             is EventSubEvent.AutoModResolved -> autoMod.onResolved(event)
+            is EventSubEvent.Moderation -> rooms.channelOf(event.channelId)?.let { modLog.fromEventSub(it, event.moderator, event.action) }
         }
     }
 

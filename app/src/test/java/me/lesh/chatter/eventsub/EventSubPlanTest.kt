@@ -25,4 +25,14 @@ class EventSubPlanTest {
         val subs = EventSubPlan.subscriptions("me", scopes = setOf("chat:read"), moderated = listOf("10"))
         assertTrue(subs.none { it.type.startsWith("automod.") })
     }
+
+    @Test
+    fun theModLogNeedsEveryScopeItReads() {
+        val all = EventSubPlan.subscriptions("me", scopes = null, moderated = listOf("10"))
+        assertTrue(all.any { it.type == "channel.moderate" })
+        val partly = EventSubPlan.subscriptions(
+            "me", scopes = setOf("moderator:manage:banned_users", "moderator:manage:automod"), moderated = listOf("10"),
+        )
+        assertTrue(partly.none { it.type == "channel.moderate" })
+    }
 }

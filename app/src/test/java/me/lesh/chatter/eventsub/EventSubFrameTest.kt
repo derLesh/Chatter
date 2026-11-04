@@ -110,4 +110,52 @@ class EventSubFrameTest {
         ).event
         assertEquals(EventSubEvent.AutoModResolved("1", "h", HoldStatus.Denied, "Mod"), event)
     }
+
+    private fun moderation(action: String, details: String = "") = notification(
+        "channel.moderate",
+        """
+        {"broadcaster_user_id":"1","moderator_user_id":"3","moderator_user_login":"mod","moderator_user_name":"Mod",
+         "action":"$action"$details}
+        """,
+    ).event as EventSubEvent.Moderation?
+
+    @Test
+    fun aTimeoutLastsUntilItEndsCountedFromWhenItWasSent() {
+        val event = moderation(
+            "timeout",
+            ""","timeout":{"user_id":"2","user_login":"viewer","user_name":"Viewer","reason":"spam","expires_at":"2026-11-03T20:10:00Z"}""",
+        )
+        assertEquals(EventSubEvent.Moderation("1", "Mod", ModAction.Timeout(ModTarget("viewer", "Viewer"), 600, "spam")), event)
+    }
+
+    @Test
+    fun modesCarryTheirNumbers() {
+        assertEquals(
+            ModAction.Mode(ModAction.ChatModeKind.Slow, on = true, value = 30),
+            moderation("slow", ""","slow":{"wait_time_seconds":30}""")?.action,
+        )
+        assertEquals(
+            ModAction.Mode(ModAction.ChatModeKind.Followers, on = true, value = 10),
+            moderation("followers", ""","followers":{"follow_duration_minutes":10}""")?.action,
+        )
+        assertEquals(ModAction.Mode(ModAction.ChatModeKind.EmoteOnly, on = false), moderation("emoteonlyoff")?.action)
+    }
+
+    @Test
+    fun banWithoutAReasonAndUnbanRequests() {
+        assertEquals(
+            ModAction.Ban(ModTarget("viewer", "Viewer"), reason = null),
+            moderation("ban", ""","ban":{"user_id":"2","user_login":"viewer","user_name":"Viewer","reason":""}""")?.action,
+        )
+        assertEquals(
+            ModAction.UnbanRequest(ModTarget("viewer", "viewer"), approved = false),
+            moderation("deny_unban_request", ""","unban_request":{"is_approved":false,"user_id":"2","user_login":"viewer","user_name":""}""")?.action,
+        )
+    }
+
+    @Test
+    fun deletesAndSharedChatActionsAreLeftToIrc() {
+        assertNull(moderation("delete", ""","delete":{"user_id":"2","user_login":"viewer","user_name":"Viewer","message_id":"x","message_body":"hi"}"""))
+        assertNull(moderation("shared_chat_ban"))
+    }
 }

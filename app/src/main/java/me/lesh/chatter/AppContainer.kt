@@ -197,11 +197,12 @@ class AppContainer(
     val whisperSender = WhisperSender(context, helix, auth)
     private val chatters = ChatterRegistry()
     private val eventSub = EventSubClient(socketHttp, helix, scope)
+    private val chatNotices = AppChatNotices(context)
 
     val chat: ChatRepository = ChatRepository(
         context, irc, MessageBuilder(emotes, badges, chatters, cheermotes, ::emoteOptions), emotes, badges, cheermotes, channels,
         thirdParty, helix, auth,
-        CommandExecutor(context, helix, auth, whisperSender), AppChatNotices(context), chatters, blocked, stats,
+        CommandExecutor(context, helix, auth, whisperSender), chatNotices, chatNotices, chatters, blocked, stats,
         rules.rules, settings.settings, eventSub.events, scope,
     )
     private val eventSubFeeds = EventSubFeeds(eventSub, auth, chat.rooms, chat::priority, scope)

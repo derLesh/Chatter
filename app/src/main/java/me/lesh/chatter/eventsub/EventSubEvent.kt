@@ -37,6 +37,13 @@ sealed interface EventSubEvent {
         val status: HoldStatus,
         val moderator: String?,
     ) : EventSubEvent
+
+    /** A mod did [action]; [moderator] is their display name. */
+    data class Moderation(
+        override val channelId: String,
+        val moderator: String,
+        val action: ModAction,
+    ) : EventSubEvent
 }
 
 /** Why AutoMod held a message. */
@@ -80,15 +87,16 @@ internal sealed interface EventSubFrame {
                 "notification" -> {
                     val id = metadata.str("message_id") ?: return null
                     val event = payload.obj("event")
-                    Notification(id, event?.let { parseEvent(metadata.str("subscription_type"), it) })
+                    val sentAt = time(metadata.str("message_timestamp"))
+                    Notification(id, event?.let { parseEvent(metadata.str("subscription_type"), it, sentAt) })
                 }
                 "revocation" -> payload.obj("subscription")?.str("id")?.let(::Revocation)
                 else -> null
             }
         }
 
-        /** The event of a notification of [type]; internal for tests. */
-        internal fun parseEvent(type: String?, e: JsonObject): EventSubEvent? {
+        /** The event of a notification of [type], sent at [sentAt]; internal for tests. */
+        internal fun parseEvent(type: String?, e: JsonObject, sentAt: Long? = null): EventSubEvent? {
             val channelId = e.str("broadcaster_user_id") ?: return null
             return when (type) {
                 "automod.message.hold" -> autoModHeld(channelId, e)
@@ -96,6 +104,10 @@ internal sealed interface EventSubFrame {
                     val messageId = e.str("message_id") ?: return null
                     val status = holdStatus(e.str("status")) ?: return null
                     EventSubEvent.AutoModResolved(channelId, messageId, status, e.str("moderator_user_name"))
+                }
+                "channel.moderate" -> ModAction.parse(e, sentAt ?: System.currentTimeMillis())?.let { action ->
+                    val moderator = e.str("moderator_user_name")?.ifEmpty { null } ?: e.str("moderator_user_login") ?: return null
+                    EventSubEvent.Moderation(channelId, moderator, action)
                 }
                 else -> null
             }

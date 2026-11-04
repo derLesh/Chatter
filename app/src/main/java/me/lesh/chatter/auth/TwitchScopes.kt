@@ -30,16 +30,17 @@ object TwitchScopes {
         "channel:read:redemptions",
         // Messages AutoMod holds, over EventSub, and letting them in or denying them.
         "moderator:manage:automod",
+        // With the moderation scopes above: which mod did what, over EventSub.
+        "moderator:manage:blocked_terms", "moderator:manage:unban_requests", "moderator:manage:warnings",
+        "moderator:read:moderators", "moderator:read:vips",
 
         // Not used yet. Chat and whispers over EventSub, the channels the user moderates, their
         // subs, and /clip.
         "user:read:chat", "user:write:chat", "user:read:whispers",
         "user:read:moderated_channels", "user:read:subscriptions", "clips:edit",
-        // Not used yet. More moderation: /warn, AutoMod settings, blocked terms, shield mode, unban requests,
-        // suspicious users, /mods, /vips and how long someone follows.
-        "moderator:manage:warnings", "moderator:manage:automod_settings",
-        "moderator:manage:blocked_terms", "moderator:manage:shield_mode", "moderator:manage:unban_requests",
-        "moderator:manage:suspicious_users", "moderator:read:moderators", "moderator:read:vips",
+        // Not used yet. More moderation: /warn, AutoMod settings, shield mode, suspicious users and how
+        // long someone follows.
+        "moderator:manage:automod_settings", "moderator:manage:shield_mode", "moderator:manage:suspicious_users",
         "moderator:read:followers",
         // Not used yet. The user's own channel: who moderated what, title and category, ads, polls,
         // predictions, rewards, subs, bits, hype trains, goals and charity.
