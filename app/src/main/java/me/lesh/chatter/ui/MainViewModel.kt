@@ -27,6 +27,7 @@ import me.lesh.chatter.chat.ChatModes
 import me.lesh.chatter.chat.ChatRole
 import me.lesh.chatter.chat.ChatRule
 import me.lesh.chatter.chat.CommandParser
+import me.lesh.chatter.chat.HeldMessage
 import me.lesh.chatter.chat.ImageLinks
 import me.lesh.chatter.chat.PinnedMessage
 import me.lesh.chatter.chat.PostSite
@@ -165,6 +166,13 @@ class MainViewModel(private val c: AppContainer, savedState: SavedStateHandle) :
 
     fun hidePin(pin: PinnedMessage) {
         hiddenPins = hiddenPins + pin.item.id
+    }
+
+    /** Messages AutoMod holds where the user moderates, per channel. */
+    val heldMessages = c.chat.autoMod.held
+
+    fun resolveHeld(held: HeldMessage, allow: Boolean) {
+        c.chat.resolveHeld(held, allow)
     }
     /** Shared Chat partners of every channel currently sharing its chat. */
     val sharedChats = c.chat.sharedChats.sessions

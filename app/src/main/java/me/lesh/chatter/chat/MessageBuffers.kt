@@ -203,6 +203,18 @@ class MessageBuffers(
         }
     }
 
+    /** The newest message in [channel] that [predicate] accepts. On the worker, unlike [find]. */
+    fun findLast(channel: String, predicate: (ChatItem) -> Boolean): ChatItem? = buffers[channel]?.lastOrNull(predicate)
+
+    /** Replaces the message added under [id], e.g. a line that has more to say now. */
+    fun update(channel: String, id: String, transform: (ChatItem) -> ChatItem) {
+        val buffer = buffers[channel] ?: return
+        val index = buffer.indexOfLast { it.id == id }
+        if (index < 0) return
+        buffer[index] = transform(buffer[index])
+        reshape(channel)
+    }
+
     /** Strikes through messages a moderator deleted. */
     fun markDeleted(channel: String, predicate: (ChatItem) -> Boolean) {
         val buffer = buffers[channel] ?: return

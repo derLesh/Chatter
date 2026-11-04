@@ -11,6 +11,7 @@ import me.lesh.chatter.channels.ChannelRepository
 import me.lesh.chatter.emotes.CheermoteRepository
 import me.lesh.chatter.emotes.EmoteRepository
 import me.lesh.chatter.emotes.label
+import me.lesh.chatter.eventsub.EventSubEvent
 import me.lesh.chatter.irc.ConnectionState
 import me.lesh.chatter.irc.IrcMessage
 import me.lesh.chatter.net.HelixApi
@@ -24,6 +25,7 @@ import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.joinAll
 import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharedFlow
@@ -80,11 +82,15 @@ class ChatRepository(
     private val auth: AuthRepository,
     private val commands: CommandExecutor,
     private val notices: ChatNotices,
+    private val modNotices: ModLogNotices,
+    private val holdNotices: OwnHoldNotices,
     private val chatterRegistry: ChatterRegistry,
     private val blocked: BlockedUsersRepository,
     private val stats: ChatStats,
     private val rules: StateFlow<List<ChatRule>>,
     private val settings: StateFlow<Settings>,
+    /** What EventSub reports; see [me.lesh.chatter.eventsub.EventSubClient]. */
+    private val events: Flow<EventSubEvent>,
     private val scope: CoroutineScope,
 ) {
     private val worker = Dispatchers.Default.limitedParallelism(1)
@@ -109,6 +115,17 @@ class ChatRepository(
 
     /** Conversations whose replies count as mentions; see [FollowedThreads]. */
     val threads = FollowedThreads()
+
+    /** Messages AutoMod holds where the user moderates; see [AutoModQueue]. */
+    val autoMod = AutoModQueue(builder, rooms)
+
+    /** Who moderated what, where the user moderates; see [ModLog]. */
+    private val modLog = ModLog(buffers, modNotices)
+
+    /** The user's own messages AutoMod holds; see [OwnHolds]. */
+    private val ownHolds = OwnHolds(buffers, holdNotices)
+
+    private val channelChanges = ChannelChanges { ch -> channelRepo.info.value[ch].let { it?.title.orEmpty() to it?.game.orEmpty() } }
 
     // --- state touched only on `worker` ---
     private val lastSent = HashMap<String, Pair<String, Long>>()
@@ -146,6 +163,8 @@ class ChatRepository(
         onRefused = { _refused.tryEmit(it) },
         onReward = rewards::seen,
         threads = threads,
+        modLog = modLog,
+        moderates = { it in rooms.moderated.value },
     )
 
     private val _refused = MutableSharedFlow<String>(extraBufferCapacity = 8)
@@ -189,6 +208,9 @@ class ChatRepository(
 
     fun start() {
         scope.launch(worker) { irc.messages.collect { incoming.handle(it) } }
+        scope.launch(worker) { events.collect(::onEvent) }
+        // A mod no more: the held messages are not the user's to decide.
+        scope.launch(worker) { rooms.moderated.collect { autoMod.keepOnly(it) } }
 
         // Only what the filters are made of: another setting or a token refresh must not send every
         // message in memory through them again.
@@ -364,6 +386,13 @@ class ChatRepository(
         if (command is ChatCommand.Pin || command is ChatCommand.Unpin) scope.launch { pins.refresh(channel) }
     }
 
+    /** Lets a held message into the chat or denies it, and says so in the chat if Twitch refused. */
+    fun resolveHeld(held: HeldMessage, allow: Boolean) = scope.launch(worker) {
+        val channel = held.item.channel
+        autoMod.remove(channel, held.item.id)
+        commands.resolveHeld(held.item.id, allow)?.let { system(channel, it) }
+    }
+
     /** Drops all buffers, e.g. after logout. */
     fun reset() = scope.launch(worker) {
         buffers.clearAll()
@@ -374,6 +403,10 @@ class ChatRepository(
         threads.clear()
         pins.clear()
         rewards.clear()
+        autoMod.clear()
+        modLog.clear()
+        ownHolds.clear()
+        channelChanges.clear()
         loadedChannels.clear()
         listLoads.clear()
         joinedChannels = emptyList()
@@ -402,6 +435,8 @@ class ChatRepository(
             rooms.forget(ch)
             sharedChats.forget(ch)
             pins.forget(ch)
+            autoMod.forget(ch)
+            channelChanges.forget(ch)
             loadedChannels.remove(ch)
             _unreadMentions.update { it - ch }
         }
@@ -553,6 +588,21 @@ class ChatRepository(
         }
         val partners = users.map { ChatPartner(it.id, it.login, it.displayName, it.profileImageUrl.ifEmpty { null }) }
         withContext(worker) { sharedChats.described(partners) }
+    }
+
+    private fun onEvent(event: EventSubEvent) {
+        when (event) {
+            is EventSubEvent.AutoModHeld -> autoMod.onHeld(event)
+            is EventSubEvent.AutoModResolved -> autoMod.onResolved(event)
+            is EventSubEvent.Moderation -> rooms.channelOf(event.channelId)?.let { modLog.fromEventSub(it, event.moderator, event.action) }
+            is EventSubEvent.OwnMessageHeld -> rooms.channelOf(event.channelId)?.let { ownHolds.onHeld(it, event.messageId, event.text) }
+            is EventSubEvent.OwnMessageResolved -> rooms.channelOf(event.channelId)?.let { ownHolds.onResolved(it, event.messageId, event.status) }
+            is EventSubEvent.ChannelUpdated -> rooms.channelOf(event.channelId)?.let { channel ->
+                val change = channelChanges.changed(channel, event.title, event.category) ?: return@let
+                change.title?.let { system(channel, context.getString(R.string.channel_new_title, it)) }
+                change.category?.let { system(channel, context.getString(R.string.channel_new_category, it)) }
+            }
+        }
     }
 
     /** A built mention: inbox, unread count and notification. */

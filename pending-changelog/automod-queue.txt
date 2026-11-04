@@ -1,0 +1,1 @@
+minor: Allow or deny messages AutoMod holds back right above the chat where you are a mod

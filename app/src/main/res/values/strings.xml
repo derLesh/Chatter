@@ -30,6 +30,45 @@
         <item quantity="other">%1$s has been timed out for %2$d seconds.</item>
     </plurals>
     <string name="chat_ban">%1$s has been banned.</string>
+    <string name="channel_new_title">New title: %1$s</string>
+    <string name="channel_new_category">Now streaming: %1$s</string>
+    <string name="own_held_allowed">A mod let your held message into the chat.</string>
+    <string name="own_held_denied">A mod turned down your held message. Nobody else saw it.</string>
+    <string name="mod_ban">%1$s banned %2$s.</string>
+    <plurals name="mod_timeout">
+        <item quantity="one">%1$s timed out %2$s for %3$d second.</item>
+        <item quantity="other">%1$s timed out %2$s for %3$d seconds.</item>
+    </plurals>
+    <string name="mod_reason">%1$s Reason: %2$s</string>
+    <string name="mod_unban">%1$s unbanned %2$s.</string>
+    <string name="mod_untimeout">%1$s ended the timeout of %2$s.</string>
+    <string name="mod_clear">%1$s cleared the chat.</string>
+    <string name="mod_warn">%1$s warned %2$s.</string>
+    <plurals name="mod_slow_on">
+        <item quantity="one">%1$s turned on slow mode: %2$d second.</item>
+        <item quantity="other">%1$s turned on slow mode: %2$d seconds.</item>
+    </plurals>
+    <string name="mod_slow_off">%1$s turned off slow mode.</string>
+    <string name="mod_followers_on">%1$s made the chat followers only.</string>
+    <plurals name="mod_followers_on_time">
+        <item quantity="one">%1$s made the chat followers only: following for %2$d minute.</item>
+        <item quantity="other">%1$s made the chat followers only: following for %2$d minutes.</item>
+    </plurals>
+    <string name="mod_followers_off">%1$s opened the chat to everyone, not just followers.</string>
+    <string name="mod_subs_on">%1$s made the chat subs only.</string>
+    <string name="mod_subs_off">%1$s opened the chat to everyone, not just subs.</string>
+    <string name="mod_emotes_on">%1$s made the chat emotes only.</string>
+    <string name="mod_emotes_off">%1$s allowed text again, not just emotes.</string>
+    <string name="mod_unique_on">%1$s turned on unique chat.</string>
+    <string name="mod_unique_off">%1$s turned off unique chat.</string>
+    <string name="mod_mod">%1$s made %2$s a moderator.</string>
+    <string name="mod_unmod">%1$s removed %2$s as moderator.</string>
+    <string name="mod_vip">%1$s made %2$s a VIP.</string>
+    <string name="mod_unvip">%1$s removed %2$s as VIP.</string>
+    <string name="mod_raid">%1$s started a raid to %2$s.</string>
+    <string name="mod_unraid">%1$s cancelled the raid to %2$s.</string>
+    <string name="mod_unban_request_approved">%1$s accepted the unban request of %2$s.</string>
+    <string name="mod_unban_request_denied">%1$s turned down the unban request of %2$s.</string>
     <string name="chat_history_loading">Loading the recent messages…</string>
     <string name="chat_history_failed">The recent messages could not be loaded.</string>
 
@@ -215,6 +254,22 @@
     <string name="pinned_by">Pinned by %1$s</string>
     <string name="pin_show_all">Show all</string>
     <string name="pin_show_less">Show less</string>
+    <plurals name="automod_held">
+        <item quantity="one">AutoMod holds %d message</item>
+        <item quantity="other">AutoMod holds %d messages</item>
+    </plurals>
+    <string name="automod_allow">Allow</string>
+    <string name="automod_deny">Deny</string>
+    <string name="automod_blocked_term">Blocked term</string>
+    <string name="automod_reason_level">%1$s, level %2$d</string>
+    <string name="automod_aggression">Aggression</string>
+    <string name="automod_bullying">Bullying</string>
+    <string name="automod_disability">Disability</string>
+    <string name="automod_sexuality">Sexuality or gender</string>
+    <string name="automod_misogyny">Misogyny</string>
+    <string name="automod_race">Race, ethnicity or religion</string>
+    <string name="automod_sex_terms">Sexual words</string>
+    <string name="automod_swearing">Swearing</string>
     <string name="settings_appearance">Appearance</string>
     <string name="theme_system">System</string>
     <string name="theme_light">Light</string>

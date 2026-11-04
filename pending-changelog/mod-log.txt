@@ -1,0 +1,1 @@
+minor: See which mod timed out, banned or warned someone and why, and who changed the chat modes, where you are a mod

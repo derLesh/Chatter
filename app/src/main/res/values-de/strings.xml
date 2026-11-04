@@ -28,6 +28,45 @@
         <item quantity="other">%1$s wurde für %2$d Sekunden stummgeschaltet.</item>
     </plurals>
     <string name="chat_ban">%1$s wurde gebannt.</string>
+    <string name="channel_new_title">Neuer Titel: %1$s</string>
+    <string name="channel_new_category">Jetzt in der Kategorie: %1$s</string>
+    <string name="own_held_allowed">Ein Mod hat deine zurückgehaltene Nachricht in den Chat gelassen.</string>
+    <string name="own_held_denied">Ein Mod hat deine zurückgehaltene Nachricht abgelehnt. Niemand sonst hat sie gesehen.</string>
+    <string name="mod_ban">%1$s hat %2$s gebannt.</string>
+    <plurals name="mod_timeout">
+        <item quantity="one">%1$s hat %2$s für %3$d Sekunde stummgeschaltet.</item>
+        <item quantity="other">%1$s hat %2$s für %3$d Sekunden stummgeschaltet.</item>
+    </plurals>
+    <string name="mod_reason">%1$s Grund: %2$s</string>
+    <string name="mod_unban">%1$s hat %2$s entbannt.</string>
+    <string name="mod_untimeout">%1$s hat die Stummschaltung von %2$s beendet.</string>
+    <string name="mod_clear">%1$s hat den Chat geleert.</string>
+    <string name="mod_warn">%1$s hat %2$s verwarnt.</string>
+    <plurals name="mod_slow_on">
+        <item quantity="one">%1$s hat den Slow-Mode eingeschaltet: %2$d Sekunde.</item>
+        <item quantity="other">%1$s hat den Slow-Mode eingeschaltet: %2$d Sekunden.</item>
+    </plurals>
+    <string name="mod_slow_off">%1$s hat den Slow-Mode ausgeschaltet.</string>
+    <string name="mod_followers_on">%1$s hat den Chat auf Follower beschränkt.</string>
+    <plurals name="mod_followers_on_time">
+        <item quantity="one">%1$s hat den Chat auf Follower beschränkt, die seit %2$d Minute folgen.</item>
+        <item quantity="other">%1$s hat den Chat auf Follower beschränkt, die seit %2$d Minuten folgen.</item>
+    </plurals>
+    <string name="mod_followers_off">%1$s hat den Chat wieder für alle geöffnet, nicht nur für Follower.</string>
+    <string name="mod_subs_on">%1$s hat den Chat auf Subs beschränkt.</string>
+    <string name="mod_subs_off">%1$s hat den Chat wieder für alle geöffnet, nicht nur für Subs.</string>
+    <string name="mod_emotes_on">%1$s hat den Chat auf Emotes beschränkt.</string>
+    <string name="mod_emotes_off">%1$s hat wieder Text erlaubt, nicht nur Emotes.</string>
+    <string name="mod_unique_on">%1$s hat Unique Chat eingeschaltet.</string>
+    <string name="mod_unique_off">%1$s hat Unique Chat ausgeschaltet.</string>
+    <string name="mod_mod">%1$s hat %2$s zum Moderator gemacht.</string>
+    <string name="mod_unmod">%1$s hat %2$s als Moderator entfernt.</string>
+    <string name="mod_vip">%1$s hat %2$s zum VIP gemacht.</string>
+    <string name="mod_unvip">%1$s hat %2$s als VIP entfernt.</string>
+    <string name="mod_raid">%1$s hat einen Raid zu %2$s gestartet.</string>
+    <string name="mod_unraid">%1$s hat den Raid zu %2$s abgebrochen.</string>
+    <string name="mod_unban_request_approved">%1$s hat die Entbannungsanfrage von %2$s angenommen.</string>
+    <string name="mod_unban_request_denied">%1$s hat die Entbannungsanfrage von %2$s abgelehnt.</string>
     <string name="chat_history_loading">Chatverlauf wird geladen…</string>
     <string name="chat_history_failed">Der Chatverlauf konnte nicht geladen werden.</string>
 
@@ -209,6 +248,22 @@
     <string name="pinned_by">Angepinnt von %1$s</string>
     <string name="pin_show_all">Alles zeigen</string>
     <string name="pin_show_less">Weniger zeigen</string>
+    <plurals name="automod_held">
+        <item quantity="one">AutoMod hält %d Nachricht zurück</item>
+        <item quantity="other">AutoMod hält %d Nachrichten zurück</item>
+    </plurals>
+    <string name="automod_allow">Erlauben</string>
+    <string name="automod_deny">Ablehnen</string>
+    <string name="automod_blocked_term">Gesperrtes Wort</string>
+    <string name="automod_reason_level">%1$s, Stufe %2$d</string>
+    <string name="automod_aggression">Aggression</string>
+    <string name="automod_bullying">Mobbing</string>
+    <string name="automod_disability">Behinderung</string>
+    <string name="automod_sexuality">Sexualität oder Geschlecht</string>
+    <string name="automod_misogyny">Frauenfeindlichkeit</string>
+    <string name="automod_race">Herkunft oder Religion</string>
+    <string name="automod_sex_terms">Sexuelle Wörter</string>
+    <string name="automod_swearing">Fluchen</string>
     <string name="settings_appearance">Darstellung</string>
     <string name="theme_system">System</string>
     <string name="theme_light">Hell</string>
