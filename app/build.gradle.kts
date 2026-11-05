@@ -352,6 +352,11 @@ dependencies {
     implementation(libs.kotlinx.coroutines.android)
     // Gemini Nano on the phone, for the catch-up summary; see OnDeviceModel.
     implementation(libs.mlkit.genai.prompt)
+    // The token login's QR scanner; see ui/QrScanner.kt.
+    implementation(libs.androidx.camera.camera2)
+    implementation(libs.androidx.camera.lifecycle)
+    implementation(libs.androidx.camera.view)
+    implementation(libs.zxing.core)
     // What Gemini and other assistants may do in Chatter; see assistant/ChatterFunctions.
     implementation(libs.androidx.appfunctions)
     ksp(libs.androidx.appfunctions.compiler)

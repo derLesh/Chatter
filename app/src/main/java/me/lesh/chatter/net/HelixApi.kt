@@ -64,6 +64,12 @@ class HelixApi(
     suspend fun validate(accessToken: String): ValidateResponse =
         http.getJson("https://id.twitch.tv/oauth2/validate", mapOf("Authorization" to "OAuth $accessToken"))
 
+    /** The user [accessToken] belongs to, asked with that token rather than the logged-in one. */
+    suspend fun userOf(accessToken: String): HelixUser? = http.getJson<HelixList<HelixUser>>(
+        "https://api.twitch.tv/helix/users",
+        mapOf("Client-Id" to BuildConfig.TWITCH_CLIENT_ID, "Authorization" to "Bearer $accessToken"),
+    ).data.firstOrNull()
+
     suspend fun users(logins: List<String>): List<HelixUser> = logins.chunked(100).flatMap { batch ->
         val u = "https://api.twitch.tv/helix/users".toHttpUrl().newBuilder()
             .apply { batch.forEach { addQueryParameter("login", it) } }.build().toString()

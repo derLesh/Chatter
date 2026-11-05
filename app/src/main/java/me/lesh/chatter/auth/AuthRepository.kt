@@ -66,6 +66,12 @@ data class Account(
     }
 }
 
+/** A token made for another app's client ID; Helix would refuse every call made with it. */
+class ForeignTokenException(clientId: String) : IllegalStateException("Token belongs to client $clientId")
+
+/** The account a pasted token would log in; [alreadyAdded] when it is one of the accounts here. */
+data class TokenOwner(val login: String, val displayName: String, val avatarUrl: String, val alreadyAdded: Boolean)
+
 sealed interface AuthState {
     data object Loading : AuthState
     data object LoggedOut : AuthState
@@ -239,14 +245,65 @@ class AuthRepository(
     }
 
     /**
+     * Logs in with a token pasted by hand, for when Twitch's login page does not load in the app.
+     * Null when [text] holds no token.
+     */
+    suspend fun addPastedToken(text: String): Result<Unit>? {
+        val token = PastedToken.read(text) ?: return null
+        return addToken(token, requireClient = BuildConfig.TWITCH_CLIENT_ID)
+    }
+
+    /**
+     * Whose token [text] holds, shown before it logs in. Null when [text] holds no token. The
+     * picture and display name are left empty when Twitch does not hand them out.
+     */
+    suspend fun ownerOfPasted(text: String): Result<TokenOwner>? {
+        val token = PastedToken.read(text) ?: return null
+        return runCatchingCancellable {
+            val v = helix.validate(token)
+            if (v.clientId != BuildConfig.TWITCH_CLIENT_ID) throw ForeignTokenException(v.clientId)
+            val user = runCatchingCancellable { helix.userOf(token) }.getOrNull()
+            TokenOwner(
+                login = v.login,
+                displayName = user?.displayName ?: v.login,
+                avatarUrl = user?.profileImageUrl.orEmpty(),
+                alreadyAdded = _accounts.value.any { it.userId == v.userId },
+            )
+        }
+    }
+
+    /**
+     * Whose [token] is, so the app can ask before a token from a link logs in. Fails with
+     * [ForeignTokenException] for a token of another app, like [addPastedToken] would.
+     */
+    suspend fun ownerOf(token: String): Result<String> = runCatchingCancellable {
+        val v = helix.validate(token)
+        if (v.clientId != BuildConfig.TWITCH_CLIENT_ID) throw ForeignTokenException(v.clientId)
+        v.login
+    }
+
+    /** Logs in with a token from a link, once the user said yes to [ownerOf]'s account. */
+    suspend fun addLinkedToken(token: String): Result<Unit> = addToken(token, requireClient = BuildConfig.TWITCH_CLIENT_ID)
+
+    /**
+     * Revokes a token from a link the user said no to. A token an account here already uses
+     * stays, since the same link may have been opened twice.
+     */
+    suspend fun discardLinkedToken(token: String) {
+        if (_accounts.value.any { it.token == token }) return
+        queueRevoke(listOf(token))
+        revokePending()
+    }
+
+    /**
      * Logs in with [token]. Internal for the debug build's DevLogin, which hands in tokens from
-     * outside; release builds have no caller but [handleRedirect].
+     * outside.
      * [requireClient]: a token made for another client ID fails every Helix call, so it is refused.
      */
     internal suspend fun addToken(token: String, requireClient: String? = null): Result<Unit> {
         val result = runCatchingCancellable {
             val v = helix.validate(token)
-            check(requireClient == null || v.clientId == requireClient) { "Token belongs to client ${v.clientId}" }
+            if (requireClient != null && v.clientId != requireClient) throw ForeignTokenException(v.clientId)
             // expires_in == 0 means the token does not expire on its own.
             val expiresAt = if (v.expiresIn > 0) System.currentTimeMillis() + v.expiresIn * 1000L else Long.MAX_VALUE
             saveAccount(
