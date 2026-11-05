@@ -12,7 +12,9 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.createSavedStateHandle
 import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
+import me.lesh.chatter.auth.LinkedToken
 import me.lesh.chatter.ui.AppRoot
+import me.lesh.chatter.ui.LinkedLoginDialog
 import me.lesh.chatter.ui.MainViewModel
 import me.lesh.chatter.ui.chat.LinkGuard
 import me.lesh.chatter.ui.chat.LocalPosts
@@ -45,7 +47,10 @@ class MainActivity : ComponentActivity() {
         setContent {
             val settings by vm.settings.collectAsStateWithLifecycle()
             ChatterTheme(settings.themeMode, settings.dynamicColor, settings.pureBlack) {
-                LinkGuard { CompositionLocalProvider(LocalPosts provides vm.posts) { AppRoot(vm) } }
+                LinkGuard {
+                    CompositionLocalProvider(LocalPosts provides vm.posts) { AppRoot(vm) }
+                    LinkedLoginDialog(vm)
+                }
             }
         }
     }
@@ -65,9 +70,17 @@ class MainActivity : ComponentActivity() {
         super.onStop()
     }
 
-    /** Handles a channel from a mention or live notification, or the inbox from a shortcut. */
+    /**
+     * Handles a channel from a mention or live notification, the inbox from a shortcut, or a login
+     * from the Chatter website.
+     */
     private fun handleIntent(intent: Intent?) {
         intent ?: return
+        // Recents start the task with its first intent again, which must not offer an old login.
+        val fromRecents = intent.flags and Intent.FLAG_ACTIVITY_LAUNCHED_FROM_HISTORY != 0
+        if (intent.action == Intent.ACTION_VIEW && !fromRecents) {
+            LinkedToken.read(intent.dataString)?.let(vm::offerLinkedToken)
+        }
         val channel = intent.getStringExtra(EXTRA_CHANNEL)
         val message = intent.getStringExtra(EXTRA_MESSAGE)
         when {

@@ -16,6 +16,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Warning
+import androidx.compose.material.icons.outlined.Info
 import androidx.compose.material3.Button
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -46,15 +47,17 @@ import java.util.Date
 fun BackgroundCard(stop: BackgroundStop?, battery: BatteryRestrictions, onDismiss: () -> Unit) {
     if (!battery.restricted && stop == null) return
     val context = LocalContext.current
+    // Red only for what is still wrong; a stop that is over is news, not an error.
+    val colors = MaterialTheme.colorScheme
     Surface(
-        color = MaterialTheme.colorScheme.errorContainer,
-        contentColor = MaterialTheme.colorScheme.onErrorContainer,
+        color = if (battery.restricted) colors.errorContainer else colors.secondaryContainer,
+        contentColor = if (battery.restricted) colors.onErrorContainer else colors.onSecondaryContainer,
         shape = RoundedCornerShape(24.dp),
         modifier = Modifier.fillMaxWidth(),
     ) {
         Column(Modifier.padding(start = 20.dp, end = 12.dp, top = 16.dp, bottom = 8.dp)) {
             Row(verticalAlignment = Alignment.Top) {
-                Icon(Icons.Default.Warning, contentDescription = null, modifier = Modifier.padding(top = 2.dp))
+                Icon(if (battery.restricted) Icons.Default.Warning else Icons.Outlined.Info, contentDescription = null, modifier = Modifier.padding(top = 2.dp))
                 Spacer(Modifier.width(12.dp))
                 Column(verticalArrangement = Arrangement.spacedBy(4.dp), modifier = Modifier.padding(end = 8.dp)) {
                     Text(
@@ -83,8 +86,15 @@ fun BackgroundCard(stop: BackgroundStop?, battery: BatteryRestrictions, onDismis
                 modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
             ) {
                 if (stop != null) TextButton(onClick = onDismiss) { Text(stringResource(R.string.background_dismiss)) }
-                TextButton(onClick = { open(context, dontKillMyAppUrl()) }) { Text(stringResource(R.string.background_why)) }
-                Button(onClick = { openAppSettings(context) }) { Text(stringResource(R.string.background_battery_settings)) }
+                // A force stop was the user's own doing; no setting would have prevented it.
+                if (battery.restricted || stop?.reason != StopReason.UserRequest) {
+                    TextButton(onClick = { open(context, dontKillMyAppUrl()) }) { Text(stringResource(R.string.background_why)) }
+                    if (battery.restricted) {
+                        Button(onClick = { openAppSettings(context) }) { Text(stringResource(R.string.background_battery_settings)) }
+                    } else {
+                        TextButton(onClick = { openAppSettings(context) }) { Text(stringResource(R.string.background_battery_settings)) }
+                    }
+                }
             }
         }
     }

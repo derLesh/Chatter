@@ -122,7 +122,7 @@ internal fun StatsPage(vm: MainViewModel, onChannels: () -> Unit) {
         }
     }
     SettingsGroup {
-        item {
+        item(R.string.settings_stats_reset) {
             ListItem(
                 headlineContent = { Text(stringResource(R.string.settings_stats_reset)) },
                 supportingContent = { Text(stringResource(R.string.settings_stats_reset_hint)) },

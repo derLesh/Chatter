@@ -53,6 +53,8 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil3.ImageLoader
 import coil3.compose.AsyncImage
@@ -76,6 +78,7 @@ import java.time.format.FormatStyle
 fun AccountPage(
     vm: MainViewModel,
     onAddAccount: () -> Unit,
+    onAddAccountWithToken: () -> Unit,
     onReauthorize: () -> Unit,
 ) {
     val accounts by vm.accounts.collectAsStateWithLifecycle()
@@ -94,6 +97,7 @@ fun AccountPage(
         imageLoader = vm.imageLoader,
         onSwitch = vm::switchAccount,
         onAdd = onAddAccount,
+        onAddWithToken = onAddAccountWithToken,
         onLogout = { loggingOut = it },
     )
     if (active.missingScopes.isNotEmpty()) MissingScopesCard(onReauthorize)
@@ -326,6 +330,7 @@ private fun AccountsGroup(
     imageLoader: ImageLoader,
     onSwitch: (String) -> Unit,
     onAdd: () -> Unit,
+    onAddWithToken: () -> Unit,
     onLogout: (Account) -> Unit,
 ) {
     SettingsGroup(R.string.settings_group_accounts) {
@@ -345,7 +350,7 @@ private fun AccountsGroup(
                         onLogout = { onLogout(account) },
                     )
                 }
-                AddFace(onAdd)
+                AddFace(onAdd, onAddWithToken)
             }
         }
         item {
@@ -437,12 +442,21 @@ private fun AccountFace(
 
 /** The last entry in the row: add another Twitch login. */
 @Composable
-private fun AddFace(onAdd: () -> Unit) {
+private fun AddFace(onAdd: () -> Unit, onAddWithToken: () -> Unit) {
+    val haptics = LocalHapticFeedback.current
     Column(
         horizontalAlignment = Alignment.CenterHorizontally,
         modifier = Modifier
             .clip(RoundedCornerShape(16.dp))
-            .clickable(onClick = onAdd)
+            // Holding it opens the token login, the same quiet fallback as holding the logo on the
+            // login screen.
+            .combinedClickable(
+                onClick = onAdd,
+                onLongClick = {
+                    haptics.performHapticFeedback(HapticFeedbackType.LongPress)
+                    onAddWithToken()
+                },
+            )
             .padding(8.dp)
             .widthIn(max = 88.dp),
     ) {

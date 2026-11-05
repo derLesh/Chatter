@@ -1,40 +1,41 @@
 package me.lesh.chatter.ui.settings
 
-import androidx.compose.runtime.setValue
-import androidx.compose.runtime.saveable.rememberSaveable
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material.icons.filled.Search
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.ListItem
+import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil3.compose.AsyncImage
 import me.lesh.chatter.R
 import me.lesh.chatter.badges.Badge
 import me.lesh.chatter.badges.BadgeProvider
-import me.lesh.chatter.ui.chat.badgeKindName
-import me.lesh.chatter.ui.chat.badgePicture
-import me.lesh.chatter.ui.chat.isWellKnownBadge
 import me.lesh.chatter.emotes.EmoteProvider
 import me.lesh.chatter.emotes.label
 import me.lesh.chatter.settings.Settings
 import me.lesh.chatter.ui.MainViewModel
 import me.lesh.chatter.ui.SettingsSubPage
+import me.lesh.chatter.ui.chat.badgeKindName
+import me.lesh.chatter.ui.chat.badgePicture
+import me.lesh.chatter.ui.chat.isWellKnownBadge
 
 /** Emotes and badges in one place, providers included. */
 @Composable
@@ -49,9 +50,6 @@ internal fun EmotesPage(settings: Settings, vm: MainViewModel, open: (SettingsSu
             }
         }
         item(R.string.settings_zero_width) { SwitchItem(R.string.settings_zero_width, settings.zeroWidthEmotes, vm::setZeroWidthEmotes, R.string.settings_zero_width_hint) }
-        item(R.string.settings_unlisted_7tv) { SwitchItem(R.string.settings_unlisted_7tv, settings.showUnlisted7tv, vm::setShowUnlisted7tv, R.string.settings_unlisted_7tv_hint) }
-        item(R.string.settings_seventv_events) { SwitchItem(R.string.settings_seventv_events, settings.sevenTvEvents, vm::setSevenTvEvents, R.string.settings_seventv_events_hint) }
-        item(R.string.settings_seventv_paints) { SwitchItem(R.string.settings_seventv_paints, settings.sevenTvPaints, vm::setSevenTvPaints, R.string.settings_seventv_paints_hint) }
         item(R.string.settings_hidden_emotes) {
             val hidden by vm.hiddenEmotes.collectAsStateWithLifecycle()
             ListItem(
@@ -72,6 +70,11 @@ internal fun EmotesPage(settings: Settings, vm: MainViewModel, open: (SettingsSu
         PROVIDERS.forEach { (provider, label) ->
             item { SwitchItem(label, provider in settings.emoteProviders, { vm.setEmoteProvider(provider, it) }) }
         }
+    }
+    SettingsGroup(R.string.settings_provider_seventv) {
+        item(R.string.settings_unlisted_7tv) { SwitchItem(R.string.settings_unlisted_7tv, settings.showUnlisted7tv, vm::setShowUnlisted7tv, R.string.settings_unlisted_7tv_hint) }
+        item(R.string.settings_seventv_events) { SwitchItem(R.string.settings_seventv_events, settings.sevenTvEvents, vm::setSevenTvEvents, R.string.settings_seventv_events_hint) }
+        item(R.string.settings_seventv_paints) { SwitchItem(R.string.settings_seventv_paints, settings.sevenTvPaints, vm::setSevenTvPaints, R.string.settings_seventv_paints_hint) }
     }
     SettingsGroup(R.string.settings_badge_providers) {
         BADGE_PROVIDERS.forEach { (provider, label) ->
@@ -208,8 +211,9 @@ internal fun HiddenEmotesPage(vm: MainViewModel) {
                         AsyncImage(model = emote.url, contentDescription = null, imageLoader = vm.imageLoader, modifier = Modifier.size(32.dp))
                     },
                     trailingContent = {
-                        IconButton(onClick = { vm.showEmote(emote) }) {
-                            Icon(Icons.Default.Delete, contentDescription = stringResource(R.string.settings_hidden_emotes_show, emote.name))
+                        val label = stringResource(R.string.settings_hidden_emotes_show, emote.name)
+                        OutlinedButton(onClick = { vm.showEmote(emote) }, modifier = Modifier.semantics { contentDescription = label }) {
+                            Text(stringResource(R.string.settings_hidden_emotes_show_short))
                         }
                     },
                     colors = transparentItem(),
