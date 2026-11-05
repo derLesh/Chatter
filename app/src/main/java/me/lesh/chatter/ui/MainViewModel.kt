@@ -16,6 +16,7 @@ import me.lesh.chatter.R
 import me.lesh.chatter.ai.ModelFailure
 import me.lesh.chatter.ai.ModelTrouble
 import me.lesh.chatter.auth.AuthState
+import me.lesh.chatter.auth.TokenOwner
 import me.lesh.chatter.badges.Badge
 import me.lesh.chatter.badges.BadgeProvider
 import me.lesh.chatter.channels.ChannelGroup
@@ -980,6 +981,43 @@ class MainViewModel(private val c: AppContainer, savedState: SavedStateHandle) :
     fun reauthorizeUrl(): String = c.auth.authorizeUrl(forceVerify = true)
 
     suspend fun handleRedirect(url: String): Result<Unit>? = c.auth.handleRedirect(url)
+
+    /** See AuthRepository.addPastedToken. */
+    suspend fun logInWithPastedToken(text: String): Result<Unit>? = c.auth.addPastedToken(text)
+
+    /** See AuthRepository.ownerOfPasted. */
+    suspend fun ownerOfPastedToken(text: String): Result<TokenOwner>? = c.auth.ownerOfPasted(text)
+
+    private val _linkedLogin = MutableStateFlow<LinkedLogin?>(null)
+
+    /** A login handed over by the Chatter website, waiting for the user's yes; see LinkedLoginDialog. */
+    val linkedLogin: StateFlow<LinkedLogin?> = _linkedLogin
+
+    fun offerLinkedToken(token: String) {
+        _linkedLogin.value = LinkedLogin.Checking(token)
+        viewModelScope.launch {
+            val owner = c.auth.ownerOf(token)
+            // A newer link or a cancel came in meanwhile.
+            if (_linkedLogin.value != LinkedLogin.Checking(token)) return@launch
+            _linkedLogin.value = owner.fold({ LinkedLogin.Ready(token, it) }, { LinkedLogin.Failed(token, it) })
+        }
+    }
+
+    fun acceptLinkedLogin() {
+        val ready = _linkedLogin.value as? LinkedLogin.Ready ?: return
+        _linkedLogin.value = LinkedLogin.Saving(ready.token, ready.login)
+        viewModelScope.launch {
+            val result = c.auth.addLinkedToken(ready.token)
+            _linkedLogin.value = result.exceptionOrNull()?.let { LinkedLogin.Failed(ready.token, it) }
+        }
+    }
+
+    fun dismissLinkedLogin() {
+        val token = _linkedLogin.value?.token ?: return
+        _linkedLogin.value = null
+        // On the container's scope, so leaving the app right after still revokes it.
+        c.scope.launch { c.auth.discardLinkedToken(token) }
+    }
 
     /** Reads chats without an account; see AuthState.Guest. */
     fun continueAsGuest() {

@@ -1,0 +1,1 @@
+minor: Log in through the Chatter website when Twitch's page does not load: by link, pasted token or QR code

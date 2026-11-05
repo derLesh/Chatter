@@ -4,15 +4,10 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Delete
-import androidx.compose.material3.Button
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.ListItem
@@ -28,7 +23,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontFamily
@@ -108,14 +102,6 @@ internal fun BlockedUsersPage(vm: MainViewModel) {
                 )
             }
         }
-        item {
-            ListItem(
-                headlineContent = { Text(stringResource(R.string.settings_report_user)) },
-                supportingContent = { Text(stringResource(R.string.settings_report_user_summary)) },
-                leadingContent = { Icon(painterResource(R.drawable.ic_report_flag), contentDescription = null) },
-                colors = transparentItem(),
-            )
-        }
         blocked.forEach { user ->
             item {
                 ListItem(
@@ -130,11 +116,8 @@ internal fun BlockedUsersPage(vm: MainViewModel) {
                 )
             }
         }
-    }
-    Button(onClick = { showBlock = true }, modifier = Modifier.fillMaxWidth()) {
-        Icon(Icons.Default.Add, contentDescription = null)
-        Spacer(Modifier.width(8.dp))
-        Text(stringResource(R.string.block_user_title))
+        // Blocking from the chat needs no trip here, so the row says how.
+        item { AddItem(R.string.block_user_title, R.string.settings_report_user_summary) { showBlock = true } }
     }
 
     unblockTarget?.let { user ->
@@ -213,14 +196,7 @@ internal fun RulesPage(vm: MainViewModel, edit: (ChatRule?) -> Unit) {
                 )
             }
         }
-        item {
-            ListItem(
-                headlineContent = { Text(stringResource(R.string.rule_new)) },
-                leadingContent = { CategoryIcon(Icons.Default.Add) },
-                colors = transparentItem(),
-                modifier = Modifier.tileClickable { edit(null) },
-            )
-        }
+        item { AddItem(R.string.rule_new) { edit(null) } }
     }
 }
 

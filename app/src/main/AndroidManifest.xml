@@ -8,6 +8,10 @@
     <uses-permission android:name="android.permission.VIBRATE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE" />
+    <!-- Only for scanning the QR code of the token login, asked for when its camera is tapped. -->
+    <uses-permission android:name="android.permission.CAMERA" />
+    <!-- Not required: without a camera the token is pasted instead. -->
+    <uses-feature android:name="android.hardware.camera" android:required="false" />
 
     <application
         android:name=".ChatterApp"
@@ -25,7 +29,15 @@
             android:name=".MainActivity"
             android:exported="true"
             android:launchMode="singleTask"
-            android:windowSoftInputMode="adjustResize" />
+            android:windowSoftInputMode="adjustResize">
+            <!-- The login the Chatter website hands over, chatter://login?token=…; see LinkedToken.kt. -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="chatter" android:host="login" />
+            </intent-filter>
+        </activity>
 
         <!--
             The chat bubble. Android hosts it in its own floating window, which is what the three

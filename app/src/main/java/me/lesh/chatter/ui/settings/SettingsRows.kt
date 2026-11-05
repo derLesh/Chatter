@@ -24,7 +24,6 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.List
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Delete
-import androidx.compose.material3.Button
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -174,6 +173,18 @@ internal fun KeywordListItem(title: Int, summary: Int, words: List<String>, onCl
     )
 }
 
+/** The last row of a list the user builds up, like rules, words or blocked users. */
+@Composable
+internal fun AddItem(title: Int, hint: Int? = null, onClick: () -> Unit) {
+    ListItem(
+        headlineContent = { Text(stringResource(title)) },
+        supportingContent = hint?.let { { Text(stringResource(it)) } },
+        leadingContent = { CategoryIcon(Icons.Default.Add) },
+        colors = transparentItem(),
+        modifier = Modifier.tileClickable(onClick = onClick),
+    )
+}
+
 /** A list of words built one at a time, each a row with its own remove button. */
 @Composable
 internal fun KeywordsPage(
@@ -209,11 +220,7 @@ internal fun KeywordsPage(
                 )
             }
         }
-    }
-    Button(onClick = { adding = true }, modifier = Modifier.fillMaxWidth()) {
-        Icon(Icons.Default.Add, contentDescription = null)
-        Spacer(Modifier.width(8.dp))
-        Text(stringResource(addTitle))
+        item { AddItem(addTitle) { adding = true } }
     }
 
     if (adding) {
