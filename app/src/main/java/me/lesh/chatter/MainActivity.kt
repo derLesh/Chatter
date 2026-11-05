@@ -14,6 +14,7 @@ import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
 import me.lesh.chatter.ui.AppRoot
 import me.lesh.chatter.ui.MainViewModel
+import me.lesh.chatter.ui.chat.ImageViewerHost
 import me.lesh.chatter.ui.chat.LinkGuard
 import me.lesh.chatter.ui.chat.LocalPosts
 import me.lesh.chatter.settings.EmoteSize
@@ -45,7 +46,11 @@ class MainActivity : ComponentActivity() {
         setContent {
             val settings by vm.settings.collectAsStateWithLifecycle()
             ChatterTheme(settings.themeMode, settings.dynamicColor, settings.pureBlack) {
-                LinkGuard { CompositionLocalProvider(LocalPosts provides vm.posts) { AppRoot(vm) } }
+                LinkGuard {
+                    ImageViewerHost(vm.imageLoader) {
+                        CompositionLocalProvider(LocalPosts provides vm.posts) { AppRoot(vm) }
+                    }
+                }
             }
         }
     }

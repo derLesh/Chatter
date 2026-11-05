@@ -14,6 +14,7 @@ import androidx.lifecycle.viewmodel.viewModelFactory
 import me.lesh.chatter.ChatterApp
 import me.lesh.chatter.ui.MainViewModel
 import me.lesh.chatter.ui.MessageJump
+import me.lesh.chatter.ui.chat.ImageViewerHost
 import me.lesh.chatter.ui.chat.LinkGuard
 import me.lesh.chatter.ui.chat.LocalPosts
 import me.lesh.chatter.ui.theme.ChatterTheme
@@ -40,7 +41,11 @@ class BubbleActivity : ComponentActivity() {
         setContent {
             val settings by vm.settings.collectAsStateWithLifecycle()
             ChatterTheme(settings.themeMode, settings.dynamicColor, settings.pureBlack) {
-                LinkGuard { CompositionLocalProvider(LocalPosts provides vm.posts) { BubbleScreen(vm, channel) } }
+                LinkGuard {
+                    ImageViewerHost(vm.imageLoader) {
+                        CompositionLocalProvider(LocalPosts provides vm.posts) { BubbleScreen(vm, channel) }
+                    }
+                }
             }
         }
     }

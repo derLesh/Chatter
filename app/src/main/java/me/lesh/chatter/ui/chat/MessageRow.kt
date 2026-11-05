@@ -328,9 +328,9 @@ private fun PaintedLine(
 }
 
 /**
- * A linked image or GIF shown in place of its URL. Tapping opens the link, which is also the
- * fallback when the image fails to load, written as [title] if there is one. [alone]: the only
- * picture in the message, which may use more width.
+ * A linked image or GIF shown in place of its URL. Tapping shows it full screen in [LocalImageViewer],
+ * or opens the link where there is none. The link is also the fallback when the image fails to load,
+ * written as [title] if there is one. [alone]: the only picture in the message, which may use more width.
  */
 @Composable
 private fun LinkedImage(url: String, style: ChatStyle, loader: ImageLoader, alone: Boolean, title: String? = null) {
@@ -344,6 +344,7 @@ private fun LinkedImage(url: String, style: ChatStyle, loader: ImageLoader, alon
         return
     }
     val uriHandler = LocalUriHandler.current
+    val viewer = LocalImageViewer.current
     AsyncImage(
         model = url,
         contentDescription = title?.removeSurrounding("[", "]") ?: stringResource(R.string.linked_image),
@@ -357,7 +358,7 @@ private fun LinkedImage(url: String, style: ChatStyle, loader: ImageLoader, alon
                 maxHeight = if (alone) IMAGE_MAX_HEIGHT else IMAGE_SHARED_MAX_HEIGHT,
             )
             .clip(RoundedCornerShape(8.dp))
-            .clickable { uriHandler.openUri(url) },
+            .clickable { viewer?.show(url, title) ?: uriHandler.openUri(url) },
     )
 }
 
