@@ -62,6 +62,7 @@ import androidx.compose.ui.res.vectorResource
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.testTagsAsResourceId
 import androidx.compose.ui.unit.IntOffset
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil3.ImageLoader
@@ -99,6 +100,9 @@ const val CHAT_LIST_TAG = "chat"
  *
  * [jumpTo] is the id of a message to scroll to and flash; [onJumped] then says whether it was still
  * there, and the caller clears [jumpTo].
+ *
+ * [bottomInset] is the height of an input floating over the list; the newest message and the
+ * button back to it stay above it.
  */
 @Composable
 fun ChatList(
@@ -118,6 +122,7 @@ fun ChatList(
     onCatchUp: ((List<ChatItem>) -> Unit)? = null,
     jumpTo: String? = null,
     onJumped: (found: Boolean) -> Unit = {},
+    bottomInset: Dp = 0.dp,
 ) {
     // Deleted messages are already filtered by the repository.
     val items by messages.collectAsStateWithLifecycle()
@@ -229,7 +234,7 @@ fun ChatList(
         LazyColumn(
             state = listState,
             reverseLayout = true,
-            contentPadding = PaddingValues(vertical = 4.dp),
+            contentPadding = PaddingValues(top = 4.dp, bottom = 4.dp + bottomInset),
             // UI Automator only sees a Compose test tag when exposed as a resource id; the baseline
             // profile and the macrobenchmark use it to find the list.
             modifier = Modifier
@@ -302,7 +307,7 @@ fun ChatList(
             },
             modifier = Modifier
                 .align(Alignment.BottomCenter)
-                .padding(bottom = 12.dp),
+                .padding(bottom = 12.dp + bottomInset),
         )
     }
 }

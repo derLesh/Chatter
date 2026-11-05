@@ -33,6 +33,8 @@ import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.platform.LocalDensity
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import me.lesh.chatter.R
 import me.lesh.chatter.auth.AuthState
@@ -134,6 +136,37 @@ fun BubbleScreen(vm: MainViewModel, channel: String?) {
             }
             HorizontalDivider()
 
+            // The slim input floats over the chat, like in the app.
+            val floatingInput = settings.compactInput && !settings.readOnly
+            var floatingInputHeight by remember { mutableStateOf(0.dp) }
+            val density = LocalDensity.current
+            val input = @Composable { modifier: Modifier ->
+                InputBar(
+                    value = vm.input,
+                    onValueChange = vm::onInputChange,
+                    enabled = connection == ConnectionState.Connected,
+                    replyTo = vm.replyTo,
+                    suggestions = vm.suggestions,
+                    imageLoader = loader,
+                    onSuggestion = vm::applySuggestion,
+                    onCancelReply = vm::cancelReply,
+                    onEmotePicker = { showPicker = true },
+                    onSend = vm::send,
+                    recentlySent = vm::recentlySent,
+                    onReuseSent = vm::reuseSent,
+                    replyStarts = vm.replyStarts,
+                    waitUntil = vm.sendWaitUntil,
+                    restriction = vm.sendChannel?.let { ch -> SendLimits.restriction(roomStates[ch], roles[ch], ch in subscribed) },
+                    penalty = vm.sendChannel?.let { penalties[it] },
+                    modifier = modifier.fillMaxWidth(),
+                    recentlySentButton = settings.recentlySentButton,
+                    chatModes = vm.sendChannel
+                        ?.takeIf { settings.chatModesButton && it in modChannels }
+                        ?.let { roomStates[it] ?: RoomState() },
+                    onChatModes = vm::changeChatModes,
+                    compact = settings.compactInput,
+                )
+            }
             Box(Modifier.weight(1f)) {
                 ChatList(
                     messages = remember(channel) { vm.chat(channel) },
@@ -152,33 +185,19 @@ fun BubbleScreen(vm: MainViewModel, channel: String?) {
                         vm.requestedMessage.value = null
                         if (!found) scope.launch { snackbar.showSnackbar(resources.getString(R.string.jump_message_gone)) }
                     },
+                    bottomInset = if (floatingInput) floatingInputHeight else 0.dp,
                 )
-                SnackbarHost(snackbar, Modifier.align(Alignment.BottomCenter))
+                if (floatingInput) input(
+                    Modifier
+                        .align(Alignment.BottomCenter)
+                        .onSizeChanged { floatingInputHeight = with(density) { it.height.toDp() } },
+                )
+                SnackbarHost(
+                    snackbar,
+                    Modifier.align(Alignment.BottomCenter).padding(bottom = if (floatingInput) floatingInputHeight else 0.dp),
+                )
             }
-            if (!settings.readOnly) InputBar(
-                value = vm.input,
-                onValueChange = vm::onInputChange,
-                enabled = connection == ConnectionState.Connected,
-                replyTo = vm.replyTo,
-                suggestions = vm.suggestions,
-                imageLoader = loader,
-                onSuggestion = vm::applySuggestion,
-                onCancelReply = vm::cancelReply,
-                onEmotePicker = { showPicker = true },
-                onSend = vm::send,
-                recentlySent = vm::recentlySent,
-                onReuseSent = vm::reuseSent,
-                replyStarts = vm.replyStarts,
-                waitUntil = vm.sendWaitUntil,
-                restriction = vm.sendChannel?.let { ch -> SendLimits.restriction(roomStates[ch], roles[ch], ch in subscribed) },
-                penalty = vm.sendChannel?.let { penalties[it] },
-                modifier = Modifier.fillMaxWidth(),
-                recentlySentButton = settings.recentlySentButton,
-                chatModes = vm.sendChannel
-                    ?.takeIf { settings.chatModesButton && it in modChannels }
-                    ?.let { roomStates[it] ?: RoomState() },
-                onChatModes = vm::changeChatModes,
-            )
+            if (!settings.readOnly && !floatingInput) input(Modifier)
         }
     }
 

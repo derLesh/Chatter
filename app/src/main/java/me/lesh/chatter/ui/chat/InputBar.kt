@@ -17,6 +17,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -24,6 +25,7 @@ import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
@@ -42,14 +44,17 @@ import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.IconButtonDefaults
+import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.MenuDefaults
+import androidx.compose.material3.ProvideTextStyle
 import androidx.compose.material3.SelectableDropdownMenuItem
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextField
 import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
@@ -66,6 +71,7 @@ import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.TransformOrigin
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalDensity
@@ -124,6 +130,8 @@ import kotlinx.coroutines.launch
  * Given [chatModes], those of the channel the input sends to when the user moderates it, a shield
  * in front of the emotes opens them above the input; a change goes to [onChatModes] as the wished
  * state.
+ *
+ * [compact] puts every button inside one lower field.
  */
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
@@ -152,6 +160,7 @@ fun InputBar(
     recentlySentButton: RecentlySentButton = RecentlySentButton.ReplacesSend,
     chatModes: RoomState? = null,
     onChatModes: (RoomState) -> Unit = {},
+    compact: Boolean = false,
 ) {
     val choosing = sendChannels.size > 1 && sendChannel != null
     val focus = remember { FocusRequester() }
@@ -222,7 +231,81 @@ fun InputBar(
         if (replyTo != null) {
             ReplyBar(replyTo, onCancelReply)
         }
-        Row(
+        val leadingButtons = @Composable {
+            if (choosing) {
+                SendChannelPicker(sendChannels, sendChannel, channelInfo, imageLoader, enabled, onSendChannel)
+            }
+            if (offersModes) {
+                PanelToggle(modesOpen, enabled, onClick = { openPanel = if (modesOpen) null else InputPanel.ChatModes }) {
+                    Icon(painterResource(R.drawable.ic_shield), contentDescription = stringResource(R.string.chat_modes))
+                }
+            }
+            IconButton(onClick = onEmotePicker, shapes = IconButtonDefaults.shapes(), enabled = enabled) {
+                Icon(Icons.Default.Face, contentDescription = stringResource(R.string.emotes))
+            }
+        }
+        val placeholder = @Composable {
+            Text(
+                when {
+                    !enabled -> stringResource(R.string.input_hint_disabled)
+                    timeoutLeft > 0 -> stringResource(R.string.input_hint_timed_out, timeLeft(timeoutLeft))
+                    penalty == Penalty.Banned -> stringResource(R.string.input_hint_banned)
+                    restriction != null -> stringResource(restriction.hint)
+                    choosing -> stringResource(R.string.input_hint_in, channelInfo[sendChannel]?.displayName ?: sendChannel)
+                    else -> stringResource(R.string.input_hint)
+                },
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+        }
+        // The placeholder is gone once something is typed; the timeout stays in sight here.
+        val trailing: (@Composable () -> Unit)? = if (recentInInput) {
+            { RecentlySentClock(recentOpen, enabled, toggleRecent) }
+        } else if (timeoutLeft > 0 && value.text.isNotEmpty()) {
+            {
+                Text(
+                    timeLeft(timeoutLeft),
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.error,
+                    modifier = Modifier.padding(end = 12.dp),
+                )
+            }
+        } else if (length < SendLimits.COUNTER_FROM) null else {
+            {
+                val left = SendLimits.MAX_LENGTH - length
+                val said = if (tooLong) pluralStringResource(R.plurals.characters_too_many, -left, -left)
+                else pluralStringResource(R.plurals.characters_left, left, left)
+                Text(
+                    "$left",
+                    style = MaterialTheme.typography.labelMedium,
+                    color = if (tooLong) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.semantics { contentDescription = said },
+                )
+            }
+        }
+        val sendButton = @Composable { modifier: Modifier ->
+            if (recentOnSend) {
+                RecentlySentClock(recentOpen, enabled, toggleRecent, modifier)
+            } else {
+                SendButton(canSend, waitLeft, onSend, modifier)
+            }
+        }
+        val keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Sentences, imeAction = ImeAction.Send)
+        val keyboardActions = KeyboardActions(onSend = { if (canSend) onSend() })
+        if (compact) {
+            CompactField(
+                value = value,
+                onValueChange = onValueChange,
+                enabled = enabled,
+                keyboardOptions = keyboardOptions,
+                keyboardActions = keyboardActions,
+                placeholder = placeholder,
+                leadingButtons = leadingButtons,
+                trailing = trailing,
+                sendButton = { sendButton(Modifier) },
+                modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp).focusRequester(focus),
+            )
+        } else Row(
             verticalAlignment = Alignment.CenterVertically,
             modifier = Modifier.padding(horizontal = 4.dp, vertical = 4.dp),
         ) {
@@ -230,68 +313,16 @@ fun InputBar(
             Row(
                 horizontalArrangement = Arrangement.spacedBy((-8).dp),
                 verticalAlignment = Alignment.CenterVertically,
-            ) {
-                if (choosing) {
-                    SendChannelPicker(sendChannels, sendChannel, channelInfo, imageLoader, enabled, onSendChannel)
-                }
-                if (offersModes) {
-                    PanelToggle(modesOpen, enabled, onClick = { openPanel = if (modesOpen) null else InputPanel.ChatModes }) {
-                        Icon(painterResource(R.drawable.ic_shield), contentDescription = stringResource(R.string.chat_modes))
-                    }
-                }
-                IconButton(onClick = onEmotePicker, shapes = IconButtonDefaults.shapes(), enabled = enabled) {
-                    Icon(Icons.Default.Face, contentDescription = stringResource(R.string.emotes))
-                }
-            }
+            ) { leadingButtons() }
             TextField(
                 value = value,
                 onValueChange = onValueChange,
                 enabled = enabled,
-                placeholder = {
-                    Text(
-                        when {
-                            !enabled -> stringResource(R.string.input_hint_disabled)
-                            timeoutLeft > 0 -> stringResource(R.string.input_hint_timed_out, timeLeft(timeoutLeft))
-                            penalty == Penalty.Banned -> stringResource(R.string.input_hint_banned)
-                            restriction != null -> stringResource(restriction.hint)
-                            choosing -> stringResource(R.string.input_hint_in, channelInfo[sendChannel]?.displayName ?: sendChannel)
-                            else -> stringResource(R.string.input_hint)
-                        },
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                    )
-                },
-                // The placeholder is gone once something is typed; the timeout stays in sight here.
-                trailingIcon = if (recentInInput) {
-                    { RecentlySentClock(recentOpen, enabled, toggleRecent) }
-                } else if (timeoutLeft > 0 && value.text.isNotEmpty()) {
-                    {
-                        Text(
-                            timeLeft(timeoutLeft),
-                            style = MaterialTheme.typography.labelMedium,
-                            color = MaterialTheme.colorScheme.error,
-                            modifier = Modifier.padding(end = 12.dp),
-                        )
-                    }
-                } else if (length < SendLimits.COUNTER_FROM) null else {
-                    {
-                        val left = SendLimits.MAX_LENGTH - length
-                        val said = if (tooLong) pluralStringResource(R.plurals.characters_too_many, -left, -left)
-                        else pluralStringResource(R.plurals.characters_left, left, left)
-                        Text(
-                            "$left",
-                            style = MaterialTheme.typography.labelMedium,
-                            color = if (tooLong) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant,
-                            modifier = Modifier.semantics { contentDescription = said },
-                        )
-                    }
-                },
+                placeholder = placeholder,
+                trailingIcon = trailing,
                 maxLines = 4,
-                keyboardOptions = KeyboardOptions(
-                    capitalization = KeyboardCapitalization.Sentences,
-                    imeAction = ImeAction.Send,
-                ),
-                keyboardActions = KeyboardActions(onSend = { if (canSend) onSend() }),
+                keyboardOptions = keyboardOptions,
+                keyboardActions = keyboardActions,
                 shape = RoundedCornerShape(20.dp),
                 colors = TextFieldDefaults.colors(
                     focusedContainerColor = MaterialTheme.colorScheme.surfaceContainerHighest,
@@ -303,36 +334,99 @@ fun InputBar(
                 ),
                 modifier = Modifier.weight(1f).focusRequester(focus),
             )
-            if (recentOnSend) {
-                RecentlySentClock(recentOpen, enabled, toggleRecent, Modifier.padding(start = 4.dp))
-            } else {
-                // Filled once there is something to send, and squarer while pressed (Expressive).
-                FilledIconButton(
-                    onClick = onSend,
-                    shapes = IconButtonDefaults.shapes(),
-                    enabled = canSend,
-                    // Spelled out: the defaults drew the arrow too faint to make out on the filled
-                    // button, and the empty one should look like the plain button it replaces.
-                    colors = IconButtonDefaults.filledIconButtonColors(
-                        containerColor = MaterialTheme.colorScheme.primary,
-                        contentColor = MaterialTheme.colorScheme.onPrimary,
-                        disabledContainerColor = Color.Transparent,
-                        disabledContentColor = MaterialTheme.colorScheme.onSurfaceVariant,
-                    ),
-                    modifier = Modifier.padding(start = 4.dp),
-                ) {
-                    if (waitLeft > 0) {
-                        val wait = pluralStringResource(R.plurals.send_wait, waitLeft, waitLeft)
-                        Text(
-                            "$waitLeft",
-                            style = MaterialTheme.typography.labelLarge,
-                            modifier = Modifier.semantics { contentDescription = wait },
-                        )
-                    } else {
-                        Icon(Icons.AutoMirrored.Filled.Send, contentDescription = stringResource(R.string.send))
+            sendButton(Modifier.padding(start = 4.dp))
+        }
+    }
+}
+
+/**
+ * The input as one rounded field with every button inside it, one touch target high. Built on
+ * [BasicTextField], since Material's text field is never lower than 56dp.
+ */
+@Composable
+private fun CompactField(
+    value: TextFieldValue,
+    onValueChange: (TextFieldValue) -> Unit,
+    enabled: Boolean,
+    keyboardOptions: KeyboardOptions,
+    keyboardActions: KeyboardActions,
+    placeholder: @Composable () -> Unit,
+    leadingButtons: @Composable () -> Unit,
+    trailing: (@Composable () -> Unit)?,
+    sendButton: @Composable () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val colors = MaterialTheme.colorScheme
+    val textColor = if (enabled) colors.onSurface else colors.onSurface.copy(alpha = 0.38f)
+    val placeholderColor = if (enabled) colors.onSurfaceVariant else colors.onSurfaceVariant.copy(alpha = 0.38f)
+    BasicTextField(
+        value = value,
+        onValueChange = onValueChange,
+        enabled = enabled,
+        textStyle = MaterialTheme.typography.bodyLarge.copy(color = textColor),
+        cursorBrush = SolidColor(colors.primary),
+        keyboardOptions = keyboardOptions,
+        keyboardActions = keyboardActions,
+        maxLines = 4,
+        modifier = modifier.fillMaxWidth(),
+        decorationBox = { innerTextField ->
+            // At the bottom, so the buttons stay by the thumb while a long message grows upwards.
+            Row(
+                verticalAlignment = Alignment.Bottom,
+                modifier = Modifier
+                    .clip(RoundedCornerShape(24.dp))
+                    .background(if (enabled) colors.surfaceContainerHighest else colors.surfaceContainerHigh)
+                    .padding(horizontal = 4.dp),
+            ) {
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy((-8).dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) { leadingButtons() }
+                // 12dp above and below a 24sp line: one line is as high as the buttons.
+                Box(Modifier.weight(1f).padding(start = 4.dp, top = 12.dp, bottom = 12.dp)) {
+                    if (value.text.isEmpty()) {
+                        CompositionLocalProvider(LocalContentColor provides placeholderColor) {
+                            ProvideTextStyle(MaterialTheme.typography.bodyLarge) { placeholder() }
+                        }
                     }
+                    innerTextField()
                 }
+                if (trailing != null) {
+                    Box(Modifier.heightIn(min = 48.dp), contentAlignment = Alignment.Center) { trailing() }
+                }
+                sendButton()
             }
+        },
+    )
+}
+
+/** Filled once there is something to send, and squarer while pressed (Expressive). */
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
+@Composable
+private fun SendButton(canSend: Boolean, waitLeft: Int, onSend: () -> Unit, modifier: Modifier = Modifier) {
+    FilledIconButton(
+        onClick = onSend,
+        shapes = IconButtonDefaults.shapes(),
+        enabled = canSend,
+        // Spelled out: the defaults drew the arrow too faint to make out on the filled
+        // button, and the empty one should look like the plain button it replaces.
+        colors = IconButtonDefaults.filledIconButtonColors(
+            containerColor = MaterialTheme.colorScheme.primary,
+            contentColor = MaterialTheme.colorScheme.onPrimary,
+            disabledContainerColor = Color.Transparent,
+            disabledContentColor = MaterialTheme.colorScheme.onSurfaceVariant,
+        ),
+        modifier = modifier,
+    ) {
+        if (waitLeft > 0) {
+            val wait = pluralStringResource(R.plurals.send_wait, waitLeft, waitLeft)
+            Text(
+                "$waitLeft",
+                style = MaterialTheme.typography.labelLarge,
+                modifier = Modifier.semantics { contentDescription = wait },
+            )
+        } else {
+            Icon(Icons.AutoMirrored.Filled.Send, contentDescription = stringResource(R.string.send))
         }
     }
 }

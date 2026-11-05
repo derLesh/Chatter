@@ -48,6 +48,9 @@ internal fun TypingPage(settings: Settings, vm: MainViewModel) {
         item(R.string.settings_chat_modes_button) {
             SwitchItem(R.string.settings_chat_modes_button, settings.chatModesButton, vm::setChatModesButton, R.string.settings_chat_modes_button_hint)
         }
+        item(R.string.settings_compact_input) {
+            SwitchItem(R.string.settings_compact_input, settings.compactInput, vm::setCompactInput, R.string.settings_compact_input_hint)
+        }
     }
 }
 
@@ -82,6 +85,7 @@ private fun InputPreview(settings: Settings, vm: MainViewModel) {
             recentlySentButton = settings.recentlySentButton,
             chatModes = modes.takeIf { settings.chatModesButton },
             onChatModes = { modes = it },
+            compact = settings.compactInput,
         )
     }
 }
