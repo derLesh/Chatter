@@ -1,0 +1,1 @@
+minor: Read two channels side by side, or the inbox next to the chat, on tablets, foldables and in landscape

@@ -29,7 +29,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.KeyboardArrowDown
@@ -49,6 +49,8 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.runtime.saveable.listSaver
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
@@ -121,9 +123,11 @@ fun ChatList(
 ) {
     // Deleted messages are already filtered by the repository.
     val items by messages.collectAsStateWithLifecycle()
-    val listState = rememberLazyListState()
+    // Saved, so folding, unfolding or turning the phone keeps the place the user was reading.
+    val scroll = rememberSaveable(saver = ChatScroll.Saver) { ChatScroll(LazyListState(), restoredKey = null) }
+    val listState = scroll.list
     val scope = rememberCoroutineScope()
-    var follow by remember { mutableStateOf(true) }
+    var follow by rememberSaveable { mutableStateOf(true) }
     // Only the user's own drags decide whether to follow new messages; our scroll animations must
     // not turn it off.
     var userScrolling by remember { mutableStateOf(false) }
@@ -132,8 +136,20 @@ fun ChatList(
         listState.interactionSource.interactions.collect { if (it is DragInteraction.Start) userScrolling = true }
     }
     // The newest message when the user left the bottom; the button counts what came after it.
-    var leftAt by remember { mutableStateOf<String?>(null) }
-    LaunchedEffect(follow) { leftAt = if (follow) null else items.lastOrNull()?.id }
+    var leftAt by rememberSaveable { mutableStateOf<String?>(null) }
+    LaunchedEffect(follow) {
+        // A restored list kept its own; this only runs again once the user changes direction.
+        if (follow) leftAt = null else if (leftAt == null) leftAt = items.lastOrNull()?.id
+    }
+    // Messages that arrived while the window was rebuilt shift every index; the saved row is found
+    // again by its message.
+    LaunchedEffect(scroll) {
+        val key = scroll.restoredKey ?: return@LaunchedEffect
+        if (follow) return@LaunchedEffect
+        val index = items.indexOfLast { it.id == key }.takeIf { it >= 0 } ?: return@LaunchedEffect
+        val row = items.size - 1 - index
+        if (row != listState.firstVisibleItemIndex) listState.scrollToItem(row, listState.firstVisibleItemScrollOffset)
+    }
     val newSinceLeft = remember(items, leftAt) {
         leftAt?.let { id -> items.indexOfLast { it.id == id }.takeIf { it >= 0 }?.let { items.lastIndex - it } } ?: 0
     }
@@ -343,6 +359,25 @@ private fun NewMessagesButton(visible: Boolean, count: Int, onClick: () -> Unit,
             },
             containerColor = MaterialTheme.colorScheme.primary,
             contentColor = MaterialTheme.colorScheme.onPrimary,
+        )
+    }
+}
+
+/**
+ * The list's position, saved with the message of its first row: [restoredKey] is that message's id
+ * after the window was rebuilt, null otherwise.
+ */
+private class ChatScroll(val list: LazyListState, val restoredKey: String?) {
+    companion object {
+        val Saver = listSaver<ChatScroll, Any>(
+            save = {
+                listOf(
+                    it.list.firstVisibleItemIndex,
+                    it.list.firstVisibleItemScrollOffset,
+                    it.list.layoutInfo.visibleItemsInfo.firstOrNull()?.key as? String ?: "",
+                )
+            },
+            restore = { ChatScroll(LazyListState(it[0] as Int, it[1] as Int), (it[2] as String).ifEmpty { null }) },
         )
     }
 }

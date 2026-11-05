@@ -18,6 +18,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material3.Badge
 import androidx.compose.material3.BadgedBox
@@ -35,6 +36,7 @@ import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Tab
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -60,17 +62,31 @@ import me.lesh.chatter.chat.InboxMention
 import me.lesh.chatter.chat.InboxWhisper
 import me.lesh.chatter.chat.chatterName
 import me.lesh.chatter.ui.MainViewModel
+import me.lesh.chatter.ui.channels.AppButtons
 import me.lesh.chatter.ui.channels.ChannelAvatar
+import me.lesh.chatter.ui.theme.barColor
 import me.lesh.chatter.ui.theme.isAppInDarkTheme
 import me.lesh.chatter.ui.theme.readableNameColor
 import me.lesh.chatter.util.INBOX_TAB_MENTIONS
 import me.lesh.chatter.util.INBOX_TAB_WHISPERS
 import kotlinx.coroutines.launch
 
-/** Mentions and whispers in two tabs. Unlike the chat buffers this keeps them across restarts. */
+/**
+ * Mentions and whispers in two tabs. Unlike the chat buffers this keeps them across restarts.
+ * Without [onBack] it is the pane beside the chat on a wide screen: [onClose] closes it, and the
+ * settings button moves here from the chat's bar.
+ */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun InboxScreen(vm: MainViewModel, onOpenMention: (InboxMention) -> Unit, onBack: () -> Unit) {
+fun InboxScreen(
+    vm: MainViewModel,
+    onOpenMention: (InboxMention) -> Unit,
+    onBack: (() -> Unit)?,
+    modifier: Modifier = Modifier,
+    onClose: (() -> Unit)? = null,
+    onSettings: (() -> Unit)? = null,
+    settingsBadge: Boolean = false,
+) {
     val mentions by vm.inboxMentions.collectAsStateWithLifecycle()
     val whispers by vm.inboxWhispers.collectAsStateWithLifecycle()
     val mentionUnread by vm.mentionUnread.collectAsStateWithLifecycle()
@@ -104,13 +120,18 @@ fun InboxScreen(vm: MainViewModel, onOpenMention: (InboxMention) -> Unit, onBack
     }
 
     Scaffold(
+        modifier = modifier,
         containerColor = MaterialTheme.colorScheme.surface,
         snackbarHost = { SnackbarHost(snackbar) },
         topBar = {
             TopAppBar(
+                // Beside the chat it lines up with the chat's bar.
+                colors = if (onBack == null) {
+                    TopAppBarDefaults.topAppBarColors(containerColor = MaterialTheme.colorScheme.barColor)
+                } else TopAppBarDefaults.topAppBarColors(),
                 title = { Text(stringResource(R.string.inbox_title)) },
                 navigationIcon = {
-                    IconButton(onClick = onBack) {
+                    if (onBack != null) IconButton(onClick = onBack) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, stringResource(R.string.back))
                     }
                 },
@@ -123,6 +144,10 @@ fun InboxScreen(vm: MainViewModel, onOpenMention: (InboxMention) -> Unit, onBack
                             Icon(Icons.Default.Delete, stringResource(R.string.inbox_clear))
                         }
                     }
+                    if (onClose != null) IconButton(onClick = onClose) {
+                        Icon(Icons.Default.Close, stringResource(R.string.beside_close))
+                    }
+                    if (onSettings != null) AppButtons(inboxUnread = 0, onInbox = null, onSettings = onSettings, settingsBadge = settingsBadge)
                 },
             )
         },
