@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.ime
 import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.union
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.windowInsetsPadding
@@ -23,6 +24,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -33,6 +35,10 @@ import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.IntOffset
+import androidx.compose.ui.zIndex
+import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.platform.LocalDensity
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import me.lesh.chatter.R
 import me.lesh.chatter.auth.AuthState
@@ -134,7 +140,45 @@ fun BubbleScreen(vm: MainViewModel, channel: String?) {
             }
             HorizontalDivider()
 
+            // The slim input floats over the chat, like in the app.
+            val floatingInput = settings.compactInput && !settings.readOnly
+            var floatingInputHeight by remember { mutableIntStateOf(0) }
+            val density = LocalDensity.current
+            val input = @Composable { modifier: Modifier ->
+                InputBar(
+                    value = vm.input,
+                    onValueChange = vm::onInputChange,
+                    enabled = connection == ConnectionState.Connected,
+                    replyTo = vm.replyTo,
+                    suggestions = vm.suggestions,
+                    imageLoader = loader,
+                    onSuggestion = vm::applySuggestion,
+                    onCancelReply = vm::cancelReply,
+                    onEmotePicker = { showPicker = true },
+                    onSend = vm::send,
+                    recentlySent = vm::recentlySent,
+                    onReuseSent = vm::reuseSent,
+                    replyStarts = vm.replyStarts,
+                    waitUntil = vm.sendWaitUntil,
+                    restriction = vm.sendChannel?.let { ch -> SendLimits.restriction(roomStates[ch], roles[ch], ch in subscribed) },
+                    penalty = vm.sendChannel?.let { penalties[it] },
+                    modifier = modifier.fillMaxWidth(),
+                    recentlySentButton = settings.recentlySentButton,
+                    chatModes = vm.sendChannel
+                        ?.takeIf { settings.chatModesButton && it in modChannels }
+                        ?.let { roomStates[it] ?: RoomState() },
+                    onChatModes = vm::changeChatModes,
+                    compact = settings.compactInput,
+                )
+            }
             Box(Modifier.weight(1f)) {
+                // First, so it is measured before the chat that makes room for it; drawn on top.
+                if (floatingInput) input(
+                    Modifier
+                        .zIndex(1f)
+                        .align(Alignment.BottomCenter)
+                        .onSizeChanged { floatingInputHeight = it.height },
+                )
                 ChatList(
                     messages = remember(channel) { vm.chat(channel) },
                     style = style,
@@ -152,33 +196,17 @@ fun BubbleScreen(vm: MainViewModel, channel: String?) {
                         vm.requestedMessage.value = null
                         if (!found) scope.launch { snackbar.showSnackbar(resources.getString(R.string.jump_message_gone)) }
                     },
+                    bottomInset = { if (floatingInput) with(density) { floatingInputHeight.toDp() } else 0.dp },
                 )
-                SnackbarHost(snackbar, Modifier.align(Alignment.BottomCenter))
+                SnackbarHost(
+                    snackbar,
+                    Modifier
+                        .zIndex(2f)
+                        .align(Alignment.BottomCenter)
+                        .offset { IntOffset(0, if (floatingInput) -floatingInputHeight else 0) },
+                )
             }
-            if (!settings.readOnly) InputBar(
-                value = vm.input,
-                onValueChange = vm::onInputChange,
-                enabled = connection == ConnectionState.Connected,
-                replyTo = vm.replyTo,
-                suggestions = vm.suggestions,
-                imageLoader = loader,
-                onSuggestion = vm::applySuggestion,
-                onCancelReply = vm::cancelReply,
-                onEmotePicker = { showPicker = true },
-                onSend = vm::send,
-                recentlySent = vm::recentlySent,
-                onReuseSent = vm::reuseSent,
-                replyStarts = vm.replyStarts,
-                waitUntil = vm.sendWaitUntil,
-                restriction = vm.sendChannel?.let { ch -> SendLimits.restriction(roomStates[ch], roles[ch], ch in subscribed) },
-                penalty = vm.sendChannel?.let { penalties[it] },
-                modifier = Modifier.fillMaxWidth(),
-                recentlySentButton = settings.recentlySentButton,
-                chatModes = vm.sendChannel
-                    ?.takeIf { settings.chatModesButton && it in modChannels }
-                    ?.let { roomStates[it] ?: RoomState() },
-                onChatModes = vm::changeChatModes,
-            )
+            if (!settings.readOnly && !floatingInput) input(Modifier)
         }
     }
 

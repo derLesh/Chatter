@@ -25,6 +25,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -62,7 +63,9 @@ import androidx.compose.ui.res.vectorResource
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.testTagsAsResourceId
 import androidx.compose.ui.unit.IntOffset
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.LayoutDirection
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil3.ImageLoader
 import me.lesh.chatter.R
@@ -99,6 +102,10 @@ const val CHAT_LIST_TAG = "chat"
  *
  * [jumpTo] is the id of a message to scroll to and flash; [onJumped] then says whether it was still
  * there, and the caller clears [jumpTo].
+ *
+ * [bottomInset] is the height of an input floating over the list; the newest message and the
+ * button back to it stay above it. Read while measuring, so a growing input moves the list without
+ * composing it again.
  */
 @Composable
 fun ChatList(
@@ -118,6 +125,7 @@ fun ChatList(
     onCatchUp: ((List<ChatItem>) -> Unit)? = null,
     jumpTo: String? = null,
     onJumped: (found: Boolean) -> Unit = {},
+    bottomInset: () -> Dp = { 0.dp },
 ) {
     // Deleted messages are already filtered by the repository.
     val items by messages.collectAsStateWithLifecycle()
@@ -224,12 +232,14 @@ fun ChatList(
         }
     }
     val flashColor = style.mentionBackground.copy(alpha = FLASH_ALPHA)
+    val currentBottomInset by rememberUpdatedState(bottomInset)
+    val contentPadding = remember { ListPadding { currentBottomInset() } }
 
     Box(modifier) {
         LazyColumn(
             state = listState,
             reverseLayout = true,
-            contentPadding = PaddingValues(vertical = 4.dp),
+            contentPadding = contentPadding,
             // UI Automator only sees a Compose test tag when exposed as a resource id; the baseline
             // profile and the macrobenchmark use it to find the list.
             modifier = Modifier
@@ -302,6 +312,7 @@ fun ChatList(
             },
             modifier = Modifier
                 .align(Alignment.BottomCenter)
+                .offset { IntOffset(0, -currentBottomInset().roundToPx()) }
                 .padding(bottom = 12.dp),
         )
     }
@@ -429,4 +440,15 @@ private fun CatchUpChip(onClick: () -> Unit) {
             BetaBadge()
         }
     }
+}
+
+/**
+ * The list's padding, with [bottomInset] asked for only when the list is measured. A floating input
+ * brings its own gap, as wide as the one to the keyboard, so the list adds none on top.
+ */
+private class ListPadding(private val bottomInset: () -> Dp) : PaddingValues {
+    override fun calculateTopPadding() = 4.dp
+    override fun calculateBottomPadding() = maxOf(4.dp, bottomInset())
+    override fun calculateLeftPadding(layoutDirection: LayoutDirection) = 0.dp
+    override fun calculateRightPadding(layoutDirection: LayoutDirection) = 0.dp
 }

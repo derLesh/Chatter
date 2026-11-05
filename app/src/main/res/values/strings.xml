@@ -387,6 +387,8 @@
     <string name="recently_sent_hidden">Off</string>
     <string name="settings_chat_modes_button">Chat modes</string>
     <string name="settings_chat_modes_button_hint">Shows mods a shield by the input for slow mode, emote-only and more</string>
+    <string name="settings_compact_input">Slim input</string>
+    <string name="settings_compact_input_hint">Lower, with all buttons inside, floating over the chat</string>
     <string-array name="input_preview_sent">
         <item>GG</item>
         <item>What\'s this song?</item>

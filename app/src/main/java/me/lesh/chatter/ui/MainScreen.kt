@@ -27,6 +27,7 @@ import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
@@ -42,6 +43,9 @@ import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.zIndex
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.layout.onSizeChanged
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LifecycleStartEffect
 import androidx.lifecycle.compose.LocalLifecycleOwner
@@ -350,84 +354,101 @@ fun MainScreen(vm: MainViewModel, onInbox: () -> Unit, onSettings: () -> Unit) {
                 .windowInsetsPadding(WindowInsets.ime.union(WindowInsets.navigationBars))
                 .background(MaterialTheme.colorScheme.background),
         ) {
-            if (pageKeys.isEmpty()) {
-                EmptyState(onAdd = { sheets.showAdd = true }, modifier = Modifier.weight(1f))
-            } else {
-                HorizontalPager(
-                    state = pagerState,
-                    // A wrapping pager shows a channel on many pages, so only the page index
-                    // identifies them. Otherwise keying on the channel keeps its state when
-                    // channels are reordered.
-                    key = { if (pages.wrapping) it else pageKeys.getOrElse(it) { "" } },
-                    modifier = Modifier.weight(1f),
-                ) { page ->
-                    val channel = pages.channelAt(page)?.let(pageKeys::getOrNull) ?: return@HorizontalPager
-                    // The channel of each message is only shown where channels mix.
-                    val members = groups[channel]?.channels
-                    val marks = remember(members, info) {
-                        members?.associateWith { ChannelMark(info[it]?.avatarUrl, info[it]?.displayName ?: it) }
-                    }
-                    // The pin floats over the chat, which keeps its full height behind it.
-                    Box(Modifier.fillMaxSize()) {
-                        ChatList(
-                            messages = remember(channel) { vm.chat(channel) },
-                            channels = marks,
-                            partners = partnerMarks,
-                            readMark = vm.readMark(channel),
-                            onSeen = if (channel == active) { mark -> vm.onSeen(channel, mark) } else null,
-                            onMentionsSeen = if (channel == active) vm::onMentionsSeen else null,
-                            onCatchUp = if (canCatchUp && channel == active) { missed -> vm.summarize(channel, missed) } else null,
-                            // Only the page in front: a wrapping pager may show the channel twice.
-                            jumpTo = jump?.takeIf { it.channel == channel && channel == active }?.id,
-                            onJumped = { found ->
-                                vm.requestedMessage.value = null
-                                if (!found) scope.launch { snackbar.showSnackbar(resources.getString(R.string.jump_message_gone)) }
-                            },
-                            style = style,
-                            imageLoader = loader,
-                            onGesture = { item, gesture ->
-                                // Holding always opens the user card, whatever taps are set to.
-                                val action = when (gesture) {
-                                    MessageGesture.Tap -> settings.messageTap
-                                    MessageGesture.NameTap -> settings.nameTap
-                                    MessageGesture.Hold -> TapAction.UserCard
-                                    // A tap on the reply line opens the conversation.
-                                    MessageGesture.Thread -> {
-                                        // Otherwise the input keeps focus under the sheet and gets the
-                                        // keyboard back when it closes.
-                                        focusManager.clearFocus()
-                                        sheets.threadOf = item
-                                        vm.startReply(item)
-                                        return@ChatList
+            // The slim input floats over the chat; a guest's prompt has no field and keeps its strip,
+            // and without channels it would cover the button to add one.
+            val floatingInput = settings.compactInput && !guest && !settings.readOnly && pageKeys.isNotEmpty()
+            var floatingInputHeight by remember { mutableIntStateOf(0) }
+            val density = LocalDensity.current
+            Box(Modifier.weight(1f)) {
+                // First, so it is measured before the chat that makes room for it; drawn on top.
+                if (floatingInput) ChatInput(
+                    vm, guest, connection, restriction, penalty, loader, activity, sheets, inThread = false,
+                    sendChannels = activeGroup?.channels.orEmpty(), channelInfo = info,
+                    modifier = Modifier
+                        .zIndex(1f)
+                        .align(Alignment.BottomCenter)
+                        .onSizeChanged { floatingInputHeight = it.height },
+                )
+                if (pageKeys.isEmpty()) {
+                    EmptyState(onAdd = { sheets.showAdd = true }, modifier = Modifier.fillMaxSize())
+                } else {
+                    HorizontalPager(
+                        state = pagerState,
+                        // A wrapping pager shows a channel on many pages, so only the page index
+                        // identifies them. Otherwise keying on the channel keeps its state when
+                        // channels are reordered.
+                        key = { if (pages.wrapping) it else pageKeys.getOrElse(it) { "" } },
+                        modifier = Modifier.fillMaxSize(),
+                    ) { page ->
+                        val channel = pages.channelAt(page)?.let(pageKeys::getOrNull) ?: return@HorizontalPager
+                        // The channel of each message is only shown where channels mix.
+                        val members = groups[channel]?.channels
+                        val marks = remember(members, info) {
+                            members?.associateWith { ChannelMark(info[it]?.avatarUrl, info[it]?.displayName ?: it) }
+                        }
+                        // The pin floats over the chat, which keeps its full height behind it.
+                        Box(Modifier.fillMaxSize()) {
+                            ChatList(
+                                messages = remember(channel) { vm.chat(channel) },
+                                channels = marks,
+                                partners = partnerMarks,
+                                readMark = vm.readMark(channel),
+                                onSeen = if (channel == active) { mark -> vm.onSeen(channel, mark) } else null,
+                                onMentionsSeen = if (channel == active) vm::onMentionsSeen else null,
+                                onCatchUp = if (canCatchUp && channel == active) { missed -> vm.summarize(channel, missed) } else null,
+                                // Only the page in front: a wrapping pager may show the channel twice.
+                                jumpTo = jump?.takeIf { it.channel == channel && channel == active }?.id,
+                                onJumped = { found ->
+                                    vm.requestedMessage.value = null
+                                    if (!found) scope.launch { snackbar.showSnackbar(resources.getString(R.string.jump_message_gone)) }
+                                },
+                                style = style,
+                                imageLoader = loader,
+                                onGesture = { item, gesture ->
+                                    // Holding always opens the user card, whatever taps are set to.
+                                    val action = when (gesture) {
+                                        MessageGesture.Tap -> settings.messageTap
+                                        MessageGesture.NameTap -> settings.nameTap
+                                        MessageGesture.Hold -> TapAction.UserCard
+                                        // A tap on the reply line opens the conversation.
+                                        MessageGesture.Thread -> {
+                                            // Otherwise the input keeps focus under the sheet and gets the
+                                            // keyboard back when it closes.
+                                            focusManager.clearFocus()
+                                            sheets.threadOf = item
+                                            vm.startReply(item)
+                                            return@ChatList
+                                        }
                                     }
-                                }
-                                // Messages that cannot be answered or mentioned (a notice, an
-                                // unconfirmed message, any while the user only reads) open the card.
-                                when (action) {
-                                    TapAction.Reply -> if (!vm.startReply(item)) sheets.actionItem = item
-                                    TapAction.Mention -> if (!vm.mention(item)) sheets.actionItem = item
-                                    TapAction.UserCard -> sheets.actionItem = item
-                                    TapAction.Nothing -> Unit
-                                }
-                            },
-                            modifier = Modifier.fillMaxSize(),
-                            // Battery saver stills it like the emotes: in a busy chat some row is always moving.
-                            smoothScrolling = settings.smoothScrolling && !powerSave,
-                            onEmoteClick = { sheets.emoteCard = it },
-                            onBadgeHold = { sheets.badgeToHide = it },
-                        )
-                        PinnedBar(
-                            pin = pins[channel]?.takeIf { it.item.id !in vm.hiddenPins },
-                            style = style,
-                            imageLoader = loader,
-                            onHide = vm::hidePin,
-                            onUnpin = vm::unpinMessage,
-                            modifier = Modifier.fillMaxWidth().align(Alignment.TopCenter),
-                        )
+                                    // Messages that cannot be answered or mentioned (a notice, an
+                                    // unconfirmed message, any while the user only reads) open the card.
+                                    when (action) {
+                                        TapAction.Reply -> if (!vm.startReply(item)) sheets.actionItem = item
+                                        TapAction.Mention -> if (!vm.mention(item)) sheets.actionItem = item
+                                        TapAction.UserCard -> sheets.actionItem = item
+                                        TapAction.Nothing -> Unit
+                                    }
+                                },
+                                modifier = Modifier.fillMaxSize(),
+                                // Battery saver stills it like the emotes: in a busy chat some row is always moving.
+                                smoothScrolling = settings.smoothScrolling && !powerSave,
+                                onEmoteClick = { sheets.emoteCard = it },
+                                onBadgeHold = { sheets.badgeToHide = it },
+                                bottomInset = { if (floatingInput) with(density) { floatingInputHeight.toDp() } else 0.dp },
+                            )
+                            PinnedBar(
+                                pin = pins[channel]?.takeIf { it.item.id !in vm.hiddenPins },
+                                style = style,
+                                imageLoader = loader,
+                                onHide = vm::hidePin,
+                                onUnpin = vm::unpinMessage,
+                                modifier = Modifier.fillMaxWidth().align(Alignment.TopCenter),
+                            )
+                        }
                     }
                 }
             }
-            ChatInput(
+            if (!floatingInput) ChatInput(
                 vm, guest, connection, restriction, penalty, loader, activity, sheets, inThread = false,
                 sendChannels = activeGroup?.channels.orEmpty(), channelInfo = info,
             )
@@ -456,13 +477,14 @@ private fun ChatInput(
     activity: ChatActivity,
     sheets: ChatSheetState,
     inThread: Boolean,
+    modifier: Modifier = Modifier,
     sendChannels: List<String> = emptyList(),
     channelInfo: Map<String, ChannelInfo> = emptyMap(),
 ) {
     val settings = vm.settings.collectAsStateWithLifecycle().value
     if (settings.readOnly) return
     if (guest) {
-        GuestBar(onLogIn = vm::leaveGuest, modifier = Modifier.fillMaxWidth())
+        GuestBar(onLogIn = vm::leaveGuest, modifier = modifier.fillMaxWidth())
         return
     }
     val roomStates by vm.roomStates.collectAsStateWithLifecycle()
@@ -488,7 +510,7 @@ private fun ChatInput(
         waitUntil = vm.sendWaitUntil,
         restriction = restriction,
         penalty = penalty,
-        modifier = Modifier.fillMaxWidth(),
+        modifier = modifier.fillMaxWidth(),
         sendChannels = sendChannels,
         sendChannel = vm.sendChannel,
         channelInfo = channelInfo,
@@ -496,6 +518,7 @@ private fun ChatInput(
         recentlySentButton = settings.recentlySentButton,
         chatModes = chatModes,
         onChatModes = vm::changeChatModes,
+        compact = settings.compactInput,
     )
 }
 

@@ -931,6 +931,7 @@ class MainViewModel(private val c: AppContainer, savedState: SavedStateHandle) :
 
     fun setRecentlySentButton(v: RecentlySentButton) = saveSetting { setRecentlySentButton(v) }
     fun setChatModesButton(v: Boolean) = saveSetting { setChatModesButton(v) }
+    fun setCompactInput(v: Boolean) = saveSetting { setCompactInput(v) }
     fun setReadOnly(v: Boolean) = saveSetting { setReadOnly(v) }
     fun setUserSuggestions(v: Boolean) = saveSetting { setUserSuggestions(v) }
 

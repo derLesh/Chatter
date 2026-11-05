@@ -379,6 +379,8 @@
     <string name="recently_sent_hidden">Aus</string>
     <string name="settings_chat_modes_button">Chat-Modi</string>
     <string name="settings_chat_modes_button_hint">Zeigt Mods ein Schild am Eingabefeld für Slow-Mode, Emote-Only und mehr</string>
+    <string name="settings_compact_input">Schmales Eingabefeld</string>
+    <string name="settings_compact_input_hint">Niedriger, mit allen Knöpfen darin, über dem Chat</string>
     <string-array name="input_preview_sent">
         <item>GG</item>
         <item>Wie heißt der Song?</item>
