@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.ime
 import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.union
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.windowInsetsPadding
@@ -23,6 +24,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -33,6 +35,8 @@ import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.IntOffset
+import androidx.compose.ui.zIndex
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalDensity
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -138,7 +142,7 @@ fun BubbleScreen(vm: MainViewModel, channel: String?) {
 
             // The slim input floats over the chat, like in the app.
             val floatingInput = settings.compactInput && !settings.readOnly
-            var floatingInputHeight by remember { mutableStateOf(0.dp) }
+            var floatingInputHeight by remember { mutableIntStateOf(0) }
             val density = LocalDensity.current
             val input = @Composable { modifier: Modifier ->
                 InputBar(
@@ -168,6 +172,13 @@ fun BubbleScreen(vm: MainViewModel, channel: String?) {
                 )
             }
             Box(Modifier.weight(1f)) {
+                // First, so it is measured before the chat that makes room for it; drawn on top.
+                if (floatingInput) input(
+                    Modifier
+                        .zIndex(1f)
+                        .align(Alignment.BottomCenter)
+                        .onSizeChanged { floatingInputHeight = it.height },
+                )
                 ChatList(
                     messages = remember(channel) { vm.chat(channel) },
                     style = style,
@@ -185,16 +196,14 @@ fun BubbleScreen(vm: MainViewModel, channel: String?) {
                         vm.requestedMessage.value = null
                         if (!found) scope.launch { snackbar.showSnackbar(resources.getString(R.string.jump_message_gone)) }
                     },
-                    bottomInset = if (floatingInput) floatingInputHeight else 0.dp,
-                )
-                if (floatingInput) input(
-                    Modifier
-                        .align(Alignment.BottomCenter)
-                        .onSizeChanged { floatingInputHeight = with(density) { it.height.toDp() } },
+                    bottomInset = { if (floatingInput) with(density) { floatingInputHeight.toDp() } else 0.dp },
                 )
                 SnackbarHost(
                     snackbar,
-                    Modifier.align(Alignment.BottomCenter).padding(bottom = if (floatingInput) floatingInputHeight else 0.dp),
+                    Modifier
+                        .zIndex(2f)
+                        .align(Alignment.BottomCenter)
+                        .offset { IntOffset(0, if (floatingInput) -floatingInputHeight else 0) },
                 )
             }
             if (!settings.readOnly && !floatingInput) input(Modifier)

@@ -27,6 +27,7 @@ import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
@@ -42,6 +43,7 @@ import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.zIndex
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.lifecycle.Lifecycle
@@ -355,9 +357,18 @@ fun MainScreen(vm: MainViewModel, onInbox: () -> Unit, onSettings: () -> Unit) {
             // The slim input floats over the chat; a guest's prompt has no field and keeps its strip,
             // and without channels it would cover the button to add one.
             val floatingInput = settings.compactInput && !guest && !settings.readOnly && pageKeys.isNotEmpty()
-            var floatingInputHeight by remember { mutableStateOf(0.dp) }
+            var floatingInputHeight by remember { mutableIntStateOf(0) }
             val density = LocalDensity.current
             Box(Modifier.weight(1f)) {
+                // First, so it is measured before the chat that makes room for it; drawn on top.
+                if (floatingInput) ChatInput(
+                    vm, guest, connection, restriction, penalty, loader, activity, sheets, inThread = false,
+                    sendChannels = activeGroup?.channels.orEmpty(), channelInfo = info,
+                    modifier = Modifier
+                        .zIndex(1f)
+                        .align(Alignment.BottomCenter)
+                        .onSizeChanged { floatingInputHeight = it.height },
+                )
                 if (pageKeys.isEmpty()) {
                     EmptyState(onAdd = { sheets.showAdd = true }, modifier = Modifier.fillMaxSize())
                 } else {
@@ -423,7 +434,7 @@ fun MainScreen(vm: MainViewModel, onInbox: () -> Unit, onSettings: () -> Unit) {
                                 smoothScrolling = settings.smoothScrolling && !powerSave,
                                 onEmoteClick = { sheets.emoteCard = it },
                                 onBadgeHold = { sheets.badgeToHide = it },
-                                bottomInset = if (floatingInput) floatingInputHeight else 0.dp,
+                                bottomInset = { if (floatingInput) with(density) { floatingInputHeight.toDp() } else 0.dp },
                             )
                             PinnedBar(
                                 pin = pins[channel]?.takeIf { it.item.id !in vm.hiddenPins },
@@ -436,13 +447,6 @@ fun MainScreen(vm: MainViewModel, onInbox: () -> Unit, onSettings: () -> Unit) {
                         }
                     }
                 }
-                if (floatingInput) ChatInput(
-                    vm, guest, connection, restriction, penalty, loader, activity, sheets, inThread = false,
-                    sendChannels = activeGroup?.channels.orEmpty(), channelInfo = info,
-                    modifier = Modifier
-                        .align(Alignment.BottomCenter)
-                        .onSizeChanged { floatingInputHeight = with(density) { it.height.toDp() } },
-                )
             }
             if (!floatingInput) ChatInput(
                 vm, guest, connection, restriction, penalty, loader, activity, sheets, inThread = false,
