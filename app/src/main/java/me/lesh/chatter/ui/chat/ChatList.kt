@@ -442,10 +442,13 @@ private fun CatchUpChip(onClick: () -> Unit) {
     }
 }
 
-/** The list's padding, with [bottomInset] asked for only when the list is measured. */
+/**
+ * The list's padding, with [bottomInset] asked for only when the list is measured. A floating input
+ * brings its own gap, as wide as the one to the keyboard, so the list adds none on top.
+ */
 private class ListPadding(private val bottomInset: () -> Dp) : PaddingValues {
     override fun calculateTopPadding() = 4.dp
-    override fun calculateBottomPadding() = 4.dp + bottomInset()
+    override fun calculateBottomPadding() = maxOf(4.dp, bottomInset())
     override fun calculateLeftPadding(layoutDirection: LayoutDirection) = 0.dp
     override fun calculateRightPadding(layoutDirection: LayoutDirection) = 0.dp
 }

@@ -84,6 +84,7 @@ import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.IntRect
 import androidx.compose.ui.unit.IntSize
@@ -220,7 +221,8 @@ fun InputBar(
     // No bar of its own: the input sits on the chat background.
     Column(modifier) {
         if (suggestions.isNotEmpty()) {
-            SuggestionRow(suggestions, imageLoader, onSuggestion)
+            // The slim field keeps its own gap above, as wide as the one below it.
+            SuggestionRow(suggestions, imageLoader, onSuggestion, bottomGap = if (compact) 0.dp else 4.dp)
         }
         AnimatedVisibility(recentOpen) {
             RecentlySentPanel(recent, onPick = { openPanel = null; onReuseSent(it) }, onClose = { openPanel = null })
@@ -715,9 +717,9 @@ private val ChatRestriction.hint: Int
     }
 
 @Composable
-private fun SuggestionRow(suggestions: List<Suggestion>, imageLoader: ImageLoader, onClick: (Suggestion) -> Unit) {
+private fun SuggestionRow(suggestions: List<Suggestion>, imageLoader: ImageLoader, onClick: (Suggestion) -> Unit, bottomGap: Dp) {
     LazyRow(
-        contentPadding = PaddingValues(horizontal = 8.dp, vertical = 4.dp),
+        contentPadding = PaddingValues(start = 8.dp, end = 8.dp, top = 4.dp, bottom = bottomGap),
         horizontalArrangement = Arrangement.spacedBy(6.dp),
         modifier = Modifier.fillMaxWidth(),
     ) {

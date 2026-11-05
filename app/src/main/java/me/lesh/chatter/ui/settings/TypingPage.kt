@@ -49,7 +49,7 @@ internal fun TypingPage(settings: Settings, vm: MainViewModel) {
             SwitchItem(R.string.settings_chat_modes_button, settings.chatModesButton, vm::setChatModesButton, R.string.settings_chat_modes_button_hint)
         }
         item(R.string.settings_compact_input) {
-            SwitchItem(R.string.settings_compact_input, settings.compactInput, vm::setCompactInput, R.string.settings_compact_input_hint)
+            BetaSwitchItem(R.string.settings_compact_input, settings.compactInput, vm::setCompactInput, R.string.settings_compact_input_hint)
         }
     }
 }

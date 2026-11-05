@@ -68,7 +68,7 @@ internal fun BetaPage(settings: Settings, vm: MainViewModel) {
 
 /** Like [SwitchItem], with the beta mark next to the title. */
 @Composable
-private fun BetaSwitchItem(res: Int, checked: Boolean, onChange: (Boolean) -> Unit, hint: Int, enabled: Boolean = true) {
+internal fun BetaSwitchItem(res: Int, checked: Boolean, onChange: (Boolean) -> Unit, hint: Int, enabled: Boolean = true) {
     ListItem(
         headlineContent = {
             Row(verticalAlignment = Alignment.CenterVertically) {
