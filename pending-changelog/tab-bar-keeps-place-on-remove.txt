@@ -1,0 +1,1 @@
+patch: Keep the tab bar in place when a channel is removed, instead of jumping back to the first tab

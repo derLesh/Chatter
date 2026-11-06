@@ -182,11 +182,15 @@ private fun ChannelTabs(
     // name nor picture.
     val shown = pages.filter { !ChannelGroup.isKey(it) || groups[it] != null }
     val selected = shown.indexOf(active)
+    // Right after the active page is removed, active still names it for a frame. The row scrolls
+    // whenever its index changes, so falling back to the first tab would leave it at the start.
+    val lastSelected = remember { SelectedTab() }
+    if (selected >= 0) lastSelected.index = selected
     val channelCount = pages.count { !ChannelGroup.isKey(it) }
     PrimaryScrollableTabRow(
-        // The row cannot show "no tab selected" (briefly after start, or with no channels); it
-        // draws no indicator then.
-        selectedTabIndex = selected.coerceAtLeast(0),
+        // The row cannot show "no tab selected" (briefly after start, after a removal, or with no
+        // channels); it draws no indicator then.
+        selectedTabIndex = lastSelected.index.coerceIn(0, shown.lastIndex.coerceAtLeast(0)),
         containerColor = MaterialTheme.colorScheme.barColor,
         edgePadding = 4.dp,
         minTabWidth = 0.dp,
@@ -252,6 +256,9 @@ private fun ChannelTabs(
         }
     }
 }
+
+/** Not state: the row only needs it on the next composition, and reading it must not cause one. */
+private class SelectedTab(var index: Int = 0)
 
 /** One entry of a held tab's menu. */
 private class TabAction(val label: String, val icon: @Composable () -> Unit, val onClick: () -> Unit)

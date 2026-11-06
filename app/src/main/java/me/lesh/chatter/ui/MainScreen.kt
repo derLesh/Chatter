@@ -32,6 +32,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
+import androidx.compose.runtime.snapshots.Snapshot
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
@@ -141,9 +142,17 @@ fun MainScreen(vm: MainViewModel, onInbox: () -> Unit, onSettings: () -> Unit) {
     // One page per channel, or many with the channels repeating so swiping wraps around. Only the
     // settings can change that, and opening them removes this screen from composition, so the pager
     // is always created with the current mode.
-    val pages = ChannelPages(pageKeys.size, settings.carouselChannels)
+    val anchor = remember { PageAnchor(pageKeys, ChannelPages(pageKeys.size, settings.carouselChannels)) }
     // Opening the settings recreates the pager, so it starts at the channel the user was on.
-    val pagerState = rememberPagerState(initialPage = pages.pageOf(pageKeys.indexOf(active).coerceAtLeast(0))) { pages.count }
+    val pagerState = rememberPagerState(initialPage = anchor.pages.pageOf(pageKeys.indexOf(active).coerceAtLeast(0))) { anchor.pages.count }
+    if (anchor.keys != pageKeys || anchor.pages.carousel != settings.carouselChannels) {
+        // Not read-observed: the page is only needed here, and reading it would recompose the
+        // whole screen on every swipe.
+        val page = Snapshot.withoutReadObservation { pagerState.currentPage }
+        anchor.pages = anchor.pages.follow(anchor.keys, pageKeys, page, settings.carouselChannels)
+        anchor.keys = pageKeys
+    }
+    val pages = anchor.pages
 
     val sheets = remember { ChatSheetState() }
 
@@ -236,14 +245,6 @@ fun MainScreen(vm: MainViewModel, onInbox: () -> Unit, onSettings: () -> Unit) {
         val page = pages.pageOf(index)
         if (page != pagerState.currentPage) pagerState.scrollToPage(page)
         restored = true
-    }
-
-    // A page's channel is its offset from the origin modulo the channel count, so adding or
-    // removing one would shift channels; re-anchor on the one being read.
-    LaunchedEffect(pageKeys.size) {
-        if (!restored || !pages.wrapping) return@LaunchedEffect
-        val index = pageKeys.indexOf(active)
-        if (index >= 0) pagerState.scrollToPage(pages.pageOf(index, pagerState.currentPage))
     }
 
     // A bubble shows its own channel in the title bar while open; when the chat screen is back, the
@@ -466,6 +467,12 @@ fun MainScreen(vm: MainViewModel, onInbox: () -> Unit, onSettings: () -> Unit) {
  * meanwhile, so two inputs do not fight over the keyboard. [sendChannels] are a combined chat's
  * channels to pick from.
  */
+/**
+ * The channel list the pages were last laid out for. Not state: it changes only together with the
+ * list, which recomposes anyway.
+ */
+private class PageAnchor(var keys: List<String>, var pages: ChannelPages)
+
 @Composable
 private fun ChatInput(
     vm: MainViewModel,

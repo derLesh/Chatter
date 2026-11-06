@@ -89,4 +89,51 @@ class ChannelPagesTest {
         assertEquals(0, none.count)
         assertNull(none.channelAt(0))
     }
+
+    private val four = listOf("a", "b", "c", "d")
+
+    @Test
+    fun removingTheChannelOnScreenShowsTheOneTakingItsPlace() {
+        // "b" on screen, a few laps past the origin.
+        val page = ORIGIN + 9
+        val after = carousel.follow(four, listOf("a", "c", "d"), page)
+        assertEquals(1, after.channelAt(page))
+        // Swiping on still runs through the list in order.
+        assertEquals(2, after.channelAt(page + 1))
+        assertEquals(0, after.channelAt(page - 1))
+    }
+
+    @Test
+    fun removingTheLastChannelOnScreenShowsTheNewLastOne() {
+        val page = ORIGIN + 7
+        val after = carousel.follow(four, listOf("a", "b", "c"), page)
+        assertEquals(2, after.channelAt(page))
+    }
+
+    @Test
+    fun removingAnotherChannelKeepsTheOneOnScreen() {
+        val page = ORIGIN + 7
+        val after = carousel.follow(four, listOf("b", "c", "d"), page)
+        assertEquals(2, after.channelAt(page))
+    }
+
+    @Test
+    fun addingAChannelKeepsTheOneOnScreen() {
+        val page = ORIGIN + 6
+        val after = carousel.follow(four, four + "e", page)
+        assertEquals(2, after.channelAt(page))
+    }
+
+    @Test
+    fun withoutTheCarouselNothingIsMoved() {
+        val after = plain.follow(four, listOf("a", "b", "c"), 3)
+        assertEquals(ORIGIN, after.origin)
+        assertEquals(2, after.pageOf(2))
+    }
+
+    @Test
+    fun theFirstChannelsKeepTheOrigin() {
+        val after = ChannelPages(channels = 0, carousel = true).follow(emptyList(), four, 0)
+        assertEquals(ORIGIN, after.origin)
+    }
 }
