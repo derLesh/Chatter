@@ -316,13 +316,17 @@ private fun MentionList(
         return
     }
     val ownChannel = stringResource(R.string.inbox_own_channel)
-    val highlight = SpanStyle(color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.SemiBold)
+    // The accent marks what is new: in a read mention the name is only bold.
+    val newHighlight = SpanStyle(color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.SemiBold)
+    val readHighlight = SpanStyle(fontWeight = FontWeight.SemiBold)
     DayList(mentions, InboxMention::timestamp, InboxMention::id) { mention ->
         InboxRow(
             name = nameOf(mention.login, mention.displayName),
             place = if (mention.login.equals(mention.channel, ignoreCase = true)) ownChannel
             else stringResource(R.string.inbox_in_channel, info[mention.channel]?.displayName ?: mention.channel),
-            text = remember(mention.text, ownLogin, highlight) { highlightName(mention.text, ownLogin, highlight) },
+            text = remember(mention.text, ownLogin, mention.read, newHighlight) {
+                highlightName(mention.text, ownLogin, if (mention.read) readHighlight else newHighlight)
+            },
             timestamp = mention.timestamp,
             read = mention.read,
             avatar = { ChannelAvatar(info[mention.channel], imageLoader, AVATAR_SIZE, showLive = false) },
@@ -430,6 +434,8 @@ private fun DayHeading(day: LocalDate, today: LocalDate) {
 private fun InitialAvatar(name: String, color: Color) {
     val onSurface = MaterialTheme.colorScheme.onSurface
     val base = if (color == Color.Unspecified) onSurface else color
+    // Dark name colors sit closer to their own dark tint, so they need more of the text color.
+    val towardsText = if (isAppInDarkTheme()) 0.45f else 0.35f
     Box(
         contentAlignment = Alignment.Center,
         modifier = Modifier
@@ -443,7 +449,7 @@ private fun InitialAvatar(name: String, color: Color) {
             name.take(1).uppercase(),
             style = MaterialTheme.typography.titleMedium,
             fontWeight = FontWeight.Bold,
-            color = lerp(base, onSurface, 0.35f),
+            color = lerp(base, onSurface, towardsText),
         )
     }
 }
@@ -475,7 +481,7 @@ private fun InboxRow(
             .background(if (read) colors.surfaceContainer else lerp(colors.surfaceContainer, colors.primaryContainer, unreadTint))
             .clickable(onClick = onClick)
             .semantics { if (!read) stateDescription = unreadState }
-            .padding(horizontal = 16.dp, vertical = 14.dp),
+            .padding(horizontal = 16.dp, vertical = 12.dp),
     ) {
         avatar()
         Column(Modifier.weight(1f).padding(start = 14.dp)) {
@@ -505,7 +511,7 @@ private fun InboxRow(
                     modifier = Modifier.padding(top = 2.dp),
                 )
             }
-            Row(Modifier.padding(top = 6.dp)) {
+            Row(Modifier.padding(top = 4.dp)) {
                 Text(
                     text,
                     style = MaterialTheme.typography.bodyMedium,
