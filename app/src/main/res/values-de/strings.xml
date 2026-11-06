@@ -824,6 +824,10 @@
     <string name="inbox_empty_hint">Alle Nachrichten mit Erwähnungen oder hervorgehobenen Wörtern erscheinen hier</string>
     <string name="inbox_mark_all_read">Alle als gelesen markieren</string>
     <string name="inbox_clear">Leeren</string>
+    <plurals name="inbox_unread">
+        <item quantity="one">%d ungelesen</item>
+        <item quantity="other">%d ungelesen</item>
+    </plurals>
 
     <!-- Regeln -->
     <string name="settings_rules">Regeln</string>

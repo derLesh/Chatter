@@ -6,6 +6,13 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.widthIn
+import androidx.compose.material3.contentColorFor
+import androidx.compose.ui.res.pluralStringResource
+import androidx.compose.ui.semantics.clearAndSetSemantics
+import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -20,8 +27,6 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Delete
-import androidx.compose.material3.Badge
-import androidx.compose.material3.BadgedBox
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
@@ -209,12 +214,38 @@ private fun InboxTab(label: Int, unread: Int, selected: Boolean, onClick: () -> 
     Tab(
         selected = selected,
         onClick = onClick,
+        unselectedContentColor = MaterialTheme.colorScheme.onSurfaceVariant,
         text = {
-            BadgedBox(badge = { if (unread > 0) Badge { Text(unread.coerceAtMost(99).toString()) } }) {
-                Text(stringResource(label))
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text(stringResource(label), style = MaterialTheme.typography.titleSmall)
+                if (unread > 0) UnreadCount(unread, selected)
             }
         },
     )
+}
+
+/** Beside the tab name, not over it like a badge, which covered the name's last letters. */
+@Composable
+private fun UnreadCount(count: Int, selected: Boolean) {
+    val container = if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.secondaryContainer
+    val description = pluralStringResource(R.plurals.inbox_unread, count, count)
+    Box(
+        contentAlignment = Alignment.Center,
+        modifier = Modifier
+            .heightIn(min = 20.dp)
+            .widthIn(min = 20.dp)
+            .clip(CircleShape)
+            .background(container)
+            .padding(horizontal = 6.dp)
+            .clearAndSetSemantics { contentDescription = description },
+    ) {
+        Text(
+            if (count > 99) "99+" else count.toString(),
+            style = MaterialTheme.typography.labelSmall,
+            fontWeight = FontWeight.Bold,
+            color = contentColorFor(container),
+        )
+    }
 }
 
 @Composable
