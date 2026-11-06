@@ -43,6 +43,7 @@ import me.lesh.chatter.chat.NoteRepository
 import me.lesh.chatter.chat.PostRepository
 import me.lesh.chatter.chat.RuleRepository
 import me.lesh.chatter.chat.SendResult
+import me.lesh.chatter.chat.UserPictures
 import me.lesh.chatter.chat.WhisperInboxRepository
 import me.lesh.chatter.chat.WhisperResult
 import me.lesh.chatter.chat.WhisperSender
@@ -189,6 +190,7 @@ class AppContainer(
     val changelog = ChangelogRepository(context, settings, BuildConfig.VERSION_NAME, firstStart, scope)
     /** True while Chatter saves data; see [DataSaving]. */
     val dataSaving = DataSaving(context, settings.settings.map { it.mobileData }, scope)
+    val userPictures = UserPictures({ logins -> helix.users(logins).associate { it.login.lowercase() to it.profileImageUrl } }, scope)
     val updates = UpdateRepository(http, settings, BuildConfig.VERSION_NAME, BuildConfig.UPDATE_CHECK, dataSaving.active, scope)
     // Only called once connected, when [chat] exists.
     val irc: IrcConnection = IrcConnection(socketHttp, scope) { chat.priority(it) }

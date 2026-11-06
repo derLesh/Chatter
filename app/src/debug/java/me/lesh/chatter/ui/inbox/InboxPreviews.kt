@@ -74,6 +74,7 @@ private fun SampleInbox(dark: Boolean, tab: Int, empty: Boolean = false, clearin
             mentionUnread = mentions.count { !it.read },
             whisperUnread = whispers.count { !it.read },
             info = SampleChannels,
+            pictures = SamplePictures,
             nameOf = { _, displayName -> displayName },
             ownLogin = "lesh",
             imageLoader = sampleImageLoader(),
@@ -95,6 +96,8 @@ private fun SampleChat(dark: Boolean, empty: Boolean = false) {
         WhisperChat(
             name = "Mila",
             nameColor = readableNameColor(0xFFFF69B4.toInt(), "mila", dark),
+            pictureUrl = SamplePictures["mila"],
+            imageLoader = sampleImageLoader(),
             messages = if (empty) emptyList() else whispersWith(sampleWhispers(now), "mila"),
             snackbar = remember { SnackbarHostState() },
             onBack = {},
@@ -110,6 +113,16 @@ private val SampleChannels = listOf(
     ChannelInfo("kaffeekatze", displayName = "KaffeeKatze", avatarUrl = "sample:#2FA36B", isLive = true),
     ChannelInfo("speedrunsandra", displayName = "SpeedrunSandra", avatarUrl = "sample:#9B4FD6"),
 ).associateBy { it.login }
+
+/** Everyone has a picture on Twitch, if only the default one; Tobi keeps his initial to show it. */
+private val SamplePictures = mapOf(
+    "flo_zockt" to "sample:#3FA7D6",
+    "mila" to "sample:#E05A9C",
+    "bytebaron" to "sample:#5B6EE1",
+    "pixelmara" to "sample:#E8613F",
+    "jana_draws" to "sample:#D9A43A",
+    "kaffeekatze" to "sample:#2FA36B",
+)
 
 private fun sampleMentions(now: Long) = listOf(
     InboxMention("m1", "nordlicht_tv", "flo_zockt", "Flo_zockt", "@lesh kommst du heute Abend noch in den Raid? Wir starten um 20 Uhr", now - 2 * MINUTE),

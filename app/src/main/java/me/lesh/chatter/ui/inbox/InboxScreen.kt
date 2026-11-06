@@ -1,12 +1,15 @@
 package me.lesh.chatter.ui.inbox
 
 import androidx.compose.animation.AnimatedContent
+import androidx.compose.foundation.layout.BoxScope
+import androidx.compose.foundation.layout.offset
 import androidx.compose.ui.text.style.LineBreak
 import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.material.icons.filled.Email
 import androidx.compose.ui.graphics.vector.rememberVectorPainter
 import androidx.compose.ui.graphics.painter.Painter
 import androidx.compose.ui.unit.Dp
+import coil3.compose.AsyncImage
 import me.lesh.chatter.chat.WhisperConversation
 import me.lesh.chatter.chat.whispersWith
 import me.lesh.chatter.ui.FormSheet
@@ -113,6 +116,10 @@ fun InboxScreen(vm: MainViewModel, onOpenMention: (InboxMention) -> Unit, onBack
     val nicknames by vm.nicknames.collectAsStateWithLifecycle()
     val settings by vm.settings.collectAsStateWithLifecycle()
     val target by vm.whisperTarget.collectAsStateWithLifecycle()
+    val pictures by vm.userPictures.collectAsStateWithLifecycle()
+    LaunchedEffect(mentions, conversations) {
+        vm.requestPictures(mentions.map { it.login } + conversations.map { it.login })
+    }
     val nameOf = { login: String, displayName: String -> chatterName(displayName, login, settings.nameStyle, nicknames[login.lowercase()]) }
 
     val pager = rememberPagerState { 2 }
@@ -150,6 +157,7 @@ fun InboxScreen(vm: MainViewModel, onOpenMention: (InboxMention) -> Unit, onBack
                 mentionUnread = mentionUnread,
                 whisperUnread = whisperUnread,
                 info = info,
+                pictures = pictures,
                 nameOf = nameOf,
                 ownLogin = vm.ownLogin,
                 imageLoader = vm.imageLoader,
@@ -172,6 +180,8 @@ fun InboxScreen(vm: MainViewModel, onOpenMention: (InboxMention) -> Unit, onBack
                 WhisperChat(
                     name = nameOf(with.login, conversation?.displayName ?: with.displayName),
                     nameColor = readableNameColor(conversation?.color, with.login, isAppInDarkTheme()),
+                    pictureUrl = pictures[with.login],
+                    imageLoader = vm.imageLoader,
                     messages = messages,
                     snackbar = snackbar,
                     onBack = vm::closeWhisper,
@@ -213,6 +223,8 @@ internal fun InboxContent(
     mentionUnread: Int,
     whisperUnread: Int,
     info: Map<String, ChannelInfo>,
+    /** Profile picture URLs by lower-case login. */
+    pictures: Map<String, String?>,
     nameOf: (login: String, displayName: String) -> String,
     /** Highlighted in the mentions. */
     ownLogin: String,
@@ -270,8 +282,8 @@ internal fun InboxContent(
             }
             HorizontalPager(pager, Modifier.weight(1f)) { page ->
                 when (page) {
-                    INBOX_TAB_MENTIONS -> MentionList(mentions, info, nameOf, ownLogin, imageLoader, onOpenMention)
-                    else -> ConversationList(conversations, nameOf, onOpenConversation)
+                    INBOX_TAB_MENTIONS -> MentionList(mentions, info, pictures, nameOf, ownLogin, imageLoader, onOpenMention)
+                    else -> ConversationList(conversations, pictures, nameOf, imageLoader, onOpenConversation)
                 }
             }
         }
@@ -334,6 +346,7 @@ private fun UnreadCount(count: Int, selected: Boolean) {
 private fun MentionList(
     mentions: List<InboxMention>,
     info: Map<String, ChannelInfo>,
+    pictures: Map<String, String?>,
     nameOf: (login: String, displayName: String) -> String,
     ownLogin: String,
     imageLoader: ImageLoader,
@@ -352,17 +365,25 @@ private fun MentionList(
     // The accent marks what is new: in a read mention the name is only bold.
     val newHighlight = SpanStyle(color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.SemiBold)
     val readHighlight = SpanStyle(fontWeight = FontWeight.SemiBold)
+    val dark = isAppInDarkTheme()
     DayList(mentions, InboxMention::timestamp, InboxMention::id) { mention ->
+        val name = nameOf(mention.login, mention.displayName)
+        val inOwnChannel = mention.login.equals(mention.channel, ignoreCase = true)
         InboxRow(
-            name = nameOf(mention.login, mention.displayName),
-            place = if (mention.login.equals(mention.channel, ignoreCase = true)) ownChannel
+            name = name,
+            place = if (inOwnChannel) ownChannel
             else stringResource(R.string.inbox_in_channel, info[mention.channel]?.displayName ?: mention.channel),
             text = remember(mention.text, ownLogin, mention.read, newHighlight) {
                 highlightName(mention.text, ownLogin, if (mention.read) readHighlight else newHighlight)
             },
             timestamp = mention.timestamp,
             read = mention.read,
-            avatar = { ChannelAvatar(info[mention.channel], imageLoader, AVATAR_SIZE, showLive = false) },
+            avatar = { tile ->
+                PersonAvatar(name, readableNameColor(null, mention.login, dark), pictures[mention.login.lowercase()], imageLoader) {
+                    // Who wrote it first, then where; their own channel would show the same picture twice.
+                    if (!inOwnChannel) CornerBadge(tile) { ChannelAvatar(info[mention.channel], imageLoader, CORNER_BADGE_SIZE, showLive = false) }
+                }
+            },
             onClick = { onOpen(mention) },
         )
     }
@@ -372,7 +393,9 @@ private fun MentionList(
 @Composable
 private fun ConversationList(
     conversations: List<WhisperConversation>,
+    pictures: Map<String, String?>,
     nameOf: (login: String, displayName: String) -> String,
+    imageLoader: ImageLoader,
     onOpen: (WhisperConversation) -> Unit,
 ) {
     if (conversations.isEmpty()) {
@@ -405,7 +428,7 @@ private fun ConversationList(
             time = shortWhen(latest.timestamp),
             read = conversation.unread == 0,
             unreadCount = conversation.unread,
-            avatar = { InitialAvatar(name, readableNameColor(conversation.color, conversation.login, dark)) },
+            avatar = { PersonAvatar(name, readableNameColor(conversation.color, conversation.login, dark), pictures[conversation.login], imageLoader) },
             onClick = { onOpen(conversation) },
         )
     }
@@ -503,6 +526,47 @@ private fun DayHeading(day: LocalDate, today: LocalDate) {
 }
 
 /**
+ * A chatter's profile picture over their initial, which shows until it loads and stays where there
+ * is none. [corner] sits at the bottom right, overlapping the edge.
+ */
+@Composable
+internal fun PersonAvatar(
+    name: String,
+    color: Color,
+    pictureUrl: String?,
+    imageLoader: ImageLoader,
+    size: Dp = AVATAR_SIZE,
+    corner: @Composable BoxScope.() -> Unit = {},
+) {
+    Box(Modifier.size(size)) {
+        InitialAvatar(name, color, size)
+        if (pictureUrl != null) {
+            AsyncImage(
+                model = pictureUrl,
+                contentDescription = null,
+                imageLoader = imageLoader,
+                modifier = Modifier.size(size).clip(CircleShape),
+            )
+        }
+        corner()
+    }
+}
+
+/** A small round picture at the corner of an avatar, ringed in [ring] so it stands off the one below. */
+@Composable
+private fun BoxScope.CornerBadge(ring: Color, picture: @Composable () -> Unit) {
+    Box(
+        contentAlignment = Alignment.Center,
+        modifier = Modifier
+            .align(Alignment.BottomEnd)
+            .offset(x = 4.dp, y = 4.dp)
+            .size(CORNER_BADGE_SIZE + 4.dp)
+            .clip(CircleShape)
+            .background(ring),
+    ) { picture() }
+}
+
+/**
  * Whispers have no picture; the sender's initial in their color stands in. The letter leans towards
  * the text color, since a name color is tuned for the screen background, not for its own tint.
  */
@@ -543,7 +607,8 @@ private fun InboxRow(
     text: AnnotatedString,
     timestamp: Long,
     read: Boolean,
-    avatar: @Composable () -> Unit,
+    /** Gets the tile's color, for a ring that cuts a corner badge free. */
+    avatar: @Composable (tile: Color) -> Unit,
     onClick: () -> Unit,
     /** Instead of the clock time, where rows span more than a day. */
     time: String? = null,
@@ -559,15 +624,16 @@ private fun InboxRow(
         else -> UNREAD_TINT_LIGHT
     }
     val unreadState = stringResource(R.string.inbox_unread_state)
+    val tile = if (read) colors.surfaceContainer else lerp(colors.surfaceContainer, colors.primaryContainer, unreadTint)
     Row(
         Modifier
             .fillMaxWidth()
-            .background(if (read) colors.surfaceContainer else lerp(colors.surfaceContainer, colors.primaryContainer, unreadTint))
+            .background(tile)
             .clickable(onClick = onClick)
             .semantics { if (!read) stateDescription = unreadState }
             .padding(horizontal = 16.dp, vertical = 12.dp),
     ) {
-        avatar()
+        avatar(tile)
         Column(Modifier.weight(1f).padding(start = 14.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text(
@@ -630,6 +696,7 @@ internal fun highlightName(text: String, login: String, style: SpanStyle): Annot
 }
 
 private val AVATAR_SIZE = 44.dp
+private val CORNER_BADGE_SIZE = 20.dp
 internal val EMPTY_PICTURE_SIZE = 88.dp
 private val OUTER_CORNER = 24.dp
 private val INNER_CORNER = 4.dp

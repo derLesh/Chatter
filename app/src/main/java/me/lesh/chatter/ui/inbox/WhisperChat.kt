@@ -57,6 +57,7 @@ import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import coil3.ImageLoader
 import kotlinx.coroutines.launch
 import me.lesh.chatter.R
 import me.lesh.chatter.chat.InboxWhisper
@@ -80,6 +81,8 @@ data class WhisperTarget(val login: String, val userId: String?, val displayName
 internal fun WhisperChat(
     name: String,
     nameColor: Color,
+    pictureUrl: String?,
+    imageLoader: ImageLoader,
     /** Newest first. */
     messages: List<InboxWhisper>,
     snackbar: SnackbarHostState,
@@ -98,7 +101,7 @@ internal fun WhisperChat(
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = background),
                 title = {
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        InitialAvatar(name, nameColor, size = 36.dp)
+                        PersonAvatar(name, nameColor, pictureUrl, imageLoader, size = 36.dp)
                         Text(name, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.padding(start = 12.dp))
                     }
                 },
@@ -123,7 +126,7 @@ internal fun WhisperChat(
                 EmptyTab(
                     title = stringResource(R.string.whisper_chat_empty, name),
                     hint = stringResource(R.string.whisper_chat_empty_hint),
-                ) { InitialAvatar(name, nameColor, size = EMPTY_PICTURE_SIZE) }
+                ) { PersonAvatar(name, nameColor, pictureUrl, imageLoader, size = EMPTY_PICTURE_SIZE) }
             }
         } else {
             Bubbles(messages, Modifier.padding(padding))

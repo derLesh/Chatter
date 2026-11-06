@@ -1,0 +1,1 @@
+minor: Show who mentioned or whispered you by their profile picture, with the channel small at its corner

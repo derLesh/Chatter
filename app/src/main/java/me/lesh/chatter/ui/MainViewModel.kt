@@ -187,6 +187,14 @@ class MainViewModel(private val c: AppContainer, savedState: SavedStateHandle) :
     val inboxMentions = c.inbox.mentions
     val inboxWhispers = c.whisperInbox.whispers
     val whisperConversations = c.whisperInbox.conversations
+
+    /** Profile pictures of the people in the inbox; see [requestPictures]. */
+    val userPictures = c.userPictures.urls
+
+    /** Looks up the pictures of [logins], unless the data saver keeps images off. */
+    fun requestPictures(logins: Collection<String>) {
+        if (!saveData.value) c.userPictures.request(logins)
+    }
     val mentionUnread = c.inbox.unreadCount
     val whisperUnread = c.whisperInbox.unreadCount
 
