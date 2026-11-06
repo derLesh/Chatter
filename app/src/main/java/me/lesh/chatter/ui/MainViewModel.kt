@@ -35,6 +35,7 @@ import me.lesh.chatter.chat.InboxMention
 import me.lesh.chatter.chat.InboxWhisper
 import me.lesh.chatter.chat.SendLimits
 import me.lesh.chatter.chat.SendResult
+import me.lesh.chatter.chat.WhisperResult
 import me.lesh.chatter.crash.Crash
 import me.lesh.chatter.crash.DeviceInfo
 import me.lesh.chatter.emotes.Emoji
@@ -62,9 +63,11 @@ import me.lesh.chatter.settings.NameStyle
 import me.lesh.chatter.settings.TimestampFormat
 import me.lesh.chatter.stats.Stats
 import me.lesh.chatter.ui.chat.ReadMark
+import me.lesh.chatter.ui.inbox.WhisperTarget
 import me.lesh.chatter.ui.theme.NameColorPalette
 import me.lesh.chatter.util.AppIcon
 import me.lesh.chatter.util.Autocomplete
+import me.lesh.chatter.util.INBOX_TAB_WHISPERS
 import me.lesh.chatter.util.runCatchingCancellable
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -183,6 +186,15 @@ class MainViewModel(private val c: AppContainer, savedState: SavedStateHandle) :
     val rules = c.rules.rules
     val inboxMentions = c.inbox.mentions
     val inboxWhispers = c.whisperInbox.whispers
+    val whisperConversations = c.whisperInbox.conversations
+
+    /** Profile pictures of the people in the inbox; see [requestPictures]. */
+    val userPictures = c.userPictures.urls
+
+    /** Looks up the pictures of [logins], unless the data saver keeps images off. */
+    fun requestPictures(logins: Collection<String>) {
+        if (!saveData.value) c.userPictures.request(logins)
+    }
     val mentionUnread = c.inbox.unreadCount
     val whisperUnread = c.whisperInbox.unreadCount
 
@@ -274,6 +286,19 @@ class MainViewModel(private val c: AppContainer, savedState: SavedStateHandle) :
      * the inbox after switching.
      */
     val requestedInbox = MutableStateFlow<Int?>(null)
+
+    /** The whisper conversation open in the inbox, or null for its tabs. */
+    val whisperTarget = MutableStateFlow<WhisperTarget?>(null)
+
+    /** Opens the conversation with [login] in the inbox, from a user card, a notification or its row. */
+    fun openWhisper(login: String, userId: String?, displayName: String?) {
+        whisperTarget.value = WhisperTarget(login.lowercase(), userId, displayName ?: login)
+        requestedInbox.value = INBOX_TAB_WHISPERS
+    }
+
+    fun closeWhisper() {
+        whisperTarget.value = null
+    }
 
     private val _messages = Channel<UiMessage>(Channel.BUFFERED)
     /** One-off feedback for the snackbar. */
@@ -714,17 +739,15 @@ class MainViewModel(private val c: AppContainer, savedState: SavedStateHandle) :
         viewModelScope.launch { c.inbox.clear() }
     }
 
-    /** Whispers a chatter from their card. Returns the line to show, sent or not. */
-    suspend fun whisperTo(login: String, userId: String?, text: String): String =
-        c.whisperSender.send(login, userId, text).message
+    suspend fun sendWhisper(login: String, userId: String?, text: String): WhisperResult =
+        c.whisperSender.send(login, userId, text)
 
-    /** Answers a whisper. Returns the line to show, sent or not. */
-    suspend fun sendWhisper(whisper: InboxWhisper, text: String): String =
-        c.whisperSender.send(whisper.login, whisper.userId, text).message
+    fun markConversationRead(login: String) {
+        viewModelScope.launch { c.whisperInbox.markConversationRead(login) }
+    }
 
-    fun markWhisperRead(whisper: InboxWhisper) {
-        if (whisper.read) return
-        viewModelScope.launch { c.whisperInbox.markRead(whisper.id) }
+    fun clearConversation(login: String) {
+        viewModelScope.launch { c.whisperInbox.clearConversation(login) }
     }
 
     fun markWhispersRead() {

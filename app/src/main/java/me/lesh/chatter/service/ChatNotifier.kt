@@ -37,6 +37,7 @@ import me.lesh.chatter.util.EXTRA_INBOX_TAB
 import me.lesh.chatter.util.EXTRA_LIVE_CHANNEL
 import me.lesh.chatter.util.EXTRA_MESSAGE
 import me.lesh.chatter.util.EXTRA_WHISPER
+import me.lesh.chatter.util.EXTRA_WHISPER_LOGIN
 import me.lesh.chatter.util.EXTRA_WHISPER_USER_ID
 import me.lesh.chatter.util.INBOX_TAB_WHISPERS
 import me.lesh.chatter.util.appLaunchIntent
@@ -390,7 +391,7 @@ class ChatNotifier(
             .setCategory(NotificationCompat.CATEGORY_MESSAGE)
             .setGroup(GROUP_WHISPERS)
             .setAutoCancel(true)
-            .setContentIntent(openWhispersIntent())
+            .setContentIntent(openWhispersIntent(key))
             .addAction(whisperReplyAction(login, thread.userId, thread.owner))
             // On a lock screen that hides private content, only "a new whisper" is shown.
             .setVisibility(NotificationCompat.VISIBILITY_PRIVATE)
@@ -411,10 +412,13 @@ class ChatNotifier(
         }
     }
 
-    private fun openWhispersIntent(): PendingIntent {
-        val intent = appLaunchIntent(context, channel = null).putExtra(EXTRA_INBOX_TAB, INBOX_TAB_WHISPERS)
+    /** Opens the conversation with [login]; one request code per person, so each keeps its own. */
+    private fun openWhispersIntent(login: String): PendingIntent {
+        val intent = appLaunchIntent(context, channel = null)
+            .putExtra(EXTRA_INBOX_TAB, INBOX_TAB_WHISPERS)
+            .putExtra(EXTRA_WHISPER_LOGIN, login)
         return PendingIntent.getActivity(
-            context, WHISPER_NOTIFICATION_ID, intent,
+            context, WHISPER_NOTIFICATION_ID + login.hashCode(), intent,
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
         )
     }

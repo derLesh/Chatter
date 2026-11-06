@@ -30,20 +30,22 @@ fun AppRoot(vm: MainViewModel) {
     var showInbox by rememberSaveable { mutableStateOf(false) }
 
     // Requested from outside (shortcut, whisper notification). The inbox clears it after scrolling
-    // to the tab.
+    // to the tab. A guest has no mentions or whispers, so no inbox either.
     val requestedInbox by vm.requestedInbox.collectAsStateWithLifecycle()
-    LaunchedEffect(requestedInbox) {
+    LaunchedEffect(requestedInbox, auth) {
         if (requestedInbox == null) return@LaunchedEffect
+        if (auth !is AuthState.LoggedIn) {
+            vm.requestedInbox.value = null
+            return@LaunchedEffect
+        }
         showSettings = false
         showInbox = true
     }
     // After the last logout the settings would stay underneath the login screen, and the next login
     // would land there instead of in the chat.
     LaunchedEffect(auth) {
-        if (auth is AuthState.LoggedOut) {
-            showSettings = false
-            showInbox = false
-        }
+        if (auth is AuthState.LoggedOut) showSettings = false
+        if (auth !is AuthState.LoggedIn) showInbox = false
     }
     when (auth) {
         AuthState.Loading -> Box(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background))
@@ -76,6 +78,7 @@ fun AppRoot(vm: MainViewModel) {
             val toChat = {
                 showSettings = false
                 showInbox = false
+                vm.closeWhisper()
             }
             // The chat leaves composition while another screen covers it, and is only underneath
             // while one slides or is dragged away.

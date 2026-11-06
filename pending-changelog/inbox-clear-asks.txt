@@ -1,0 +1,1 @@
+patch: Ask before clearing the inbox, and offer to mark all as read only when something is unread

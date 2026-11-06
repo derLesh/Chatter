@@ -803,8 +803,11 @@
 
     <string name="whisper_sent">Flüsternachricht an %1$s gesendet</string>
     <string name="whisper_reply_title">Flüstern an %1$s</string>
-    <string name="whisper_reply_hint">Deine Antwort</string>
-    <string name="whisper_new_hint">Deine Nachricht</string>
+    <string name="inbox_you">Du</string>
+    <string name="whisper_chat_empty">Sag %1$s Hallo</string>
+    <string name="whisper_chat_empty_hint">Hier steht, was ihr euch ab jetzt flüstert</string>
+    <string name="whisper_delete">Unterhaltung löschen</string>
+    <string name="whisper_delete_title">Unterhaltung mit %1$s löschen?</string>
     <string name="action_whisper">Flüstern</string>
     <string name="action_open_on_twitch">Auf Twitch öffnen</string>
     <string name="more_options">Weitere Optionen</string>
@@ -817,13 +820,26 @@
     <string name="inbox_title">Postfach</string>
     <string name="inbox_tab_mentions">Erwähnungen</string>
     <string name="inbox_tab_whispers">Flüstern</string>
-    <string name="inbox_from">%1$s in %2$s</string>
+    <string name="inbox_in_channel">in %1$s</string>
+    <string name="inbox_own_channel">im eigenen Kanal</string>
+    <string name="inbox_today">Heute</string>
+    <string name="inbox_yesterday">Gestern</string>
     <string name="inbox_whispers_empty">Keine Flüsternachrichten</string>
-    <string name="inbox_whispers_empty_hint">Hier erscheinen Flüsternachrichten an dich</string>
+    <string name="inbox_whispers_empty_hint">Hier stehen eure privaten Nachrichten</string>
     <string name="inbox_empty">Keine Erwähnungen</string>
-    <string name="inbox_empty_hint">Alle Nachrichten mit Erwähnungen oder hervorgehobenen Wörtern erscheinen hier</string>
+    <string name="inbox_empty_hint">Nachrichten mit deinem Namen oder einem hervorgehobenen Wort landen hier</string>
+    <string name="inbox_empty_hint_named">Schreibt jemand @%1$s oder ein hervorgehobenes Wort, landet es hier</string>
     <string name="inbox_mark_all_read">Alle als gelesen markieren</string>
     <string name="inbox_clear">Leeren</string>
+    <string name="inbox_clear_mentions_title">Alle Erwähnungen löschen?</string>
+    <string name="inbox_clear_whispers_title">Alle Flüsternachrichten löschen?</string>
+    <string name="inbox_clear_text">Das lässt sich nicht rückgängig machen.</string>
+    <string name="inbox_clear_confirm">Löschen</string>
+    <string name="inbox_unread_state">Ungelesen</string>
+    <plurals name="inbox_unread">
+        <item quantity="one">%d ungelesen</item>
+        <item quantity="other">%d ungelesen</item>
+    </plurals>
 
     <!-- Regeln -->
     <string name="settings_rules">Regeln</string>

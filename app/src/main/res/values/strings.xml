@@ -813,8 +813,11 @@
     <string name="notif_not_listening_login">Your Twitch login has run out. Open Chatter and log in again to keep getting mentions.</string>
     <string name="whisper_sent">Whisper sent to %1$s</string>
     <string name="whisper_reply_title">Whisper to %1$s</string>
-    <string name="whisper_reply_hint">Your answer</string>
-    <string name="whisper_new_hint">Your message</string>
+    <string name="inbox_you">You</string>
+    <string name="whisper_chat_empty">Say hi to %1$s</string>
+    <string name="whisper_chat_empty_hint">What you whisper to each other from now on shows up here</string>
+    <string name="whisper_delete">Delete conversation</string>
+    <string name="whisper_delete_title">Delete the conversation with %1$s?</string>
     <string name="action_whisper">Whisper</string>
     <string name="action_open_on_twitch">Open on Twitch</string>
     <string name="more_options">More options</string>
@@ -828,13 +831,26 @@
     <string name="inbox_title">Inbox</string>
     <string name="inbox_tab_mentions">Mentions</string>
     <string name="inbox_tab_whispers">Whispers</string>
-    <string name="inbox_from">%1$s in %2$s</string>
+    <string name="inbox_in_channel">in %1$s</string>
+    <string name="inbox_own_channel">in their own channel</string>
+    <string name="inbox_today">Today</string>
+    <string name="inbox_yesterday">Yesterday</string>
     <string name="inbox_whispers_empty">No whispers</string>
-    <string name="inbox_whispers_empty_hint">Whispers to you show up here</string>
+    <string name="inbox_whispers_empty_hint">Your private conversations appear here</string>
     <string name="inbox_empty">No mentions</string>
-    <string name="inbox_empty_hint">Every message that mentions you or holds a highlighted word shows up here</string>
+    <string name="inbox_empty_hint">Messages that name you or hold a highlighted word land here</string>
+    <string name="inbox_empty_hint_named">When someone writes @%1$s or a highlighted word, it lands here</string>
     <string name="inbox_mark_all_read">Mark all as read</string>
     <string name="inbox_clear">Clear</string>
+    <string name="inbox_clear_mentions_title">Delete all mentions?</string>
+    <string name="inbox_clear_whispers_title">Delete all whispers?</string>
+    <string name="inbox_clear_text">This cannot be undone.</string>
+    <string name="inbox_clear_confirm">Delete</string>
+    <string name="inbox_unread_state">Unread</string>
+    <plurals name="inbox_unread">
+        <item quantity="one">%d unread</item>
+        <item quantity="other">%d unread</item>
+    </plurals>
 
     <!-- Highlight rules -->
     <string name="settings_rules">Rules</string>

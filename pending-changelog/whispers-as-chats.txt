@@ -1,0 +1,1 @@
+minor: Whisper in a chat of its own: a list of people, and a conversation with each, both sides as bubbles

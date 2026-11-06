@@ -1,0 +1,1 @@
+patch: Show a picture and one short line when an inbox tab is empty

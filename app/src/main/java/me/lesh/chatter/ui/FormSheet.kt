@@ -1,5 +1,6 @@
 package me.lesh.chatter.ui
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -148,17 +149,20 @@ fun FormSheet(
             ) {
                 OutlinedButton(
                     onClick = { close {} },
+                    // The default outline nearly vanishes on the sheet's surface.
+                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline),
                     modifier = Modifier.weight(1f).heightIn(min = 48.dp),
                 ) { Text(stringResource(R.string.cancel)) }
                 Button(
                     onClick = { close(onConfirm) },
                     enabled = confirmEnabled,
-                    colors = if (destructive) {
-                        ButtonDefaults.buttonColors(
-                            containerColor = MaterialTheme.colorScheme.error,
-                            contentColor = MaterialTheme.colorScheme.onError,
-                        )
-                    } else ButtonDefaults.buttonColors(),
+                    // Disabled, the default grey on grey hardly reads as a button with a label.
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = if (destructive) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary,
+                        contentColor = if (destructive) MaterialTheme.colorScheme.onError else MaterialTheme.colorScheme.onPrimary,
+                        disabledContainerColor = MaterialTheme.colorScheme.surfaceContainerHighest,
+                        disabledContentColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                    ),
                     modifier = Modifier.weight(1f).heightIn(min = 48.dp),
                 ) { Text(confirmLabel) }
             }
