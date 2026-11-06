@@ -281,6 +281,11 @@
             android:name=".service.ReplyReceiver"
             android:exported="false" />
 
+        <!-- Rings when a message planned for later is due while Chatter is in the background. -->
+        <receiver
+            android:name=".service.ScheduledSendReceiver"
+            android:exported="false" />
+
         <service
             android:name=".service.ChatService"
             android:exported="false"

@@ -34,6 +34,7 @@ import me.lesh.chatter.chat.RoomState
 import me.lesh.chatter.chat.InboxMention
 import me.lesh.chatter.chat.InboxWhisper
 import me.lesh.chatter.chat.SendLimits
+import me.lesh.chatter.chat.ScheduledMessage
 import me.lesh.chatter.chat.SendResult
 import me.lesh.chatter.chat.WhisperResult
 import me.lesh.chatter.crash.Crash
@@ -54,6 +55,7 @@ import me.lesh.chatter.settings.LineSpacing
 import me.lesh.chatter.settings.MobileData
 import me.lesh.chatter.settings.PostPictureSize
 import me.lesh.chatter.settings.RecentlySentButton
+import me.lesh.chatter.settings.SendLaterButton
 import me.lesh.chatter.settings.SettingsBackup
 import me.lesh.chatter.settings.SettingsRepository
 import me.lesh.chatter.settings.SpecialMessage
@@ -317,6 +319,9 @@ class MainViewModel(private val c: AppContainer, savedState: SavedStateHandle) :
             c.trouble.unreachable.collect { _messages.send(UiMessage(R.string.error_service_down, it)) }
         }
         viewModelScope.launch { c.chat.refused.collect(composer::onRefused) }
+        viewModelScope.launch {
+            c.scheduled.failures.collect { _messages.send(UiMessage(R.string.error_scheduled_failed, it.channel)) }
+        }
 
         // Android may end the process while Chatter is in the background; the drafts come back
         // with the window.
@@ -841,6 +846,43 @@ class MainViewModel(private val c: AppContainer, savedState: SavedStateHandle) :
 
     fun send() = composer.send()
 
+    /** Messages the active account planned to send later, soonest first. */
+    val scheduled: StateFlow<List<ScheduledMessage>> = combine(c.scheduled.messages, c.auth.state) { all, state ->
+        val account = (state as? AuthState.LoggedIn)?.account?.userId
+        all.filter { it.account == account }.sortedBy { it.sendAt }
+    }.stateIn(viewModelScope, SharingStarted.Eagerly, emptyList())
+
+    /** Plans the input to go out at [sendAt] (epoch ms), where it would go now. */
+    fun sendLater(sendAt: Long) {
+        val channel = sendChannel ?: return
+        val account = c.auth.account?.userId ?: return
+        val text = composer.input.text.trim()
+        if (text.isEmpty()) return
+        val replyTo = composer.replyTo
+        c.scope.launch { c.scheduled.add(account, channel, text, replyTo, sendAt) }
+        composer.input = TextFieldValue("")
+        composer.cancelReply()
+        updateSuggestions()
+    }
+
+    /** Puts a planned message back into the input to change it; only into an empty one, so nothing typed is lost. */
+    fun takeBackScheduled(message: ScheduledMessage) {
+        if (composer.input.text.isNotBlank()) return
+        viewModelScope.launch {
+            val taken = c.scheduled.take(message.id) ?: return@launch
+            composer.selectSendChannel(taken.channel)
+            composer.input = TextFieldValue(taken.text, TextRange(taken.text.length))
+            // The reply the input had would otherwise carry over to a message that had none.
+            composer.cancelReply()
+            taken.reply?.toItem()?.let(composer::startReply)
+            updateSuggestions()
+        }
+    }
+
+    fun dropScheduled(message: ScheduledMessage) {
+        c.scope.launch { c.scheduled.take(message.id) }
+    }
+
     // ---- Bug reports -------------------------------------------------------------------------
 
     /** The last recorded crash; null if there is none. */
@@ -948,6 +990,8 @@ class MainViewModel(private val c: AppContainer, savedState: SavedStateHandle) :
     fun setCatchUpSummary(v: Boolean) = saveSetting { setCatchUpSummary(v) }
     fun setAssistantActions(v: Boolean) = saveSetting { setAssistantActions(v) }
     fun setColorfulCategories(v: Boolean) = saveSetting { setColorfulCategories(v) }
+    fun setSendLater(v: Boolean) = saveSetting { setSendLater(v) }
+    fun setSendLaterButton(v: SendLaterButton) = saveSetting { setSendLaterButton(v) }
     fun setShowDeleted(v: Boolean) = saveSetting { setShowDeleted(v) }
     fun setEmoteSuggestions(v: Boolean) = saveSetting { setEmoteSuggestions(v) }
     fun setMentionWithAt(v: Boolean) = saveSetting { setMentionWithAt(v) }

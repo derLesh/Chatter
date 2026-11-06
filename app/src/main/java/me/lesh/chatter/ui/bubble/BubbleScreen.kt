@@ -46,6 +46,7 @@ import me.lesh.chatter.chat.RoomState
 import me.lesh.chatter.chat.SendLimits
 import me.lesh.chatter.irc.ConnectionState
 import me.lesh.chatter.ui.MainViewModel
+import me.lesh.chatter.ui.sendLater
 import me.lesh.chatter.ui.channels.ChannelAvatar
 import me.lesh.chatter.ui.channels.connectionStatus
 import me.lesh.chatter.ui.chat.ChannelMark
@@ -169,6 +170,7 @@ fun BubbleScreen(vm: MainViewModel, channel: String?) {
                         ?.let { roomStates[it] ?: RoomState() },
                     onChatModes = vm::changeChatModes,
                     compact = settings.compactInput,
+                    sendLater = sendLater(vm, settings),
                 )
             }
             Box(Modifier.weight(1f)) {

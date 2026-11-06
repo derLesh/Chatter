@@ -24,6 +24,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardActions
@@ -63,6 +64,7 @@ import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -105,6 +107,7 @@ import me.lesh.chatter.chat.Penalty
 import me.lesh.chatter.chat.RoomState
 import me.lesh.chatter.chat.SendLimits
 import me.lesh.chatter.settings.RecentlySentButton
+import me.lesh.chatter.settings.SendLaterButton
 import me.lesh.chatter.ui.Suggestion
 import me.lesh.chatter.ui.channels.ChannelAvatar
 import me.lesh.chatter.ui.channels.formatMinutes
@@ -131,6 +134,9 @@ import kotlinx.coroutines.launch
  * Given [chatModes], those of the channel the input sends to when the user moderates it, a shield
  * in front of the emotes opens them above the input; a change goes to [onChatModes] as the wished
  * state.
+ *
+ * With [sendLater] a message can be planned to go out later, and the planned ones show above the
+ * input.
  *
  * [compact] puts every button inside one lower field.
  */
@@ -162,6 +168,7 @@ fun InputBar(
     chatModes: RoomState? = null,
     onChatModes: (RoomState) -> Unit = {},
     compact: Boolean = false,
+    sendLater: SendLater? = null,
 ) {
     val choosing = sendChannels.size > 1 && sendChannel != null
     val focus = remember { FocusRequester() }
@@ -189,6 +196,12 @@ fun InputBar(
     val length = remember(value.text) { SendLimits.length(value.text) }
     val tooLong = length > SendLimits.MAX_LENGTH
     val canSend = enabled && value.text.isNotBlank() && !tooLong && waitLeft == 0 && timeoutLeft == 0L
+    // Slow mode and a timeout end, so a message can be planned for after them.
+    val canPlan = sendLater?.button != null && enabled && value.text.isNotBlank() && !tooLong
+    var planning by rememberSaveable { mutableStateOf(false) }
+    if (planning) {
+        SendLaterSheet(value.text.trim(), onPlan = { sendLater?.onPlan(it) }, onDismiss = { planning = false })
+    }
     val recentInInput = recentlySentButton == RecentlySentButton.InInput && value.text.isEmpty()
     // Slow mode's countdown keeps the button: it is what the user waits for right after sending.
     val recentOnSend = recentlySentButton == RecentlySentButton.ReplacesSend && value.text.isEmpty() && waitLeft == 0
@@ -229,6 +242,19 @@ fun InputBar(
         }
         AnimatedVisibility(modesOpen) {
             ChatModesPanel(chatModes ?: RoomState(), onChatModes, onClose = { openPanel = null })
+        }
+        if (sendLater != null && sendLater.waiting.isNotEmpty()) {
+            // Two and a half strips at most: the cut one shows there are more to scroll to.
+            Column(Modifier.heightIn(max = 120.dp).verticalScroll(rememberScrollState())) {
+                sendLater.waiting.forEach { message ->
+                    ScheduledBar(
+                        message,
+                        canTakeBack = value.text.isBlank(),
+                        onTakeBack = { sendLater.onTakeBack(message) },
+                        onDrop = { sendLater.onDrop(message) },
+                    )
+                }
+            }
         }
         if (replyTo != null) {
             ReplyBar(replyTo, onCancelReply)
@@ -289,7 +315,20 @@ fun InputBar(
             if (recentOnSend) {
                 RecentlySentClock(recentOpen, enabled, toggleRecent, modifier)
             } else {
-                SendButton(canSend, waitLeft, onSend, modifier)
+                val hold = canPlan && sendLater?.button == SendLaterButton.HoldSend
+                if (canPlan && sendLater?.button == SendLaterButton.OwnButton) {
+                    // As close together as the buttons at the start of the input.
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy((-8).dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = modifier,
+                    ) {
+                        SendLaterIconButton(onClick = { planning = true })
+                        SendButton(canSend, waitLeft, onSend)
+                    }
+                } else {
+                    SendButton(canSend, waitLeft, onSend, modifier.holdToSendLater(hold) { planning = true })
+                }
             }
         }
         val keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Sentences, imeAction = ImeAction.Send)

@@ -41,7 +41,10 @@ import me.lesh.chatter.chat.MessageBuilder
 import me.lesh.chatter.chat.NicknameRepository
 import me.lesh.chatter.chat.NoteRepository
 import me.lesh.chatter.chat.PostRepository
+import me.lesh.chatter.chat.PreferencesScheduledStore
 import me.lesh.chatter.chat.RuleRepository
+import me.lesh.chatter.chat.ScheduledMessage
+import me.lesh.chatter.chat.ScheduledMessages
 import me.lesh.chatter.chat.SendResult
 import me.lesh.chatter.chat.UserPictures
 import me.lesh.chatter.chat.WhisperInboxRepository
@@ -71,6 +74,7 @@ import me.lesh.chatter.net.ThirdPartyApi
 import me.lesh.chatter.service.BackgroundHealth
 import me.lesh.chatter.service.ChatNotifier
 import me.lesh.chatter.service.LiveAlerts
+import me.lesh.chatter.service.ScheduledSendAlarm
 import me.lesh.chatter.settings.BackupManager
 import me.lesh.chatter.settings.SettingsRepository
 import me.lesh.chatter.stats.StatsRepository
@@ -109,6 +113,7 @@ private val Context.inboxStore by store("inbox")
 private val Context.ruleStore by store("rules")
 private val Context.statsStore by store("stats")
 private val Context.healthStore by store("background_health")
+private val Context.scheduledStore by store("scheduled_messages")
 
 /**
  * A preference store that starts over empty if its file cannot be parsed. Without the handler every
@@ -206,6 +211,11 @@ class AppContainer(
         rules.rules, settings.settings, scope,
     )
 
+    /** Messages the user planned to send later (Labs). */
+    val scheduled = ScheduledMessages(
+        PreferencesScheduledStore(context.scheduledStore), scope, ::sendScheduled, ScheduledSendAlarm(context)::set,
+    )
+
     // One disk cache for both loaders; two caches on one directory would corrupt it.
     private val diskCache by lazy {
         DiskCache.Builder()
@@ -282,6 +292,14 @@ class AppContainer(
         scope.launch {
             settings.settings.map { it.assistantActions && BuildConfig.ASSISTANT_ACCESS }.distinctUntilChanged()
                 .collect { assistantAccess.allow(it) }
+        }
+        scheduled.start()
+        scope.launch { chat.refused.collect(scheduled::onRefused) }
+        // The wait may have stood still while the phone slept.
+        scope.launch { chat.windows.anyVisible.collect { if (it) scheduled.wakeUp() } }
+        // With Chatter open the input shows it; in the background only a notification can.
+        scope.launch {
+            scheduled.failures.collect { if (!chat.windows.anyVisible.value) notifier.showScheduledFailed(it.channel) }
         }
         sevenTvLive.start()
         shortcuts.start()
@@ -436,6 +454,27 @@ class AppContainer(
             chat.rooms.ready.first { channel in it }
         } != null
         return ready && auth.account?.userId == account && chat.send(channel, text, replyTo = null) == SendResult.Ok
+    }
+
+    /**
+     * Sends a planned message as the account that planned it. Right away when the channel is joined;
+     * the alarm may have started the process, so otherwise it waits a moment like
+     * [sendFromNotification].
+     */
+    private suspend fun sendScheduled(message: ScheduledMessage): SendResult {
+        val replyTo = message.reply?.toItem()
+        if (auth.account?.userId == message.account && message.channel in chat.rooms.ready.value) {
+            return chat.send(message.channel, message.text, replyTo)
+        }
+        val ready = withTimeoutOrNull(NOTIFICATION_SEND_TIMEOUT_MS) {
+            auth.state.first { it is AuthState.LoggedIn }
+            if (auth.account?.userId != message.account) return@withTimeoutOrNull false
+            connect()
+            chat.rooms.ready.first { message.channel in it }
+            true
+        } == true
+        if (!ready || auth.account?.userId != message.account) return SendResult.NotConnected
+        return chat.send(message.channel, message.text, replyTo)
     }
 
     /**

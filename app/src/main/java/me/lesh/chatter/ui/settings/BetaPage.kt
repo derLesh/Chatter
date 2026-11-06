@@ -22,6 +22,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import me.lesh.chatter.BuildConfig
 import me.lesh.chatter.R
 import me.lesh.chatter.ai.ModelState
+import me.lesh.chatter.settings.SendLaterButton
 import me.lesh.chatter.settings.Settings
 import me.lesh.chatter.ui.BetaBadge
 import me.lesh.chatter.ui.MainViewModel
@@ -35,6 +36,17 @@ internal fun BetaPage(settings: Settings, vm: MainViewModel) {
             BetaSwitchItem(R.string.settings_catch_up, settings.catchUpSummary, vm::setCatchUpSummary, R.string.settings_catch_up_hint)
         }
         if (settings.catchUpSummary) item { ModelStateItem(vm) }
+    }
+    SettingsGroup {
+        item(R.string.settings_send_later) {
+            BetaSwitchItem(R.string.settings_send_later, settings.sendLater, vm::setSendLater, R.string.settings_send_later_hint)
+        }
+        if (settings.sendLater) item(R.string.settings_send_later_button) {
+            SegmentedItem(
+                R.string.settings_send_later_button, settings.sendLaterButton, SEND_LATER_BUTTONS, vm::setSendLaterButton,
+                hint = R.string.settings_send_later_button_hint,
+            )
+        }
     }
     SettingsGroup {
         item(R.string.settings_colorful_categories) {
@@ -58,6 +70,11 @@ internal fun BetaPage(settings: Settings, vm: MainViewModel) {
         }
     }
 }
+
+internal val SEND_LATER_BUTTONS = listOf(
+    SendLaterButton.OwnButton to R.string.send_later_own_button,
+    SendLaterButton.HoldSend to R.string.send_later_hold_send,
+)
 
 /** Like [SwitchItem], with the beta mark next to the title. */
 @Composable
