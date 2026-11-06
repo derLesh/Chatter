@@ -2,8 +2,8 @@
 # tagged "nightly", replacing the one before. Nightly is an app of its own (me.lesh.chatter.nightly),
 # so it installs next to Chatter; it is only on GitHub, never on Play.
 #
-# check decides whether there is anything to build: a commit the last nightly did not have, and
-# that CI passed. build builds exactly that commit without any key; publish signs it, with no
+# check picks what to build: the newest commit on master that CI passed for and the last nightly
+# did not have. build builds exactly that commit without any key; publish signs it, with no
 # Gradle in reach of the key, and replaces the release.
 name: Nightly
 
@@ -29,7 +29,8 @@ jobs:
   check:
     name: Check
     runs-on: ubuntu-latest
-    timeout-minutes: 5
+    # Waiting for a CI run that is still going takes up to about 15 minutes.
+    timeout-minutes: 30
     # actions: read for the CI runs of the commit.
     permissions:
       contents: read
@@ -54,42 +55,69 @@ jobs:
           fetch-depth: 0
           persist-credentials: false
 
-      - name: Find the commit to build
+      # The nightly does not run the tests again; it relies on CI having passed. It walks master back
+      # from its newest commit and builds the first one CI passed for, so one red or missing run only
+      # delays what goes in. A commit that only touches Markdown, docs/, version.properties or
+      # pending-changelog/ counts with the newest other commit: the release commit starts no CI, and
+      # a docs push gets a green run without any tests. --first-parent keeps a merge from being
+      # traced to its pull request's commit, which CI ran for the pull request only.
+      - name: Find the newest commit CI passed for
         id: commit
-        run: |
-          head=$(git rev-parse HEAD)
-          last=$(git rev-parse -q --verify 'refs/tags/nightly^{commit}' || true)
-          echo "commit=$head" >> "$GITHUB_OUTPUT"
-          if [ "$last" = "$head" ] && [ "$GITHUB_EVENT_NAME" = schedule ]; then
-            echo "The nightly already holds $head; nothing new to build." >> "$GITHUB_STEP_SUMMARY"
-            echo "build=false" >> "$GITHUB_OUTPUT"
-          else
-            echo "build=true" >> "$GITHUB_OUTPUT"
-          fi
-
-      # The nightly does not run the tests again; it relies on CI having passed. The release commit
-      # is pushed with the workflow token, which starts no CI, and only touches Markdown,
-      # version.properties and pending-changelog/, so the check falls on the newest other commit.
-      - name: Require a green CI run
-        if: ${{ steps.commit.outputs.build == 'true' }}
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          commit=$(git log -1 --format=%H HEAD -- . ':(exclude,glob)**/*.md' ':(exclude)docs' \
-            ':(exclude)version.properties' ':(exclude)pending-changelog')
-          run=$(gh run list --repo "$GITHUB_REPOSITORY" --workflow ci.yml --commit "$commit" --event push \
-            --limit 1 --json status,conclusion,url --jq '.[0] // empty | "\(.status)|\(.conclusion)|\(.url)"')
-          # "|" keeps the empty conclusion of a run that is still going.
-          IFS='|' read -r status conclusion url <<< "$run"
-          if [ "$conclusion" != success ]; then
-            if [ -z "$run" ]; then
-              echo "::error::CI has not run for $commit."
-            else
-              echo "::error::CI for $commit is ${conclusion:-$status}: $url"
+          last=$(git rev-parse -q --verify 'refs/tags/nightly^{commit}' || true)
+          # Sets result to the conclusion of the commit's CI run, or "none" without one.
+          ci_result() {
+            local run id status
+            run=$(gh run list --repo "$GITHUB_REPOSITORY" --workflow ci.yml --commit "$1" --event push \
+              --limit 1 --json databaseId,status,conclusion --jq '.[0] // empty | "\(.databaseId)|\(.status)|\(.conclusion)"')
+            IFS='|' read -r id status result <<< "$run"
+            # A push from just before the nightly is worth waiting for rather than skipping.
+            if [ -n "$id" ] && [ "$status" != completed ]; then
+              gh run watch "$id" --repo "$GITHUB_REPOSITORY" --interval 30 > /dev/null
+              result=$(gh run view "$id" --repo "$GITHUB_REPOSITORY" --json conclusion --jq .conclusion)
             fi
-            exit 1
+            result=${result:-none}
+          }
+          chosen=
+          checked=
+          for commit in $(git rev-list --first-parent --max-count=200 HEAD); do
+            if [ "$commit" = "$last" ]; then
+              # Started by hand, the nightly is built again from the commit it already holds.
+              [ "$GITHUB_EVENT_NAME" = workflow_dispatch ] && chosen=$commit
+              break
+            fi
+            code=$(git log -1 --first-parent --format=%H "$commit" -- . ':(exclude,glob)**/*.md' ':(exclude)docs' \
+              ':(exclude)version.properties' ':(exclude)pending-changelog')
+            if [ "$code" != "$checked" ]; then
+              checked=$code
+              ci_result "$code"
+              echo "CI for ${code:0:7}: $result"
+            fi
+            if [ "$result" = success ]; then
+              chosen=$commit
+              break
+            fi
+          done
+          head=$(git rev-parse HEAD)
+          if [ -z "$chosen" ]; then
+            if [ "$last" = "$head" ]; then
+              echo "The nightly already holds ${head:0:7}; nothing new to build." >> "$GITHUB_STEP_SUMMARY"
+            else
+              echo "::warning::CI passed for no commit since the last nightly; it stays as it is."
+            fi
+            echo "build=false" >> "$GITHUB_OUTPUT"
+            exit 0
           fi
-          echo "CI passed for ${commit:0:7}: $url"
+          if [ "$chosen" != "$head" ]; then
+            echo "::warning::CI did not pass for ${head:0:7}; building ${chosen:0:7}, the newest commit it passed for."
+          fi
+          echo "Building ${chosen:0:7}." >> "$GITHUB_STEP_SUMMARY"
+          {
+            echo "commit=$chosen"
+            echo "build=true"
+          } >> "$GITHUB_OUTPUT"
 
   # Builds without any key and hands the APK, its mapping and the notes to publish.
   build:

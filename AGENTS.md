@@ -167,8 +167,10 @@ secrets, and it runs no Gradle: `apksigner` and `jarsigner` from the runner's SD
 made, so no plugin or library can ever reach the key. The `play_track` input uploads the bundle to
 that Play track; `none`, the default, uploads nowhere.
 
-`.github/workflows/nightly.yml` builds Chatter Nightly from master every night, when master has a
-commit the last nightly did not and CI passed for it, checked the way the release checks it. Nightly is a release build made with
+`.github/workflows/nightly.yml` builds Chatter Nightly from master every night: the newest commit
+CI passed for that the last nightly did not have, checked the way the release checks it. A red or
+missing CI run on the newest commit only means an older one is built, and a run still going is
+waited for; with nothing green since the last nightly it builds nothing and stays green. Nightly is a release build made with
 `-Pnightly=<hash>`: its own app (`me.lesh.chatter.nightly`), signed with a key of its own in a job
 without Gradle, the way the release is, only on GitHub. Its versionCode is the number of commits on master, because Android refuses an update to a
 lower one; the hash is in the version name, `0.9.0-nightly+6d134cb`. There is one release, tagged
