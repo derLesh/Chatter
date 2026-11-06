@@ -24,7 +24,6 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.Send
-import androidx.compose.material.icons.filled.Email
 import androidx.compose.material.icons.outlined.Delete
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -38,6 +37,7 @@ import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -49,7 +49,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
-import androidx.compose.ui.graphics.vector.rememberVectorPainter
+import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.ImeAction
@@ -64,6 +64,7 @@ import java.time.Instant
 import java.time.LocalDate
 import java.time.ZoneId
 import java.util.Date
+import me.lesh.chatter.ui.theme.isAppInDarkTheme
 
 /** Who a whisper conversation is with; enough to open one before anything was exchanged. */
 data class WhisperTarget(val login: String, val userId: String?, val displayName: String)
@@ -87,11 +88,13 @@ internal fun WhisperChat(
     onDelete: () -> Unit,
 ) {
     var deleting by rememberSaveable { mutableStateOf(false) }
+    val background = chatBackground()
     Scaffold(
-        containerColor = MaterialTheme.colorScheme.surface,
+        containerColor = background,
         snackbarHost = { SnackbarHost(snackbar) },
         topBar = {
             TopAppBar(
+                colors = TopAppBarDefaults.topAppBarColors(containerColor = background),
                 title = {
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         InitialAvatar(name, nameColor, size = 36.dp)
@@ -112,15 +115,14 @@ internal fun WhisperChat(
                 },
             )
         },
-        bottomBar = { WhisperInput(name, onSend, snackbar) },
+        bottomBar = { WhisperInput(name, background, onSend, snackbar) },
     ) { padding ->
         if (messages.isEmpty()) {
             Box(Modifier.padding(padding)) {
                 EmptyTab(
-                    icon = rememberVectorPainter(Icons.Filled.Email),
                     title = stringResource(R.string.whisper_chat_empty, name),
                     hint = stringResource(R.string.whisper_chat_empty_hint),
-                )
+                ) { InitialAvatar(name, nameColor, size = EMPTY_PICTURE_SIZE) }
             }
         } else {
             Bubbles(messages, Modifier.padding(padding))
@@ -197,7 +199,7 @@ private fun Bubble(whisper: InboxWhisper, joinsOlder: Boolean, joinsNewer: Boole
             .fillMaxWidth()
             .padding(start = if (mine) BUBBLE_INSET else 0.dp, end = if (mine) 0.dp else BUBBLE_INSET),
     ) {
-        Surface(color = if (mine) colors.primaryContainer else colors.surfaceContainerHighest, shape = shape) {
+        Surface(color = if (mine) ownBubbleColor() else colors.surfaceContainerHighest, shape = shape) {
             Text(
                 whisper.text,
                 style = MaterialTheme.typography.bodyLarge,
@@ -218,7 +220,7 @@ private fun Bubble(whisper: InboxWhisper, joinsOlder: Boolean, joinsNewer: Boole
 
 /** Like the chat's own input: a pill on the background, with send beside it in reach of the thumb. */
 @Composable
-private fun WhisperInput(name: String, onSend: suspend (String) -> String?, snackbar: SnackbarHostState) {
+private fun WhisperInput(name: String, background: Color, onSend: suspend (String) -> String?, snackbar: SnackbarHostState) {
     var text by rememberSaveable { mutableStateOf("") }
     // Held from the tap until Twitch answers, so a second tap cannot send it twice.
     var sending by remember { mutableStateOf(false) }
@@ -239,7 +241,7 @@ private fun WhisperInput(name: String, onSend: suspend (String) -> String?, snac
         verticalAlignment = Alignment.Bottom,
         modifier = Modifier
             .fillMaxWidth()
-            .background(colors.surface)
+            .background(background)
             .windowInsetsPadding(WindowInsets.navigationBars.union(WindowInsets.ime))
             .padding(start = 12.dp, end = 12.dp, top = 8.dp, bottom = 12.dp),
     ) {
@@ -284,6 +286,21 @@ private fun WhisperInput(name: String, onSend: suspend (String) -> String?, snac
             }
         }
     }
+}
+
+/**
+ * White in light themes, where the grey of their bubbles would hardly stand off the usual light
+ * grey; the usual background in dark ones, pure black included.
+ */
+@Composable
+private fun chatBackground(): Color =
+    if (isAppInDarkTheme()) MaterialTheme.colorScheme.surface else MaterialTheme.colorScheme.surfaceContainerLowest
+
+/** In light themes the accent container is a loud cyan or pink next to the greys, so it is toned down. */
+@Composable
+private fun ownBubbleColor(): Color {
+    val colors = MaterialTheme.colorScheme
+    return if (isAppInDarkTheme()) colors.primaryContainer else lerp(colors.surfaceContainerHighest, colors.primaryContainer, 0.6f)
 }
 
 /** Longer apart than this, two whispers from one side start a new group. */

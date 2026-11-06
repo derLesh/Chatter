@@ -825,7 +825,7 @@
     <string name="inbox_today">Heute</string>
     <string name="inbox_yesterday">Gestern</string>
     <string name="inbox_whispers_empty">Keine Flüsternachrichten</string>
-    <string name="inbox_whispers_empty_hint">Private Nachrichten an dich landen hier</string>
+    <string name="inbox_whispers_empty_hint">Hier stehen eure privaten Nachrichten</string>
     <string name="inbox_empty">Keine Erwähnungen</string>
     <string name="inbox_empty_hint">Nachrichten mit deinem Namen oder einem hervorgehobenen Wort landen hier</string>
     <string name="inbox_empty_hint_named">Schreibt jemand @%1$s oder ein hervorgehobenes Wort, landet es hier</string>

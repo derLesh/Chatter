@@ -385,7 +385,8 @@ private fun ConversationList(
     }
     val dark = isAppInDarkTheme()
     val you = stringResource(R.string.inbox_you)
-    DayList(conversations, { it.latest.timestamp }, WhisperConversation::login) { conversation ->
+    // Each person once, so day headings would only cut the list into ones and twos.
+    DayList(conversations, { it.latest.timestamp }, WhisperConversation::login, byDay = false) { conversation ->
         val name = nameOf(conversation.login, conversation.displayName)
         val latest = conversation.latest
         InboxRow(
@@ -401,6 +402,7 @@ private fun ConversationList(
                 }
             },
             timestamp = latest.timestamp,
+            time = shortWhen(latest.timestamp),
             read = conversation.unread == 0,
             unreadCount = conversation.unread,
             avatar = { InitialAvatar(name, readableNameColor(conversation.color, conversation.login, dark)) },
@@ -411,7 +413,7 @@ private fun ConversationList(
 
 /**
  * [entries], newest first, as tiles under a heading for each day: strong outer corners and slight
- * ones between, like the settings, so a day reads as one block.
+ * ones between, like the settings, so a day reads as one block. Without [byDay], one block.
  */
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
@@ -419,19 +421,21 @@ private fun <T> DayList(
     entries: List<T>,
     timestamp: (T) -> Long,
     key: (T) -> String,
+    byDay: Boolean = true,
     row: @Composable (T) -> Unit,
 ) {
     val zone = remember { ZoneId.systemDefault() }
-    val days = remember(entries) {
-        entries.groupBy { Instant.ofEpochMilli(timestamp(it)).atZone(zone).toLocalDate() }
+    val days = remember(entries, byDay) {
+        if (byDay) entries.groupBy { Instant.ofEpochMilli(timestamp(it)).atZone(zone).toLocalDate() }
+        else mapOf(null to entries)
     }
     val today = LocalDate.now(zone)
     LazyColumn(
-        contentPadding = PaddingValues(start = 16.dp, end = 16.dp, bottom = 24.dp),
+        contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = if (byDay) 0.dp else 16.dp, bottom = 24.dp),
         modifier = Modifier.fillMaxSize(),
     ) {
         days.forEach { (day, onDay) ->
-            stickyHeader(key = "day-$day", contentType = "day") { DayHeading(day, today) }
+            if (day != null) stickyHeader(key = "day-$day", contentType = "day") { DayHeading(day, today) }
             itemsIndexed(onDay, key = { _, entry -> key(entry) }, contentType = { _, _ -> "row" }) { i, entry ->
                 val top = if (i == 0) OUTER_CORNER else INNER_CORNER
                 val bottom = if (i == onDay.lastIndex) OUTER_CORNER else INNER_CORNER
@@ -443,6 +447,30 @@ private fun <T> DayList(
                 ) { row(entry) }
             }
         }
+    }
+}
+
+/**
+ * When something came, as short as a list row allows: the time today, then "Gestern", the weekday
+ * within a week, and the date after that.
+ */
+@Composable
+private fun shortWhen(timestamp: Long): String {
+    val context = LocalContext.current
+    val locale = LocalConfiguration.current.locales[0]
+    val zone = remember { ZoneId.systemDefault() }
+    val day = Instant.ofEpochMilli(timestamp).atZone(zone).toLocalDate()
+    val today = LocalDate.now(zone)
+    val yesterday = stringResource(R.string.inbox_yesterday)
+    return remember(timestamp, today, locale, yesterday) {
+        val skeleton = when {
+            day == today -> return@remember DateFormat.getTimeFormat(context).format(Date(timestamp))
+            day == today.minusDays(1) -> return@remember yesterday
+            day.isAfter(today.minusDays(7)) -> "EEE"
+            day.year == today.year -> "dM"
+            else -> "dMyy"
+        }
+        day.format(DateTimeFormatter.ofPattern(DateFormat.getBestDateTimePattern(locale, skeleton), locale))
     }
 }
 
@@ -495,7 +523,7 @@ internal fun InitialAvatar(name: String, color: Color, size: Dp = AVATAR_SIZE) {
     ) {
         Text(
             name.take(1).uppercase(),
-            style = MaterialTheme.typography.titleMedium,
+            style = if (size >= 64.dp) MaterialTheme.typography.headlineMedium else MaterialTheme.typography.titleMedium,
             fontWeight = FontWeight.Bold,
             color = lerp(base, onSurface, towardsText),
         )
@@ -517,12 +545,14 @@ private fun InboxRow(
     read: Boolean,
     avatar: @Composable () -> Unit,
     onClick: () -> Unit,
+    /** Instead of the clock time, where rows span more than a day. */
+    time: String? = null,
     /** Shown instead of the dot where it says more, as for a conversation. */
     unreadCount: Int = 0,
 ) {
     val colors = MaterialTheme.colorScheme
     val context = LocalContext.current
-    val time = remember(timestamp) { DateFormat.getTimeFormat(context).format(Date(timestamp)) }
+    val clock = remember(timestamp) { DateFormat.getTimeFormat(context).format(Date(timestamp)) }
     val unreadTint = when {
         colors.isPureBlack -> UNREAD_TINT_BLACK
         isAppInDarkTheme() -> UNREAD_TINT_DARK
@@ -549,7 +579,7 @@ private fun InboxRow(
                     modifier = Modifier.weight(1f),
                 )
                 Text(
-                    time,
+                    time ?: clock,
                     style = MaterialTheme.typography.labelMedium,
                     color = colors.onSurfaceVariant,
                     modifier = Modifier.padding(start = 12.dp),
@@ -600,6 +630,7 @@ internal fun highlightName(text: String, login: String, style: SpanStyle): Annot
 }
 
 private val AVATAR_SIZE = 44.dp
+internal val EMPTY_PICTURE_SIZE = 88.dp
 private val OUTER_CORNER = 24.dp
 private val INNER_CORNER = 4.dp
 
@@ -616,21 +647,29 @@ private const val UNREAD_TINT_BLACK = 0.24f
 /** A picture of what would be here, and one line on how it gets here. */
 @Composable
 internal fun EmptyTab(icon: Painter, title: String, hint: String) {
+    EmptyTab(title, hint) {
+        Box(
+            contentAlignment = Alignment.Center,
+            modifier = Modifier
+                .size(EMPTY_PICTURE_SIZE)
+                .clip(CircleShape)
+                .background(MaterialTheme.colorScheme.secondaryContainer),
+        ) {
+            Icon(icon, contentDescription = null, tint = MaterialTheme.colorScheme.onSecondaryContainer, modifier = Modifier.size(40.dp))
+        }
+    }
+}
+
+/** Like the other, with [picture] in place of an icon, such as the person a chat is with. */
+@Composable
+internal fun EmptyTab(title: String, hint: String, picture: @Composable () -> Unit) {
     Column(
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center,
         // A little above the middle, where the eye lands first.
         modifier = Modifier.fillMaxSize().padding(start = 32.dp, end = 32.dp, bottom = 64.dp),
     ) {
-        Box(
-            contentAlignment = Alignment.Center,
-            modifier = Modifier
-                .size(88.dp)
-                .clip(CircleShape)
-                .background(MaterialTheme.colorScheme.secondaryContainer),
-        ) {
-            Icon(icon, contentDescription = null, tint = MaterialTheme.colorScheme.onSecondaryContainer, modifier = Modifier.size(40.dp))
-        }
+        picture()
         Text(
             title,
             style = MaterialTheme.typography.titleLarge,

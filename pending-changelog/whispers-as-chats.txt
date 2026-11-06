@@ -1,1 +1,1 @@
-minor: Whisper in a chat of its own: one conversation per person, with both sides as bubbles
+minor: Whisper in a chat of its own: a list of people, and one conversation each with both sides as bubbles

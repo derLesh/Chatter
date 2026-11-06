@@ -836,7 +836,7 @@
     <string name="inbox_today">Today</string>
     <string name="inbox_yesterday">Yesterday</string>
     <string name="inbox_whispers_empty">No whispers</string>
-    <string name="inbox_whispers_empty_hint">Private messages to you land here</string>
+    <string name="inbox_whispers_empty_hint">Your private conversations appear here</string>
     <string name="inbox_empty">No mentions</string>
     <string name="inbox_empty_hint">Messages that name you or hold a highlighted word land here</string>
     <string name="inbox_empty_hint_named">When someone writes @%1$s or a highlighted word, it lands here</string>
