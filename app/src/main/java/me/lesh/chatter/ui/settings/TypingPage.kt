@@ -31,12 +31,14 @@ import me.lesh.chatter.ui.chat.InputBar
 internal fun TypingPage(settings: Settings, vm: MainViewModel) {
     SettingsGroup {
         item(R.string.settings_read_only) { SwitchItem(R.string.settings_read_only, settings.readOnly, vm::setReadOnly, R.string.settings_read_only_hint) }
+    }
+    // Without an input there is nothing to suggest or arrange.
+    if (settings.readOnly) return
+    SettingsGroup(R.string.settings_group_suggestions) {
         item(R.string.settings_emote_suggestions) { SwitchItem(R.string.settings_emote_suggestions, settings.emoteSuggestions, vm::setEmoteSuggestions, R.string.settings_emote_suggestions_hint) }
         item(R.string.settings_user_suggestions) { SwitchItem(R.string.settings_user_suggestions, settings.userSuggestions, vm::setUserSuggestions, R.string.settings_user_suggestions_hint) }
         item(R.string.settings_mention_with_at) { SwitchItem(R.string.settings_mention_with_at, settings.mentionWithAt, vm::setMentionWithAt, R.string.settings_mention_with_at_hint) }
     }
-    // Without an input there is nothing to arrange.
-    if (settings.readOnly) return
     SettingsGroup(R.string.settings_group_input) {
         item { Box(Modifier.padding(12.dp)) { InputPreview(settings, vm) } }
         item(R.string.settings_recently_sent) {

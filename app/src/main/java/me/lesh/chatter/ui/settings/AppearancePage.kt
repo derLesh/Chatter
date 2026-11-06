@@ -69,6 +69,8 @@ internal fun AppearancePage(settings: Settings, vm: MainViewModel, open: (Settin
         }
         item(R.string.settings_highlight_color) { HighlightColorPicker(settings.highlightColor, vm::setHighlightColor) }
         item(R.string.settings_name_colors) { NameColorPicker(settings.nameColors, vm::setNameColors) }
+    }
+    SettingsGroup {
         item(R.string.settings_app_icon) { AppIconItem(vm) { open(SettingsSubPage.AppIcons) } }
     }
 

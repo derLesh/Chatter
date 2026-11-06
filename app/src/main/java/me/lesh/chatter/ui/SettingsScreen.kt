@@ -91,6 +91,7 @@ import androidx.navigationevent.compose.rememberNavigationEventState
 import me.lesh.chatter.BuildConfig
 import me.lesh.chatter.R
 import me.lesh.chatter.auth.AuthState
+import me.lesh.chatter.settings.Settings
 import me.lesh.chatter.stats.Stats
 import me.lesh.chatter.ui.changelog.ChangelogPage
 import me.lesh.chatter.ui.channels.OfferUndoRemoval
@@ -139,6 +140,7 @@ import me.lesh.chatter.ui.settings.THEME_MODES
 import me.lesh.chatter.ui.settings.TypingPage
 import me.lesh.chatter.ui.settings.tileClickable
 import me.lesh.chatter.ui.settings.transparentItem
+import me.lesh.chatter.ui.theme.isAppInDarkTheme
 import me.lesh.chatter.ui.update.UpdateCard
 import me.lesh.chatter.ui.update.UpdatePage
 import kotlinx.coroutines.launch
@@ -223,7 +225,16 @@ private class SearchEntry(
     val hint: Int? = null,
     val also: List<Int> = emptyList(),
     val key: Int? = title,
+    val shownWhen: ShownWhen? = null,
 )
+
+/**
+ * A setting that only shows while the setting at [key] is as [met] says; [met] also gets whether
+ * the app is dark. While it is hidden, the search opens at that setting instead.
+ */
+private class ShownWhen(val key: Int, val met: (Settings, Boolean) -> Boolean)
+
+private val unlessReadOnly = ShownWhen(R.string.settings_read_only) { s, _ -> !s.readOnly }
 
 /**
  * Everything the search finds, in page order. A setting is found by its tile key
@@ -231,15 +242,20 @@ private class SearchEntry(
  */
 private val SEARCH_INDEX: List<SearchEntry> by lazy {
     buildList {
-        SettingsPage.entries.filter { it.shown }.forEach { add(SearchEntry(it.title, it, it.summary, key = null)) }
+        // The channel list has no tiles to open at, so its actions find the page.
+        val channelActions = listOf(R.string.add_channel, R.string.rename_channel, R.string.combine_channels)
+        SettingsPage.entries.filter { it.shown }.forEach { page ->
+            val also = if (page == SettingsPage.Channels) channelActions else emptyList()
+            add(SearchEntry(page.title, page, page.summary, also, key = null))
+        }
         val appearance = SettingsPage.Appearance
-        add(SearchEntry(R.string.settings_theme, appearance, also = THEME_MODES.map { it.second }))
-        add(SearchEntry(R.string.settings_dynamic_color, appearance, R.string.settings_dynamic_color_hint))
-        add(SearchEntry(R.string.settings_pure_black, appearance, R.string.settings_pure_black_hint))
-        add(SearchEntry(R.string.settings_highlight_color, appearance, R.string.settings_highlight_color_hint))
+        add(SearchEntry(R.string.settings_theme, appearance, also = THEME_MODES.map { it.second } + R.string.search_also_theme))
+        add(SearchEntry(R.string.settings_dynamic_color, appearance, R.string.settings_dynamic_color_hint, also = listOf(R.string.search_also_dynamic_color)))
+        add(SearchEntry(R.string.settings_pure_black, appearance, R.string.settings_pure_black_hint, shownWhen = ShownWhen(R.string.settings_theme) { _, dark -> dark }))
+        add(SearchEntry(R.string.settings_highlight_color, appearance, R.string.settings_highlight_color_hint, also = listOf(R.string.search_also_highlight_color)))
         add(SearchEntry(R.string.settings_name_colors, appearance, R.string.settings_name_colors_hint))
         add(SearchEntry(R.string.settings_app_icon, appearance, also = APP_ICON_TERMS))
-        add(SearchEntry(R.string.settings_font_size, appearance))
+        add(SearchEntry(R.string.settings_font_size, appearance, also = listOf(R.string.search_also_font_size)))
         add(SearchEntry(R.string.settings_line_spacing, appearance, also = LINE_SPACINGS.map { it.second }))
         add(SearchEntry(R.string.settings_emote_size, appearance))
         add(SearchEntry(R.string.settings_message_dividers, appearance, R.string.settings_message_dividers_hint))
@@ -257,7 +273,7 @@ private val SEARCH_INDEX: List<SearchEntry> by lazy {
         add(SearchEntry(R.string.settings_name_tap, messages))
         add(SearchEntry(R.string.settings_copy_first, messages, R.string.settings_copy_first_hint))
         add(SearchEntry(R.string.settings_keep_screen_on, messages, R.string.settings_keep_screen_on_hint))
-        add(SearchEntry(R.string.settings_keep_screen_on_when_quiet, messages, R.string.settings_keep_screen_on_when_quiet_hint))
+        add(SearchEntry(R.string.settings_keep_screen_on_when_quiet, messages, R.string.settings_keep_screen_on_when_quiet_hint, shownWhen = ShownWhen(R.string.settings_keep_screen_on) { s, _ -> s.keepScreenOn }))
         val media = SettingsPage.Media
         add(SearchEntry(R.string.settings_inline_images, media, R.string.settings_inline_images_hint))
         add(SearchEntry(R.string.settings_image_hosts, media))
@@ -268,22 +284,23 @@ private val SEARCH_INDEX: List<SearchEntry> by lazy {
                 also = listOf(
                     R.string.post_site_x, R.string.post_site_bluesky, R.string.settings_post_avatar, R.string.settings_post_media,
                     R.string.settings_post_counts, R.string.settings_post_picture_size, R.string.settings_blur_nsfw_posts,
+                    R.string.settings_post_date, R.string.settings_post_text,
                 ),
             ),
         )
         add(SearchEntry(R.string.settings_full_links, media, R.string.settings_full_links_hint))
         val typing = SettingsPage.Typing
         add(SearchEntry(R.string.settings_read_only, typing, R.string.settings_read_only_hint))
-        add(SearchEntry(R.string.settings_emote_suggestions, typing, R.string.settings_emote_suggestions_hint))
-        add(SearchEntry(R.string.settings_user_suggestions, typing, R.string.settings_user_suggestions_hint))
-        add(SearchEntry(R.string.settings_mention_with_at, typing, R.string.settings_mention_with_at_hint))
-        add(SearchEntry(R.string.settings_recently_sent, typing, R.string.settings_recently_sent_hint))
-        add(SearchEntry(R.string.settings_chat_modes_button, typing, R.string.settings_chat_modes_button_hint))
-        add(SearchEntry(R.string.settings_compact_input, typing, R.string.settings_compact_input_hint))
+        add(SearchEntry(R.string.settings_emote_suggestions, typing, R.string.settings_emote_suggestions_hint, shownWhen = unlessReadOnly))
+        add(SearchEntry(R.string.settings_user_suggestions, typing, R.string.settings_user_suggestions_hint, shownWhen = unlessReadOnly))
+        add(SearchEntry(R.string.settings_mention_with_at, typing, R.string.settings_mention_with_at_hint, shownWhen = unlessReadOnly))
+        add(SearchEntry(R.string.settings_recently_sent, typing, R.string.settings_recently_sent_hint, shownWhen = unlessReadOnly))
+        add(SearchEntry(R.string.settings_chat_modes_button, typing, R.string.settings_chat_modes_button_hint, shownWhen = unlessReadOnly))
+        add(SearchEntry(R.string.settings_compact_input, typing, R.string.settings_compact_input_hint, shownWhen = unlessReadOnly))
         val emotes = SettingsPage.Emotes
         add(SearchEntry(R.string.settings_emotes_enabled, emotes, R.string.settings_emotes_new_messages_hint))
         add(SearchEntry(R.string.settings_animated_emotes, emotes))
-        add(SearchEntry(R.string.settings_slow_idle_emotes, emotes, R.string.settings_slow_idle_emotes_hint))
+        add(SearchEntry(R.string.settings_slow_idle_emotes, emotes, R.string.settings_slow_idle_emotes_hint, shownWhen = ShownWhen(R.string.settings_animated_emotes) { s, _ -> s.animatedEmotes }))
         add(SearchEntry(R.string.settings_zero_width, emotes, R.string.settings_zero_width_hint))
         add(SearchEntry(R.string.settings_unlisted_7tv, emotes, R.string.settings_unlisted_7tv_hint))
         add(SearchEntry(R.string.settings_seventv_events, emotes, R.string.settings_seventv_events_hint))
@@ -293,8 +310,8 @@ private val SEARCH_INDEX: List<SearchEntry> by lazy {
         add(SearchEntry(R.string.settings_badge_providers, emotes, also = BADGE_PROVIDERS.map { it.second }))
         add(SearchEntry(R.string.settings_badge_kinds, emotes, R.string.settings_badge_kinds_hint))
         val filters = SettingsPage.Filters
-        add(SearchEntry(R.string.settings_mute_keywords, filters, R.string.settings_mute_keywords_summary))
-        add(SearchEntry(R.string.settings_rules, filters, R.string.settings_rules_summary))
+        add(SearchEntry(R.string.settings_mute_keywords, filters, R.string.settings_mute_keywords_summary, also = listOf(R.string.search_also_mute_keywords)))
+        add(SearchEntry(R.string.settings_rules, filters, R.string.settings_rules_summary, also = listOf(R.string.rule_regex, R.string.search_also_rules)))
         add(SearchEntry(R.string.settings_blocked_users, filters))
         val notifications = SettingsPage.Notifications
         add(SearchEntry(R.string.settings_keywords, notifications, R.string.settings_keywords_summary))
@@ -303,11 +320,12 @@ private val SEARCH_INDEX: List<SearchEntry> by lazy {
         add(SearchEntry(R.string.settings_system_notifications, notifications, R.string.settings_notifications_hint))
         add(SearchEntry(R.string.settings_bubbles, notifications, R.string.settings_bubbles_hint))
         add(SearchEntry(R.string.settings_live_notifications, notifications, R.string.settings_live_notifications_hint))
-        add(SearchEntry(R.string.settings_live_channels, notifications, R.string.settings_live_channels_summary))
+        add(SearchEntry(R.string.settings_live_channels, notifications, R.string.settings_live_channels_summary, shownWhen = ShownWhen(R.string.settings_live_notifications) { s, _ -> s.liveNotifications }))
         val channels = SettingsPage.Channels
         add(SearchEntry(R.string.settings_channel_tabs, channels, R.string.settings_channel_tabs_hint))
         add(SearchEntry(R.string.settings_unread_title_bar, channels, R.string.settings_unread_title_bar_hint))
         add(SearchEntry(R.string.settings_carousel, channels, R.string.settings_carousel_hint))
+        add(SearchEntry(R.string.settings_stats_reset, SettingsPage.Stats, R.string.settings_stats_reset_hint))
         val storage = SettingsPage.Storage
         add(SearchEntry(R.string.settings_stats_group_data, storage, also = listOf(R.string.settings_stats_data_background)))
         add(SearchEntry(R.string.settings_mobile_data, storage, R.string.settings_mobile_data_hint, also = MOBILE_DATA.map { it.second }))
@@ -390,6 +408,7 @@ fun SettingsScreen(vm: MainViewModel, onBack: () -> Unit) {
         }
     }
     val settings by vm.settings.collectAsStateWithLifecycle()
+    val dark = isAppInDarkTheme()
     val auth by vm.authState.collectAsStateWithLifecycle()
     val update by vm.availableUpdate.collectAsStateWithLifecycle()
     val scope = rememberCoroutineScope()
@@ -478,7 +497,7 @@ fun SettingsScreen(vm: MainViewModel, onBack: () -> Unit) {
                 onQuery = { query = it },
                 onOpen = { entry ->
                     page = entry.page
-                    target = entry.key
+                    target = entry.shownWhen?.takeUnless { it.met(settings, dark) }?.key ?: entry.key
                 },
                 onBack = goBack,
             )
@@ -589,7 +608,10 @@ private fun SearchPage(modifier: Modifier, colorful: Boolean, query: String, onQ
         // The subtitle says why a result matched: a page's summary, a setting's page, and for a
         // setting found by another word, that word too.
         fun why(e: SearchEntry): String {
-            if (e.key == null) return text(e.page.summary)
+            if (e.key == null) {
+                val word = e.also.map(::text).firstOrNull { SettingsSearch.matches(query, listOf(it)) }
+                return listOfNotNull(text(e.page.summary), word).joinToString(" · ")
+            }
             val page = text(e.page.title)
             if (e in named) return page
             val reason = (listOfNotNull(e.hint) + e.also).map(::text).firstOrNull { SettingsSearch.matches(query, listOf(it)) }

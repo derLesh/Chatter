@@ -56,7 +56,7 @@ internal fun ChannelsPage(vm: MainViewModel, settings: Settings) {
         onCombine = { combineTarget = "" },
         onEditGroup = { combineTarget = it },
     )
-    SettingsGroup {
+    SettingsGroup(R.string.settings_group_switching_channels) {
         item(R.string.settings_channel_tabs) {
             SwitchItem(
                 R.string.settings_channel_tabs,
