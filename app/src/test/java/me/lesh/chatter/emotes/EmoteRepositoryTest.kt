@@ -350,6 +350,16 @@ class EmoteRepositoryTest {
     }
 
     @Test
+    fun twitchSmileysAreNamedTheWayTheyAreTyped() = runTest {
+        twitch.own = listOf("""\:-?\)""", """\&lt\;3""", "Kappa")
+        emotes.loadTwitchUserEmotes("me")
+
+        assertEquals(setOf(":)", "<3", "Kappa"), emotes.available(null).map { it.name }.toSet())
+        assertEquals("""twitch-\:-?\)""", emotes.lookupOwnTwitch(null, ":)")?.id)
+        assertEquals("the long form shows in our own message too", ":)", emotes.lookupOwnTwitch(null, ":-)")?.name)
+    }
+
+    @Test
     fun followerEmotesOnlyComeAlongForSomebodyWhoFollows() = runTest {
         twitch.follower = listOf("channelSmile")
         twitch.follows = false

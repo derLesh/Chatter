@@ -102,6 +102,7 @@ class EmoteRepository(
     /** Twitch emote the logged-in user owns, for rendering their own echoed messages. */
     override fun lookupOwnTwitch(channelId: String?, word: String): Emote? =
         twitchUser[word] ?: channelId?.let { channelTwitch[it]?.get(word) }
+            ?: TwitchSmileys.typedBy(word)?.let { twitchUser[it] }
 
     /** All providers have answered for [channelId], so a message built now will not change. */
     override fun complete(channelId: String?): Boolean =
@@ -168,7 +169,8 @@ class EmoteRepository(
         val list = safe("Twitch user emotes") { helix.userEmotes(userId) } ?: return
         twitchUser = list.associate {
             val owner = twitchOwnerId(it.ownerId)
-            it.name to Emote(it.name, it.id, twitchEmoteUrl(it.id), EmoteProvider.Twitch, isChannel = owner != null, ownerId = owner)
+            val name = TwitchSmileys.nameOf(it.name)
+            name to Emote(name, it.id, twitchEmoteUrl(it.id), EmoteProvider.Twitch, isChannel = owner != null, ownerId = owner)
         }
         // Follower and bits emotes come from channels too, but only sub emotes mean a sub.
         subscribedChannels = list.filter { it.emoteType == "subscriptions" }.mapNotNullTo(HashSet()) { twitchOwnerId(it.ownerId) }

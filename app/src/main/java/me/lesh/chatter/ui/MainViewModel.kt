@@ -523,6 +523,10 @@ class MainViewModel(private val c: AppContainer, savedState: SavedStateHandle) :
         } else if (word.text.startsWith("@")) {
             if (!settings.value.userSuggestions) emptyList()
             else Autocomplete.rankUsers(word.text, c.chat.chatters(channel)).map { Suggestion.UserSuggestion(it) }
+        } else if (word.text == ":" || word.text == ";") {
+            // The Twitch smileys start here, so one character already offers them.
+            if (!settings.value.emoteSuggestions) emptyList()
+            else Autocomplete.rankEmotes(word.text, emotesFor(channel)).map { Suggestion.EmoteSuggestion(it) }
         } else if (word.text.length >= 2) {
             val s = settings.value
             // A plain word can be either: emotes first, since they are typed without "@", names
