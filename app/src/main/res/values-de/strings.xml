@@ -803,8 +803,11 @@
 
     <string name="whisper_sent">Flüsternachricht an %1$s gesendet</string>
     <string name="whisper_reply_title">Flüstern an %1$s</string>
-    <string name="whisper_reply_hint">Deine Antwort</string>
-    <string name="whisper_new_hint">Deine Nachricht</string>
+    <string name="inbox_you">Du</string>
+    <string name="whisper_chat_empty">Sag %1$s Hallo</string>
+    <string name="whisper_chat_empty_hint">Hier steht, was ihr euch ab jetzt flüstert</string>
+    <string name="whisper_delete">Unterhaltung löschen</string>
+    <string name="whisper_delete_title">Unterhaltung mit %1$s löschen?</string>
     <string name="action_whisper">Flüstern</string>
     <string name="action_open_on_twitch">Auf Twitch öffnen</string>
     <string name="more_options">Weitere Optionen</string>

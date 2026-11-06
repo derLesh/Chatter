@@ -28,7 +28,6 @@ import me.lesh.chatter.ui.chat.NicknameDialog
 import me.lesh.chatter.ui.chat.NoteDialog
 import me.lesh.chatter.ui.chat.ThreadSheet
 import me.lesh.chatter.ui.chat.UserCardSheet
-import me.lesh.chatter.ui.inbox.WhisperReplySheet
 import kotlinx.coroutines.launch
 
 /**
@@ -56,9 +55,6 @@ class ChatSheetState {
 
     /** A badge held in the chat, whose kind the user may hide. */
     var badgeToHide by mutableStateOf<Badge?>(null)
-
-    /** Whisper recipient from a user card: their message and their id if known. */
-    var whisperTo by mutableStateOf<Pair<ChatItem, String?>?>(null)
 
     /** The message whose conversation is open. */
     var threadOf by mutableStateOf<ChatItem?>(null)
@@ -113,7 +109,7 @@ fun ChatSheets(
             // Both write into the input, which is gone while the user only reads.
             onReply = if (settings.readOnly) null else ({ vm.startReply(item) }),
             onMention = if (settings.readOnly) null else ({ vm.mention(item) }),
-            onWhisper = { userId -> sheets.whisperTo = item to userId },
+            onWhisper = { userId -> item.login?.let { vm.openWhisper(it, userId, item.displayName) } },
             onDelete = { vm.deleteMessage(item) },
             onPin = { vm.pinMessage(item, it) },
             onTimeout = { vm.timeoutUser(item, it) },
@@ -144,20 +140,6 @@ fun ChatSheets(
             },
             input = threadInput,
         )
-    }
-    sheets.whisperTo?.let { (item, userId) ->
-        val login = item.login
-        if (login == null) sheets.whisperTo = null else {
-            WhisperReplySheet(
-                name = nicknames[login.lowercase()] ?: item.displayName ?: login,
-                quoted = null,
-                onSend = { text ->
-                    // Twitch refuses whispers for various reasons; the snackbar says which.
-                    scope.launch { snackbar.showSnackbar(vm.whisperTo(login, userId, text)) }
-                },
-                onDismiss = { sheets.whisperTo = null },
-            )
-        }
     }
     sheets.nicknameTarget?.let { target ->
         val login = target.login

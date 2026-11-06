@@ -17,6 +17,9 @@ import kotlinx.coroutines.launch
 /** In a launch intent: open the inbox on this tab instead of a channel. */
 const val EXTRA_INBOX_TAB = "inbox_tab"
 
+/** The whisper conversation to open in the inbox: the other person's login. */
+const val EXTRA_WHISPER_LOGIN = "whisper_login"
+
 const val INBOX_TAB_MENTIONS = 0
 const val INBOX_TAB_WHISPERS = 1
 

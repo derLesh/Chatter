@@ -78,6 +78,7 @@ fun AppRoot(vm: MainViewModel) {
             val toChat = {
                 showSettings = false
                 showInbox = false
+                vm.closeWhisper()
             }
             // The chat leaves composition while another screen covers it, and is only underneath
             // while one slides or is dragged away.

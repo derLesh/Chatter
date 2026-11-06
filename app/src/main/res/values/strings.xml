@@ -813,8 +813,11 @@
     <string name="notif_not_listening_login">Your Twitch login has run out. Open Chatter and log in again to keep getting mentions.</string>
     <string name="whisper_sent">Whisper sent to %1$s</string>
     <string name="whisper_reply_title">Whisper to %1$s</string>
-    <string name="whisper_reply_hint">Your answer</string>
-    <string name="whisper_new_hint">Your message</string>
+    <string name="inbox_you">You</string>
+    <string name="whisper_chat_empty">Say hi to %1$s</string>
+    <string name="whisper_chat_empty_hint">What you whisper to each other from now on shows up here</string>
+    <string name="whisper_delete">Delete conversation</string>
+    <string name="whisper_delete_title">Delete the conversation with %1$s?</string>
     <string name="action_whisper">Whisper</string>
     <string name="action_open_on_twitch">Open on Twitch</string>
     <string name="more_options">More options</string>

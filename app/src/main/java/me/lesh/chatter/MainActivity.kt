@@ -31,6 +31,7 @@ import me.lesh.chatter.util.EXTRA_PROFILING_KEEP_SCREEN_ON
 import me.lesh.chatter.util.EXTRA_PROFILING_LARGE_EMOTES
 import me.lesh.chatter.util.EXTRA_PROFILING_PURE_BLACK
 import me.lesh.chatter.util.EXTRA_PROFILING_SMOOTH_SCROLLING
+import me.lesh.chatter.util.EXTRA_WHISPER_LOGIN
 
 class MainActivity : ComponentActivity() {
     private val vm: MainViewModel by viewModels {
@@ -81,6 +82,7 @@ class MainActivity : ComponentActivity() {
         }
         intent.getStringExtra(EXTRA_LIVE_CHANNEL)?.let(vm::openLiveChannel)
         intent.getIntExtra(EXTRA_INBOX_TAB, -1).takeIf { it >= 0 }?.let { vm.requestedInbox.value = it }
+        intent.getStringExtra(EXTRA_WHISPER_LOGIN)?.let { vm.openWhisper(it, userId = null, displayName = null) }
         // Any app can start this activity and must not add channels (a live notification only adds
         // the channel it was posted for), so only profiling builds listen.
         if (BuildConfig.PROFILING) applyProfilingExtras(intent)

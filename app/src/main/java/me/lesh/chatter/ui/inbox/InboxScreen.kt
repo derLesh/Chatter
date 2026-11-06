@@ -1,10 +1,14 @@
 package me.lesh.chatter.ui.inbox
 
+import androidx.compose.animation.AnimatedContent
 import androidx.compose.ui.text.style.LineBreak
 import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.material.icons.filled.Email
 import androidx.compose.ui.graphics.vector.rememberVectorPainter
 import androidx.compose.ui.graphics.painter.Painter
+import androidx.compose.ui.unit.Dp
+import me.lesh.chatter.chat.WhisperConversation
+import me.lesh.chatter.chat.whispersWith
 import me.lesh.chatter.ui.FormSheet
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.res.painterResource
@@ -17,6 +21,7 @@ import java.time.Instant
 import android.text.format.DateFormat
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
+import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.heading
@@ -87,6 +92,8 @@ import me.lesh.chatter.chat.InboxWhisper
 import me.lesh.chatter.chat.chatterName
 import me.lesh.chatter.ui.MainViewModel
 import me.lesh.chatter.ui.channels.ChannelAvatar
+import me.lesh.chatter.ui.rememberPredictiveTransition
+import me.lesh.chatter.ui.slideBetweenScreens
 import me.lesh.chatter.ui.theme.isAppInDarkTheme
 import me.lesh.chatter.ui.theme.isPureBlack
 import me.lesh.chatter.ui.theme.readableNameColor
@@ -99,20 +106,21 @@ import kotlinx.coroutines.launch
 fun InboxScreen(vm: MainViewModel, onOpenMention: (InboxMention) -> Unit, onBack: () -> Unit) {
     val mentions by vm.inboxMentions.collectAsStateWithLifecycle()
     val whispers by vm.inboxWhispers.collectAsStateWithLifecycle()
+    val conversations by vm.whisperConversations.collectAsStateWithLifecycle()
     val mentionUnread by vm.mentionUnread.collectAsStateWithLifecycle()
     val whisperUnread by vm.whisperUnread.collectAsStateWithLifecycle()
     val info by vm.channelInfo.collectAsStateWithLifecycle()
     val nicknames by vm.nicknames.collectAsStateWithLifecycle()
     val settings by vm.settings.collectAsStateWithLifecycle()
+    val target by vm.whisperTarget.collectAsStateWithLifecycle()
+    val nameOf = { login: String, displayName: String -> chatterName(displayName, login, settings.nameStyle, nicknames[login.lowercase()]) }
 
     val pager = rememberPagerState { 2 }
-    val scope = rememberCoroutineScope()
     val snackbar = remember { SnackbarHostState() }
-    var replyTo by remember { mutableStateOf<InboxWhisper?>(null) }
     var clearing by rememberSaveable { mutableStateOf<Int?>(null) }
     val onMentions = pager.currentPage == INBOX_TAB_MENTIONS
 
-    // Requested by a whisper notification or the shortcut.
+    // Requested by a whisper notification, the shortcut or a user card.
     val requestedTab by vm.requestedInbox.collectAsStateWithLifecycle()
     LaunchedEffect(requestedTab) {
         val tab = requestedTab ?: return@LaunchedEffect
@@ -120,36 +128,65 @@ fun InboxScreen(vm: MainViewModel, onOpenMention: (InboxMention) -> Unit, onBack
         vm.requestedInbox.value = null
     }
 
-    // While the whisper tab is open, arriving whispers need no notification and the posted ones are
+    // While the whispers are on screen, arriving ones need no notification and the posted ones are
     // cleared.
     DisposableEffect(onMentions) {
         vm.setWhispersVisible(!onMentions)
         onDispose { vm.setWhispersVisible(false) }
     }
 
-    InboxContent(
-        pager = pager,
-        mentions = mentions,
-        whispers = whispers,
-        mentionUnread = mentionUnread,
-        whisperUnread = whisperUnread,
-        info = info,
-        nameOf = { login, displayName -> chatterName(displayName, login, settings.nameStyle, nicknames[login.lowercase()]) },
-        ownLogin = vm.ownLogin,
-        imageLoader = vm.imageLoader,
-        snackbar = snackbar,
-        onBack = onBack,
-        onOpenMention = { mention ->
-            vm.markInboxRead(mention)
-            onOpenMention(mention)
-        },
-        onOpenWhisper = { whisper ->
-            vm.markWhisperRead(whisper)
-            replyTo = whisper
-        },
-        onMarkAllRead = { tab -> if (tab == INBOX_TAB_MENTIONS) vm.markInboxRead() else vm.markWhispersRead() },
-        onClear = { tab -> clearing = tab },
-    )
+    val page = target?.let { InboxPage.Chat(it) } ?: InboxPage.Lists
+    rememberPredictiveTransition(
+        current = page,
+        backTo = InboxPage.Lists.takeIf { page is InboxPage.Chat },
+        onBack = vm::closeWhisper,
+        label = "inbox",
+    ).AnimatedContent(transitionSpec = { slideBetweenScreens(forward = targetState is InboxPage.Chat) }) { shown ->
+        when (shown) {
+            InboxPage.Lists -> InboxContent(
+                pager = pager,
+                mentions = mentions,
+                conversations = conversations,
+                mentionUnread = mentionUnread,
+                whisperUnread = whisperUnread,
+                info = info,
+                nameOf = nameOf,
+                ownLogin = vm.ownLogin,
+                imageLoader = vm.imageLoader,
+                snackbar = snackbar,
+                onBack = onBack,
+                onOpenMention = { mention ->
+                    vm.markInboxRead(mention)
+                    onOpenMention(mention)
+                },
+                onOpenConversation = { vm.openWhisper(it.login, it.userId, it.displayName) },
+                onMarkAllRead = { tab -> if (tab == INBOX_TAB_MENTIONS) vm.markInboxRead() else vm.markWhispersRead() },
+                onClear = { tab -> clearing = tab },
+            )
+            is InboxPage.Chat -> {
+                val with = shown.target
+                val messages = whispersWith(whispers, with.login)
+                val conversation = conversations.firstOrNull { it.login == with.login }
+                // Read as they arrive while the conversation is open.
+                LaunchedEffect(with.login, messages.firstOrNull()?.id) { vm.markConversationRead(with.login) }
+                WhisperChat(
+                    name = nameOf(with.login, conversation?.displayName ?: with.displayName),
+                    nameColor = readableNameColor(conversation?.color, with.login, isAppInDarkTheme()),
+                    messages = messages,
+                    snackbar = snackbar,
+                    onBack = vm::closeWhisper,
+                    onSend = { text ->
+                        val result = vm.sendWhisper(with.login, conversation?.userId ?: with.userId, text)
+                        if (result.sent) null else result.message
+                    },
+                    onDelete = {
+                        vm.clearConversation(with.login)
+                        vm.closeWhisper()
+                    },
+                )
+            }
+        }
+    }
 
     clearing?.let { tab ->
         ClearInboxSheet(
@@ -158,18 +195,12 @@ fun InboxScreen(vm: MainViewModel, onOpenMention: (InboxMention) -> Unit, onBack
             onDismiss = { clearing = null },
         )
     }
+}
 
-    replyTo?.let { whisper ->
-        WhisperReplySheet(
-            name = chatterName(whisper.displayName, whisper.login, settings.nameStyle, nicknames[whisper.login.lowercase()]),
-            quoted = whisper.text,
-            onSend = { text ->
-                // Twitch may refuse a whisper; the snackbar shows its answer.
-                scope.launch { snackbar.showSnackbar(vm.sendWhisper(whisper, text)) }
-            },
-            onDismiss = { replyTo = null },
-        )
-    }
+/** The tabs, or one whisper conversation over them. */
+private sealed interface InboxPage {
+    data object Lists : InboxPage
+    data class Chat(val target: WhisperTarget) : InboxPage
 }
 
 /** The inbox as it looks, without the view model, so it can be shown with sample data. */
@@ -178,7 +209,7 @@ fun InboxScreen(vm: MainViewModel, onOpenMention: (InboxMention) -> Unit, onBack
 internal fun InboxContent(
     pager: PagerState,
     mentions: List<InboxMention>,
-    whispers: List<InboxWhisper>,
+    conversations: List<WhisperConversation>,
     mentionUnread: Int,
     whisperUnread: Int,
     info: Map<String, ChannelInfo>,
@@ -189,7 +220,7 @@ internal fun InboxContent(
     snackbar: SnackbarHostState,
     onBack: () -> Unit,
     onOpenMention: (InboxMention) -> Unit,
-    onOpenWhisper: (InboxWhisper) -> Unit,
+    onOpenConversation: (WhisperConversation) -> Unit,
     /** Gets the tab in front, [INBOX_TAB_MENTIONS] or [INBOX_TAB_WHISPERS]. */
     onMarkAllRead: (tab: Int) -> Unit,
     /** Asks to clear the tab in front; nothing is gone until [ClearInboxSheet] is confirmed. */
@@ -198,7 +229,7 @@ internal fun InboxContent(
     val scope = rememberCoroutineScope()
     // The bar's actions belong to the tab in front.
     val onMentions = pager.currentPage == INBOX_TAB_MENTIONS
-    val hasItems = if (onMentions) mentions.isNotEmpty() else whispers.isNotEmpty()
+    val hasItems = if (onMentions) mentions.isNotEmpty() else conversations.isNotEmpty()
     val hasUnread = (if (onMentions) mentionUnread else whisperUnread) > 0
 
     Scaffold(
@@ -240,7 +271,7 @@ internal fun InboxContent(
             HorizontalPager(pager, Modifier.weight(1f)) { page ->
                 when (page) {
                     INBOX_TAB_MENTIONS -> MentionList(mentions, info, nameOf, ownLogin, imageLoader, onOpenMention)
-                    else -> WhisperList(whispers.filterNot { it.outgoing }, nameOf, onOpenWhisper)
+                    else -> ConversationList(conversations, nameOf, onOpenConversation)
                 }
             }
         }
@@ -337,13 +368,14 @@ private fun MentionList(
     }
 }
 
+/** One row per person, like a messaging app's list of chats. */
 @Composable
-private fun WhisperList(
-    whispers: List<InboxWhisper>,
+private fun ConversationList(
+    conversations: List<WhisperConversation>,
     nameOf: (login: String, displayName: String) -> String,
-    onOpen: (InboxWhisper) -> Unit,
+    onOpen: (WhisperConversation) -> Unit,
 ) {
-    if (whispers.isEmpty()) {
+    if (conversations.isEmpty()) {
         EmptyTab(
             icon = rememberVectorPainter(Icons.Filled.Email),
             title = stringResource(R.string.inbox_whispers_empty),
@@ -352,16 +384,27 @@ private fun WhisperList(
         return
     }
     val dark = isAppInDarkTheme()
-    DayList(whispers, InboxWhisper::timestamp, InboxWhisper::id) { whisper ->
-        val name = nameOf(whisper.login, whisper.displayName)
+    val you = stringResource(R.string.inbox_you)
+    DayList(conversations, { it.latest.timestamp }, WhisperConversation::login) { conversation ->
+        val name = nameOf(conversation.login, conversation.displayName)
+        val latest = conversation.latest
         InboxRow(
             name = name,
             place = null,
-            text = AnnotatedString(whisper.text),
-            timestamp = whisper.timestamp,
-            read = whisper.read,
-            avatar = { InitialAvatar(name, readableNameColor(whisper.color, whisper.login, dark)) },
-            onClick = { onOpen(whisper) },
+            text = remember(latest.id, you) {
+                buildAnnotatedString {
+                    if (latest.outgoing) {
+                        withStyle(SpanStyle(fontWeight = FontWeight.Medium)) { append(you) }
+                        append(": ")
+                    }
+                    append(latest.text)
+                }
+            },
+            timestamp = latest.timestamp,
+            read = conversation.unread == 0,
+            unreadCount = conversation.unread,
+            avatar = { InitialAvatar(name, readableNameColor(conversation.color, conversation.login, dark)) },
+            onClick = { onOpen(conversation) },
         )
     }
 }
@@ -403,21 +446,24 @@ private fun <T> DayList(
     }
 }
 
+/** "Heute", "Gestern" or the weekday and date. */
 @Composable
-private fun DayHeading(day: LocalDate, today: LocalDate) {
-    val label = when (day) {
-        today -> stringResource(R.string.inbox_today)
-        today.minusDays(1) -> stringResource(R.string.inbox_yesterday)
-        else -> {
-            val locale = LocalConfiguration.current.locales[0]
-            val skeleton = if (day.year == today.year) "EEEEdMMMM" else "EEEEdMMMMyyyy"
-            remember(day, locale) {
-                day.format(DateTimeFormatter.ofPattern(DateFormat.getBestDateTimePattern(locale, skeleton), locale))
-            }
+internal fun dayLabel(day: LocalDate, today: LocalDate): String = when (day) {
+    today -> stringResource(R.string.inbox_today)
+    today.minusDays(1) -> stringResource(R.string.inbox_yesterday)
+    else -> {
+        val locale = LocalConfiguration.current.locales[0]
+        val skeleton = if (day.year == today.year) "EEEEdMMMM" else "EEEEdMMMMyyyy"
+        remember(day, locale) {
+            day.format(DateTimeFormatter.ofPattern(DateFormat.getBestDateTimePattern(locale, skeleton), locale))
         }
     }
+}
+
+@Composable
+private fun DayHeading(day: LocalDate, today: LocalDate) {
     Text(
-        label,
+        dayLabel(day, today),
         style = MaterialTheme.typography.titleSmall,
         color = MaterialTheme.colorScheme.primary,
         modifier = Modifier
@@ -433,7 +479,7 @@ private fun DayHeading(day: LocalDate, today: LocalDate) {
  * the text color, since a name color is tuned for the screen background, not for its own tint.
  */
 @Composable
-private fun InitialAvatar(name: String, color: Color) {
+internal fun InitialAvatar(name: String, color: Color, size: Dp = AVATAR_SIZE) {
     val onSurface = MaterialTheme.colorScheme.onSurface
     val base = if (color == Color.Unspecified) onSurface else color
     // Dark name colors sit closer to their own dark tint, so they need more of the text color.
@@ -441,7 +487,7 @@ private fun InitialAvatar(name: String, color: Color) {
     Box(
         contentAlignment = Alignment.Center,
         modifier = Modifier
-            .size(AVATAR_SIZE)
+            .size(size)
             .clip(CircleShape)
             .background(base.copy(alpha = 0.18f))
             // The name follows right beside it; the letter would only repeat its first sound.
@@ -471,6 +517,8 @@ private fun InboxRow(
     read: Boolean,
     avatar: @Composable () -> Unit,
     onClick: () -> Unit,
+    /** Shown instead of the dot where it says more, as for a conversation. */
+    unreadCount: Int = 0,
 ) {
     val colors = MaterialTheme.colorScheme
     val context = LocalContext.current
@@ -526,8 +574,9 @@ private fun InboxRow(
                     overflow = TextOverflow.Ellipsis,
                     modifier = Modifier.weight(1f),
                 )
-                if (!read) {
-                    Box(
+                when {
+                    unreadCount > 0 -> Box(Modifier.padding(start = 12.dp, top = 1.dp)) { UnreadCount(unreadCount, selected = true) }
+                    !read -> Box(
                         Modifier
                             .padding(start = 12.dp, top = 6.dp)
                             .size(8.dp)
@@ -566,7 +615,7 @@ private const val UNREAD_TINT_BLACK = 0.24f
 
 /** A picture of what would be here, and one line on how it gets here. */
 @Composable
-private fun EmptyTab(icon: Painter, title: String, hint: String) {
+internal fun EmptyTab(icon: Painter, title: String, hint: String) {
     Column(
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center,
