@@ -335,6 +335,10 @@
     <string name="settings_image_hosts_reset">Zurück zu den voreingestellten Seiten</string>
     <string name="settings_image_hosts_note">Nur von diesen Seiten werden Bilder im Chat angezeigt. Links zu anderen Seiten bleiben ein Link</string>
     <string name="linked_image">Verlinktes Bild</string>
+    <string name="image_viewer_close">Schließen</string>
+    <string name="image_viewer_copy_link">Link kopieren</string>
+    <string name="image_viewer_open_in_browser">Im Browser öffnen</string>
+    <string name="image_viewer_failed">Das Bild konnte nicht geladen werden</string>
     <string name="settings_post_site">Posts von %1$s anzeigen</string>
     <string name="settings_post_site_x_hint">Zeigt Links zu X-Posts als Karte</string>
     <string name="settings_posts">Social-Media-Posts</string>

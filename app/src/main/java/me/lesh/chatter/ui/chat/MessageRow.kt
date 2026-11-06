@@ -17,6 +17,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.InlineTextContent
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -32,6 +33,7 @@ import androidx.compose.ui.graphics.CompositingStrategy
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.layout.onPlaced
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.preferredFrameRate
@@ -328,9 +330,9 @@ private fun PaintedLine(
 }
 
 /**
- * A linked image or GIF shown in place of its URL. Tapping opens the link, which is also the
- * fallback when the image fails to load, written as [title] if there is one. [alone]: the only
- * picture in the message, which may use more width.
+ * A linked image or GIF shown in place of its URL. Tapping shows it full screen in [LocalImageViewer],
+ * or opens the link where there is none. The link is also the fallback when the image fails to load,
+ * written as [title] if there is one. [alone]: the only picture in the message, which may use more width.
  */
 @Composable
 private fun LinkedImage(url: String, style: ChatStyle, loader: ImageLoader, alone: Boolean, title: String? = null) {
@@ -344,20 +346,27 @@ private fun LinkedImage(url: String, style: ChatStyle, loader: ImageLoader, alon
         return
     }
     val uriHandler = LocalUriHandler.current
+    val viewer = LocalImageViewer.current
+    val origin = remember(url) { ImageOrigin() }
+    // A recycled row is attached again for another message; the viewer must not shrink into it.
+    DisposableEffect(origin) { onDispose { origin.coordinates = null } }
     AsyncImage(
         model = url,
         contentDescription = title?.removeSurrounding("[", "]") ?: stringResource(R.string.linked_image),
         imageLoader = loader,
         contentScale = ContentScale.Fit,
         alignment = Alignment.TopStart,
+        onSuccess = { origin.image = it.result.image },
         onError = { failed = true },
         modifier = Modifier
             .sizeIn(
                 maxWidth = if (alone) IMAGE_MAX_WIDTH else IMAGE_SHARED_MAX_WIDTH,
                 maxHeight = if (alone) IMAGE_MAX_HEIGHT else IMAGE_SHARED_MAX_HEIGHT,
             )
-            .clip(RoundedCornerShape(8.dp))
-            .clickable { uriHandler.openUri(url) },
+            .onPlaced { origin.coordinates = it }
+            .graphicsLayer { alpha = if (viewer?.covers(origin) == true) 0f else 1f }
+            .clip(RoundedCornerShape(LINKED_IMAGE_CORNER))
+            .clickable { viewer?.show(url, title, origin) ?: uriHandler.openUri(url) },
     )
 }
 

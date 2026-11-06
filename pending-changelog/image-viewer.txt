@@ -1,0 +1,1 @@
+minor: Tap an image in the chat to see it grow to full screen, zoom in, and open it in your browser from there
