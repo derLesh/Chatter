@@ -25,18 +25,17 @@ import androidx.compose.material.icons.automirrored.filled.ExitToApp
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.AccountCircle
 import androidx.compose.material.icons.filled.Add
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Icon
 import androidx.compose.material3.ListItem
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -59,6 +58,7 @@ import coil3.compose.AsyncImage
 import me.lesh.chatter.R
 import me.lesh.chatter.auth.Account
 import me.lesh.chatter.auth.AuthState
+import me.lesh.chatter.ui.FormSheet
 import me.lesh.chatter.ui.MainViewModel
 import java.time.Instant
 import java.time.ZoneId
@@ -85,7 +85,7 @@ fun AccountPage(
         if (auth is AuthState.Guest) GuestCard(onLogIn = vm::leaveGuest)
         return
     }
-    var loggingOut by remember { mutableStateOf<Account?>(null) }
+    var loggingOutId by rememberSaveable { mutableStateOf<String?>(null) }
 
     ProfileCard(active, vm.imageLoader)
     AccountsGroup(
@@ -94,26 +94,19 @@ fun AccountPage(
         imageLoader = vm.imageLoader,
         onSwitch = vm::switchAccount,
         onAdd = onAddAccount,
-        onLogout = { loggingOut = it },
+        onLogout = { loggingOutId = it.userId },
     )
     if (active.missingScopes.isNotEmpty()) MissingScopesCard(onReauthorize)
 
-    loggingOut?.let { target ->
+    accounts.firstOrNull { it.userId == loggingOutId }?.let { target ->
         val last = accounts.size == 1
-        AlertDialog(
-            onDismissRequest = { loggingOut = null },
-            title = { Text(stringResource(R.string.account_logout_title, target.name)) },
-            text = {
-                Text(stringResource(if (last) R.string.account_logout_last_text else R.string.account_logout_text))
-            },
-            confirmButton = {
-                TextButton(onClick = { vm.removeAccount(target.userId); loggingOut = null }) {
-                    Text(stringResource(R.string.logout))
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = { loggingOut = null }) { Text(stringResource(R.string.cancel)) }
-            },
+        FormSheet(
+            title = stringResource(R.string.account_logout_title, target.name),
+            text = stringResource(if (last) R.string.account_logout_last_text else R.string.account_logout_text),
+            confirmLabel = stringResource(R.string.logout),
+            onConfirm = { vm.removeAccount(target.userId) },
+            onDismiss = { loggingOutId = null },
+            destructive = true,
         )
     }
 }

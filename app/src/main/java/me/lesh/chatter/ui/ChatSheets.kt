@@ -14,8 +14,8 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil3.ImageLoader
 import me.lesh.chatter.badges.Badge
 import me.lesh.chatter.chat.ChatItem
-import me.lesh.chatter.ui.channels.AddChannelDialog
-import me.lesh.chatter.ui.channels.CombineChannelsDialog
+import me.lesh.chatter.ui.channels.AddChannelSheet
+import me.lesh.chatter.ui.channels.CombineChannelsSheet
 import me.lesh.chatter.ui.channels.RenameChannelDialog
 import me.lesh.chatter.ui.chat.CatchUpSheet
 import me.lesh.chatter.ui.chat.ChannelMark
@@ -215,10 +215,10 @@ fun ChatSheets(
         )
     }
     if (sheets.showAdd) {
-        AddChannelDialog(
+        AddChannelSheet(
             search = vm::searchChannels,
             imageLoader = vm.imageLoader,
-            onAdd = { vm.addChannel(it); sheets.showAdd = false },
+            onAdd = vm::addChannel,
             onDismiss = { sheets.showAdd = false },
         )
     }
@@ -227,7 +227,7 @@ fun ChatSheets(
         val groups by vm.groups.collectAsStateWithLifecycle()
         val info by vm.channelInfo.collectAsStateWithLifecycle()
         val group = groups[key]
-        CombineChannelsDialog(
+        CombineChannelsSheet(
             channels = channels,
             info = info,
             group = group,

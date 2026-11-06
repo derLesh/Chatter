@@ -6,6 +6,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.platform.LocalContext
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -13,8 +14,8 @@ import me.lesh.chatter.R
 import me.lesh.chatter.service.ChatNotifier
 import me.lesh.chatter.settings.Settings
 import me.lesh.chatter.ui.MainViewModel
-import me.lesh.chatter.ui.channels.AddChannelDialog
-import me.lesh.chatter.ui.channels.CombineChannelsDialog
+import me.lesh.chatter.ui.channels.AddChannelSheet
+import me.lesh.chatter.ui.channels.CombineChannelsSheet
 import me.lesh.chatter.ui.channels.ManageChannelsPage
 import me.lesh.chatter.ui.channels.RenameChannelDialog
 
@@ -29,9 +30,9 @@ internal fun ChannelsPage(vm: MainViewModel, settings: Settings) {
     val muted by vm.mutedChannels.collectAsStateWithLifecycle()
     val hiddenUnread by vm.hiddenUnread.collectAsStateWithLifecycle()
     var renameTarget by remember { mutableStateOf<String?>(null) }
-    var showAdd by remember { mutableStateOf(false) }
+    var showAdd by rememberSaveable { mutableStateOf(false) }
     // Null while no dialog is open; the key of the combined chat being edited, or "" for a new one.
-    var combineTarget by remember { mutableStateOf<String?>(null) }
+    var combineTarget by rememberSaveable { mutableStateOf<String?>(null) }
 
     ManageChannelsPage(
         pages = pages,
@@ -90,16 +91,16 @@ internal fun ChannelsPage(vm: MainViewModel, settings: Settings) {
         )
     }
     if (showAdd) {
-        AddChannelDialog(
+        AddChannelSheet(
             search = vm::searchChannels,
             imageLoader = vm.imageLoader,
-            onAdd = { vm.addChannel(it); showAdd = false },
+            onAdd = vm::addChannel,
             onDismiss = { showAdd = false },
         )
     }
     combineTarget?.let { key ->
         val group = groups[key]
-        CombineChannelsDialog(
+        CombineChannelsSheet(
             channels = channels,
             info = info,
             group = group,
