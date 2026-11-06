@@ -11,6 +11,7 @@ import me.lesh.chatter.R
 import me.lesh.chatter.channels.ChannelIdentity
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.launch
 
 /** In a launch intent: open the inbox on this tab instead of a channel. */
@@ -103,21 +104,23 @@ fun channelShortcut(
 class ChannelShortcuts(
     private val context: Context,
     private val identities: Flow<List<ChannelIdentity>>,
+    /** False for a guest, who has no inbox to open. */
+    private val hasInbox: Flow<Boolean>,
     private val icons: ChannelIcons,
     private val scope: CoroutineScope,
 ) {
     fun start() {
-        scope.launch { identities.collect { publish(it) } }
+        scope.launch { combine(identities, hasInbox, ::Pair).collect { (channels, inbox) -> publish(channels, inbox) } }
     }
 
-    private suspend fun publish(channels: List<ChannelIdentity>) {
+    private suspend fun publish(channels: List<ChannelIdentity>, withInbox: Boolean) {
         // Android allows only a few; one slot is the inbox's.
         val room = (ShortcutManagerCompat.getMaxShortcutCountPerActivity(context) - 1).coerceAtLeast(1)
         val shortcuts = channels.take(room).mapIndexed { index, it ->
             channelShortcut(context, it.login, it.name, icons.channel(it.login), rank = index)
         }
         runCatching {
-            ShortcutManagerCompat.setDynamicShortcuts(context, shortcuts + inboxShortcut(channels.size))
+            ShortcutManagerCompat.setDynamicShortcuts(context, shortcuts + listOfNotNull(inboxShortcut(channels.size).takeIf { withInbox }))
             removeStale(channels.map { it.login }.toSet())
         }
     }

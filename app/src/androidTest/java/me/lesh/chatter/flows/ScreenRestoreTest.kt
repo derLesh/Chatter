@@ -15,14 +15,15 @@ import me.lesh.chatter.MainActivity
 import me.lesh.chatter.R
 import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertNotNull
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
 
 /**
- * The settings and the inbox stay open, on the page the user was on, when Android recreates the
- * activity, as it does when the phone turns or the process comes back.
+ * The settings stay open, on the page the user was on, when Android recreates the activity, as it
+ * does when the phone turns or the process comes back.
  *
  * Read as a guest without channels: no login, and no message arrives to change the screen.
  */
@@ -50,15 +51,12 @@ class ScreenRestoreTest {
         }
     }
 
+    /** A guest has no mentions or whispers, so the chat offers no inbox at all. */
     @Test
-    fun theInboxAndItsTabComeBack() {
-        ActivityScenario.launch(MainActivity::class.java).use { activity ->
-            tap(By.desc(app.getString(R.string.inbox_title)))
-            tap(By.text(app.getString(R.string.inbox_tab_whispers)))
-            expect(By.text(app.getString(R.string.inbox_whispers_empty)))
-
-            activity.recreate()
-            expect(By.text(app.getString(R.string.inbox_whispers_empty)))
+    fun aGuestHasNoInbox() {
+        ActivityScenario.launch(MainActivity::class.java).use {
+            expect(By.desc(app.getString(R.string.settings)))
+            assertNull(device.findObject(By.desc(app.getString(R.string.inbox_title))))
         }
     }
 

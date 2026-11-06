@@ -244,7 +244,9 @@ class AppContainer(
     // Needs the image loader: mention notifications use the channel avatar as icon.
     private val channelIcons = ChannelIcons(context, channels, imageLoader)
     val notifier = ChatNotifier(context, channels, helix, settings.settings, channelIcons, dataSaving.active, nicknames::nicknameOf) { auth.account?.userId }
-    private val shortcuts = ChannelShortcuts(context, channels.identities, channelIcons, scope)
+    private val shortcuts = ChannelShortcuts(
+        context, channels.identities, auth.state.map { it is AuthState.LoggedIn }.distinctUntilChanged(), channelIcons, scope,
+    )
     val appIcons = AppIconSwitcher(context, settings, scope)
     val liveAlerts = LiveAlerts(helix, auth, channels, settings.settings, activeUserId, chat.windows.anyVisible, notifier, scope)
 

@@ -102,7 +102,8 @@ fun ChannelTopBar(
     onRemove: (String) -> Unit,
     onRename: (String) -> Unit,
     onMove: (String, Int) -> Unit,
-    onInbox: () -> Unit,
+    /** Null for a guest, who has no inbox. */
+    onInbox: (() -> Unit)?,
     inboxUnread: Int,
     onSettings: () -> Unit,
     settingsBadge: Boolean = false,
@@ -186,11 +187,13 @@ fun ChannelTopBar(
                 imageLoader = imageLoader,
                 onSelect = onSelect,
             )
-            IconButton(onClick = onInbox) {
-                BadgedBox(
-                    badge = { if (inboxUnread > 0) Badge { Text(formatCount(inboxUnread)) } },
-                ) {
-                    Icon(Icons.Default.MailOutline, contentDescription = stringResource(R.string.inbox_title))
+            if (onInbox != null) {
+                IconButton(onClick = onInbox) {
+                    BadgedBox(
+                        badge = { if (inboxUnread > 0) Badge { Text(formatCount(inboxUnread)) } },
+                    ) {
+                        Icon(Icons.Default.MailOutline, contentDescription = stringResource(R.string.inbox_title))
+                    }
                 }
             }
             IconButton(onClick = onSettings) {
