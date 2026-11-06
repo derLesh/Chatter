@@ -1,6 +1,7 @@
 package me.lesh.chatter.util
 
 import me.lesh.chatter.emotes.Emote
+import me.lesh.chatter.emotes.TwitchSmileys
 
 /** Input autocomplete helpers, free of Android for the tests. */
 object Autocomplete {
@@ -19,19 +20,21 @@ object Autocomplete {
 
     /**
      * Exact-case prefix, then case-insensitive prefix, then substring; shorter names first within
-     * each group, so "LUL" comes before "LULW".
+     * each group, so "LUL" comes before "LULW". A Twitch smiley typed another way, like ":-)", counts
+     * as an exact match.
      */
     fun rankEmotes(query: String, emotes: List<Emote>, limit: Int = 40): List<Emote> {
         if (query.isEmpty()) return emptyList()
+        val smiley = TwitchSmileys.typedBy(query)
         val exact = ArrayList<Emote>()
         val prefix = ArrayList<Emote>()
         val contains = ArrayList<Emote>()
         for (e in emotes) when {
-            e.name.startsWith(query) -> exact += e
+            e.name.startsWith(query) || e.name == smiley -> exact += e
             e.name.startsWith(query, ignoreCase = true) -> prefix += e
             e.name.contains(query, ignoreCase = true) -> contains += e
         }
-        val byLength = compareBy<Emote>({ it.name.length }, { it.name })
+        val byLength = compareBy<Emote>({ it.name.length }, { TwitchSmileys.order(it.name) }, { it.name })
         return (exact.sortedWith(byLength) + prefix.sortedWith(byLength) + contains.sortedWith(byLength)).take(limit)
     }
 

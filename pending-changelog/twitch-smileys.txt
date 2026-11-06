@@ -1,0 +1,1 @@
+minor: Suggest Twitch smileys like :) and <3 while typing, starting at the first : or ;

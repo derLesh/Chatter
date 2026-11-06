@@ -27,6 +27,15 @@ class AutocompleteTest {
     }
 
     @Test
+    fun smileysRankMostUsedFirstAndMatchTheirLongForm() {
+        val list = listOf(e(":("), e(":D"), e(";)"), e(":)"), e("Kappa"))
+        assertEquals(listOf(":)", ":D", ":("), Autocomplete.rankEmotes(":", list).map { it.name })
+        assertEquals(listOf(";)"), Autocomplete.rankEmotes(";", list).map { it.name })
+        assertEquals(listOf(":)"), Autocomplete.rankEmotes(":-)", list).map { it.name })
+        assertEquals(listOf(":D"), Autocomplete.rankEmotes(":d", list).map { it.name })
+    }
+
+    @Test
     fun userRankingKeepsRecency() {
         val users = listOf("zed", "Alice", "bob", "alfred")
         assertEquals(listOf("Alice", "alfred"), Autocomplete.rankUsers("@al", users))
