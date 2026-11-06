@@ -1,5 +1,8 @@
 package me.lesh.chatter.ui.inbox
 
+import androidx.compose.ui.graphics.vector.rememberVectorPainter
+import androidx.compose.ui.graphics.painter.Painter
+import androidx.compose.material.icons.outlined.MailOutline
 import me.lesh.chatter.ui.FormSheet
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.res.painterResource
@@ -303,7 +306,12 @@ private fun MentionList(
     onOpen: (InboxMention) -> Unit,
 ) {
     if (mentions.isEmpty()) {
-        EmptyTab(R.string.inbox_empty, R.string.inbox_empty_hint)
+        EmptyTab(
+            icon = painterResource(R.drawable.ic_alternate_email),
+            title = stringResource(R.string.inbox_empty),
+            hint = if (ownLogin.isEmpty()) stringResource(R.string.inbox_empty_hint)
+            else stringResource(R.string.inbox_empty_hint_named, ownLogin),
+        )
         return
     }
     val ownChannel = stringResource(R.string.inbox_own_channel)
@@ -329,7 +337,11 @@ private fun WhisperList(
     onOpen: (InboxWhisper) -> Unit,
 ) {
     if (whispers.isEmpty()) {
-        EmptyTab(R.string.inbox_whispers_empty, R.string.inbox_whispers_empty_hint)
+        EmptyTab(
+            icon = rememberVectorPainter(Icons.Outlined.MailOutline),
+            title = stringResource(R.string.inbox_whispers_empty),
+            hint = stringResource(R.string.inbox_whispers_empty_hint),
+        )
         return
     }
     val dark = isAppInDarkTheme()
@@ -515,19 +527,36 @@ private val INNER_CORNER = 4.dp
 /** How far an unread tile leans towards the accent: enough to find it, not a coloured band. */
 private const val UNREAD_TINT = 0.22f
 
+/** A picture of what would be here, and one line on how it gets here. */
 @Composable
-private fun EmptyTab(title: Int, hint: Int) {
+private fun EmptyTab(icon: Painter, title: String, hint: String) {
     Column(
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center,
-        modifier = Modifier.fillMaxSize().padding(32.dp),
+        // A little above the middle, where the eye lands first.
+        modifier = Modifier.fillMaxSize().padding(start = 32.dp, end = 32.dp, bottom = 64.dp),
     ) {
-        Text(stringResource(title), style = MaterialTheme.typography.titleMedium)
+        Box(
+            contentAlignment = Alignment.Center,
+            modifier = Modifier
+                .size(88.dp)
+                .clip(CircleShape)
+                .background(MaterialTheme.colorScheme.secondaryContainer),
+        ) {
+            Icon(icon, contentDescription = null, tint = MaterialTheme.colorScheme.onSecondaryContainer, modifier = Modifier.size(40.dp))
+        }
         Text(
-            stringResource(hint),
+            title,
+            style = MaterialTheme.typography.titleLarge,
+            textAlign = TextAlign.Center,
+            modifier = Modifier.padding(top = 24.dp).semantics { heading() },
+        )
+        Text(
+            hint,
+            style = MaterialTheme.typography.bodyMedium,
             textAlign = TextAlign.Center,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
-            modifier = Modifier.padding(top = 8.dp),
+            modifier = Modifier.widthIn(max = 280.dp).padding(top = 8.dp),
         )
     }
 }
