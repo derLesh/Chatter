@@ -63,6 +63,9 @@ enum class EmoteSize { Normal, Large }
 /** Where the clock that offers the user's last messages sits: on the empty send button, in the input or nowhere. */
 enum class RecentlySentButton { ReplacesSend, InInput, Hidden }
 
+/** How a message is planned for later: with a button of its own next to Send, or by holding Send. */
+enum class SendLaterButton { OwnButton, HoldSend }
+
 /** What tapping a message or its name does. Holding always opens the user card. */
 enum class TapAction { Reply, UserCard, Mention, Nothing }
 
@@ -198,6 +201,9 @@ data class Settings(
     val assistantActions: Boolean = false,
     /** Beta: a colour of its own for each category in the settings, instead of the theme's one. */
     val colorfulCategories: Boolean = false,
+    /** Beta: plan a message to go out later, e.g. in 5 minutes or at 22:00. */
+    val sendLater: Boolean = false,
+    val sendLaterButton: SendLaterButton = SendLaterButton.OwnButton,
 ) {
     /** The emote providers whose lists are loaded: none while emotes are off. */
     val emoteProvidersOn: Set<EmoteProvider> get() = if (emotesEnabled) emoteProviders else emptySet()
@@ -287,6 +293,9 @@ class SettingsRepository(
             catchUpSummary = p[CATCH_UP_SUMMARY] ?: false,
             assistantActions = p[ASSISTANT_ACTIONS] ?: false,
             colorfulCategories = p[COLORFUL_CATEGORIES] ?: false,
+            sendLater = p[SEND_LATER] ?: false,
+            sendLaterButton = p[SEND_LATER_BUTTON]?.let { v -> SendLaterButton.entries.firstOrNull { it.name == v } }
+                ?: SendLaterButton.OwnButton,
             nameTap = p[NAME_TAP]?.let { v -> TapAction.entries.firstOrNull { it.name == v } } ?: TapAction.UserCard,
             badgeProviders = badgeProviders(p[BADGE_PROVIDERS]),
             emoteProviders = emoteProviders(p[EMOTE_PROVIDERS]),
@@ -304,6 +313,8 @@ class SettingsRepository(
     suspend fun setCatchUpSummary(v: Boolean) = store.edit { it[CATCH_UP_SUMMARY] = v }
     suspend fun setAssistantActions(v: Boolean) = store.edit { it[ASSISTANT_ACTIONS] = v }
     suspend fun setColorfulCategories(v: Boolean) = store.edit { it[COLORFUL_CATEGORIES] = v }
+    suspend fun setSendLater(v: Boolean) = store.edit { it[SEND_LATER] = v }
+    suspend fun setSendLaterButton(v: SendLaterButton) = store.edit { it[SEND_LATER_BUTTON] = v.name }
     suspend fun setMessageLimit(v: Int) = store.edit { it[LIMIT] = v }
     // List settings are changed from the stored value inside one edit, so quick successive changes
     // cannot undo each other. Stored comma-separated, as they always were.
@@ -495,6 +506,8 @@ class SettingsRepository(
         p[CATCH_UP_SUMMARY] = s.catchUpSummary
         p[ASSISTANT_ACTIONS] = s.assistantActions
         p[COLORFUL_CATEGORIES] = s.colorfulCategories
+        p[SEND_LATER] = s.sendLater
+        p[SEND_LATER_BUTTON] = s.sendLaterButton.name
         p[BADGE_PROVIDERS] = s.badgeProviders.joinToString(",") { it.name }
         p[EMOTE_PROVIDERS] = s.emoteProviders.joinToString(",") { it.name }
     }
@@ -607,6 +620,8 @@ class SettingsRepository(
         val CATCH_UP_SUMMARY = booleanPreferencesKey("catch_up_summary")
         val ASSISTANT_ACTIONS = booleanPreferencesKey("assistant_actions")
         val COLORFUL_CATEGORIES = booleanPreferencesKey("colorful_categories")
+        val SEND_LATER = booleanPreferencesKey("send_later")
+        val SEND_LATER_BUTTON = stringPreferencesKey("send_later_button")
         val SEEN_VERSION = stringPreferencesKey("seen_changelog_version")
         val NOTIFICATION_INTRO_SEEN = booleanPreferencesKey("notification_intro_seen")
         val ONBOARDING_SEEN = booleanPreferencesKey("onboarding_seen")

@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Material's "schedule send". The project only ships the core icon set, which does not have it. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24"
+    android:autoMirrored="true">
+    <path
+        android:fillColor="@android:color/white"
+        android:pathData="M16.5,12.5H15v4l3,2 0.75,-1.23 -2.25,-1.52V12.5zM16,9L2,3v7l9,2 -9,2v7l7.27,-3.11C10.09,18.68 12.72,21 16,21c3.86,0 7,-3.14 7,-7S19.86,9 16,9zM16,19c-2.75,0 -4.98,-2.22 -5,-4.97 0,-2.74 2.25,-5.03 5,-5.03 2.76,0 5,2.24 5,5S18.76,19 16,19z" />
+</vector>

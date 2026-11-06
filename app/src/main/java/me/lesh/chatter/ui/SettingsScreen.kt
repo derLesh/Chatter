@@ -123,6 +123,7 @@ import me.lesh.chatter.ui.settings.LocalSettingsTarget
 import me.lesh.chatter.ui.settings.MediaPage
 import me.lesh.chatter.ui.settings.MessagesPage
 import me.lesh.chatter.ui.settings.MOBILE_DATA
+import me.lesh.chatter.ui.settings.SEND_LATER_BUTTONS
 import me.lesh.chatter.ui.settings.NAME_STYLES
 import me.lesh.chatter.ui.settings.NotificationsPage
 import me.lesh.chatter.ui.settings.PROVIDERS
@@ -338,6 +339,8 @@ private val SEARCH_INDEX: List<SearchEntry> by lazy {
         add(SearchEntry(R.string.settings_group_accounts, account, also = listOf(R.string.logout, R.string.account_add_short)))
         add(SearchEntry(R.string.settings_catch_up, SettingsPage.Beta, R.string.settings_catch_up_hint))
         add(SearchEntry(R.string.settings_colorful_categories, SettingsPage.Beta, R.string.settings_colorful_categories_hint))
+        add(SearchEntry(R.string.settings_send_later, SettingsPage.Beta, R.string.settings_send_later_hint))
+        add(SearchEntry(R.string.settings_send_later_button, SettingsPage.Beta, also = SEND_LATER_BUTTONS.map { it.second }))
         if (BuildConfig.ASSISTANT_ACCESS) add(SearchEntry(R.string.settings_assistant, SettingsPage.Beta, R.string.settings_assistant_hint))
         val about = SettingsPage.About
         add(SearchEntry(R.string.settings_changelog, about, R.string.settings_changelog_summary))

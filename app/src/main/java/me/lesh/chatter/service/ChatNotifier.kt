@@ -228,9 +228,14 @@ class ChatNotifier(
     }
 
     /** Shows in the conversation that a reply was not sent; the keyboard is gone by then. */
-    suspend fun showSendFailed(channel: String) {
+    suspend fun showSendFailed(channel: String) = showFailed(channel, R.string.notif_reply_failed)
+
+    /** Shows in the conversation that a message planned for later did not go out. */
+    suspend fun showScheduledFailed(channel: String) = showFailed(channel, R.string.notif_scheduled_failed)
+
+    private suspend fun showFailed(channel: String, why: Int) {
         if (!manager.areNotificationsEnabled()) return
-        val text = context.getString(R.string.notif_reply_failed)
+        val text = context.getString(why)
         post(
             listOf(
                 ChatItem(

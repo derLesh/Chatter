@@ -64,6 +64,7 @@ import me.lesh.chatter.chat.RoomState
 import me.lesh.chatter.chat.SendLimits
 import me.lesh.chatter.irc.ConnectionState
 import me.lesh.chatter.service.ChatService
+import me.lesh.chatter.settings.Settings
 import me.lesh.chatter.settings.TapAction
 import me.lesh.chatter.ui.channels.ChannelPages
 import me.lesh.chatter.ui.channels.ChannelTabBar
@@ -77,6 +78,7 @@ import me.lesh.chatter.ui.chat.GuestBar
 import me.lesh.chatter.ui.chat.InputBar
 import me.lesh.chatter.ui.chat.MessageGesture
 import me.lesh.chatter.ui.chat.PinnedBar
+import me.lesh.chatter.ui.chat.SendLater
 import me.lesh.chatter.ui.chat.SharedEmotes
 import me.lesh.chatter.ui.chat.noteTouches
 import me.lesh.chatter.ui.chat.rememberChatStyle
@@ -526,6 +528,20 @@ private fun ChatInput(
         chatModes = chatModes,
         onChatModes = vm::changeChatModes,
         compact = settings.compactInput,
+        sendLater = sendLater(vm, settings),
+    )
+}
+
+/** Planning messages for later, as far as [settings] allow, with the ones waiting where the input sends to. */
+@Composable
+internal fun sendLater(vm: MainViewModel, settings: Settings): SendLater {
+    val scheduled by vm.scheduled.collectAsStateWithLifecycle()
+    return SendLater(
+        button = settings.sendLaterButton.takeIf { settings.sendLater },
+        waiting = scheduled.filter { it.channel == vm.sendChannel },
+        onPlan = vm::sendLater,
+        onTakeBack = vm::takeBackScheduled,
+        onDrop = vm::dropScheduled,
     )
 }
 
