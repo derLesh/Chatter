@@ -184,22 +184,36 @@ jobs:
           mv app/build/outputs/apk/release/app-release-unsigned.apk build-out/unsigned.apk
           mv app/build/outputs/mapping/release/mapping.txt build-out/chatter-nightly-mapping.txt
 
-      # What is new since the last nightly; for the first one, since the last release.
+      # What is new since the last nightly; for the first one, since the last release. Below it,
+      # folded, everything since the last release, for whoever skipped a few nightlies.
       - name: Write the release notes
         env:
           REPOSITORY: ${{ github.repository }}
           NAME: ${{ steps.version.outputs.name }}
         run: |
-          since=$(git rev-parse -q --verify 'refs/tags/nightly^{commit}' || git describe --tags --abbrev=0 --match 'v*' 2>/dev/null || true)
+          last=$(git rev-parse -q --verify 'refs/tags/nightly^{commit}' || true)
+          release=$(git describe --tags --abbrev=0 --match 'v*' 2>/dev/null || true)
+          since=${last:-$release}
           {
             echo "Chatter Nightly $NAME, built from [\`$(git rev-parse --short=7 HEAD)\`](https://github.com/$REPOSITORY/commit/$(git rev-parse HEAD))."
             echo
             echo '### New since the last nightly'
             echo
-            if [ -n "$since" ] && [ "$since" != "$(git rev-parse HEAD)" ]; then
+            if [ -n "$since" ] && [ "$(git rev-parse "$since^{commit}")" != "$(git rev-parse HEAD)" ]; then
               git log --no-merges --format='- %s' "$since..HEAD"
             else
               echo 'Nothing; this nightly was built again from the same commit.'
+            fi
+            # Only when it says more than the list above: the last nightly came after the release.
+            if [ -n "$last" ] && [ -n "$release" ] && [ "$last" != "$(git rev-parse "$release^{commit}")" ] &&
+               git merge-base --is-ancestor "$release" "$last"; then
+              echo
+              echo '<details>'
+              echo "<summary><b>New since Chatter ${release#v}</b></summary>"
+              echo
+              git log --no-merges --format='- %s' "$release..HEAD"
+              echo
+              echo '</details>'
             fi
           } > build-out/notes.md
 
