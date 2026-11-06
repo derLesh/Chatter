@@ -172,7 +172,7 @@
     <string name="name_style_other_scripts">Beides bei fremder Schrift</string>
     <string name="name_style_both">Immer beides</string>
     <string name="settings_animated_emotes">Animierte Emotes</string>
-    <string name="settings_slow_idle_emotes">Langsamer, wenn unberührt</string>
+    <string name="settings_slow_idle_emotes">Langsamer im Leerlauf</string>
     <string name="settings_slow_idle_emotes_hint">Nach drei Minuten ohne Berührung laufen sie langsamer. Spart Akku.</string>
     <string name="settings_keywords">Hervorgehobene Wörter</string>
     <string name="settings_keywords_summary">Wörter, die dich wie dein Name benachrichtigen</string>
@@ -253,14 +253,14 @@
     <string name="settings_emotes_summary">Anbieter, Animation, Badges</string>
     <string name="settings_filters">Filter</string>
     <string name="settings_filters_summary">Ausgeblendete Wörter, Regeln, Blockierte</string>
-    <string name="settings_notifications_summary">Erwähnungen, hervorgehobene Wörter, Vibration</string>
+    <string name="settings_notifications_summary">Erwähnungen, hervorgehobene Wörter, Live gehen</string>
     <string name="settings_account_summary">Konten wechseln, abmelden</string>
     <string name="settings_messages">Nachrichten</string>
     <string name="settings_messages_summary">Scrollen, Verlauf, Antippen, Bildschirm anlassen</string>
     <string name="settings_media">Links &amp; Bilder</string>
     <string name="settings_media_summary">Bildvorschau, GIFs, Posts</string>
     <string name="settings_typing">Schreiben</string>
-    <string name="settings_typing_summary">Nur lesen, Vorschläge, Erwähnungen, Eingabefeld</string>
+    <string name="settings_typing_summary">Nur lesen, Vorschläge, Eingabefeld</string>
     <string name="settings_backup_summary">Einstellungen sichern und wiederherstellen</string>
     <string name="settings_storage">Speicher &amp; Daten</string>
     <string name="settings_storage_summary">Datenverbrauch, Platz auf dem Handy, Cache</string>
@@ -279,7 +279,7 @@
     <string name="settings_section_channels">Kanäle &amp; Benachrichtigungen</string>
     <string name="settings_section_data">Deine Daten</string>
     <string name="settings_about">Über</string>
-    <string name="settings_about_summary">Version, Credits</string>
+    <string name="settings_about_summary">Changelog, Datenschutz, Credits</string>
     <string name="settings_channels">Kanäle</string>
     <string name="settings_channels_summary">Reihenfolge, Namen, Tabs</string>
     <string name="reorder_channel">Zum Sortieren ziehen</string>
@@ -289,8 +289,8 @@
     <string name="channel_in_title_bar">Ungelesene anzeigen</string>
     <string name="settings_channel_tabs">Kanäle als Tabs</string>
     <string name="settings_channel_tabs_hint">Alle Kanäle in einer Reihe oben. Halte einen Tab für mehr Optionen.</string>
-    <string name="settings_unread_title_bar">Ungelesene Kanäle in der Titelleiste</string>
-    <string name="settings_unread_title_bar_hint">Zeigt Kanäle mit neuen Nachrichten oben. Ausnehmen geht im Kanalmenü.</string>
+    <string name="settings_unread_title_bar">Ungelesene Kanäle</string>
+    <string name="settings_unread_title_bar_hint">Zeigt Kanäle mit neuen Nachrichten in der Titelleiste. Ausnehmen geht im Kanalmenü.</string>
     <string name="settings_keep_screen_on">Bildschirm anlassen</string>
     <string name="settings_keep_screen_on_hint">Der Bildschirm bleibt an, solange Nachrichten im Chat ankommen</string>
     <string name="settings_keep_screen_on_when_quiet">Auch bei ruhigem Chat</string>
@@ -305,14 +305,14 @@
     <string name="settings_full_links">Links vollständig anzeigen</string>
     <string name="settings_full_links_hint">Sonst werden lange Links gekürzt</string>
     <string name="settings_mobile_data">Bei mobilen Daten</string>
-    <string name="settings_mobile_data_hint">Daten sparen lädt keine verlinkten Bilder, Animationen und Profilbilder in Benachrichtigungen, zeigt Emotes kleiner und sucht später nach Updates. Nachrichten, Erwähnungen und Flüsternachrichten kommen weiter an. Ist der Datensparmodus von Android an, spart Chatter immer Daten.</string>
+    <string name="settings_mobile_data_hint">Daten sparen lädt keine verlinkten Bilder und Animationen und zeigt Emotes kleiner. Nachrichten und Erwähnungen kommen weiter an.</string>
     <string name="mobile_data_normal">Normal</string>
     <string name="mobile_data_save">Daten sparen</string>
     <string name="mobile_data_saver_on">%1$s, aber der Datensparmodus ist an</string>
     <string name="background_restricted_title">Akkunutzung ist eingeschränkt</string>
-    <string name="background_restricted_text">Android kann Chatter im Hintergrund jederzeit beenden. Dann kommen Erwähnungen und Flüsternachrichten erst wieder an, wenn du Chatter öffnest. Stell die Akkunutzung in den App-Einstellungen auf „Nicht eingeschränkt“.</string>
+    <string name="background_restricted_text">Android kann Chatter im Hintergrund beenden, dann kommen keine Erwähnungen mehr an. Stell die Akkunutzung auf „Nicht eingeschränkt“.</string>
     <string name="background_stopped_title">Hintergrundverbindung unterbrochen</string>
-    <string name="background_stopped_text">Android hat Chatter am %1$s im Hintergrund gestoppt. %2$s. Bis zum Öffnen kamen keine Erwähnungen oder Flüsternachrichten an.</string>
+    <string name="background_stopped_text">Android hat Chatter am %1$s gestoppt. %2$s.</string>
     <string name="background_unrestricted_hint">Mit der Akkunutzung „Nicht eingeschränkt“ passiert das selten.</string>
     <string name="background_reason_memory">Grund: zu wenig Arbeitsspeicher</string>
     <string name="background_reason_resources">Grund: zu viel Akku- oder Leistungsverbrauch</string>
@@ -400,8 +400,8 @@
     <string name="tap_action_user_card">Nutzerkarte öffnen</string>
     <string name="tap_action_mention">Erwähnen</string>
     <string name="tap_action_nothing">Nichts</string>
-    <string name="settings_copy_first">Kopieren zuerst</string>
-    <string name="settings_copy_first_hint">Die Nutzerkarte zeigt Kopieren vor Antworten</string>
+    <string name="settings_copy_first">Kopieren vor Antworten</string>
+    <string name="settings_copy_first_hint">In der Nutzerkarte</string>
     <string name="settings_group_mentions">Erwähnungen</string>
     <string name="settings_alternate_background">Abwechselnder Hintergrund</string>
     <string name="settings_alternate_background_hint">Hinterlegt jede zweite Nachricht etwas heller</string>
@@ -524,6 +524,9 @@
     <string name="settings_hidden_emotes_none">Keine ausgeblendet</string>
     <string name="settings_hidden_emotes_hint">Tippe im Chat auf ein Emote, um es auszublenden. Dann steht dort sein Name.</string>
     <string name="settings_hidden_emotes_show">%1$s wieder zeigen</string>
+    <string name="settings_hidden_emotes_show_short">Wieder zeigen</string>
+    <string name="settings_group_suggestions">Vorschläge</string>
+    <string name="settings_group_switching_channels">Kanäle wechseln</string>
 
     <!-- 7TV activity -->
     <string name="settings_seventv_events">7TV-Aktivität</string>
@@ -601,7 +604,7 @@
     <string name="special_preview_reward">Wasser trinken</string>
 
     <string name="settings_mute_keywords">Ausgeblendete Wörter</string>
-    <string name="settings_mute_keywords_summary">Wörter, die im Chat ausgeblendet werden</string>
+    <string name="settings_mute_keywords_summary">Blendet Nachrichten mit diesen Wörtern aus</string>
     <string name="settings_mute_keywords_hint">Blendet Nachrichten mit dem Wort aus, und Nachrichten von Chattern mit diesem Namen</string>
     <string name="keywords_none">Keine hervorgehobenen Wörter</string>
     <string name="mute_keywords_none">Keine ausgeblendeten Wörter</string>
@@ -646,7 +649,6 @@
     <string name="report_also_block">Hier auch blockieren</string>
     <string name="report_open_twitch">Auf Twitch melden</string>
     <string name="report_help">Wie das Melden auf Twitch funktioniert</string>
-    <string name="settings_report_user">Chatter melden</string>
     <string name="settings_report_user_summary">Lange auf eine Nachricht tippen, um sie zu melden oder zu blockieren</string>
 
     <string name="settings_privacy">Datenschutzerklärung</string>
@@ -694,7 +696,7 @@
         <item quantity="other">%1$d weitere Badges. Such danach, um sie zu finden</item>
     </plurals>
     <string name="settings_badge_kinds_search">Zum Beispiel: Vorhersage</string>
-    <string name="settings_badge_kinds_none">Alle sichtbar</string>
+    <string name="settings_badge_kinds_none">Keine ausgeblendet</string>
     <string name="settings_badge_kinds_empty">Noch keine Badges geladen. Öffne einen Chat und komm dann zurück.</string>
     <plurals name="settings_badge_kinds_hidden">
         <item quantity="one">%1$d ausgeblendet</item>
@@ -739,8 +741,7 @@
     <string name="changelog_got_it">Alles klar</string>
 
     <!-- Chat-Bubble -->
-    <string name="settings_group_bubbles">Chat-Bubble</string>
-    <string name="settings_bubbles">Bubbles</string>
+    <string name="settings_bubbles">Chat-Bubbles</string>
     <string name="settings_bubbles_hint">Erwähnungen können als Chat-Bubble angezeigt werden</string>
     <string name="bubble_unavailable">Chatter öffnen, um diesen Kanal zu lesen</string>
     <string name="jump_message_gone">Diese Nachricht ist nicht mehr im Chat</string>
@@ -762,6 +763,13 @@
     <string name="settings_search">Einstellungen durchsuchen</string>
     <string name="settings_search_clear">Suche leeren</string>
     <string name="settings_search_none">Keine Einstellung passt dazu</string>
+    <!-- Other words a setting is found by in the search, beside its title and hint. -->
+    <string name="search_also_highlight_color">Hervorhebungsfarbe, Erwähnungsfarbe</string>
+    <string name="search_also_theme">Dunkelmodus, Nachtmodus, Dark Mode</string>
+    <string name="search_also_dynamic_color">Hintergrundbild</string>
+    <string name="search_also_font_size">Schriftgröße</string>
+    <string name="search_also_mute_keywords">Stummschalten, ignorieren</string>
+    <string name="search_also_rules">Regex</string>
     <string name="settings_theme">Design</string>
     <string name="settings_stats_group_messages">Nachrichten</string>
     <string name="settings_stats_sent">Gesendet</string>
@@ -815,7 +823,7 @@
 
     <!-- Regeln -->
     <string name="settings_rules">Regeln</string>
-    <string name="settings_rules_summary">Hervorheben oder ausblenden, was dir wichtig ist</string>
+    <string name="settings_rules_summary">Zum Beispiel hervorheben, was ein Freund schreibt, oder es ausblenden</string>
     <plurals name="settings_rules_count">
         <item quantity="one">%d Regel</item>
         <item quantity="other">%d Regeln</item>
@@ -989,8 +997,8 @@
     <string name="debug_no">Nein</string>
     <string name="debug_of">%1$s von %2$s</string>
     <string name="notifications_off_title">Benachrichtigungen sind aus</string>
-    <string name="notifications_off_text">Android zeigt keine Benachrichtigungen von Chatter, deshalb erreichen dich Erwähnungen, Flüsternachrichten und deine hervorgehobenen Wörter nur bei geöffneter App.</string>
-    <string name="notifications_off_connection">Chatter bleibt trotzdem im Hintergrund verbunden. Android blendet nur die Benachrichtigung aus, die das anzeigt.</string>
+    <string name="notifications_off_text">Erwähnungen und Flüsternachrichten erreichen dich nur bei geöffneter App.</string>
+    <string name="notifications_off_connection">Chatter bleibt trotzdem verbunden.</string>
     <string name="notifications_off_allow">Einschalten</string>
 
     <!-- Going live -->
@@ -1009,7 +1017,6 @@
     <string name="beta">Beta</string>
     <string name="settings_beta">Labs</string>
     <string name="settings_beta_summary">Neues ausprobieren, das noch nicht fertig ist</string>
-    <string name="settings_beta_intro">Neu und noch nicht fertig.</string>
     <string name="settings_colorful_categories">Farbige Kategorien</string>
     <string name="settings_colorful_categories_hint">Gibt jeder Kategorie in den Einstellungen eine eigene Farbe</string>
     <string name="settings_catch_up">Verpasstes zusammenfassen</string>

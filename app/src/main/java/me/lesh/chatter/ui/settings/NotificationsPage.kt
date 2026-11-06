@@ -66,6 +66,7 @@ internal fun NotificationsPage(settings: Settings, vm: MainViewModel, open: (Set
                 modifier = Modifier.tileClickable { openNotificationSettings(context) },
             )
         }
+        item(R.string.settings_bubbles) { SwitchItem(R.string.settings_bubbles, settings.bubbles, vm::setBubbles, R.string.settings_bubbles_hint) }
     }
     SettingsGroup(R.string.settings_group_live) {
         item(R.string.settings_live_notifications) {
@@ -83,9 +84,6 @@ internal fun NotificationsPage(settings: Settings, vm: MainViewModel, open: (Set
                 )
             }
         }
-    }
-    SettingsGroup(R.string.settings_group_bubbles) {
-        item(R.string.settings_bubbles) { SwitchItem(R.string.settings_bubbles, settings.bubbles, vm::setBubbles, R.string.settings_bubbles_hint) }
     }
 }
 

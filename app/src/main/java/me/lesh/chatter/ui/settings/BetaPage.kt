@@ -3,7 +3,6 @@ package me.lesh.chatter.ui.settings
 import android.os.Build
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
@@ -30,12 +29,6 @@ import me.lesh.chatter.ui.MainViewModel
 /** Features that are not finished: each is marked as such and can be switched off again. */
 @Composable
 internal fun BetaPage(settings: Settings, vm: MainViewModel) {
-    Text(
-        stringResource(R.string.settings_beta_intro),
-        style = MaterialTheme.typography.bodyMedium,
-        color = MaterialTheme.colorScheme.onSurfaceVariant,
-        modifier = Modifier.padding(start = 4.dp, end = 4.dp, bottom = 12.dp),
-    )
     // One group per feature, so a feature's status is not read as part of the next one.
     SettingsGroup {
         item(R.string.settings_catch_up) {
