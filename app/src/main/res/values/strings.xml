@@ -843,6 +843,7 @@
     <string name="inbox_clear_whispers_title">Delete all whispers?</string>
     <string name="inbox_clear_text">This cannot be undone.</string>
     <string name="inbox_clear_confirm">Delete all</string>
+    <string name="inbox_unread_state">Unread</string>
     <plurals name="inbox_unread">
         <item quantity="one">%d unread</item>
         <item quantity="other">%d unread</item>

@@ -1,8 +1,10 @@
 package me.lesh.chatter.ui.inbox
 
+import androidx.compose.ui.text.style.LineBreak
+import androidx.compose.ui.semantics.stateDescription
+import androidx.compose.material.icons.filled.Email
 import androidx.compose.ui.graphics.vector.rememberVectorPainter
 import androidx.compose.ui.graphics.painter.Painter
-import androidx.compose.material.icons.outlined.MailOutline
 import me.lesh.chatter.ui.FormSheet
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.res.painterResource
@@ -13,9 +15,8 @@ import java.time.ZoneId
 import java.time.LocalDate
 import java.time.Instant
 import android.text.format.DateFormat
-import androidx.compose.ui.text.withStyle
-import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.heading
@@ -338,7 +339,7 @@ private fun WhisperList(
 ) {
     if (whispers.isEmpty()) {
         EmptyTab(
-            icon = rememberVectorPainter(Icons.Outlined.MailOutline),
+            icon = rememberVectorPainter(Icons.Filled.Email),
             title = stringResource(R.string.inbox_whispers_empty),
             hint = stringResource(R.string.inbox_whispers_empty_hint),
         )
@@ -421,30 +422,41 @@ private fun DayHeading(day: LocalDate, today: LocalDate) {
     )
 }
 
-/** Whispers have no picture; the sender's initial in their color stands in. */
+/**
+ * Whispers have no picture; the sender's initial in their color stands in. The letter leans towards
+ * the text color, since a name color is tuned for the screen background, not for its own tint.
+ */
 @Composable
 private fun InitialAvatar(name: String, color: Color) {
+    val onSurface = MaterialTheme.colorScheme.onSurface
+    val base = if (color == Color.Unspecified) onSurface else color
     Box(
         contentAlignment = Alignment.Center,
-        modifier = Modifier.size(AVATAR_SIZE).clip(CircleShape).background(color.copy(alpha = 0.2f)),
+        modifier = Modifier
+            .size(AVATAR_SIZE)
+            .clip(CircleShape)
+            .background(base.copy(alpha = 0.18f))
+            // The name follows right beside it; the letter would only repeat its first sound.
+            .clearAndSetSemantics {},
     ) {
         Text(
             name.take(1).uppercase(),
             style = MaterialTheme.typography.titleMedium,
             fontWeight = FontWeight.Bold,
-            color = if (color == Color.Unspecified) MaterialTheme.colorScheme.onSurface else color,
+            color = lerp(base, onSurface, 0.35f),
         )
     }
 }
 
 /**
  * One mention or whisper. Unread rows are tinted and bold, with a dot beside the text; read ones step
- * back to grey text, so the new ones stand out without a band or a line between rows.
+ * back to grey text, so the new ones stand out without a band or a line between rows. The channel
+ * gets a line of its own, so a long name can never push it out.
  */
 @Composable
 private fun InboxRow(
     name: String,
-    /** Where it was said, after the name; null for whispers. */
+    /** Where it was said, under the name; null for whispers. */
     place: String?,
     text: AnnotatedString,
     timestamp: Long,
@@ -455,26 +467,23 @@ private fun InboxRow(
     val colors = MaterialTheme.colorScheme
     val context = LocalContext.current
     val time = remember(timestamp) { DateFormat.getTimeFormat(context).format(Date(timestamp)) }
+    val unreadTint = if (isAppInDarkTheme()) UNREAD_TINT_DARK else UNREAD_TINT_LIGHT
+    val unreadState = stringResource(R.string.inbox_unread_state)
     Row(
         Modifier
             .fillMaxWidth()
-            .background(if (read) colors.surfaceContainer else lerp(colors.surfaceContainer, colors.primaryContainer, UNREAD_TINT))
+            .background(if (read) colors.surfaceContainer else lerp(colors.surfaceContainer, colors.primaryContainer, unreadTint))
             .clickable(onClick = onClick)
+            .semantics { if (!read) stateDescription = unreadState }
             .padding(horizontal = 16.dp, vertical = 14.dp),
     ) {
         avatar()
         Column(Modifier.weight(1f).padding(start = 14.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text(
-                    buildAnnotatedString {
-                        withStyle(SpanStyle(fontWeight = if (read) FontWeight.Medium else FontWeight.Bold, color = colors.onSurface)) {
-                            append(name)
-                        }
-                        if (place != null) {
-                            withStyle(SpanStyle(color = colors.onSurfaceVariant, fontWeight = FontWeight.Normal)) { append("  $place") }
-                        }
-                    },
+                    name,
                     style = MaterialTheme.typography.titleSmall,
+                    fontWeight = if (read) FontWeight.Medium else FontWeight.Bold,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                     modifier = Modifier.weight(1f),
@@ -482,12 +491,21 @@ private fun InboxRow(
                 Text(
                     time,
                     style = MaterialTheme.typography.labelMedium,
-                    fontWeight = if (read) FontWeight.Normal else FontWeight.Bold,
-                    color = if (read) colors.onSurfaceVariant else colors.primary,
+                    color = colors.onSurfaceVariant,
                     modifier = Modifier.padding(start = 12.dp),
                 )
             }
-            Row(Modifier.padding(top = 4.dp)) {
+            if (place != null) {
+                Text(
+                    place,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = colors.onSurfaceVariant,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.padding(top = 2.dp),
+                )
+            }
+            Row(Modifier.padding(top = 6.dp)) {
                 Text(
                     text,
                     style = MaterialTheme.typography.bodyMedium,
@@ -524,8 +542,12 @@ private val AVATAR_SIZE = 44.dp
 private val OUTER_CORNER = 24.dp
 private val INNER_CORNER = 4.dp
 
-/** How far an unread tile leans towards the accent: enough to find it, not a coloured band. */
-private const val UNREAD_TINT = 0.22f
+/**
+ * How far an unread tile leans towards the accent: enough to find it, not a coloured band. Dark
+ * themes need less, since their accent container is far more saturated than the tiles around it.
+ */
+private const val UNREAD_TINT_LIGHT = 0.28f
+private const val UNREAD_TINT_DARK = 0.13f
 
 /** A picture of what would be here, and one line on how it gets here. */
 @Composable
@@ -553,10 +575,11 @@ private fun EmptyTab(icon: Painter, title: String, hint: String) {
         )
         Text(
             hint,
-            style = MaterialTheme.typography.bodyMedium,
+            // Balanced lines, rather than a full first line and a stub.
+            style = MaterialTheme.typography.bodyMedium.copy(lineBreak = LineBreak.Paragraph),
             textAlign = TextAlign.Center,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
-            modifier = Modifier.widthIn(max = 280.dp).padding(top = 8.dp),
+            modifier = Modifier.widthIn(max = 300.dp).padding(top = 8.dp),
         )
     }
 }
