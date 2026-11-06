@@ -21,7 +21,6 @@ import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardCapitalization
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import me.lesh.chatter.R
 import me.lesh.chatter.ui.FormSheet
@@ -52,14 +51,13 @@ fun WhisperReplySheet(
             Surface(
                 color = MaterialTheme.colorScheme.surfaceContainerHighest,
                 // A chat bubble's tail corner, so it reads as their message and not as a hint.
-                shape = RoundedCornerShape(topStart = 4.dp, topEnd = 20.dp, bottomEnd = 20.dp, bottomStart = 20.dp),
+                shape = RoundedCornerShape(topStart = 4.dp, topEnd = 16.dp, bottomEnd = 16.dp, bottomStart = 16.dp),
                 modifier = Modifier.padding(top = 16.dp, end = 48.dp),
             ) {
                 Text(
                     quoted,
+                    // In full: the inbox row cuts it short, and this is the one place to read it.
                     style = MaterialTheme.typography.bodyLarge,
-                    maxLines = 6,
-                    overflow = TextOverflow.Ellipsis,
                     modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
                 )
             }
