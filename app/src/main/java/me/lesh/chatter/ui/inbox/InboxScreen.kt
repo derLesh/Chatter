@@ -158,7 +158,7 @@ fun InboxScreen(vm: MainViewModel, onOpenMention: (InboxMention) -> Unit, onBack
     }
 
     replyTo?.let { whisper ->
-        WhisperReplyDialog(
+        WhisperReplySheet(
             name = chatterName(whisper.displayName, whisper.login, settings.nameStyle, nicknames[whisper.login.lowercase()]),
             quoted = whisper.text,
             onSend = { text ->

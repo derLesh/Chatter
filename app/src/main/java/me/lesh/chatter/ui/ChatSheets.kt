@@ -28,7 +28,7 @@ import me.lesh.chatter.ui.chat.NicknameDialog
 import me.lesh.chatter.ui.chat.NoteDialog
 import me.lesh.chatter.ui.chat.ThreadSheet
 import me.lesh.chatter.ui.chat.UserCardSheet
-import me.lesh.chatter.ui.inbox.WhisperReplyDialog
+import me.lesh.chatter.ui.inbox.WhisperReplySheet
 import kotlinx.coroutines.launch
 
 /**
@@ -148,7 +148,7 @@ fun ChatSheets(
     sheets.whisperTo?.let { (item, userId) ->
         val login = item.login
         if (login == null) sheets.whisperTo = null else {
-            WhisperReplyDialog(
+            WhisperReplySheet(
                 name = nicknames[login.lowercase()] ?: item.displayName ?: login,
                 quoted = null,
                 onSend = { text ->
