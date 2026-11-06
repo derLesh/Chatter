@@ -16,7 +16,10 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.serialization.Serializable
 
-/** A whisper the user received, kept like a mention. */
+/**
+ * A whisper the user received or sent, kept like a mention. For a sent one, [login],
+ * [displayName] and [userId] are the recipient's.
+ */
 @Serializable
 data class InboxWhisper(
     val id: String,
@@ -31,6 +34,8 @@ data class InboxWhisper(
     val read: Boolean = false,
     /** The receiving account's user id; null for rows from before owners were stored. */
     val owner: String? = null,
+    /** Sent by the user. Twitch keeps no history to read, so this is the only record of it. */
+    val outgoing: Boolean = false,
 ) {
     companion object {
         /**
@@ -76,6 +81,11 @@ class WhisperInboxRepository(
         if (me == null) emptyList() else all.filter { it.owner == me }
     }.stateIn(scope, SharingStarted.Eagerly, emptyList())
 
+    /** One per person, the most recent first. */
+    val conversations: StateFlow<List<WhisperConversation>> = whispers
+        .map(::conversationsOf)
+        .stateIn(scope, SharingStarted.Eagerly, emptyList())
+
     val unreadCount: StateFlow<Int> = whispers
         .map { list -> list.count { !it.read } }
         .stateIn(scope, SharingStarted.Eagerly, 0)
@@ -95,6 +105,30 @@ class WhisperInboxRepository(
         }
     }
 
+    /**
+     * Keeps a whisper [owner] sent to [login]. Without [displayName] it takes the one their own
+     * whispers had, so a conversation keeps one spelling.
+     */
+    suspend fun addSent(owner: String, login: String, userId: String?, displayName: String?, text: String, timestamp: Long) =
+        update { list ->
+            if (owner !in accounts.value) return@update list
+            val name = displayName
+                ?: list.firstOrNull { it.owner == owner && it.login.equals(login, ignoreCase = true) && !it.outgoing }?.displayName
+                ?: login
+            val sent = InboxWhisper(
+                id = "sent-$timestamp-${list.size}",
+                login = login.lowercase(),
+                userId = userId,
+                displayName = name,
+                text = text,
+                timestamp = timestamp,
+                read = true,
+                owner = owner,
+                outgoing = true,
+            )
+            (listOf(sent) + list).take(LIMIT)
+        }
+
     suspend fun markRead(id: String) = update { list ->
         val me = owner.value
         list.map { if (it.id == id && it.owner == me) it.copy(read = true) else it }
@@ -104,6 +138,20 @@ class WhisperInboxRepository(
         val me = owner.value
         if (list.none { it.owner == me && !it.read }) list
         else list.map { if (it.owner == me) it.copy(read = true) else it }
+    }
+
+    /** Reads everything [login] sent the active account. */
+    suspend fun markConversationRead(login: String) = update { list ->
+        val me = owner.value
+        val inConversation = { w: InboxWhisper -> w.owner == me && !w.read && w.login.equals(login, ignoreCase = true) }
+        if (list.none(inConversation)) list else list.map { if (inConversation(it)) it.copy(read = true) else it }
+    }
+
+    /** Deletes the active account's conversation with [login]. */
+    suspend fun clearConversation(login: String) = update { list ->
+        val me = owner.value
+        val inConversation = { w: InboxWhisper -> w.owner == me && w.login.equals(login, ignoreCase = true) }
+        if (list.none(inConversation)) list else list.filterNot(inConversation)
     }
 
     /** Empties the active account's inbox; other accounts keep theirs. */
@@ -128,8 +176,8 @@ class WhisperInboxRepository(
 
     private companion object {
         val WHISPERS = stringPreferencesKey("inbox_whispers")
-        /** Whispers are rare; this is months' worth. */
-        const val LIMIT = 200
+        /** Whispers are rare; with both sides kept this is still months' worth. */
+        const val LIMIT = 500
 
         fun decode(raw: String?): List<InboxWhisper>? = decodeStored(raw, emptyList(), "whispers")
     }

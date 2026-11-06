@@ -192,7 +192,9 @@ class AppContainer(
     val updates = UpdateRepository(http, settings, BuildConfig.VERSION_NAME, BuildConfig.UPDATE_CHECK, dataSaving.active, scope)
     // Only called once connected, when [chat] exists.
     val irc: IrcConnection = IrcConnection(socketHttp, scope) { chat.priority(it) }
-    val whisperSender = WhisperSender(context, helix, auth)
+    val whisperSender = WhisperSender(context, helix, auth) { owner, login, userId, name, text ->
+        whisperInbox.addSent(owner, login, userId, name, text, System.currentTimeMillis())
+    }
     private val chatters = ChatterRegistry()
 
     val chat: ChatRepository = ChatRepository(

@@ -240,7 +240,7 @@ internal fun InboxContent(
             HorizontalPager(pager, Modifier.weight(1f)) { page ->
                 when (page) {
                     INBOX_TAB_MENTIONS -> MentionList(mentions, info, nameOf, ownLogin, imageLoader, onOpenMention)
-                    else -> WhisperList(whispers, nameOf, onOpenWhisper)
+                    else -> WhisperList(whispers.filterNot { it.outgoing }, nameOf, onOpenWhisper)
                 }
             }
         }

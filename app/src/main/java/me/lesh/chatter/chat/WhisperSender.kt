@@ -19,6 +19,11 @@ class WhisperSender(
     private val context: Context,
     private val helix: HelixApi,
     private val auth: AuthRepository,
+    /**
+     * Gets every whisper Twitch accepted, from wherever it was sent: [displayName] is the
+     * recipient's when it had to be looked up, null otherwise.
+     */
+    private val onSent: suspend (owner: String, login: String, userId: String, displayName: String?, text: String) -> Unit = { _, _, _, _, _ -> },
 ) {
     /**
      * Whispers [message] to [login]. [userId] saves the lookup where it is already known, e.g. from
@@ -29,9 +34,10 @@ class WhisperSender(
         val text = message.trim()
         if (text.isEmpty()) return failed(R.string.whisper_error_empty)
         return try {
-            val target = userId ?: helix.users(listOf(login)).firstOrNull()?.id
-                ?: return failed(R.string.cmd_error_no_user, login)
+            val found = if (userId == null) helix.users(listOf(login)).firstOrNull() else null
+            val target = userId ?: found?.id ?: return failed(R.string.cmd_error_no_user, login)
             helix.sendWhisper(me, target, text)
+            onSent(me, login, target, found?.displayName, text)
             WhisperResult(sent = true, message = context.getString(R.string.whisper_sent, login))
         } catch (e: HttpException) {
             WhisperResult(sent = false, message = explain(e))
