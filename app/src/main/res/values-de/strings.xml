@@ -672,6 +672,8 @@
     </plurals>
     <string name="block_user_title">Nutzer blockieren</string>
     <string name="block_user_name">Twitch-Name</string>
+    <string name="block_user_none_found">Nichts gefunden. Blockieren nimmt den Namen trotzdem.</string>
+    <string name="block_user_named">%1$s blockieren</string>
     <string name="unblock_confirm_title">Entblocken?</string>
     <string name="unblock_confirm_text">%s wird dir wieder im Chat angezeigt</string>
     <string name="error_block_failed">Twitch hat das abgelehnt. Bitte noch einmal versuchen</string>

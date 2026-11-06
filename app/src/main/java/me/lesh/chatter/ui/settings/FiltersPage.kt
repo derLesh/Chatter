@@ -17,7 +17,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -33,7 +33,6 @@ import me.lesh.chatter.chat.ChatRule
 import me.lesh.chatter.chat.RuleAction
 import me.lesh.chatter.chat.RuleEngine
 import me.lesh.chatter.chat.RuleTarget
-import me.lesh.chatter.net.HelixBlockedUser
 import me.lesh.chatter.settings.Settings
 import me.lesh.chatter.ui.MainViewModel
 import me.lesh.chatter.ui.SettingsSubPage
@@ -89,10 +88,13 @@ internal fun FiltersPage(settings: Settings, vm: MainViewModel, open: (SettingsS
 @Composable
 internal fun BlockedUsersPage(vm: MainViewModel) {
     val blocked by vm.blockedUsers.collectAsStateWithLifecycle()
-    var unblockTarget by remember { mutableStateOf<HelixBlockedUser?>(null) }
-    var showBlock by remember { mutableStateOf(false) }
+    var unblockTargetId by rememberSaveable { mutableStateOf<String?>(null) }
+    var showBlock by rememberSaveable { mutableStateOf(false) }
 
     SettingsGroup {
+        // On top, so it is in reach without scrolling past everyone already blocked.
+        // Blocking from the chat needs no trip here, so the row says how.
+        item { AddItem(R.string.block_user_title, R.string.settings_report_user_summary) { showBlock = true } }
         if (blocked.isEmpty()) {
             item {
                 ListItem(
@@ -108,7 +110,7 @@ internal fun BlockedUsersPage(vm: MainViewModel) {
                     headlineContent = { Text(user.displayName.ifEmpty { user.userLogin }) },
                     supportingContent = { Text("@" + user.userLogin) },
                     trailingContent = {
-                        OutlinedButton(onClick = { unblockTarget = user }) {
+                        OutlinedButton(onClick = { unblockTargetId = user.userId }) {
                             Text(stringResource(R.string.action_unblock))
                         }
                     },
@@ -116,19 +118,17 @@ internal fun BlockedUsersPage(vm: MainViewModel) {
                 )
             }
         }
-        // Blocking from the chat needs no trip here, so the row says how.
-        item { AddItem(R.string.block_user_title, R.string.settings_report_user_summary) { showBlock = true } }
     }
 
-    unblockTarget?.let { user ->
-        ConfirmUnblockDialog(
+    blocked.firstOrNull { it.userId == unblockTargetId }?.let { user ->
+        ConfirmUnblockSheet(
             name = user.displayName.ifEmpty { user.userLogin },
             onConfirm = { vm.unblock(user) },
-            onDismiss = { unblockTarget = null },
+            onDismiss = { unblockTargetId = null },
         )
     }
     if (showBlock) {
-        BlockUserDialog(
+        BlockUserSheet(
             search = vm::searchChannels,
             alreadyBlocked = blocked.mapTo(HashSet()) { it.userLogin.lowercase() },
             imageLoader = vm.imageLoader,
