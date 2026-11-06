@@ -88,6 +88,7 @@ import me.lesh.chatter.chat.chatterName
 import me.lesh.chatter.ui.MainViewModel
 import me.lesh.chatter.ui.channels.ChannelAvatar
 import me.lesh.chatter.ui.theme.isAppInDarkTheme
+import me.lesh.chatter.ui.theme.isPureBlack
 import me.lesh.chatter.ui.theme.readableNameColor
 import me.lesh.chatter.util.INBOX_TAB_MENTIONS
 import me.lesh.chatter.util.INBOX_TAB_WHISPERS
@@ -227,7 +228,8 @@ internal fun InboxContent(
         },
     ) { padding ->
         Column(Modifier.fillMaxSize().padding(padding)) {
-            PrimaryTabRow(selectedTabIndex = pager.currentPage) {
+            // No line under the tabs, like the channel tabs.
+            PrimaryTabRow(selectedTabIndex = pager.currentPage, divider = {}) {
                 InboxTab(R.string.inbox_tab_mentions, mentionUnread, onMentions) {
                     scope.launch { pager.animateScrollToPage(INBOX_TAB_MENTIONS) }
                 }
@@ -473,7 +475,11 @@ private fun InboxRow(
     val colors = MaterialTheme.colorScheme
     val context = LocalContext.current
     val time = remember(timestamp) { DateFormat.getTimeFormat(context).format(Date(timestamp)) }
-    val unreadTint = if (isAppInDarkTheme()) UNREAD_TINT_DARK else UNREAD_TINT_LIGHT
+    val unreadTint = when {
+        colors.isPureBlack -> UNREAD_TINT_BLACK
+        isAppInDarkTheme() -> UNREAD_TINT_DARK
+        else -> UNREAD_TINT_LIGHT
+    }
     val unreadState = stringResource(R.string.inbox_unread_state)
     Row(
         Modifier
@@ -554,6 +560,9 @@ private val INNER_CORNER = 4.dp
  */
 private const val UNREAD_TINT_LIGHT = 0.28f
 private const val UNREAD_TINT_DARK = 0.13f
+
+/** Pure black tiles are a step darker, so the same tint would hardly show on them. */
+private const val UNREAD_TINT_BLACK = 0.24f
 
 /** A picture of what would be here, and one line on how it gets here. */
 @Composable

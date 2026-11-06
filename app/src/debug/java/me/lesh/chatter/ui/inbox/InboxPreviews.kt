@@ -7,6 +7,8 @@ import android.graphics.Typeface
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.tooling.preview.Preview
@@ -14,6 +16,7 @@ import coil3.ImageLoader
 import coil3.asImage
 import coil3.intercept.Interceptor
 import coil3.request.SuccessResult
+import me.lesh.chatter.ChatterApp
 import me.lesh.chatter.channels.ChannelInfo
 import me.lesh.chatter.chat.InboxMention
 import me.lesh.chatter.chat.InboxWhisper
@@ -23,7 +26,8 @@ import me.lesh.chatter.util.INBOX_TAB_MENTIONS
 import me.lesh.chatter.util.INBOX_TAB_WHISPERS
 
 /*
- * The inbox with made-up mentions and whispers, to look at without a login. On the phone:
+ * The inbox with made-up mentions and whispers, to look at without a login. The colors are the
+ * phone's own: Material You and pure black as set in Chatter, so it looks like the real app. On the phone:
  * adb shell am start -n me.lesh.chatter/androidx.compose.ui.tooling.PreviewActivity \
  *   --es composable me.lesh.chatter.ui.inbox.InboxPreviewsKt.MentionsLight
  */
@@ -45,7 +49,13 @@ private fun SampleInbox(dark: Boolean, tab: Int, empty: Boolean = false, clearin
     val now = remember { System.currentTimeMillis() }
     val mentions = if (empty) emptyList() else sampleMentions(now)
     val whispers = if (empty) emptyList() else sampleWhispers(now)
-    ChatterTheme(themeMode = if (dark) ThemeMode.Dark else ThemeMode.Light, dynamicColor = false) {
+    val app = LocalContext.current.applicationContext as ChatterApp
+    val settings by app.container.settings.settings.collectAsState()
+    ChatterTheme(
+        themeMode = if (dark) ThemeMode.Dark else ThemeMode.Light,
+        dynamicColor = settings.dynamicColor,
+        pureBlack = settings.pureBlack,
+    ) {
         InboxContent(
             pager = rememberPagerState(initialPage = tab) { 2 },
             mentions = mentions,
