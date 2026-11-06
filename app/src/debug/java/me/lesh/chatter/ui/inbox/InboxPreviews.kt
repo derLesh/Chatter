@@ -111,7 +111,8 @@ private val SampleChannels = listOf(
     ChannelInfo("nordlicht_tv", displayName = "Nordlicht_TV", avatarUrl = "sample:#3F7DE8", isLive = true),
     ChannelInfo("pixelmara", displayName = "PixelMara", avatarUrl = "sample:#E8613F"),
     ChannelInfo("kaffeekatze", displayName = "KaffeeKatze", avatarUrl = "sample:#2FA36B", isLive = true),
-    ChannelInfo("speedrunsandra", displayName = "SpeedrunSandra", avatarUrl = "sample:#9B4FD6"),
+    // On Twitch's default picture, which the badge replaces with the initial.
+    ChannelInfo("speedrunsandra", displayName = "SpeedrunSandra", avatarUrl = "https://static-cdn.jtvnw.net/user-default-pictures-uv/default.png"),
 ).associateBy { it.login }
 
 /** Everyone has a picture on Twitch, if only the default one; Tobi keeps his initial to show it. */

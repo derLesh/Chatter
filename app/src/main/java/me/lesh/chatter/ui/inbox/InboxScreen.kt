@@ -11,6 +11,7 @@ import androidx.compose.ui.graphics.painter.Painter
 import androidx.compose.ui.unit.Dp
 import coil3.compose.AsyncImage
 import me.lesh.chatter.chat.WhisperConversation
+import me.lesh.chatter.chat.isDefaultPicture
 import me.lesh.chatter.chat.whispersWith
 import me.lesh.chatter.ui.FormSheet
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -381,7 +382,7 @@ private fun MentionList(
             avatar = { tile ->
                 PersonAvatar(name, readableNameColor(null, mention.login, dark), pictures[mention.login.lowercase()], imageLoader) {
                     // Who wrote it first, then where; their own channel would show the same picture twice.
-                    if (!inOwnChannel) CornerBadge(tile) { ChannelAvatar(info[mention.channel], imageLoader, CORNER_BADGE_SIZE, showLive = false) }
+                    if (!inOwnChannel) CornerBadge(tile) { ChannelBadge(info[mention.channel], mention.channel, imageLoader) }
                 }
             },
             onClick = { onOpen(mention) },
@@ -549,6 +550,33 @@ internal fun PersonAvatar(
             )
         }
         corner()
+    }
+}
+
+/**
+ * The channel's picture at badge size. Twitch's default picture would be the loudest thing in the
+ * row and look like an account icon, so such a channel gets its initial, quietly.
+ */
+@Composable
+private fun ChannelBadge(info: ChannelInfo?, login: String, imageLoader: ImageLoader) {
+    val url = info?.avatarUrl
+    if (url != null && !isDefaultPicture(url)) {
+        ChannelAvatar(info, imageLoader, CORNER_BADGE_SIZE, showLive = false)
+        return
+    }
+    Box(
+        contentAlignment = Alignment.Center,
+        modifier = Modifier
+            .size(CORNER_BADGE_SIZE)
+            .clip(CircleShape)
+            .background(MaterialTheme.colorScheme.surfaceContainerHighest),
+    ) {
+        Text(
+            (info?.displayName ?: login).take(1).uppercase(),
+            style = MaterialTheme.typography.labelSmall,
+            fontWeight = FontWeight.Bold,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
     }
 }
 
