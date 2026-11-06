@@ -1,1 +1,0 @@
-patch: Answer a whisper from a sheet that shows their message as a bubble
