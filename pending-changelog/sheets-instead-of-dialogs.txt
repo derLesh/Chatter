@@ -1,0 +1,1 @@
+patch: Add a channel, combine chats, add a word or log out in a panel that slides up from the bottom

@@ -136,6 +136,8 @@
     <string name="rename_channel_hint">Give the channel a nickname</string>
     <string name="add_channel">Add channel</string>
     <string name="channel_name">Channel name</string>
+    <string name="add_channel_none_found">Nothing found. Add takes the name anyway.</string>
+    <string name="add_channel_named">Add %1$s</string>
     <string name="live">LIVE</string>
     <string name="add">Add</string>
     <string name="combine_channels">Combine channels</string>

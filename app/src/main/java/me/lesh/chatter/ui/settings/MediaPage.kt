@@ -138,7 +138,7 @@ internal fun ImageHostsPage(hosts: List<String>, vm: MainViewModel) {
     }
 
     if (adding) {
-        AddKeywordDialog(
+        KeywordSheet(
             title = R.string.settings_image_hosts_add,
             hint = R.string.settings_image_hosts_hint,
             onAdd = vm::addImageHost,
@@ -147,7 +147,7 @@ internal fun ImageHostsPage(hosts: List<String>, vm: MainViewModel) {
         )
     }
     editing?.let { host ->
-        AddKeywordDialog(
+        KeywordSheet(
             title = R.string.settings_image_hosts_edit,
             hint = R.string.settings_image_hosts_hint,
             onAdd = { vm.editImageHost(host, it) },
