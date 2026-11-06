@@ -13,6 +13,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.pager.HorizontalPager
+import androidx.compose.foundation.pager.PagerState
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
@@ -68,7 +69,6 @@ import me.lesh.chatter.util.INBOX_TAB_WHISPERS
 import kotlinx.coroutines.launch
 
 /** Mentions and whispers in two tabs. Unlike the chat buffers this keeps them across restarts. */
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun InboxScreen(vm: MainViewModel, onOpenMention: (InboxMention) -> Unit, onBack: () -> Unit) {
     val mentions by vm.inboxMentions.collectAsStateWithLifecycle()
@@ -78,15 +78,12 @@ fun InboxScreen(vm: MainViewModel, onOpenMention: (InboxMention) -> Unit, onBack
     val info by vm.channelInfo.collectAsStateWithLifecycle()
     val nicknames by vm.nicknames.collectAsStateWithLifecycle()
     val settings by vm.settings.collectAsStateWithLifecycle()
-    val nameOf = { login: String, displayName: String -> chatterName(displayName, login, settings.nameStyle, nicknames[login.lowercase()]) }
 
     val pager = rememberPagerState { 2 }
     val scope = rememberCoroutineScope()
     val snackbar = remember { SnackbarHostState() }
     var replyTo by remember { mutableStateOf<InboxWhisper?>(null) }
-    // The bar's actions belong to the tab in front.
     val onMentions = pager.currentPage == INBOX_TAB_MENTIONS
-    val hasItems = if (onMentions) mentions.isNotEmpty() else whispers.isNotEmpty()
 
     // Requested by a whisper notification or the shortcut.
     val requestedTab by vm.requestedInbox.collectAsStateWithLifecycle()
@@ -103,6 +100,67 @@ fun InboxScreen(vm: MainViewModel, onOpenMention: (InboxMention) -> Unit, onBack
         onDispose { vm.setWhispersVisible(false) }
     }
 
+    InboxContent(
+        pager = pager,
+        mentions = mentions,
+        whispers = whispers,
+        mentionUnread = mentionUnread,
+        whisperUnread = whisperUnread,
+        info = info,
+        nameOf = { login, displayName -> chatterName(displayName, login, settings.nameStyle, nicknames[login.lowercase()]) },
+        imageLoader = vm.imageLoader,
+        snackbar = snackbar,
+        onBack = onBack,
+        onOpenMention = { mention ->
+            vm.markInboxRead(mention)
+            onOpenMention(mention)
+        },
+        onOpenWhisper = { whisper ->
+            vm.markWhisperRead(whisper)
+            replyTo = whisper
+        },
+        onMarkAllRead = { tab -> if (tab == INBOX_TAB_MENTIONS) vm.markInboxRead() else vm.markWhispersRead() },
+        onClear = { tab -> if (tab == INBOX_TAB_MENTIONS) vm.clearInbox() else vm.clearWhispers() },
+    )
+
+    replyTo?.let { whisper ->
+        WhisperReplyDialog(
+            name = chatterName(whisper.displayName, whisper.login, settings.nameStyle, nicknames[whisper.login.lowercase()]),
+            quoted = whisper.text,
+            onSend = { text ->
+                // Twitch may refuse a whisper; the snackbar shows its answer.
+                scope.launch { snackbar.showSnackbar(vm.sendWhisper(whisper, text)) }
+            },
+            onDismiss = { replyTo = null },
+        )
+    }
+}
+
+/** The inbox as it looks, without the view model, so it can be shown with sample data. */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+internal fun InboxContent(
+    pager: PagerState,
+    mentions: List<InboxMention>,
+    whispers: List<InboxWhisper>,
+    mentionUnread: Int,
+    whisperUnread: Int,
+    info: Map<String, ChannelInfo>,
+    nameOf: (login: String, displayName: String) -> String,
+    imageLoader: ImageLoader,
+    snackbar: SnackbarHostState,
+    onBack: () -> Unit,
+    onOpenMention: (InboxMention) -> Unit,
+    onOpenWhisper: (InboxWhisper) -> Unit,
+    /** Gets the tab in front, [INBOX_TAB_MENTIONS] or [INBOX_TAB_WHISPERS]. */
+    onMarkAllRead: (tab: Int) -> Unit,
+    onClear: (tab: Int) -> Unit,
+) {
+    val scope = rememberCoroutineScope()
+    // The bar's actions belong to the tab in front.
+    val onMentions = pager.currentPage == INBOX_TAB_MENTIONS
+    val hasItems = if (onMentions) mentions.isNotEmpty() else whispers.isNotEmpty()
+
     Scaffold(
         containerColor = MaterialTheme.colorScheme.surface,
         snackbarHost = { SnackbarHost(snackbar) },
@@ -116,10 +174,10 @@ fun InboxScreen(vm: MainViewModel, onOpenMention: (InboxMention) -> Unit, onBack
                 },
                 actions = {
                     if (hasItems) {
-                        IconButton(onClick = { if (onMentions) vm.markInboxRead() else vm.markWhispersRead() }) {
+                        IconButton(onClick = { onMarkAllRead(pager.currentPage) }) {
                             Icon(Icons.Default.Check, stringResource(R.string.inbox_mark_all_read))
                         }
-                        IconButton(onClick = { if (onMentions) vm.clearInbox() else vm.clearWhispers() }) {
+                        IconButton(onClick = { onClear(pager.currentPage) }) {
                             Icon(Icons.Default.Delete, stringResource(R.string.inbox_clear))
                         }
                     }
@@ -138,39 +196,11 @@ fun InboxScreen(vm: MainViewModel, onOpenMention: (InboxMention) -> Unit, onBack
             }
             HorizontalPager(pager, Modifier.weight(1f)) { page ->
                 when (page) {
-                    INBOX_TAB_MENTIONS -> MentionList(
-                        mentions = mentions,
-                        info = info,
-                        nameOf = nameOf,
-                        imageLoader = vm.imageLoader,
-                        onOpen = { mention ->
-                            vm.markInboxRead(mention)
-                            onOpenMention(mention)
-                        },
-                    )
-                    else -> WhisperList(
-                        whispers = whispers,
-                        nameOf = nameOf,
-                        onOpen = { whisper ->
-                            vm.markWhisperRead(whisper)
-                            replyTo = whisper
-                        },
-                    )
+                    INBOX_TAB_MENTIONS -> MentionList(mentions, info, nameOf, imageLoader, onOpenMention)
+                    else -> WhisperList(whispers, nameOf, onOpenWhisper)
                 }
             }
         }
-    }
-
-    replyTo?.let { whisper ->
-        WhisperReplyDialog(
-            name = nameOf(whisper.login, whisper.displayName),
-            quoted = whisper.text,
-            onSend = { text ->
-                // Twitch may refuse a whisper; the snackbar shows its answer.
-                scope.launch { snackbar.showSnackbar(vm.sendWhisper(whisper, text)) }
-            },
-            onDismiss = { replyTo = null },
-        )
     }
 }
 
