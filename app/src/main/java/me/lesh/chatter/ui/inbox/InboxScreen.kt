@@ -1,5 +1,9 @@
 package me.lesh.chatter.ui.inbox
 
+import me.lesh.chatter.ui.FormSheet
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.ui.res.painterResource
+import androidx.compose.material.icons.outlined.Delete
 import java.util.Date
 import java.time.format.DateTimeFormatter
 import java.time.ZoneId
@@ -42,8 +46,6 @@ import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.filled.Check
-import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -102,6 +104,7 @@ fun InboxScreen(vm: MainViewModel, onOpenMention: (InboxMention) -> Unit, onBack
     val scope = rememberCoroutineScope()
     val snackbar = remember { SnackbarHostState() }
     var replyTo by remember { mutableStateOf<InboxWhisper?>(null) }
+    var clearing by rememberSaveable { mutableStateOf<Int?>(null) }
     val onMentions = pager.currentPage == INBOX_TAB_MENTIONS
 
     // Requested by a whisper notification or the shortcut.
@@ -140,8 +143,16 @@ fun InboxScreen(vm: MainViewModel, onOpenMention: (InboxMention) -> Unit, onBack
             replyTo = whisper
         },
         onMarkAllRead = { tab -> if (tab == INBOX_TAB_MENTIONS) vm.markInboxRead() else vm.markWhispersRead() },
-        onClear = { tab -> if (tab == INBOX_TAB_MENTIONS) vm.clearInbox() else vm.clearWhispers() },
+        onClear = { tab -> clearing = tab },
     )
+
+    clearing?.let { tab ->
+        ClearInboxSheet(
+            tab = tab,
+            onConfirm = { if (tab == INBOX_TAB_MENTIONS) vm.clearInbox() else vm.clearWhispers() },
+            onDismiss = { clearing = null },
+        )
+    }
 
     replyTo?.let { whisper ->
         WhisperReplyDialog(
@@ -176,12 +187,14 @@ internal fun InboxContent(
     onOpenWhisper: (InboxWhisper) -> Unit,
     /** Gets the tab in front, [INBOX_TAB_MENTIONS] or [INBOX_TAB_WHISPERS]. */
     onMarkAllRead: (tab: Int) -> Unit,
+    /** Asks to clear the tab in front; nothing is gone until [ClearInboxSheet] is confirmed. */
     onClear: (tab: Int) -> Unit,
 ) {
     val scope = rememberCoroutineScope()
     // The bar's actions belong to the tab in front.
     val onMentions = pager.currentPage == INBOX_TAB_MENTIONS
     val hasItems = if (onMentions) mentions.isNotEmpty() else whispers.isNotEmpty()
+    val hasUnread = (if (onMentions) mentionUnread else whisperUnread) > 0
 
     Scaffold(
         containerColor = MaterialTheme.colorScheme.surface,
@@ -195,12 +208,14 @@ internal fun InboxContent(
                     }
                 },
                 actions = {
-                    if (hasItems) {
+                    if (hasUnread) {
                         IconButton(onClick = { onMarkAllRead(pager.currentPage) }) {
-                            Icon(Icons.Default.Check, stringResource(R.string.inbox_mark_all_read))
+                            Icon(painterResource(R.drawable.ic_done_all), stringResource(R.string.inbox_mark_all_read))
                         }
+                    }
+                    if (hasItems) {
                         IconButton(onClick = { onClear(pager.currentPage) }) {
-                            Icon(Icons.Default.Delete, stringResource(R.string.inbox_clear))
+                            Icon(Icons.Outlined.Delete, stringResource(R.string.inbox_clear))
                         }
                     }
                 },
@@ -224,6 +239,19 @@ internal fun InboxContent(
             }
         }
     }
+}
+
+/** Clearing a tab cannot be undone, so it asks first. */
+@Composable
+internal fun ClearInboxSheet(tab: Int, onConfirm: () -> Unit, onDismiss: () -> Unit) {
+    FormSheet(
+        title = stringResource(if (tab == INBOX_TAB_MENTIONS) R.string.inbox_clear_mentions_title else R.string.inbox_clear_whispers_title),
+        text = stringResource(R.string.inbox_clear_text),
+        confirmLabel = stringResource(R.string.inbox_clear_confirm),
+        onConfirm = onConfirm,
+        onDismiss = onDismiss,
+        destructive = true,
+    )
 }
 
 @Composable

@@ -838,6 +838,10 @@
     <string name="inbox_empty_hint">Every message that mentions you or holds a highlighted word shows up here</string>
     <string name="inbox_mark_all_read">Mark all as read</string>
     <string name="inbox_clear">Clear</string>
+    <string name="inbox_clear_mentions_title">Delete all mentions?</string>
+    <string name="inbox_clear_whispers_title">Delete all whispers?</string>
+    <string name="inbox_clear_text">This cannot be undone.</string>
+    <string name="inbox_clear_confirm">Delete all</string>
     <plurals name="inbox_unread">
         <item quantity="one">%d unread</item>
         <item quantity="other">%d unread</item>

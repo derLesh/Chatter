@@ -33,13 +33,14 @@ import me.lesh.chatter.util.INBOX_TAB_WHISPERS
 @Preview @Composable fun WhispersLight() = SampleInbox(dark = false, tab = INBOX_TAB_WHISPERS)
 @Preview @Composable fun WhispersDark() = SampleInbox(dark = true, tab = INBOX_TAB_WHISPERS)
 @Preview @Composable fun EmptyLight() = SampleInbox(dark = false, tab = INBOX_TAB_MENTIONS, empty = true)
+@Preview @Composable fun ClearLight() = SampleInbox(dark = false, tab = INBOX_TAB_MENTIONS, clearing = true)
 @Preview @Composable fun EmptyDark() = SampleInbox(dark = true, tab = INBOX_TAB_WHISPERS, empty = true)
 
 private const val MINUTE = 60_000L
 private const val HOUR = 60 * MINUTE
 
 @Composable
-private fun SampleInbox(dark: Boolean, tab: Int, empty: Boolean = false) {
+private fun SampleInbox(dark: Boolean, tab: Int, empty: Boolean = false, clearing: Boolean = false) {
     val now = remember { System.currentTimeMillis() }
     val mentions = if (empty) emptyList() else sampleMentions(now)
     val whispers = if (empty) emptyList() else sampleWhispers(now)
@@ -61,6 +62,7 @@ private fun SampleInbox(dark: Boolean, tab: Int, empty: Boolean = false) {
             onMarkAllRead = {},
             onClear = {},
         )
+        if (clearing) ClearInboxSheet(tab, onConfirm = {}, onDismiss = {})
     }
 }
 
