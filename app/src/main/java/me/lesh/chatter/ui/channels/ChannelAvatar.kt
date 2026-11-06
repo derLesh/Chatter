@@ -17,9 +17,12 @@ import coil3.compose.AsyncImage
 import me.lesh.chatter.channels.ChannelInfo
 import me.lesh.chatter.ui.theme.LiveRed
 
-/** Round avatar with a red ring and dot while the channel is live. */
+/**
+ * Round avatar with a red ring while the channel is live. [showLive] is off where the avatar only
+ * says where something was written, as in the inbox.
+ */
 @Composable
-fun ChannelAvatar(info: ChannelInfo?, imageLoader: ImageLoader, size: Dp) {
+fun ChannelAvatar(info: ChannelInfo?, imageLoader: ImageLoader, size: Dp, showLive: Boolean = true) {
     Box(Modifier.size(size)) {
         AsyncImage(
             model = info?.avatarUrl,
@@ -30,7 +33,7 @@ fun ChannelAvatar(info: ChannelInfo?, imageLoader: ImageLoader, size: Dp) {
                 .clip(CircleShape)
                 .background(MaterialTheme.colorScheme.surfaceContainerHighest)
                 // The red ring means "live" wherever an avatar appears.
-                .then(if (info?.isLive == true) Modifier.border(2.dp, LiveRed, CircleShape) else Modifier),
+                .then(if (showLive && info?.isLive == true) Modifier.border(2.dp, LiveRed, CircleShape) else Modifier),
         )
     }
 }

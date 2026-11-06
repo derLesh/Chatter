@@ -828,7 +828,10 @@
     <string name="inbox_title">Inbox</string>
     <string name="inbox_tab_mentions">Mentions</string>
     <string name="inbox_tab_whispers">Whispers</string>
-    <string name="inbox_from">%1$s in %2$s</string>
+    <string name="inbox_in_channel">in %1$s</string>
+    <string name="inbox_own_channel">in their own channel</string>
+    <string name="inbox_today">Today</string>
+    <string name="inbox_yesterday">Yesterday</string>
     <string name="inbox_whispers_empty">No whispers</string>
     <string name="inbox_whispers_empty_hint">Whispers to you show up here</string>
     <string name="inbox_empty">No mentions</string>

@@ -817,7 +817,10 @@
     <string name="inbox_title">Postfach</string>
     <string name="inbox_tab_mentions">Erwähnungen</string>
     <string name="inbox_tab_whispers">Flüstern</string>
-    <string name="inbox_from">%1$s in %2$s</string>
+    <string name="inbox_in_channel">in %1$s</string>
+    <string name="inbox_own_channel">im eigenen Kanal</string>
+    <string name="inbox_today">Heute</string>
+    <string name="inbox_yesterday">Gestern</string>
     <string name="inbox_whispers_empty">Keine Flüsternachrichten</string>
     <string name="inbox_whispers_empty_hint">Hier erscheinen Flüsternachrichten an dich</string>
     <string name="inbox_empty">Keine Erwähnungen</string>

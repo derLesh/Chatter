@@ -1,6 +1,24 @@
 package me.lesh.chatter.ui.inbox
 
-import android.text.format.DateUtils
+import java.util.Date
+import java.time.format.DateTimeFormatter
+import java.time.ZoneId
+import java.time.LocalDate
+import java.time.Instant
+import android.text.format.DateFormat
+import androidx.compose.ui.text.withStyle
+import androidx.compose.ui.text.buildAnnotatedString
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.AnnotatedString
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.heading
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.graphics.lerp
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -18,7 +36,6 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.PagerState
 import androidx.compose.foundation.pager.rememberPagerState
@@ -28,11 +45,8 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.ListItem
-import androidx.compose.material3.ListItemDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.PrimaryTabRow
 import androidx.compose.material3.Scaffold
@@ -113,6 +127,7 @@ fun InboxScreen(vm: MainViewModel, onOpenMention: (InboxMention) -> Unit, onBack
         whisperUnread = whisperUnread,
         info = info,
         nameOf = { login, displayName -> chatterName(displayName, login, settings.nameStyle, nicknames[login.lowercase()]) },
+        ownLogin = vm.ownLogin,
         imageLoader = vm.imageLoader,
         snackbar = snackbar,
         onBack = onBack,
@@ -152,6 +167,8 @@ internal fun InboxContent(
     whisperUnread: Int,
     info: Map<String, ChannelInfo>,
     nameOf: (login: String, displayName: String) -> String,
+    /** Highlighted in the mentions. */
+    ownLogin: String,
     imageLoader: ImageLoader,
     snackbar: SnackbarHostState,
     onBack: () -> Unit,
@@ -201,7 +218,7 @@ internal fun InboxContent(
             }
             HorizontalPager(pager, Modifier.weight(1f)) { page ->
                 when (page) {
-                    INBOX_TAB_MENTIONS -> MentionList(mentions, info, nameOf, imageLoader, onOpenMention)
+                    INBOX_TAB_MENTIONS -> MentionList(mentions, info, nameOf, ownLogin, imageLoader, onOpenMention)
                     else -> WhisperList(whispers, nameOf, onOpenWhisper)
                 }
             }
@@ -253,6 +270,7 @@ private fun MentionList(
     mentions: List<InboxMention>,
     info: Map<String, ChannelInfo>,
     nameOf: (login: String, displayName: String) -> String,
+    ownLogin: String,
     imageLoader: ImageLoader,
     onOpen: (InboxMention) -> Unit,
 ) {
@@ -260,22 +278,19 @@ private fun MentionList(
         EmptyTab(R.string.inbox_empty, R.string.inbox_empty_hint)
         return
     }
-    LazyColumn(Modifier.fillMaxSize()) {
-        items(mentions, key = { it.id }) { mention ->
-            InboxRow(
-                title = stringResource(
-                    R.string.inbox_from,
-                    nameOf(mention.login, mention.displayName),
-                    info[mention.channel]?.displayName ?: mention.channel,
-                ),
-                text = mention.text,
-                timestamp = mention.timestamp,
-                read = mention.read,
-                avatar = { ChannelAvatar(info[mention.channel], imageLoader, 40.dp) },
-                onClick = { onOpen(mention) },
-            )
-            HorizontalDivider(color = MaterialTheme.colorScheme.surfaceContainerHighest)
-        }
+    val ownChannel = stringResource(R.string.inbox_own_channel)
+    val highlight = SpanStyle(color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.SemiBold)
+    DayList(mentions, InboxMention::timestamp, InboxMention::id) { mention ->
+        InboxRow(
+            name = nameOf(mention.login, mention.displayName),
+            place = if (mention.login.equals(mention.channel, ignoreCase = true)) ownChannel
+            else stringResource(R.string.inbox_in_channel, info[mention.channel]?.displayName ?: mention.channel),
+            text = remember(mention.text, ownLogin, highlight) { highlightName(mention.text, ownLogin, highlight) },
+            timestamp = mention.timestamp,
+            read = mention.read,
+            avatar = { ChannelAvatar(info[mention.channel], imageLoader, AVATAR_SIZE, showLive = false) },
+            onClick = { onOpen(mention) },
+        )
     }
 }
 
@@ -290,20 +305,80 @@ private fun WhisperList(
         return
     }
     val dark = isAppInDarkTheme()
-    LazyColumn(Modifier.fillMaxSize()) {
-        items(whispers, key = { it.id }) { whisper ->
-            val name = nameOf(whisper.login, whisper.displayName)
-            InboxRow(
-                title = name,
-                text = whisper.text,
-                timestamp = whisper.timestamp,
-                read = whisper.read,
-                avatar = { InitialAvatar(name, readableNameColor(whisper.color, whisper.login, dark)) },
-                onClick = { onOpen(whisper) },
-            )
-            HorizontalDivider(color = MaterialTheme.colorScheme.surfaceContainerHighest)
+    DayList(whispers, InboxWhisper::timestamp, InboxWhisper::id) { whisper ->
+        val name = nameOf(whisper.login, whisper.displayName)
+        InboxRow(
+            name = name,
+            place = null,
+            text = AnnotatedString(whisper.text),
+            timestamp = whisper.timestamp,
+            read = whisper.read,
+            avatar = { InitialAvatar(name, readableNameColor(whisper.color, whisper.login, dark)) },
+            onClick = { onOpen(whisper) },
+        )
+    }
+}
+
+/**
+ * [entries], newest first, as tiles under a heading for each day: strong outer corners and slight
+ * ones between, like the settings, so a day reads as one block.
+ */
+@OptIn(ExperimentalFoundationApi::class)
+@Composable
+private fun <T> DayList(
+    entries: List<T>,
+    timestamp: (T) -> Long,
+    key: (T) -> String,
+    row: @Composable (T) -> Unit,
+) {
+    val zone = remember { ZoneId.systemDefault() }
+    val days = remember(entries) {
+        entries.groupBy { Instant.ofEpochMilli(timestamp(it)).atZone(zone).toLocalDate() }
+    }
+    val today = LocalDate.now(zone)
+    LazyColumn(
+        contentPadding = PaddingValues(start = 16.dp, end = 16.dp, bottom = 24.dp),
+        modifier = Modifier.fillMaxSize(),
+    ) {
+        days.forEach { (day, onDay) ->
+            stickyHeader(key = "day-$day", contentType = "day") { DayHeading(day, today) }
+            itemsIndexed(onDay, key = { _, entry -> key(entry) }, contentType = { _, _ -> "row" }) { i, entry ->
+                val top = if (i == 0) OUTER_CORNER else INNER_CORNER
+                val bottom = if (i == onDay.lastIndex) OUTER_CORNER else INNER_CORNER
+                Box(
+                    Modifier
+                        .animateItem()
+                        .padding(bottom = if (i == onDay.lastIndex) 0.dp else 2.dp)
+                        .clip(RoundedCornerShape(topStart = top, topEnd = top, bottomStart = bottom, bottomEnd = bottom)),
+                ) { row(entry) }
+            }
         }
     }
+}
+
+@Composable
+private fun DayHeading(day: LocalDate, today: LocalDate) {
+    val label = when (day) {
+        today -> stringResource(R.string.inbox_today)
+        today.minusDays(1) -> stringResource(R.string.inbox_yesterday)
+        else -> {
+            val locale = LocalConfiguration.current.locales[0]
+            val skeleton = if (day.year == today.year) "EEEEdMMMM" else "EEEEdMMMMyyyy"
+            remember(day, locale) {
+                day.format(DateTimeFormatter.ofPattern(DateFormat.getBestDateTimePattern(locale, skeleton), locale))
+            }
+        }
+    }
+    Text(
+        label,
+        style = MaterialTheme.typography.titleSmall,
+        color = MaterialTheme.colorScheme.primary,
+        modifier = Modifier
+            .fillMaxWidth()
+            .background(MaterialTheme.colorScheme.surface)
+            .padding(start = 16.dp, top = 20.dp, bottom = 8.dp)
+            .semantics { heading() },
+    )
 }
 
 /** Whispers have no picture; the sender's initial in their color stands in. */
@@ -311,7 +386,7 @@ private fun WhisperList(
 private fun InitialAvatar(name: String, color: Color) {
     Box(
         contentAlignment = Alignment.Center,
-        modifier = Modifier.size(40.dp).clip(CircleShape).background(color.copy(alpha = 0.25f)),
+        modifier = Modifier.size(AVATAR_SIZE).clip(CircleShape).background(color.copy(alpha = 0.2f)),
     ) {
         Text(
             name.take(1).uppercase(),
@@ -322,48 +397,95 @@ private fun InitialAvatar(name: String, color: Color) {
     }
 }
 
+/**
+ * One mention or whisper. Unread rows are tinted and bold, with a dot beside the text; read ones step
+ * back to grey text, so the new ones stand out without a band or a line between rows.
+ */
 @Composable
 private fun InboxRow(
-    title: String,
-    text: String,
+    name: String,
+    /** Where it was said, after the name; null for whispers. */
+    place: String?,
+    text: AnnotatedString,
     timestamp: Long,
     read: Boolean,
     avatar: @Composable () -> Unit,
     onClick: () -> Unit,
 ) {
-    val time = DateUtils.getRelativeTimeSpanString(
-        timestamp, System.currentTimeMillis(), DateUtils.MINUTE_IN_MILLIS,
-    ).toString()
-    ListItem(
-        headlineContent = {
-            Text(
-                title,
-                fontWeight = if (read) FontWeight.Normal else FontWeight.Bold,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-            )
-        },
-        supportingContent = { Text(text, maxLines = 3, overflow = TextOverflow.Ellipsis) },
-        leadingContent = {
-            Box(contentAlignment = Alignment.TopEnd) {
-                avatar()
+    val colors = MaterialTheme.colorScheme
+    val context = LocalContext.current
+    val time = remember(timestamp) { DateFormat.getTimeFormat(context).format(Date(timestamp)) }
+    Row(
+        Modifier
+            .fillMaxWidth()
+            .background(if (read) colors.surfaceContainer else lerp(colors.surfaceContainer, colors.primaryContainer, UNREAD_TINT))
+            .clickable(onClick = onClick)
+            .padding(horizontal = 16.dp, vertical = 14.dp),
+    ) {
+        avatar()
+        Column(Modifier.weight(1f).padding(start = 14.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(
+                    buildAnnotatedString {
+                        withStyle(SpanStyle(fontWeight = if (read) FontWeight.Medium else FontWeight.Bold, color = colors.onSurface)) {
+                            append(name)
+                        }
+                        if (place != null) {
+                            withStyle(SpanStyle(color = colors.onSurfaceVariant, fontWeight = FontWeight.Normal)) { append("  $place") }
+                        }
+                    },
+                    style = MaterialTheme.typography.titleSmall,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.weight(1f),
+                )
+                Text(
+                    time,
+                    style = MaterialTheme.typography.labelMedium,
+                    fontWeight = if (read) FontWeight.Normal else FontWeight.Bold,
+                    color = if (read) colors.onSurfaceVariant else colors.primary,
+                    modifier = Modifier.padding(start = 12.dp),
+                )
+            }
+            Row(Modifier.padding(top = 4.dp)) {
+                Text(
+                    text,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = if (read) colors.onSurfaceVariant else colors.onSurface,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.weight(1f),
+                )
                 if (!read) {
                     Box(
                         Modifier
-                            .size(10.dp)
+                            .padding(start = 12.dp, top = 6.dp)
+                            .size(8.dp)
                             .clip(CircleShape)
-                            .background(MaterialTheme.colorScheme.primary),
+                            .background(colors.primary),
                     )
                 }
             }
-        },
-        trailingContent = { Text(time, style = MaterialTheme.typography.labelSmall) },
-        colors = ListItemDefaults.colors(
-            containerColor = if (read) Color.Transparent else MaterialTheme.colorScheme.surfaceContainer,
-        ),
-        modifier = Modifier.fillMaxWidth().clickable(onClick = onClick),
-    )
+        }
+    }
 }
+
+/** [text] with every mention of [login], with or without the @, in [style]. */
+internal fun highlightName(text: String, login: String, style: SpanStyle): AnnotatedString {
+    if (login.isEmpty()) return AnnotatedString(text)
+    val name = Regex("(?<![\\w@])@?${Regex.escape(login)}(?!\\w)", RegexOption.IGNORE_CASE)
+    return buildAnnotatedString {
+        append(text)
+        name.findAll(text).forEach { addStyle(style, it.range.first, it.range.last + 1) }
+    }
+}
+
+private val AVATAR_SIZE = 44.dp
+private val OUTER_CORNER = 24.dp
+private val INNER_CORNER = 4.dp
+
+/** How far an unread tile leans towards the accent: enough to find it, not a coloured band. */
+private const val UNREAD_TINT = 0.22f
 
 @Composable
 private fun EmptyTab(title: Int, hint: Int) {

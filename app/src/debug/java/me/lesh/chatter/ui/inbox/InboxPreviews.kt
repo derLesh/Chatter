@@ -52,6 +52,7 @@ private fun SampleInbox(dark: Boolean, tab: Int, empty: Boolean = false) {
             whisperUnread = whispers.count { !it.read },
             info = SampleChannels,
             nameOf = { _, displayName -> displayName },
+            ownLogin = "lesh",
             imageLoader = sampleImageLoader(),
             snackbar = remember { SnackbarHostState() },
             onBack = {},
