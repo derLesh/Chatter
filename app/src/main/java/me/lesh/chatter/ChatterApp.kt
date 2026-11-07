@@ -7,6 +7,7 @@ import coil3.SingletonImageLoader
 import me.lesh.chatter.crash.CrashLog
 import me.lesh.chatter.crash.DeviceInfo
 import me.lesh.chatter.util.isFirstStart
+import me.lesh.chatter.util.shownVersion
 
 class ChatterApp : Application(), SingletonImageLoader.Factory {
     lateinit var container: AppContainer
@@ -15,7 +16,7 @@ class ChatterApp : Application(), SingletonImageLoader.Factory {
     override fun onCreate() {
         super.onCreate()
         // First, so crashes while building the rest are recorded too.
-        val crashes = CrashLog(filesDir.resolve("crashes"), DeviceInfo.current(BuildConfig.VERSION_NAME, BuildConfig.VERSION_CODE))
+        val crashes = CrashLog(filesDir.resolve("crashes"), DeviceInfo.current(shownVersion, BuildConfig.VERSION_CODE))
         crashes.install()
         container = AppContainer(this, crashes, isFirstStart(this))
         container.start()

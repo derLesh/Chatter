@@ -357,9 +357,9 @@ fun MainScreen(vm: MainViewModel, onInbox: () -> Unit, onSettings: () -> Unit) {
                 .windowInsetsPadding(WindowInsets.ime.union(WindowInsets.navigationBars))
                 .background(MaterialTheme.colorScheme.background),
         ) {
-            // The slim input floats over the chat; a guest's prompt has no field and keeps its strip,
+            // The input floats over the chat; a guest's prompt has no field and keeps its strip,
             // and without channels it would cover the button to add one.
-            val floatingInput = settings.compactInput && !guest && !settings.readOnly && pageKeys.isNotEmpty()
+            val floatingInput = !guest && !settings.readOnly && pageKeys.isNotEmpty()
             var floatingInputHeight by remember { mutableIntStateOf(0) }
             val density = LocalDensity.current
             Box(Modifier.weight(1f)) {
@@ -527,7 +527,7 @@ private fun ChatInput(
         recentlySentButton = settings.recentlySentButton,
         chatModes = chatModes,
         onChatModes = vm::changeChatModes,
-        compact = settings.compactInput,
+        buildStripe = settings.buildStripe,
         sendLater = sendLater(vm, settings),
     )
 }

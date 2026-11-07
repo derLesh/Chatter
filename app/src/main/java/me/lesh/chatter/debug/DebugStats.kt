@@ -32,6 +32,7 @@ import java.text.DateFormat
 import java.text.NumberFormat
 import java.util.Date
 import java.util.Locale
+import me.lesh.chatter.util.shownVersion
 
 class DebugRow(@param:StringRes val label: Int, val value: String)
 
@@ -82,7 +83,7 @@ class DebugStats(
         return DebugSection(
             R.string.debug_section_build,
             listOf(
-                DebugRow(R.string.debug_version, BuildConfig.VERSION_NAME),
+                DebugRow(R.string.debug_version, shownVersion),
                 DebugRow(R.string.debug_version_code, BuildConfig.VERSION_CODE.toString()),
                 DebugRow(R.string.debug_build_type, BuildConfig.BUILD_TYPE),
                 DebugRow(R.string.debug_app_id, context.packageName),

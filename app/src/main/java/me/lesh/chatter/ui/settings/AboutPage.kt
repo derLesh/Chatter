@@ -53,6 +53,7 @@ import java.util.Date
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import me.lesh.chatter.util.shownVersion
 
 /**
  * Supporting Chatter. GitHub Sponsors handles the money but cannot know a sponsor's Twitch account,
@@ -177,7 +178,7 @@ internal fun AboutPage(settings: Settings, vm: MainViewModel, open: (SettingsSub
             )
             Spacer(Modifier.height(10.dp))
             Text(
-                stringResource(R.string.settings_version, BuildConfig.VERSION_NAME),
+                stringResource(R.string.settings_version, shownVersion),
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )

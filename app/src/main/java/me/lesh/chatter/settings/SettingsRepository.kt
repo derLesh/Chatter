@@ -124,8 +124,8 @@ data class Settings(
     val recentlySentButton: RecentlySentButton = RecentlySentButton.ReplacesSend,
     /** A shield next to the emotes, in channels the user moderates, to change the chat modes. */
     val chatModesButton: Boolean = true,
-    /** The icons inside a lower input that floats over the chat, instead of a strip of its own. */
-    val compactInput: Boolean = false,
+    /** A strip of the build's icon at the left of the input; only offered in Dev and Nightly. */
+    val buildStripe: Boolean = true,
     /** Show deleted messages struck through instead of hiding them. */
     val showDeleted: Boolean = true,
     /** Check GitHub daily for a newer version; only in the GitHub APK. */
@@ -259,7 +259,7 @@ class SettingsRepository(
             recentlySentButton = p[RECENTLY_SENT_BUTTON]?.let { v -> RecentlySentButton.entries.firstOrNull { it.name == v } }
                 ?: RecentlySentButton.ReplacesSend,
             chatModesButton = p[CHAT_MODES_BUTTON] ?: true,
-            compactInput = p[COMPACT_INPUT] ?: false,
+            buildStripe = p[BUILD_STRIPE] ?: true,
             showDeleted = p[SHOW_DELETED] ?: true,
             updateCheck = p[UPDATE_CHECK] ?: true,
             inlineImages = p[INLINE_IMAGES] ?: true,
@@ -344,7 +344,7 @@ class SettingsRepository(
     suspend fun setMentionWithAt(v: Boolean) = store.edit { it[MENTION_WITH_AT] = v }
     suspend fun setRecentlySentButton(v: RecentlySentButton) = store.edit { it[RECENTLY_SENT_BUTTON] = v.name }
     suspend fun setChatModesButton(v: Boolean) = store.edit { it[CHAT_MODES_BUTTON] = v }
-    suspend fun setCompactInput(v: Boolean) = store.edit { it[COMPACT_INPUT] = v }
+    suspend fun setBuildStripe(v: Boolean) = store.edit { it[BUILD_STRIPE] = v }
     suspend fun setReadOnly(v: Boolean) = store.edit { it[READ_ONLY] = v }
     suspend fun setShowDeleted(v: Boolean) = store.edit { it[SHOW_DELETED] = v }
     suspend fun setUpdateCheck(v: Boolean) = store.edit { it[UPDATE_CHECK] = v }
@@ -472,7 +472,7 @@ class SettingsRepository(
         p[MENTION_WITH_AT] = s.mentionWithAt
         p[RECENTLY_SENT_BUTTON] = s.recentlySentButton.name
         p[CHAT_MODES_BUTTON] = s.chatModesButton
-        p[COMPACT_INPUT] = s.compactInput
+        p[BUILD_STRIPE] = s.buildStripe
         p[READ_ONLY] = s.readOnly
         p[SHOW_DELETED] = s.showDeleted
         p[UPDATE_CHECK] = s.updateCheck
@@ -581,7 +581,7 @@ class SettingsRepository(
         val MENTION_WITH_AT = booleanPreferencesKey("mention_with_at")
         val RECENTLY_SENT_BUTTON = stringPreferencesKey("recently_sent_button")
         val CHAT_MODES_BUTTON = booleanPreferencesKey("chat_modes_button")
-        val COMPACT_INPUT = booleanPreferencesKey("compact_input")
+        val BUILD_STRIPE = booleanPreferencesKey("build_stripe")
         val READ_ONLY = booleanPreferencesKey("read_only")
         val SHOW_DELETED = booleanPreferencesKey("show_deleted")
         val UPDATE_CHECK = booleanPreferencesKey("update_check")
