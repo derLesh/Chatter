@@ -21,6 +21,7 @@ import me.lesh.chatter.chat.RoomState
 import me.lesh.chatter.settings.RecentlySentButton
 import me.lesh.chatter.settings.Settings
 import me.lesh.chatter.ui.MainViewModel
+import me.lesh.chatter.ui.chat.BuildStripe
 import me.lesh.chatter.ui.chat.InputBar
 
 /**
@@ -50,8 +51,10 @@ internal fun TypingPage(settings: Settings, vm: MainViewModel) {
         item(R.string.settings_chat_modes_button) {
             SwitchItem(R.string.settings_chat_modes_button, settings.chatModesButton, vm::setChatModesButton, R.string.settings_chat_modes_button_hint)
         }
-        item(R.string.settings_compact_input) {
-            BetaSwitchItem(R.string.settings_compact_input, settings.compactInput, vm::setCompactInput, R.string.settings_compact_input_hint)
+        if (BuildStripe.offered) {
+            item(R.string.settings_build_stripe) {
+                SwitchItem(R.string.settings_build_stripe, settings.buildStripe, vm::setBuildStripe, R.string.settings_build_stripe_hint)
+            }
         }
     }
 }
@@ -87,7 +90,7 @@ private fun InputPreview(settings: Settings, vm: MainViewModel) {
             recentlySentButton = settings.recentlySentButton,
             chatModes = modes.takeIf { settings.chatModesButton },
             onChatModes = { modes = it },
-            compact = settings.compactInput,
+            buildStripe = settings.buildStripe,
         )
     }
 }

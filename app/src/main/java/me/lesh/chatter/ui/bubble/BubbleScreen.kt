@@ -141,8 +141,8 @@ fun BubbleScreen(vm: MainViewModel, channel: String?) {
             }
             HorizontalDivider()
 
-            // The slim input floats over the chat, like in the app.
-            val floatingInput = settings.compactInput && !settings.readOnly
+            // The input floats over the chat, like in the app.
+            val floatingInput = !settings.readOnly
             var floatingInputHeight by remember { mutableIntStateOf(0) }
             val density = LocalDensity.current
             val input = @Composable { modifier: Modifier ->
@@ -169,7 +169,7 @@ fun BubbleScreen(vm: MainViewModel, channel: String?) {
                         ?.takeIf { settings.chatModesButton && it in modChannels }
                         ?.let { roomStates[it] ?: RoomState() },
                     onChatModes = vm::changeChatModes,
-                    compact = settings.compactInput,
+                    buildStripe = settings.buildStripe,
                     sendLater = sendLater(vm, settings),
                 )
             }
@@ -208,7 +208,6 @@ fun BubbleScreen(vm: MainViewModel, channel: String?) {
                         .offset { IntOffset(0, if (floatingInput) -floatingInputHeight else 0) },
                 )
             }
-            if (!settings.readOnly && !floatingInput) input(Modifier)
         }
     }
 

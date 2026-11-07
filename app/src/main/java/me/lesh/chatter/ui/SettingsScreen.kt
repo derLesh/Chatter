@@ -89,6 +89,7 @@ import androidx.navigationevent.NavigationEventInfo
 import androidx.navigationevent.compose.NavigationBackHandler
 import androidx.navigationevent.compose.rememberNavigationEventState
 import me.lesh.chatter.BuildConfig
+import me.lesh.chatter.ui.chat.BuildStripe
 import me.lesh.chatter.R
 import me.lesh.chatter.auth.AuthState
 import me.lesh.chatter.settings.Settings
@@ -145,6 +146,7 @@ import me.lesh.chatter.ui.theme.isAppInDarkTheme
 import me.lesh.chatter.ui.update.UpdateCard
 import me.lesh.chatter.ui.update.UpdatePage
 import kotlinx.coroutines.launch
+import me.lesh.chatter.util.shownVersion
 
 /** The headed groups the categories are listed in on the settings home. */
 private enum class SettingsSection(val title: Int) {
@@ -297,7 +299,7 @@ private val SEARCH_INDEX: List<SearchEntry> by lazy {
         add(SearchEntry(R.string.settings_mention_with_at, typing, R.string.settings_mention_with_at_hint, shownWhen = unlessReadOnly))
         add(SearchEntry(R.string.settings_recently_sent, typing, R.string.settings_recently_sent_hint, shownWhen = unlessReadOnly))
         add(SearchEntry(R.string.settings_chat_modes_button, typing, R.string.settings_chat_modes_button_hint, shownWhen = unlessReadOnly))
-        add(SearchEntry(R.string.settings_compact_input, typing, R.string.settings_compact_input_hint, shownWhen = unlessReadOnly))
+        if (BuildStripe.offered) add(SearchEntry(R.string.settings_build_stripe, typing, R.string.settings_build_stripe_hint, shownWhen = unlessReadOnly))
         val emotes = SettingsPage.Emotes
         add(SearchEntry(R.string.settings_emotes_enabled, emotes, R.string.settings_emotes_new_messages_hint))
         add(SearchEntry(R.string.settings_animated_emotes, emotes))
@@ -564,7 +566,7 @@ fun SettingsScreen(vm: MainViewModel, onBack: () -> Unit) {
                     null -> {
                         EnterInOrder { SearchField(searchBar) { searching = true } }
                         EnterInOrder { AccountSummaryCard(auth, vm.imageLoader) { page = SettingsPage.Account } }
-                        update?.let { EnterInOrder { UpdateCard(it, BuildConfig.VERSION_NAME) { subPage = SettingsSubPage.Update } } }
+                        update?.let { EnterInOrder { UpdateCard(it, shownVersion) { subPage = SettingsSubPage.Update } } }
                         Home(settings.colorfulCategories) { page = it }
                     }
                     SettingsPage.Appearance -> AppearancePage(settings, vm) { subPage = it }

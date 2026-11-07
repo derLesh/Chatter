@@ -52,8 +52,6 @@ import androidx.compose.material3.ProvideTextStyle
 import androidx.compose.material3.SelectableDropdownMenuItem
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextField
-import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
@@ -137,8 +135,6 @@ import kotlinx.coroutines.launch
  *
  * With [sendLater] a message can be planned to go out later, and the planned ones show above the
  * input.
- *
- * [compact] puts every button inside one lower field.
  */
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
@@ -167,9 +163,10 @@ fun InputBar(
     recentlySentButton: RecentlySentButton = RecentlySentButton.ReplacesSend,
     chatModes: RoomState? = null,
     onChatModes: (RoomState) -> Unit = {},
-    compact: Boolean = false,
     sendLater: SendLater? = null,
+    buildStripe: Boolean = false,
 ) {
+    val stripe = buildStripe && BuildStripe.offered
     val choosing = sendChannels.size > 1 && sendChannel != null
     val focus = remember { FocusRequester() }
     // Starting a reply opens the keyboard, so one tap on a message is enough to start typing.
@@ -234,8 +231,8 @@ fun InputBar(
     // No bar of its own: the input sits on the chat background.
     Column(modifier) {
         if (suggestions.isNotEmpty()) {
-            // The slim field keeps its own gap above, as wide as the one below it.
-            SuggestionRow(suggestions, imageLoader, onSuggestion, bottomGap = if (compact) 0.dp else 4.dp)
+            // The field keeps its own gap above, as wide as the one below it.
+            SuggestionRow(suggestions, imageLoader, onSuggestion, bottomGap = 0.dp)
         }
         AnimatedVisibility(recentOpen) {
             RecentlySentPanel(recent, onPick = { openPanel = null; onReuseSent(it) }, onClose = { openPanel = null })
@@ -333,50 +330,19 @@ fun InputBar(
         }
         val keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Sentences, imeAction = ImeAction.Send)
         val keyboardActions = KeyboardActions(onSend = { if (canSend) onSend() })
-        if (compact) {
-            CompactField(
-                value = value,
-                onValueChange = onValueChange,
-                enabled = enabled,
-                keyboardOptions = keyboardOptions,
-                keyboardActions = keyboardActions,
-                placeholder = placeholder,
-                leadingButtons = leadingButtons,
-                trailing = trailing,
-                sendButton = { sendButton(Modifier) },
-                modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp).focusRequester(focus),
-            )
-        } else Row(
-            verticalAlignment = Alignment.CenterVertically,
-            modifier = Modifier.padding(horizontal = 4.dp, vertical = 4.dp),
-        ) {
-            // Closer than two whole touch targets side by side; each button keeps most of its own.
-            Row(
-                horizontalArrangement = Arrangement.spacedBy((-8).dp),
-                verticalAlignment = Alignment.CenterVertically,
-            ) { leadingButtons() }
-            TextField(
-                value = value,
-                onValueChange = onValueChange,
-                enabled = enabled,
-                placeholder = placeholder,
-                trailingIcon = trailing,
-                maxLines = 4,
-                keyboardOptions = keyboardOptions,
-                keyboardActions = keyboardActions,
-                shape = RoundedCornerShape(20.dp),
-                colors = TextFieldDefaults.colors(
-                    focusedContainerColor = MaterialTheme.colorScheme.surfaceContainerHighest,
-                    unfocusedContainerColor = MaterialTheme.colorScheme.surfaceContainerHighest,
-                    disabledContainerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
-                    focusedIndicatorColor = Color.Transparent,
-                    unfocusedIndicatorColor = Color.Transparent,
-                    disabledIndicatorColor = Color.Transparent,
-                ),
-                modifier = Modifier.weight(1f).focusRequester(focus),
-            )
-            sendButton(Modifier.padding(start = 4.dp))
-        }
+        InputField(
+            value = value,
+            onValueChange = onValueChange,
+            enabled = enabled,
+            keyboardOptions = keyboardOptions,
+            keyboardActions = keyboardActions,
+            placeholder = placeholder,
+            leadingButtons = leadingButtons,
+            trailing = trailing,
+            sendButton = { sendButton(Modifier) },
+            stripe = stripe,
+            modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp).focusRequester(focus),
+        )
     }
 }
 
@@ -385,7 +351,7 @@ fun InputBar(
  * [BasicTextField], since Material's text field is never lower than 56dp.
  */
 @Composable
-private fun CompactField(
+private fun InputField(
     value: TextFieldValue,
     onValueChange: (TextFieldValue) -> Unit,
     enabled: Boolean,
@@ -395,9 +361,11 @@ private fun CompactField(
     leadingButtons: @Composable () -> Unit,
     trailing: (@Composable () -> Unit)?,
     sendButton: @Composable () -> Unit,
+    stripe: Boolean,
     modifier: Modifier = Modifier,
 ) {
     val colors = MaterialTheme.colorScheme
+    val fieldColor = if (enabled) colors.surfaceContainerHighest else colors.surfaceContainerHigh
     val textColor = if (enabled) colors.onSurface else colors.onSurface.copy(alpha = 0.38f)
     val placeholderColor = if (enabled) colors.onSurfaceVariant else colors.onSurfaceVariant.copy(alpha = 0.38f)
     BasicTextField(
@@ -416,7 +384,8 @@ private fun CompactField(
                 verticalAlignment = Alignment.Bottom,
                 modifier = Modifier
                     .clip(RoundedCornerShape(24.dp))
-                    .background(if (enabled) colors.surfaceContainerHighest else colors.surfaceContainerHigh)
+                    .background(fieldColor)
+                    .buildStripe(stripe, fieldColor)
                     .padding(horizontal = 4.dp),
             ) {
                 Row(

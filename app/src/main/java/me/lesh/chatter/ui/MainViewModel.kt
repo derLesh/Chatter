@@ -85,6 +85,7 @@ import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.util.Locale
+import me.lesh.chatter.util.shownVersion
 
 /**
  * A snackbar message: a string resource and its argument. Resolved on screen, so a message that is
@@ -894,7 +895,7 @@ class MainViewModel(private val c: AppContainer, savedState: SavedStateHandle) :
     suspend fun lastCrash(): Crash? = withContext(Dispatchers.IO) { c.crashLog.latest() }
 
     /** App and device details for bug reports. */
-    val device: DeviceInfo = DeviceInfo.current(BuildConfig.VERSION_NAME, BuildConfig.VERSION_CODE)
+    val device: DeviceInfo = DeviceInfo.current(shownVersion, BuildConfig.VERSION_CODE)
 
     // ---- Channels ----------------------------------------------------------------------------
 
@@ -1003,7 +1004,7 @@ class MainViewModel(private val c: AppContainer, savedState: SavedStateHandle) :
 
     fun setRecentlySentButton(v: RecentlySentButton) = saveSetting { setRecentlySentButton(v) }
     fun setChatModesButton(v: Boolean) = saveSetting { setChatModesButton(v) }
-    fun setCompactInput(v: Boolean) = saveSetting { setCompactInput(v) }
+    fun setBuildStripe(v: Boolean) = saveSetting { setBuildStripe(v) }
     fun setReadOnly(v: Boolean) = saveSetting { setReadOnly(v) }
     fun setUserSuggestions(v: Boolean) = saveSetting { setUserSuggestions(v) }
 

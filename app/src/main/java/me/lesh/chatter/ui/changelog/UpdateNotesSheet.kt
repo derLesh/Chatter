@@ -20,9 +20,9 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import me.lesh.chatter.BuildConfig
 import me.lesh.chatter.R
 import me.lesh.chatter.ui.MainViewModel
+import me.lesh.chatter.util.shownVersion
 
 /**
  * What an update brought. Only shows when the repository reports unread releases, which excludes
@@ -52,7 +52,7 @@ fun UpdateNotesSheet(vm: MainViewModel) {
                 fontWeight = FontWeight.Bold,
             )
             Text(
-                stringResource(R.string.changelog_updated_to, BuildConfig.VERSION_NAME),
+                stringResource(R.string.changelog_updated_to, shownVersion),
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
