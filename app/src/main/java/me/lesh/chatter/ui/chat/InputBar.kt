@@ -317,9 +317,10 @@ fun InputBar(
             } else {
                 val hold = canPlan && sendLater?.button == SendLaterButton.HoldSend
                 if (canPlan && sendLater?.button == SendLaterButton.OwnButton) {
-                    // As close together as the buttons at the start of the input.
+                    // As far from Send as the clock in the input: the full field's clock sits at its
+                    // edge, 4dp before Send; the slim field's sits right next to it.
                     Row(
-                        horizontalArrangement = Arrangement.spacedBy((-8).dp),
+                        horizontalArrangement = Arrangement.spacedBy(if (compact) 0.dp else 4.dp),
                         verticalAlignment = Alignment.CenterVertically,
                         modifier = modifier,
                     ) {
