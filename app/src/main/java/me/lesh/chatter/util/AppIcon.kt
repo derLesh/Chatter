@@ -73,8 +73,13 @@ enum class AppIcon(
         /** `namespace` in build.gradle.kts. */
         private const val LAUNCHER_NAMESPACE = "me.lesh.chatter"
 
-        /** The icon a fresh install starts with; Nightly's own, so it differs from Chatter's. */
-        val default: AppIcon get() = if (BuildConfig.NIGHTLY) Nightly else Light
+        /** The icon a fresh install starts with; Nightly and the debug build their own, so they differ from Chatter's. */
+        val default: AppIcon
+            get() = when {
+                BuildConfig.NIGHTLY -> Nightly
+                BuildConfig.DEV_BUILD -> DevBuild
+                else -> Light
+            }
 
         fun current(context: Context): AppIcon {
             val pm = context.packageManager

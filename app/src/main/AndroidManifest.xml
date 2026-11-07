@@ -277,7 +277,7 @@
 
         <activity-alias
             android:name=".LauncherDevBuild"
-            android:enabled="false"
+            android:enabled="${devBuildIconEnabled}"
             android:exported="true"
             android:icon="@mipmap/ic_launcher_blueprint"
             android:roundIcon="@mipmap/ic_launcher_blueprint"

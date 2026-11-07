@@ -110,9 +110,12 @@ android {
         buildConfigField("String", "TWITCH_CLIENT_ID", "\"$twitchClientId\"")
         buildConfigField("boolean", "ASSISTANT_ACCESS", "$assistantAccess")
         buildConfigField("boolean", "NIGHTLY", "$nightly")
+        // Release, Nightly and the debug build can sit side by side, so the launcher tells them apart.
+        resValue("string", "app_name", if (nightly) "Chatter Nightly" else "Chatter")
         // Which launcher alias the manifest enables; AppIcon.default must agree.
         manifestPlaceholders["lightIconEnabled"] = "${!nightly}"
         manifestPlaceholders["nightlyIconEnabled"] = "$nightly"
+        manifestPlaceholders["devBuildIconEnabled"] = "false"
         // True in debug builds, which offer the Dev build app icon.
         buildConfigField("boolean", "DEV_BUILD", "false")
         // True only in profilingBuildTypes.
@@ -127,6 +130,11 @@ android {
 
     buildTypes {
         debug {
+            // An app of its own, so it installs next to the signed release instead of over it.
+            applicationIdSuffix = ".dev"
+            resValue("string", "app_name", "Chatter Dev")
+            manifestPlaceholders["lightIconEnabled"] = "false"
+            manifestPlaceholders["devBuildIconEnabled"] = "true"
             // People building the app themselves get the link.
             buildConfigField("boolean", "SPONSOR_LINK", "$sponsoring")
             buildConfigField("boolean", "UPDATE_CHECK", "true")
@@ -170,6 +178,7 @@ android {
     buildFeatures {
         compose = true
         buildConfig = true
+        resValues = true
     }
 
     lint {
@@ -281,7 +290,7 @@ abstract class DevLoginTask : DefaultTask() {
 tasks.register<DevLoginTask>("devLogin") {
     description = "Logs the installed debug build in with a token, for emulators Twitch's login turns away."
     adb.set(androidComponents.sdkComponents.adb)
-    appId.set(android.defaultConfig.applicationId)
+    appId.set(android.defaultConfig.applicationId + android.buildTypes.getByName("debug").applicationIdSuffix.orEmpty())
     token.set(providers.gradleProperty("token"))
     device.set(providers.gradleProperty("device"))
     // TwitchScopes.kt is the one list of scopes; read here so the token can do what the app does.

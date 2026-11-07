@@ -234,8 +234,11 @@ says about the cold start and the chat frames, with the profile and without, int
 A change is not confirmed by compiling. Install it and open the screen it touches:
 
 ```sh
-./gradlew :app:installDebug && adb shell am start -n me.lesh.chatter/.MainActivity
+./gradlew :app:installDebug && adb shell am start -n me.lesh.chatter.dev/me.lesh.chatter.MainActivity
 ```
+
+The debug build is an app of its own, `me.lesh.chatter.dev`, called Chatter Dev on the phone, so it
+sits next to the signed release (Chatter) and Nightly (Chatter Nightly) instead of replacing one.
 
 ## Conventions worth matching
 
