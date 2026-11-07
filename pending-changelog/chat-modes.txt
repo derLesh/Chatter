@@ -1,2 +1,0 @@
-minor: Change slow mode, followers only and the other chat modes from the shield next to the emotes where you are a mod
-minor: Hide the shield in Settings → Typing if you do not need it

@@ -1,1 +1,0 @@
-patch: Hide the inbox from guests, who get no mentions or whispers

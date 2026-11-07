@@ -1,1 +1,0 @@
-minor: Turn on a slim input in Settings → Typing (beta), with all buttons inside it and the chat running on behind it

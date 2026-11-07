@@ -3,6 +3,39 @@
 Every release of Chatter, newest first. Written from the entries in `pending-changelog/` by
 `./gradlew releaseVersion`, and shown in the app under Settings → About → Changelog.
 
+## 0.12.0 — 2026-11-07
+- minor: Beta features are now called Labs, where colored settings categories can be switched on
+- minor: Change slow mode, followers only and the other chat modes from the shield next to the emotes where you are a mod
+- minor: Choose in Settings → Typing whether the clock replaces the send button, sits in the input or is off
+- minor: Hide the shield in Settings → Typing if you do not need it
+- minor: Keep the whispers you send, wherever you send them from
+- minor: Log in through the Chatter website when Twitch's page does not load: by link, pasted token or QR code
+- minor: Pick your own color for messages that mention you
+- minor: Plan a message to go out later, e.g. in 5 minutes or at 22:00 (Labs)
+- minor: See version, memory, connection and caches on a debug page in the settings, and copy them in one tap
+- minor: Show who mentioned or whispered you by their profile picture, and the channel small at its corner
+- minor: Sort the inbox by day, in calm tiles, with your name picked out in new mentions
+- minor: Suggest Twitch smileys like :) and <3 while typing, starting at the first : or ;
+- minor: Tap an image in the chat to see it grow to full screen, zoom in, and open it in your browser from there
+- minor: Tap the clock next to an empty input to see your last three messages and send one again
+- minor: Turn on a slim input in Settings → Typing (beta), with all buttons inside it and the chat running on behind it
+- minor: Whisper in a chat of its own: a list of people, and a conversation with each, both sides as bubbles
+- patch: Add a channel, combine chats, add a word or log out in a panel that slides up from the bottom
+- patch: Ask Twitch at login for what coming moderator and channel tools need, so they work without logging in again
+- patch: Ask before clearing the inbox, and offer to mark all as read only when something is unread
+- patch: Block someone from a sheet that slides up, with the button now at the top of the blocked users
+- patch: Find settings faster with a search field on top, sorted pages and shorter hints
+- patch: Fix the catch-up summary saying that no phone has Gemini Nano
+- patch: Have TalkBack say which inbox messages are still unread
+- patch: Hide the inbox from guests, who get no mentions or whispers
+- patch: Keep the tab bar in place when a channel is removed, instead of jumping back to the first tab
+- patch: Make the Cancel button and a greyed-out button in sheets easier to see
+- patch: Make the settings easier to scan: shorter texts, a calmer notification page and a search that knows more words
+- patch: Make unread inbox tiles stand out with pure black, and drop the line under the inbox tabs
+- patch: Settings feel more alive: tiles react to a touch, rows open out and the search bar grows
+- patch: Show a picture and one short line when an inbox tab is empty
+- patch: Show the inbox's unread counts beside the tab names instead of over them
+
 ## 0.11.0 — 2026-11-03
 - minor: Show a badge next to the names of people who support Chatter
 - minor: Sort Twitch emotes in the picker by channel, your subs first, with a column on the left to jump to each

@@ -1,1 +1,0 @@
-patch: Ask Twitch at login for what coming moderator and channel tools need, so they work without logging in again

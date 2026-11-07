@@ -1,1 +1,0 @@
-minor: Beta features are now called Labs, where colored settings categories can be switched on

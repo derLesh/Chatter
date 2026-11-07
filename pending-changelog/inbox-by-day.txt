@@ -1,1 +1,0 @@
-minor: Sort the inbox by day, in calm tiles, with your name picked out in new mentions

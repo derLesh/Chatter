@@ -1,1 +1,0 @@
-patch: Make the settings easier to scan: shorter texts, a calmer notification page and a search that knows more words

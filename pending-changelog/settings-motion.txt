@@ -1,1 +1,0 @@
-patch: Settings feel more alive: tiles react to a touch, rows open out and the search bar grows

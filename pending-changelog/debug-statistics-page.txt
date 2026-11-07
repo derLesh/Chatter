@@ -1,1 +1,0 @@
-minor: See version, memory, connection and caches on a debug page in the settings, and copy them in one tap

@@ -1,1 +1,0 @@
-patch: Show the inbox's unread counts beside the tab names instead of over them

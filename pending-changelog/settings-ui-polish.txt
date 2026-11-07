@@ -1,1 +1,0 @@
-patch: Find settings faster with a search field on top, sorted pages and shorter hints
