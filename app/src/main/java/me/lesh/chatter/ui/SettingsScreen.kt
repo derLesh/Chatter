@@ -397,8 +397,13 @@ fun SettingsScreen(vm: MainViewModel, onBack: () -> Unit) {
     // Twitch's login page over the settings, while adding an account or logging in again.
     var addAccount by remember { mutableStateOf<TwitchLogin?>(null) }
     var addFailed by remember { mutableStateOf<String?>(null) }
+    var addWithToken by rememberSaveable { mutableStateOf(false) }
+    // A login from the website takes over from the token screen.
+    val linkedLogin by vm.linkedLogin.collectAsStateWithLifecycle()
+    LaunchedEffect(linkedLogin != null) { if (linkedLogin != null) addWithToken = false }
     val goBack = {
         when {
+            addWithToken -> addWithToken = false
             addAccount != null -> addAccount = null
             rule != null -> rule = null
             subPage != null -> subPage = null
@@ -442,6 +447,11 @@ fun SettingsScreen(vm: MainViewModel, onBack: () -> Unit) {
                 addFailed = result.exceptionOrNull()?.let { it.message ?: it.toString() }
             }
         }
+        return
+    }
+
+    if (addWithToken) {
+        TokenLoginScreen(vm, onBack = { addWithToken = false }, onLoggedIn = { addWithToken = false })
         return
     }
 
@@ -571,6 +581,7 @@ fun SettingsScreen(vm: MainViewModel, onBack: () -> Unit) {
                     SettingsPage.Account -> AccountPage(
                         vm,
                         onAddAccount = { addAccount = TwitchLogin(vm.addAccountUrl(), signedOut = true) },
+                        onAddAccountWithToken = { addWithToken = true },
                         // Same account: Twitch's session can stay, it only asks to grant the rest.
                         onReauthorize = { addAccount = TwitchLogin(vm.reauthorizeUrl(), signedOut = false) },
                     )

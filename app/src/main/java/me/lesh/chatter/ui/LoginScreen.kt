@@ -9,6 +9,7 @@ import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -32,6 +33,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -55,7 +57,10 @@ import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.rotate
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.SpanStyle
@@ -81,6 +86,10 @@ import kotlin.math.sin
 fun LoginScreen(vm: MainViewModel) {
     var webLoginUrl by rememberSaveable { mutableStateOf<String?>(null) }
     var webError by remember { mutableStateOf<String?>(null) }
+    var tokenLogin by rememberSaveable { mutableStateOf(false) }
+    // A login from the website replaces the pasted one.
+    val linkedLogin by vm.linkedLogin.collectAsStateWithLifecycle()
+    LaunchedEffect(linkedLogin != null) { if (linkedLogin != null) tokenLogin = false }
     val sessionExpired by vm.sessionExpired.collectAsStateWithLifecycle()
     val scope = rememberCoroutineScope()
 
@@ -100,6 +109,11 @@ fun LoginScreen(vm: MainViewModel) {
         return
     }
 
+    if (tokenLogin) {
+        TokenLoginScreen(vm, onBack = { tokenLogin = false })
+        return
+    }
+
     Surface(Modifier.fillMaxSize()) {
         Box(Modifier.fillMaxSize()) {
             OnboardingBackdrop(Modifier.fillMaxSize())
@@ -108,7 +122,13 @@ fun LoginScreen(vm: MainViewModel) {
                 modifier = Modifier.fillMaxSize().safeDrawingPadding().padding(horizontal = 28.dp, vertical = 32.dp),
             ) {
                 Spacer(Modifier.weight(1f))
-                AppMark()
+                // Holding the logo opens the token login, a quiet fallback for when Twitch's page
+                // does not load here.
+                AppMark(
+                    onLongPress = if (BuildConfig.TWITCH_CLIENT_ID.isNotEmpty()) {
+                        { tokenLogin = true }
+                    } else null,
+                )
                 Spacer(Modifier.height(18.dp))
                 Text(
                     stringResource(R.string.login_subtitle),
@@ -175,12 +195,23 @@ fun LoginScreen(vm: MainViewModel) {
 
 /** The wordmark. Only the width is set; the drawable keeps its proportions. */
 @Composable
-private fun AppMark() {
+private fun AppMark(onLongPress: (() -> Unit)?) {
+    val haptics = LocalHapticFeedback.current
     Image(
         painterResource(R.drawable.ic_chatter_wordmark),
         contentDescription = stringResource(R.string.app_name),
         colorFilter = ColorFilter.tint(MaterialTheme.colorScheme.onSurface),
-        modifier = Modifier.width(236.dp),
+        modifier = Modifier
+            .width(236.dp)
+            .then(
+                if (onLongPress == null) Modifier
+                else Modifier.pointerInput(onLongPress) {
+                    detectTapGestures(onLongPress = {
+                        haptics.performHapticFeedback(HapticFeedbackType.LongPress)
+                        onLongPress()
+                    })
+                },
+            ),
     )
 }
 
