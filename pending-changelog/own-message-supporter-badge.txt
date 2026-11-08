@@ -1,1 +1,0 @@
-patch: Show badges from other clients, like the Chatter supporter badge, on your own messages too

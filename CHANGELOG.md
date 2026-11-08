@@ -3,6 +3,11 @@
 Every release of Chatter, newest first. Written from the entries in `pending-changelog/` by
 `./gradlew releaseVersion`, and shown in the app under Settings → About → Changelog.
 
+## 0.12.1 — 2026-11-08
+- patch: Show badges from other clients, like the Chatter supporter badge, on your own messages too
+- patch: Show supporter badges without sending your Twitch login to Chatter's server, also as a guest
+- patch: The slim input is now the only input, with all buttons inside it
+
 ## 0.12.0 — 2026-11-07
 - minor: Beta features are now called Labs, where colored settings categories can be switched on
 - minor: Change slow mode, followers only and the other chat modes from the shield next to the emotes where you are a mod

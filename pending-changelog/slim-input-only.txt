@@ -1,1 +1,0 @@
-patch: The slim input is now the only input, with all buttons inside it
