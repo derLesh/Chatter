@@ -172,7 +172,7 @@ class AppContainer(
     val emotes = EmoteRepository(helix, thirdParty, trouble, providersOn = { settings.settings.value.emoteProvidersOn })
     val emoji = EmojiRepository(context)
     val badges = BadgeRepository(
-        helix, thirdParty, ChatterApi(http) { auth.freshToken() },
+        helix, thirdParty, ChatterApi(http),
         supporterTitle = { context.getString(R.string.badge_supporter) },
         trouble = trouble,
     )

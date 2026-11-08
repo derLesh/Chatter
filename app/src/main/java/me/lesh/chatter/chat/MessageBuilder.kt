@@ -86,6 +86,8 @@ class MessageBuilder(
         text: String,
         userState: Map<String, String>,
         selfLogin: String,
+        /** From the account: a channel's USERSTATE has no `user-id`, so other clients' badges need this. */
+        selfUserId: String?,
         channelId: String?,
         reply: ReplyInfo?,
         /** The segments of the answered message, already built; null builds them from [reply]. */
@@ -104,7 +106,7 @@ class MessageBuilder(
             body = MessageBody.from(
                 DeferredBody(
                     channel, body, emotesTag = null, badgesTag = userState["badges"],
-                    userId = userState["user-id"], channelId = channelId, ownMessage = true,
+                    userId = selfUserId ?: userState["user-id"], channelId = channelId, ownMessage = true,
                     builtQuote = quote, reply = reply,
                 ),
             ),

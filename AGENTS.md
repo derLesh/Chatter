@@ -120,8 +120,8 @@ it to you; its rules are tested in `.github/scripts/test_check_verification_meta
 comment `@dependabot recreate` to start the pull request over.
 
 The supporter badge comes from Chatter's own API on `api.lesh.me` (`net/ChatterApi.kt`):
-`/v2/chatter/supporters` lists the supporters' Twitch ids and wants the user's Twitch token, so a
-guest sees no supporter badges; `/v2/chatter/badges` serves the picture, one for light and one
+`/v2/chatter/supporters` lists the supporters' Twitch ids and is asked without the user's Twitch
+token, so guests see them too; `/v2/chatter/badges` serves the picture, one for light and one
 for dark themes. A new supporter goes into the API's database, not into a release. Asking
 people to support Chatter is still **switched off** until GitHub Sponsors is set up: `sponsoring`
 in `app/build.gradle.kts` takes the settings category and its link out of every build.
@@ -156,7 +156,8 @@ line there. Building and signing come before the push, so a failed one leaves th
 untouched, and `dry_run` does everything except push and publish — and is the only run allowed off
 `master`.
 
-It is four jobs: `preflight`, `build`, `sign` and `publish`. The release does not test again:
+It is five jobs: `preflight`, `build`, `sign`, `publish` and `play`. `play` uploads the bundle
+after the release is out; when Play refuses it, re-run that job alone instead of releasing again. The release does not test again:
 `preflight` asks for a green CI run of the newest commit that changed more than Markdown, `docs/`,
 `version.properties` and `pending-changelog/`. The release commit touches only those, and CI never
 runs for it: a push with the workflow token starts no workflow. Everything that could be wrong is checked before anything is built: every missing secret
@@ -193,7 +194,7 @@ under the same names, each with its own key, and both environments only let `mas
 | `TWITCH_CLIENT_ID` | what `local.properties` holds on a dev machine | the release stops, rather than ship an APK that cannot log in |
 | `KEYSTORE_BASE64` | the keystore of that environment, as `base64 -w0 chatter-release.jks` | the release stops; only a `dry_run` signs with a throwaway key instead |
 | `KEYSTORE_PASSWORD`, `KEY_ALIAS`, `KEY_PASSWORD` | how to open that keystore | same |
-| `PLAY_SERVICE_ACCOUNT_JSON` | the service account allowed to release to Play | only needed for a `play_track` other than `none`, which stops without it |
+| `PLAY_SERVICE_ACCOUNT_JSON` | the service account allowed to release to Play, as a repository secret | only needed for a `play_track` other than `none`, which stops without it |
 
 ## The baseline profile
 

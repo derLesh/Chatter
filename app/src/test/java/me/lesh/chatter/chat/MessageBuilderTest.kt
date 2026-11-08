@@ -194,10 +194,20 @@ class MessageBuilderTest {
 
     @Test
     fun ownEchoUsesUserEmotes() {
-        val item = builder.buildOwn("chan", "Kappa OMEGALUL", mapOf("display-name" to "Lukas", "color" to "#00FF00"), "lukas", "1", null)
+        val item = builder.buildOwn("chan", "Kappa OMEGALUL", mapOf("display-name" to "Lukas", "color" to "#00FF00"), "lukas", "42", "1", null)
         assertEquals(listOf("Kappa", "OMEGALUL"), item.segments.filterIsInstance<Segment.EmoteSeg>().map { it.emote.name })
         assertEquals("Lukas", item.displayName)
         assertEquals(0xFF00FF00.toInt(), item.color)
+    }
+
+    @Test
+    fun ownEchoWearsTheBadgesOfOtherClientsThoughUserStateHasNoUserId() {
+        val supporter = Badge("s", "Chatter supporter")
+        val builder = MessageBuilder(emotes, { _, _, userId -> if (userId == "42") listOf(supporter) else emptyList() })
+        // A channel's USERSTATE, as Twitch sends it: badges, but no user-id.
+        val channelUserState = mapOf("badges" to "subscriber/12", "display-name" to "Lukas")
+        val item = builder.buildOwn("chan", "hi", channelUserState, "lukas", "42", "1", null)
+        assertEquals(listOf("Chatter supporter"), item.badges.map { it.title })
     }
 
     @Test

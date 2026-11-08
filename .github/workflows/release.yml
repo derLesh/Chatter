@@ -4,7 +4,8 @@
 # preflight checks the setup in seconds without building: secrets, keystore, branch, a green CI
 # run, something to release. build folds the changelog and builds APK and bundle without any key.
 # sign signs them, with no Gradle in reach of the key. publish only then pushes the release commit
-# and tag and publishes, so a failed build or signing leaves the repository untouched.
+# and tag and publishes, so a failed build or signing leaves the repository untouched. play uploads
+# the bundle last, as a job of its own, so a refused upload is retried without releasing twice.
 name: Release
 
 on:
@@ -470,10 +471,27 @@ jobs:
             --notes-file build-out/github-notes.md \
             "chatter-$VERSION.apk" "chatter-$VERSION.apk.sha256" "build-out/chatter-$VERSION-mapping.txt"
 
+  # After publish, so Play never gets a version without its tag. Re-running this job alone retries
+  # the upload with the same signed bundle.
+  play:
+    name: Upload to Play
+    needs: [build, publish]
+    if: ${{ !inputs.dry_run && inputs.play_track != 'none' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: build
+          path: build-out
+
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: chatter-${{ needs.build.outputs.version }}
+
       # Play shows these under "What's new" and cuts after 500 characters, so entries are trimmed to
       # whole lines that fit.
       - name: Write the Play release notes
-        if: ${{ inputs.play_track != 'none' }}
         run: |
           mkdir -p "$RUNNER_TEMP/whatsnew"
           sed 's/^- [a-z]*: /• /' build-out/notes.md | grep -v '^$' | awk '
@@ -484,7 +502,6 @@ jobs:
       # The only third-party action handed a credential (the Play service account). Pinned to a
       # reviewed commit; review new versions before merging Dependabot's pull request.
       - name: Upload the bundle to Play
-        if: ${{ inputs.play_track != 'none' }}
         uses: r0adkll/upload-google-play@e738b9dd8f2476ea806d921b64aacd24f34515a5 # v1.1.5
         with:
           serviceAccountJsonPlainText: ${{ secrets.PLAY_SERVICE_ACCOUNT_JSON }}
