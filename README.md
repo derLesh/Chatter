@@ -6,7 +6,7 @@
 </p>
 
 <p align="center">
-  A fast, native Twitch chat client for Android - based on Material 3, with full emote support for a rich chatting experience. 
+    A fast and native Twitch chat client built on Material 3, with support for emotes from 7TV, BetterTTV and FrankerFaceZ
 </p>
 
 <p align="center">
@@ -18,98 +18,99 @@
 </p>
 
 <p align="center">
-  <img src="docs/screenshots/chat.png" alt="A busy channel with emotes and badges, the open channels as tabs at the top" width="24%">
+  <img src="docs/screenshots/chat.png" alt="A busy chat with emotes, badges and channel tabs at the top" width="24%">
   <img src="docs/screenshots/combined.png" alt="Several channels combined into one chat" width="24%">
   <img src="docs/screenshots/user-card.png" alt="A user card with badges, actions and recent messages" width="24%">
   <img src="docs/screenshots/settings.png" alt="The settings overview with search" width="24%">
 </p>
 
 > [!TIP]
-> **Help bring Chatter to Google Play.** Chatter is in closed testing there. Before it can go
-> public, Google requires at least 12 testers to stay in the test for 14 days in a row.
+> **Help test Chatter on Google Play.** Chatter is in closed testing. Before it can be released
+> there, at least 12 testers need to stay in the test for 14 days in a row.
 >
-> 1. Join the [Chatter testers group](https://groups.google.com/g/chatter-dev-group/about). Google
->    Play lets only its members into the test.
+> 1. Join the [Chatter testers group](https://groups.google.com/g/chatter-dev-group/about). Only
+>    members can join the test.
 > 2. Then [join the test on Google Play](https://play.google.com/apps/testing/me.lesh.chatter)
 >    with the same Google account, and install Chatter from there.
-> 3. Stay in the test for at least 14 days in a row.
+> 3. Download the App from the [Play Store](https://play.google.com/store/apps/details?id=me.lesh.chatter).
+> 4. Stay in the test for at least 14 days in a row.
 
 ## Install
 
 **[Download the APK from the latest release](https://github.com/derLesh/Chatter/releases/latest)**
-and open it on your phone. Android may ask you to let your browser install apps; that is normal
-for an APK. Chatter needs Android 13 or newer. Reading works without an account;
-writing needs a Twitch account.
+and open it on your phone. Android may ask for permission to install apps from your browser.
 
-**Google Play:** coming soon. Chatter is in closed testing there, and the box above says how to
-join.
+Chatter needs Android 13 or newer. You can read chat without an account. Log in with Twitch to
+send messages.
 
-Want new features early? [Chatter Nightly](https://github.com/derLesh/Chatter/releases/tag/nightly)
-is built every night. It may break, and it installs next to Chatter as an app of its own.
+Chatter is coming to Google Play. It is in closed testing now, and the steps above show how to join.
 
-## What it does
+[Chatter Nightly](https://github.com/derLesh/Chatter/releases/tag/nightly) is built every night
+from the newest tested changes. It may have bugs. You can install it next to Chatter.
 
-**Read chat the way you like it**
+## Features
+
+**Reading chat**
 
 - Open your channels as tabs and swipe between them
-- Combine several channels into one chat, each message marked with its channel
-- Twitch, 7TV, BetterTTV and FrankerFaceZ emotes, animated, with a picker sorted by channel and
-  autocomplete
-- Emoji in the picker too, or typed by shortcode: `:smi` offers 😄
-- 7TV badges and paints on names, cheers as animated cheermotes, giant emotes and message effects
-  like on Twitch
-- Images, GIFs and posts from X and Bluesky shown right in the chat
-- [Recent messages](https://recent-messages.robotty.de/) loaded as you join, so you most likely never see an empty chat
-- A mark where you stopped reading, and replies you tap to read the whole conversation
-- Read as a guest, and log in only when you want to write
+- Combine several channels into one chat and see which channel each message came from
+- Use Twitch, 7TV, BetterTTV and FrankerFaceZ emotes, including animated ones
+- Find emotes in a picker sorted by channel, or with autocomplete
+- Pick emoji, or type `:smi` to see suggestions like 😄
+- See 7TV badges and name paints, and cheers as animated cheermotes
+- See giant emotes and message effects, as on Twitch
+- View images, GIFs and posts from X and Bluesky in the chat
+- Load [recent messages](https://recent-messages.robotty.de/) when you join a channel
+- Jump back to where you stopped reading
+- Tap a reply to read the whole conversation
+- Read as a guest and log in when you want to send messages
 
-**Make it look like yours**
+**Appearance**
 
-- Text size, line spacing, timestamps and name colours under your control
+- Change text size, line spacing, timestamps and name colors
 - Pick which badges and special messages you see
-- Light, dark or pure black, with Material You colours
-- App icons in eight colours or Pride
+- Choose a light, dark or pure black theme, with Material You colors
+- Choose an app icon in one of eight colors or a Pride design
 
-**Never miss being mentioned**
+**Notifications**
 
-- Mentions and whispers arrive as notifications the moment they are sent, and can be answered
-  right there
-- An inbox collecting everything addressed to you across all your channels
-- Your own highlight words and rules for what deserves an alert, with a sound and vibration per
-  channel
-- Follow a conversation and get notified about new replies in it
-- A notification when a channel goes live, with its title and category: your channels, and any
-  followed channel you pick
+- Get notified about mentions and whispers, and reply from the notification
+- Find everything sent to you from all your channels in one inbox
+- Set your own highlight words and notification rules
+- Choose a sound and vibration for each channel
+- Follow a conversation to get notified about new replies
+- Get notified when one of your channels or a followed channel you picked goes live, with its
+  title and category
 
-**Stay in the conversation**
+**Messages and accounts**
 
-- Chat bubbles keep a channel floating over whatever else you are doing
-- Schedule messages for a later time
-- Quickly get your last three messages
-- Whispers in a chat of their own, one conversation per person
-- User cards with badges, recent messages and a private note
-- Nicknames for chatters, mute filters, blocking and reporting
+- Keep a channel open over other apps with chat bubbles
+- Schedule messages for later
+- Send one of your last three messages again
+- Read whispers in a separate chat for each person
+- Open user cards to see badges and recent messages, or add a private note
+- Give chatters nicknames, mute words or users, and block or report people
 - Change chat modes and pin messages in channels you moderate
 - Switch between several Twitch accounts
 
-**Yours, and nobody else's**
+**Privacy and data**
 
-- No account beyond your Twitch login
-- No ads, and nothing about you is sent to us
-  ([privacy policy](https://chatter.lesh.me/privacy))
-- Save your settings, rules and channels to a file, or take them along to a new phone
-- Saves data on mobile networks, while the chat keeps arriving
+- No Chatter account needed. Your Twitch login is enough.
+- No ads. Chatter sends nothing about you to us. See the
+  [privacy policy](https://chatter.lesh.me/privacy).
+- Save your settings, rules and channels to a file, or move them to a new phone
+- Save mobile data with smaller emotes, no animations and no linked images
 
 ## Security
 
-Found a way to get at somebody's Twitch login, or a hole in a release or a workflow? Please report
-it privately, as the [security policy](SECURITY.md) describes, not in a public issue.
+If you find a security problem, for example a way to get someone's Twitch login, please don't open
+a public issue. Report it privately as described in the [security policy](SECURITY.md).
 
 ## License
 
-The source code is public so you can read it, check what the app does and contribute, but Chatter
-is not open source. You may build it for your own use; you may not publish it, or use its code in
-an app of your own, without asking first. The [LICENSE](LICENSE) has the details.
+The source code is public, so you can read it, check what the app does and contribute. Chatter is
+not open source, though. You can build it for your own use. You need written permission before you
+publish it or use its code in your own app. See the [LICENSE](LICENSE) for details.
 
 ---
 
