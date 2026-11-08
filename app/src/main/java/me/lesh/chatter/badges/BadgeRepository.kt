@@ -240,7 +240,7 @@ class BadgeRepository(
                     changed = true
                 }
                 .onFailure {
-                    if (it !is NotLoggedInException) trouble.report(ServiceTrouble.CHATTER_API)
+                    trouble.report(ServiceTrouble.CHATTER_API)
                     Log.w(TAG, "Supporter list failed: ${it.message}")
                 }
         }

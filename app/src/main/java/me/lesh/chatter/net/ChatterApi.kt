@@ -24,7 +24,6 @@ data class ChatterBadge(
 
 /** Chatter's own API, as the badge repository needs it. */
 interface ChatterBadgeApi {
-    /** Needs a login: the API checks the Twitch token, so a guest's request is never sent. */
     suspend fun supporters(): ChatterSupporters
     suspend fun badges(): ChatterBadges
 
@@ -33,15 +32,9 @@ interface ChatterBadgeApi {
 }
 
 /** Chatter's own API on api.lesh.me: who supports Chatter, and the badge they wear. */
-class ChatterApi(
-    private val http: OkHttpClient,
-    /** A currently valid Twitch access token, refreshed if needed. */
-    private val token: suspend () -> String?,
-) : ChatterBadgeApi {
-    override suspend fun supporters(): ChatterSupporters = http.getJson(
-        "$BASE_URL/v2/chatter/supporters",
-        mapOf("Authorization" to "Bearer ${token() ?: throw NotLoggedInException()}"),
-    )
+class ChatterApi(private val http: OkHttpClient) : ChatterBadgeApi {
+    // Sent without the Twitch token: Play wants a prominent in-app notice for login data sent to a developer server.
+    override suspend fun supporters(): ChatterSupporters = http.getJson("$BASE_URL/v2/chatter/supporters")
 
     override suspend fun badges(): ChatterBadges = http.getJson("$BASE_URL/v2/chatter/badges")
 

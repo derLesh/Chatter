@@ -60,14 +60,14 @@
 
 **Yours, and nobody else's**
 
-- No account beyond your Twitch login, and no Chatter server behind it
-- No ads, no tracking, no analytics - the app only talks to Twitch and the emote providers 
+- No account beyond your Twitch login
+- No ads, and nothing about you is sent to us
   ([privacy policy](https://derlesh.github.io/Chatter/privacy-policy.html))
 
 ## Install
 
 Download the APK from the [latest release](https://github.com/derLesh/Chatter/releases/latest).
-Chatter needs Android 13 or newer and a Twitch account.
+Chatter needs Android 13 or newer. Reading works without an account; writing needs a Twitch account.
 
 Want the newest changes before a release? [Chatter Nightly](https://github.com/derLesh/Chatter/releases/tag/nightly)
 is built from master every night. It may break, and it is an app of its own: it installs next to

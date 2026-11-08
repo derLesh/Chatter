@@ -1,0 +1,1 @@
+patch: Show supporter badges without sending your Twitch login to Chatter's server, also as a guest

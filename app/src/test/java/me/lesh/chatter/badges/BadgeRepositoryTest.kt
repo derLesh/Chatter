@@ -8,7 +8,6 @@ import me.lesh.chatter.net.ChatterinoBadge
 import me.lesh.chatter.net.ChatterinoBadges
 import me.lesh.chatter.net.HelixBadgeSet
 import me.lesh.chatter.net.HelixBadgeVersion
-import me.lesh.chatter.net.NotLoggedInException
 import me.lesh.chatter.net.ServiceTrouble
 import me.lesh.chatter.net.ThirdPartyBadgeApi
 import me.lesh.chatter.net.TwitchBadgeApi
@@ -67,7 +66,6 @@ class BadgeRepositoryTest {
     }
 
     private class FakeChatterApi : ChatterBadgeApi {
-        var loggedIn = true
         /** Null makes the API unreachable. */
         var supporters: List<String>? = listOf("7")
         var badges = listOf(
@@ -83,7 +81,6 @@ class BadgeRepositoryTest {
         var supporterCalls = 0
 
         override suspend fun supporters(): ChatterSupporters {
-            if (!loggedIn) throw NotLoggedInException()
             supporterCalls++
             return ChatterSupporters(supporters ?: throw IOException("the API is down"))
         }
@@ -243,25 +240,6 @@ class BadgeRepositoryTest {
         assertEquals(BadgeProvider.Chatter, shown.provider)
         assertEquals("the size Twitch's badges are loaded in", "https://api.lesh.me/badges/chatter/dark/2x.png", shown.url)
         assertEquals("https://api.lesh.me/badges/chatter/light/2x.png", shown.urlOnLight)
-    }
-
-    @Test
-    fun aGuestIsNotToldTheApiIsDown() = runTest {
-        val said = mutableListOf<String>()
-        val watching = launch { trouble.unreachable.collect { said += it } }
-        runCurrent()
-
-        // The API checks the Twitch token; a guest has none to send.
-        chatter.loggedIn = false
-        badges.loadThirdParty()
-        runCurrent()
-        assertTrue(said.isEmpty())
-
-        chatter.loggedIn = true
-        clock += 6 * 60_000L
-        badges.retryMissing()
-        assertEquals("asked for once there is a login", listOf("Supporter"), badges.resolve(null, null, userId = "7").map { it.title })
-        watching.cancel()
     }
 
     @Test

@@ -1,14 +1,19 @@
 package me.lesh.chatter.net
 
+import kotlinx.coroutines.test.runTest
 import kotlinx.serialization.json.decodeFromJsonElement
 import okhttp3.OkHttpClient
+import okhttp3.Protocol
+import okhttp3.Request
+import okhttp3.Response
+import okhttp3.ResponseBody.Companion.toResponseBody
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
 import org.junit.Test
 
 /** What Chatter's API answers, read the way the app reads it. */
 class ChatterApiTest {
-    private val api = ChatterApi(OkHttpClient()) { null }
+    private val api = ChatterApi(OkHttpClient())
 
     private inline fun <reified T> read(json: String): T = AppJson.decodeFromJsonElement(AppJson.parseToJsonElement(json))
 
@@ -26,6 +31,25 @@ class ChatterApiTest {
     @Test
     fun theSupporterListAsTheApiSendsIt() {
         assertEquals(listOf("12345678", "87654321"), read<ChatterSupporters>("""{"supporters":["12345678","87654321"]}""").supporters)
+    }
+
+    @Test
+    fun theSupporterListIsAskedForWithoutTheLogin() = runTest {
+        val sent = mutableListOf<Request>()
+        val http = OkHttpClient.Builder().addInterceptor { chain ->
+            sent += chain.request()
+            Response.Builder()
+                .request(chain.request())
+                .protocol(Protocol.HTTP_1_1)
+                .code(200)
+                .message("OK")
+                .body("""{"supporters":["7"]}""".toResponseBody())
+                .build()
+        }.build()
+
+        assertEquals(listOf("7"), ChatterApi(http).supporters().supporters)
+        assertEquals("https://api.lesh.me/v2/chatter/supporters", sent.single().url.toString())
+        assertNull(sent.single().header("Authorization"))
     }
 
     @Test
