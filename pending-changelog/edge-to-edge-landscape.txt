@@ -1,0 +1,1 @@
+patch: Keep chat, whispers and the settings search clear of the camera cutout and the side navigation buttons

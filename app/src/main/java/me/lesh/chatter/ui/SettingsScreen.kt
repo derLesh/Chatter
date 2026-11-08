@@ -26,7 +26,11 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawingPadding
-import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.WindowInsetsSides
+import androidx.compose.foundation.layout.only
+import androidx.compose.foundation.layout.safeDrawing
+import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
@@ -637,6 +641,8 @@ private fun SearchPage(modifier: Modifier, colorful: Boolean, query: String, onQ
     }
     Scaffold(
         containerColor = MaterialTheme.colorScheme.surface,
+        // With the keyboard, so the last results can still be scrolled up.
+        contentWindowInsets = WindowInsets.safeDrawing,
         topBar = {
             // The same pill as the field on the home, moved to the top, so opening the search
             // reads as that field growing rather than a new page.
@@ -644,7 +650,7 @@ private fun SearchPage(modifier: Modifier, colorful: Boolean, query: String, onQ
                 shape = CircleShape,
                 color = MaterialTheme.colorScheme.surfaceContainerHigh,
                 modifier = Modifier
-                    .statusBarsPadding()
+                    .windowInsetsPadding(WindowInsets.safeDrawing.only(WindowInsetsSides.Top + WindowInsetsSides.Horizontal))
                     .padding(horizontal = 16.dp, vertical = 8.dp)
                     .then(modifier)
                     .fillMaxWidth()
@@ -742,6 +748,8 @@ private fun SettingsPageScaffold(
         // every scroll.
         modifier = if (title != null) Modifier.nestedScroll(scrollBehavior.nestedScrollConnection) else Modifier,
         containerColor = MaterialTheme.colorScheme.surface,
+        // With the keyboard, so a page's text field (the badge search) is not covered by it.
+        contentWindowInsets = WindowInsets.safeDrawing,
         snackbarHost = { snackbar?.let { SnackbarHost(it) } },
         topBar = {
             // Without a heading the large bar would be empty space, so a plain bar is used.
