@@ -1,6 +1,11 @@
 package me.lesh.chatter.ui.chat
 
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.slideOutVertically
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.core.animate
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -80,6 +85,11 @@ import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.buildAnnotatedString
+import androidx.compose.ui.text.withStyle
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.input.TextFieldValue
@@ -109,6 +119,9 @@ import me.lesh.chatter.settings.SendLaterButton
 import me.lesh.chatter.ui.Suggestion
 import me.lesh.chatter.ui.channels.ChannelAvatar
 import me.lesh.chatter.ui.channels.formatMinutes
+import me.lesh.chatter.ui.theme.readableNameColor
+import me.lesh.chatter.ui.theme.isAppInDarkTheme
+import me.lesh.chatter.ui.inbox.PersonAvatar
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
@@ -118,7 +131,10 @@ import kotlinx.coroutines.launch
  * On a combined chat [sendChannels] are its channels, and a picture in front of the input shows
  * [sendChannel]; tapping it picks another. Without [onCancelReply] the reply strip cannot be
  * closed, as in a conversation. Each increment of [replyStarts] opens the keyboard; the reply
- * itself cannot signal that, since it also returns with a page's draft.
+ * itself cannot signal that, since it also returns with a page's draft. With [replyCard] the
+ * strip is a card with [replyPictureUrl], the picture of the person answered, if known.
+ * [onCoveredHeight] gets the input's height without the reply, which floats over the chat instead
+ * of pushing it up.
  *
  * Twitch's limits are shown before sending: remaining characters for long messages, slow mode
  * seconds on the send button ([waitUntil]), and a [restriction] instead of the placeholder. A
@@ -165,6 +181,9 @@ fun InputBar(
     onChatModes: (RoomState) -> Unit = {},
     sendLater: SendLater? = null,
     buildStripe: Boolean = false,
+    replyCard: Boolean = false,
+    replyPictureUrl: String? = null,
+    onCoveredHeight: ((Int) -> Unit)? = null,
 ) {
     val stripe = buildStripe && BuildStripe.offered
     val choosing = sendChannels.size > 1 && sendChannel != null
@@ -228,8 +247,11 @@ fun InputBar(
         isBackEnabled = openPanel != null,
         onBackCompleted = { openPanel = null },
     )
+    // Not state: only read while measuring, where the reply is measured before the column around it.
+    val replyHeight = remember { intArrayOf(0) }
+    val covered = if (onCoveredHeight == null) Modifier else Modifier.onSizeChanged { onCoveredHeight(it.height - replyHeight[0]) }
     // No bar of its own: the input sits on the chat background.
-    Column(modifier) {
+    Column(modifier.then(covered)) {
         if (suggestions.isNotEmpty()) {
             // The field keeps its own gap above, as wide as the one below it.
             SuggestionRow(suggestions, imageLoader, onSuggestion, bottomGap = 0.dp)
@@ -253,8 +275,12 @@ fun InputBar(
                 }
             }
         }
-        if (replyTo != null) {
-            ReplyBar(replyTo, onCancelReply)
+        // Always there, so the reply's height goes back to zero once it has slid away.
+        Box(Modifier.onSizeChanged { replyHeight[0] = it.height }) {
+            AnimatedReply(replyTo) { item ->
+                if (replyCard) ReplyCard(item, replyPictureUrl, imageLoader, onCancelReply)
+                else ReplyBar(item, onCancelReply)
+            }
         }
         val leadingButtons = @Composable {
             if (choosing) {
@@ -774,6 +800,25 @@ private fun SuggestionRow(suggestions: List<Suggestion>, imageLoader: ImageLoade
     }
 }
 
+/**
+ * Slides the reply up out from behind the input and back down, with Material 3's motion. It
+ * leaves with the message it showed, not with an empty one.
+ */
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
+@Composable
+private fun AnimatedReply(replyTo: ChatItem?, content: @Composable (ChatItem) -> Unit) {
+    val motion = MaterialTheme.motionScheme
+    var shown by remember { mutableStateOf(replyTo) }
+    if (replyTo != null) shown = replyTo
+    AnimatedVisibility(
+        visible = replyTo != null,
+        enter = slideInVertically(motion.defaultSpatialSpec()) { it } + fadeIn(motion.defaultEffectsSpec()),
+        exit = slideOutVertically(motion.fastSpatialSpec()) { it } + fadeOut(motion.fastEffectsSpec()),
+    ) {
+        shown?.let { content(it) }
+    }
+}
+
 @Composable
 private fun ReplyBar(item: ChatItem, onCancel: (() -> Unit)?) {
     Row(
@@ -794,6 +839,65 @@ private fun ReplyBar(item: ChatItem, onCancel: (() -> Unit)?) {
         if (onCancel != null) IconButton(onClick = onCancel) {
             Icon(Icons.Default.Close, contentDescription = stringResource(R.string.cancel))
         } else Spacer(Modifier.height(48.dp))
+    }
+}
+
+/**
+ * Who the message being written answers, as a card: the person's picture, "Replying to name" and
+ * what they wrote. Two lines, so it takes barely more room than the strip it replaces; a tap shows
+ * a longer message whole.
+ */
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
+@Composable
+private fun ReplyCard(item: ChatItem, pictureUrl: String?, imageLoader: ImageLoader, onCancel: (() -> Unit)?) {
+    val motion = MaterialTheme.motionScheme
+    val name = item.displayName ?: item.login.orEmpty()
+    val said = stringResource(R.string.replying_to, name, item.text)
+    val nameColor = readableNameColor(item.color, item.login, isAppInDarkTheme())
+    val label = stringResource(R.string.reply_card_label)
+    var expanded by remember(item.id) { mutableStateOf(false) }
+    var cutOff by remember(item.id) { mutableStateOf(false) }
+    // Top, not centred: opening a long message would otherwise move the picture and the X down.
+    Row(
+        verticalAlignment = Alignment.Top,
+        horizontalArrangement = Arrangement.spacedBy(10.dp),
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(start = 8.dp, end = 8.dp, top = 4.dp)
+            .clip(RoundedCornerShape(16.dp))
+            .background(MaterialTheme.colorScheme.surfaceContainerHigh)
+            .clickable(
+                enabled = cutOff || expanded,
+                onClickLabel = stringResource(if (expanded) R.string.reply_card_collapse else R.string.reply_card_expand),
+            ) { expanded = !expanded }
+            .animateContentSize(motion.defaultSpatialSpec())
+            .padding(start = 8.dp, end = if (onCancel != null) 0.dp else 12.dp),
+    ) {
+        Box(Modifier.padding(top = 8.dp)) {
+            PersonAvatar(name = name, color = nameColor, pictureUrl = pictureUrl, imageLoader = imageLoader, size = 28.dp)
+        }
+        Column(Modifier.weight(1f).padding(vertical = 6.dp).semantics(mergeDescendants = true) { contentDescription = said }) {
+            Text(
+                buildAnnotatedString {
+                    append("$label ")
+                    withStyle(SpanStyle(color = nameColor, fontWeight = FontWeight.Bold)) { append(name) }
+                },
+                style = MaterialTheme.typography.labelMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+            Text(
+                item.text,
+                style = MaterialTheme.typography.bodySmall,
+                maxLines = if (expanded) Int.MAX_VALUE else 1,
+                overflow = TextOverflow.Ellipsis,
+                onTextLayout = { if (!expanded) cutOff = it.hasVisualOverflow },
+            )
+        }
+        if (onCancel != null) IconButton(onClick = onCancel, modifier = Modifier.padding(top = 2.dp).size(40.dp)) {
+            Icon(Icons.Default.Close, contentDescription = stringResource(R.string.cancel), modifier = Modifier.size(20.dp))
+        }
     }
 }
 
