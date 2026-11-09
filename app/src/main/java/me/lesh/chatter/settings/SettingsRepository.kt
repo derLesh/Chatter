@@ -126,6 +126,8 @@ data class Settings(
     val recentlySentButton: RecentlySentButton = RecentlySentButton.ReplacesSend,
     /** A shield next to the emotes, in channels the user moderates, to change the chat modes. */
     val chatModesButton: Boolean = true,
+    /** Beta: who a reply answers as a card with their picture, instead of a one-line strip. */
+    val replyCard: Boolean = true,
     /** A strip of the build's icon at the left of the input; only offered in Dev and Nightly. */
     val buildStripe: Boolean = true,
     /** Show deleted messages struck through instead of hiding them. */
@@ -152,6 +154,8 @@ data class Settings(
     val postPictureSize: PostPictureSize = PostPictureSize.Medium,
     /** Write links in full instead of shortening them. */
     val fullLinks: Boolean = false,
+    /** Pictures, GIFs and post cards in the messages of the user card; off leaves them links. */
+    val userCardAttachments: Boolean = true,
     /** Leave out linked images, animation and sharp emotes on metered networks. */
     val mobileData: MobileData = MobileData.Normal,
     /** Swiping past the last channel wraps around to the first. */
@@ -262,6 +266,7 @@ class SettingsRepository(
             recentlySentButton = p[RECENTLY_SENT_BUTTON]?.let { v -> RecentlySentButton.entries.firstOrNull { it.name == v } }
                 ?: RecentlySentButton.ReplacesSend,
             chatModesButton = p[CHAT_MODES_BUTTON] ?: true,
+            replyCard = p[REPLY_CARD] ?: true,
             buildStripe = p[BUILD_STRIPE] ?: true,
             showDeleted = p[SHOW_DELETED] ?: true,
             updateCheck = p[UPDATE_CHECK] ?: true,
@@ -278,6 +283,7 @@ class SettingsRepository(
             postPictureSize = p[POST_PICTURE_SIZE]?.let { v -> PostPictureSize.entries.firstOrNull { it.name == v } }
                 ?: PostPictureSize.Medium,
             fullLinks = p[FULL_LINKS] ?: false,
+            userCardAttachments = p[USER_CARD_ATTACHMENTS] ?: true,
             mobileData = p[MOBILE_DATA]?.let { v -> MobileData.entries.firstOrNull { it.name == v } } ?: MobileData.Normal,
             carouselChannels = p[CAROUSEL_CHANNELS] ?: false,
             haptics = p[HAPTICS] ?: true,
@@ -348,6 +354,7 @@ class SettingsRepository(
     suspend fun setSuggestionsOverChat(v: Boolean) = store.edit { it[SUGGESTIONS_OVER_CHAT] = v }
     suspend fun setRecentlySentButton(v: RecentlySentButton) = store.edit { it[RECENTLY_SENT_BUTTON] = v.name }
     suspend fun setChatModesButton(v: Boolean) = store.edit { it[CHAT_MODES_BUTTON] = v }
+    suspend fun setReplyCard(v: Boolean) = store.edit { it[REPLY_CARD] = v }
     suspend fun setBuildStripe(v: Boolean) = store.edit { it[BUILD_STRIPE] = v }
     suspend fun setReadOnly(v: Boolean) = store.edit { it[READ_ONLY] = v }
     suspend fun setShowDeleted(v: Boolean) = store.edit { it[SHOW_DELETED] = v }
@@ -379,6 +386,7 @@ class SettingsRepository(
     suspend fun setPostTextLines(v: Int) = store.edit { it[POST_TEXT_LINES] = v.coerceIn(PostTextLines.RANGE) }
     suspend fun setPostPictureSize(v: PostPictureSize) = store.edit { it[POST_PICTURE_SIZE] = v.name }
     suspend fun setFullLinks(v: Boolean) = store.edit { it[FULL_LINKS] = v }
+    suspend fun setUserCardAttachments(v: Boolean) = store.edit { it[USER_CARD_ATTACHMENTS] = v }
     suspend fun setMobileData(v: MobileData) = store.edit { it[MOBILE_DATA] = v.name }
     suspend fun setCarouselChannels(v: Boolean) = store.edit { it[CAROUSEL_CHANNELS] = v }
     suspend fun setHaptics(v: Boolean) = store.edit { it[HAPTICS] = v }
@@ -477,6 +485,7 @@ class SettingsRepository(
         p[SUGGESTIONS_OVER_CHAT] = s.suggestionsOverChat
         p[RECENTLY_SENT_BUTTON] = s.recentlySentButton.name
         p[CHAT_MODES_BUTTON] = s.chatModesButton
+        p[REPLY_CARD] = s.replyCard
         p[BUILD_STRIPE] = s.buildStripe
         p[READ_ONLY] = s.readOnly
         p[SHOW_DELETED] = s.showDeleted
@@ -493,6 +502,7 @@ class SettingsRepository(
         p[POST_TEXT_LINES] = s.postTextLines
         p[POST_PICTURE_SIZE] = s.postPictureSize.name
         p[FULL_LINKS] = s.fullLinks
+        p[USER_CARD_ATTACHMENTS] = s.userCardAttachments
         p[MOBILE_DATA] = s.mobileData.name
         p[CAROUSEL_CHANNELS] = s.carouselChannels
         p[HAPTICS] = s.haptics
@@ -587,6 +597,7 @@ class SettingsRepository(
         val SUGGESTIONS_OVER_CHAT = booleanPreferencesKey("suggestions_over_chat")
         val RECENTLY_SENT_BUTTON = stringPreferencesKey("recently_sent_button")
         val CHAT_MODES_BUTTON = booleanPreferencesKey("chat_modes_button")
+        val REPLY_CARD = booleanPreferencesKey("reply_card")
         val BUILD_STRIPE = booleanPreferencesKey("build_stripe")
         val READ_ONLY = booleanPreferencesKey("read_only")
         val SHOW_DELETED = booleanPreferencesKey("show_deleted")
@@ -602,6 +613,7 @@ class SettingsRepository(
         val POST_TEXT_LINES = intPreferencesKey("post_text_lines")
         val POST_PICTURE_SIZE = stringPreferencesKey("post_picture_size")
         val FULL_LINKS = booleanPreferencesKey("full_links")
+        val USER_CARD_ATTACHMENTS = booleanPreferencesKey("user_card_attachments")
         val MOBILE_DATA = stringPreferencesKey("mobile_data")
         val IMAGE_HOSTS = stringPreferencesKey("image_hosts")
         /** Default hosts this install has been given, so each is added only once. */

@@ -80,6 +80,14 @@ internal fun MediaPage(settings: Settings, vm: MainViewModel, open: (SettingsSub
         }
         item(R.string.settings_full_links) { SwitchItem(R.string.settings_full_links, settings.fullLinks, vm::setFullLinks, R.string.settings_full_links_hint) }
     }
+    SettingsGroup {
+        item(R.string.settings_user_card_attachments) {
+            SwitchItem(
+                R.string.settings_user_card_attachments, settings.userCardAttachments,
+                vm::setUserCardAttachments, R.string.settings_user_card_attachments_hint,
+            )
+        }
+    }
 }
 
 /**

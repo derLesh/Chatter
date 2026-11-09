@@ -46,7 +46,6 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.zIndex
 import androidx.compose.ui.platform.LocalDensity
-import androidx.compose.ui.layout.onSizeChanged
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LifecycleStartEffect
 import androidx.lifecycle.compose.LocalLifecycleOwner
@@ -367,10 +366,8 @@ fun MainScreen(vm: MainViewModel, onInbox: () -> Unit, onSettings: () -> Unit) {
                 if (floatingInput) ChatInput(
                     vm, guest, connection, restriction, penalty, loader, activity, sheets, inThread = false,
                     sendChannels = activeGroup?.channels.orEmpty(), channelInfo = info,
-                    modifier = Modifier
-                        .zIndex(1f)
-                        .align(Alignment.BottomCenter)
-                        .onSizeChanged { floatingInputHeight = it.height },
+                    modifier = Modifier.zIndex(1f).align(Alignment.BottomCenter),
+                    onCoveredHeight = { floatingInputHeight = it },
                 )
                 if (pageKeys.isEmpty()) {
                     EmptyState(onAdd = { sheets.showAdd = true }, modifier = Modifier.fillMaxSize())
@@ -489,6 +486,7 @@ private fun ChatInput(
     modifier: Modifier = Modifier,
     sendChannels: List<String> = emptyList(),
     channelInfo: Map<String, ChannelInfo> = emptyMap(),
+    onCoveredHeight: ((Int) -> Unit)? = null,
 ) {
     val settings = vm.settings.collectAsStateWithLifecycle().value
     if (settings.readOnly) return
@@ -529,8 +527,20 @@ private fun ChatInput(
         onChatModes = vm::changeChatModes,
         buildStripe = settings.buildStripe,
         sendLater = sendLater(vm, settings),
+        replyCard = settings.replyCard,
+        replyPictureUrl = if (settings.replyCard) replyPictureUrl(vm) else null,
+        onCoveredHeight = onCoveredHeight,
         suggestionsOverChat = settings.suggestionsOverChat,
     )
+}
+
+/** The profile picture of the person the input answers, asked for once a reply starts. */
+@Composable
+internal fun replyPictureUrl(vm: MainViewModel): String? {
+    val login = vm.replyTo?.login?.lowercase() ?: return null
+    val pictures by vm.userPictures.collectAsStateWithLifecycle()
+    LaunchedEffect(login) { vm.requestPictures(listOf(login)) }
+    return pictures[login]
 }
 
 /** Planning messages for later, as far as [settings] allow, with the ones waiting where the input sends to. */

@@ -296,6 +296,7 @@ private val SEARCH_INDEX: List<SearchEntry> by lazy {
             ),
         )
         add(SearchEntry(R.string.settings_full_links, media, R.string.settings_full_links_hint))
+        add(SearchEntry(R.string.settings_user_card_attachments, media, R.string.settings_user_card_attachments_hint))
         val typing = SettingsPage.Typing
         add(SearchEntry(R.string.settings_read_only, typing, R.string.settings_read_only_hint))
         add(SearchEntry(R.string.settings_emote_suggestions, typing, R.string.settings_emote_suggestions_hint, shownWhen = unlessReadOnly))
@@ -304,6 +305,7 @@ private val SEARCH_INDEX: List<SearchEntry> by lazy {
         add(SearchEntry(R.string.settings_suggestions_over_chat, typing, R.string.settings_suggestions_over_chat_hint, shownWhen = unlessReadOnly))
         add(SearchEntry(R.string.settings_recently_sent, typing, R.string.settings_recently_sent_hint, shownWhen = unlessReadOnly))
         add(SearchEntry(R.string.settings_chat_modes_button, typing, R.string.settings_chat_modes_button_hint, shownWhen = unlessReadOnly))
+        add(SearchEntry(R.string.settings_reply_card, typing, R.string.settings_reply_card_hint, shownWhen = unlessReadOnly))
         if (BuildStripe.offered) add(SearchEntry(R.string.settings_build_stripe, typing, R.string.settings_build_stripe_hint, shownWhen = unlessReadOnly))
         val emotes = SettingsPage.Emotes
         add(SearchEntry(R.string.settings_emotes_enabled, emotes, R.string.settings_emotes_new_messages_hint))
