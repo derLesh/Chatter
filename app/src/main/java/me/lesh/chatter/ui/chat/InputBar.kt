@@ -856,8 +856,9 @@ private fun ReplyCard(item: ChatItem, pictureUrl: String?, imageLoader: ImageLoa
     val label = stringResource(R.string.reply_card_label)
     var expanded by remember(item.id) { mutableStateOf(false) }
     var cutOff by remember(item.id) { mutableStateOf(false) }
+    // Top, not centred: opening a long message would otherwise move the picture and the X down.
     Row(
-        verticalAlignment = Alignment.CenterVertically,
+        verticalAlignment = Alignment.Top,
         horizontalArrangement = Arrangement.spacedBy(10.dp),
         modifier = Modifier
             .fillMaxWidth()
@@ -869,11 +870,12 @@ private fun ReplyCard(item: ChatItem, pictureUrl: String?, imageLoader: ImageLoa
                 onClickLabel = stringResource(if (expanded) R.string.reply_card_collapse else R.string.reply_card_expand),
             ) { expanded = !expanded }
             .animateContentSize(motion.defaultSpatialSpec())
-            .heightIn(min = 44.dp)
             .padding(start = 8.dp, end = if (onCancel != null) 0.dp else 12.dp),
     ) {
-        PersonAvatar(name = name, color = nameColor, pictureUrl = pictureUrl, imageLoader = imageLoader, size = 28.dp)
-        Column(Modifier.weight(1f).padding(vertical = 4.dp).semantics(mergeDescendants = true) { contentDescription = said }) {
+        Box(Modifier.padding(top = 8.dp)) {
+            PersonAvatar(name = name, color = nameColor, pictureUrl = pictureUrl, imageLoader = imageLoader, size = 28.dp)
+        }
+        Column(Modifier.weight(1f).padding(vertical = 6.dp).semantics(mergeDescendants = true) { contentDescription = said }) {
             Text(
                 buildAnnotatedString {
                     append("$label ")
@@ -892,7 +894,7 @@ private fun ReplyCard(item: ChatItem, pictureUrl: String?, imageLoader: ImageLoa
                 onTextLayout = { if (!expanded) cutOff = it.hasVisualOverflow },
             )
         }
-        if (onCancel != null) IconButton(onClick = onCancel, modifier = Modifier.size(40.dp)) {
+        if (onCancel != null) IconButton(onClick = onCancel, modifier = Modifier.padding(top = 2.dp).size(40.dp)) {
             Icon(Icons.Default.Close, contentDescription = stringResource(R.string.cancel), modifier = Modifier.size(20.dp))
         }
     }
