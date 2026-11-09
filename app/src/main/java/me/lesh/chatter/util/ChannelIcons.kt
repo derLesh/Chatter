@@ -7,6 +7,8 @@ import coil3.ImageLoader
 import coil3.request.ImageRequest
 import coil3.request.SuccessResult
 import coil3.request.allowHardware
+import coil3.request.transformations
+import coil3.transform.CircleCropTransformation
 import me.lesh.chatter.R
 import me.lesh.chatter.channels.ChannelRepository
 import java.util.concurrent.ConcurrentHashMap
@@ -30,12 +32,18 @@ class ChannelIcons(
     }
 
     /**
-     * Downloads a picture as an icon. Not an adaptive icon: Android crops those to their safe zone,
-     * which cuts off the edges of an avatar.
+     * Downloads a picture as a round icon. Not an adaptive icon: Android crops those to their safe
+     * zone, which cuts off the edges of an avatar. Cut round here, since One UI shows a bitmap
+     * shortcut as the square it is, where Pixel crops it round itself.
      */
     suspend fun load(url: String): IconCompat? {
         // Hardware bitmaps cannot leave the process, and notification icons do.
-        val request = ImageRequest.Builder(context).data(url).size(ICON_SIZE_PX).allowHardware(false).build()
+        val request = ImageRequest.Builder(context)
+            .data(url)
+            .size(ICON_SIZE_PX)
+            .allowHardware(false)
+            .transformations(CircleCropTransformation())
+            .build()
         val image = (runCatchingCancellable { imageLoader.execute(request) }.getOrNull() as? SuccessResult)?.image
         return (image as? BitmapImage)?.bitmap?.let { IconCompat.createWithBitmap(it) }
     }
