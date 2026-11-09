@@ -405,6 +405,8 @@
     <string name="settings_read_only_hint">Blendet das Eingabefeld aus. Gut, wenn du nur mitliest.</string>
     <string name="settings_emote_suggestions">Emote-Vorschläge</string>
     <string name="settings_emote_suggestions_hint">Schlägt beim Tippen Emotes vor, nach einem Doppelpunkt auch Emoji wie :smile</string>
+    <string name="settings_suggestions_over_chat">Vorschläge über dem Chat</string>
+    <string name="settings_suggestions_over_chat_hint">Zeigt Vorschläge über dem Chat, damit er beim Tippen nicht springt</string>
     <string name="settings_user_suggestions">Namensvorschläge</string>
     <string name="settings_user_suggestions_hint">Schlägt Namen aus dem Chat vor</string>
     <string name="settings_mention_with_at">Namen mit @ einfügen</string>

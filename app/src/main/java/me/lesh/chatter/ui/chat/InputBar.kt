@@ -74,6 +74,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.TransformOrigin
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.layout.layout
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.pluralStringResource
@@ -135,6 +136,9 @@ import kotlinx.coroutines.launch
  *
  * With [sendLater] a message can be planned to go out later, and the planned ones show above the
  * input.
+ *
+ * With [suggestionsOverChat] the suggestions take no room: they are drawn above the input, over
+ * the chat, so a chat that makes room for the input does not move while typing.
  */
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
@@ -165,6 +169,7 @@ fun InputBar(
     onChatModes: (RoomState) -> Unit = {},
     sendLater: SendLater? = null,
     buildStripe: Boolean = false,
+    suggestionsOverChat: Boolean = false,
 ) {
     val stripe = buildStripe && BuildStripe.offered
     val choosing = sendChannels.size > 1 && sendChannel != null
@@ -231,8 +236,12 @@ fun InputBar(
     // No bar of its own: the input sits on the chat background.
     Column(modifier) {
         if (suggestions.isNotEmpty()) {
-            // The field keeps its own gap above, as wide as the one below it.
-            SuggestionRow(suggestions, imageLoader, onSuggestion, bottomGap = 0.dp)
+            if (suggestionsOverChat) {
+                SuggestionRow(suggestions, imageLoader, onSuggestion, bottomGap = 4.dp, Modifier.takingNoHeight())
+            } else {
+                // The field keeps its own gap above, as wide as the one below it.
+                SuggestionRow(suggestions, imageLoader, onSuggestion, bottomGap = 0.dp)
+            }
         }
         AnimatedVisibility(recentOpen) {
             RecentlySentPanel(recent, onPick = { openPanel = null; onReuseSent(it) }, onClose = { openPanel = null })
@@ -725,11 +734,17 @@ private val ChatRestriction.hint: Int
     }
 
 @Composable
-private fun SuggestionRow(suggestions: List<Suggestion>, imageLoader: ImageLoader, onClick: (Suggestion) -> Unit, bottomGap: Dp) {
+private fun SuggestionRow(
+    suggestions: List<Suggestion>,
+    imageLoader: ImageLoader,
+    onClick: (Suggestion) -> Unit,
+    bottomGap: Dp,
+    modifier: Modifier = Modifier,
+) {
     LazyRow(
         contentPadding = PaddingValues(start = 8.dp, end = 8.dp, top = 4.dp, bottom = bottomGap),
         horizontalArrangement = Arrangement.spacedBy(6.dp),
-        modifier = Modifier.fillMaxWidth(),
+        modifier = modifier.fillMaxWidth(),
     ) {
         items(suggestions, key = {
             when (it) {
@@ -771,6 +786,15 @@ private fun SuggestionRow(suggestions: List<Suggestion>, imageLoader: ImageLoade
             }
         }
     }
+}
+
+/**
+ * Reports no height and places the content right above where it would be, so it lies over what is
+ * above instead of pushing it away. Taps still reach it, as long as nothing above clips.
+ */
+private fun Modifier.takingNoHeight(): Modifier = layout { measurable, constraints ->
+    val placeable = measurable.measure(constraints.copy(minHeight = 0))
+    layout(placeable.width, 0) { placeable.place(0, -placeable.height) }
 }
 
 @Composable

@@ -1,0 +1,1 @@
+minor: Show suggestions over the chat instead of pushing it up while you type, under Settings → Typing

@@ -169,6 +169,7 @@ fun BubbleScreen(vm: MainViewModel, channel: String?) {
                     onChatModes = vm::changeChatModes,
                     buildStripe = settings.buildStripe,
                     sendLater = sendLater(vm, settings),
+                    suggestionsOverChat = settings.suggestionsOverChat,
                 )
             }
             Box(Modifier.weight(1f)) {

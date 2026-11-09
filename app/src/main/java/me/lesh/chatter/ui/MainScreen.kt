@@ -529,6 +529,7 @@ private fun ChatInput(
         onChatModes = vm::changeChatModes,
         buildStripe = settings.buildStripe,
         sendLater = sendLater(vm, settings),
+        suggestionsOverChat = settings.suggestionsOverChat,
     )
 }
 
