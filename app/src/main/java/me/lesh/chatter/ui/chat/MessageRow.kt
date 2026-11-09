@@ -325,13 +325,13 @@ private fun PaintedLine(
 ) {
     val range = built.nameRange ?: return
     val image = paint.imageUrl?.let { rememberPaintImage(it, imageLoader) }
-    val brush = remember(built, paint, image) {
-        if (paint.kind == NamePaint.Kind.Image && image == null) null else NamePaintBrush(paint, image)
+    val brush = remember(built, paint, image, style.dark) {
+        if (paint.kind == NamePaint.Kind.Image && image == null) null else NamePaintBrush(paint, image, style.dark)
     }
     val density = LocalDensity.current
     val text = remember(built, paint, brush, density) {
         AnnotatedString.Builder(built.text).apply {
-            addStyle(namePaintStyle(paint, brush, density), range.first, range.last + 1)
+            addStyle(namePaintStyle(paint, brush, density, style.dark), range.first, range.last + 1)
         }.toAnnotatedString()
     }
     Text(
