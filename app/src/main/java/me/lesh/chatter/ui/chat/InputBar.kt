@@ -109,6 +109,9 @@ import me.lesh.chatter.settings.SendLaterButton
 import me.lesh.chatter.ui.Suggestion
 import me.lesh.chatter.ui.channels.ChannelAvatar
 import me.lesh.chatter.ui.channels.formatMinutes
+import me.lesh.chatter.ui.theme.readableNameColor
+import me.lesh.chatter.ui.theme.isAppInDarkTheme
+import me.lesh.chatter.ui.inbox.PersonAvatar
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
@@ -118,7 +121,8 @@ import kotlinx.coroutines.launch
  * On a combined chat [sendChannels] are its channels, and a picture in front of the input shows
  * [sendChannel]; tapping it picks another. Without [onCancelReply] the reply strip cannot be
  * closed, as in a conversation. Each increment of [replyStarts] opens the keyboard; the reply
- * itself cannot signal that, since it also returns with a page's draft.
+ * itself cannot signal that, since it also returns with a page's draft. [replyPictureUrl] is the
+ * profile picture of the person answered, if known.
  *
  * Twitch's limits are shown before sending: remaining characters for long messages, slow mode
  * seconds on the send button ([waitUntil]), and a [restriction] instead of the placeholder. A
@@ -165,6 +169,7 @@ fun InputBar(
     onChatModes: (RoomState) -> Unit = {},
     sendLater: SendLater? = null,
     buildStripe: Boolean = false,
+    replyPictureUrl: String? = null,
 ) {
     val stripe = buildStripe && BuildStripe.offered
     val choosing = sendChannels.size > 1 && sendChannel != null
@@ -254,7 +259,7 @@ fun InputBar(
             }
         }
         if (replyTo != null) {
-            ReplyBar(replyTo, onCancelReply)
+            ReplyCard(replyTo, replyPictureUrl, imageLoader, onCancelReply)
         }
         val leadingButtons = @Composable {
             if (choosing) {
@@ -773,26 +778,54 @@ private fun SuggestionRow(suggestions: List<Suggestion>, imageLoader: ImageLoade
     }
 }
 
+/**
+ * Who the message being written answers, as a card like the account the token login found: the
+ * person's picture, "Replying to" over their name, and what they wrote.
+ */
 @Composable
-private fun ReplyBar(item: ChatItem, onCancel: (() -> Unit)?) {
+private fun ReplyCard(item: ChatItem, pictureUrl: String?, imageLoader: ImageLoader, onCancel: (() -> Unit)?) {
+    val name = item.displayName ?: item.login.orEmpty()
+    val said = stringResource(R.string.replying_to, name, item.text)
     Row(
         verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
         modifier = Modifier
             .fillMaxWidth()
-            .background(MaterialTheme.colorScheme.secondaryContainer)
-            .padding(start = 12.dp),
+            .padding(start = 8.dp, end = 8.dp, top = 4.dp)
+            .clip(RoundedCornerShape(20.dp))
+            .background(MaterialTheme.colorScheme.surfaceContainerHigh)
+            .padding(start = 10.dp, top = 8.dp, bottom = 8.dp, end = if (onCancel != null) 0.dp else 12.dp),
     ) {
-        Text(
-            text = stringResource(R.string.replying_to, item.displayName ?: item.login.orEmpty(), item.text),
-            style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSecondaryContainer,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis,
-            modifier = Modifier.weight(1f),
+        PersonAvatar(
+            name = name,
+            color = readableNameColor(item.color, item.login, isAppInDarkTheme()),
+            pictureUrl = pictureUrl,
+            imageLoader = imageLoader,
+            size = 36.dp,
         )
+        Column(Modifier.weight(1f).semantics(mergeDescendants = true) { contentDescription = said }) {
+            Text(
+                stringResource(R.string.reply_card_label),
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            Text(
+                name,
+                style = MaterialTheme.typography.titleSmall,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+            Text(
+                item.text,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+        }
         if (onCancel != null) IconButton(onClick = onCancel) {
             Icon(Icons.Default.Close, contentDescription = stringResource(R.string.cancel))
-        } else Spacer(Modifier.height(48.dp))
+        }
     }
 }
 

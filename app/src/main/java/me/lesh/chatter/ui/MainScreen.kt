@@ -529,7 +529,17 @@ private fun ChatInput(
         onChatModes = vm::changeChatModes,
         buildStripe = settings.buildStripe,
         sendLater = sendLater(vm, settings),
+        replyPictureUrl = replyPictureUrl(vm),
     )
+}
+
+/** The profile picture of the person the input answers, asked for once a reply starts. */
+@Composable
+internal fun replyPictureUrl(vm: MainViewModel): String? {
+    val login = vm.replyTo?.login?.lowercase() ?: return null
+    val pictures by vm.userPictures.collectAsStateWithLifecycle()
+    LaunchedEffect(login) { vm.requestPictures(listOf(login)) }
+    return pictures[login]
 }
 
 /** Planning messages for later, as far as [settings] allow, with the ones waiting where the input sends to. */

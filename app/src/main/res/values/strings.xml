@@ -87,6 +87,7 @@
     <string name="chat_modes_any_follower">Right away</string>
     <string name="chat_modes_subs">Subs only</string>
     <string name="chat_modes_unique">Unique chat</string>
+    <string name="reply_card_label">Replying to</string>
     <string name="replying_to">Replying to @%1$s: %2$s</string>
     <string name="thread_title">Conversation</string>
     <string name="thread_follow">Follow</string>
