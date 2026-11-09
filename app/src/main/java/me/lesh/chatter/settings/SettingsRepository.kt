@@ -201,6 +201,8 @@ data class Settings(
     val liveNotifications: Boolean = true,
     /** Offer mention notifications as a floating chat bubble over other apps. */
     val bubbles: Boolean = false,
+    /** Swiping Chatter out of the recent apps ends the connection, and with it mentions. */
+    val closeWithApp: Boolean = false,
     /** The sender's Twitch avatar in notifications. */
     val senderAvatars: Boolean = true,
     /** Which special messages are shown the way Twitch shows them; see [SpecialMessage]. */
@@ -310,6 +312,7 @@ class SettingsRepository(
             keepScreenOnWhenQuiet = p[KEEP_SCREEN_ON_WHEN_QUIET] ?: false,
             seasonalAppIcons = p[SEASONAL_APP_ICONS] ?: true,
             bubbles = p[BUBBLES] ?: false,
+            closeWithApp = p[CLOSE_WITH_APP] ?: false,
             liveNotifications = p[LIVE_NOTIFICATIONS] ?: true,
             senderAvatars = p[SENDER_AVATARS] ?: true,
             specialMessages = SpecialMessage.entries.toSet() - specialMessagesOff(p),
@@ -416,6 +419,7 @@ class SettingsRepository(
     suspend fun setKeepScreenOnWhenQuiet(v: Boolean) = store.edit { it[KEEP_SCREEN_ON_WHEN_QUIET] = v }
     suspend fun setSeasonalAppIcons(v: Boolean) = store.edit { it[SEASONAL_APP_ICONS] = v }
     suspend fun setBubbles(v: Boolean) = store.edit { it[BUBBLES] = v }
+    suspend fun setCloseWithApp(v: Boolean) = store.edit { it[CLOSE_WITH_APP] = v }
     suspend fun setLiveNotifications(v: Boolean) = store.edit { it[LIVE_NOTIFICATIONS] = v }
     suspend fun setSenderAvatars(v: Boolean) = store.edit { it[SENDER_AVATARS] = v }
     suspend fun setSpecialMessage(kind: SpecialMessage, on: Boolean) = store.edit { p ->
@@ -528,6 +532,7 @@ class SettingsRepository(
         p[KEEP_SCREEN_ON_WHEN_QUIET] = s.keepScreenOnWhenQuiet
         p[SEASONAL_APP_ICONS] = s.seasonalAppIcons
         p[BUBBLES] = s.bubbles
+        p[CLOSE_WITH_APP] = s.closeWithApp
         p[LIVE_NOTIFICATIONS] = s.liveNotifications
         p[SENDER_AVATARS] = s.senderAvatars
         p.remove(FIRST_MESSAGES)
@@ -646,6 +651,7 @@ class SettingsRepository(
         val KEEP_SCREEN_ON_WHEN_QUIET = booleanPreferencesKey("keep_screen_on_when_quiet")
         val SEASONAL_APP_ICONS = booleanPreferencesKey("seasonal_app_icons")
         val BUBBLES = booleanPreferencesKey("chat_bubbles")
+        val CLOSE_WITH_APP = booleanPreferencesKey("close_with_app")
         val LIVE_NOTIFICATIONS = booleanPreferencesKey("live_notifications")
         val SENDER_AVATARS = booleanPreferencesKey("notification_sender_avatars")
         val EMOTE_PROVIDERS = stringPreferencesKey("emote_providers")

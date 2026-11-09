@@ -345,6 +345,8 @@
     <string name="settings_full_links_hint">Sonst werden lange Links gekürzt</string>
     <string name="settings_mobile_data">Bei mobilen Daten</string>
     <string name="settings_mobile_data_hint">Daten sparen lädt keine verlinkten Bilder und Animationen und zeigt Emotes kleiner. Nachrichten und Erwähnungen kommen weiter an.</string>
+    <string name="settings_close_with_app">Beim Wegwischen beenden</string>
+    <string name="settings_close_with_app_hint">Trennt die Verbindung, wenn du Chatter aus den letzten Apps wischst. Bis zum Öffnen kommen keine Erwähnungen.</string>
     <string name="mobile_data_normal">Normal</string>
     <string name="mobile_data_save">Daten sparen</string>
     <string name="mobile_data_saver_on">%1$s, aber der Datensparmodus ist an</string>

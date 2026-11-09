@@ -57,4 +57,16 @@ class ChatWindowsTest {
         windows.setChannels(app, setOf("forsen"))
         assertFalse("the combined chat was left for a single channel", windows.isWatching("xqc"))
     }
+
+    @Test
+    fun onlyABubbleCountsAsBubbleVisible() {
+        windows.setVisible(app, visible = true, channels = setOf("forsen"))
+        assertFalse("the app's own window is no bubble", windows.bubbleVisible)
+
+        windows.setVisible(bubble, visible = true, channels = setOf("moondye7"), inBubble = true)
+        assertTrue(windows.bubbleVisible)
+
+        windows.setVisible(bubble, visible = false, channels = setOf("moondye7"), inBubble = true)
+        assertFalse(windows.bubbleVisible)
+    }
 }
