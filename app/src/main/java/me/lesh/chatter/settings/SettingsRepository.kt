@@ -150,6 +150,8 @@ data class Settings(
     val postPictureSize: PostPictureSize = PostPictureSize.Medium,
     /** Write links in full instead of shortening them. */
     val fullLinks: Boolean = false,
+    /** Pictures, GIFs and post cards in the messages of the user card; off leaves them links. */
+    val userCardAttachments: Boolean = true,
     /** Leave out linked images, animation and sharp emotes on metered networks. */
     val mobileData: MobileData = MobileData.Normal,
     /** Swiping past the last channel wraps around to the first. */
@@ -275,6 +277,7 @@ class SettingsRepository(
             postPictureSize = p[POST_PICTURE_SIZE]?.let { v -> PostPictureSize.entries.firstOrNull { it.name == v } }
                 ?: PostPictureSize.Medium,
             fullLinks = p[FULL_LINKS] ?: false,
+            userCardAttachments = p[USER_CARD_ATTACHMENTS] ?: true,
             mobileData = p[MOBILE_DATA]?.let { v -> MobileData.entries.firstOrNull { it.name == v } } ?: MobileData.Normal,
             carouselChannels = p[CAROUSEL_CHANNELS] ?: false,
             haptics = p[HAPTICS] ?: true,
@@ -375,6 +378,7 @@ class SettingsRepository(
     suspend fun setPostTextLines(v: Int) = store.edit { it[POST_TEXT_LINES] = v.coerceIn(PostTextLines.RANGE) }
     suspend fun setPostPictureSize(v: PostPictureSize) = store.edit { it[POST_PICTURE_SIZE] = v.name }
     suspend fun setFullLinks(v: Boolean) = store.edit { it[FULL_LINKS] = v }
+    suspend fun setUserCardAttachments(v: Boolean) = store.edit { it[USER_CARD_ATTACHMENTS] = v }
     suspend fun setMobileData(v: MobileData) = store.edit { it[MOBILE_DATA] = v.name }
     suspend fun setCarouselChannels(v: Boolean) = store.edit { it[CAROUSEL_CHANNELS] = v }
     suspend fun setHaptics(v: Boolean) = store.edit { it[HAPTICS] = v }
@@ -488,6 +492,7 @@ class SettingsRepository(
         p[POST_TEXT_LINES] = s.postTextLines
         p[POST_PICTURE_SIZE] = s.postPictureSize.name
         p[FULL_LINKS] = s.fullLinks
+        p[USER_CARD_ATTACHMENTS] = s.userCardAttachments
         p[MOBILE_DATA] = s.mobileData.name
         p[CAROUSEL_CHANNELS] = s.carouselChannels
         p[HAPTICS] = s.haptics
@@ -596,6 +601,7 @@ class SettingsRepository(
         val POST_TEXT_LINES = intPreferencesKey("post_text_lines")
         val POST_PICTURE_SIZE = stringPreferencesKey("post_picture_size")
         val FULL_LINKS = booleanPreferencesKey("full_links")
+        val USER_CARD_ATTACHMENTS = booleanPreferencesKey("user_card_attachments")
         val MOBILE_DATA = stringPreferencesKey("mobile_data")
         val IMAGE_HOSTS = stringPreferencesKey("image_hosts")
         /** Default hosts this install has been given, so each is added only once. */

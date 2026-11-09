@@ -76,6 +76,9 @@ data class ChatStyle(
 
 val ChatStyle.lineHeight: TextUnit get() = (fontSize * lineSpacing).sp
 
+/** This style with linked pictures, GIFs and posts left as links. */
+fun ChatStyle.withoutAttachments(): ChatStyle = copy(imageHosts = emptyList(), gifs = false, postCard = null)
+
 /**
  * The channel a message was written in, for lists that mix channels: its picture, and its name for
  * accessibility.

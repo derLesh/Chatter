@@ -336,6 +336,8 @@
     <string name="settings_provider_ffz">FrankerFaceZ</string>
     <string name="settings_show_deleted">Entfernte Nachrichten anzeigen</string>
     <string name="settings_show_deleted_hint">Lässt sie durchgestrichen stehen, statt sie auszublenden</string>
+    <string name="settings_user_card_attachments">Bilder in der Usercard</string>
+    <string name="settings_user_card_attachments_hint">Zeigt Bilder, GIFs und Beiträge in den Nachrichten der Usercard</string>
     <string name="settings_full_links">Links vollständig anzeigen</string>
     <string name="settings_full_links_hint">Sonst werden lange Links gekürzt</string>
     <string name="settings_mobile_data">Bei mobilen Daten</string>

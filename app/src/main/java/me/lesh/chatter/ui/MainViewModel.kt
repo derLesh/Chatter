@@ -1194,6 +1194,7 @@ class MainViewModel(private val c: AppContainer, savedState: SavedStateHandle) :
     fun setPostTextLines(v: Int) = saveSetting { setPostTextLines(v) }
     fun setPostPictureSize(v: PostPictureSize) = saveSetting { setPostPictureSize(v) }
     fun setFullLinks(v: Boolean) = saveSetting { setFullLinks(v) }
+    fun setUserCardAttachments(v: Boolean) = saveSetting { setUserCardAttachments(v) }
 
     /** Turns whatever was pasted into bare hosts. */
     fun addImageHost(input: String) {
