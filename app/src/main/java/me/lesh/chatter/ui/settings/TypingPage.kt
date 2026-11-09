@@ -40,7 +40,7 @@ internal fun TypingPage(settings: Settings, vm: MainViewModel) {
         item(R.string.settings_user_suggestions) { SwitchItem(R.string.settings_user_suggestions, settings.userSuggestions, vm::setUserSuggestions, R.string.settings_user_suggestions_hint) }
         item(R.string.settings_mention_with_at) { SwitchItem(R.string.settings_mention_with_at, settings.mentionWithAt, vm::setMentionWithAt, R.string.settings_mention_with_at_hint) }
         item(R.string.settings_suggestions_over_chat) {
-            SwitchItem(R.string.settings_suggestions_over_chat, settings.suggestionsOverChat, vm::setSuggestionsOverChat, R.string.settings_suggestions_over_chat_hint)
+            BetaSwitchItem(R.string.settings_suggestions_over_chat, settings.suggestionsOverChat, vm::setSuggestionsOverChat, R.string.settings_suggestions_over_chat_hint)
         }
     }
     SettingsGroup(R.string.settings_group_input) {

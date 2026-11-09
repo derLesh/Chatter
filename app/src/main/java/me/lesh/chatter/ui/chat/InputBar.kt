@@ -153,7 +153,7 @@ import kotlinx.coroutines.launch
  * With [sendLater] a message can be planned to go out later, and the planned ones show above the
  * input.
  *
- * With [suggestionsOverChat] the suggestions take no room: they are drawn above the input, over
+ * With [suggestionsOverChat] the suggestions take no room: they slide up above the input, over
  * the chat, so a chat that makes room for the input does not move while typing.
  */
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
@@ -257,13 +257,13 @@ fun InputBar(
     val covered = if (onCoveredHeight == null) Modifier else Modifier.onSizeChanged { onCoveredHeight(it.height - replyHeight[0]) }
     // No bar of its own: the input sits on the chat background.
     Column(modifier.then(covered)) {
-        if (suggestions.isNotEmpty()) {
-            if (suggestionsOverChat) {
-                SuggestionRow(suggestions, imageLoader, onSuggestion, bottomGap = 4.dp, Modifier.takingNoHeight())
-            } else {
-                // The field keeps its own gap above, as wide as the one below it.
-                SuggestionRow(suggestions, imageLoader, onSuggestion, bottomGap = 0.dp)
+        if (suggestionsOverChat) {
+            RisingFromInput(suggestions.takeIf { it.isNotEmpty() }, Modifier.takingNoHeight()) { shown ->
+                SuggestionRow(shown, imageLoader, onSuggestion, bottomGap = 4.dp)
             }
+        } else if (suggestions.isNotEmpty()) {
+            // The field keeps its own gap above, as wide as the one below it.
+            SuggestionRow(suggestions, imageLoader, onSuggestion, bottomGap = 0.dp)
         }
         AnimatedVisibility(recentOpen) {
             RecentlySentPanel(recent, onPick = { openPanel = null; onReuseSent(it) }, onClose = { openPanel = null })
@@ -286,7 +286,7 @@ fun InputBar(
         }
         // Always there, so the reply's height goes back to zero once it has slid away.
         Box(Modifier.onSizeChanged { replyHeight[0] = it.height }) {
-            AnimatedReply(replyTo) { item ->
+            RisingFromInput(replyTo) { item ->
                 if (replyCard) ReplyCard(item, replyPictureUrl, imageLoader, onCancelReply)
                 else ReplyBar(item, onCancelReply)
             }
@@ -759,17 +759,11 @@ private val ChatRestriction.hint: Int
     }
 
 @Composable
-private fun SuggestionRow(
-    suggestions: List<Suggestion>,
-    imageLoader: ImageLoader,
-    onClick: (Suggestion) -> Unit,
-    bottomGap: Dp,
-    modifier: Modifier = Modifier,
-) {
+private fun SuggestionRow(suggestions: List<Suggestion>, imageLoader: ImageLoader, onClick: (Suggestion) -> Unit, bottomGap: Dp) {
     LazyRow(
         contentPadding = PaddingValues(start = 8.dp, end = 8.dp, top = 4.dp, bottom = bottomGap),
         horizontalArrangement = Arrangement.spacedBy(6.dp),
-        modifier = modifier.fillMaxWidth(),
+        modifier = Modifier.fillMaxWidth(),
     ) {
         items(suggestions, key = {
             when (it) {
@@ -823,17 +817,18 @@ private fun Modifier.takingNoHeight(): Modifier = layout { measurable, constrain
 }
 
 /**
- * Slides the reply up out from behind the input and back down, with Material 3's motion. It
- * leaves with the message it showed, not with an empty one.
+ * Slides [value] up out from behind the input while there is one, and back down, with Material 3's
+ * motion. It leaves showing what it showed last, not empty.
  */
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
-private fun AnimatedReply(replyTo: ChatItem?, content: @Composable (ChatItem) -> Unit) {
+private fun <T : Any> RisingFromInput(value: T?, modifier: Modifier = Modifier, content: @Composable (T) -> Unit) {
     val motion = MaterialTheme.motionScheme
-    var shown by remember { mutableStateOf(replyTo) }
-    if (replyTo != null) shown = replyTo
+    var shown by remember { mutableStateOf(value) }
+    if (value != null) shown = value
     AnimatedVisibility(
-        visible = replyTo != null,
+        visible = value != null,
+        modifier = modifier,
         enter = slideInVertically(motion.defaultSpatialSpec()) { it } + fadeIn(motion.defaultEffectsSpec()),
         exit = slideOutVertically(motion.fastSpatialSpec()) { it } + fadeOut(motion.fastEffectsSpec()),
     ) {
