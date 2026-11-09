@@ -424,6 +424,8 @@
     <string name="recently_sent_hidden">Off</string>
     <string name="settings_chat_modes_button">Chat modes</string>
     <string name="settings_chat_modes_button_hint">Shows mods a shield by the input for slow mode, emote-only and more</string>
+    <string name="settings_reply_card">Reply card</string>
+    <string name="settings_reply_card_hint">Shows who you reply to with their picture above the input</string>
     <string name="settings_build_stripe">Build stripe</string>
     <string name="settings_build_stripe_hint">Left in the input, in the look of this app\'s icon</string>
     <string-array name="input_preview_sent">

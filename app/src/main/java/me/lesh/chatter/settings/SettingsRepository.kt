@@ -124,6 +124,8 @@ data class Settings(
     val recentlySentButton: RecentlySentButton = RecentlySentButton.ReplacesSend,
     /** A shield next to the emotes, in channels the user moderates, to change the chat modes. */
     val chatModesButton: Boolean = true,
+    /** Beta: who a reply answers as a card with their picture, instead of a one-line strip. */
+    val replyCard: Boolean = true,
     /** A strip of the build's icon at the left of the input; only offered in Dev and Nightly. */
     val buildStripe: Boolean = true,
     /** Show deleted messages struck through instead of hiding them. */
@@ -259,6 +261,7 @@ class SettingsRepository(
             recentlySentButton = p[RECENTLY_SENT_BUTTON]?.let { v -> RecentlySentButton.entries.firstOrNull { it.name == v } }
                 ?: RecentlySentButton.ReplacesSend,
             chatModesButton = p[CHAT_MODES_BUTTON] ?: true,
+            replyCard = p[REPLY_CARD] ?: true,
             buildStripe = p[BUILD_STRIPE] ?: true,
             showDeleted = p[SHOW_DELETED] ?: true,
             updateCheck = p[UPDATE_CHECK] ?: true,
@@ -344,6 +347,7 @@ class SettingsRepository(
     suspend fun setMentionWithAt(v: Boolean) = store.edit { it[MENTION_WITH_AT] = v }
     suspend fun setRecentlySentButton(v: RecentlySentButton) = store.edit { it[RECENTLY_SENT_BUTTON] = v.name }
     suspend fun setChatModesButton(v: Boolean) = store.edit { it[CHAT_MODES_BUTTON] = v }
+    suspend fun setReplyCard(v: Boolean) = store.edit { it[REPLY_CARD] = v }
     suspend fun setBuildStripe(v: Boolean) = store.edit { it[BUILD_STRIPE] = v }
     suspend fun setReadOnly(v: Boolean) = store.edit { it[READ_ONLY] = v }
     suspend fun setShowDeleted(v: Boolean) = store.edit { it[SHOW_DELETED] = v }
@@ -472,6 +476,7 @@ class SettingsRepository(
         p[MENTION_WITH_AT] = s.mentionWithAt
         p[RECENTLY_SENT_BUTTON] = s.recentlySentButton.name
         p[CHAT_MODES_BUTTON] = s.chatModesButton
+        p[REPLY_CARD] = s.replyCard
         p[BUILD_STRIPE] = s.buildStripe
         p[READ_ONLY] = s.readOnly
         p[SHOW_DELETED] = s.showDeleted
@@ -581,6 +586,7 @@ class SettingsRepository(
         val MENTION_WITH_AT = booleanPreferencesKey("mention_with_at")
         val RECENTLY_SENT_BUTTON = stringPreferencesKey("recently_sent_button")
         val CHAT_MODES_BUTTON = booleanPreferencesKey("chat_modes_button")
+        val REPLY_CARD = booleanPreferencesKey("reply_card")
         val BUILD_STRIPE = booleanPreferencesKey("build_stripe")
         val READ_ONLY = booleanPreferencesKey("read_only")
         val SHOW_DELETED = booleanPreferencesKey("show_deleted")

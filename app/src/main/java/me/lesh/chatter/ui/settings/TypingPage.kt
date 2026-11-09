@@ -51,6 +51,9 @@ internal fun TypingPage(settings: Settings, vm: MainViewModel) {
         item(R.string.settings_chat_modes_button) {
             SwitchItem(R.string.settings_chat_modes_button, settings.chatModesButton, vm::setChatModesButton, R.string.settings_chat_modes_button_hint)
         }
+        item(R.string.settings_reply_card) {
+            BetaSwitchItem(R.string.settings_reply_card, settings.replyCard, vm::setReplyCard, R.string.settings_reply_card_hint)
+        }
         if (BuildStripe.offered) {
             item(R.string.settings_build_stripe) {
                 SwitchItem(R.string.settings_build_stripe, settings.buildStripe, vm::setBuildStripe, R.string.settings_build_stripe_hint)

@@ -170,7 +170,8 @@ fun BubbleScreen(vm: MainViewModel, channel: String?) {
                     onChatModes = vm::changeChatModes,
                     buildStripe = settings.buildStripe,
                     sendLater = sendLater(vm, settings),
-                    replyPictureUrl = replyPictureUrl(vm),
+                    replyCard = settings.replyCard,
+                    replyPictureUrl = if (settings.replyCard) replyPictureUrl(vm) else null,
                 )
             }
             Box(Modifier.weight(1f)) {

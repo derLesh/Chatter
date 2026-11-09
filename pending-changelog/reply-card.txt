@@ -1,1 +1,1 @@
-minor: Show who you reply to as a card above the input, with their picture, name and message
+minor: Show who you reply to as a small card with their picture above the input, a beta under Settings → Typing

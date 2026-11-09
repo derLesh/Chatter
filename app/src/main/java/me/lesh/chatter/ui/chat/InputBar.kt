@@ -80,6 +80,10 @@ import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.buildAnnotatedString
+import androidx.compose.ui.text.withStyle
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.input.TextFieldValue
@@ -121,8 +125,8 @@ import kotlinx.coroutines.launch
  * On a combined chat [sendChannels] are its channels, and a picture in front of the input shows
  * [sendChannel]; tapping it picks another. Without [onCancelReply] the reply strip cannot be
  * closed, as in a conversation. Each increment of [replyStarts] opens the keyboard; the reply
- * itself cannot signal that, since it also returns with a page's draft. [replyPictureUrl] is the
- * profile picture of the person answered, if known.
+ * itself cannot signal that, since it also returns with a page's draft. With [replyCard] the
+ * strip is a card with [replyPictureUrl], the picture of the person answered, if known.
  *
  * Twitch's limits are shown before sending: remaining characters for long messages, slow mode
  * seconds on the send button ([waitUntil]), and a [restriction] instead of the placeholder. A
@@ -169,6 +173,7 @@ fun InputBar(
     onChatModes: (RoomState) -> Unit = {},
     sendLater: SendLater? = null,
     buildStripe: Boolean = false,
+    replyCard: Boolean = false,
     replyPictureUrl: String? = null,
 ) {
     val stripe = buildStripe && BuildStripe.offered
@@ -259,7 +264,8 @@ fun InputBar(
             }
         }
         if (replyTo != null) {
-            ReplyCard(replyTo, replyPictureUrl, imageLoader, onCancelReply)
+            if (replyCard) ReplyCard(replyTo, replyPictureUrl, imageLoader, onCancelReply)
+            else ReplyBar(replyTo, onCancelReply)
         }
         val leadingButtons = @Composable {
             if (choosing) {
@@ -778,53 +784,71 @@ private fun SuggestionRow(suggestions: List<Suggestion>, imageLoader: ImageLoade
     }
 }
 
+@Composable
+private fun ReplyBar(item: ChatItem, onCancel: (() -> Unit)?) {
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        modifier = Modifier
+            .fillMaxWidth()
+            .background(MaterialTheme.colorScheme.secondaryContainer)
+            .padding(start = 12.dp),
+    ) {
+        Text(
+            text = stringResource(R.string.replying_to, item.displayName ?: item.login.orEmpty(), item.text),
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSecondaryContainer,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+            modifier = Modifier.weight(1f),
+        )
+        if (onCancel != null) IconButton(onClick = onCancel) {
+            Icon(Icons.Default.Close, contentDescription = stringResource(R.string.cancel))
+        } else Spacer(Modifier.height(48.dp))
+    }
+}
+
 /**
- * Who the message being written answers, as a card like the account the token login found: the
- * person's picture, "Replying to" over their name, and what they wrote.
+ * Who the message being written answers, as a card: the person's picture, "Replying to name" and
+ * what they wrote. Two lines, so it takes barely more room than the strip it replaces.
  */
 @Composable
 private fun ReplyCard(item: ChatItem, pictureUrl: String?, imageLoader: ImageLoader, onCancel: (() -> Unit)?) {
     val name = item.displayName ?: item.login.orEmpty()
     val said = stringResource(R.string.replying_to, name, item.text)
+    val nameColor = readableNameColor(item.color, item.login, isAppInDarkTheme())
+    val label = stringResource(R.string.reply_card_label)
     Row(
         verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(12.dp),
+        horizontalArrangement = Arrangement.spacedBy(10.dp),
         modifier = Modifier
             .fillMaxWidth()
             .padding(start = 8.dp, end = 8.dp, top = 4.dp)
-            .clip(RoundedCornerShape(20.dp))
+            .clip(RoundedCornerShape(16.dp))
             .background(MaterialTheme.colorScheme.surfaceContainerHigh)
-            .padding(start = 10.dp, top = 8.dp, bottom = 8.dp, end = if (onCancel != null) 0.dp else 12.dp),
+            .heightIn(min = 44.dp)
+            .padding(start = 8.dp, end = if (onCancel != null) 0.dp else 12.dp),
     ) {
-        PersonAvatar(
-            name = name,
-            color = readableNameColor(item.color, item.login, isAppInDarkTheme()),
-            pictureUrl = pictureUrl,
-            imageLoader = imageLoader,
-            size = 36.dp,
-        )
-        Column(Modifier.weight(1f).semantics(mergeDescendants = true) { contentDescription = said }) {
+        PersonAvatar(name = name, color = nameColor, pictureUrl = pictureUrl, imageLoader = imageLoader, size = 28.dp)
+        Column(Modifier.weight(1f).padding(vertical = 4.dp).semantics(mergeDescendants = true) { contentDescription = said }) {
             Text(
-                stringResource(R.string.reply_card_label),
-                style = MaterialTheme.typography.labelSmall,
+                buildAnnotatedString {
+                    append("$label ")
+                    withStyle(SpanStyle(color = nameColor, fontWeight = FontWeight.Bold)) { append(name) }
+                },
+                style = MaterialTheme.typography.labelMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-            Text(
-                name,
-                style = MaterialTheme.typography.titleSmall,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
             )
             Text(
                 item.text,
                 style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
             )
         }
-        if (onCancel != null) IconButton(onClick = onCancel) {
-            Icon(Icons.Default.Close, contentDescription = stringResource(R.string.cancel))
+        if (onCancel != null) IconButton(onClick = onCancel, modifier = Modifier.size(40.dp)) {
+            Icon(Icons.Default.Close, contentDescription = stringResource(R.string.cancel), modifier = Modifier.size(20.dp))
         }
     }
 }

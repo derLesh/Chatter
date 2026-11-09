@@ -529,7 +529,8 @@ private fun ChatInput(
         onChatModes = vm::changeChatModes,
         buildStripe = settings.buildStripe,
         sendLater = sendLater(vm, settings),
-        replyPictureUrl = replyPictureUrl(vm),
+        replyCard = settings.replyCard,
+        replyPictureUrl = if (settings.replyCard) replyPictureUrl(vm) else null,
     )
 }
 
