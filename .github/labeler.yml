@@ -1,0 +1,132 @@
+# File-based PR labels. Names, colors and descriptions live in labels.yml.
+# Type, priority and status labels are assigned separately.
+'area: chat':
+  - changed-files:
+      - any-glob-to-any-file:
+          - app/src/**/me/lesh/chatter/chat/**
+          - app/src/**/me/lesh/chatter/ui/chat/**
+          - app/src/**/me/lesh/chatter/ui/inbox/**
+          - app/src/**/me/lesh/chatter/ui/Composer*.kt
+          - app/src/**/me/lesh/chatter/ui/Draft*.kt
+          - app/src/**/me/lesh/chatter/service/ScheduledSendAlarm*.kt
+
+'area: channels':
+  - changed-files:
+      - any-glob-to-any-file:
+          - app/src/**/me/lesh/chatter/channels/**
+          - app/src/**/me/lesh/chatter/ui/channels/**
+          - app/src/**/me/lesh/chatter/ui/settings/ChannelsPage.kt
+
+'area: emotes':
+  - changed-files:
+      - any-glob-to-any-file:
+          - app/src/**/me/lesh/chatter/emotes/**
+          - app/src/**/me/lesh/chatter/badges/**
+          - app/src/**/me/lesh/chatter/ui/chat/Emote*.kt
+          - app/src/**/me/lesh/chatter/ui/chat/SharedEmotes*.kt
+          - app/src/**/me/lesh/chatter/ui/chat/BadgeKinds*.kt
+          - app/src/**/me/lesh/chatter/ui/chat/NamePaints*.kt
+          - app/src/**/me/lesh/chatter/ui/settings/EmotesPage.kt
+
+'area: accounts':
+  - changed-files:
+      - any-glob-to-any-file:
+          - app/src/**/me/lesh/chatter/auth/**
+          - app/src/**/me/lesh/chatter/ui/*Login*.kt
+          - app/src/**/me/lesh/chatter/ui/settings/AccountPage.kt
+
+'area: connection':
+  - changed-files:
+      - any-glob-to-any-file:
+          - app/src/**/me/lesh/chatter/irc/**
+          - app/src/**/me/lesh/chatter/net/**
+          - app/src/**/me/lesh/chatter/chat/ChatConnection*.kt
+          - app/src/**/me/lesh/chatter/service/ChatService.kt
+          - app/src/**/me/lesh/chatter/service/Background*.kt
+          - app/src/**/me/lesh/chatter/service/Bursts*.kt
+          - app/src/**/me/lesh/chatter/ui/settings/BackgroundCard.kt
+
+'area: notifications':
+  - changed-files:
+      - any-glob-to-any-file:
+          - app/src/**/me/lesh/chatter/service/ChatNotifier*.kt
+          - app/src/**/me/lesh/chatter/service/LiveAlerts*.kt
+          - app/src/**/me/lesh/chatter/service/WhisperConversations*.kt
+          - app/src/**/me/lesh/chatter/service/ReplyReceiver*.kt
+          - app/src/**/me/lesh/chatter/channels/LiveAlertChoices*.kt
+          - app/src/**/me/lesh/chatter/ui/Notification*.kt
+          - app/src/**/me/lesh/chatter/ui/bubble/**
+          - app/src/**/me/lesh/chatter/ui/settings/Notifications*.kt
+
+'area: settings':
+  - changed-files:
+      - any-glob-to-any-file:
+          - app/src/**/me/lesh/chatter/settings/**
+          - app/src/**/me/lesh/chatter/ui/settings/**
+          - app/src/**/me/lesh/chatter/ui/SettingsScreen.kt
+
+'area: ui':
+  - changed-files:
+      - any-glob-to-any-file:
+          - app/src/**/me/lesh/chatter/ui/**
+          - app/src/main/res/**
+
+'area: assistants':
+  - changed-files:
+      - any-glob-to-any-file:
+          - app/src/**/me/lesh/chatter/assistant/**
+          - app/src/**/me/lesh/chatter/ai/**
+          - app/src/**/me/lesh/chatter/ui/chat/CatchUpSheet.kt
+
+'area: updates':
+  - changed-files:
+      - any-glob-to-any-file:
+          - app/src/**/me/lesh/chatter/update/**
+          - app/src/**/me/lesh/chatter/changelog/**
+          - app/src/**/me/lesh/chatter/ui/update/**
+          - app/src/**/me/lesh/chatter/ui/changelog/**
+
+translations:
+  - changed-files:
+      - any-glob-to-any-file: app/src/main/res/values*/strings.xml
+
+tests:
+  - changed-files:
+      - any-glob-to-any-file:
+          - app/src/test/**
+          - app/src/androidTest/**
+          - baselineprofile/**
+          - .github/scripts/test_*.py
+
+build:
+  - changed-files:
+      - any-glob-to-any-file:
+          - '**/*.gradle.kts'
+          - gradle/**
+          - gradlew
+          - gradlew.bat
+          - gradle.properties
+          - app/src/**/AndroidManifest.xml
+          - app/proguard-rules.pro
+
+documentation:
+  - changed-files:
+      - any-glob-to-any-file:
+          - '*.md'
+          - docs/**
+          - pending-changelog/README.md
+
+github_actions:
+  - changed-files:
+      - any-glob-to-any-file:
+          - .github/workflows/**
+          - .github/scripts/**
+          - .github/dependabot.yml
+          - .github/labeler.yml
+          - .github/labels.yml
+
+maintenance:
+  - changed-files:
+      - any-glob-to-any-file:
+          - .github/ISSUE_TEMPLATE/**
+          - .github/PULL_REQUEST_TEMPLATE.md

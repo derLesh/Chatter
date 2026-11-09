@@ -1,0 +1,32 @@
+name: PR title
+
+on:
+  pull_request_target:
+    types: [opened, edited, synchronize, reopened]
+
+concurrency:
+  group: pr-title-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+permissions: {}
+
+jobs:
+  title:
+    name: PR title
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      # Only reads the event title, so fork PRs need no checkout or token permissions.
+      - name: Check the title against the commit convention
+        shell: bash
+        env:
+          PR_TITLE: ${{ github.event.pull_request.title }}
+        run: |
+          types='feat|fix|perf|ref|docs|test|build|ci|chore|revert'
+          if [[ "$PR_TITLE" == *$'\n'* || "$PR_TITLE" == *$'\r'* ]] ||
+             ! grep -qE "^($types)(\([a-z0-9-]+\))?!?: [^ ].*[^.]$" <<< "$PR_TITLE" || [ ${#PR_TITLE} -gt 100 ]; then
+            echo '::error title=Invalid PR title::Use "type(scope): what changed" on one line, at most 100 characters and no trailing dot. The scope is optional and uses lowercase letters, digits or hyphens.'
+            echo "Allowed types: $types"
+            echo 'Example: fix(chat): keep replies visible after rotating the phone'
+            exit 1
+          fi

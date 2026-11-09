@@ -1,0 +1,37 @@
+name: Feature request
+description: Suggest something new or a better way to use Chatter
+labels: ["enhancement", "status: needs triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Search the existing issues first. If someone has asked for the same thing,
+        add your thoughts there. Otherwise, tell us what would help you.
+  - type: textarea
+    id: problem
+    attributes:
+      label: What would you like to do?
+      description: What is difficult or missing in Chatter? Give an example of when you need it.
+    validations:
+      required: true
+  - type: textarea
+    id: solution
+    attributes:
+      label: How could Chatter help?
+      description: Describe how you would like it to work. You do not need to know how to build it.
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: What have you tried?
+      description: Other ways to do this, or a workaround you use now.
+    validations:
+      required: false
+  - type: textarea
+    id: context
+    attributes:
+      label: Anything else?
+      description: Add screenshots, sketches or links if they help explain your idea.
+    validations:
+      required: false
