@@ -1,0 +1,122 @@
+# Synced by workflows/labels.yml. File-based PR rules live in labeler.yml.
+
+# Change types and topics, assigned when opening an issue or by a maintainer.
+- name: bug
+  color: '#d73a4a'
+  description: Something in Chatter does not work as expected
+- name: enhancement
+  color: '#a2eeef'
+  description: A new feature or a better way to use Chatter
+- name: performance
+  color: '#0e8a16'
+  description: Faster chat, smoother scrolling or lower memory use
+- name: regression
+  color: '#b60205'
+  description: Something that worked in an earlier version no longer works
+- name: accessibility
+  color: '#f143ab'
+  description: Make Chatter easier to use with assistive tools or different abilities
+- name: battery
+  color: '#0e8a16'
+  description: Battery use or background activity
+- name: moderation
+  color: '#5319e7'
+  description: Tools for moderators and broadcasters
+- name: security
+  color: '#5c1a8c'
+  description: Protect accounts, private data or the release process
+
+# App areas, also applied to PRs from their changed files.
+- name: 'area: chat'
+  color: '#1d76db'
+  description: Messages, replies, whispers and the composer
+- name: 'area: channels'
+  color: '#1d76db'
+  description: Joining, grouping and switching channels
+- name: 'area: emotes'
+  color: '#1d76db'
+  description: Emotes, badges and name paints
+- name: 'area: accounts'
+  color: '#1d76db'
+  description: Twitch login, tokens and switching accounts
+- name: 'area: connection'
+  color: '#1d76db'
+  description: IRC, API requests, reconnecting and background connections
+- name: 'area: notifications'
+  color: '#1d76db'
+  description: Mentions, live alerts, notification replies and chat bubbles
+- name: 'area: settings'
+  color: '#1d76db'
+  description: App settings and backups
+- name: 'area: ui'
+  color: '#1d76db'
+  description: Screens, themes, layout and navigation
+- name: 'area: assistants'
+  color: '#1d76db'
+  description: AppFunctions and on-device chat summaries
+- name: 'area: updates'
+  color: '#1d76db'
+  description: Update checks and the in-app changelog
+
+# Project work, also applied to PRs from their changed files.
+- name: documentation
+  color: '#0075ca'
+  description: Guides, the README and other project documentation
+- name: translations
+  color: '#c5def5'
+  description: English and German app text
+- name: tests
+  color: '#bfdadc'
+  description: Unit tests, screen tests, benchmarks and baseline profiles
+- name: build
+  color: '#bfdadc'
+  description: Gradle, packaging, manifests and R8 rules
+- name: github_actions
+  color: '#bfdadc'
+  description: GitHub workflows and their configuration or scripts
+- name: maintenance
+  color: '#bfdadc'
+  description: Contribution templates and other project upkeep
+- name: dependencies
+  color: '#0366d6'
+  description: Library, plugin and GitHub Action updates
+
+# Status and priority are chosen by a maintainer, never inferred from changed files.
+- name: 'status: needs triage'
+  color: '#fbca04'
+  description: A new report or idea that still needs to be reviewed
+- name: 'status: needs info'
+  color: '#fef2c0'
+  description: More details are needed before work can continue
+- name: 'status: blocked'
+  color: '#e99695'
+  description: Waiting for another change or an external service
+- name: 'priority: high'
+  color: '#b60205'
+  description: Should come next
+- name: 'priority: medium'
+  color: '#fbca04'
+  description: Worth doing soon
+- name: 'priority: low'
+  color: '#c2e0c6'
+  description: Nice to have when there is time
+
+# Community and resolution labels keep their existing names.
+- name: good first issue
+  color: '#7057ff'
+  description: A small, well-defined task for a new contributor
+- name: help wanted
+  color: '#008672'
+  description: Contributions are welcome
+- name: question
+  color: '#d876e3'
+  description: A question about using or contributing to Chatter
+- name: duplicate
+  color: '#cfd3d7'
+  description: Already covered by another issue or pull request
+- name: invalid
+  color: '#e4e669'
+  description: Does not describe an issue with Chatter
+- name: wontfix
+  color: '#ffffff'
+  description: This will not be worked on
