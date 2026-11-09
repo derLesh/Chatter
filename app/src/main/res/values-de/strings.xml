@@ -407,6 +407,8 @@
     <string name="settings_emote_suggestions_hint">Schlägt beim Tippen Emotes vor, nach einem Doppelpunkt auch Emoji wie :smile</string>
     <string name="settings_user_suggestions">Namensvorschläge</string>
     <string name="settings_user_suggestions_hint">Schlägt Namen aus dem Chat vor</string>
+    <string name="settings_bot_command_suggestions">Bot-Befehle</string>
+    <string name="settings_bot_command_suggestions_hint">Schlägt nach $ Befehle von Supibot vor, nach ! die vom Bot des Kanals</string>
     <string name="settings_mention_with_at">Namen mit @ einfügen</string>
     <string name="settings_mention_with_at_hint">Setzt ein @ vor den Namen</string>
     <string name="settings_group_input">Eingabefeld</string>

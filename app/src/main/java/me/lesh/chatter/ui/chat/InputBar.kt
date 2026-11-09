@@ -18,6 +18,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -98,6 +99,7 @@ import androidx.navigationevent.compose.rememberNavigationEventState
 import coil3.compose.AsyncImage
 import me.lesh.chatter.R
 import me.lesh.chatter.channels.ChannelInfo
+import me.lesh.chatter.chat.BotCommand
 import me.lesh.chatter.chat.ChatItem
 import me.lesh.chatter.chat.ChatModes
 import me.lesh.chatter.chat.ChatRestriction
@@ -736,13 +738,14 @@ private fun SuggestionRow(suggestions: List<Suggestion>, imageLoader: ImageLoade
                 is Suggestion.EmoteSuggestion -> "e:" + it.emote.name
                 is Suggestion.UserSuggestion -> "u:" + it.name
                 is Suggestion.CommandSuggestion -> "c:" + it.name
+                is Suggestion.BotCommandSuggestion -> "b:" + it.command.typed.lowercase()
                 is Suggestion.EmojiSuggestion -> "j:" + it.emoji.value
             }
         }) { s ->
             Row(
                 verticalAlignment = Alignment.CenterVertically,
                 modifier = Modifier
-                    .height(36.dp)
+                    .heightIn(min = 36.dp)
                     .clip(RoundedCornerShape(18.dp))
                     .background(MaterialTheme.colorScheme.surfaceContainerHighest)
                     .clickable { onClick(s) }
@@ -762,6 +765,7 @@ private fun SuggestionRow(suggestions: List<Suggestion>, imageLoader: ImageLoade
                     }
                     is Suggestion.UserSuggestion -> Text("@" + s.name, style = MaterialTheme.typography.bodyMedium)
                     is Suggestion.CommandSuggestion -> Text(s.usage, style = MaterialTheme.typography.bodyMedium)
+                    is Suggestion.BotCommandSuggestion -> BotCommandChip(s.command)
                     is Suggestion.EmojiSuggestion -> {
                         Text(s.emoji.value, fontSize = 20.sp)
                         Spacer(Modifier.width(6.dp))
@@ -769,6 +773,37 @@ private fun SuggestionRow(suggestions: List<Suggestion>, imageLoader: ImageLoade
                     }
                 }
             }
+        }
+    }
+}
+
+/** A bot command and, below it, what it does or answers, cut short so the chip stays small. */
+@Composable
+private fun BotCommandChip(command: BotCommand) {
+    Column(Modifier.widthIn(max = 220.dp).padding(vertical = 4.dp)) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text(
+                command.typed,
+                style = MaterialTheme.typography.bodyMedium,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.weight(1f, fill = false),
+            )
+            Text(
+                " \u00B7 ${command.bot.label}",
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                maxLines = 1,
+            )
+        }
+        if (command.description.isNotBlank()) {
+            Text(
+                command.description,
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
         }
     }
 }

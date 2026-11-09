@@ -300,6 +300,7 @@ private val SEARCH_INDEX: List<SearchEntry> by lazy {
         add(SearchEntry(R.string.settings_read_only, typing, R.string.settings_read_only_hint))
         add(SearchEntry(R.string.settings_emote_suggestions, typing, R.string.settings_emote_suggestions_hint, shownWhen = unlessReadOnly))
         add(SearchEntry(R.string.settings_user_suggestions, typing, R.string.settings_user_suggestions_hint, shownWhen = unlessReadOnly))
+        add(SearchEntry(R.string.settings_bot_command_suggestions, typing, R.string.settings_bot_command_suggestions_hint, shownWhen = unlessReadOnly))
         add(SearchEntry(R.string.settings_mention_with_at, typing, R.string.settings_mention_with_at_hint, shownWhen = unlessReadOnly))
         add(SearchEntry(R.string.settings_recently_sent, typing, R.string.settings_recently_sent_hint, shownWhen = unlessReadOnly))
         add(SearchEntry(R.string.settings_chat_modes_button, typing, R.string.settings_chat_modes_button_hint, shownWhen = unlessReadOnly))

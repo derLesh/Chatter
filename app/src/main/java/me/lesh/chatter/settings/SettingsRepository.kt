@@ -119,6 +119,8 @@ data class Settings(
     val emoteSuggestions: Boolean = true,
     /** Suggest recent chatters after an "@". */
     val userSuggestions: Boolean = true,
+    /** Suggest the commands of Supibot after "$", and of the channel's bot after "!". */
+    val botCommandSuggestions: Boolean = true,
     /** Put an "@" in front of a suggested name. */
     val mentionWithAt: Boolean = true,
     val recentlySentButton: RecentlySentButton = RecentlySentButton.ReplacesSend,
@@ -255,6 +257,7 @@ class SettingsRepository(
             readOnly = p[READ_ONLY] ?: false,
             emoteSuggestions = p[EMOTE_SUGGESTIONS] ?: true,
             userSuggestions = p[USER_SUGGESTIONS] ?: true,
+            botCommandSuggestions = p[BOT_COMMAND_SUGGESTIONS] ?: true,
             mentionWithAt = p[MENTION_WITH_AT] ?: true,
             recentlySentButton = p[RECENTLY_SENT_BUTTON]?.let { v -> RecentlySentButton.entries.firstOrNull { it.name == v } }
                 ?: RecentlySentButton.ReplacesSend,
@@ -341,6 +344,7 @@ class SettingsRepository(
     suspend fun setChannelTabs(v: Boolean) = store.edit { it[CHANNEL_TABS] = v }
     suspend fun setEmoteSuggestions(v: Boolean) = store.edit { it[EMOTE_SUGGESTIONS] = v }
     suspend fun setUserSuggestions(v: Boolean) = store.edit { it[USER_SUGGESTIONS] = v }
+    suspend fun setBotCommandSuggestions(v: Boolean) = store.edit { it[BOT_COMMAND_SUGGESTIONS] = v }
     suspend fun setMentionWithAt(v: Boolean) = store.edit { it[MENTION_WITH_AT] = v }
     suspend fun setRecentlySentButton(v: RecentlySentButton) = store.edit { it[RECENTLY_SENT_BUTTON] = v.name }
     suspend fun setChatModesButton(v: Boolean) = store.edit { it[CHAT_MODES_BUTTON] = v }
@@ -469,6 +473,7 @@ class SettingsRepository(
         p[CHANNEL_TABS] = s.channelTabs
         p[EMOTE_SUGGESTIONS] = s.emoteSuggestions
         p[USER_SUGGESTIONS] = s.userSuggestions
+        p[BOT_COMMAND_SUGGESTIONS] = s.botCommandSuggestions
         p[MENTION_WITH_AT] = s.mentionWithAt
         p[RECENTLY_SENT_BUTTON] = s.recentlySentButton.name
         p[CHAT_MODES_BUTTON] = s.chatModesButton
@@ -578,6 +583,7 @@ class SettingsRepository(
         val CHANNEL_TABS = booleanPreferencesKey("channel_tabs")
         val EMOTE_SUGGESTIONS = booleanPreferencesKey("emote_suggestions")
         val USER_SUGGESTIONS = booleanPreferencesKey("user_suggestions")
+        val BOT_COMMAND_SUGGESTIONS = booleanPreferencesKey("bot_command_suggestions")
         val MENTION_WITH_AT = booleanPreferencesKey("mention_with_at")
         val RECENTLY_SENT_BUTTON = stringPreferencesKey("recently_sent_button")
         val CHAT_MODES_BUTTON = booleanPreferencesKey("chat_modes_button")

@@ -1,0 +1,1 @@
+minor: Suggest Supibot commands after $ and the channel bot's commands after ! while typing
