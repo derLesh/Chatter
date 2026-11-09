@@ -1,0 +1,1 @@
+minor: Pick the alternating background for the chat during the first setup

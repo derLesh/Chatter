@@ -175,7 +175,15 @@ private fun LookStep(settings: Settings, vm: MainViewModel) {
         // A light theme has no black.
         if (dark) item { SwitchItem(R.string.settings_pure_black, settings.pureBlack, vm::setPureBlack, R.string.settings_pure_black_hint) }
     }
-    SettingsGroup { item { TextSizeItem(settings, vm) } }
+    SettingsGroup {
+        item { TextSizeItem(settings, vm) }
+        item {
+            SwitchItem(
+                R.string.settings_alternate_background, settings.alternateBackground,
+                vm::setAlternateBackground, R.string.settings_alternate_background_hint,
+            )
+        }
+    }
 }
 
 @Composable
