@@ -29,6 +29,8 @@ import coil3.request.allowHardware
 import coil3.size.Precision
 import coil3.toBitmap
 import me.lesh.chatter.badges.NamePaint
+import me.lesh.chatter.ui.theme.NameColorPalette
+import me.lesh.chatter.ui.theme.readableNameColor
 import kotlin.math.abs
 import kotlin.math.cos
 import kotlin.math.hypot
@@ -36,10 +38,17 @@ import kotlin.math.max
 import kotlin.math.sin
 
 /**
+ * A paint's color as drawn. 7TV paints are made for Twitch's dark chat, and many are yellow or pale
+ * blue, so on a light theme each color is darkened like a name color until it reads.
+ */
+internal fun paintColor(argb: Int, dark: Boolean): Color =
+    if (dark) Color(argb) else readableNameColor(argb, login = null, dark = false, palette = NameColorPalette.HslLuma)
+
+/**
  * How a painted name is drawn: with [brush], or in the paint's main color while an image paint's
  * picture is still loading ([brush] null).
  */
-internal fun namePaintStyle(paint: NamePaint, brush: NamePaintBrush?, density: Density): SpanStyle {
+internal fun namePaintStyle(paint: NamePaint, brush: NamePaintBrush?, density: Density, dark: Boolean): SpanStyle {
     val shadow = paint.shadows.firstOrNull()?.let {
         Shadow(
             color = Color(it.color),
@@ -48,7 +57,7 @@ internal fun namePaintStyle(paint: NamePaint, brush: NamePaintBrush?, density: D
         )
     }
     return if (brush != null) SpanStyle(brush = brush, shadow = shadow)
-    else SpanStyle(color = paint.fallbackColor?.let { Color(it) } ?: Color.Unspecified, shadow = shadow)
+    else SpanStyle(color = paint.fallbackColor?.let { paintColor(it, dark) } ?: Color.Unspecified, shadow = shadow)
 }
 
 /** Where the characters [range] were laid out, or null if they are not in this layout. */
@@ -91,7 +100,7 @@ internal fun rememberPaintImage(url: String, loader: ImageLoader): ImageBitmap? 
  * is made, so the line is composed and laid out once. One per line: it keeps its identity, so the
  * text stays equal and is not laid out again.
  */
-internal class NamePaintBrush(private val paint: NamePaint, private val image: ImageBitmap?) : ShaderBrush() {
+internal class NamePaintBrush(private val paint: NamePaint, private val image: ImageBitmap?, private val dark: Boolean) : ShaderBrush() {
     private var bounds: Rect? = null
     private var shader: Shader? = null
     private var shaderBounds: Rect? = null
@@ -123,11 +132,12 @@ internal class NamePaintBrush(private val paint: NamePaint, private val image: I
 
     /** For a line drawn before it was placed, which should not happen. */
     private fun solid(): Shader {
-        val color = Color(paint.fallbackColor ?: paint.stops.firstOrNull()?.color ?: Color.White.toArgb())
+        val color = (paint.fallbackColor ?: paint.stops.firstOrNull()?.color)?.let { paintColor(it, dark) }
+            ?: if (dark) Color.White else Color.Black
         return LinearGradientShader(Offset.Zero, Offset(1f, 0f), listOf(color, color))
     }
 
-    private val colors get() = paint.stops.map { Color(it.color) }
+    private val colors get() = paint.stops.map { paintColor(it.color, dark) }
 
     private val tileMode get() = if (paint.repeat) TileMode.Repeated else TileMode.Clamp
 
