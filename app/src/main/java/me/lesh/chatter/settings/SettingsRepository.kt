@@ -122,7 +122,7 @@ data class Settings(
     /** Put an "@" in front of a suggested name. */
     val mentionWithAt: Boolean = true,
     /** Suggestions lie over the chat instead of pushing it up while typing. */
-    val suggestionsOverChat: Boolean = false,
+    val suggestionsOverChat: Boolean = true,
     val recentlySentButton: RecentlySentButton = RecentlySentButton.ReplacesSend,
     /** A shield next to the emotes, in channels the user moderates, to change the chat modes. */
     val chatModesButton: Boolean = true,
@@ -262,7 +262,7 @@ class SettingsRepository(
             emoteSuggestions = p[EMOTE_SUGGESTIONS] ?: true,
             userSuggestions = p[USER_SUGGESTIONS] ?: true,
             mentionWithAt = p[MENTION_WITH_AT] ?: true,
-            suggestionsOverChat = p[SUGGESTIONS_OVER_CHAT] ?: false,
+            suggestionsOverChat = p[SUGGESTIONS_OVER_CHAT] ?: true,
             recentlySentButton = p[RECENTLY_SENT_BUTTON]?.let { v -> RecentlySentButton.entries.firstOrNull { it.name == v } }
                 ?: RecentlySentButton.ReplacesSend,
             chatModesButton = p[CHAT_MODES_BUTTON] ?: true,

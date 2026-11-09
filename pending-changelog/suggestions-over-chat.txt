@@ -1,1 +1,1 @@
-minor: Show suggestions over the chat, so it stays in place while you type. Beta in Settings → Typing
+minor: Suggestions now lie over the chat, so it stays in place while you type. Beta in Settings → Typing
