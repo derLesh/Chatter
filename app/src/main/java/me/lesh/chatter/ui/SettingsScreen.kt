@@ -296,6 +296,7 @@ private val SEARCH_INDEX: List<SearchEntry> by lazy {
             ),
         )
         add(SearchEntry(R.string.settings_full_links, media, R.string.settings_full_links_hint))
+        add(SearchEntry(R.string.settings_user_card_attachments, media, R.string.settings_user_card_attachments_hint))
         val typing = SettingsPage.Typing
         add(SearchEntry(R.string.settings_read_only, typing, R.string.settings_read_only_hint))
         add(SearchEntry(R.string.settings_emote_suggestions, typing, R.string.settings_emote_suggestions_hint, shownWhen = unlessReadOnly))

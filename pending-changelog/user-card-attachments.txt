@@ -1,0 +1,1 @@
+minor: Turn off pictures, GIFs and posts in the user card under Settings → Media

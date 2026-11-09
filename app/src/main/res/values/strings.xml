@@ -340,6 +340,8 @@
     <string name="settings_provider_ffz">FrankerFaceZ</string>
     <string name="settings_show_deleted">Show deleted messages</string>
     <string name="settings_show_deleted_hint">Keeps them struck through instead of hiding them</string>
+    <string name="settings_user_card_attachments">Pictures in the user card</string>
+    <string name="settings_user_card_attachments_hint">Shows pictures, GIFs and posts in the messages of the user card</string>
     <string name="settings_full_links">Show links in full</string>
     <string name="settings_full_links_hint">Otherwise long links are shortened</string>
     <string name="settings_mobile_data">On mobile data</string>
