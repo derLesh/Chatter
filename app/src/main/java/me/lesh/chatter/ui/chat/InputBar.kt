@@ -1,6 +1,11 @@
 package me.lesh.chatter.ui.chat
 
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.slideOutVertically
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.core.animate
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -244,7 +249,6 @@ fun InputBar(
     )
     // Not state: only read while measuring, where the reply is measured before the column around it.
     val replyHeight = remember { intArrayOf(0) }
-    if (replyTo == null) replyHeight[0] = 0
     val covered = if (onCoveredHeight == null) Modifier else Modifier.onSizeChanged { onCoveredHeight(it.height - replyHeight[0]) }
     // No bar of its own: the input sits on the chat background.
     Column(modifier.then(covered)) {
@@ -271,10 +275,11 @@ fun InputBar(
                 }
             }
         }
-        if (replyTo != null) {
-            Box(Modifier.onSizeChanged { replyHeight[0] = it.height }) {
-                if (replyCard) ReplyCard(replyTo, replyPictureUrl, imageLoader, onCancelReply)
-                else ReplyBar(replyTo, onCancelReply)
+        // Always there, so the reply's height goes back to zero once it has slid away.
+        Box(Modifier.onSizeChanged { replyHeight[0] = it.height }) {
+            AnimatedReply(replyTo) { item ->
+                if (replyCard) ReplyCard(item, replyPictureUrl, imageLoader, onCancelReply)
+                else ReplyBar(item, onCancelReply)
             }
         }
         val leadingButtons = @Composable {
@@ -794,6 +799,25 @@ private fun SuggestionRow(suggestions: List<Suggestion>, imageLoader: ImageLoade
     }
 }
 
+/**
+ * Slides the reply up out from behind the input and back down, with Material 3's motion. It
+ * leaves with the message it showed, not with an empty one.
+ */
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
+@Composable
+private fun AnimatedReply(replyTo: ChatItem?, content: @Composable (ChatItem) -> Unit) {
+    val motion = MaterialTheme.motionScheme
+    var shown by remember { mutableStateOf(replyTo) }
+    if (replyTo != null) shown = replyTo
+    AnimatedVisibility(
+        visible = replyTo != null,
+        enter = slideInVertically(motion.defaultSpatialSpec()) { it } + fadeIn(motion.defaultEffectsSpec()),
+        exit = slideOutVertically(motion.fastSpatialSpec()) { it } + fadeOut(motion.fastEffectsSpec()),
+    ) {
+        shown?.let { content(it) }
+    }
+}
+
 @Composable
 private fun ReplyBar(item: ChatItem, onCancel: (() -> Unit)?) {
     Row(
@@ -819,14 +843,19 @@ private fun ReplyBar(item: ChatItem, onCancel: (() -> Unit)?) {
 
 /**
  * Who the message being written answers, as a card: the person's picture, "Replying to name" and
- * what they wrote. Two lines, so it takes barely more room than the strip it replaces.
+ * what they wrote. Two lines, so it takes barely more room than the strip it replaces; a tap shows
+ * a longer message whole.
  */
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 private fun ReplyCard(item: ChatItem, pictureUrl: String?, imageLoader: ImageLoader, onCancel: (() -> Unit)?) {
+    val motion = MaterialTheme.motionScheme
     val name = item.displayName ?: item.login.orEmpty()
     val said = stringResource(R.string.replying_to, name, item.text)
     val nameColor = readableNameColor(item.color, item.login, isAppInDarkTheme())
     val label = stringResource(R.string.reply_card_label)
+    var expanded by remember(item.id) { mutableStateOf(false) }
+    var cutOff by remember(item.id) { mutableStateOf(false) }
     Row(
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(10.dp),
@@ -835,6 +864,11 @@ private fun ReplyCard(item: ChatItem, pictureUrl: String?, imageLoader: ImageLoa
             .padding(start = 8.dp, end = 8.dp, top = 4.dp)
             .clip(RoundedCornerShape(16.dp))
             .background(MaterialTheme.colorScheme.surfaceContainerHigh)
+            .clickable(
+                enabled = cutOff || expanded,
+                onClickLabel = stringResource(if (expanded) R.string.reply_card_collapse else R.string.reply_card_expand),
+            ) { expanded = !expanded }
+            .animateContentSize(motion.defaultSpatialSpec())
             .heightIn(min = 44.dp)
             .padding(start = 8.dp, end = if (onCancel != null) 0.dp else 12.dp),
     ) {
@@ -853,8 +887,9 @@ private fun ReplyCard(item: ChatItem, pictureUrl: String?, imageLoader: ImageLoa
             Text(
                 item.text,
                 style = MaterialTheme.typography.bodySmall,
-                maxLines = 1,
+                maxLines = if (expanded) Int.MAX_VALUE else 1,
                 overflow = TextOverflow.Ellipsis,
+                onTextLayout = { if (!expanded) cutOff = it.hasVisualOverflow },
             )
         }
         if (onCancel != null) IconButton(onClick = onCancel, modifier = Modifier.size(40.dp)) {

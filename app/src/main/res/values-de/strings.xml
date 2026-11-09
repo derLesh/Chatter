@@ -88,6 +88,8 @@
     <string name="chat_modes_subs">Nur Subs</string>
     <string name="chat_modes_unique">Unique Chat</string>
     <string name="reply_card_label">Antwort an</string>
+    <string name="reply_card_expand">Ganze Nachricht zeigen</string>
+    <string name="reply_card_collapse">Weniger zeigen</string>
     <string name="replying_to">Antwort an @%1$s: %2$s</string>
     <string name="thread_title">Unterhaltung</string>
     <string name="thread_follow">Folgen</string>
