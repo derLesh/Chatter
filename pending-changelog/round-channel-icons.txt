@@ -1,1 +1,0 @@
-patch: Show channel pictures round in shortcuts, the share menu and notifications on Samsung phones too

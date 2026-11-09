@@ -1,14 +1,17 @@
 package me.lesh.chatter.util
 
 import android.content.Context
+import android.graphics.Bitmap
+import android.graphics.Canvas
+import android.graphics.Paint
+import android.graphics.RectF
+import androidx.core.graphics.createBitmap
 import androidx.core.graphics.drawable.IconCompat
 import coil3.BitmapImage
 import coil3.ImageLoader
 import coil3.request.ImageRequest
 import coil3.request.SuccessResult
 import coil3.request.allowHardware
-import coil3.request.transformations
-import coil3.transform.CircleCropTransformation
 import me.lesh.chatter.R
 import me.lesh.chatter.channels.ChannelRepository
 import java.util.concurrent.ConcurrentHashMap
@@ -32,20 +35,26 @@ class ChannelIcons(
     }
 
     /**
-     * Downloads a picture as a round icon. Not an adaptive icon: Android crops those to their safe
-     * zone, which cuts off the edges of an avatar. Cut round here, since One UI shows a bitmap
-     * shortcut as the square it is, where Pixel crops it round itself.
+     * Downloads a picture as an adaptive icon, so every launcher, share menu and notification gives
+     * it the shape it gives app icons there: round on Pixel, a squircle on One UI.
      */
     suspend fun load(url: String): IconCompat? {
         // Hardware bitmaps cannot leave the process, and notification icons do.
-        val request = ImageRequest.Builder(context)
-            .data(url)
-            .size(ICON_SIZE_PX)
-            .allowHardware(false)
-            .transformations(CircleCropTransformation())
-            .build()
+        val request = ImageRequest.Builder(context).data(url).size(AVATAR_SIZE_PX).allowHardware(false).build()
         val image = (runCatchingCancellable { imageLoader.execute(request) }.getOrNull() as? SuccessResult)?.image
-        return (image as? BitmapImage)?.bitmap?.let { IconCompat.createWithBitmap(it) }
+        return (image as? BitmapImage)?.bitmap?.let { IconCompat.createWithAdaptiveBitmap(fitIntoShape(it)) }
+    }
+
+    /**
+     * Shrinks the avatar into the middle of an adaptive icon. Android shows only that middle and
+     * cuts the shape out of it; an avatar filling the whole icon would lose its edges.
+     */
+    private fun fitIntoShape(avatar: Bitmap): Bitmap {
+        val icon = createBitmap(ICON_SIZE_PX, ICON_SIZE_PX)
+        val inset = (ICON_SIZE_PX - AVATAR_SIZE_PX) / 2f
+        val bounds = RectF(inset, inset, ICON_SIZE_PX - inset, ICON_SIZE_PX - inset)
+        Canvas(icon).drawBitmap(avatar, null, bounds, Paint(Paint.FILTER_BITMAP_FLAG))
+        return icon
     }
 
     // One object, so a notification can tell that the picture did not change.
@@ -55,6 +64,10 @@ class ChannelIcons(
 
     private companion object {
         /** Notification and shortcut icons are shown small; larger wastes memory. */
-        const val ICON_SIZE_PX = 192
+        const val ICON_SIZE_PX = 216
+
+        // Android shows the middle 2/3 of an adaptive icon. A little more, so no shape meets the
+        // empty border.
+        const val AVATAR_SIZE_PX = 150
     }
 }
