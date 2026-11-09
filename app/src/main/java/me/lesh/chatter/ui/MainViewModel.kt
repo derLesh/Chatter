@@ -1001,6 +1001,7 @@ class MainViewModel(private val c: AppContainer, savedState: SavedStateHandle) :
     fun setShowDeleted(v: Boolean) = saveSetting { setShowDeleted(v) }
     fun setEmoteSuggestions(v: Boolean) = saveSetting { setEmoteSuggestions(v) }
     fun setMentionWithAt(v: Boolean) = saveSetting { setMentionWithAt(v) }
+    fun setSuggestionsOverChat(v: Boolean) = saveSetting { setSuggestionsOverChat(v) }
 
     fun setRecentlySentButton(v: RecentlySentButton) = saveSetting { setRecentlySentButton(v) }
     fun setChatModesButton(v: Boolean) = saveSetting { setChatModesButton(v) }

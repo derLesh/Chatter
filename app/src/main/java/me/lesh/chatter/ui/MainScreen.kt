@@ -530,6 +530,7 @@ private fun ChatInput(
         replyCard = settings.replyCard,
         replyPictureUrl = if (settings.replyCard) replyPictureUrl(vm) else null,
         onCoveredHeight = onCoveredHeight,
+        suggestionsOverChat = settings.suggestionsOverChat,
     )
 }
 

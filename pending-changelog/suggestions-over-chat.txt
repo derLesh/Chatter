@@ -1,0 +1,1 @@
+minor: Suggestions now lie over the chat, so it stays in place while you type. Beta in Settings → Typing

@@ -79,6 +79,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.TransformOrigin
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.layout.layout
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.pluralStringResource
@@ -151,6 +152,9 @@ import kotlinx.coroutines.launch
  *
  * With [sendLater] a message can be planned to go out later, and the planned ones show above the
  * input.
+ *
+ * With [suggestionsOverChat] the suggestions take no room: they slide up above the input, over
+ * the chat, so a chat that makes room for the input does not move while typing.
  */
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
@@ -184,6 +188,7 @@ fun InputBar(
     replyCard: Boolean = false,
     replyPictureUrl: String? = null,
     onCoveredHeight: ((Int) -> Unit)? = null,
+    suggestionsOverChat: Boolean = false,
 ) {
     val stripe = buildStripe && BuildStripe.offered
     val choosing = sendChannels.size > 1 && sendChannel != null
@@ -252,7 +257,11 @@ fun InputBar(
     val covered = if (onCoveredHeight == null) Modifier else Modifier.onSizeChanged { onCoveredHeight(it.height - replyHeight[0]) }
     // No bar of its own: the input sits on the chat background.
     Column(modifier.then(covered)) {
-        if (suggestions.isNotEmpty()) {
+        if (suggestionsOverChat) {
+            RisingFromInput(suggestions.takeIf { it.isNotEmpty() }, Modifier.takingNoHeight()) { shown ->
+                SuggestionRow(shown, imageLoader, onSuggestion, bottomGap = 4.dp)
+            }
+        } else if (suggestions.isNotEmpty()) {
             // The field keeps its own gap above, as wide as the one below it.
             SuggestionRow(suggestions, imageLoader, onSuggestion, bottomGap = 0.dp)
         }
@@ -277,7 +286,7 @@ fun InputBar(
         }
         // Always there, so the reply's height goes back to zero once it has slid away.
         Box(Modifier.onSizeChanged { replyHeight[0] = it.height }) {
-            AnimatedReply(replyTo) { item ->
+            RisingFromInput(replyTo) { item ->
                 if (replyCard) ReplyCard(item, replyPictureUrl, imageLoader, onCancelReply)
                 else ReplyBar(item, onCancelReply)
             }
@@ -340,10 +349,8 @@ fun InputBar(
             } else {
                 val hold = canPlan && sendLater?.button == SendLaterButton.HoldSend
                 if (canPlan && sendLater?.button == SendLaterButton.OwnButton) {
-                    // As far from Send as the clock in the input: the full field's clock sits at its
-                    // edge, 4dp before Send; the slim field's sits right next to it.
+                    // Right next to Send, as the clock in the input sits.
                     Row(
-                        horizontalArrangement = Arrangement.spacedBy(if (compact) 0.dp else 4.dp),
                         verticalAlignment = Alignment.CenterVertically,
                         modifier = modifier,
                     ) {
@@ -801,17 +808,27 @@ private fun SuggestionRow(suggestions: List<Suggestion>, imageLoader: ImageLoade
 }
 
 /**
- * Slides the reply up out from behind the input and back down, with Material 3's motion. It
- * leaves with the message it showed, not with an empty one.
+ * Reports no height and places the content right above where it would be, so it lies over what is
+ * above instead of pushing it away. Taps still reach it, as long as nothing above clips.
+ */
+private fun Modifier.takingNoHeight(): Modifier = layout { measurable, constraints ->
+    val placeable = measurable.measure(constraints.copy(minHeight = 0))
+    layout(placeable.width, 0) { placeable.place(0, -placeable.height) }
+}
+
+/**
+ * Slides [value] up out from behind the input while there is one, and back down, with Material 3's
+ * motion. It leaves showing what it showed last, not empty.
  */
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
-private fun AnimatedReply(replyTo: ChatItem?, content: @Composable (ChatItem) -> Unit) {
+private fun <T : Any> RisingFromInput(value: T?, modifier: Modifier = Modifier, content: @Composable (T) -> Unit) {
     val motion = MaterialTheme.motionScheme
-    var shown by remember { mutableStateOf(replyTo) }
-    if (replyTo != null) shown = replyTo
+    var shown by remember { mutableStateOf(value) }
+    if (value != null) shown = value
     AnimatedVisibility(
-        visible = replyTo != null,
+        visible = value != null,
+        modifier = modifier,
         enter = slideInVertically(motion.defaultSpatialSpec()) { it } + fadeIn(motion.defaultEffectsSpec()),
         exit = slideOutVertically(motion.fastSpatialSpec()) { it } + fadeOut(motion.fastEffectsSpec()),
     ) {

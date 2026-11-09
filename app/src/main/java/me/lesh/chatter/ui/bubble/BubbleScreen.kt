@@ -172,6 +172,7 @@ fun BubbleScreen(vm: MainViewModel, channel: String?) {
                     sendLater = sendLater(vm, settings),
                     replyCard = settings.replyCard,
                     replyPictureUrl = if (settings.replyCard) replyPictureUrl(vm) else null,
+                    suggestionsOverChat = settings.suggestionsOverChat,
                 )
             }
             Box(Modifier.weight(1f)) {
