@@ -448,7 +448,7 @@ fun SettingsScreen(vm: MainViewModel, onBack: () -> Unit) {
         )
         LoginWebView(login.url, Modifier.fillMaxSize().safeDrawingPadding(), signedOut = login.signedOut) { redirect ->
             scope.launch {
-                val result = vm.handleRedirect(redirect) ?: return@launch
+                val result = vm.handleRedirect(redirect, login.url) ?: return@launch
                 addAccount = null
                 addFailed = result.exceptionOrNull()?.let { it.message ?: it.toString() }
             }

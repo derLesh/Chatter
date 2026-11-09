@@ -37,6 +37,19 @@ class LoginUrlsTest {
     }
 
     @Test
+    fun theStateIsReadFromTheAuthorizeAddress() {
+        val url = "https://id.twitch.tv/oauth2/authorize?response_type=token&client_id=c&state=a%2Db1&force_verify=true"
+        assertEquals("a-b1", LoginUrls.stateOf(url))
+    }
+
+    @Test
+    fun anAddressWithoutStateHasNone() {
+        assertEquals(null, LoginUrls.stateOf("https://id.twitch.tv/oauth2/authorize?response_type=token"))
+        assertEquals(null, LoginUrls.stateOf("https://id.twitch.tv/oauth2/authorize?state="))
+        assertEquals(null, LoginUrls.stateOf("https://id.twitch.tv/oauth2/authorize"))
+    }
+
+    @Test
     fun twitchsOwnPagesStayInTheLogin() {
         assertTrue(LoginUrls.staysInLogin("https://id.twitch.tv/oauth2/authorize?client_id=x"))
         assertTrue(LoginUrls.staysInLogin("https://www.twitch.tv/login"))

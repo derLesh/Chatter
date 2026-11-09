@@ -1053,7 +1053,7 @@ class MainViewModel(private val c: AppContainer, savedState: SavedStateHandle) :
      */
     fun reauthorizeUrl(): String = c.auth.authorizeUrl(forceVerify = true)
 
-    suspend fun handleRedirect(url: String): Result<Unit>? = c.auth.handleRedirect(url)
+    suspend fun handleRedirect(url: String, authorizeUrl: String): Result<Unit>? = c.auth.handleRedirect(url, authorizeUrl)
 
     /** See AuthRepository.addPastedToken. */
     suspend fun logInWithPastedToken(text: String): Result<Unit>? = c.auth.addPastedToken(text)
