@@ -80,6 +80,7 @@ import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.withStyle
@@ -127,6 +128,8 @@ import kotlinx.coroutines.launch
  * closed, as in a conversation. Each increment of [replyStarts] opens the keyboard; the reply
  * itself cannot signal that, since it also returns with a page's draft. With [replyCard] the
  * strip is a card with [replyPictureUrl], the picture of the person answered, if known.
+ * [onCoveredHeight] gets the input's height without the reply, which floats over the chat instead
+ * of pushing it up.
  *
  * Twitch's limits are shown before sending: remaining characters for long messages, slow mode
  * seconds on the send button ([waitUntil]), and a [restriction] instead of the placeholder. A
@@ -175,6 +178,7 @@ fun InputBar(
     buildStripe: Boolean = false,
     replyCard: Boolean = false,
     replyPictureUrl: String? = null,
+    onCoveredHeight: ((Int) -> Unit)? = null,
 ) {
     val stripe = buildStripe && BuildStripe.offered
     val choosing = sendChannels.size > 1 && sendChannel != null
@@ -238,8 +242,12 @@ fun InputBar(
         isBackEnabled = openPanel != null,
         onBackCompleted = { openPanel = null },
     )
+    // Not state: only read while measuring, where the reply is measured before the column around it.
+    val replyHeight = remember { intArrayOf(0) }
+    if (replyTo == null) replyHeight[0] = 0
+    val covered = if (onCoveredHeight == null) Modifier else Modifier.onSizeChanged { onCoveredHeight(it.height - replyHeight[0]) }
     // No bar of its own: the input sits on the chat background.
-    Column(modifier) {
+    Column(modifier.then(covered)) {
         if (suggestions.isNotEmpty()) {
             // The field keeps its own gap above, as wide as the one below it.
             SuggestionRow(suggestions, imageLoader, onSuggestion, bottomGap = 0.dp)
@@ -264,8 +272,10 @@ fun InputBar(
             }
         }
         if (replyTo != null) {
-            if (replyCard) ReplyCard(replyTo, replyPictureUrl, imageLoader, onCancelReply)
-            else ReplyBar(replyTo, onCancelReply)
+            Box(Modifier.onSizeChanged { replyHeight[0] = it.height }) {
+                if (replyCard) ReplyCard(replyTo, replyPictureUrl, imageLoader, onCancelReply)
+                else ReplyBar(replyTo, onCancelReply)
+            }
         }
         val leadingButtons = @Composable {
             if (choosing) {

@@ -46,7 +46,6 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.zIndex
 import androidx.compose.ui.platform.LocalDensity
-import androidx.compose.ui.layout.onSizeChanged
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LifecycleStartEffect
 import androidx.lifecycle.compose.LocalLifecycleOwner
@@ -367,10 +366,8 @@ fun MainScreen(vm: MainViewModel, onInbox: () -> Unit, onSettings: () -> Unit) {
                 if (floatingInput) ChatInput(
                     vm, guest, connection, restriction, penalty, loader, activity, sheets, inThread = false,
                     sendChannels = activeGroup?.channels.orEmpty(), channelInfo = info,
-                    modifier = Modifier
-                        .zIndex(1f)
-                        .align(Alignment.BottomCenter)
-                        .onSizeChanged { floatingInputHeight = it.height },
+                    modifier = Modifier.zIndex(1f).align(Alignment.BottomCenter),
+                    onCoveredHeight = { floatingInputHeight = it },
                 )
                 if (pageKeys.isEmpty()) {
                     EmptyState(onAdd = { sheets.showAdd = true }, modifier = Modifier.fillMaxSize())
@@ -489,6 +486,7 @@ private fun ChatInput(
     modifier: Modifier = Modifier,
     sendChannels: List<String> = emptyList(),
     channelInfo: Map<String, ChannelInfo> = emptyMap(),
+    onCoveredHeight: ((Int) -> Unit)? = null,
 ) {
     val settings = vm.settings.collectAsStateWithLifecycle().value
     if (settings.readOnly) return
@@ -531,6 +529,7 @@ private fun ChatInput(
         sendLater = sendLater(vm, settings),
         replyCard = settings.replyCard,
         replyPictureUrl = if (settings.replyCard) replyPictureUrl(vm) else null,
+        onCoveredHeight = onCoveredHeight,
     )
 }
 
