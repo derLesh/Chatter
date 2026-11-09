@@ -1,6 +1,11 @@
 package me.lesh.chatter.util
 
 import android.content.Context
+import android.graphics.Bitmap
+import android.graphics.Canvas
+import android.graphics.Paint
+import android.graphics.RectF
+import androidx.core.graphics.createBitmap
 import androidx.core.graphics.drawable.IconCompat
 import coil3.BitmapImage
 import coil3.ImageLoader
@@ -30,14 +35,26 @@ class ChannelIcons(
     }
 
     /**
-     * Downloads a picture as an icon. Not an adaptive icon: Android crops those to their safe zone,
-     * which cuts off the edges of an avatar.
+     * Downloads a picture as an adaptive icon, so every launcher, share menu and notification gives
+     * it the shape it gives app icons there: round on Pixel, a squircle on One UI.
      */
     suspend fun load(url: String): IconCompat? {
         // Hardware bitmaps cannot leave the process, and notification icons do.
-        val request = ImageRequest.Builder(context).data(url).size(ICON_SIZE_PX).allowHardware(false).build()
+        val request = ImageRequest.Builder(context).data(url).size(AVATAR_SIZE_PX).allowHardware(false).build()
         val image = (runCatchingCancellable { imageLoader.execute(request) }.getOrNull() as? SuccessResult)?.image
-        return (image as? BitmapImage)?.bitmap?.let { IconCompat.createWithBitmap(it) }
+        return (image as? BitmapImage)?.bitmap?.let { IconCompat.createWithAdaptiveBitmap(fitIntoShape(it)) }
+    }
+
+    /**
+     * Shrinks the avatar into the middle of an adaptive icon. Android shows only that middle and
+     * cuts the shape out of it; an avatar filling the whole icon would lose its edges.
+     */
+    private fun fitIntoShape(avatar: Bitmap): Bitmap {
+        val icon = createBitmap(ICON_SIZE_PX, ICON_SIZE_PX)
+        val inset = (ICON_SIZE_PX - AVATAR_SIZE_PX) / 2f
+        val bounds = RectF(inset, inset, ICON_SIZE_PX - inset, ICON_SIZE_PX - inset)
+        Canvas(icon).drawBitmap(avatar, null, bounds, Paint(Paint.FILTER_BITMAP_FLAG))
+        return icon
     }
 
     // One object, so a notification can tell that the picture did not change.
@@ -47,6 +64,10 @@ class ChannelIcons(
 
     private companion object {
         /** Notification and shortcut icons are shown small; larger wastes memory. */
-        const val ICON_SIZE_PX = 192
+        const val ICON_SIZE_PX = 216
+
+        // Android shows the middle 2/3 of an adaptive icon. A little more, so no shape meets the
+        // empty border.
+        const val AVATAR_SIZE_PX = 150
     }
 }

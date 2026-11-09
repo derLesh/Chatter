@@ -87,6 +87,9 @@
     <string name="chat_modes_any_follower">Right away</string>
     <string name="chat_modes_subs">Subs only</string>
     <string name="chat_modes_unique">Unique chat</string>
+    <string name="reply_card_label">Replying to</string>
+    <string name="reply_card_expand">Show whole message</string>
+    <string name="reply_card_collapse">Show less</string>
     <string name="replying_to">Replying to @%1$s: %2$s</string>
     <string name="thread_title">Conversation</string>
     <string name="thread_follow">Follow</string>
@@ -340,6 +343,8 @@
     <string name="settings_provider_ffz">FrankerFaceZ</string>
     <string name="settings_show_deleted">Show deleted messages</string>
     <string name="settings_show_deleted_hint">Keeps them struck through instead of hiding them</string>
+    <string name="settings_user_card_attachments">Pictures in the user card</string>
+    <string name="settings_user_card_attachments_hint">Shows pictures, GIFs and posts in the messages of the user card</string>
     <string name="settings_full_links">Show links in full</string>
     <string name="settings_full_links_hint">Otherwise long links are shortened</string>
     <string name="settings_mobile_data">On mobile data</string>
@@ -411,6 +416,8 @@
     <string name="settings_read_only_hint">Hides the input. Good for just reading along.</string>
     <string name="settings_emote_suggestions">Emote suggestions</string>
     <string name="settings_emote_suggestions_hint">Suggests emotes while typing, and emoji after a colon, like :smile</string>
+    <string name="settings_suggestions_over_chat">Suggestions over the chat</string>
+    <string name="settings_suggestions_over_chat_hint">Lays the suggestions over the chat instead of pushing it up</string>
     <string name="settings_user_suggestions">Name suggestions</string>
     <string name="settings_user_suggestions_hint">Suggests names from the chat</string>
     <string name="settings_bot_command_suggestions">Bot commands</string>
@@ -425,6 +432,8 @@
     <string name="recently_sent_hidden">Off</string>
     <string name="settings_chat_modes_button">Chat modes</string>
     <string name="settings_chat_modes_button_hint">Shows mods a shield by the input for slow mode, emote-only and more</string>
+    <string name="settings_reply_card">Reply card</string>
+    <string name="settings_reply_card_hint">Shows who you reply to with their picture above the input</string>
     <string name="settings_build_stripe">Build stripe</string>
     <string name="settings_build_stripe_hint">Left in the input, in the look of this app\'s icon</string>
     <string-array name="input_preview_sent">

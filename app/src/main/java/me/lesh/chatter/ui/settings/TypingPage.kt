@@ -42,6 +42,9 @@ internal fun TypingPage(settings: Settings, vm: MainViewModel) {
             SwitchItem(R.string.settings_bot_command_suggestions, settings.botCommandSuggestions, vm::setBotCommandSuggestions, R.string.settings_bot_command_suggestions_hint)
         }
         item(R.string.settings_mention_with_at) { SwitchItem(R.string.settings_mention_with_at, settings.mentionWithAt, vm::setMentionWithAt, R.string.settings_mention_with_at_hint) }
+        item(R.string.settings_suggestions_over_chat) {
+            BetaSwitchItem(R.string.settings_suggestions_over_chat, settings.suggestionsOverChat, vm::setSuggestionsOverChat, R.string.settings_suggestions_over_chat_hint)
+        }
     }
     SettingsGroup(R.string.settings_group_input) {
         item { Box(Modifier.padding(12.dp)) { InputPreview(settings, vm) } }
@@ -53,6 +56,9 @@ internal fun TypingPage(settings: Settings, vm: MainViewModel) {
         }
         item(R.string.settings_chat_modes_button) {
             SwitchItem(R.string.settings_chat_modes_button, settings.chatModesButton, vm::setChatModesButton, R.string.settings_chat_modes_button_hint)
+        }
+        item(R.string.settings_reply_card) {
+            BetaSwitchItem(R.string.settings_reply_card, settings.replyCard, vm::setReplyCard, R.string.settings_reply_card_hint)
         }
         if (BuildStripe.offered) {
             item(R.string.settings_build_stripe) {

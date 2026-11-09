@@ -1007,9 +1007,11 @@ class MainViewModel(private val c: AppContainer, savedState: SavedStateHandle) :
     fun setShowDeleted(v: Boolean) = saveSetting { setShowDeleted(v) }
     fun setEmoteSuggestions(v: Boolean) = saveSetting { setEmoteSuggestions(v) }
     fun setMentionWithAt(v: Boolean) = saveSetting { setMentionWithAt(v) }
+    fun setSuggestionsOverChat(v: Boolean) = saveSetting { setSuggestionsOverChat(v) }
 
     fun setRecentlySentButton(v: RecentlySentButton) = saveSetting { setRecentlySentButton(v) }
     fun setChatModesButton(v: Boolean) = saveSetting { setChatModesButton(v) }
+    fun setReplyCard(v: Boolean) = saveSetting { setReplyCard(v) }
     fun setBuildStripe(v: Boolean) = saveSetting { setBuildStripe(v) }
     fun setReadOnly(v: Boolean) = saveSetting { setReadOnly(v) }
     fun setUserSuggestions(v: Boolean) = saveSetting { setUserSuggestions(v) }
@@ -1201,6 +1203,7 @@ class MainViewModel(private val c: AppContainer, savedState: SavedStateHandle) :
     fun setPostTextLines(v: Int) = saveSetting { setPostTextLines(v) }
     fun setPostPictureSize(v: PostPictureSize) = saveSetting { setPostPictureSize(v) }
     fun setFullLinks(v: Boolean) = saveSetting { setFullLinks(v) }
+    fun setUserCardAttachments(v: Boolean) = saveSetting { setUserCardAttachments(v) }
 
     /** Turns whatever was pasted into bare hosts. */
     fun addImageHost(input: String) {

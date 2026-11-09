@@ -87,6 +87,9 @@
     <string name="chat_modes_any_follower">Sofort</string>
     <string name="chat_modes_subs">Nur Subs</string>
     <string name="chat_modes_unique">Unique Chat</string>
+    <string name="reply_card_label">Antwort an</string>
+    <string name="reply_card_expand">Ganze Nachricht zeigen</string>
+    <string name="reply_card_collapse">Weniger zeigen</string>
     <string name="replying_to">Antwort an @%1$s: %2$s</string>
     <string name="thread_title">Unterhaltung</string>
     <string name="thread_follow">Folgen</string>
@@ -336,6 +339,8 @@
     <string name="settings_provider_ffz">FrankerFaceZ</string>
     <string name="settings_show_deleted">Entfernte Nachrichten anzeigen</string>
     <string name="settings_show_deleted_hint">Lässt sie durchgestrichen stehen, statt sie auszublenden</string>
+    <string name="settings_user_card_attachments">Bilder in der Usercard</string>
+    <string name="settings_user_card_attachments_hint">Zeigt Bilder, GIFs und Beiträge in den Nachrichten der Usercard</string>
     <string name="settings_full_links">Links vollständig anzeigen</string>
     <string name="settings_full_links_hint">Sonst werden lange Links gekürzt</string>
     <string name="settings_mobile_data">Bei mobilen Daten</string>
@@ -405,6 +410,8 @@
     <string name="settings_read_only_hint">Blendet das Eingabefeld aus. Gut, wenn du nur mitliest.</string>
     <string name="settings_emote_suggestions">Emote-Vorschläge</string>
     <string name="settings_emote_suggestions_hint">Schlägt beim Tippen Emotes vor, nach einem Doppelpunkt auch Emoji wie :smile</string>
+    <string name="settings_suggestions_over_chat">Vorschläge über dem Chat</string>
+    <string name="settings_suggestions_over_chat_hint">Legt die Vorschläge über den Chat, statt ihn hochzuschieben</string>
     <string name="settings_user_suggestions">Namensvorschläge</string>
     <string name="settings_user_suggestions_hint">Schlägt Namen aus dem Chat vor</string>
     <string name="settings_bot_command_suggestions">Bot-Befehle</string>
@@ -419,6 +426,8 @@
     <string name="recently_sent_hidden">Aus</string>
     <string name="settings_chat_modes_button">Chat-Modi</string>
     <string name="settings_chat_modes_button_hint">Zeigt Mods ein Schild am Eingabefeld für Slow-Mode, Emote-Only und mehr</string>
+    <string name="settings_reply_card">Antwort-Karte</string>
+    <string name="settings_reply_card_hint">Zeigt über dem Eingabefeld mit Bild, wem du antwortest</string>
     <string name="settings_build_stripe">Build-Streifen</string>
     <string name="settings_build_stripe_hint">Links im Eingabefeld, im Stil des App-Icons</string>
     <string-array name="input_preview_sent">

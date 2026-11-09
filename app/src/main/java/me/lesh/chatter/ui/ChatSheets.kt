@@ -28,6 +28,7 @@ import me.lesh.chatter.ui.chat.NicknameDialog
 import me.lesh.chatter.ui.chat.NoteDialog
 import me.lesh.chatter.ui.chat.ThreadSheet
 import me.lesh.chatter.ui.chat.UserCardSheet
+import me.lesh.chatter.ui.chat.withoutAttachments
 import kotlinx.coroutines.launch
 
 /**
@@ -94,7 +95,7 @@ fun ChatSheets(
             item = item,
             canModerate = item.channel in modChannels,
             guest = guest,
-            style = style,
+            style = if (settings.userCardAttachments) style else style.withoutAttachments(),
             imageLoader = loader,
             recentMessages = { vm.recentMessagesOf(item) },
             profile = { vm.profileOf(item) },
