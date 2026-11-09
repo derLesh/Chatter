@@ -110,7 +110,8 @@ import androidx.navigationevent.compose.rememberNavigationEventState
 import coil3.compose.AsyncImage
 import me.lesh.chatter.R
 import me.lesh.chatter.channels.ChannelInfo
-import me.lesh.chatter.chat.BotCommand
+import me.lesh.chatter.chat.Bot
+import me.lesh.chatter.chat.BotSuggestion
 import me.lesh.chatter.chat.ChatItem
 import me.lesh.chatter.chat.ChatModes
 import me.lesh.chatter.chat.ChatRestriction
@@ -811,9 +812,18 @@ private fun SuggestionRow(suggestions: List<Suggestion>, imageLoader: ImageLoade
     }
 }
 
+fun botName(bot: Bot): Int = when (bot) {
+    Bot.Supibot -> R.string.bot_supibot
+    Bot.PotatBot -> R.string.bot_potatbot
+    Bot.Fossabot -> R.string.bot_fossabot
+    Bot.Nightbot -> R.string.bot_nightbot
+    Bot.StreamElements -> R.string.bot_streamelements
+    Bot.Streamlabs -> R.string.bot_streamlabs
+}
+
 /** A bot command and, below it, what it does or answers, cut short so the chip stays small. */
 @Composable
-private fun BotCommandChip(command: BotCommand) {
+private fun BotCommandChip(command: BotSuggestion) {
     Column(Modifier.widthIn(max = 220.dp).padding(vertical = 4.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Text(
@@ -824,7 +834,7 @@ private fun BotCommandChip(command: BotCommand) {
                 modifier = Modifier.weight(1f, fill = false),
             )
             Text(
-                " \u00B7 ${command.bot.label}",
+                " \u00B7 ${stringResource(botName(command.bot))}",
                 style = MaterialTheme.typography.labelSmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 maxLines = 1,

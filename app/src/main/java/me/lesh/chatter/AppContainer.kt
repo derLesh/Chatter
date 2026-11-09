@@ -48,6 +48,7 @@ import me.lesh.chatter.chat.ScheduledMessages
 import me.lesh.chatter.chat.SendResult
 import me.lesh.chatter.chat.UserPictures
 import me.lesh.chatter.chat.BotCommands
+import me.lesh.chatter.chat.BotListFiles
 import me.lesh.chatter.net.BotApi
 import me.lesh.chatter.chat.WhisperInboxRepository
 import me.lesh.chatter.chat.WhisperResult
@@ -169,7 +170,10 @@ class AppContainer(
     val auth = AuthRepository(context.authStore, http)
     val helix = HelixApi(http) { auth.freshToken() }.also { auth.helix = it }
     val thirdParty = ThirdPartyApi(http)
-    val botCommands = BotCommands(BotApi(http), scope)
+    val botCommands = BotCommands(
+        BotApi(http), BotListFiles(context.cacheDir.resolve("bot-commands")), scope,
+        botsOn = { settings.settings.value.botCommands },
+    )
     /** Posts for the cards that replace their links, one source per site. */
     val posts = PostRepository(listOf(XPostSource(FxTwitterApi(http)), BlueskyPostSource(BlueskyApi(http))), scope)
     val emotes = EmoteRepository(helix, thirdParty, trouble, providersOn = { settings.settings.value.emoteProvidersOn })
@@ -227,7 +231,7 @@ class AppContainer(
             .build()
     }
 
-    val storage = StorageUsage(context, { diskCache }, http.cache)
+    val storage = StorageUsage(context, { diskCache }, http.cache, botCommands::forget)
 
     private fun emoteOptions() = settings.settings.value.let {
         EmoteOptions(

@@ -1,1 +1,2 @@
-minor: Suggest Supibot commands after $ and the channel bot's commands after ! while typing
+minor: Suggest bot commands while typing: Supibot, PotatBotat, Fossabot, Nightbot, StreamElements and Streamlabs
+minor: Turn each bot on or off under Settings → Typing → Bot commands

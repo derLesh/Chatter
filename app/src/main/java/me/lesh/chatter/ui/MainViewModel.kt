@@ -23,7 +23,9 @@ import me.lesh.chatter.channels.ChannelGroup
 import me.lesh.chatter.channels.RemovedPage
 import me.lesh.chatter.channels.displayName
 import me.lesh.chatter.chat.ChatCommand
-import me.lesh.chatter.chat.BotCommand
+import me.lesh.chatter.chat.Bot
+import me.lesh.chatter.chat.BotCommands
+import me.lesh.chatter.chat.BotSuggestion
 import me.lesh.chatter.chat.ChatItem
 import me.lesh.chatter.chat.ChatModes
 import me.lesh.chatter.chat.ChatRole
@@ -117,7 +119,7 @@ sealed interface Suggestion {
     data class EmoteSuggestion(val emote: Emote) : Suggestion
     data class UserSuggestion(val name: String) : Suggestion
     data class CommandSuggestion(val name: String, val usage: String) : Suggestion
-    data class BotCommandSuggestion(val command: BotCommand) : Suggestion
+    data class BotCommandSuggestion(val command: BotSuggestion) : Suggestion
     /** [shortcode] is the one that matched what was typed. */
     data class EmojiSuggestion(val emoji: Emoji, val shortcode: String) : Suggestion
 }
@@ -516,14 +518,16 @@ class MainViewModel(private val c: AppContainer, savedState: SavedStateHandle) :
     }
 
     private suspend fun rank(channel: String, word: Autocomplete.Word): List<Suggestion> {
+        // A sign can also start a Twitch smiley like ">(", so without a command the emotes get it.
+        if (word.start == 0 && BotCommands.startsLikeCommand(word.text)) {
+            val commands = c.botCommands.suggest(channel, word.text)
+            if (commands.isNotEmpty()) return commands.map { Suggestion.BotCommandSuggestion(it) }
+        }
         val shortcode = EmojiCatalog.typedShortcode(word.text)
         return if (word.start == 0 && word.text.startsWith("/")) {
             val typed = word.text.substring(1).lowercase()
             CommandParser.COMMANDS.filterKeys { it.startsWith(typed) }
                 .map { (name, usage) -> Suggestion.CommandSuggestion(name, usage) }
-        } else if (word.start == 0 && (word.text.startsWith("$") || word.text.startsWith("!"))) {
-            if (!settings.value.botCommandSuggestions) emptyList()
-            else c.botCommands.suggest(channel, word.text).map { Suggestion.BotCommandSuggestion(it) }
         } else if (shortcode != null) {
             if (!settings.value.emoteSuggestions) emptyList()
             else EmojiCatalog.search(shortcode, c.emoji.all()).map { (emoji, code) -> Suggestion.EmojiSuggestion(emoji, code) }
@@ -1015,7 +1019,7 @@ class MainViewModel(private val c: AppContainer, savedState: SavedStateHandle) :
     fun setBuildStripe(v: Boolean) = saveSetting { setBuildStripe(v) }
     fun setReadOnly(v: Boolean) = saveSetting { setReadOnly(v) }
     fun setUserSuggestions(v: Boolean) = saveSetting { setUserSuggestions(v) }
-    fun setBotCommandSuggestions(v: Boolean) = saveSetting { setBotCommandSuggestions(v) }
+    fun setBotCommands(bot: Bot, on: Boolean) = saveSetting { setBotCommands(bot, on) }
 
     fun setChannelUnreadVisible(login: String, visible: Boolean) {
         viewModelScope.launch { c.channels.setUnreadVisible(login, visible) }

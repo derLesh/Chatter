@@ -4,8 +4,10 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.ListItem
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -13,23 +15,27 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringArrayResource
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.TextRange
 import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.unit.dp
 import me.lesh.chatter.R
+import me.lesh.chatter.chat.Bot
 import me.lesh.chatter.chat.RoomState
 import me.lesh.chatter.settings.RecentlySentButton
 import me.lesh.chatter.settings.Settings
 import me.lesh.chatter.ui.MainViewModel
+import me.lesh.chatter.ui.SettingsSubPage
 import me.lesh.chatter.ui.chat.BuildStripe
 import me.lesh.chatter.ui.chat.InputBar
+import me.lesh.chatter.ui.chat.botName
 
 /**
  * Writing messages: whether there is an input at all, suggestions as you type and how a mention is
  * written, and how the input looks, with a preview of it.
  */
 @Composable
-internal fun TypingPage(settings: Settings, vm: MainViewModel) {
+internal fun TypingPage(settings: Settings, vm: MainViewModel, open: (SettingsSubPage) -> Unit) {
     SettingsGroup {
         item(R.string.settings_read_only) { SwitchItem(R.string.settings_read_only, settings.readOnly, vm::setReadOnly, R.string.settings_read_only_hint) }
     }
@@ -38,8 +44,17 @@ internal fun TypingPage(settings: Settings, vm: MainViewModel) {
     SettingsGroup(R.string.settings_group_suggestions) {
         item(R.string.settings_emote_suggestions) { SwitchItem(R.string.settings_emote_suggestions, settings.emoteSuggestions, vm::setEmoteSuggestions, R.string.settings_emote_suggestions_hint) }
         item(R.string.settings_user_suggestions) { SwitchItem(R.string.settings_user_suggestions, settings.userSuggestions, vm::setUserSuggestions, R.string.settings_user_suggestions_hint) }
-        item(R.string.settings_bot_command_suggestions) {
-            SwitchItem(R.string.settings_bot_command_suggestions, settings.botCommandSuggestions, vm::setBotCommandSuggestions, R.string.settings_bot_command_suggestions_hint)
+        item(R.string.settings_bot_commands) {
+            ListItem(
+                headlineContent = { Text(stringResource(R.string.settings_bot_commands)) },
+                supportingContent = {
+                    val bots = Bot.entries.filter { it in settings.botCommands }.map { stringResource(botName(it)) }
+                    Text(bots.joinToString(", ").ifEmpty { stringResource(R.string.settings_off) })
+                },
+                trailingContent = { NavChevron() },
+                colors = transparentItem(),
+                modifier = Modifier.tileClickable { open(SettingsSubPage.BotCommands) },
+            )
         }
         item(R.string.settings_mention_with_at) { SwitchItem(R.string.settings_mention_with_at, settings.mentionWithAt, vm::setMentionWithAt, R.string.settings_mention_with_at_hint) }
         item(R.string.settings_suggestions_over_chat) {
