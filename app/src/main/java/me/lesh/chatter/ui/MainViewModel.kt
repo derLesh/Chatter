@@ -1003,6 +1003,7 @@ class MainViewModel(private val c: AppContainer, savedState: SavedStateHandle) :
     fun setMessageTap(v: TapAction) = saveSetting { setMessageTap(v) }
     fun setNameTap(v: TapAction) = saveSetting { setNameTap(v) }
     fun setCopyFirst(v: Boolean) = saveSetting { setCopyFirst(v) }
+    fun setUserCardButtonsFirst(v: Boolean) = saveSetting { setUserCardButtonsFirst(v) }
     fun setCatchUpSummary(v: Boolean) = saveSetting { setCatchUpSummary(v) }
     fun setAssistantActions(v: Boolean) = saveSetting { setAssistantActions(v) }
     fun setColorfulCategories(v: Boolean) = saveSetting { setColorfulCategories(v) }

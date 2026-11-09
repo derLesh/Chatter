@@ -1,0 +1,1 @@
+minor: Let the user card show its buttons above the tapped message, so they stay in the same place

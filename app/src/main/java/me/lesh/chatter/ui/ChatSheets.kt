@@ -102,6 +102,7 @@ fun ChatSheets(
             blocked = item.login?.lowercase() in blockedLogins,
             note = item.login?.let { notes[it.lowercase()] }.orEmpty(),
             copyFirst = settings.copyFirst,
+            buttonsFirst = settings.userCardButtonsFirst,
             onBlock = vm::setBlocked,
             onBlockLogin = vm::blockByLogin,
             onNickname = { sheets.nicknameTarget = item },

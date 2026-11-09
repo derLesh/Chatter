@@ -451,6 +451,8 @@
     <string name="tap_action_nothing">Nichts</string>
     <string name="settings_copy_first">Kopieren vor Antworten</string>
     <string name="settings_copy_first_hint">In der Nutzerkarte</string>
+    <string name="settings_user_card_buttons_first">Antworten, Erwähnen, Kopieren oben</string>
+    <string name="settings_user_card_buttons_first_hint">In der Nutzerkarte über der angetippten Nachricht</string>
     <string name="settings_group_mentions">Erwähnungen</string>
     <string name="settings_alternate_background">Abwechselnder Hintergrund</string>
     <string name="settings_alternate_background_hint">Hinterlegt jede zweite Nachricht etwas heller</string>

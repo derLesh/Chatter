@@ -283,6 +283,7 @@ private val SEARCH_INDEX: List<SearchEntry> by lazy {
         add(SearchEntry(R.string.settings_message_tap, messages))
         add(SearchEntry(R.string.settings_name_tap, messages))
         add(SearchEntry(R.string.settings_copy_first, messages, R.string.settings_copy_first_hint))
+        add(SearchEntry(R.string.settings_user_card_buttons_first, messages, R.string.settings_user_card_buttons_first_hint))
         add(SearchEntry(R.string.settings_keep_screen_on, messages, R.string.settings_keep_screen_on_hint))
         add(SearchEntry(R.string.settings_keep_screen_on_when_quiet, messages, R.string.settings_keep_screen_on_when_quiet_hint, shownWhen = ShownWhen(R.string.settings_keep_screen_on) { s, _ -> s.keepScreenOn }))
         val media = SettingsPage.Media

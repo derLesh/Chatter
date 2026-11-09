@@ -464,6 +464,8 @@
     <string name="tap_action_nothing">Nothing</string>
     <string name="settings_copy_first">Copy before Reply</string>
     <string name="settings_copy_first_hint">In the user card</string>
+    <string name="settings_user_card_buttons_first">Reply, Mention, Copy on top</string>
+    <string name="settings_user_card_buttons_first_hint">In the user card, above the tapped message</string>
     <string name="settings_group_mentions">Mentions</string>
     <string name="settings_alternate_background">Alternating background</string>
     <string name="settings_alternate_background_hint">Shades every other message a little lighter</string>

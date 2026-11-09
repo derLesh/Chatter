@@ -69,6 +69,12 @@ internal fun MessagesPage(settings: Settings, vm: MainViewModel, open: (Settings
         item(R.string.settings_message_tap) { TapActionPicker(R.string.settings_message_tap, settings.messageTap, vm::setMessageTap) }
         item(R.string.settings_name_tap) { TapActionPicker(R.string.settings_name_tap, settings.nameTap, vm::setNameTap) }
         item(R.string.settings_copy_first) { SwitchItem(R.string.settings_copy_first, settings.copyFirst, vm::setCopyFirst, R.string.settings_copy_first_hint) }
+        item(R.string.settings_user_card_buttons_first) {
+            SwitchItem(
+                R.string.settings_user_card_buttons_first, settings.userCardButtonsFirst,
+                vm::setUserCardButtonsFirst, R.string.settings_user_card_buttons_first_hint,
+            )
+        }
     }
     SettingsGroup(R.string.settings_group_screen) {
         item(R.string.settings_keep_screen_on) {
