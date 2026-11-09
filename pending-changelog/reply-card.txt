@@ -1,1 +1,1 @@
-minor: Show who you reply to as a small card with their picture, a tap shows a long message whole; beta in Settings → Typing
+minor: Show who you reply to as a small card with their picture; tap it for the whole message. Beta in Settings → Typing
