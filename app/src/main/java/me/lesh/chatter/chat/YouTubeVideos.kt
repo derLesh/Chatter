@@ -3,6 +3,9 @@ package me.lesh.chatter.chat
 import me.lesh.chatter.net.YouTubeApi
 import me.lesh.chatter.net.YtOembed
 import me.lesh.chatter.net.YtPlayerResponse
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.async
+import kotlinx.coroutines.coroutineScope
 import okhttp3.HttpUrl
 import java.time.OffsetDateTime
 import java.util.Locale
@@ -11,6 +14,9 @@ import java.util.Locale
 object YouTubeVideos {
     private val HOSTS = setOf("youtube.com", "m.youtube.com", "music.youtube.com", "youtube-nocookie.com")
     private const val SHORT_HOST = "youtu.be"
+
+    /** Where channel pictures are: yt3.ggpht.com. */
+    private const val CHANNEL_PICTURE_HOST = "ggpht.com"
 
     /** The first path segment of a link that names its video in the second, like /shorts/<id>. */
     private val ID_PATHS = setOf("shorts", "live", "embed", "v", "e")
@@ -30,6 +36,9 @@ object YouTubeVideos {
         }
         return id?.takeIf { VIDEO_ID.matches(it) }
     }
+
+    /** [raw] if it is a channel picture on YouTube's servers. */
+    fun channelPicture(raw: String?): String? = PostLinks.picture(raw, CHANNEL_PICTURE_HOST)?.toString()
 
     /** The card for [player], or null if YouTube left out the video. */
     fun post(id: String, player: YtPlayerResponse): Post? {
@@ -76,15 +85,37 @@ object YouTubeVideos {
     )
 }
 
-/** Read from the player YouTube's website asks; [YouTubeApi.oembed] stands in where it wants a sign-in. */
+/**
+ * Read from the player YouTube's website asks; [YouTubeApi.oembed] stands in where it wants a
+ * sign-in. The channel's picture is asked for at the same time, from the embedded player.
+ */
 class YouTubePostSource(private val api: YouTubeApi) : PostSource {
     override val site = PostSite.YouTube
 
-    override suspend fun fetch(key: String): Post? {
+    override suspend fun fetch(key: String): Post? = coroutineScope {
+        val picture = async { channelPicture(key) }
+        val post = video(key)
+        if (post == null) {
+            picture.cancel()
+            return@coroutineScope null
+        }
+        post.copy(avatarUrl = picture.await())
+    }
+
+    private suspend fun video(key: String): Post? {
         val player = api.player(key, Locale.getDefault().language)
         YouTubeVideos.post(key, player)?.let { return it }
         if (player.playabilityStatus.status == "ERROR") return null
         // From a busy network YouTube asks to sign in before it says anything.
         return YouTubeVideos.post(key, api.oembed(key))
+    }
+
+    /** A card without the picture is still worth showing. */
+    private suspend fun channelPicture(key: String): String? = try {
+        YouTubeVideos.channelPicture(api.embedOverlay(key).channelPicture)
+    } catch (e: CancellationException) {
+        throw e
+    } catch (e: Exception) {
+        null
     }
 }

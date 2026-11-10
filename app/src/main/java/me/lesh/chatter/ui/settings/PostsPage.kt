@@ -164,7 +164,7 @@ internal fun PostPreview(settings: Settings, vm: MainViewModel, text: Int = R.st
     val post = remember(postText, site) {
         if (site == PostSite.YouTube) {
             Post(
-                name = "Chatter", handle = "", avatarUrl = null, text = postText,
+                name = "Chatter", handle = "", avatarUrl = PREVIEW_AVATAR, text = postText,
                 replies = 0, reposts = 0, likes = 0, views = 13370, postedAt = System.currentTimeMillis(), nsfw = false,
                 media = PostMedia(PREVIEW_PICTURE, video = true, aspectRatio = 16f / 9f, more = 0, lengthSeconds = 213),
             )

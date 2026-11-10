@@ -1,6 +1,7 @@
 package me.lesh.chatter.chat
 
 import me.lesh.chatter.net.AppJson
+import me.lesh.chatter.net.YtEmbedNextResponse
 import me.lesh.chatter.net.YtOembed
 import me.lesh.chatter.net.YtPlayerResponse
 import me.lesh.chatter.ui.chat.videoLength
@@ -125,6 +126,27 @@ class YouTubeVideosTest {
         assertEquals("Rick Astley - Never Gonna Give You Up", post.text)
         assertEquals(0L, post.views)
         assertEquals(0L, post.postedAt)
+    }
+
+    /** Shortened from a real answer of youtubei/v1/next for the embedded player. */
+    private val embedOverlay = """
+        {"playerOverlays":{"playerOverlayRenderer":{"videoDetails":{"embeddedPlayerOverlayVideoDetailsRenderer":{
+          "channelThumbnail":{"thumbnails":[{"url":"https://yt3.ggpht.com/_ShEGOdg-t5YGJse14Ooq6FYBZqX=s88","width":88,"height":88}]},
+          "collapsedRenderer":{"embeddedPlayerOverlayVideoDetailsCollapsedRenderer":{"title":{"runs":[{"text":"Rick Astley"}]}}}}}}}}
+    """.trimIndent()
+
+    @Test
+    fun theChannelPictureComesFromTheEmbeddedPlayer() {
+        val raw = AppJson.decodeFromString<YtEmbedNextResponse>(embedOverlay).channelPicture
+        assertEquals("https://yt3.ggpht.com/_ShEGOdg-t5YGJse14Ooq6FYBZqX=s88", YouTubeVideos.channelPicture(raw))
+    }
+
+    @Test
+    fun aChannelPictureFromAnywhereElseIsLeftOut() {
+        assertNull(YouTubeVideos.channelPicture("https://evil.example/a.png"))
+        assertNull(YouTubeVideos.channelPicture("http://yt3.ggpht.com/a=s88"))
+        assertNull(YouTubeVideos.channelPicture("https://yt3.ggpht.com.evil.example/a=s88"))
+        assertNull(AppJson.decodeFromString<YtEmbedNextResponse>("{}").channelPicture)
     }
 
     @Test

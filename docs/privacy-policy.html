@@ -138,7 +138,7 @@ Twitch access token except Twitch itself.</p>
   </tr>
   <tr>
     <td>YouTube</td>
-    <td><code>www.youtube.com</code>, <code>i.ytimg.com</code></td>
+    <td><code>www.youtube.com</code>, <code>i.ytimg.com</code>, <code>yt3.ggpht.com</code></td>
     <td>The number of a YouTube video that was linked in chat, and your phone's language, to show
         it as a card. Only while &ldquo;Show videos from YouTube&rdquo; is on, which it is not until
         you turn it on.</td>
@@ -205,9 +205,10 @@ server. A post on Bluesky is read from Bluesky itself, the same way its own app 
 carries the post's author and number, and the pictures come from Bluesky's servers. A video on
 YouTube is read from YouTube itself, the way its website does: the request carries the video's
 number and your phone's language, so titles come in your language where the channel translated
-them, and the still comes from YouTube's image server. It is sent without an account or cookies. A
-post is only asked for when its message is on your screen, never for a chat running in the
-background, and not while the battery saver is on or Chatter saves data.</p>
+them, and the still and the channel's picture come from YouTube's image servers. It is sent
+without an account or cookies. A post is only asked for when its message is on your screen, never
+for a chat running in the background, and not while the battery saver is on or Chatter saves
+data.</p>
 
 <p><strong>Summaries on your phone (beta).</strong> With &ldquo;Sum up what you missed&rdquo; on
 (Settings &rarr; Labs), which it is not until you turn it on, Chatter can ask Gemini Nano
@@ -353,7 +354,7 @@ und außer Twitch selbst erhält kein Dritter das Twitch-Token.</p>
   </tr>
   <tr>
     <td>YouTube</td>
-    <td><code>www.youtube.com</code>, <code>i.ytimg.com</code></td>
+    <td><code>www.youtube.com</code>, <code>i.ytimg.com</code>, <code>yt3.ggpht.com</code></td>
     <td>Die Nummer eines im Chat verlinkten YouTube-Videos und die Sprache deines Geräts, um es als
         Karte zu zeigen. Nur solange „Videos von YouTube anzeigen“ eingeschaltet ist, was es erst
         ist, wenn du es einschaltest.</td>
@@ -425,9 +426,9 @@ Bluesky, so wie es die eigene App von Bluesky tut: Die Anfrage enthält Autor un
 die Bilder kommen von den Servern von Bluesky. Ein Video auf YouTube liest Chatter direkt bei
 YouTube, so wie es die Website von YouTube tut: Die Anfrage enthält die Nummer des Videos und die
 Sprache deines Geräts, damit Titel in deiner Sprache kommen, wo der Kanal sie übersetzt hat, und
-das Vorschaubild kommt vom Bildserver von YouTube. Sie geht ohne Konto und ohne Cookies raus. Ein
-Post wird erst abgefragt, wenn seine Nachricht auf dem Bildschirm ist, nie für einen Chat im
-Hintergrund, und nicht im Akkusparmodus oder während Chatter Daten spart.</p>
+Vorschaubild und Kanalbild kommen von den Bildservern von YouTube. Sie geht ohne Konto und ohne
+Cookies raus. Ein Post wird erst abgefragt, wenn seine Nachricht auf dem Bildschirm ist, nie für
+einen Chat im Hintergrund, und nicht im Akkusparmodus oder während Chatter Daten spart.</p>
 
 <p><strong>Zusammenfassungen auf dem Gerät (Beta).</strong> Ist &bdquo;Verpasstes
 zusammenfassen&ldquo; eingeschaltet (Einstellungen &rarr; Labs), was es nicht ist, bis du
