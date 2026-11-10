@@ -49,6 +49,11 @@ internal fun BetaPage(settings: Settings, vm: MainViewModel) {
         }
     }
     SettingsGroup {
+        item(R.string.settings_send_repeats) {
+            BetaSwitchItem(R.string.settings_send_repeats, settings.sendRepeats, vm::setSendRepeats, R.string.settings_send_repeats_hint)
+        }
+    }
+    SettingsGroup {
         item(R.string.settings_colorful_categories) {
             BetaSwitchItem(
                 R.string.settings_colorful_categories, settings.colorfulCategories,

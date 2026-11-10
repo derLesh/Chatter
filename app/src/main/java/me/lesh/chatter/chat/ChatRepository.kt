@@ -111,6 +111,7 @@ class ChatRepository(
     val threads = FollowedThreads()
 
     // --- state touched only on `worker` ---
+    /** Per channel, the last line as it went out and when; see [RepeatedMessages]. */
     private val lastSent = HashMap<String, Pair<String, Long>>()
     private val rateLimiter = RateLimiter(30_000)
     private val loadedChannels = HashSet<String>()
@@ -319,7 +320,7 @@ class ChatRepository(
     }
 
     suspend fun send(channel: String, input: String, replyTo: ChatItem?): SendResult = withContext(worker) {
-        var text = input.trim()
+        val text = input.trim()
         if (text.isEmpty()) return@withContext SendResult.Empty
         // A guest connection is read-only, and every command needs a login.
         if (auth.account == null) return@withContext SendResult.NotConnected
@@ -330,33 +331,39 @@ class ChatRepository(
         }
 
         val now = System.currentTimeMillis()
-        // Twitch drops identical consecutive messages; an invisible tag character avoids that.
-        lastSent[channel]?.let { (prev, at) -> if (prev == text && now - at < 30_000) text += DUPLICATE_BYPASS }
+        val (previous, previousAt) = lastSent[channel] ?: (null to 0L)
+        // Mods, VIPs and the broadcaster may repeat themselves anyway.
+        val varied = settings.value.sendRepeats && !rooms.isPrivileged(channel) &&
+            RepeatedMessages.isRepeat(text, previous, now - previousAt)
+        val outgoing = if (varied) RepeatedMessages.vary(text) else text
 
         val state = rooms.userState(channel)
         if (!rateLimiter.tryAcquire(now, if (rooms.isPrivileged(channel)) 100 else 20)) {
             return@withContext SendResult.RateLimited
         }
 
-        val wire = if (text.startsWith("/me ")) "$CTCP_ACTION${text.substring(4)}$CTCP_END" else text
         val replyParent = replyTo?.takeIf { it.canReply && !it.id.startsWith("local-") }
-        if (!irc.sendMessage(channel, wire, replyParent?.id)) return@withContext SendResult.NotConnected
+        if (!irc.sendMessage(channel, wire(outgoing), replyParent?.id)) return@withContext SendResult.NotConnected
 
-        lastSent[channel] = input.trim() to now
+        lastSent[channel] = outgoing to now
         val reply = replyParent?.let {
             // Twitch files the answer under the parent's conversation; the echo does the same.
             ReplyInfo(it.id, it.login.orEmpty(), it.displayName.orEmpty(), it.text, threadId = it.reply?.threadId ?: it.id)
         }
+        // Shown as typed: the extra space is only for Twitch.
         incoming.sent(
             // An answered message restored with its draft has no segments; the quote is built from its text.
             builder.buildOwn(
-                channel, wire, state, auth.account?.login.orEmpty(), auth.account?.userId, rooms.id(channel), reply,
+                channel, wire(text), state, auth.account?.login.orEmpty(), auth.account?.userId, rooms.id(channel), reply,
                 replyParent?.segments?.ifEmpty { null },
             ),
         )
         stats.countSent(channel)
         SendResult.Ok
     }
+
+    private fun wire(text: String): String =
+        if (text.startsWith("/me ")) "$CTCP_ACTION${text.substring(4)}$CTCP_END" else text
 
     /**
      * Runs a moderation command (e.g. from the message actions) and reports the result in the chat.
@@ -613,7 +620,6 @@ class ChatRepository(
         /** How long the history waits for the channel's emotes. */
         const val EMOTES_BEFORE_HISTORY_MS = 3_000L
 
-        const val DUPLICATE_BYPASS = " \uDB40\uDC00"
         const val CTCP_ACTION = "\u0001ACTION "
         const val CTCP_END = "\u0001"
     }
