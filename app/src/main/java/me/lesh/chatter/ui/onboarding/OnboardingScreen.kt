@@ -57,6 +57,7 @@ import androidx.navigationevent.compose.rememberNavigationEventState
 import me.lesh.chatter.R
 import me.lesh.chatter.chat.PostSite
 import me.lesh.chatter.settings.Settings
+import me.lesh.chatter.settings.SpecialMessage
 import me.lesh.chatter.ui.IntroPoint
 import me.lesh.chatter.ui.MainViewModel
 import me.lesh.chatter.ui.settings.HighlightColorPicker
@@ -199,8 +200,8 @@ private fun HighlightsStep(settings: Settings, vm: MainViewModel) {
         item { HighlightColorPicker(settings.highlightColor, vm::setHighlightColor) }
         item {
             SwitchItem(
-                R.string.settings_first_messages, settings.highlightFirstMessages,
-                vm::setHighlightFirstMessages, R.string.settings_first_messages_hint,
+                R.string.special_first_messages, SpecialMessage.FirstMessage in settings.specialMessages,
+                { vm.setSpecialMessage(SpecialMessage.FirstMessage, it) }, R.string.special_first_messages_hint,
             )
         }
     }

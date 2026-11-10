@@ -242,7 +242,7 @@ class MessageBuilder(
             ),
             text = body,
             isMention = !isOwn && (mentions.matches(body) || reply?.parentLogin.equals(selfLogin, ignoreCase = true)),
-            isFirstMessage = !isOwn && msg.tagIs("first-msg", "1"),
+            isFirstMessage = msg.tagIs("first-msg", "1"),
             isOwn = isOwn,
             reply = reply,
             historical = historical,

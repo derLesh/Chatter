@@ -71,7 +71,7 @@ enum class SendLaterButton { OwnButton, HoldSend }
 enum class TapAction { Reply, UserCard, Mention, Nothing }
 
 /** Messages Twitch draws in a way of their own, each shown that way only while turned on. */
-enum class SpecialMessage { GiantEmote, Highlighted, Effect, Reward, WatchStreak }
+enum class SpecialMessage { GiantEmote, Highlighted, Effect, Reward, WatchStreak, FirstMessage }
 
 @Serializable
 data class Settings(
@@ -184,8 +184,6 @@ data class Settings(
     val bubbles: Boolean = false,
     /** The sender's Twitch avatar in notifications. */
     val senderAvatars: Boolean = true,
-    /** Mark a chatter's first message in a channel (Twitch's flag). */
-    val highlightFirstMessages: Boolean = true,
     /** Which special messages are shown the way Twitch shows them; see [SpecialMessage]. */
     val specialMessages: Set<SpecialMessage> = SpecialMessage.entries.toSet(),
     /** How user-picked name colors are adjusted for readability. */
@@ -299,8 +297,7 @@ class SettingsRepository(
             bubbles = p[BUBBLES] ?: false,
             liveNotifications = p[LIVE_NOTIFICATIONS] ?: true,
             senderAvatars = p[SENDER_AVATARS] ?: true,
-            highlightFirstMessages = p[FIRST_MESSAGES] ?: true,
-            specialMessages = SpecialMessage.entries.toSet() - specialMessagesOff(p[SPECIAL_MESSAGES_OFF]),
+            specialMessages = SpecialMessage.entries.toSet() - specialMessagesOff(p),
             nameColors = p[NAME_COLORS]?.let { v -> NameColorPalette.entries.firstOrNull { it.name == v } }
                 ?: NameColorPalette.HslLuma,
             messageTap = p[MESSAGE_TAP]?.let { v -> TapAction.entries.firstOrNull { it.name == v } } ?: TapAction.Reply,
@@ -408,10 +405,10 @@ class SettingsRepository(
     suspend fun setBubbles(v: Boolean) = store.edit { it[BUBBLES] = v }
     suspend fun setLiveNotifications(v: Boolean) = store.edit { it[LIVE_NOTIFICATIONS] = v }
     suspend fun setSenderAvatars(v: Boolean) = store.edit { it[SENDER_AVATARS] = v }
-    suspend fun setHighlightFirstMessages(v: Boolean) = store.edit { it[FIRST_MESSAGES] = v }
     suspend fun setSpecialMessage(kind: SpecialMessage, on: Boolean) = store.edit { p ->
-        val off = specialMessagesOff(p[SPECIAL_MESSAGES_OFF])
+        val off = specialMessagesOff(p)
         p[SPECIAL_MESSAGES_OFF] = (if (on) off - kind else off + kind).joinToString(",") { it.name }
+        p.remove(FIRST_MESSAGES)
     }
     suspend fun setNameColors(v: NameColorPalette) = store.edit { it[NAME_COLORS] = v.name }
     suspend fun updateBadgeProviders(change: (Set<BadgeProvider>) -> Set<BadgeProvider>) =
@@ -525,7 +522,7 @@ class SettingsRepository(
         p[BUBBLES] = s.bubbles
         p[LIVE_NOTIFICATIONS] = s.liveNotifications
         p[SENDER_AVATARS] = s.senderAvatars
-        p[FIRST_MESSAGES] = s.highlightFirstMessages
+        p.remove(FIRST_MESSAGES)
         p[SPECIAL_MESSAGES_OFF] = (SpecialMessage.entries - s.specialMessages).joinToString(",") { it.name }
         p[NAME_COLORS] = s.nameColors.name
         p[MESSAGE_TAP] = s.messageTap.name
@@ -564,8 +561,11 @@ class SettingsRepository(
         fun hosts(raw: String?): List<String> =
             raw?.split(',')?.map { it.trim() }?.filter { it.isNotEmpty() } ?: ImageLinks.DEFAULT_HOSTS
 
-        fun specialMessagesOff(raw: String?): Set<SpecialMessage> =
-            raw.orEmpty().split(',').mapNotNull { v -> SpecialMessage.entries.firstOrNull { it.name == v } }.toSet()
+        fun specialMessagesOff(p: Preferences): Set<SpecialMessage> {
+            val off = p[SPECIAL_MESSAGES_OFF].orEmpty().split(',')
+                .mapNotNull { v -> SpecialMessage.entries.firstOrNull { it.name == v } }.toSet()
+            return if (p[FIRST_MESSAGES] == false) off + SpecialMessage.FirstMessage else off
+        }
 
         /** The bots turned off, so that one Chatter learns later starts turned on. */
         fun botCommandsOff(raw: String?): Set<Bot> =
@@ -648,6 +648,7 @@ class SettingsRepository(
         val EMOTE_PROVIDERS = stringPreferencesKey("emote_providers")
         val BADGE_PROVIDERS = stringPreferencesKey("badge_providers")
         val NAME_COLORS = stringPreferencesKey("name_colors")
+        // First messages had a switch of their own; a false here still turns them off.
         val FIRST_MESSAGES = booleanPreferencesKey("highlight_first_messages")
         // The ones turned off, so a kind added later starts on.
         val SPECIAL_MESSAGES_OFF = stringPreferencesKey("special_messages_off")

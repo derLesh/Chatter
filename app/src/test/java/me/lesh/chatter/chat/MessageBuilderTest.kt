@@ -339,6 +339,14 @@ class MessageBuilderTest {
     }
 
     @Test
+    fun aFirstMessageIsMarkedEvenWhenItIsYourOwn() {
+        assertEquals(true, build(privmsg("hi", "first-msg=1")).isFirstMessage)
+        assertEquals(false, build(privmsg("hi", "first-msg=0")).isFirstMessage)
+        val own = IrcMessage.parse("@id=x;first-msg=1 :lukas!lukas@lukas.tmi.twitch.tv PRIVMSG #chan :hi")!!
+        assertEquals(true, build(own).isFirstMessage)
+    }
+
+    @Test
     fun aRewardMessageKnowsItsReward() {
         assertEquals("r1", build(privmsg("hydrate!", "custom-reward-id=r1")).rewardId)
         assertEquals(null, build(privmsg("hi", "custom-reward-id=")).rewardId)

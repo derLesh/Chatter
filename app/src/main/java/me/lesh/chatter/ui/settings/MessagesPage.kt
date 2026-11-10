@@ -31,12 +31,6 @@ internal fun MessagesPage(settings: Settings, vm: MainViewModel, open: (Settings
             )
         }
         item(R.string.settings_show_deleted) { SwitchItem(R.string.settings_show_deleted, settings.showDeleted, vm::setShowDeleted, R.string.settings_show_deleted_hint) }
-        item(R.string.settings_first_messages) {
-            SwitchItem(
-                R.string.settings_first_messages, settings.highlightFirstMessages,
-                vm::setHighlightFirstMessages, R.string.settings_first_messages_hint,
-            )
-        }
         item(R.string.settings_special_messages) {
             ListItem(
                 headlineContent = { Text(stringResource(R.string.settings_special_messages)) },

@@ -32,8 +32,7 @@ data class ChatStyle(
     /** Background of every other message, or null when alternating backgrounds are off. */
     val alternateBackground: Color?,
     val noticeBackground: Color,
-    /** Background of a chatter's first message, or null when not highlighted. */
-    val firstMessageBackground: Color?,
+    val firstMessageBackground: Color,
     val accent: Color,
     /** How name colors are adjusted for readability. */
     val nameColors: NameColorPalette,
@@ -113,7 +112,7 @@ fun rememberChatStyle(
     return remember(
         settings.fontSize, settings.lineSpacing, settings.emoteSize, settings.timestamps, settings.nameStyle, settings.highlightColor,
         settings.alternateBackground, settings.messageDividers,
-        settings.nameColors, settings.highlightFirstMessages, settings.haptics, postCardStyle(settings),
+        settings.nameColors, settings.haptics, postCardStyle(settings),
         settings.inlineImages, settings.imageHosts, settings.showGifs, settings.fullLinks, settings.sevenTvPaints, settings.specialMessages, powerSave, saveData, emoteFrameRate, nicknames, hiddenEmotes, hiddenBadges, rewardNames, dark, colors,
     ) {
         ChatStyle(
@@ -129,7 +128,7 @@ fun rememberChatStyle(
                 colors.onSurface.copy(alpha = if (colors.isPureBlack) 0.08f else 0.05f)
             } else null,
             noticeBackground = colors.primaryContainer.copy(alpha = 0.35f),
-            firstMessageBackground = if (settings.highlightFirstMessages) colors.tertiary.copy(alpha = 0.18f) else null,
+            firstMessageBackground = colors.tertiary.copy(alpha = 0.18f),
             accent = colors.primary,
             nameColors = settings.nameColors,
             nicknames = nicknames,
