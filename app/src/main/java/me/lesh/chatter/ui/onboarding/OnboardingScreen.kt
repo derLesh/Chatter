@@ -179,6 +179,12 @@ private fun LookStep(settings: Settings, vm: MainViewModel) {
         item { TextSizeItem(settings, vm) }
         item {
             SwitchItem(
+                R.string.settings_message_dividers, settings.messageDividers,
+                vm::setMessageDividers, R.string.settings_message_dividers_hint,
+            )
+        }
+        item {
+            SwitchItem(
                 R.string.settings_alternate_background, settings.alternateBackground,
                 vm::setAlternateBackground, R.string.settings_alternate_background_hint,
             )
