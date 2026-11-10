@@ -32,6 +32,7 @@ enum class TimestampFormat(val pattern: String?) {
     Off(null),
     Short("HH:mm"),
     Seconds("HH:mm:ss"),
+    Milliseconds("HH:mm:ss.SSS"),
     Twelve("h:mm a"),
 }
 
