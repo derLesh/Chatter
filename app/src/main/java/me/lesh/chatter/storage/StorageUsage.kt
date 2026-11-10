@@ -20,13 +20,14 @@ data class StorageReport(
 )
 
 /**
- * Measures what Chatter stores and clears what it can download again: the pictures and the
- * emote and badge lists.
+ * Measures what Chatter stores and clears what it can download again: the pictures, the emote and
+ * badge lists and the bots' commands.
  */
 class StorageUsage(
     private val context: Context,
     private val images: () -> DiskCache,
     private val emoteLists: Cache?,
+    private val forgetBotCommands: suspend () -> Unit,
 ) {
     suspend fun measure(): StorageReport = withContext(Dispatchers.IO) {
         // An app may ask about itself without a permission.
@@ -45,6 +46,7 @@ class StorageUsage(
     suspend fun clearCache() = withContext(Dispatchers.IO) {
         runCatching { images().clear() }.onFailure { Log.w(TAG, "Could not clear the image cache", it) }
         runCatching { emoteLists?.evictAll() }.onFailure { Log.w(TAG, "Could not clear the list cache", it) }
+        forgetBotCommands()
     }
 
     private companion object {

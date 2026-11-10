@@ -94,8 +94,10 @@ import androidx.navigationevent.compose.NavigationBackHandler
 import androidx.navigationevent.compose.rememberNavigationEventState
 import me.lesh.chatter.BuildConfig
 import me.lesh.chatter.ui.chat.BuildStripe
+import me.lesh.chatter.ui.chat.botName
 import me.lesh.chatter.R
 import me.lesh.chatter.auth.AuthState
+import me.lesh.chatter.chat.Bot
 import me.lesh.chatter.settings.Settings
 import me.lesh.chatter.stats.Stats
 import me.lesh.chatter.ui.changelog.ChangelogPage
@@ -119,6 +121,7 @@ import me.lesh.chatter.ui.settings.DeveloperPage
 import me.lesh.chatter.ui.settings.EmotesPage
 import me.lesh.chatter.ui.settings.HiddenEmotesPage
 import me.lesh.chatter.ui.settings.BadgeKindsPage
+import me.lesh.chatter.ui.settings.BotCommandsPage
 import me.lesh.chatter.ui.settings.FiltersPage
 import me.lesh.chatter.ui.settings.ImageHostsPage
 import me.lesh.chatter.ui.settings.KeywordsPage
@@ -213,6 +216,7 @@ internal enum class SettingsSubPage(val title: Int) {
     BadgeKinds(R.string.settings_badge_kinds),
     Posts(R.string.settings_posts),
     SpecialMessages(R.string.settings_special_messages),
+    BotCommands(R.string.settings_bot_commands),
     AppIcons(R.string.settings_app_icon),
     LiveChannels(R.string.settings_live_channels),
     Rules(R.string.settings_rules),
@@ -301,6 +305,7 @@ private val SEARCH_INDEX: List<SearchEntry> by lazy {
         add(SearchEntry(R.string.settings_read_only, typing, R.string.settings_read_only_hint))
         add(SearchEntry(R.string.settings_emote_suggestions, typing, R.string.settings_emote_suggestions_hint, shownWhen = unlessReadOnly))
         add(SearchEntry(R.string.settings_user_suggestions, typing, R.string.settings_user_suggestions_hint, shownWhen = unlessReadOnly))
+        add(SearchEntry(R.string.settings_bot_commands, typing, R.string.settings_bot_commands_hint, also = Bot.entries.map(::botName), shownWhen = unlessReadOnly))
         add(SearchEntry(R.string.settings_mention_with_at, typing, R.string.settings_mention_with_at_hint, shownWhen = unlessReadOnly))
         add(SearchEntry(R.string.settings_suggestions_over_chat, typing, R.string.settings_suggestions_over_chat_hint, shownWhen = unlessReadOnly))
         add(SearchEntry(R.string.settings_recently_sent, typing, R.string.settings_recently_sent_hint, shownWhen = unlessReadOnly))
@@ -558,6 +563,7 @@ fun SettingsScreen(vm: MainViewModel, onBack: () -> Unit) {
                 SettingsSubPage.BadgeKinds -> BadgeKindsPage(vm)
                 SettingsSubPage.Posts -> PostsPage(settings, vm)
                 SettingsSubPage.SpecialMessages -> SpecialMessagesPage(settings, vm)
+                SettingsSubPage.BotCommands -> BotCommandsPage(settings, vm)
                 SettingsSubPage.AppIcons -> AppIconsPage(settings, vm)
                 SettingsSubPage.LiveChannels -> LiveChannelsPage(vm)
                 SettingsSubPage.Rules -> RulesPage(vm) { rule = it?.id ?: NEW_RULE }
@@ -579,7 +585,7 @@ fun SettingsScreen(vm: MainViewModel, onBack: () -> Unit) {
                     SettingsPage.Appearance -> AppearancePage(settings, vm) { subPage = it }
                     SettingsPage.Messages -> MessagesPage(settings, vm) { subPage = it }
                     SettingsPage.Media -> MediaPage(settings, vm) { subPage = it }
-                    SettingsPage.Typing -> TypingPage(settings, vm)
+                    SettingsPage.Typing -> TypingPage(settings, vm) { subPage = it }
                     SettingsPage.Emotes -> EmotesPage(settings, vm) { subPage = it }
                     SettingsPage.Filters -> FiltersPage(settings, vm) { subPage = it }
                     SettingsPage.Notifications -> NotificationsPage(settings, vm) { subPage = it }

@@ -87,6 +87,7 @@ from the newest tested changes. It may have bugs. You can install it next to Cha
 - Keep a channel open over other apps with chat bubbles
 - Schedule messages for later
 - Send one of your last three messages again
+- Get the channel's bot commands suggested while you type one, like `!discord` or `$ping`
 - Read whispers in a separate chat for each person
 - Open user cards to see badges and recent messages, or add a private note
 - Give chatters nicknames, mute words or users, and block or report people

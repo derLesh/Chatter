@@ -414,6 +414,12 @@
     <string name="settings_suggestions_over_chat_hint">Legt die Vorschläge über den Chat, statt ihn hochzuschieben</string>
     <string name="settings_user_suggestions">Namensvorschläge</string>
     <string name="settings_user_suggestions_hint">Schlägt Namen aus dem Chat vor</string>
+    <string name="settings_bot_commands">Bot-Befehle</string>
+    <string name="settings_bot_commands_hint">Schlägt Befehle vor, während du einen tippst, z. B. !discord. Jeder Bot wird höchstens einmal am Tag gefragt.</string>
+    <string name="settings_bot_group_everywhere">Überall dieselben Befehle</string>
+    <string name="settings_bot_group_channel">Befehle des Kanals</string>
+    <string name="settings_bot_example">z. B. %1$s</string>
+    <string name="settings_bot_commands_on">%1$d von %2$d an</string>
     <string name="settings_mention_with_at">Namen mit @ einfügen</string>
     <string name="settings_mention_with_at_hint">Setzt ein @ vor den Namen</string>
     <string name="settings_group_input">Eingabefeld</string>

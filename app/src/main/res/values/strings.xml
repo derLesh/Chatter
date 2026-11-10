@@ -420,6 +420,19 @@
     <string name="settings_suggestions_over_chat_hint">Lays the suggestions over the chat instead of pushing it up</string>
     <string name="settings_user_suggestions">Name suggestions</string>
     <string name="settings_user_suggestions_hint">Suggests names from the chat</string>
+    <string name="settings_bot_commands">Bot commands</string>
+    <string name="settings_bot_commands_hint">Suggests commands as you type one, e.g. !discord. Each bot is asked once a day at most.</string>
+    <string name="settings_bot_group_everywhere">Same commands everywhere</string>
+    <string name="settings_bot_group_channel">Commands of the channel</string>
+    <string name="settings_bot_example">e.g. %1$s</string>
+    <string name="settings_bot_commands_on">%1$d of %2$d on</string>
+    <string name="bot_supibot" translatable="false">Supibot</string>
+    <string name="bot_potatbot" translatable="false">PotatBotat</string>
+    <string name="bot_fossabot" translatable="false">Fossabot</string>
+    <string name="bot_moobot" translatable="false">Moobot</string>
+    <string name="bot_nightbot" translatable="false">Nightbot</string>
+    <string name="bot_streamelements" translatable="false">StreamElements</string>
+    <string name="bot_streamlabs" translatable="false">Streamlabs</string>
     <string name="settings_mention_with_at">Insert names with @</string>
     <string name="settings_mention_with_at_hint">Puts an @ before the name</string>
     <string name="settings_group_input">Input</string>

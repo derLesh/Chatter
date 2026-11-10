@@ -9,6 +9,7 @@ import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.datastore.preferences.core.longPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import me.lesh.chatter.badges.BadgeProvider
+import me.lesh.chatter.chat.Bot
 import me.lesh.chatter.chat.ImageLinks
 import me.lesh.chatter.chat.PostSite
 import me.lesh.chatter.emotes.EmoteProvider
@@ -119,6 +120,8 @@ data class Settings(
     val emoteSuggestions: Boolean = true,
     /** Suggest recent chatters after an "@". */
     val userSuggestions: Boolean = true,
+    /** The bots whose commands are suggested while one is typed, like "!discord". */
+    val botCommands: Set<Bot> = Bot.entries.toSet(),
     /** Put an "@" in front of a suggested name. */
     val mentionWithAt: Boolean = true,
     /** Suggestions lie over the chat instead of pushing it up while typing. */
@@ -261,6 +264,7 @@ class SettingsRepository(
             readOnly = p[READ_ONLY] ?: false,
             emoteSuggestions = p[EMOTE_SUGGESTIONS] ?: true,
             userSuggestions = p[USER_SUGGESTIONS] ?: true,
+            botCommands = Bot.entries.toSet() - botCommandsOff(p[BOT_COMMANDS_OFF]),
             mentionWithAt = p[MENTION_WITH_AT] ?: true,
             suggestionsOverChat = p[SUGGESTIONS_OVER_CHAT] ?: true,
             recentlySentButton = p[RECENTLY_SENT_BUTTON]?.let { v -> RecentlySentButton.entries.firstOrNull { it.name == v } }
@@ -350,6 +354,10 @@ class SettingsRepository(
     suspend fun setChannelTabs(v: Boolean) = store.edit { it[CHANNEL_TABS] = v }
     suspend fun setEmoteSuggestions(v: Boolean) = store.edit { it[EMOTE_SUGGESTIONS] = v }
     suspend fun setUserSuggestions(v: Boolean) = store.edit { it[USER_SUGGESTIONS] = v }
+    suspend fun setBotCommands(bot: Bot, on: Boolean) = store.edit { p ->
+        val off = botCommandsOff(p[BOT_COMMANDS_OFF])
+        p[BOT_COMMANDS_OFF] = (if (on) off - bot else off + bot).joinToString(",") { it.name }
+    }
     suspend fun setMentionWithAt(v: Boolean) = store.edit { it[MENTION_WITH_AT] = v }
     suspend fun setSuggestionsOverChat(v: Boolean) = store.edit { it[SUGGESTIONS_OVER_CHAT] = v }
     suspend fun setRecentlySentButton(v: RecentlySentButton) = store.edit { it[RECENTLY_SENT_BUTTON] = v.name }
@@ -481,6 +489,7 @@ class SettingsRepository(
         p[CHANNEL_TABS] = s.channelTabs
         p[EMOTE_SUGGESTIONS] = s.emoteSuggestions
         p[USER_SUGGESTIONS] = s.userSuggestions
+        p[BOT_COMMANDS_OFF] = (Bot.entries - s.botCommands).joinToString(",") { it.name }
         p[MENTION_WITH_AT] = s.mentionWithAt
         p[SUGGESTIONS_OVER_CHAT] = s.suggestionsOverChat
         p[RECENTLY_SENT_BUTTON] = s.recentlySentButton.name
@@ -553,6 +562,10 @@ class SettingsRepository(
         fun specialMessagesOff(raw: String?): Set<SpecialMessage> =
             raw.orEmpty().split(',').mapNotNull { v -> SpecialMessage.entries.firstOrNull { it.name == v } }.toSet()
 
+        /** The bots turned off, so that one Chatter learns later starts turned on. */
+        fun botCommandsOff(raw: String?): Set<Bot> =
+            raw.orEmpty().split(',').mapNotNull { v -> Bot.entries.firstOrNull { it.name == v } }.toSet()
+
         fun postSites(raw: String?): Set<PostSite> =
             raw.orEmpty().split(',').mapNotNull { v -> PostSite.entries.firstOrNull { it.name == v } }.toSet()
 
@@ -593,6 +606,7 @@ class SettingsRepository(
         val CHANNEL_TABS = booleanPreferencesKey("channel_tabs")
         val EMOTE_SUGGESTIONS = booleanPreferencesKey("emote_suggestions")
         val USER_SUGGESTIONS = booleanPreferencesKey("user_suggestions")
+        val BOT_COMMANDS_OFF = stringPreferencesKey("bot_commands_off")
         val MENTION_WITH_AT = booleanPreferencesKey("mention_with_at")
         val SUGGESTIONS_OVER_CHAT = booleanPreferencesKey("suggestions_over_chat")
         val RECENTLY_SENT_BUTTON = stringPreferencesKey("recently_sent_button")
