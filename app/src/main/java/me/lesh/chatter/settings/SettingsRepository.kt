@@ -155,6 +155,8 @@ data class Settings(
     /** See [PostTextLines]. */
     val postTextLines: Int = PostTextLines.DEFAULT,
     val postPictureSize: PostPictureSize = PostPictureSize.Medium,
+    /** Post cards with the picture on the left and the text beside it. YouTube cards always are. */
+    val postCompact: Boolean = false,
     /** Write links in full instead of shortening them. */
     val fullLinks: Boolean = false,
     /** Pictures, GIFs and post cards in the messages of the user card; off leaves them links. */
@@ -288,6 +290,7 @@ class SettingsRepository(
             postTextLines = p[POST_TEXT_LINES]?.coerceIn(PostTextLines.RANGE) ?: PostTextLines.DEFAULT,
             postPictureSize = p[POST_PICTURE_SIZE]?.let { v -> PostPictureSize.entries.firstOrNull { it.name == v } }
                 ?: PostPictureSize.Medium,
+            postCompact = p[POST_COMPACT] ?: false,
             fullLinks = p[FULL_LINKS] ?: false,
             userCardAttachments = p[USER_CARD_ATTACHMENTS] ?: true,
             mobileData = p[MOBILE_DATA]?.let { v -> MobileData.entries.firstOrNull { it.name == v } } ?: MobileData.Normal,
@@ -396,6 +399,7 @@ class SettingsRepository(
     suspend fun setPostDate(v: Boolean) = store.edit { it[POST_DATE] = v }
     suspend fun setPostMedia(v: Boolean) = store.edit { it[POST_MEDIA] = v }
     suspend fun setPostCounts(v: Boolean) = store.edit { it[POST_COUNTS] = v }
+    suspend fun setPostCompact(v: Boolean) = store.edit { it[POST_COMPACT] = v }
     suspend fun setPostTextLines(v: Int) = store.edit { it[POST_TEXT_LINES] = v.coerceIn(PostTextLines.RANGE) }
     suspend fun setPostPictureSize(v: PostPictureSize) = store.edit { it[POST_PICTURE_SIZE] = v.name }
     suspend fun setFullLinks(v: Boolean) = store.edit { it[FULL_LINKS] = v }
@@ -515,6 +519,7 @@ class SettingsRepository(
         p[POST_COUNTS] = s.postCounts
         p[POST_TEXT_LINES] = s.postTextLines
         p[POST_PICTURE_SIZE] = s.postPictureSize.name
+        p[POST_COMPACT] = s.postCompact
         p[FULL_LINKS] = s.fullLinks
         p[USER_CARD_ATTACHMENTS] = s.userCardAttachments
         p[MOBILE_DATA] = s.mobileData.name
@@ -636,6 +641,7 @@ class SettingsRepository(
         val POST_COUNTS = booleanPreferencesKey("post_counts")
         val POST_TEXT_LINES = intPreferencesKey("post_text_lines")
         val POST_PICTURE_SIZE = stringPreferencesKey("post_picture_size")
+        val POST_COMPACT = booleanPreferencesKey("post_compact")
         val FULL_LINKS = booleanPreferencesKey("full_links")
         val USER_CARD_ATTACHMENTS = booleanPreferencesKey("user_card_attachments")
         val MOBILE_DATA = stringPreferencesKey("mobile_data")

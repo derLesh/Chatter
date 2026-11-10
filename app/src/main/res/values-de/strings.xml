@@ -387,6 +387,8 @@
     <string name="settings_off">Aus</string>
     <string name="settings_post_preview">Vorschau</string>
     <string name="settings_group_post_parts">Was die Karte zeigt</string>
+    <string name="settings_post_compact">Kompakte Karten</string>
+    <string name="settings_post_compact_hint">Bild links, Text daneben. YouTube-Karten sehen immer so aus.</string>
     <string name="settings_post_avatar">Profilbild</string>
     <string name="settings_post_date">Datum</string>
     <string name="settings_post_media">Bild oder Video</string>

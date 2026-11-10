@@ -1,0 +1,1 @@
+minor: Let posts from X and Bluesky be shown as a small card too, picture on the left

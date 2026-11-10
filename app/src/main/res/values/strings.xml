@@ -394,6 +394,8 @@
     <string name="settings_off">Off</string>
     <string name="settings_post_preview">Preview</string>
     <string name="settings_group_post_parts">What the card shows</string>
+    <string name="settings_post_compact">Compact cards</string>
+    <string name="settings_post_compact_hint">Picture on the left, text beside it. YouTube cards always look like this.</string>
     <string name="settings_post_avatar">Profile picture</string>
     <string name="settings_post_date">Date</string>
     <string name="settings_post_media">Picture or video</string>

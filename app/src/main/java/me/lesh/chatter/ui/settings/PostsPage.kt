@@ -72,6 +72,9 @@ internal fun PostsPage(settings: Settings, vm: MainViewModel) {
     }
     PostPreview(settings, vm)
     SettingsGroup(R.string.settings_group_post_parts) {
+        item(R.string.settings_post_compact) {
+            SwitchItem(R.string.settings_post_compact, settings.postCompact, vm::setPostCompact, R.string.settings_post_compact_hint)
+        }
         item(R.string.settings_post_avatar) { SwitchItem(R.string.settings_post_avatar, settings.postAvatar, vm::setPostAvatar) }
         item(R.string.settings_post_date) { SwitchItem(R.string.settings_post_date, settings.postDate, vm::setPostDate) }
         item { TextLinesItem(settings.postTextLines, vm) }

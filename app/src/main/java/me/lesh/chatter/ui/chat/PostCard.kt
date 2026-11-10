@@ -17,6 +17,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.FavoriteBorder
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -34,12 +35,15 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.blur
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.rememberVectorPainter
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.layout.layout
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.clearAndSetSemantics
+import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
@@ -78,6 +82,8 @@ data class PostCardStyle(
     val pictureHeight: Dp = pictureHeight(PostPictureSize.Medium),
     val thumbnailWidth: Dp = thumbnailWidth(PostPictureSize.Medium),
     val blurNsfw: Boolean = true,
+    /** Picture on the left and text beside it, as YouTube cards always are. */
+    val compact: Boolean = false,
 )
 
 fun postCardStyle(settings: Settings) = PostCardStyle(
@@ -90,6 +96,7 @@ fun postCardStyle(settings: Settings) = PostCardStyle(
     pictureHeight = pictureHeight(settings.postPictureSize),
     thumbnailWidth = thumbnailWidth(settings.postPictureSize),
     blurNsfw = settings.blurNsfwPosts,
+    compact = settings.postCompact,
 )
 
 fun pictureHeight(size: PostPictureSize): Dp = when (size) {
@@ -98,7 +105,7 @@ fun pictureHeight(size: PostPictureSize): Dp = when (size) {
     PostPictureSize.Large -> 260.dp
 }
 
-/** How wide a video's still is, next to its title. */
+/** How wide the picture of a compact card is, next to its text. */
 fun thumbnailWidth(size: PostPictureSize): Dp = when (size) {
     PostPictureSize.Small -> 96.dp
     PostPictureSize.Medium -> 128.dp
@@ -133,12 +140,12 @@ private val YOUTUBE_RED = Color(0xFFFF0033)
 typealias PostPicture = @Composable (url: String, description: String?, modifier: Modifier) -> Unit
 
 private val AVATAR_SIZE = 20.dp
-private val CHANNEL_AVATAR_SIZE = 16.dp
-/** As many as YouTube shows in its own lists; the card stays about as tall as its still. */
-private const val VIDEO_TITLE_LINES = 2
-private const val VIDEO_ASPECT = 16f / 9f
+private val COMPACT_AVATAR_SIZE = 16.dp
+/** As many as YouTube shows in its own lists; the card stays about as tall as its picture. */
+private const val COMPACT_TEXT_LINES = 2
+private const val COMPACT_PICTURE_ASPECT = 16f / 9f
 /** Line height as a multiple of the text size, as tight as the chat's compact spacing. */
-private const val VIDEO_LINE_HEIGHT = 1.2f
+private const val COMPACT_LINE_HEIGHT = 1.2f
 private const val PICTURE_MIN_ASPECT = 0.5f
 private const val PICTURE_MAX_ASPECT = 4f
 private const val PICTURE_DEFAULT_ASPECT = 16f / 9f
@@ -175,8 +182,8 @@ internal fun PostCard(link: PostLink, card: PostCardStyle, style: ChatStyle, loa
 /** The card for [post] from [site], with the parts [card] asks for. */
 @Composable
 internal fun PostCardContent(post: Post, site: PostSite, card: PostCardStyle, style: ChatStyle, open: () -> Unit, picture: PostPicture) {
-    if (site == PostSite.YouTube) {
-        VideoCardContent(post, site, card, style, open, picture)
+    if (site == PostSite.YouTube || card.compact) {
+        CompactCardContent(post, site, card, style, open, picture)
         return
     }
     val secondarySize = (style.fontSize - 2).sp
@@ -232,15 +239,16 @@ internal fun PostCardContent(post: Post, site: PostSite, card: PostCardStyle, st
 }
 
 /**
- * A video: its still on the left and what it is beside it, so the card is about as tall as the
- * still. The title comes first, since it says more than the channel.
+ * The picture on the left and the rest beside it, so the card is about as tall as the picture. The
+ * text comes first, since a video's title or a post's words say more than who made them.
  */
 @Composable
-private fun VideoCardContent(post: Post, site: PostSite, card: PostCardStyle, style: ChatStyle, open: () -> Unit, picture: PostPicture) {
+private fun CompactCardContent(post: Post, site: PostSite, card: PostCardStyle, style: ChatStyle, open: () -> Unit, picture: PostPicture) {
     val secondarySize = (style.fontSize - 2).sp
-    // The chat's line height would make two title lines taller than the still beside them.
-    val titleLineHeight = (style.fontSize * VIDEO_LINE_HEIGHT).sp
-    val secondaryLineHeight = ((style.fontSize - 2) * VIDEO_LINE_HEIGHT).sp
+    // The chat's line height would make two lines of text taller than the picture beside them.
+    val textLineHeight = (style.fontSize * COMPACT_LINE_HEIGHT).sp
+    val secondaryLineHeight = ((style.fontSize - 2) * COMPACT_LINE_HEIGHT).sp
+    val video = site == PostSite.YouTube
     Row(
         horizontalArrangement = Arrangement.spacedBy(10.dp),
         modifier = Modifier.cardFrame(MaterialTheme.colorScheme.outlineVariant, open).padding(8.dp),
@@ -249,42 +257,58 @@ private fun VideoCardContent(post: Post, site: PostSite, card: PostCardStyle, st
         media?.let {
             PostMediaBox(
                 it, post.nsfw && card.blurNsfw, open, picture,
-                Modifier.width(card.thumbnailWidth).aspectRatio(VIDEO_ASPECT), compact = true,
+                Modifier.width(card.thumbnailWidth).aspectRatio(COMPACT_PICTURE_ASPECT), compact = true,
             )
         }
-        val title = post.text.isNotEmpty() && card.textLines > 0
-        // At least as tall as the still, so the title starts at its top and the channel ends at its bottom.
+        val text = post.text.isNotEmpty() && card.textLines > 0
+        // At least as tall as the picture, so the text starts at its top and the author ends at its bottom.
         Column(
-            verticalArrangement = if (title) Arrangement.SpaceBetween else Arrangement.Bottom,
+            verticalArrangement = if (text) Arrangement.SpaceBetween else Arrangement.Bottom,
             modifier = Modifier
                 .weight(1f)
-                .heightIn(min = if (media != null) card.thumbnailWidth / VIDEO_ASPECT else 0.dp),
+                .heightIn(min = if (media != null) card.thumbnailWidth / COMPACT_PICTURE_ASPECT else 0.dp),
         ) {
-            if (title) {
+            if (text) {
                 Text(
                     text = post.text,
                     fontSize = style.fontSize.sp,
-                    fontWeight = FontWeight.Medium,
-                    lineHeight = titleLineHeight,
-                    maxLines = minOf(card.textLines, VIDEO_TITLE_LINES),
+                    fontWeight = if (video) FontWeight.Medium else null,
+                    lineHeight = textLineHeight,
+                    maxLines = minOf(card.textLines, COMPACT_TEXT_LINES),
                     overflow = TextOverflow.Ellipsis,
                     modifier = Modifier.padding(bottom = 2.dp),
                 )
             }
             Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                ChannelLine(post, card, style, picture, secondarySize, secondaryLineHeight)
-                DetailsLine(post, site, card, style, secondarySize, secondaryLineHeight)
+                // A video's date goes with its views, as YouTube writes it; a post's goes with its author.
+                AuthorLine(post, card, style, picture, secondarySize, secondaryLineHeight, withDate = !video)
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Box(Modifier.weight(1f)) {
+                        if (video) ViewsLine(post, card, style, secondarySize, secondaryLineHeight)
+                        else if (card.counts) CountIcons(post, style, secondarySize, secondaryLineHeight)
+                    }
+                    SiteLogo(site, style)
+                }
             }
         }
     }
 }
 
 @Composable
-private fun ChannelLine(post: Post, card: PostCardStyle, style: ChatStyle, picture: PostPicture, fontSize: TextUnit, lineHeight: TextUnit) {
+private fun AuthorLine(
+    post: Post,
+    card: PostCardStyle,
+    style: ChatStyle,
+    picture: PostPicture,
+    fontSize: TextUnit,
+    lineHeight: TextUnit,
+    withDate: Boolean,
+) {
     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-        post.avatarUrl?.takeIf { card.avatar }?.let { picture(it, null, Modifier.size(CHANNEL_AVATAR_SIZE).clip(CircleShape)) }
+        post.avatarUrl?.takeIf { card.avatar }?.let { picture(it, null, Modifier.size(COMPACT_AVATAR_SIZE).clip(CircleShape)) }
+        val posted = rememberPostedDate(post)?.takeIf { card.date && withDate }
         Text(
-            text = post.name,
+            text = if (posted != null) "${post.name} · $posted" else post.name,
             color = style.secondaryText,
             fontSize = fontSize,
             lineHeight = lineHeight,
@@ -294,22 +318,45 @@ private fun ChannelLine(post: Post, card: PostCardStyle, style: ChatStyle, pictu
     }
 }
 
-/** Views and date, with the site's logo at the end. */
 @Composable
-private fun DetailsLine(post: Post, site: PostSite, card: PostCardStyle, style: ChatStyle, fontSize: TextUnit, lineHeight: TextUnit) {
-    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-        val counts = if (card.counts) counts(post) else ""
-        val posted = rememberPostedDate(post)?.takeIf { card.date }
-        Text(
-            text = listOfNotNull(counts.ifEmpty { null }, posted).joinToString(" · "),
-            color = style.secondaryText,
-            fontSize = fontSize,
-            lineHeight = lineHeight,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis,
-            modifier = Modifier.weight(1f),
-        )
-        SiteLogo(site, style)
+private fun ViewsLine(post: Post, card: PostCardStyle, style: ChatStyle, fontSize: TextUnit, lineHeight: TextUnit) {
+    val counts = if (card.counts) counts(post) else ""
+    val posted = rememberPostedDate(post)?.takeIf { card.date }
+    Text(
+        text = listOfNotNull(counts.ifEmpty { null }, posted).joinToString(" · "),
+        color = style.secondaryText,
+        fontSize = fontSize,
+        lineHeight = lineHeight,
+        maxLines = 1,
+        overflow = TextOverflow.Ellipsis,
+    )
+}
+
+/**
+ * Replies, reposts and likes as an icon and a number each; written out they do not fit beside a
+ * picture. What nobody did is left out.
+ */
+@Composable
+private fun CountIcons(post: Post, style: ChatStyle, fontSize: TextUnit, lineHeight: TextUnit) {
+    val compact = remember { CompactDecimalFormat.getInstance(Locale.getDefault(), CompactDecimalFormat.CompactStyle.SHORT) }
+    val iconSize = (style.fontSize - 2).dp
+    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+        listOf(
+            Triple(painterResource(R.drawable.ic_reply), R.plurals.post_replies, post.replies),
+            Triple(painterResource(R.drawable.ic_repost), R.plurals.post_reposts, post.reposts),
+            Triple(rememberVectorPainter(Icons.Default.FavoriteBorder), R.plurals.post_likes, post.likes),
+        ).filter { it.third > 0 }.forEach { (icon, label, value) ->
+            val number = compact.format(value)
+            val description = pluralStringResource(label, value.coerceAtMost(Int.MAX_VALUE.toLong()).toInt(), number)
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(3.dp),
+                modifier = Modifier.clearAndSetSemantics { contentDescription = description },
+            ) {
+                Icon(icon, contentDescription = null, tint = style.secondaryText, modifier = Modifier.size(iconSize))
+                Text(number, color = style.secondaryText, fontSize = fontSize, lineHeight = lineHeight, maxLines = 1)
+            }
+        }
     }
 }
 
@@ -367,7 +414,13 @@ private fun PostMediaBox(
         when {
             hidden -> Overlay(if (compact) NSFW_SHORT else stringResource(R.string.post_nsfw))
             // The length in the corner already says it is a video.
-            media.video && compact -> Unit
+            media.video && compact && media.lengthSeconds > 0 -> Unit
+            media.video && compact -> Icon(
+                Icons.Default.PlayArrow,
+                contentDescription = stringResource(R.string.post_video),
+                tint = Color.White,
+                modifier = Modifier.background(Color.Black.copy(alpha = 0.5f), CircleShape).padding(3.dp).size(16.dp),
+            )
             media.video -> Icon(
                 Icons.Default.PlayArrow,
                 contentDescription = stringResource(R.string.post_video),
