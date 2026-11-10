@@ -14,6 +14,9 @@ enum class PostSite {
     Bluesky {
         override fun key(url: HttpUrl) = BlueskyPosts.key(url)
     },
+    YouTube {
+        override fun key(url: HttpUrl) = YouTubeVideos.key(url)
+    },
     ;
 
     /** What [PostSource.fetch] needs to find the post [url] links to, or null if it is none. */
@@ -26,12 +29,14 @@ data class PostLink(val site: PostSite, val key: String, val url: String)
 /** A post as its card shows it, whichever site it is from. */
 data class Post(
     val name: String,
+    /** Empty where the site has none to show, like a YouTube channel. */
     val handle: String,
     val avatarUrl: String?,
     val text: String,
     val replies: Long,
     val reposts: Long,
     val likes: Long,
+    val views: Long = 0,
     /** Milliseconds since the epoch. */
     val postedAt: Long,
     /** Marked NSFW by the site or its author; its picture is blurred if the user wants that. */
@@ -39,8 +44,11 @@ data class Post(
     val media: PostMedia?,
 )
 
-/** The first picture of a post, or a still of its video. [more]: how many other attachments it has. */
-data class PostMedia(val pictureUrl: String, val video: Boolean, val aspectRatio: Float?, val more: Int)
+/**
+ * The first picture of a post, or a still of its video. [more]: how many other attachments it has.
+ * [lengthSeconds]: how long the video runs, 0 where it is not known.
+ */
+data class PostMedia(val pictureUrl: String, val video: Boolean, val aspectRatio: Float?, val more: Int, val lengthSeconds: Int = 0)
 
 /** Reads the posts of one [site]. */
 interface PostSource {

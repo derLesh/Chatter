@@ -52,6 +52,14 @@ internal val POST_PICTURE_SIZES = listOf(
 private fun siteHint(site: PostSite): Int = when (site) {
     PostSite.X -> R.string.settings_post_site_x_hint
     PostSite.Bluesky -> R.string.settings_post_site_bluesky_hint
+    PostSite.YouTube -> R.string.settings_post_site_youtube_hint
+}
+
+/** YouTube has videos, not posts. */
+@Composable
+private fun siteTitle(site: PostSite): String = when (site) {
+    PostSite.YouTube -> stringResource(R.string.settings_post_site_youtube)
+    else -> stringResource(R.string.settings_post_site, stringResource(siteName(site)))
 }
 
 /** Social media posts: which sites' links become cards, and what a card shows, with a preview of one. */
@@ -84,7 +92,7 @@ internal fun PostsPage(settings: Settings, vm: MainViewModel) {
 @Composable
 internal fun SiteItem(site: PostSite, on: Boolean, onChange: (Boolean) -> Unit) {
     ListItem(
-        headlineContent = { Text(stringResource(R.string.settings_post_site, stringResource(siteName(site)))) },
+        headlineContent = { Text(siteTitle(site)) },
         supportingContent = { Text(stringResource(siteHint(site))) },
         trailingContent = { SettingsSwitch(checked = on, onCheckedChange = onChange) },
         colors = transparentItem(),
@@ -154,11 +162,19 @@ internal fun PostPreview(settings: Settings, vm: MainViewModel, text: Int = R.st
     }
     val postText = stringResource(text)
     val post = remember(postText, site) {
-        Post(
-            name = "Chatter", handle = PREVIEW_HANDLES.getValue(site), avatarUrl = PREVIEW_AVATAR, text = postText,
-            replies = 42, reposts = 128, likes = 1337, postedAt = System.currentTimeMillis(), nsfw = false,
-            media = PostMedia(PREVIEW_PICTURE, video = false, aspectRatio = PREVIEW_PICTURE_ASPECT, more = 0),
-        )
+        if (site == PostSite.YouTube) {
+            Post(
+                name = "Chatter", handle = "", avatarUrl = PREVIEW_AVATAR, text = postText,
+                replies = 0, reposts = 0, likes = 0, views = 13370, postedAt = System.currentTimeMillis(), nsfw = false,
+                media = PostMedia(PREVIEW_PICTURE, video = true, aspectRatio = 16f / 9f, more = 0, lengthSeconds = 213),
+            )
+        } else {
+            Post(
+                name = "Chatter", handle = PREVIEW_HANDLES.getValue(site), avatarUrl = PREVIEW_AVATAR, text = postText,
+                replies = 42, reposts = 128, likes = 1337, postedAt = System.currentTimeMillis(), nsfw = false,
+                media = PostMedia(PREVIEW_PICTURE, video = false, aspectRatio = PREVIEW_PICTURE_ASPECT, more = 0),
+            )
+        }
     }
     val pictureBrush = Brush.linearGradient(listOf(scheme.primary, scheme.tertiary))
     Column {

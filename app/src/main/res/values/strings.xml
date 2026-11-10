@@ -386,15 +386,18 @@
     <string name="settings_post_site_x_hint">Shows links to X posts as a card</string>
     <string name="settings_posts">Social media posts</string>
     <string name="settings_post_site_bluesky_hint">Shows links to Bluesky posts as a card</string>
+    <string name="settings_post_site_youtube">Show videos from YouTube</string>
+    <string name="settings_post_site_youtube_hint">Shows links to YouTube videos as a card</string>
     <string name="post_site_x" translatable="false">X</string>
     <string name="post_site_bluesky" translatable="false">Bluesky</string>
+    <string name="post_site_youtube" translatable="false">YouTube</string>
     <string name="settings_off">Off</string>
     <string name="settings_post_preview">Preview</string>
     <string name="settings_group_post_parts">What the card shows</string>
     <string name="settings_post_avatar">Profile picture</string>
     <string name="settings_post_date">Date</string>
     <string name="settings_post_media">Picture or video</string>
-    <string name="settings_post_counts">Replies, reposts and likes</string>
+    <string name="settings_post_counts">Likes, views and other numbers</string>
     <string name="settings_post_text_none">Hidden</string>
     <string name="settings_post_text_all">All of it</string>
     <string name="settings_post_text">Text</string>
@@ -690,6 +693,10 @@
     <plurals name="post_likes">
         <item quantity="one">%1$s like</item>
         <item quantity="other">%1$s likes</item>
+    </plurals>
+    <plurals name="post_views">
+        <item quantity="one">%1$s view</item>
+        <item quantity="other">%1$s views</item>
     </plurals>
     <plurals name="settings_hidden_emotes_count">
         <item quantity="one">%1$d emote</item>
@@ -1002,8 +1009,8 @@
     <string name="onboarding_highlights_title">See what is meant for you</string>
     <string name="onboarding_highlights_text">Messages that mention you stand out in the chat. Pick their color, and words that should stand out too.</string>
     <string name="onboarding_links_title">More than a link</string>
-    <string name="onboarding_links_text">Chatter can show what a link leads to: the picture, or a post from X or Bluesky as a card. For that it loads it from the site.</string>
-    <string name="onboarding_post_preview">Chatter can show posts from X and Bluesky right in the chat. A tap on the card opens the post.</string>
+    <string name="onboarding_links_text">Chatter can show what a link leads to: the picture, a post from X or Bluesky, or a YouTube video as a card. For that it loads it from the site.</string>
+    <string name="onboarding_post_preview">Chatter can show posts from X and Bluesky and YouTube videos right in the chat. A tap on the card opens them.</string>
     <string name="settings_developer">Developer</string>
     <string name="settings_developer_summary">Only in debug builds</string>
     <string name="settings_show_onboarding">Show the onboarding</string>
