@@ -282,8 +282,11 @@ private val SEARCH_INDEX: List<SearchEntry> by lazy {
         add(SearchEntry(R.string.settings_load_history, messages, R.string.settings_load_history_hint))
         add(SearchEntry(R.string.settings_message_tap, messages))
         add(SearchEntry(R.string.settings_name_tap, messages))
-        add(SearchEntry(R.string.settings_copy_first, messages, R.string.settings_copy_first_hint))
-        add(SearchEntry(R.string.settings_user_card_buttons_first, messages, R.string.settings_user_card_buttons_first_hint))
+        // Their titles leave out the user card, which only the group's title names.
+        val userCard = listOf(R.string.settings_group_user_card)
+        add(SearchEntry(R.string.settings_user_card_buttons_first, messages, R.string.settings_user_card_buttons_first_hint, userCard))
+        add(SearchEntry(R.string.settings_copy_first, messages, also = userCard))
+        add(SearchEntry(R.string.settings_user_card_attachments, messages, R.string.settings_user_card_attachments_hint, userCard))
         add(SearchEntry(R.string.settings_keep_screen_on, messages, R.string.settings_keep_screen_on_hint))
         add(SearchEntry(R.string.settings_keep_screen_on_when_quiet, messages, R.string.settings_keep_screen_on_when_quiet_hint, shownWhen = ShownWhen(R.string.settings_keep_screen_on) { s, _ -> s.keepScreenOn }))
         val media = SettingsPage.Media
@@ -301,7 +304,6 @@ private val SEARCH_INDEX: List<SearchEntry> by lazy {
             ),
         )
         add(SearchEntry(R.string.settings_full_links, media, R.string.settings_full_links_hint))
-        add(SearchEntry(R.string.settings_user_card_attachments, media, R.string.settings_user_card_attachments_hint))
         val typing = SettingsPage.Typing
         add(SearchEntry(R.string.settings_read_only, typing, R.string.settings_read_only_hint))
         add(SearchEntry(R.string.settings_emote_suggestions, typing, R.string.settings_emote_suggestions_hint, shownWhen = unlessReadOnly))

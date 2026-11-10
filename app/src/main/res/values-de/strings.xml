@@ -293,7 +293,7 @@
     <string name="settings_notifications_summary">Erwähnungen, hervorgehobene Wörter, Live gehen</string>
     <string name="settings_account_summary">Konten wechseln, abmelden</string>
     <string name="settings_messages">Nachrichten</string>
-    <string name="settings_messages_summary">Scrollen, Verlauf, Antippen, Bildschirm anlassen</string>
+    <string name="settings_messages_summary">Scrollen, Verlauf, Antippen, Nutzerkarte, Bildschirm anlassen</string>
     <string name="settings_media">Links &amp; Bilder</string>
     <string name="settings_media_summary">Bildvorschau, GIFs, Posts</string>
     <string name="settings_typing">Schreiben</string>
@@ -339,8 +339,8 @@
     <string name="settings_provider_ffz">FrankerFaceZ</string>
     <string name="settings_show_deleted">Entfernte Nachrichten anzeigen</string>
     <string name="settings_show_deleted_hint">Lässt sie durchgestrichen stehen, statt sie auszublenden</string>
-    <string name="settings_user_card_attachments">Bilder in der Usercard</string>
-    <string name="settings_user_card_attachments_hint">Zeigt Bilder, GIFs und Beiträge in den Nachrichten der Usercard</string>
+    <string name="settings_user_card_attachments">Bilder</string>
+    <string name="settings_user_card_attachments_hint">Zeigt Bilder, GIFs und Beiträge in den letzten Nachrichten</string>
     <string name="settings_full_links">Links vollständig anzeigen</string>
     <string name="settings_full_links_hint">Sonst werden lange Links gekürzt</string>
     <string name="settings_mobile_data">Bei mobilen Daten</string>
@@ -450,9 +450,8 @@
     <string name="tap_action_mention">Erwähnen</string>
     <string name="tap_action_nothing">Nichts</string>
     <string name="settings_copy_first">Kopieren vor Antworten</string>
-    <string name="settings_copy_first_hint">In der Nutzerkarte</string>
     <string name="settings_user_card_buttons_first">Antworten, Erwähnen, Kopieren oben</string>
-    <string name="settings_user_card_buttons_first_hint">In der Nutzerkarte über der angetippten Nachricht</string>
+    <string name="settings_user_card_buttons_first_hint">Über der angetippten Nachricht</string>
     <string name="settings_group_mentions">Erwähnungen</string>
     <string name="settings_alternate_background">Abwechselnder Hintergrund</string>
     <string name="settings_alternate_background_hint">Hinterlegt jede zweite Nachricht etwas heller</string>
@@ -801,6 +800,7 @@
 
     <!-- Erwähnungen -->
     <string name="settings_group_controls">Bedienung</string>
+    <string name="settings_group_user_card">Nutzerkarte</string>
     <string name="settings_haptics">Vibration</string>
     <string name="settings_haptics_hint">Kurzes Vibrieren, wenn du erwähnt wirst</string>
 
