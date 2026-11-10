@@ -127,10 +127,7 @@ internal fun ThemeModeItem(selected: ThemeMode, onSelect: (ThemeMode) -> Unit, t
     )
 }
 
-/**
- * Chat text size with a live preview, for the onboarding. Two preview lines, so the alternating
- * background chosen next to it shows.
- */
+/** Chat text size with a live preview, for the onboarding. Two lines, so the alternating background shows. */
 @Composable
 internal fun TextSizeItem(settings: Settings, vm: MainViewModel) {
     var size by remember(settings.fontSize) { mutableFloatStateOf(settings.fontSize) }
