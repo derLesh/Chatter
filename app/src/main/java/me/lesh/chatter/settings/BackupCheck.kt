@@ -83,7 +83,7 @@ object BackupCheck {
     private fun clean(s: Settings) = s.copy(
         fontSize = s.fontSize.takeIf { !it.isNaN() }?.coerceIn(FONT_SIZES) ?: Settings().fontSize,
         messageLimit = s.messageLimit.coerceIn(MESSAGE_LIMITS),
-        postTextLines = s.postTextLines.coerceIn(PostTextLines.RANGE),
+        postCards = s.postCards.mapValues { (_, card) -> card.copy(textLines = card.textLines.coerceIn(PostTextLines.RANGE)) },
         mentionKeywords = keywords(s.mentionKeywords),
         muteKeywords = keywords(s.muteKeywords),
         imageHosts = hosts(s.imageHosts),

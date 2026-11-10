@@ -299,7 +299,7 @@
     <string name="settings_messages">Messages</string>
     <string name="settings_messages_summary">Scrolling, history, tapping, user card, screen on</string>
     <string name="settings_media">Links &amp; images</string>
-    <string name="settings_media_summary">Image previews, GIFs, posts</string>
+    <string name="settings_media_summary">Image previews, GIFs, links</string>
     <string name="settings_typing">Typing</string>
     <string name="settings_typing_summary">Read only, suggestions, input</string>
     <string name="settings_backup_summary">Save and restore your settings</string>
@@ -385,6 +385,10 @@
     <string name="settings_post_site">Show posts from %1$s</string>
     <string name="settings_post_site_x_hint">Shows links to X posts as a card</string>
     <string name="settings_posts">Social media posts</string>
+    <string name="settings_posts_summary">X, Bluesky, YouTube</string>
+    <string name="settings_post_site_on">On</string>
+    <string name="settings_post_site_on_compact">On · compact</string>
+    <string name="settings_group_post_all">For every site</string>
     <string name="settings_post_site_bluesky_hint">Shows links to Bluesky posts as a card</string>
     <string name="settings_post_site_youtube">Show videos from YouTube</string>
     <string name="settings_post_site_youtube_hint">Shows links to YouTube videos as a card</string>
@@ -394,10 +398,16 @@
     <string name="settings_off">Off</string>
     <string name="settings_post_preview">Preview</string>
     <string name="settings_group_post_parts">What the card shows</string>
+    <string name="settings_post_compact">Compact</string>
+    <string name="settings_post_compact_hint">Picture on the left, text beside it</string>
     <string name="settings_post_avatar">Profile picture</string>
     <string name="settings_post_date">Date</string>
     <string name="settings_post_media">Picture or video</string>
-    <string name="settings_post_counts">Likes, views and other numbers</string>
+    <string name="settings_post_counts">Replies, reposts and likes</string>
+    <string name="settings_post_views">Views</string>
+    <string name="settings_post_channel_picture">Channel picture</string>
+    <string name="settings_post_title">Title</string>
+    <string name="settings_post_thumbnail">Thumbnail</string>
     <string name="settings_post_text_none">Hidden</string>
     <string name="settings_post_text_all">All of it</string>
     <string name="settings_post_text">Text</string>
@@ -407,6 +417,7 @@
     <string name="post_picture_large">Large</string>
     <string name="post_preview_message">look at this</string>
     <string name="post_preview_text">This is how a post looks in the chat. Tapping the card opens it.</string>
+    <string name="post_preview_video">This is how a video looks in the chat</string>
     <string name="settings_blur_nsfw_posts">Blur NSFW posts</string>
     <string name="settings_blur_nsfw_posts_hint">Pictures marked NSFW stay blurred until tapped</string>
     <string name="post_picture">Picture of the post</string>

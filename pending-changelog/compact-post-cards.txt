@@ -1,0 +1,2 @@
+minor: Give X, Bluesky and YouTube each their own card settings, a compact card with the picture on the left included
+minor: Move social media posts into a settings category of their own

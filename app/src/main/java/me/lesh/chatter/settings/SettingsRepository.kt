@@ -52,6 +52,30 @@ object PostTextLines {
     val RANGE = NONE..ALL
 }
 
+/** What the cards of one site show, and how. */
+@Serializable
+data class PostCardSettings(
+    val avatar: Boolean = true,
+    val date: Boolean = true,
+    val media: Boolean = true,
+    val counts: Boolean = true,
+    /** See [PostTextLines]. */
+    val textLines: Int = PostTextLines.DEFAULT,
+    val pictureSize: PostPictureSize = PostPictureSize.Medium,
+    /** The picture on the left and the text beside it. */
+    val compact: Boolean = false,
+) {
+    companion object {
+        /** A video's still beside its title is how YouTube lists them; posts keep their big picture. */
+        fun default(site: PostSite) = PostCardSettings(compact = site == PostSite.YouTube)
+
+        val DEFAULTS: Map<PostSite, PostCardSettings> = PostSite.entries.associateWith(::default)
+    }
+}
+
+/** A backup may list only some sites; the others get their defaults. */
+fun Settings.postCard(site: PostSite): PostCardSettings = postCards[site] ?: PostCardSettings.default(site)
+
 /** Height of a chat line, as a multiple of the text size. */
 enum class LineSpacing(val factor: Float) { Compact(1.2f), Normal(1.45f), Roomy(1.75f) }
 
@@ -147,14 +171,8 @@ data class Settings(
     val postSites: Set<PostSite> = emptySet(),
     /** Blur the picture of a post marked NSFW until it is tapped. */
     val blurNsfwPosts: Boolean = true,
-    /** What a post card shows. */
-    val postAvatar: Boolean = true,
-    val postDate: Boolean = true,
-    val postMedia: Boolean = true,
-    val postCounts: Boolean = true,
-    /** See [PostTextLines]. */
-    val postTextLines: Int = PostTextLines.DEFAULT,
-    val postPictureSize: PostPictureSize = PostPictureSize.Medium,
+    /** What the cards of each site show; read through [postCard]. */
+    val postCards: Map<PostSite, PostCardSettings> = PostCardSettings.DEFAULTS,
     /** Write links in full instead of shortening them. */
     val fullLinks: Boolean = false,
     /** Pictures, GIFs and post cards in the messages of the user card; off leaves them links. */
@@ -281,13 +299,7 @@ class SettingsRepository(
             showGifs = p[SHOW_GIFS] ?: true,
             postSites = postSites(p[POST_SITES]),
             blurNsfwPosts = p[BLUR_NSFW_POSTS] ?: true,
-            postAvatar = p[POST_AVATAR] ?: true,
-            postDate = p[POST_DATE] ?: true,
-            postMedia = p[POST_MEDIA] ?: true,
-            postCounts = p[POST_COUNTS] ?: true,
-            postTextLines = p[POST_TEXT_LINES]?.coerceIn(PostTextLines.RANGE) ?: PostTextLines.DEFAULT,
-            postPictureSize = p[POST_PICTURE_SIZE]?.let { v -> PostPictureSize.entries.firstOrNull { it.name == v } }
-                ?: PostPictureSize.Medium,
+            postCards = PostSite.entries.associateWith { PostCardStore.read(p, it) },
             fullLinks = p[FULL_LINKS] ?: false,
             userCardAttachments = p[USER_CARD_ATTACHMENTS] ?: true,
             mobileData = p[MOBILE_DATA]?.let { v -> MobileData.entries.firstOrNull { it.name == v } } ?: MobileData.Normal,
@@ -392,12 +404,8 @@ class SettingsRepository(
         p[POST_SITES] = (if (on) sites + site else sites - site).joinToString(",") { it.name }
     }
     suspend fun setBlurNsfwPosts(v: Boolean) = store.edit { it[BLUR_NSFW_POSTS] = v }
-    suspend fun setPostAvatar(v: Boolean) = store.edit { it[POST_AVATAR] = v }
-    suspend fun setPostDate(v: Boolean) = store.edit { it[POST_DATE] = v }
-    suspend fun setPostMedia(v: Boolean) = store.edit { it[POST_MEDIA] = v }
-    suspend fun setPostCounts(v: Boolean) = store.edit { it[POST_COUNTS] = v }
-    suspend fun setPostTextLines(v: Int) = store.edit { it[POST_TEXT_LINES] = v.coerceIn(PostTextLines.RANGE) }
-    suspend fun setPostPictureSize(v: PostPictureSize) = store.edit { it[POST_PICTURE_SIZE] = v.name }
+    suspend fun updatePostCard(site: PostSite, change: (PostCardSettings) -> PostCardSettings) =
+        store.edit { p -> PostCardStore.write(p, site, change(PostCardStore.read(p, site))) }
     suspend fun setFullLinks(v: Boolean) = store.edit { it[FULL_LINKS] = v }
     suspend fun setUserCardAttachments(v: Boolean) = store.edit { it[USER_CARD_ATTACHMENTS] = v }
     suspend fun setMobileData(v: MobileData) = store.edit { it[MOBILE_DATA] = v.name }
@@ -509,12 +517,7 @@ class SettingsRepository(
         p[SHOW_GIFS] = s.showGifs
         p[POST_SITES] = s.postSites.joinToString(",") { it.name }
         p[BLUR_NSFW_POSTS] = s.blurNsfwPosts
-        p[POST_AVATAR] = s.postAvatar
-        p[POST_DATE] = s.postDate
-        p[POST_MEDIA] = s.postMedia
-        p[POST_COUNTS] = s.postCounts
-        p[POST_TEXT_LINES] = s.postTextLines
-        p[POST_PICTURE_SIZE] = s.postPictureSize.name
+        PostSite.entries.forEach { PostCardStore.write(p, it, s.postCard(it)) }
         p[FULL_LINKS] = s.fullLinks
         p[USER_CARD_ATTACHMENTS] = s.userCardAttachments
         p[MOBILE_DATA] = s.mobileData.name
@@ -630,12 +633,6 @@ class SettingsRepository(
         val SHOW_GIFS = booleanPreferencesKey("show_gifs")
         val POST_SITES = stringPreferencesKey("post_sites")
         val BLUR_NSFW_POSTS = booleanPreferencesKey("blur_nsfw_posts")
-        val POST_AVATAR = booleanPreferencesKey("post_avatar")
-        val POST_DATE = booleanPreferencesKey("post_date")
-        val POST_MEDIA = booleanPreferencesKey("post_media")
-        val POST_COUNTS = booleanPreferencesKey("post_counts")
-        val POST_TEXT_LINES = intPreferencesKey("post_text_lines")
-        val POST_PICTURE_SIZE = stringPreferencesKey("post_picture_size")
         val FULL_LINKS = booleanPreferencesKey("full_links")
         val USER_CARD_ATTACHMENTS = booleanPreferencesKey("user_card_attachments")
         val MOBILE_DATA = stringPreferencesKey("mobile_data")

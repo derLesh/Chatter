@@ -45,6 +45,7 @@ import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.filled.Share
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
@@ -95,9 +96,11 @@ import androidx.navigationevent.compose.rememberNavigationEventState
 import me.lesh.chatter.BuildConfig
 import me.lesh.chatter.ui.chat.BuildStripe
 import me.lesh.chatter.ui.chat.botName
+import me.lesh.chatter.ui.chat.siteName
 import me.lesh.chatter.R
 import me.lesh.chatter.auth.AuthState
 import me.lesh.chatter.chat.Bot
+import me.lesh.chatter.chat.PostSite
 import me.lesh.chatter.settings.Settings
 import me.lesh.chatter.stats.Stats
 import me.lesh.chatter.ui.changelog.ChangelogPage
@@ -135,6 +138,7 @@ import me.lesh.chatter.ui.settings.SEND_LATER_BUTTONS
 import me.lesh.chatter.ui.settings.NAME_STYLES
 import me.lesh.chatter.ui.settings.NotificationsPage
 import me.lesh.chatter.ui.settings.PROVIDERS
+import me.lesh.chatter.ui.settings.PostSitePage
 import me.lesh.chatter.ui.settings.PostsPage
 import me.lesh.chatter.ui.settings.SPECIAL_MESSAGE_TITLES
 import me.lesh.chatter.ui.settings.SpecialMessagesPage
@@ -177,6 +181,7 @@ private enum class SettingsPage(
     Appearance(R.string.settings_appearance, R.string.settings_appearance_summary, SettingsSection.Chat, { drawableIcon(R.drawable.ic_palette) }, CategoryHue.Pink),
     Messages(R.string.settings_messages, R.string.settings_messages_summary, SettingsSection.Chat, { drawableIcon(R.drawable.ic_chat) }, CategoryHue.Blue),
     Media(R.string.settings_media, R.string.settings_media_summary, SettingsSection.Chat, { drawableIcon(R.drawable.ic_image) }, CategoryHue.Green),
+    Posts(R.string.settings_posts, R.string.settings_posts_summary, SettingsSection.Chat, { Icons.Default.Share }, CategoryHue.Sky),
     Typing(R.string.settings_typing, R.string.settings_typing_summary, SettingsSection.Chat, { drawableIcon(R.drawable.ic_keyboard) }, CategoryHue.Orange),
     Emotes(R.string.settings_emotes, R.string.settings_emotes_summary, SettingsSection.Chat, { Icons.Default.Face }, CategoryHue.Amber),
     Filters(R.string.settings_filters, R.string.settings_filters_summary, SettingsSection.Chat, { drawableIcon(R.drawable.ic_filter_list) }, CategoryHue.Purple),
@@ -214,7 +219,9 @@ internal enum class SettingsSubPage(val title: Int) {
     ImageHosts(R.string.settings_image_hosts),
     HiddenEmotes(R.string.settings_hidden_emotes),
     BadgeKinds(R.string.settings_badge_kinds),
-    Posts(R.string.settings_posts),
+    PostsX(R.string.post_site_x),
+    PostsBluesky(R.string.post_site_bluesky),
+    PostsYouTube(R.string.post_site_youtube),
     SpecialMessages(R.string.settings_special_messages),
     BotCommands(R.string.settings_bot_commands),
     AppIcons(R.string.settings_app_icon),
@@ -246,6 +253,13 @@ private class SearchEntry(
 private class ShownWhen(val key: Int, val met: (Settings, Boolean) -> Boolean)
 
 private val unlessReadOnly = ShownWhen(R.string.settings_read_only) { s, _ -> !s.readOnly }
+
+/** What each site's page sets; a search for one finds the sites, whose pages have it. */
+private val POST_PART_TERMS = listOf(
+    R.string.settings_post_compact, R.string.settings_post_avatar, R.string.settings_post_channel_picture,
+    R.string.settings_post_date, R.string.settings_post_text, R.string.settings_post_title, R.string.settings_post_media,
+    R.string.settings_post_thumbnail, R.string.settings_post_picture_size, R.string.settings_post_counts, R.string.settings_post_views,
+)
 
 /**
  * Everything the search finds, in page order. A setting is found by its tile key
@@ -292,17 +306,10 @@ private val SEARCH_INDEX: List<SearchEntry> by lazy {
         add(SearchEntry(R.string.settings_inline_images, media, R.string.settings_inline_images_hint))
         add(SearchEntry(R.string.settings_image_hosts, media))
         add(SearchEntry(R.string.settings_show_gifs, media, R.string.settings_show_gifs_hint))
-        add(
-            SearchEntry(
-                R.string.settings_posts, media,
-                also = listOf(
-                    R.string.post_site_x, R.string.post_site_bluesky, R.string.post_site_youtube, R.string.settings_post_avatar, R.string.settings_post_media,
-                    R.string.settings_post_counts, R.string.settings_post_picture_size, R.string.settings_blur_nsfw_posts,
-                    R.string.settings_post_date, R.string.settings_post_text,
-                ),
-            ),
-        )
         add(SearchEntry(R.string.settings_full_links, media, R.string.settings_full_links_hint))
+        val posts = SettingsPage.Posts
+        PostSite.entries.forEach { add(SearchEntry(siteName(it), posts, also = POST_PART_TERMS)) }
+        add(SearchEntry(R.string.settings_blur_nsfw_posts, posts, R.string.settings_blur_nsfw_posts_hint))
         val typing = SettingsPage.Typing
         add(SearchEntry(R.string.settings_read_only, typing, R.string.settings_read_only_hint))
         add(SearchEntry(R.string.settings_emote_suggestions, typing, R.string.settings_emote_suggestions_hint, shownWhen = unlessReadOnly))
@@ -564,7 +571,9 @@ fun SettingsScreen(vm: MainViewModel, onBack: () -> Unit) {
                 SettingsSubPage.ImageHosts -> ImageHostsPage(settings.imageHosts, vm)
                 SettingsSubPage.HiddenEmotes -> HiddenEmotesPage(vm)
                 SettingsSubPage.BadgeKinds -> BadgeKindsPage(vm)
-                SettingsSubPage.Posts -> PostsPage(settings, vm)
+                SettingsSubPage.PostsX -> PostSitePage(PostSite.X, settings, vm)
+                SettingsSubPage.PostsBluesky -> PostSitePage(PostSite.Bluesky, settings, vm)
+                SettingsSubPage.PostsYouTube -> PostSitePage(PostSite.YouTube, settings, vm)
                 SettingsSubPage.SpecialMessages -> SpecialMessagesPage(settings, vm)
                 SettingsSubPage.BotCommands -> BotCommandsPage(settings, vm)
                 SettingsSubPage.AppIcons -> AppIconsPage(settings, vm)
@@ -588,6 +597,7 @@ fun SettingsScreen(vm: MainViewModel, onBack: () -> Unit) {
                     SettingsPage.Appearance -> AppearancePage(settings, vm) { subPage = it }
                     SettingsPage.Messages -> MessagesPage(settings, vm) { subPage = it }
                     SettingsPage.Media -> MediaPage(settings, vm) { subPage = it }
+                    SettingsPage.Posts -> PostsPage(settings, vm) { subPage = it }
                     SettingsPage.Typing -> TypingPage(settings, vm) { subPage = it }
                     SettingsPage.Emotes -> EmotesPage(settings, vm) { subPage = it }
                     SettingsPage.Filters -> FiltersPage(settings, vm) { subPage = it }
