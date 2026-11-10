@@ -132,6 +132,30 @@ data class NightbotCommands(val commands: List<NightbotCommand> = emptyList())
 @Serializable
 data class NightbotCommand(val name: String, val message: String = "", val userLevel: String = "everyone")
 
+// ---- Moobot ---------------------------------------------------------------------
+
+/** Empty for a name Moobot does not know. */
+@Serializable
+data class MoobotMeta(val status: MoobotStatus? = null, val channel: MoobotChannel? = null)
+
+@Serializable
+data class MoobotStatus(val joined: Boolean = false)
+
+@Serializable
+data class MoobotChannel(val userid: String)
+
+@Serializable
+data class MoobotCommands(val list: List<MoobotCommand> = emptyList())
+
+/** [identifier] is the name without "!". An alias names the command it stands for in [command]. */
+@Serializable
+data class MoobotCommand(
+    val identifier: String,
+    val type: String = "",
+    val response: String = "",
+    val command: String? = null,
+)
+
 // ---- Streamlabs -------------------------------------------------------------------
 
 /** [token] stands for the channel in every other request. */
@@ -217,6 +241,16 @@ internal object BotCommandLists {
             .map { command(it.name, emptyList(), it.message) },
     )
 
+    /** Moobot lists only what everyone may use. An alias is kept with the command it stands for. */
+    fun moobot(list: MoobotCommands): ChannelBot {
+        val aliases = list.list.filter { it.type == "alias" && it.command != null }.groupBy({ it.command!! }, { "!${it.identifier}" })
+        return ChannelBot(
+            commands = list.list
+                .filter { it.type == "custom" && it.identifier.isNotBlank() && ' ' !in it.identifier }
+                .map { c -> command("!${c.identifier}", aliases[c.identifier].orEmpty(), c.response) },
+        )
+    }
+
     /** As with Nightbot, the names carry their "!". */
     fun streamlabs(list: List<StreamlabsCommand>): ChannelBot = ChannelBot(
         commands = list
@@ -246,13 +280,14 @@ class BotApi(private val http: OkHttpClient) : BotLists {
     override suspend fun everywhere(bot: Bot): List<BotCommand> = when (bot) {
         Bot.Supibot -> BotCommandLists.supibot(http.getJson("https://supinic.com/api/bot/command/list"))
         Bot.PotatBot -> BotCommandLists.potatBot(http.getJson("https://api.potat.app/help"))
-        Bot.Fossabot, Bot.Nightbot, Bot.StreamElements, Bot.Streamlabs -> emptyList()
+        Bot.Fossabot, Bot.Moobot, Bot.Nightbot, Bot.StreamElements, Bot.Streamlabs -> emptyList()
     }
 
     override suspend fun inChannel(bot: Bot, login: String): ChannelBot? = when (bot) {
         Bot.Supibot -> BotCommandLists.supibotIn(http.getJson("https://supinic.com/api/bot/channel/previousList?username=$login"))
         Bot.PotatBot -> BotCommandLists.potatBotIn(http.getJson("https://api.potat.app/users/$login"))
         Bot.Fossabot -> fossabot(login)
+        Bot.Moobot -> moobot(login)
         Bot.Nightbot -> nightbot(login)
         Bot.StreamElements -> streamElements(login)
         Bot.Streamlabs -> streamlabs(login)
@@ -266,6 +301,12 @@ class BotApi(private val http: OkHttpClient) : BotLists {
     private suspend fun fossabot(login: String): ChannelBot? {
         val channel = http.getJsonOrNull<FossabotChannel>("https://api.fossabot.com/v2/cached/channels/by-slug/$login") ?: return null
         return BotCommandLists.fossabot(http.getJson("https://api.fossabot.com/v2/cached/channels/${channel.channel.id}/commands"))
+    }
+
+    private suspend fun moobot(login: String): ChannelBot? {
+        val meta = http.getJson<MoobotMeta>("https://api.moo.bot/1/channel/meta?name=$login")
+        val channel = meta.channel?.takeIf { meta.status?.joined == true } ?: return null
+        return BotCommandLists.moobot(http.getJson("https://api.moo.bot/1/channel/public/commands/list?channel=${channel.userid}"))
     }
 
     private suspend fun nightbot(login: String): ChannelBot? {

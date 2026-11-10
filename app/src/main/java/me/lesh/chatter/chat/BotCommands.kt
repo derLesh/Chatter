@@ -17,8 +17,19 @@ import me.lesh.chatter.net.AppJson
 import me.lesh.chatter.util.runCatchingCancellable
 import java.io.File
 
-/** The chat bots whose commands are suggested, each with a switch in the settings. */
-enum class Bot { Supibot, PotatBot, Fossabot, Nightbot, StreamElements, Streamlabs }
+/**
+ * The chat bots whose commands are suggested, each with a switch in the settings. A bot that is
+ * [sameEverywhere] has commands of its own; the others only have what each channel set up.
+ */
+enum class Bot(val sameEverywhere: Boolean = false) {
+    Supibot(sameEverywhere = true),
+    PotatBot(sameEverywhere = true),
+    Fossabot,
+    Moobot,
+    Nightbot,
+    StreamElements,
+    Streamlabs,
+}
 
 /**
  * [name] is what is typed: all of it, like "!discord", or what follows the bot's prefix, like

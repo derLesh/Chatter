@@ -28,7 +28,6 @@ import me.lesh.chatter.ui.MainViewModel
 import me.lesh.chatter.ui.SettingsSubPage
 import me.lesh.chatter.ui.chat.BuildStripe
 import me.lesh.chatter.ui.chat.InputBar
-import me.lesh.chatter.ui.chat.botName
 
 /**
  * Writing messages: whether there is an input at all, suggestions as you type and how a mention is
@@ -48,8 +47,10 @@ internal fun TypingPage(settings: Settings, vm: MainViewModel, open: (SettingsSu
             ListItem(
                 headlineContent = { Text(stringResource(R.string.settings_bot_commands)) },
                 supportingContent = {
-                    val bots = Bot.entries.filter { it in settings.botCommands }.map { stringResource(botName(it)) }
-                    Text(bots.joinToString(", ").ifEmpty { stringResource(R.string.settings_off) })
+                    val on = settings.botCommands.size
+                    val state = if (on == 0) stringResource(R.string.settings_off)
+                    else stringResource(R.string.settings_bot_commands_on, on, Bot.entries.size)
+                    Text("$BOT_COMMAND_EXAMPLES · $state")
                 },
                 trailingContent = { NavChevron() },
                 colors = transparentItem(),
@@ -118,6 +119,9 @@ private fun InputPreview(settings: Settings, vm: MainViewModel) {
         )
     }
 }
+
+/** What the page is about, in the way it is typed; the same in every language. */
+private const val BOT_COMMAND_EXAMPLES = "!discord, \$ping"
 
 private val RECENTLY_SENT_BUTTONS = listOf(
     RecentlySentButton.ReplacesSend to R.string.recently_sent_replaces_send,

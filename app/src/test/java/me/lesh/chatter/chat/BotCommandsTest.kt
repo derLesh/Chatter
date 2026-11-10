@@ -143,6 +143,25 @@ class BotCommandsTest {
         assertEquals(listOf(BotCommand("!tts", emptyList(), "Only for donations")), bot.commands)
     }
 
+    /** Moobot lists an alias as an entry of its own, pointing at its command. */
+    @Test
+    fun moobotKeepsAnAliasWithItsCommand() {
+        val bot = BotCommandLists.moobot(
+            read(
+                """{"list":[
+                    {"type":"custom","identifier":"discord","response":"https://discord.gg/x"},
+                    {"command":"discord","type":"alias","identifier":"dc","response":"Alias for !discord"},
+                    {"type":"builtin","identifier":"commands","response":"Commands"},
+                    {"type":"custom","identifier":"17","response":"piet17"}
+                ],"_total":4}""",
+            ),
+        )
+        assertEquals(
+            listOf(BotCommand("!discord", listOf("!dc"), "https://discord.gg/x"), BotCommand("!17", emptyList(), "piet17")),
+            bot.commands,
+        )
+    }
+
     /** A Nightbot name without a sign is a word it reacts to anywhere in a message. */
     @Test
     fun nightbotKeepsCommandsThatStartWithASign() {

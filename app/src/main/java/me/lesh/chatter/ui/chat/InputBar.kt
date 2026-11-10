@@ -816,6 +816,7 @@ fun botName(bot: Bot): Int = when (bot) {
     Bot.Supibot -> R.string.bot_supibot
     Bot.PotatBot -> R.string.bot_potatbot
     Bot.Fossabot -> R.string.bot_fossabot
+    Bot.Moobot -> R.string.bot_moobot
     Bot.Nightbot -> R.string.bot_nightbot
     Bot.StreamElements -> R.string.bot_streamelements
     Bot.Streamlabs -> R.string.bot_streamlabs
