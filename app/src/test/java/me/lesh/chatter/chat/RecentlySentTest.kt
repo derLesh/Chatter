@@ -21,6 +21,13 @@ class RecentlySentTest {
     }
 
     @Test
+    fun aLineChatterRepeatedIsOfferedOnce() {
+        // From the history: Twitch kept what Chatter added to let the copies through.
+        val sent = listOf(own("gg wp"), own("gg  wp"), own("Pog"), own("Pog ͏"))
+        assertEquals(listOf("Pog", "gg wp"), RecentlySent.texts(sent, limit = 3))
+    }
+
+    @Test
     fun anActionComesBackAsMe() {
         assertEquals(listOf("/me waves"), RecentlySent.texts(listOf(own("waves", MessageKind.Action)), limit = 3))
     }

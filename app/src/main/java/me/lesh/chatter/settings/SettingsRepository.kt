@@ -213,6 +213,8 @@ data class Settings(
     /** Beta: plan a message to go out later, e.g. in 5 minutes or at 22:00. */
     val sendLater: Boolean = false,
     val sendLaterButton: SendLaterButton = SendLaterButton.OwnButton,
+    /** Beta: send the same line again within 30 seconds, which Twitch would refuse; see `RepeatedMessages`. */
+    val sendRepeats: Boolean = false,
 ) {
     /** The emote providers whose lists are loaded: none while emotes are off. */
     val emoteProvidersOn: Set<EmoteProvider> get() = if (emotesEnabled) emoteProviders else emptySet()
@@ -309,6 +311,7 @@ class SettingsRepository(
             sendLater = p[SEND_LATER] ?: false,
             sendLaterButton = p[SEND_LATER_BUTTON]?.let { v -> SendLaterButton.entries.firstOrNull { it.name == v } }
                 ?: SendLaterButton.OwnButton,
+            sendRepeats = p[SEND_REPEATS] ?: false,
             nameTap = p[NAME_TAP]?.let { v -> TapAction.entries.firstOrNull { it.name == v } } ?: TapAction.UserCard,
             badgeProviders = badgeProviders(p[BADGE_PROVIDERS]),
             emoteProviders = emoteProviders(p[EMOTE_PROVIDERS]),
@@ -329,6 +332,7 @@ class SettingsRepository(
     suspend fun setColorfulCategories(v: Boolean) = store.edit { it[COLORFUL_CATEGORIES] = v }
     suspend fun setSendLater(v: Boolean) = store.edit { it[SEND_LATER] = v }
     suspend fun setSendLaterButton(v: SendLaterButton) = store.edit { it[SEND_LATER_BUTTON] = v.name }
+    suspend fun setSendRepeats(v: Boolean) = store.edit { it[SEND_REPEATS] = v }
     suspend fun setMessageLimit(v: Int) = store.edit { it[LIMIT] = v }
     // List settings are changed from the stored value inside one edit, so quick successive changes
     // cannot undo each other. Stored comma-separated, as they always were.
@@ -534,6 +538,7 @@ class SettingsRepository(
         p[COLORFUL_CATEGORIES] = s.colorfulCategories
         p[SEND_LATER] = s.sendLater
         p[SEND_LATER_BUTTON] = s.sendLaterButton.name
+        p[SEND_REPEATS] = s.sendRepeats
         p[BADGE_PROVIDERS] = s.badgeProviders.joinToString(",") { it.name }
         p[EMOTE_PROVIDERS] = s.emoteProviders.joinToString(",") { it.name }
     }
@@ -661,6 +666,7 @@ class SettingsRepository(
         val COLORFUL_CATEGORIES = booleanPreferencesKey("colorful_categories")
         val SEND_LATER = booleanPreferencesKey("send_later")
         val SEND_LATER_BUTTON = stringPreferencesKey("send_later_button")
+        val SEND_REPEATS = booleanPreferencesKey("send_repeats")
         val SEEN_VERSION = stringPreferencesKey("seen_changelog_version")
         val NOTIFICATION_INTRO_SEEN = booleanPreferencesKey("notification_intro_seen")
         val ONBOARDING_SEEN = booleanPreferencesKey("onboarding_seen")

@@ -15,12 +15,18 @@ object RecentlySent {
             .take(limit)
             .toList()
 
-    /** Twitch passes the invisible tag that lets a line repeat; it would only stack up when sent again. */
+    /**
+     * Without what clients add to let a line repeat (see [RepeatedMessages]); it would only stack up
+     * when sent again. Twitch's own chat shows two spaces as one, so nothing visible is lost.
+     */
     private fun typed(item: ChatItem): String {
-        val text = item.text.replace(TAG_CHARACTER, "").trim()
+        val text = item.text.replace(TAG_CHARACTER, "").replace(RepeatedMessages.SUFFIX, "")
+            .replace(SPACES, " ").trim()
         return if (item.kind == MessageKind.Action) "/me $text" else text
     }
 
-    /** U+E0000, which Chatter and other clients append to send the same line twice in a row. */
+    /** U+E0000, which other clients append to send the same line twice in a row. */
     private const val TAG_CHARACTER = "󠀀"
+
+    private val SPACES = Regex(" {2,}")
 }

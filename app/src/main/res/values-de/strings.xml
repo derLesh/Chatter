@@ -1094,6 +1094,8 @@
     <string name="settings_send_later_hint">Plane eine Nachricht, z. B. in 5 Minuten oder um 22:00. Im Hintergrund kann sie ein paar Minuten später rausgehen.</string>
     <string name="settings_send_later_button">So planst du</string>
     <string name="settings_send_later_button_hint">Ein Knopf neben Senden, oder Senden gedrückt halten</string>
+    <string name="settings_send_repeats">Gleiche Nachricht nochmal senden</string>
+    <string name="settings_send_repeats_hint">Twitch blockt dieselbe Nachricht zweimal in 30 Sekunden. Chatter fügt ein unsichtbares Leerzeichen ein, damit sie durchgeht.</string>
     <string name="send_later_own_button">Eigener Knopf</string>
     <string name="send_later_hold_send">Senden halten</string>
     <string name="send_later">Später senden</string>

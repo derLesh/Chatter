@@ -1,0 +1,1 @@
+minor: Send the same message twice in a row, which Twitch blocks within 30 seconds otherwise (Labs)

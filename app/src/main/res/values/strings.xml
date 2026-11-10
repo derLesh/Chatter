@@ -1110,6 +1110,8 @@
     <string name="settings_send_later_hint">Plan a message, e.g. in 5 minutes or at 22:00. In the background it may go out a few minutes late.</string>
     <string name="settings_send_later_button">How to plan</string>
     <string name="settings_send_later_button_hint">A button next to Send, or hold Send to plan</string>
+    <string name="settings_send_repeats">Send the same message again</string>
+    <string name="settings_send_repeats_hint">Twitch blocks the same message twice within 30 seconds. Chatter adds an unseen space so it goes through.</string>
     <string name="send_later_own_button">Extra button</string>
     <string name="send_later_hold_send">Hold Send</string>
     <string name="send_later">Send later</string>
