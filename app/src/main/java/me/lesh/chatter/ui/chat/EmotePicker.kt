@@ -11,11 +11,29 @@ import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.lazy.grid.LazyGridState
 import androidx.compose.foundation.lazy.grid.rememberLazyGridState
+import androidx.compose.foundation.pager.HorizontalPager
+import androidx.compose.foundation.pager.rememberPagerState
+import androidx.compose.foundation.pager.PagerState
+import androidx.compose.foundation.OverscrollEffect
+import androidx.compose.foundation.rememberOverscrollEffect
+import androidx.compose.ui.unit.Velocity
+import androidx.compose.material3.TabIndicatorScope
+import androidx.compose.material3.TabRowDefaults
+import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.lerp
+import kotlin.math.ceil
+import kotlin.math.floor
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.VerticalDivider
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.snapshotFlow
+import androidx.compose.runtime.withFrameNanos
+import androidx.compose.material3.SheetValue
+import androidx.compose.material3.rememberModalBottomSheetState
+import kotlinx.coroutines.flow.first
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.res.painterResource
@@ -53,11 +71,9 @@ import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
-import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
-import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -123,9 +139,10 @@ private class PickerTab(
 }
 
 /**
- * Bottom sheet with tabs: recently used, then one per provider with channel emotes first, then
- * emoji in their groups. Twitch emotes are grouped by channel, Twitch's own last, with a column to
- * jump between them; [owners] names the channels. Below the emotes, [onReload] loads them again.
+ * Bottom sheet with tabs, tapped or swiped: recently used, then one per provider with channel
+ * emotes first, then emoji in their groups. Twitch emotes are grouped by channel, Twitch's own
+ * last, with a column to jump between them; [owners] names the channels. Below the emotes,
+ * [onReload] loads them again.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -165,7 +182,7 @@ fun EmotePickerSheet(
             ),
         )
     }
-    var selected by rememberSaveable { mutableIntStateOf(if (recent.isEmpty()) 1 else 0) }
+    val pager = rememberPagerState(initialPage = if (recent.isEmpty()) 1 else 0) { tabs.size }
     var reloading by remember { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
     val reload: () -> Unit = {
@@ -179,15 +196,31 @@ fun EmotePickerSheet(
         }
     }
 
-    ModalBottomSheet(onDismissRequest = onDismiss) {
+    val sheetState = rememberModalBottomSheetState()
+    // A page costs several frames the first time it is built, which a swipe would show as a
+    // stutter. So once the sheet has opened, the others are built one per frame and kept.
+    var pagesKept by remember { mutableIntStateOf(0) }
+    LaunchedEffect(Unit) {
+        snapshotFlow { sheetState.currentValue }.first { it != SheetValue.Hidden }
+        while (pagesKept < tabs.lastIndex) {
+            withFrameNanos {}
+            pagesKept++
+        }
+    }
+
+    ModalBottomSheet(onDismissRequest = onDismiss, sheetState = sheetState) {
         Column(Modifier.height(420.dp)) {
             // Fixed: a scrolling row hid the last tabs with nothing to show they were there. The
             // smaller label fits six, and transparent takes the sheet's color.
-            PrimaryTabRow(selectedTabIndex = selected, containerColor = Color.Transparent) {
+            PrimaryTabRow(
+                selectedTabIndex = pager.currentPage,
+                containerColor = Color.Transparent,
+                indicator = { TabRowDefaults.PrimaryIndicator(Modifier.followPager(this, pager), width = Dp.Unspecified) },
+            ) {
                 tabs.forEachIndexed { i, tab ->
                     Tab(
-                        selected = selected == i,
-                        onClick = { selected = i },
+                        selected = pager.currentPage == i,
+                        onClick = { scope.launch { pager.animateScrollToPage(i) } },
                         text = {
                             Text(
                                 stringResource(tab.title),
@@ -199,28 +232,77 @@ fun EmotePickerSheet(
                     )
                 }
             }
-            val tab = tabs[selected]
-            if (tab.isEmpty) {
-                Column(Modifier.fillMaxWidth().padding(32.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-                    Text(stringResource(R.string.emotes_empty), color = MaterialTheme.colorScheme.onSurfaceVariant)
-                    if (tab.reloadable) ReloadButton(reloading, reload)
-                }
-            } else {
-                // Keyed by tab, so switching tabs starts at the top instead of keeping the offset.
-                key(selected) {
-                    val reloadButton: @Composable () -> Unit = { ReloadButton(reloading, reload) }
-                    if (tab.sideColumn) {
-                        // Channel names arrive after the emotes. The grid would keep the section it
-                        // showed and end up far down, so new sections start it at the top again.
-                        key(tab.sections.map { it.key }) {
-                            GridWithSideColumn(tab, imageLoader, onPick, onPickEmoji, reloadButton)
-                        }
-                    } else {
-                        PickerGrid(tab, rememberLazyGridState(), imageLoader, onPick, onPickEmoji, reloadButton)
-                    }
-                }
+            HorizontalPager(
+                pager,
+                Modifier.weight(1f),
+                beyondViewportPageCount = pagesKept,
+                overscrollEffect = rememberStretchOnlyWhenPulled(),
+                verticalAlignment = Alignment.Top,
+            ) { page ->
+                PickerPage(tabs[page], reloading, reload, imageLoader, onPick, onPickEmoji)
             }
         }
+    }
+}
+
+/**
+ * The row's own indicator only moves once the pager is halfway and then springs past the tab, so
+ * this one is placed straight from the pager's position instead.
+ */
+private fun Modifier.followPager(scope: TabIndicatorScope, pager: PagerState): Modifier = with(scope) {
+    this@followPager.tabIndicatorLayout { measurable, constraints, tabs ->
+        val position = (pager.currentPage + pager.currentPageOffsetFraction).coerceIn(0f, tabs.lastIndex.toFloat())
+        val from = tabs[floor(position).toInt()]
+        val to = tabs[ceil(position).toInt()]
+        val fraction = position - floor(position)
+        // Like the row's own indicator: left is where the label starts, not the tab.
+        val width = lerp(from.contentWidth, to.contentWidth, fraction).roundToPx()
+        val placeable = measurable.measure(constraints.copy(minWidth = width, maxWidth = width))
+        layout(placeable.width, placeable.height) { placeable.place(lerp(from.left, to.left, fraction).roundToPx(), 0) }
+    }
+}
+
+/**
+ * After a horizontal fling, ModalBottomSheet reports the speed the pager used as left over, so the
+ * stretch would bounce every tab. This one stretches only while pulled past the first or last tab.
+ */
+@Composable
+private fun rememberStretchOnlyWhenPulled(): OverscrollEffect? {
+    val stretch = rememberOverscrollEffect() ?: return null
+    return remember(stretch) {
+        object : OverscrollEffect by stretch {
+            override suspend fun applyToFling(velocity: Velocity, performFling: suspend (Velocity) -> Velocity) {
+                stretch.applyToFling(velocity) { performFling(it); it }
+            }
+        }
+    }
+}
+
+@Composable
+private fun PickerPage(
+    tab: PickerTab,
+    reloading: Boolean,
+    reload: () -> Unit,
+    imageLoader: ImageLoader,
+    onPick: (Emote) -> Unit,
+    onPickEmoji: (Emoji) -> Unit,
+) {
+    if (tab.isEmpty) {
+        Column(Modifier.fillMaxWidth().padding(32.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+            Text(stringResource(R.string.emotes_empty), color = MaterialTheme.colorScheme.onSurfaceVariant)
+            if (tab.reloadable) ReloadButton(reloading, reload)
+        }
+        return
+    }
+    val reloadButton: @Composable () -> Unit = { ReloadButton(reloading, reload) }
+    if (tab.sideColumn) {
+        // Channel names arrive after the emotes. The grid would keep the section it showed and
+        // end up far down, so new sections start it at the top again.
+        key(tab.sections.map { it.key }) {
+            GridWithSideColumn(tab, imageLoader, onPick, onPickEmoji, reloadButton)
+        }
+    } else {
+        PickerGrid(tab, rememberLazyGridState(), imageLoader, onPick, onPickEmoji, reloadButton)
     }
 }
 
