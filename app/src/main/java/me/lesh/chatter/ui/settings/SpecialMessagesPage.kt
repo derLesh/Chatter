@@ -28,6 +28,7 @@ import me.lesh.chatter.ui.chat.MessageRow
 import me.lesh.chatter.ui.chat.rememberChatStyle
 
 internal val SPECIAL_MESSAGE_TITLES = listOf(
+    SpecialMessage.FirstMessage to R.string.special_first_messages,
     SpecialMessage.GiantEmote to R.string.special_giant_emotes,
     SpecialMessage.Highlighted to R.string.special_highlighted,
     SpecialMessage.Effect to R.string.special_effects,
@@ -41,6 +42,7 @@ private fun hintOf(kind: SpecialMessage): Int = when (kind) {
     SpecialMessage.Effect -> R.string.special_effects_hint
     SpecialMessage.Reward -> R.string.special_rewards_hint
     SpecialMessage.WatchStreak -> R.string.special_watch_streaks_hint
+    SpecialMessage.FirstMessage -> R.string.special_first_messages_hint
 }
 
 /** One switch per special message, each above a made-up message drawn the way it would be. */
@@ -91,6 +93,7 @@ private fun previewOf(kind: SpecialMessage, text: String): ChatItem {
         SpecialMessage.Effect -> message.copy(powerUp = PowerUp.Effect)
         SpecialMessage.Reward -> message.copy(rewardId = PREVIEW_REWARD)
         SpecialMessage.WatchStreak -> message.copy(kind = MessageKind.UserNotice, body = MessageBody.EMPTY, text = "", watchStreak = 5)
+        SpecialMessage.FirstMessage -> message.copy(isFirstMessage = true)
     }
 }
 

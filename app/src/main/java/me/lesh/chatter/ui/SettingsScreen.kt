@@ -276,7 +276,6 @@ private val SEARCH_INDEX: List<SearchEntry> by lazy {
         val messages = SettingsPage.Messages
         add(SearchEntry(R.string.settings_smooth_scrolling, messages, R.string.settings_smooth_scrolling_hint))
         add(SearchEntry(R.string.settings_show_deleted, messages, R.string.settings_show_deleted_hint))
-        add(SearchEntry(R.string.settings_first_messages, messages, R.string.settings_first_messages_hint))
         add(SearchEntry(R.string.settings_special_messages, messages, also = SPECIAL_MESSAGE_TITLES.map { it.second }))
         add(SearchEntry(R.string.settings_message_limit, messages))
         add(SearchEntry(R.string.settings_load_history, messages, R.string.settings_load_history_hint))

@@ -640,7 +640,7 @@
     <string name="name_colors_luv_luma">LUV Luma</string>
     <string name="name_colors_rgb_loop">RGB Loop</string>
 
-    <string name="first_message">First message in this channel</string>
+    <string name="first_message">First message</string>
     <string name="reward_redeemed">Redeemed a reward</string>
     <string name="reward_redeemed_named">Redeemed %1$s</string>
     <string name="message_effect">Sent with an effect</string>
@@ -648,8 +648,6 @@
         <item quantity="one">%1$s watched %2$d stream in a row</item>
         <item quantity="other">%1$s watched %2$d streams in a row</item>
     </plurals>
-    <string name="settings_first_messages">Highlight first messages</string>
-    <string name="settings_first_messages_hint">Marks it when someone writes in a channel for the first time</string>
     <string name="settings_special_messages">Special messages</string>
     <string name="settings_special_messages_examples">Giant emotes, effects, rewards</string>
     <string name="settings_special_messages_on">%1$d of %2$d on</string>
@@ -663,6 +661,8 @@
     <string name="special_rewards_hint">A line above the text of a channel point reward. Its name only in your own channel.</string>
     <string name="special_watch_streaks">Watch streaks</string>
     <string name="special_watch_streaks_hint">Someone watched several streams in a row. Off hides them.</string>
+    <string name="special_first_messages">First messages</string>
+    <string name="special_first_messages_hint">Someone writes in a channel for the first time</string>
     <string name="special_preview_text">Hello chat!</string>
     <string name="special_preview_reward">Hydrate</string>
 

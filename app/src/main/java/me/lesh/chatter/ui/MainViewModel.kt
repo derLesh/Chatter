@@ -1190,7 +1190,6 @@ class MainViewModel(private val c: AppContainer, savedState: SavedStateHandle) :
 
     fun setMobileData(v: MobileData) = saveSetting { setMobileData(v) }
     fun setPureBlack(v: Boolean) = saveSetting { setPureBlack(v) }
-    fun setHighlightFirstMessages(v: Boolean) = saveSetting { setHighlightFirstMessages(v) }
     fun setSpecialMessage(kind: SpecialMessage, on: Boolean) = saveSetting { setSpecialMessage(kind, on) }
     fun setNameColors(v: NameColorPalette) = saveSetting { setNameColors(v) }
     fun setAlternateBackground(v: Boolean) = saveSetting { setAlternateBackground(v) }

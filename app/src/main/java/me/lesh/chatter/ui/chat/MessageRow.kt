@@ -8,13 +8,16 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.sizeIn
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.InlineTextContent
+import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
@@ -32,6 +35,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.CompositingStrategy
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.layout.onPlaced
 import androidx.compose.ui.platform.LocalDensity
@@ -39,6 +43,7 @@ import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.preferredFrameRate
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.res.vectorResource
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.LinkAnnotation
 import androidx.compose.ui.text.LinkInteractionListener
@@ -143,7 +148,7 @@ fun MessageRow(
     }
     val lineHeight = remember(built, style) { lineHeightOf(built, style, emoteEm) }
 
-    val firstMessage = item.isFirstMessage && style.firstMessageBackground != null
+    val firstMessage = item.isFirstMessage && SpecialMessage.FirstMessage in style.specialMessages
     val background = when {
         item.highlight == ChatItem.MENTION_HIGHLIGHT -> style.mentionBackground
         // A rule's own color beats the mention color.
@@ -183,12 +188,21 @@ fun MessageRow(
             },
     ) {
         if (firstMessage) {
-            Text(
-                text = stringResource(R.string.first_message),
-                color = style.accent,
-                fontSize = (style.fontSize - 2).sp,
-                fontWeight = FontWeight.Medium,
-            )
+            val labelSize = (style.fontSize - 2).sp
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                Icon(
+                    ImageVector.vectorResource(R.drawable.ic_waving_hand),
+                    contentDescription = null,
+                    tint = style.accent,
+                    modifier = Modifier.size(with(LocalDensity.current) { labelSize.toDp() }),
+                )
+                Text(
+                    text = stringResource(R.string.first_message),
+                    color = style.accent,
+                    fontSize = labelSize,
+                    fontWeight = FontWeight.Medium,
+                )
+            }
         }
         if (item.rewardId != null && SpecialMessage.Reward in style.specialMessages) {
             Text(
