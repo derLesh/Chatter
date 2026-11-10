@@ -57,7 +57,7 @@ import me.lesh.chatter.net.HelixUser
 import me.lesh.chatter.settings.EmoteSize
 import me.lesh.chatter.settings.LineSpacing
 import me.lesh.chatter.settings.MobileData
-import me.lesh.chatter.settings.PostPictureSize
+import me.lesh.chatter.settings.PostCardSettings
 import me.lesh.chatter.settings.RecentlySentButton
 import me.lesh.chatter.settings.SendLaterButton
 import me.lesh.chatter.settings.SettingsBackup
@@ -1201,13 +1201,7 @@ class MainViewModel(private val c: AppContainer, savedState: SavedStateHandle) :
     fun setShowGifs(v: Boolean) = saveSetting { setShowGifs(v) }
     fun setPostSite(site: PostSite, on: Boolean) = saveSetting { setPostSite(site, on) }
     fun setBlurNsfwPosts(v: Boolean) = saveSetting { setBlurNsfwPosts(v) }
-    fun setPostAvatar(v: Boolean) = saveSetting { setPostAvatar(v) }
-    fun setPostDate(v: Boolean) = saveSetting { setPostDate(v) }
-    fun setPostMedia(v: Boolean) = saveSetting { setPostMedia(v) }
-    fun setPostCounts(v: Boolean) = saveSetting { setPostCounts(v) }
-    fun setPostCompact(v: Boolean) = saveSetting { setPostCompact(v) }
-    fun setPostTextLines(v: Int) = saveSetting { setPostTextLines(v) }
-    fun setPostPictureSize(v: PostPictureSize) = saveSetting { setPostPictureSize(v) }
+    fun updatePostCard(site: PostSite, change: (PostCardSettings) -> PostCardSettings) = saveSetting { updatePostCard(site, change) }
     fun setFullLinks(v: Boolean) = saveSetting { setFullLinks(v) }
     fun setUserCardAttachments(v: Boolean) = saveSetting { setUserCardAttachments(v) }
 

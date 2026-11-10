@@ -58,9 +58,11 @@ import me.lesh.chatter.chat.PostLink
 import me.lesh.chatter.chat.PostMedia
 import me.lesh.chatter.chat.PostRepository
 import me.lesh.chatter.chat.PostSite
+import me.lesh.chatter.settings.PostCardSettings
 import me.lesh.chatter.settings.PostPictureSize
 import me.lesh.chatter.settings.PostTextLines
 import me.lesh.chatter.settings.Settings
+import me.lesh.chatter.settings.postCard
 import java.text.DateFormat
 import java.util.Date
 import java.util.Locale
@@ -69,10 +71,18 @@ import kotlin.math.roundToInt
 /** Where post cards get their posts. Without one, as in the settings preview, links stay links. */
 val LocalPosts = staticCompositionLocalOf<PostRepository?> { null }
 
-/** Which links become post cards and which parts of a post they show, from the settings. */
+/** Which links become post cards, and how each site's cards look, from the settings. */
 @Immutable
 data class PostCardStyle(
     val sites: Set<PostSite> = emptySet(),
+    val looks: Map<PostSite, PostCardLook> = emptyMap(),
+) {
+    fun look(site: PostSite): PostCardLook = looks[site] ?: PostCardLook()
+}
+
+/** Which parts of a post the cards of one site show, and how. */
+@Immutable
+data class PostCardLook(
     val avatar: Boolean = true,
     val date: Boolean = true,
     val media: Boolean = true,
@@ -82,21 +92,25 @@ data class PostCardStyle(
     val pictureHeight: Dp = pictureHeight(PostPictureSize.Medium),
     val thumbnailWidth: Dp = thumbnailWidth(PostPictureSize.Medium),
     val blurNsfw: Boolean = true,
-    /** Picture on the left and text beside it, as YouTube cards always are. */
+    /** The picture on the left and the text beside it. */
     val compact: Boolean = false,
 )
 
 fun postCardStyle(settings: Settings) = PostCardStyle(
     sites = settings.postSites,
-    avatar = settings.postAvatar,
-    date = settings.postDate,
-    media = settings.postMedia,
-    counts = settings.postCounts,
-    textLines = if (settings.postTextLines >= PostTextLines.ALL) Int.MAX_VALUE else settings.postTextLines,
-    pictureHeight = pictureHeight(settings.postPictureSize),
-    thumbnailWidth = thumbnailWidth(settings.postPictureSize),
-    blurNsfw = settings.blurNsfwPosts,
-    compact = settings.postCompact,
+    looks = PostSite.entries.associateWith { postCardLook(settings.postCard(it), settings.blurNsfwPosts) },
+)
+
+private fun postCardLook(card: PostCardSettings, blurNsfw: Boolean) = PostCardLook(
+    avatar = card.avatar,
+    date = card.date,
+    media = card.media,
+    counts = card.counts,
+    textLines = if (card.textLines >= PostTextLines.ALL) Int.MAX_VALUE else card.textLines,
+    pictureHeight = pictureHeight(card.pictureSize),
+    thumbnailWidth = thumbnailWidth(card.pictureSize),
+    blurNsfw = blurNsfw,
+    compact = card.compact,
 )
 
 fun pictureHeight(size: PostPictureSize): Dp = when (size) {
@@ -126,9 +140,9 @@ fun siteIcon(site: PostSite): Int = when (site) {
     PostSite.YouTube -> R.drawable.ic_site_youtube
 }
 
-/** Bluesky's butterfly and YouTube's button are known by their color; X's logo is plain, so it takes the card's text color. */
-private fun siteTint(site: PostSite, style: ChatStyle): Color = when (site) {
-    PostSite.X -> style.secondaryText
+/** Bluesky's butterfly and YouTube's button are known by their color; X's logo is plain, so it takes [plain]. */
+fun siteTint(site: PostSite, plain: Color): Color = when (site) {
+    PostSite.X -> plain
     PostSite.Bluesky -> BLUESKY_BLUE
     PostSite.YouTube -> YOUTUBE_RED
 }
@@ -181,8 +195,9 @@ internal fun PostCard(link: PostLink, card: PostCardStyle, style: ChatStyle, loa
 
 /** The card for [post] from [site], with the parts [card] asks for. */
 @Composable
-internal fun PostCardContent(post: Post, site: PostSite, card: PostCardStyle, style: ChatStyle, open: () -> Unit, picture: PostPicture) {
-    if (site == PostSite.YouTube || card.compact) {
+internal fun PostCardContent(post: Post, site: PostSite, cards: PostCardStyle, style: ChatStyle, open: () -> Unit, picture: PostPicture) {
+    val card = cards.look(site)
+    if (card.compact) {
         CompactCardContent(post, site, card, style, open, picture)
         return
     }
@@ -243,7 +258,7 @@ internal fun PostCardContent(post: Post, site: PostSite, card: PostCardStyle, st
  * text comes first, since a video's title or a post's words say more than who made them.
  */
 @Composable
-private fun CompactCardContent(post: Post, site: PostSite, card: PostCardStyle, style: ChatStyle, open: () -> Unit, picture: PostPicture) {
+private fun CompactCardContent(post: Post, site: PostSite, card: PostCardLook, style: ChatStyle, open: () -> Unit, picture: PostPicture) {
     val secondarySize = (style.fontSize - 2).sp
     // The chat's line height would make two lines of text taller than the picture beside them.
     val textLineHeight = (style.fontSize * COMPACT_LINE_HEIGHT).sp
@@ -297,7 +312,7 @@ private fun CompactCardContent(post: Post, site: PostSite, card: PostCardStyle, 
 @Composable
 private fun AuthorLine(
     post: Post,
-    card: PostCardStyle,
+    card: PostCardLook,
     style: ChatStyle,
     picture: PostPicture,
     fontSize: TextUnit,
@@ -319,7 +334,7 @@ private fun AuthorLine(
 }
 
 @Composable
-private fun ViewsLine(post: Post, card: PostCardStyle, style: ChatStyle, fontSize: TextUnit, lineHeight: TextUnit) {
+private fun ViewsLine(post: Post, card: PostCardLook, style: ChatStyle, fontSize: TextUnit, lineHeight: TextUnit) {
     val counts = if (card.counts) counts(post) else ""
     val posted = rememberPostedDate(post)?.takeIf { card.date }
     Text(
@@ -376,7 +391,7 @@ private fun SiteLogo(site: PostSite, style: ChatStyle) {
     Icon(
         painterResource(siteIcon(site)),
         contentDescription = stringResource(siteName(site)),
-        tint = siteTint(site, style),
+        tint = siteTint(site, style.secondaryText),
         modifier = Modifier.size(style.fontSize.dp),
     )
 }

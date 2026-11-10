@@ -29,13 +29,11 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import me.lesh.chatter.R
 import me.lesh.chatter.chat.ImageLinks
-import me.lesh.chatter.chat.PostSite
 import me.lesh.chatter.settings.Settings
 import me.lesh.chatter.ui.MainViewModel
 import me.lesh.chatter.ui.SettingsSubPage
-import me.lesh.chatter.ui.chat.siteName
 
-/** Linked images, GIFs and posts in the chat. */
+/** Linked images and GIFs in the chat, and how links are written. */
 @Composable
 internal fun MediaPage(settings: Settings, vm: MainViewModel, open: (SettingsSubPage) -> Unit) {
     SettingsGroup {
@@ -65,18 +63,6 @@ internal fun MediaPage(settings: Settings, vm: MainViewModel, open: (SettingsSub
         }
         item(R.string.settings_show_gifs) {
             SwitchItem(R.string.settings_show_gifs, settings.showGifs, vm::setShowGifs, R.string.settings_show_gifs_hint)
-        }
-        item(R.string.settings_posts) {
-            ListItem(
-                headlineContent = { Text(stringResource(R.string.settings_posts)) },
-                supportingContent = {
-                    val sites = PostSite.entries.filter { it in settings.postSites }.map { stringResource(siteName(it)) }
-                    Text(sites.joinToString(", ").ifEmpty { stringResource(R.string.settings_off) })
-                },
-                trailingContent = { NavChevron() },
-                colors = transparentItem(),
-                modifier = Modifier.tileClickable { open(SettingsSubPage.Posts) },
-            )
         }
         item(R.string.settings_full_links) { SwitchItem(R.string.settings_full_links, settings.fullLinks, vm::setFullLinks, R.string.settings_full_links_hint) }
     }
