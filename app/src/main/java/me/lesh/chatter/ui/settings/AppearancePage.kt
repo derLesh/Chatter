@@ -127,11 +127,11 @@ internal fun ThemeModeItem(selected: ThemeMode, onSelect: (ThemeMode) -> Unit, t
     )
 }
 
-/** Chat text size with a live preview line, for where the size is the only choice on screen. */
+/** Chat text size with a live preview, for the onboarding. Two lines, so dividers and the alternating background show. */
 @Composable
 internal fun TextSizeItem(settings: Settings, vm: MainViewModel) {
     var size by remember(settings.fontSize) { mutableFloatStateOf(settings.fontSize) }
-    val messages = previewMessages().take(1)
+    val messages = previewMessages().take(2)
     TextSizeSlider(size, { size = it }, vm) {
         ChatPreview(messages, settings, size, vm, Modifier.padding(top = 4.dp))
     }
