@@ -1,1 +1,0 @@
-minor: Swipe left and right in the emote picker to switch tabs

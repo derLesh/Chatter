@@ -1,1 +1,0 @@
-minor: Offer timestamps down to the millisecond, like 14:05:09.123

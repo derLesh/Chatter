@@ -1,2 +1,0 @@
-minor: Suggest bot commands while typing: Supibot, PotatBotat, Fossabot, Moobot, Nightbot, StreamElements, Streamlabs
-minor: Turn each bot on or off under Settings → Typing → Bot commands

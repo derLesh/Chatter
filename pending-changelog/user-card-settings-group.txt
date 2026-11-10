@@ -1,1 +1,0 @@
-patch: Gather the user card settings in a group of their own under Messages

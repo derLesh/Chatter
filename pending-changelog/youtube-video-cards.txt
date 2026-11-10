@@ -1,1 +1,0 @@
-minor: Show links to YouTube videos as a small card with thumbnail, title, channel and views

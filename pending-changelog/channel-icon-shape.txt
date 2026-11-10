@@ -1,1 +1,0 @@
-patch: Show channel pictures in shortcuts and bubbles in full, in the same shape as your app icons

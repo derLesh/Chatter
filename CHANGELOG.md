@@ -3,6 +3,27 @@
 Every release of Chatter, newest first. Written from the entries in `pending-changelog/` by
 `./gradlew releaseVersion`, and shown in the app under Settings → About → Changelog.
 
+## 0.13.0 — 2026-11-10
+- minor: First messages are now one of the special messages, with a preview, and your own first message is marked too
+- minor: Give X, Bluesky and YouTube each their own card settings, a compact card with the picture on the left included
+- minor: Let Chatter disconnect when you swipe it out of the recent apps, under Settings → Storage & data
+- minor: Let the user card show its buttons above the tapped message, so they stay in the same place
+- minor: Move social media posts into a settings category of their own
+- minor: Offer timestamps down to the millisecond, like 14:05:09.123
+- minor: Pick dividers and the alternating background for the chat during the first setup
+- minor: Send the same message twice in a row, which Twitch blocks within 30 seconds otherwise (Labs)
+- minor: Show links to YouTube videos as a small card with thumbnail, title, channel and views
+- minor: Show who you reply to as a small card with their picture; tap it to read it all. Beta in Settings → Typing
+- minor: Suggest bot commands while typing: Supibot, PotatBotat, Fossabot, Moobot, Nightbot, StreamElements, Streamlabs
+- minor: Suggestions now lie over the chat, so it stays in place while you type. Beta in Settings → Typing
+- minor: Swipe left and right in the emote picker to switch tabs
+- minor: Turn each bot on or off under Settings → Typing → Bot commands
+- minor: Turn off pictures, GIFs and posts in the user card under Settings → Media
+- patch: Gather the user card settings in a group of their own under Messages
+- patch: Give the Send later button the same gap to Send as the button for recent messages
+- patch: Keep chat, whispers and the settings search clear of the camera cutout and the side navigation buttons
+- patch: Show channel pictures in shortcuts and bubbles in full, in the same shape as your app icons
+
 ## 0.12.1 — 2026-11-08
 - patch: Show badges from other clients, like the Chatter supporter badge, on your own messages too
 - patch: Show supporter badges without sending your Twitch login to Chatter's server, also as a guest

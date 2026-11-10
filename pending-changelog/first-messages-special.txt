@@ -1,1 +1,0 @@
-minor: First messages are now one of the special messages, with a preview, and your own first message is marked too
