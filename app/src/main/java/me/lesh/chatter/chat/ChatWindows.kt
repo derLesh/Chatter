@@ -13,15 +13,23 @@ import java.util.concurrent.ConcurrentHashMap
  */
 class ChatWindows {
     private val open = ConcurrentHashMap.newKeySet<Any>()
+    private val openBubbles = ConcurrentHashMap.newKeySet<Any>()
     private val shown = ConcurrentHashMap<Any, Set<String>>()
 
     private val _anyVisible = MutableStateFlow(false)
     /** Whether any window of the app is in front. */
     val anyVisible: StateFlow<Boolean> = _anyVisible
 
+    /**
+     * Whether a bubble is in front. Unlike [anyVisible] it ignores the app's own window, which may
+     * report leaving only after its task is already gone.
+     */
+    val bubbleVisible: Boolean get() = openBubbles.isNotEmpty()
+
     /** A window came to the front or left it, showing [channels] while there. */
-    fun setVisible(window: Any, visible: Boolean, channels: Set<String>) {
+    fun setVisible(window: Any, visible: Boolean, channels: Set<String>, inBubble: Boolean = false) {
         if (visible) open.add(window) else open.remove(window)
+        if (visible && inBubble) openBubbles.add(window) else openBubbles.remove(window)
         setChannels(window, if (visible) channels else emptySet())
         _anyVisible.value = open.isNotEmpty()
     }

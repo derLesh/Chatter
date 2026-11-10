@@ -1,0 +1,1 @@
+minor: Let Chatter disconnect when you swipe it out of the recent apps, under Settings → Storage & data

@@ -57,6 +57,9 @@ internal fun StoragePage(settings: Settings, vm: MainViewModel) {
             )
         }
         item(R.string.settings_mobile_data) { MobileDataPicker(settings.mobileData, vm) }
+        item(R.string.settings_close_with_app) {
+            SwitchItem(R.string.settings_close_with_app, settings.closeWithApp, vm::setCloseWithApp, R.string.settings_close_with_app_hint)
+        }
     }
     SettingsGroup(R.string.storage_group) {
         item { SizeRow(R.string.storage_images, R.string.storage_images_hint, report?.images?.let(size)) }

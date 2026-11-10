@@ -108,6 +108,18 @@ class ChatService : Service() {
         return START_STICKY
     }
 
+    /**
+     * Swiped out of the recent apps: with [me.lesh.chatter.settings.Settings.closeWithApp] the
+     * connection ends with the app. Not while a bubble is on screen, which still reads the chat.
+     */
+    override fun onTaskRemoved(rootIntent: Intent?) {
+        if (container.settings.settings.value.closeWithApp && !container.chat.windows.bubbleVisible) {
+            container.disconnect()
+            stopSelf()
+        }
+        super.onTaskRemoved(rootIntent)
+    }
+
     override fun onDestroy() {
         // Without the service Android may end the process next, and up to ten minutes of statistics
         // and a minute of mentions are not saved yet.

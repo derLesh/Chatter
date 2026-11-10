@@ -353,6 +353,7 @@ private val SEARCH_INDEX: List<SearchEntry> by lazy {
         val storage = SettingsPage.Storage
         add(SearchEntry(R.string.settings_stats_group_data, storage, also = listOf(R.string.settings_stats_data_background)))
         add(SearchEntry(R.string.settings_mobile_data, storage, R.string.settings_mobile_data_hint, also = MOBILE_DATA.map { it.second }))
+        add(SearchEntry(R.string.settings_close_with_app, storage, R.string.settings_close_with_app_hint))
         add(SearchEntry(R.string.storage_group, storage, also = listOf(R.string.storage_images, R.string.storage_emote_lists)))
         add(SearchEntry(R.string.storage_clear_cache, storage, R.string.storage_clear_cache_hint))
         val backup = SettingsPage.Backup

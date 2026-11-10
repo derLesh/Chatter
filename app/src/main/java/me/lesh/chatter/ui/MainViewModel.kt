@@ -474,7 +474,7 @@ class MainViewModel(private val c: AppContainer, savedState: SavedStateHandle) :
     }
 
     fun setUiVisible(visible: Boolean) {
-        c.chat.windows.setVisible(this, visible, composer.shownChannels.toSet())
+        c.chat.windows.setVisible(this, visible, composer.shownChannels.toSet(), inBubble)
         // Leaving may come before the delay ends; then this is the last chance to write it.
         if (!visible) {
             writeLastChannel()
@@ -963,6 +963,7 @@ class MainViewModel(private val c: AppContainer, savedState: SavedStateHandle) :
         viewModelScope.launch { c.appIcons.pick(icon) }
     }
     fun setBubbles(v: Boolean) = saveSetting { setBubbles(v) }
+    fun setCloseWithApp(v: Boolean) = saveSetting { setCloseWithApp(v) }
     fun setLiveNotifications(v: Boolean) = saveSetting { setLiveNotifications(v) }
 
     val liveAlerts = c.channels.liveAlerts
