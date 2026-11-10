@@ -297,7 +297,7 @@
     <string name="settings_notifications_summary">Mentions, highlighted words, going live</string>
     <string name="settings_account_summary">Switch accounts, log out</string>
     <string name="settings_messages">Messages</string>
-    <string name="settings_messages_summary">Scrolling, history, tapping, screen on</string>
+    <string name="settings_messages_summary">Scrolling, history, tapping, user card, screen on</string>
     <string name="settings_media">Links &amp; images</string>
     <string name="settings_media_summary">Image previews, GIFs, posts</string>
     <string name="settings_typing">Typing</string>
@@ -343,8 +343,8 @@
     <string name="settings_provider_ffz">FrankerFaceZ</string>
     <string name="settings_show_deleted">Show deleted messages</string>
     <string name="settings_show_deleted_hint">Keeps them struck through instead of hiding them</string>
-    <string name="settings_user_card_attachments">Pictures in the user card</string>
-    <string name="settings_user_card_attachments_hint">Shows pictures, GIFs and posts in the messages of the user card</string>
+    <string name="settings_user_card_attachments">Pictures</string>
+    <string name="settings_user_card_attachments_hint">Shows pictures, GIFs and posts in the recent messages</string>
     <string name="settings_full_links">Show links in full</string>
     <string name="settings_full_links_hint">Otherwise long links are shortened</string>
     <string name="settings_mobile_data">On mobile data</string>
@@ -463,7 +463,8 @@
     <string name="tap_action_mention">Mention</string>
     <string name="tap_action_nothing">Nothing</string>
     <string name="settings_copy_first">Copy before Reply</string>
-    <string name="settings_copy_first_hint">In the user card</string>
+    <string name="settings_user_card_buttons_first">Reply, Mention, Copy on top</string>
+    <string name="settings_user_card_buttons_first_hint">Above the tapped message</string>
     <string name="settings_group_mentions">Mentions</string>
     <string name="settings_alternate_background">Alternating background</string>
     <string name="settings_alternate_background_hint">Shades every other message a little lighter</string>
@@ -811,6 +812,7 @@
     <string name="jump_message_gone">That message is no longer in the chat</string>
 
     <string name="settings_group_controls">Controls</string>
+    <string name="settings_group_user_card">User card</string>
     <string name="settings_haptics">Vibration</string>
     <string name="settings_haptics_hint">A short buzz when you are mentioned</string>
 

@@ -17,7 +17,10 @@ import me.lesh.chatter.ui.MainViewModel
 import me.lesh.chatter.ui.SettingsSubPage
 import kotlin.math.roundToInt
 
-/** What the chat shows, how much of it is kept, what a tap does, and the screen while reading. */
+/**
+ * What the chat shows, how much of it is kept, what a tap does, the user card, and the screen while
+ * reading.
+ */
 @Composable
 internal fun MessagesPage(settings: Settings, vm: MainViewModel, open: (SettingsSubPage) -> Unit) {
     SettingsGroup(R.string.settings_group_in_chat) {
@@ -68,7 +71,21 @@ internal fun MessagesPage(settings: Settings, vm: MainViewModel, open: (Settings
     SettingsGroup(R.string.settings_group_controls) {
         item(R.string.settings_message_tap) { TapActionPicker(R.string.settings_message_tap, settings.messageTap, vm::setMessageTap) }
         item(R.string.settings_name_tap) { TapActionPicker(R.string.settings_name_tap, settings.nameTap, vm::setNameTap) }
-        item(R.string.settings_copy_first) { SwitchItem(R.string.settings_copy_first, settings.copyFirst, vm::setCopyFirst, R.string.settings_copy_first_hint) }
+    }
+    SettingsGroup(R.string.settings_group_user_card) {
+        item(R.string.settings_user_card_buttons_first) {
+            SwitchItem(
+                R.string.settings_user_card_buttons_first, settings.userCardButtonsFirst,
+                vm::setUserCardButtonsFirst, R.string.settings_user_card_buttons_first_hint,
+            )
+        }
+        item(R.string.settings_copy_first) { SwitchItem(R.string.settings_copy_first, settings.copyFirst, vm::setCopyFirst) }
+        item(R.string.settings_user_card_attachments) {
+            SwitchItem(
+                R.string.settings_user_card_attachments, settings.userCardAttachments,
+                vm::setUserCardAttachments, R.string.settings_user_card_attachments_hint,
+            )
+        }
     }
     SettingsGroup(R.string.settings_group_screen) {
         item(R.string.settings_keep_screen_on) {

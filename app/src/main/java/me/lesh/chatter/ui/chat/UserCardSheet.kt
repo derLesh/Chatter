@@ -15,6 +15,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
@@ -103,6 +104,8 @@ fun UserCardSheet(
     note: String,
     /** Copy first and Reply last in the row, instead of the reverse. */
     copyFirst: Boolean,
+    /** Actions above the tapped message, so they stay in place however long it is. */
+    buttonsFirst: Boolean,
     onBlock: (HelixUser, Boolean) -> Unit,
     onBlockLogin: (String) -> Unit,
     onNickname: () -> Unit,
@@ -134,6 +137,17 @@ fun UserCardSheet(
     // Waits for the recent messages, which come from memory. Opened earlier the sheet would be
     // short, expand fully and stay so; opened with them, a long card opens half-way.
     val messages = recent ?: return
+    fun LazyListScope.tappedMessage(modifier: Modifier) = item {
+        Surface(
+            color = MaterialTheme.colorScheme.surfaceContainerHigh,
+            shape = RoundedCornerShape(16.dp),
+            modifier = modifier.fillMaxWidth(),
+        ) {
+            Column(Modifier.padding(vertical = 6.dp)) {
+                MessageRow(item.copy(historical = false), style, imageLoader, onGesture = null)
+            }
+        }
+    }
     ModalBottomSheet(onDismissRequest = onDismiss, containerColor = MaterialTheme.colorScheme.surfaceContainerLow) {
         LazyColumn(Modifier.fillMaxWidth()) {
             if (isUserMessage) {
@@ -183,18 +197,7 @@ fun UserCardSheet(
                 }
             }
 
-            // The tapped message.
-            item {
-                Surface(
-                    color = MaterialTheme.colorScheme.surfaceContainerHigh,
-                    shape = RoundedCornerShape(16.dp),
-                    modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 12.dp),
-                ) {
-                    Column(Modifier.padding(vertical = 6.dp)) {
-                        MessageRow(item.copy(historical = false), style, imageLoader, onGesture = null)
-                    }
-                }
-            }
+            if (!buttonsFirst) tappedMessage(Modifier.padding(horizontal = 16.dp, vertical = 12.dp))
 
             item {
                 val copyIcon = ImageVector.vectorResource(R.drawable.ic_content_copy)
@@ -208,7 +211,11 @@ fun UserCardSheet(
                     .takeIf { isUserMessage && !guest && onMention != null }
                 // They swap places, Mention stays in the middle.
                 val actions = if (copyFirst) listOfNotNull(copy, mention, reply) else listOfNotNull(reply, mention, copy)
-                ConnectedButtons(actions, tonal = true, modifier = Modifier.padding(horizontal = 16.dp))
+                ConnectedButtons(
+                    actions,
+                    tonal = true,
+                    modifier = Modifier.padding(start = 16.dp, end = 16.dp, top = if (buttonsFirst) 8.dp else 0.dp),
+                )
             }
 
             // Lower and smaller than the actions above: a mod wants them at hand, not in the way.
@@ -241,6 +248,8 @@ fun UserCardSheet(
                     )
                 }
             }
+
+            if (buttonsFirst) tappedMessage(Modifier.padding(start = 16.dp, end = 16.dp, top = 12.dp))
 
             if (isUserMessage) {
                 item {

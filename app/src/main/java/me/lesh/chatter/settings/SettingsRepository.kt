@@ -198,6 +198,8 @@ data class Settings(
      * Copy instead of Reply as the first action on the user card, for people who reply by tapping.
      */
     val copyFirst: Boolean = false,
+    /** Actions above the tapped message on the user card, so they stay in place however long it is. */
+    val userCardButtonsFirst: Boolean = false,
     /**
      * Beta: offer a summary by Gemini Nano of what arrived while away. Off until turned on, since
      * ML Kit reports usage to Google once it is used.
@@ -303,6 +305,7 @@ class SettingsRepository(
                 ?: NameColorPalette.HslLuma,
             messageTap = p[MESSAGE_TAP]?.let { v -> TapAction.entries.firstOrNull { it.name == v } } ?: TapAction.Reply,
             copyFirst = p[COPY_FIRST] ?: false,
+            userCardButtonsFirst = p[USER_CARD_BUTTONS_FIRST] ?: false,
             catchUpSummary = p[CATCH_UP_SUMMARY] ?: false,
             assistantActions = p[ASSISTANT_ACTIONS] ?: false,
             colorfulCategories = p[COLORFUL_CATEGORIES] ?: false,
@@ -323,6 +326,7 @@ class SettingsRepository(
     suspend fun setMessageTap(v: TapAction) = store.edit { it[MESSAGE_TAP] = v.name }
     suspend fun setNameTap(v: TapAction) = store.edit { it[NAME_TAP] = v.name }
     suspend fun setCopyFirst(v: Boolean) = store.edit { it[COPY_FIRST] = v }
+    suspend fun setUserCardButtonsFirst(v: Boolean) = store.edit { it[USER_CARD_BUTTONS_FIRST] = v }
     suspend fun setCatchUpSummary(v: Boolean) = store.edit { it[CATCH_UP_SUMMARY] = v }
     suspend fun setAssistantActions(v: Boolean) = store.edit { it[ASSISTANT_ACTIONS] = v }
     suspend fun setColorfulCategories(v: Boolean) = store.edit { it[COLORFUL_CATEGORIES] = v }
@@ -527,6 +531,7 @@ class SettingsRepository(
         p[MESSAGE_TAP] = s.messageTap.name
         p[NAME_TAP] = s.nameTap.name
         p[COPY_FIRST] = s.copyFirst
+        p[USER_CARD_BUTTONS_FIRST] = s.userCardButtonsFirst
         p[CATCH_UP_SUMMARY] = s.catchUpSummary
         p[ASSISTANT_ACTIONS] = s.assistantActions
         p[COLORFUL_CATEGORIES] = s.colorfulCategories
@@ -649,6 +654,7 @@ class SettingsRepository(
         val MESSAGE_TAP = stringPreferencesKey("message_tap")
         val NAME_TAP = stringPreferencesKey("name_tap")
         val COPY_FIRST = booleanPreferencesKey("copy_first")
+        val USER_CARD_BUTTONS_FIRST = booleanPreferencesKey("user_card_buttons_first")
         val CATCH_UP_SUMMARY = booleanPreferencesKey("catch_up_summary")
         val ASSISTANT_ACTIONS = booleanPreferencesKey("assistant_actions")
         val COLORFUL_CATEGORIES = booleanPreferencesKey("colorful_categories")
