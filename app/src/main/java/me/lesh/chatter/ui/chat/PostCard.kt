@@ -96,21 +96,25 @@ fun pictureHeight(size: PostPictureSize): Dp = when (size) {
 fun siteName(site: PostSite): Int = when (site) {
     PostSite.X -> R.string.post_site_x
     PostSite.Bluesky -> R.string.post_site_bluesky
+    PostSite.YouTube -> R.string.post_site_youtube
 }
 
 /** The site's logo, drawn on its cards. */
 fun siteIcon(site: PostSite): Int = when (site) {
     PostSite.X -> R.drawable.ic_site_x
     PostSite.Bluesky -> R.drawable.ic_site_bluesky
+    PostSite.YouTube -> R.drawable.ic_site_youtube
 }
 
-/** Bluesky's butterfly is known by its blue; X's logo is plain, so it takes the card's text color. */
+/** Bluesky's butterfly and YouTube's button are known by their color; X's logo is plain, so it takes the card's text color. */
 private fun siteTint(site: PostSite, style: ChatStyle): Color = when (site) {
     PostSite.X -> style.secondaryText
     PostSite.Bluesky -> BLUESKY_BLUE
+    PostSite.YouTube -> YOUTUBE_RED
 }
 
 private val BLUESKY_BLUE = Color(0xFF1185FE)
+private val YOUTUBE_RED = Color(0xFFFF0033)
 
 /** Draws a picture of the card; the settings preview draws its own instead of fetching. */
 typealias PostPicture = @Composable (url: String, description: String?, modifier: Modifier) -> Unit
@@ -175,8 +179,9 @@ internal fun PostCardContent(post: Post, site: PostSite, card: PostCardStyle, st
             val posted = remember(post.postedAt) {
                 post.postedAt.takeIf { it > 0 }?.let { DateFormat.getDateInstance(DateFormat.MEDIUM).format(Date(it)) }
             }
+            val byline = listOfNotNull(post.handle.takeIf { it.isNotEmpty() }?.let { "@$it" }, posted?.takeIf { card.date })
             Text(
-                text = if (card.date && posted != null) "@${post.handle} · $posted" else "@${post.handle}",
+                text = byline.joinToString(" · "),
                 color = style.secondaryText,
                 fontSize = secondarySize,
                 maxLines = 1,
@@ -246,9 +251,12 @@ private fun PostMediaBox(media: PostMedia, blurred: Boolean, maxHeight: Dp, open
                 modifier = Modifier.background(Color.Black.copy(alpha = 0.5f), CircleShape).padding(6.dp).size(28.dp),
             )
         }
-        if (media.more > 0) {
-            Overlay("+${media.more}", Modifier.align(Alignment.BottomEnd).padding(6.dp))
+        val corner = when {
+            media.more > 0 -> "+${media.more}"
+            media.lengthSeconds > 0 -> remember(media.lengthSeconds) { videoLength(media.lengthSeconds) }
+            else -> null
         }
+        corner?.let { Overlay(it, Modifier.align(Alignment.BottomEnd).padding(6.dp)) }
     }
 }
 
@@ -276,7 +284,15 @@ private fun Overlay(text: String, modifier: Modifier = Modifier) {
     )
 }
 
-/** "12K replies · 3K reposts · 40K likes", leaving out what nobody did. */
+/** "3:33" or "1:02:03", as YouTube writes it. */
+internal fun videoLength(seconds: Int): String {
+    val hours = seconds / 3600
+    val minutes = seconds / 60 % 60
+    val rest = seconds % 60
+    return if (hours > 0) "%d:%02d:%02d".format(Locale.ROOT, hours, minutes, rest) else "%d:%02d".format(Locale.ROOT, minutes, rest)
+}
+
+/** "12K replies · 3K reposts · 40K likes · 2M views", leaving out what nobody did. */
 @Composable
 private fun counts(post: Post): String {
     val compact = remember { CompactDecimalFormat.getInstance(Locale.getDefault(), CompactDecimalFormat.CompactStyle.SHORT) }
@@ -284,6 +300,7 @@ private fun counts(post: Post): String {
         count(R.plurals.post_replies, post.replies, compact),
         count(R.plurals.post_reposts, post.reposts, compact),
         count(R.plurals.post_likes, post.likes, compact),
+        count(R.plurals.post_views, post.views, compact),
     ).joinToString(" · ")
 }
 

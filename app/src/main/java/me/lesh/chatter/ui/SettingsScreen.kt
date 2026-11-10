@@ -296,7 +296,7 @@ private val SEARCH_INDEX: List<SearchEntry> by lazy {
             SearchEntry(
                 R.string.settings_posts, media,
                 also = listOf(
-                    R.string.post_site_x, R.string.post_site_bluesky, R.string.settings_post_avatar, R.string.settings_post_media,
+                    R.string.post_site_x, R.string.post_site_bluesky, R.string.post_site_youtube, R.string.settings_post_avatar, R.string.settings_post_media,
                     R.string.settings_post_counts, R.string.settings_post_picture_size, R.string.settings_blur_nsfw_posts,
                     R.string.settings_post_date, R.string.settings_post_text,
                 ),

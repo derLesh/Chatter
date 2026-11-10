@@ -382,13 +382,15 @@
     <string name="settings_post_site_x_hint">Zeigt Links zu X-Posts als Karte</string>
     <string name="settings_posts">Social-Media-Posts</string>
     <string name="settings_post_site_bluesky_hint">Zeigt Links zu Bluesky-Posts als Karte</string>
+    <string name="settings_post_site_youtube">Videos von YouTube anzeigen</string>
+    <string name="settings_post_site_youtube_hint">Zeigt Links zu YouTube-Videos als Karte</string>
     <string name="settings_off">Aus</string>
     <string name="settings_post_preview">Vorschau</string>
     <string name="settings_group_post_parts">Was die Karte zeigt</string>
     <string name="settings_post_avatar">Profilbild</string>
     <string name="settings_post_date">Datum</string>
     <string name="settings_post_media">Bild oder Video</string>
-    <string name="settings_post_counts">Antworten, Reposts und Likes</string>
+    <string name="settings_post_counts">Likes, Aufrufe und andere Zahlen</string>
     <string name="settings_post_text_none">Ausgeblendet</string>
     <string name="settings_post_text_all">Vollständig</string>
     <string name="settings_post_text">Text</string>
@@ -677,6 +679,10 @@
     <plurals name="post_likes">
         <item quantity="one">%1$s Like</item>
         <item quantity="other">%1$s Likes</item>
+    </plurals>
+    <plurals name="post_views">
+        <item quantity="one">%1$s Aufruf</item>
+        <item quantity="other">%1$s Aufrufe</item>
     </plurals>
     <plurals name="settings_hidden_emotes_count">
         <item quantity="one">%1$d Emote</item>
@@ -986,8 +992,8 @@
     <string name="onboarding_highlights_title">Sieh, was dich angeht</string>
     <string name="onboarding_highlights_text">Nachrichten, die dich erwähnen, fallen im Chat auf. Wähle ihre Farbe und Wörter, die auch auffallen sollen.</string>
     <string name="onboarding_links_title">Mehr als ein Link</string>
-    <string name="onboarding_links_text">Chatter kann zeigen, wohin ein Link führt: das Bild oder einen Post von X oder Bluesky als Karte. Dafür lädt es ihn von der Seite.</string>
-    <string name="onboarding_post_preview">Chatter kann Posts von X und Bluesky direkt im Chat zeigen. Ein Tipp auf die Karte öffnet den Post.</string>
+    <string name="onboarding_links_text">Chatter kann zeigen, wohin ein Link führt: das Bild, einen Post von X oder Bluesky oder ein YouTube-Video als Karte. Dafür lädt es ihn von der Seite.</string>
+    <string name="onboarding_post_preview">Chatter kann Posts von X und Bluesky und YouTube-Videos direkt im Chat zeigen. Ein Tipp auf die Karte öffnet sie.</string>
     <string name="settings_developer">Entwickler</string>
     <string name="settings_developer_summary">Nur in Debug-Builds</string>
     <string name="settings_show_onboarding">Onboarding zeigen</string>

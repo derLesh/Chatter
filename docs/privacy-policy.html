@@ -137,6 +137,13 @@ Twitch access token except Twitch itself.</p>
         on.</td>
   </tr>
   <tr>
+    <td>YouTube</td>
+    <td><code>www.youtube.com</code>, <code>i.ytimg.com</code></td>
+    <td>The number of a YouTube video that was linked in chat, and your phone's language, to show
+        it as a card. Only while &ldquo;Show videos from YouTube&rdquo; is on, which it is not until
+        you turn it on.</td>
+  </tr>
+  <tr>
     <td>Giphy</td>
     <td><code>giphy.com</code> and its subdomains</td>
     <td>Nothing about you: the address of a GIF a sub posted, as Twitch sent it. Only while
@@ -189,15 +196,18 @@ address of the GIF, which Twitch makes up and which can tell Giphy that the GIF 
 chat; nothing about you is sent. With the switch off, while the battery saver is on, or while
 Chatter saves data, nothing is loaded and the GIF's title stays text you can tap.</p>
 
-<p><strong>Posts from X and Bluesky linked in chat.</strong> Each site has its own switch under
-Settings &rarr; Chat &rarr; Social media posts, and both are off until you turn them on. With one on,
+<p><strong>Posts from X and Bluesky and videos from YouTube linked in chat.</strong> Each site has its own switch under
+Settings &rarr; Chat &rarr; Social media posts, and all are off until you turn them on. With one on,
 a link to a post on that site is shown as a card with its author, text and picture. X offers no free
 way to read a post, so Chatter asks FxTwitter, an independent open-source service, for it: the
 request carries the post's number and nothing else, and the pictures then come from X's image
 server. A post on Bluesky is read from Bluesky itself, the same way its own app does: the request
-carries the post's author and number, and the pictures come from Bluesky's servers. A post is only
-asked for when its message is on your screen, never for a chat running in the background, and not
-while the battery saver is on or Chatter saves data.</p>
+carries the post's author and number, and the pictures come from Bluesky's servers. A video on
+YouTube is read from YouTube itself, the way its website does: the request carries the video's
+number and your phone's language, so titles come in your language where the channel translated
+them, and the still comes from YouTube's image server. It is sent without an account or cookies. A
+post is only asked for when its message is on your screen, never for a chat running in the
+background, and not while the battery saver is on or Chatter saves data.</p>
 
 <p><strong>Summaries on your phone (beta).</strong> With &ldquo;Sum up what you missed&rdquo; on
 (Settings &rarr; Labs), which it is not until you turn it on, Chatter can ask Gemini Nano
@@ -342,6 +352,13 @@ und außer Twitch selbst erhält kein Dritter das Twitch-Token.</p>
         einschaltest.</td>
   </tr>
   <tr>
+    <td>YouTube</td>
+    <td><code>www.youtube.com</code>, <code>i.ytimg.com</code></td>
+    <td>Die Nummer eines im Chat verlinkten YouTube-Videos und die Sprache deines Geräts, um es als
+        Karte zu zeigen. Nur solange „Videos von YouTube anzeigen“ eingeschaltet ist, was es erst
+        ist, wenn du es einschaltest.</td>
+  </tr>
+  <tr>
     <td>Giphy</td>
     <td><code>giphy.com</code> und seine Subdomains</td>
     <td>Nichts Persönliches: die Adresse eines GIFs, das ein Sub gepostet hat, so wie Twitch sie
@@ -398,16 +415,19 @@ Giphy erkennen kann, dass das GIF im Twitch-Chat gezeigt wurde; nichts über dic
 der Schalter aus, der Akkusparmodus an oder spart Chatter Daten, wird nichts geladen, und der Titel
 des GIFs bleibt antippbarer Text.</p>
 
-<p><strong>Im Chat verlinkte Posts von X und Bluesky.</strong> Jede Seite hat ihren eigenen
-Schalter unter Einstellungen &rarr; Chat &rarr; Social-Media-Posts, und beide sind aus, bis du sie
+<p><strong>Im Chat verlinkte Posts von X und Bluesky und Videos von YouTube.</strong> Jede Seite hat ihren eigenen
+Schalter unter Einstellungen &rarr; Chat &rarr; Social-Media-Posts, und alle sind aus, bis du sie
 einschaltest. Ist einer an, wird ein Link auf einen Post dieser Seite als Karte mit Autor, Text und
 Bild angezeigt. X bietet keinen freien Weg, einen Post zu lesen, deshalb fragt Chatter FxTwitter,
 einen unabhängigen Open-Source-Dienst: Die Anfrage enthält die Nummer des Posts und sonst nichts,
 die Bilder kommen danach vom Bildserver von X. Einen Post auf Bluesky liest Chatter direkt bei
 Bluesky, so wie es die eigene App von Bluesky tut: Die Anfrage enthält Autor und Nummer des Posts,
-die Bilder kommen von den Servern von Bluesky. Ein Post wird erst abgefragt, wenn seine Nachricht
-auf dem Bildschirm ist, nie für einen Chat im Hintergrund, und nicht im Akkusparmodus oder während
-Chatter Daten spart.</p>
+die Bilder kommen von den Servern von Bluesky. Ein Video auf YouTube liest Chatter direkt bei
+YouTube, so wie es die Website von YouTube tut: Die Anfrage enthält die Nummer des Videos und die
+Sprache deines Geräts, damit Titel in deiner Sprache kommen, wo der Kanal sie übersetzt hat, und
+das Vorschaubild kommt vom Bildserver von YouTube. Sie geht ohne Konto und ohne Cookies raus. Ein
+Post wird erst abgefragt, wenn seine Nachricht auf dem Bildschirm ist, nie für einen Chat im
+Hintergrund, und nicht im Akkusparmodus oder während Chatter Daten spart.</p>
 
 <p><strong>Zusammenfassungen auf dem Gerät (Beta).</strong> Ist &bdquo;Verpasstes
 zusammenfassen&ldquo; eingeschaltet (Einstellungen &rarr; Labs), was es nicht ist, bis du

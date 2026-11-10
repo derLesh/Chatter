@@ -54,6 +54,7 @@ import me.lesh.chatter.chat.WhisperInboxRepository
 import me.lesh.chatter.chat.WhisperResult
 import me.lesh.chatter.chat.WhisperSender
 import me.lesh.chatter.chat.XPostSource
+import me.lesh.chatter.chat.YouTubePostSource
 import me.lesh.chatter.crash.CrashLog
 import me.lesh.chatter.debug.DebugStats
 import me.lesh.chatter.emotes.CheermoteRepository
@@ -74,6 +75,7 @@ import me.lesh.chatter.net.ImageRedirects
 import me.lesh.chatter.net.ImageSizeLimit
 import me.lesh.chatter.net.ServiceTrouble
 import me.lesh.chatter.net.ThirdPartyApi
+import me.lesh.chatter.net.YouTubeApi
 import me.lesh.chatter.service.BackgroundHealth
 import me.lesh.chatter.service.ChatNotifier
 import me.lesh.chatter.service.LiveAlerts
@@ -175,7 +177,10 @@ class AppContainer(
         botsOn = { settings.settings.value.botCommands },
     )
     /** Posts for the cards that replace their links, one source per site. */
-    val posts = PostRepository(listOf(XPostSource(FxTwitterApi(http)), BlueskyPostSource(BlueskyApi(http))), scope)
+    val posts = PostRepository(
+        listOf(XPostSource(FxTwitterApi(http)), BlueskyPostSource(BlueskyApi(http)), YouTubePostSource(YouTubeApi(http))),
+        scope,
+    )
     val emotes = EmoteRepository(helix, thirdParty, trouble, providersOn = { settings.settings.value.emoteProvidersOn })
     val emoji = EmojiRepository(context)
     val badges = BadgeRepository(
