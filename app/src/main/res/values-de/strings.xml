@@ -29,7 +29,7 @@
         <item quantity="other">%1$s wurde für %2$d Sekunden stummgeschaltet.</item>
     </plurals>
     <string name="chat_ban">%1$s wurde gebannt.</string>
-    <string name="chat_history_loading">Chatverlauf wird geladen…</string>
+    <string name="chat_history_loading">Lade Chatverlauf…</string>
     <string name="chat_history_failed">Der Chatverlauf konnte nicht geladen werden.</string>
 
     <!-- Chat -->

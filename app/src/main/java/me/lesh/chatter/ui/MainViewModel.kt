@@ -27,6 +27,7 @@ import me.lesh.chatter.chat.Bot
 import me.lesh.chatter.chat.BotCommands
 import me.lesh.chatter.chat.BotSuggestion
 import me.lesh.chatter.chat.ChatItem
+import me.lesh.chatter.chat.ChatStatus
 import me.lesh.chatter.chat.GapFilled
 import me.lesh.chatter.chat.ChatModes
 import me.lesh.chatter.chat.ChatRole
@@ -384,8 +385,22 @@ class MainViewModel(private val c: AppContainer, savedState: SavedStateHandle) :
         readMarks[page] = ReadMark(id = "", timestamp = gap.oldest - 1)
     }
 
-    /** What the chat does after a dropped connection, for the pill over it. */
-    val reconnectStep = c.chat.reconnectStep
+    /**
+     * What the pill over [page] says; null while its chat just runs. A state from the start, so a
+     * jump to a message knows right away whether the history is still on its way.
+     */
+    fun chatStatus(page: String): StateFlow<ChatStatus?> =
+        combine(c.chat.reconnectStatus, c.chat.historyLoading, groups) { reconnect, loading, groups ->
+            statusOf(page, reconnect, loading, groups)
+        }.stateIn(
+            viewModelScope, SharingStarted.WhileSubscribed(),
+            statusOf(page, c.chat.reconnectStatus.value, c.chat.historyLoading.value, groups.value),
+        )
+
+    private fun statusOf(page: String, reconnect: ChatStatus?, loading: Set<String>, groups: Map<String, ChannelGroup>): ChatStatus? {
+        val channels = if (ChannelGroup.isKey(page)) groups[page]?.channels.orEmpty() else listOf(page)
+        return reconnect ?: ChatStatus.LoadingHistory.takeIf { channels.any(loading::contains) }
+    }
 
     init {
         viewModelScope.launch { c.chat.gapsFilled.collect(::markGap) }

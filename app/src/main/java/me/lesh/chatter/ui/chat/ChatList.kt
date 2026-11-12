@@ -73,8 +73,7 @@ import me.lesh.chatter.R
 import me.lesh.chatter.ai.CatchUp
 import me.lesh.chatter.badges.Badge
 import me.lesh.chatter.chat.ChatItem
-import me.lesh.chatter.chat.ReconnectStep
-import me.lesh.chatter.chat.isHistoryLoading
+import me.lesh.chatter.chat.ChatStatus
 import me.lesh.chatter.ui.BetaBadge
 import me.lesh.chatter.ui.channels.formatCount
 import kotlinx.coroutines.delay
@@ -103,7 +102,7 @@ const val CHAT_LIST_TAG = "chat"
  * the newest message on screen, and [onMentionsSeen], which receives the visible mentions by id.
  * [onCatchUp] offers a summary of a long stretch of new messages and receives them, oldest first.
  *
- * [reconnectStep] shows a pill at the top while the connection comes back after a drop.
+ * [status] shows a pill at the top while the connection comes back or the history loads.
  *
  * [jumpTo] is the id of a message to scroll to and flash; [onJumped] then says whether it was still
  * there, and the caller clears [jumpTo].
@@ -128,7 +127,7 @@ fun ChatList(
     onSeen: ((ReadMark) -> Unit)? = null,
     onMentionsSeen: ((Set<String>) -> Unit)? = null,
     onCatchUp: ((List<ChatItem>) -> Unit)? = null,
-    reconnectStep: ReconnectStep? = null,
+    status: ChatStatus? = null,
     jumpTo: String? = null,
     onJumped: (found: Boolean) -> Unit = {},
     bottomInset: () -> Dp = { 0.dp },
@@ -201,12 +200,14 @@ fun ChatList(
     var flashing by remember { mutableStateOf<String?>(null) }
     val flash = remember { Animatable(0f) }
     val currentOnJumped by rememberUpdatedState(onJumped)
+    val currentStatus by rememberUpdatedState(status)
     LaunchedEffect(jumpTo) {
         val target = jumpTo ?: return@LaunchedEffect
         // Asks the buffer, not [items]: in the background the list stops updating, and a
         // notification's message arrived then. Right after a start the history may still bring it.
         val inBuffer = withTimeoutOrNull(JUMP_WAIT_MS) {
-            messages.first { list -> list.isNotEmpty() && list.none { it.isHistoryLoading() } }
+            snapshotFlow { currentStatus }.first { it != ChatStatus.LoadingHistory }
+            messages.first { it.isNotEmpty() }
         }?.any { it.id == target } == true
         // The rows are laid out from [items], so the index must come from there once it caught up.
         val found = if (inBuffer) withTimeoutOrNull(JUMP_WAIT_MS) {
@@ -286,7 +287,7 @@ fun ChatList(
             verticalArrangement = Arrangement.spacedBy(6.dp),
             modifier = Modifier.align(Alignment.TopCenter).padding(top = 8.dp),
         ) {
-            ReconnectPill(reconnectStep)
+            StatusPill(status)
             if (unseen != null && lineIndex != null && !chipDone && !lineShown) {
                 UnseenChip(
                     unseen = unseen,
@@ -367,7 +368,7 @@ private fun NewMessagesButton(visible: Boolean, count: Int, onClick: () -> Unit,
 
 /** How long a jump waits for the history, which may bring its message. */
 private const val JUMP_WAIT_MS = 10_000L
-private const val RECONNECT_PILL_DELAY_MS = 1_000L
+private const val STATUS_PILL_DELAY_MS = 1_000L
 private const val FLASH_IN_MS = 150
 private const val FLASH_OUT_MS = 1_200
 /** The highlight color at this alpha, stronger than a mention's own background. */
@@ -402,17 +403,17 @@ private fun UnseenLine() {
 }
 
 /**
- * What the chat is doing to come back after a dropped connection. Waits a moment before showing, so
- * a reconnect that is over at once does not flicker.
+ * What the chat is busy with: reconnecting, or loading messages. Waits a moment before showing, so
+ * what is over at once does not flicker.
  */
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
-private fun ReconnectPill(step: ReconnectStep?) {
-    var shown by remember { mutableStateOf<ReconnectStep?>(null) }
+private fun StatusPill(step: ChatStatus?) {
+    var shown by remember { mutableStateOf<ChatStatus?>(null) }
     // Kept while the pill fades out, so its text does not vanish first.
-    var lastShown by remember { mutableStateOf(ReconnectStep.Connecting) }
+    var lastShown by remember { mutableStateOf(ChatStatus.Connecting) }
     LaunchedEffect(step) {
-        if (step != null && shown == null) delay(RECONNECT_PILL_DELAY_MS)
+        if (step != null && shown == null) delay(STATUS_PILL_DELAY_MS)
         if (step != null) lastShown = step
         shown = step
     }
@@ -433,13 +434,14 @@ private fun ReconnectPill(step: ReconnectStep?) {
             ) {
                 LoadingIndicator(Modifier.size(28.dp), color = MaterialTheme.colorScheme.onSecondaryContainer)
                 Spacer(Modifier.width(4.dp))
-                AnimatedContent(lastShown, label = "reconnect step") { step ->
+                AnimatedContent(lastShown, label = "chat status") { step ->
                     Text(
                         stringResource(
                             when (step) {
-                                ReconnectStep.Connecting -> R.string.reconnect_connecting
-                                ReconnectStep.WaitingForNetwork -> R.string.reconnect_waiting_network
-                                ReconnectStep.LoadingHistory -> R.string.reconnect_loading_history
+                                ChatStatus.Connecting -> R.string.reconnect_connecting
+                                ChatStatus.WaitingForNetwork -> R.string.reconnect_waiting_network
+                                ChatStatus.LoadingMissed -> R.string.reconnect_loading_history
+                                ChatStatus.LoadingHistory -> R.string.chat_history_loading
                             },
                         ),
                         style = MaterialTheme.typography.labelLarge,

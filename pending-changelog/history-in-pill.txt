@@ -1,0 +1,1 @@
+patch: Show loading the recent messages in the pill too, instead of a line in the chat
