@@ -220,7 +220,7 @@ class AppContainer(
     val userPictures = UserPictures({ logins -> helix.users(logins).associate { it.login.lowercase() to it.profileImageUrl } }, scope)
     val updates = UpdateRepository(http, settings, BuildConfig.VERSION_NAME, BuildConfig.UPDATE_CHECK, dataSaving.active, scope)
     // Only called once connected, when [chat] exists.
-    val irc: IrcConnection = IrcConnection(socketHttp, scope) { chat.priority(it) }
+    val irc: IrcConnection = IrcConnection(socketHttp, scope, situation = ::situation) { chat.priority(it) }
     val whisperSender = WhisperSender(context, helix, auth) { owner, login, userId, name, text ->
         whisperInbox.addSent(owner, login, userId, name, text, System.currentTimeMillis())
     }
@@ -257,7 +257,7 @@ class AppContainer(
         )
     }
 
-    private val sevenTvEvents = SevenTvEventClient(socketHttp, scope)
+    private val sevenTvEvents = SevenTvEventClient(socketHttp, scope, situation = ::situation)
     private val sevenTvLive = SevenTvLiveUpdates(context, sevenTvEvents, emotes, badges, chat, settings.settings, scope)
 
     val imageLoader: ImageLoader = imageLoader(animated = true)
@@ -473,6 +473,7 @@ class AppContainer(
         }
         registerNetworkCallback()
         watchPowerSaveMode()
+        watchPhoneState()
     }
 
     /** Opens the chat connection for an account or a guest. Safe to call repeatedly. */
@@ -542,6 +543,36 @@ class AppContainer(
      * Android's battery saver. While it is on, emotes are drawn as stills regardless of the
      * setting.
      */
+    private fun situation(): String = AppWatch.situation(context, appVisible = chat.windows.anyVisible.value)
+
+    /** Screen, Doze and charging explain most connections that end while the phone lies still. */
+    private fun watchPhoneState() {
+        context.registerReceiver(
+            object : BroadcastReceiver() {
+                override fun onReceive(context: Context?, intent: Intent?) {
+                    val power = this@AppContainer.context.getSystemService(PowerManager::class.java)
+                    val what = when (intent?.action) {
+                        Intent.ACTION_SCREEN_ON -> "Screen on"
+                        Intent.ACTION_SCREEN_OFF -> "Screen off"
+                        PowerManager.ACTION_DEVICE_IDLE_MODE_CHANGED -> if (power.isDeviceIdleMode) "Phone dozing (Doze)" else "Phone awake from Doze"
+                        Intent.ACTION_POWER_CONNECTED -> "Charging"
+                        Intent.ACTION_POWER_DISCONNECTED -> "Not charging"
+                        else -> return
+                    }
+                    AppLog.i("Power", what)
+                }
+            },
+            IntentFilter().apply {
+                addAction(Intent.ACTION_SCREEN_ON)
+                addAction(Intent.ACTION_SCREEN_OFF)
+                addAction(PowerManager.ACTION_DEVICE_IDLE_MODE_CHANGED)
+                addAction(Intent.ACTION_POWER_CONNECTED)
+                addAction(Intent.ACTION_POWER_DISCONNECTED)
+            },
+            Context.RECEIVER_NOT_EXPORTED,
+        )
+    }
+
     private fun watchPowerSaveMode() {
         val power = context.getSystemService(PowerManager::class.java)
         _powerSaveMode.value = power.isPowerSaveMode

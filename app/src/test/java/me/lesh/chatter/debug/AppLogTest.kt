@@ -31,7 +31,7 @@ class AppLogTest {
     fun anErrorSaysItsKindAndWhereInChatter() {
         AppLog.e("Test", "Broke", IllegalStateException("bad state"))
         val message = AppLog.entries().single().private
-        assertTrue(message, message.startsWith("Broke: IllegalStateException: bad state (at AppLogTest."))
+        assertTrue(message, message.startsWith("Broke: java.lang.IllegalStateException: bad state (at AppLogTest."))
     }
 
     @Test

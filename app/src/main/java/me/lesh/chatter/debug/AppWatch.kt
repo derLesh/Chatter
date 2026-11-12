@@ -1,11 +1,15 @@
 package me.lesh.chatter.debug
 
 import android.app.Activity
+import android.app.ActivityManager
 import android.app.Application
 import android.content.ComponentCallbacks2
+import android.content.Context
 import android.content.res.Configuration
+import android.net.ConnectivityManager
 import android.net.NetworkCapabilities
 import android.os.Bundle
+import android.os.PowerManager
 import java.lang.reflect.Modifier
 
 /** Log lines about the app itself: its screens, the phone's settings, the network, settings changes. */
@@ -70,6 +74,39 @@ object AppWatch {
         val runtime = Runtime.getRuntime()
         val used = (runtime.totalMemory() - runtime.freeMemory()) / 1_048_576
         return "using $used of ${runtime.maxMemory() / 1_048_576} MB"
+    }
+
+    /**
+     * What the phone and the app are doing right now: "app in the background, screen off, Doze,
+     * battery saver off, process: foreground service, network: Wi-Fi, internet, …".
+     */
+    fun situation(context: Context, appVisible: Boolean): String {
+        val power = context.getSystemService(PowerManager::class.java)
+        val activities = context.getSystemService(ActivityManager::class.java)
+        val connectivity = context.getSystemService(ConnectivityManager::class.java)
+        val process = ActivityManager.RunningAppProcessInfo().also { ActivityManager.getMyMemoryState(it) }
+        return listOfNotNull(
+            if (appVisible) "app on screen" else "app in the background",
+            if (power.isInteractive) "screen on" else "screen off",
+            "Doze".takeIf { power.isDeviceIdleMode },
+            "light Doze".takeIf { power.isDeviceLightIdleMode },
+            "battery saver".takeIf { power.isPowerSaveMode },
+            "background restricted".takeIf { activities.isBackgroundRestricted },
+            "process: ${importance(process.importance)}",
+            memory(),
+            "network: ${network(connectivity.activeNetwork?.let(connectivity::getNetworkCapabilities))}",
+        ).joinToString()
+    }
+
+    private fun importance(value: Int) = when (value) {
+        ActivityManager.RunningAppProcessInfo.IMPORTANCE_FOREGROUND -> "in front"
+        ActivityManager.RunningAppProcessInfo.IMPORTANCE_FOREGROUND_SERVICE -> "foreground service"
+        ActivityManager.RunningAppProcessInfo.IMPORTANCE_VISIBLE -> "visible"
+        ActivityManager.RunningAppProcessInfo.IMPORTANCE_PERCEPTIBLE -> "perceptible"
+        ActivityManager.RunningAppProcessInfo.IMPORTANCE_SERVICE -> "service"
+        ActivityManager.RunningAppProcessInfo.IMPORTANCE_TOP_SLEEPING -> "top, sleeping"
+        ActivityManager.RunningAppProcessInfo.IMPORTANCE_CACHED -> "cached, may be ended any time"
+        else -> "importance $value"
     }
 
     /** "Wi-Fi, internet, unmetered, 120/20 Mbit/s". */

@@ -1044,7 +1044,7 @@
     </plurals>
     <string name="debug_log">Log</string>
     <string name="debug_log_summary">What Chatter is doing, for a bug report</string>
-    <string name="debug_log_report">Report</string>
+    <string name="debug_log_report">Report a bug</string>
     <string name="debug_log_copy">Copy</string>
     <string name="debug_log_save">Save</string>
     <string name="debug_log_clear">Clear the log</string>
@@ -1053,11 +1053,14 @@
     <string name="debug_log_save_failed">Could not save the log</string>
     <string name="debug_log_report_clipboard">The whole log is in the clipboard. Paste it into the form</string>
     <string name="debug_log_clip_label">Chatter log</string>
-    <string name="debug_log_private">Private: no names or links</string>
-    <string name="debug_log_full">Full: with names and links</string>
     <string name="debug_log_search">Search the log</string>
+    <string name="debug_log_show_names">Show names and links</string>
+    <string name="debug_log_hide_names">Hide names and links</string>
+    <string name="debug_log_state_private">private</string>
+    <string name="debug_log_state_full">with names</string>
+    <string name="debug_log_report_full_title">Report with names?</string>
+    <string name="debug_log_report_full_text">Issues are public. Anyone can see the names and links in the log there.</string>
     <string name="debug_log_filter">Filter</string>
-    <string name="debug_log_names">With names</string>
     <string name="debug_log_newest">To the newest</string>
     <string name="debug_log_no_match">No line matches</string>
     <string name="debug_log_level_error">Errors</string>

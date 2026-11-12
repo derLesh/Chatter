@@ -15,6 +15,7 @@ import androidx.compose.animation.scaleOut
 import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -39,8 +40,12 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.KeyboardArrowUp
+import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.ExtendedFloatingActionButton
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
@@ -100,17 +105,14 @@ import me.lesh.chatter.debug.AppLog
 import me.lesh.chatter.debug.DeviceReport
 import me.lesh.chatter.debug.LogReport
 import me.lesh.chatter.ui.MainViewModel
-import me.lesh.chatter.ui.chat.ButtonAction
-import me.lesh.chatter.ui.chat.ButtonChoice
-import me.lesh.chatter.ui.chat.ConnectedButtons
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 
 /**
  * The log over the whole screen: live, newest on top, the phone above it. It can be searched and
- * filtered by level and source, and shown with names. Reporting, copying and saving always take
- * the whole log and ask whether the private or the full one goes out.
+ * filtered by level and source. The eye switches between the private log and the full one, and
+ * reporting, copying and saving take the whole log as the eye shows it.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -128,6 +130,9 @@ internal fun LogScreen(vm: MainViewModel, onBack: () -> Unit) {
     var tags by rememberSaveable { mutableStateOf(emptyList<String>()) }
     var withNames by rememberSaveable { mutableStateOf(false) }
     var confirmClear by remember { mutableStateOf(false) }
+    var confirmFullReport by remember { mutableStateOf(false) }
+    var menuOpen by remember { mutableStateOf(false) }
+    val sharing = rememberLogSharing(vm, device)
     val levels = levelNames.mapNotNull { name -> AppLog.Level.entries.firstOrNull { it.name == name } }.toSet()
 
     if (searching) {
@@ -160,6 +165,21 @@ internal fun LogScreen(vm: MainViewModel, onBack: () -> Unit) {
             dismissButton = { TextButton(onClick = { confirmClear = false }) { Text(stringResource(R.string.cancel)) } },
         )
     }
+    // An issue is public; names and links should not land there by accident.
+    if (confirmFullReport) {
+        AlertDialog(
+            onDismissRequest = { confirmFullReport = false },
+            title = { Text(stringResource(R.string.debug_log_report_full_title)) },
+            text = { Text(stringResource(R.string.debug_log_report_full_text)) },
+            confirmButton = {
+                TextButton(onClick = {
+                    confirmFullReport = false
+                    sharing.report(true)
+                }) { Text(stringResource(R.string.debug_log_report)) }
+            },
+            dismissButton = { TextButton(onClick = { confirmFullReport = false }) { Text(stringResource(R.string.cancel)) } },
+        )
+    }
 
     Scaffold(
         containerColor = MaterialTheme.colorScheme.surface,
@@ -175,12 +195,14 @@ internal fun LogScreen(vm: MainViewModel, onBack: () -> Unit) {
                     title = {
                         Column {
                             Text(stringResource(R.string.debug_log))
+                            val count = if (filtered) {
+                                pluralStringResource(R.plurals.debug_log_count_filtered, entries.size, shown.size, entries.size)
+                            } else {
+                                pluralStringResource(R.plurals.debug_log_count, entries.size, entries.size)
+                            }
+                            val kind = stringResource(if (withNames) R.string.debug_log_state_full else R.string.debug_log_state_private)
                             Text(
-                                if (filtered) {
-                                    pluralStringResource(R.plurals.debug_log_count_filtered, entries.size, shown.size, entries.size)
-                                } else {
-                                    pluralStringResource(R.plurals.debug_log_count, entries.size, entries.size)
-                                },
+                                "$count · $kind",
                                 style = MaterialTheme.typography.labelMedium,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                             )
@@ -190,6 +212,13 @@ internal fun LogScreen(vm: MainViewModel, onBack: () -> Unit) {
                         IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Filled.ArrowBack, stringResource(R.string.back)) }
                     },
                     actions = {
+                        // Shows what the log looks like now: crossed out while names are hidden.
+                        IconToggleButton(checked = withNames, onCheckedChange = { withNames = it }) {
+                            Icon(
+                                ImageVector.vectorResource(if (withNames) R.drawable.ic_visibility else R.drawable.ic_visibility_off),
+                                stringResource(if (withNames) R.string.debug_log_hide_names else R.string.debug_log_show_names),
+                            )
+                        }
                         IconButton(onClick = { searching = true }) { Icon(Icons.Default.Search, stringResource(R.string.debug_log_search)) }
                         IconToggleButton(checked = filtersOpen, onCheckedChange = { filtersOpen = it }) {
                             Icon(
@@ -199,25 +228,49 @@ internal fun LogScreen(vm: MainViewModel, onBack: () -> Unit) {
                                 tint = if (filtered && !filtersOpen) MaterialTheme.colorScheme.primary else Color.Unspecified,
                             )
                         }
-                        IconButton(onClick = { confirmClear = true }) { Icon(Icons.Default.Delete, stringResource(R.string.debug_log_clear)) }
+                        Box {
+                            IconButton(onClick = { menuOpen = true }) { Icon(Icons.Default.MoreVert, stringResource(R.string.more_options)) }
+                            DropdownMenu(expanded = menuOpen, onDismissRequest = { menuOpen = false }) {
+                                DropdownMenuItem(
+                                    text = { Text(stringResource(R.string.debug_log_copy)) },
+                                    onClick = {
+                                        menuOpen = false
+                                        sharing.copy(withNames)
+                                    },
+                                )
+                                DropdownMenuItem(
+                                    text = { Text(stringResource(R.string.debug_log_save)) },
+                                    onClick = {
+                                        menuOpen = false
+                                        sharing.save(withNames)
+                                    },
+                                )
+                                DropdownMenuItem(
+                                    text = { Text(stringResource(R.string.debug_log_clear)) },
+                                    onClick = {
+                                        menuOpen = false
+                                        confirmClear = true
+                                    },
+                                )
+                            }
+                        }
                     },
                 )
             }
         },
-        bottomBar = {
-            Surface(color = MaterialTheme.colorScheme.surfaceContainerLow) {
-                ConnectedButtons(
-                    shareActions(vm, device),
-                    tonal = true,
-                    modifier = Modifier.navigationBarsPadding().padding(horizontal = 16.dp, vertical = 10.dp),
-                )
-            }
-        },
         floatingActionButton = {
-            AnimatedVisibility(awayFromNewest, enter = scaleIn() + fadeIn(), exit = scaleOut() + fadeOut()) {
-                SmallFloatingActionButton(onClick = { scope.launch { list.animateScrollToItem(0) } }) {
-                    Icon(Icons.Default.KeyboardArrowUp, stringResource(R.string.debug_log_newest))
+            Column(horizontalAlignment = Alignment.End, verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                AnimatedVisibility(awayFromNewest, enter = scaleIn() + fadeIn(), exit = scaleOut() + fadeOut()) {
+                    SmallFloatingActionButton(onClick = { scope.launch { list.animateScrollToItem(0) } }) {
+                        Icon(Icons.Default.KeyboardArrowUp, stringResource(R.string.debug_log_newest))
+                    }
                 }
+                // Takes the log as the eye shows it.
+                ExtendedFloatingActionButton(
+                    onClick = { if (withNames) confirmFullReport = true else sharing.report(false) },
+                    icon = { Icon(ImageVector.vectorResource(R.drawable.ic_bug_report), contentDescription = null) },
+                    text = { Text(stringResource(R.string.debug_log_report)) },
+                )
             }
         },
     ) { padding ->
@@ -229,15 +282,14 @@ internal fun LogScreen(vm: MainViewModel, onBack: () -> Unit) {
                     onLevels = { new -> levelNames = new.map { it.name } },
                     tags = tags,
                     onTags = { tags = it },
-                    withNames = withNames,
-                    onWithNames = { withNames = it },
                 )
             }
             val card = MaterialTheme.colorScheme.surfaceContainer
             LazyColumn(
                 state = list,
                 modifier = Modifier.fillMaxSize(),
-                contentPadding = PaddingValues(start = 12.dp, end = 12.dp, top = 4.dp, bottom = 16.dp),
+                // Room below the last line for the report button.
+                contentPadding = PaddingValues(start = 12.dp, end = 12.dp, top = 4.dp, bottom = 96.dp),
             ) {
                 // First, so the list holds on to it while new lines arrive above the rest.
                 item(key = "device") {
@@ -314,9 +366,11 @@ private fun rememberDevice(vm: MainViewModel): List<Pair<String, String>> {
     return remember(auth, channels.size, minutes) { DeviceReport.lines(context, accountKind(auth), channels.size) }
 }
 
-/** Report, copy and save: each asks for the private or the full log, and takes all of it. */
+/** Report, copy and save, each with the private or the full log, and always all of it. */
+private class LogSharing(val report: (full: Boolean) -> Unit, val copy: (full: Boolean) -> Unit, val save: (full: Boolean) -> Unit)
+
 @Composable
-private fun shareActions(vm: MainViewModel, device: List<Pair<String, String>>): List<ButtonAction> {
+private fun rememberLogSharing(vm: MainViewModel, device: List<Pair<String, String>>): LogSharing {
     val context = LocalContext.current
     val clipboard = LocalClipboard.current
     val scope = rememberCoroutineScope()
@@ -337,15 +391,8 @@ private fun shareActions(vm: MainViewModel, device: List<Pair<String, String>>):
             toast(context, if (saved) R.string.debug_log_saved else R.string.debug_log_save_failed)
         }
     }
-    fun bothLogs(label: Int, onClick: (full: Boolean) -> Unit) = ButtonAction(
-        label,
-        choices = listOf(
-            ButtonChoice(R.string.debug_log_private) { onClick(false) },
-            ButtonChoice(R.string.debug_log_full) { onClick(true) },
-        ),
-    )
-    return listOf(
-        bothLogs(R.string.debug_log_report) { full ->
+    return LogSharing(
+        report = { full ->
             val logs = LogReport.forIssue(device, AppLog.entries(), full)
             // A link holds only so much; the rest goes into the clipboard for pasting.
             if (!logs.whole) {
@@ -354,8 +401,8 @@ private fun shareActions(vm: MainViewModel, device: List<Pair<String, String>>):
             }
             context.startActivity(Intent(Intent.ACTION_VIEW, bugReportUrl(vm.device, logs.text).toUri()))
         },
-        bothLogs(R.string.debug_log_copy) { copy(fileText(it)) },
-        bothLogs(R.string.debug_log_save) {
+        copy = { copy(fileText(it)) },
+        save = {
             saveFull = it
             save.launch(fileName(it))
         },
@@ -395,7 +442,7 @@ private fun SearchBar(query: String, onQuery: (String) -> Unit, onClose: () -> U
     }
 }
 
-/** Levels and "with names" in one row, the sources that wrote something in a second. */
+/** Levels in one row, the sources that wrote something in a second. */
 @Composable
 private fun Filters(
     entries: List<AppLog.Entry>,
@@ -403,8 +450,6 @@ private fun Filters(
     onLevels: (Set<AppLog.Level>) -> Unit,
     tags: List<String>,
     onTags: (List<String>) -> Unit,
-    withNames: Boolean,
-    onWithNames: (Boolean) -> Unit,
 ) {
     // Busiest first: that is where one usually wants to look, or what one wants to hide.
     val sources = remember(entries) { entries.groupingBy { it.tag }.eachCount().entries.sortedByDescending { it.value } }
@@ -417,9 +462,6 @@ private fun Filters(
                     onClick = { onLevels(if (level in levels) levels - level else levels + level) },
                     label = { Text(stringResource(levelName(level))) },
                 )
-            }
-            item {
-                FilterChip(selected = withNames, onClick = { onWithNames(!withNames) }, label = { Text(stringResource(R.string.debug_log_names)) })
             }
         }
         LazyRow(contentPadding = row, horizontalArrangement = Arrangement.spacedBy(8.dp)) {

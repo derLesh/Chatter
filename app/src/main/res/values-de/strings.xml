@@ -1027,7 +1027,7 @@
     </plurals>
     <string name="debug_log">Log</string>
     <string name="debug_log_summary">Was Chatter tut, für einen Fehlerbericht</string>
-    <string name="debug_log_report">Melden</string>
+    <string name="debug_log_report">Fehler melden</string>
     <string name="debug_log_copy">Kopieren</string>
     <string name="debug_log_save">Speichern</string>
     <string name="debug_log_clear">Log leeren</string>
@@ -1036,11 +1036,14 @@
     <string name="debug_log_save_failed">Log konnte nicht gespeichert werden</string>
     <string name="debug_log_report_clipboard">Das ganze Log ist in der Zwischenablage. Füge es ins Formular ein</string>
     <string name="debug_log_clip_label">Chatter-Log</string>
-    <string name="debug_log_private">Privat: ohne Namen und Links</string>
-    <string name="debug_log_full">Voll: mit Namen und Links</string>
     <string name="debug_log_search">Log durchsuchen</string>
+    <string name="debug_log_show_names">Namen und Links zeigen</string>
+    <string name="debug_log_hide_names">Namen und Links verstecken</string>
+    <string name="debug_log_state_private">privat</string>
+    <string name="debug_log_state_full">mit Namen</string>
+    <string name="debug_log_report_full_title">Mit Namen melden?</string>
+    <string name="debug_log_report_full_text">Issues sind öffentlich. Namen und Links im Log kann dort jeder sehen.</string>
     <string name="debug_log_filter">Filtern</string>
-    <string name="debug_log_names">Mit Namen</string>
     <string name="debug_log_newest">Zum Neuesten</string>
     <string name="debug_log_no_match">Keine Zeile passt</string>
     <string name="debug_log_level_error">Fehler</string>

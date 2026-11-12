@@ -128,11 +128,16 @@ object AppLog {
      * find it, without a stack trace that runs to pages.
      */
     private fun describe(error: Throwable): String {
-        val frame = error.stackTrace.firstOrNull { it.className.startsWith("me.lesh.chatter") }
+        // The log's own code (the HTTP interceptor) only passes errors on; the frame that matters is the caller's.
+        val frame = error.stackTrace.firstOrNull { it.className.startsWith("me.lesh.chatter") && !it.className.startsWith(HttpLog::class.java.name) }
         val where = frame?.let { " (at ${it.className.substringAfterLast('.')}.${it.methodName}:${it.lineNumber})" }.orEmpty()
-        val cause = error.cause?.takeIf { it !== error }?.let { "; caused by ${it.javaClass.simpleName}: ${it.message}" }.orEmpty()
-        return "${error.javaClass.simpleName}: ${error.message}$where$cause"
+        // The whole chain: a dropped socket is often "SocketException" caused by an errno that says why.
+        val causes = generateSequence(error.cause) { it.cause?.takeIf { next -> next !== it } }.take(MAX_CAUSES)
+            .joinToString("") { "; caused by ${it.javaClass.simpleName}: ${it.message}" }
+        return "${error.javaClass.name}: ${error.message}$where$causes"
     }
+
+    private const val MAX_CAUSES = 5
 
     // Control characters, so they never clash with what a message says.
     private const val START = '\u0002'

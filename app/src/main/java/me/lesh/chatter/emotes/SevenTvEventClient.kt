@@ -99,7 +99,10 @@ data class SevenTvSubscription(val type: String, val condition: Map<String, Stri
 class SevenTvEventClient(
     private val http: OkHttpClient,
     private val scope: CoroutineScope,
+    /** What the phone and app are doing, for the log when the connection drops. */
+    private val situation: () -> String = { "" },
 ) {
+    @Volatile private var connectedAt = 0L
     private val lock = Any()
     private var socket: WebSocket? = null
     private var wanted = false
@@ -209,7 +212,7 @@ class SevenTvEventClient(
                 val limit = 2 * heartbeatMs
                 val silence = System.currentTimeMillis() - lastActivity
                 if (silence >= limit) {
-                    AppLog.i(TAG, "No heartbeat for ${silence / 1000}s, reconnecting")
+                    lost("no heartbeat for ${silence / 1000} s")
                     synchronized(lock) { if (socket === ws) scheduleReconnect() }
                     break
                 }
@@ -234,6 +237,13 @@ class SevenTvEventClient(
         }
     }
 
+    private fun lost(why: String, error: Throwable? = null) {
+        val held = if (connectedAt > 0) "after ${(System.currentTimeMillis() - connectedAt) / 1000} s connected" else "before it greeted us"
+        connectedAt = 0L
+        AppLog.w(TAG, "Connection lost: $why, $held", error)
+        AppLog.i(TAG, "Situation: ${situation()}")
+    }
+
     private inner class Listener : WebSocketListener() {
         private fun isCurrent(ws: WebSocket) = synchronized(lock) { socket === ws }
 
@@ -244,6 +254,7 @@ class SevenTvEventClient(
             when (msg["op"]?.jsonPrimitive?.int) {
                 1 -> synchronized(lock) { // hello: (re)send all subscriptions
                     heartbeatMs = heartbeatInterval(msg)
+                    connectedAt = System.currentTimeMillis()
                     AppLog.i(TAG, "Connected, heartbeat every ${heartbeatMs / 1000} s, subscribing to ${subscriptions.size}")
                     ready = true
                     attempt = 0
@@ -257,7 +268,7 @@ class SevenTvEventClient(
                 }
                 2 -> AppLog.v(TAG, "Heartbeat")
                 4, 7 -> { // reconnect requested / end of stream
-                    AppLog.i(TAG, "7TV asked to reconnect (op ${msg["op"]})")
+                    lost("7TV asked to reconnect (op ${msg["op"]})")
                     webSocket.close(1000, null)
                     scheduleReconnect()
                 }
@@ -266,14 +277,14 @@ class SevenTvEventClient(
 
         override fun onClosed(webSocket: WebSocket, code: Int, reason: String) {
             if (!isCurrent(webSocket)) return
-            AppLog.i(TAG, "7TV closed the connection (code $code)")
+            lost("7TV closed it (code $code${reason.takeIf { it.isNotBlank() }?.let { ", $it" }.orEmpty()})")
             scheduleReconnect()
         }
 
         override fun onFailure(webSocket: WebSocket, t: Throwable, response: Response?) {
             // A socket closed on purpose fails with "Canceled"; only the current one is news.
             if (!isCurrent(webSocket)) return
-            AppLog.w(TAG, "7TV events failed", t)
+            lost("it failed${response?.let { " (HTTP ${it.code})" }.orEmpty()}", t)
             scheduleReconnect()
         }
     }

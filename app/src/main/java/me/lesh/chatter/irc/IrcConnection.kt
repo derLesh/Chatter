@@ -32,6 +32,8 @@ enum class ConnectionState { Disconnected, Connecting, WaitingForNetwork, Connec
 class IrcConnection(
     private val http: OkHttpClient,
     private val scope: CoroutineScope,
+    /** What the phone and app are doing, for the log when the connection drops; see `AppWatch.situation`. */
+    private val situation: () -> String = { "" },
     /** Join order after a connect, lower first; see [JoinQueue]. */
     joinRank: (String) -> Int = { 0 },
 ) : ChatConnection {
@@ -56,6 +58,11 @@ class IrcConnection(
     private val joins = JoinQueue(System::currentTimeMillis, joinRank)
     @Volatile private var lastActivity = 0L
     private val traffic = Traffic()
+    // For the log when the connection drops: how far it got and what came last.
+    @Volatile private var openedAt = 0L
+    @Volatile private var connectedAt = 0L
+    @Volatile private var linesThisConnection = 0
+    @Volatile private var lastCommand: String? = null
     /**
      * Retrying without a network cannot succeed; a night in flight mode would be thousands of DNS
      * lookups. [setNetwork] reconnects when it is back.
@@ -140,6 +147,7 @@ class IrcConnection(
      */
     fun retryNow(): Unit = synchronized(lock) {
         if (!wanted || !networkUp || socket != null || _state.value == ConnectionState.Connected) return
+        AppLog.i(TAG, "Skipping the wait after attempt $attempt, trying now")
         attempt = 0
         reconnectJob?.cancel()
         openSocket()
@@ -176,7 +184,11 @@ class IrcConnection(
     private fun openSocket() {
         val (login, token) = credentials ?: return
         _state.value = ConnectionState.Connecting
-        AppLog.i(TAG, "Connecting to Twitch chat")
+        AppLog.i(TAG, "Connecting to Twitch chat (attempt ${attempt + 1}, internet ${if (networkValidated) "confirmed" else "not confirmed by Android"})")
+        openedAt = System.currentTimeMillis()
+        connectedAt = 0L
+        linesThisConnection = 0
+        lastCommand = null
         val request = Request.Builder().url("wss://irc-ws.chat.twitch.tv:443").build()
         socket = http.newWebSocket(request, Listener(login, token))
         startHandshakeTimeout()
@@ -194,7 +206,7 @@ class IrcConnection(
         handshakeJob = scope.launch {
             delay(HANDSHAKE_TIMEOUT_MS)
             if (_state.value != ConnectionState.Connected) {
-                AppLog.i(TAG, "No welcome within ${HANDSHAKE_TIMEOUT_MS / 1000}s, reconnecting")
+                lost("no welcome from Twitch within ${HANDSHAKE_TIMEOUT_MS / 1000} s")
                 scheduleReconnect()
             }
         }
@@ -238,7 +250,7 @@ class IrcConnection(
         _state.value = ConnectionState.Connecting
         val delayMs = if (immediate) 0L else backoffMs(attempt, networkValidated) + Random.nextLong(0, 1000)
         attempt++
-        AppLog.i(TAG, "Trying again in ${delayMs / 1000} s (attempt $attempt)")
+        AppLog.i(TAG, "Trying again in ${delayMs / 1000} s (attempt ${attempt + 1}${if (networkValidated) "" else ", internet not confirmed by Android, so waiting longer"})")
         reconnectJob = scope.launch {
             delay(delayMs)
             synchronized(lock) { if (wanted && socket == null) openSocket() }
@@ -258,7 +270,7 @@ class IrcConnection(
             while (isActive) {
                 val silence = System.currentTimeMillis() - lastActivity
                 if (silence >= SILENCE_LIMIT_MS) {
-                    AppLog.i(TAG, "No traffic for ${SILENCE_LIMIT_MS / 60_000} minutes, reconnecting")
+                    lost("no traffic for ${silence / 1000} s, the connection likely died unnoticed")
                     scheduleReconnect(immediate = true)
                     break
                 }
@@ -267,11 +279,29 @@ class IrcConnection(
         }
     }
 
+    /**
+     * Two lines for a dropped connection: why, how long it held and what came last, and what the
+     * phone was doing. Most drops are the network or Android pausing the app, which this tells apart.
+     */
+    private fun lost(why: String, error: Throwable? = null) {
+        val now = System.currentTimeMillis()
+        val held = if (connectedAt > 0) {
+            "connected for ${duration(now - connectedAt)}, $linesThisConnection lines, " +
+                "last traffic ${(now - lastActivity) / 1000} s ago${lastCommand?.let { " ($it)" }.orEmpty()}"
+        } else {
+            "never got connected, ${(now - openedAt) / 1000} s after starting"
+        }
+        AppLog.w(TAG, "Connection lost: $why; $held", error)
+        AppLog.i(TAG, "Situation: ${situation()}")
+    }
+
     private inner class Listener(val login: String, val token: String) : WebSocketListener() {
         private fun isCurrent(ws: WebSocket) = synchronized(lock) { socket === ws }
 
         override fun onOpen(webSocket: WebSocket, response: Response) {
             lastActivity = System.currentTimeMillis()
+            val tls = response.handshake?.let { ", ${it.tlsVersion.javaName}" }.orEmpty()
+            AppLog.d(TAG, "Socket open after ${lastActivity - openedAt} ms (${response.protocol}$tls), logging in")
             webSocket.send("CAP REQ :twitch.tv/tags twitch.tv/commands")
             if (token.isNotEmpty()) webSocket.send("PASS oauth:$token")
             webSocket.send("NICK $login")
@@ -288,19 +318,22 @@ class IrcConnection(
                 start = end + 2
                 if (end == lineStart) continue
                 // PINGs are answered on the socket thread before any parsing.
+                linesThisConnection++
                 if (text.startsWith("PING", lineStart)) {
+                    lastCommand = "PING"
                     webSocket.send("PONG" + text.substring(lineStart + 4, end))
                     AppLog.v(TAG, "PING answered")
                     continue
                 }
                 val msg = IrcMessage.parse(text, lineStart, end) ?: continue
+                lastCommand = msg.command
                 traffic.count(msg)?.let { AppLog.d(TAG, it) }
                 if (msg.command != "PRIVMSG") AppLog.v(TAG, describe(msg))
                 when (msg.command) {
                     "001" -> onWelcome(webSocket)
                     "ROOMSTATE" -> msg.channel?.let { synchronized(lock) { joins.answered(it) } }
                     "RECONNECT" -> {
-                        AppLog.i(TAG, "Twitch asked to reconnect")
+                        lost("Twitch asked to reconnect, e.g. for a server restart")
                         scheduleReconnect(immediate = true)
                     }
                     "NOTICE" -> {
@@ -332,7 +365,8 @@ class IrcConnection(
                 handshakeJob?.cancel()
                 attempt = 0
                 _state.value = ConnectionState.Connected
-                AppLog.i(TAG, "Connected, joining ${joined.size} channel(s)")
+                connectedAt = System.currentTimeMillis()
+                AppLog.i(TAG, "Connected ${connectedAt - openedAt} ms after starting, joining ${joined.size} channel(s)")
                 joins.restart(joined)
                 sendJoins()
             }
@@ -345,14 +379,14 @@ class IrcConnection(
 
         override fun onClosed(webSocket: WebSocket, code: Int, reason: String) {
             if (!isCurrent(webSocket)) return
-            AppLog.i(TAG, "Twitch closed the connection (code $code)")
+            lost("Twitch closed it (code $code${reason.takeIf { it.isNotBlank() }?.let { ", \"$it\"" }.orEmpty()})")
             scheduleReconnect()
         }
 
         override fun onFailure(webSocket: WebSocket, t: Throwable, response: Response?) {
             // A socket closed on purpose fails with "Canceled"; only the current one is news.
             if (!isCurrent(webSocket)) return
-            AppLog.w(TAG, "Connection failed${response?.let { " (HTTP ${it.code})" }.orEmpty()}", t)
+            lost("it failed${response?.let { " (HTTP ${it.code} ${it.message})" }.orEmpty()}", t)
             scheduleReconnect()
         }
     }
@@ -384,6 +418,15 @@ class IrcConnection(
     internal companion object {
         private const val TAG = "IrcConnection"
         private const val SUMMARY_MS = 60_000L
+
+        private fun duration(millis: Long): String {
+            val seconds = millis / 1000
+            return when {
+                seconds < 60 -> "$seconds s"
+                seconds < 3600 -> "${seconds / 60} min ${seconds % 60} s"
+                else -> "${seconds / 3600} h ${seconds % 3600 / 60} min"
+            }
+        }
 
         /**
          * "← USERNOTICE in channel 2, msg-id=raid". The full log adds the tags, which name users;

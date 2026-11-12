@@ -1,1 +1,1 @@
-minor: Tap the logo under About five times for a Debug log to search, filter, copy, save or send with a bug report
+minor: Tap the logo under About five times for a Debug log that explains dropped connections and goes into bug reports
