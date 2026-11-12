@@ -21,11 +21,11 @@ benchmark = "1.5.0"
 testExtJunit = "1.3.0"
 # The runner the microbenchmark build carries; ext-junit's ActivityScenario needs its monitor.
 testRunner = "1.7.0"
-uiautomator = "2.4.0"
+uiautomator = "2.4.1"
 changelog = "0.1.0"
 # Only the AppFunctions compiler needs it.
 ksp = "2.3.12"
-appfunctions = "1.0.0-beta01"
+appfunctions = "1.0.0-rc01"
 # Gemini Nano through Android's AICore; beta, like the features built on it.
 mlkitGenaiPrompt = "1.0.0-beta5"
 # The QR scanner of the token login: CameraX shows the camera, ZXing reads the code, both on the
