@@ -1,2 +1,2 @@
-patch: Make 7TV name paints readable in the light theme
+patch: Make 7TV name paints readable in the light theme, picture paints too
 patch: Drop the pale band behind the navigation buttons at the bottom of the screen

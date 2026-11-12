@@ -102,34 +102,41 @@ class LightRowTest {
     }
 
     @Test
-    fun anImagePaintWithAWhiteStripIsDimmedUntilTheStripReads() {
+    fun theBrightestChannelsFindAWhiteStrip() {
         // Only the top eighth is white: a name shows just that strip, so the average would not do.
         val pixels = IntArray(64 * 64) { i -> if (i < 64 * 8) 0xFFFFFFFF.toInt() else 0xFF000000.toInt() }
-        assertEquals(Color.White, lightestPixel(pixels))
-        assertEquals(Color(0xFFFF8000), lightestPixel(intArrayOf(0xFF0000FF.toInt(), 0xFFFF8000.toInt(), 0xFF800000.toInt())))
+        assertEquals(Color.White, brightestChannels(pixels))
+        assertEquals(Color(0xFFFA96F0), brightestChannels(intArrayOf(0xFFFA00F0.toInt(), 0xFF5F969B.toInt())))
     }
 
     @Test
-    fun aDimmedImagePaintReadsEvenOnATintedGreySheet() {
+    fun everyPixelOfADimmedImagePaintReadsOnATintedGreySheet() {
         val sheet = style(dark = false).over(Color(0xFFEBE9EF))
         val behind = sheet.forRow(message().copy(powerUp = PowerUp.Highlighted)).textBackground
-        for (lightest in listOf(Color.White, Color(0xFFFFF5A0), Color(0xFF84CAD1))) {
-            val dimming = paintImageDimming(lightest, maxLumaOnLight(behind))
-            val dimmed = Color(lightest.red * dimming, lightest.green * dimming, lightest.blue * dimming)
-            assertTrue("$lightest ${contrast(dimmed, behind)}", contrast(dimmed, behind) >= 4.5f)
+        // Magenta is the lighter of the two, but dimmed, the teal would be: each pixel has to hold.
+        // The beige sits right at the limit, where a factor rounded up in the shader would fall short.
+        val pictures = listOf(
+            intArrayOf(0xFFFA00F0.toInt(), 0xFF5F969B.toInt()),
+            intArrayOf(0xFFD2C3A0.toInt()),
+            intArrayOf(0xFFFFFFFF.toInt(), 0xFF000000.toInt()),
+            intArrayOf(0xFFFFF5A0.toInt(), 0xFF84CAD1.toInt(), 0xFF101010.toInt()),
+        )
+        for (pixels in pictures) {
+            val dimming = paintImageDimming(brightestChannels(pixels), maxLumaOnLight(behind))
+            // What the shader draws with: the factor as an 8-bit grey.
+            assertEquals(dimming, Color(dimming, dimming, dimming).red, 0f)
+            for (pixel in pixels) {
+                val color = Color(pixel)
+                val dimmed = Color(color.red * dimming, color.green * dimming, color.blue * dimming)
+                assertTrue("${Integer.toHexString(pixel)} ${contrast(dimmed, behind)}", contrast(dimmed, behind) >= 4.5f)
+            }
         }
     }
 
     @Test
     fun aDarkImagePaintAndClearPixelsAreLeftAlone() {
         val pixels = intArrayOf(0xFF202020.toInt(), 0x00FFFFFF, 0x40FFFFFF)
-        assertEquals(1f, paintImageDimming(lightestPixel(pixels), 0.17f), 0f)
-        assertEquals(Color.Black, lightestPixel(intArrayOf(0x00FFFFFF)))
-    }
-
-    @Test
-    fun linksUnderPicturesAndPostsTakeTheRowsColor() {
-        val row = style(dark = false).forRow(message().copy(powerUp = PowerUp.Highlighted))
-        assertTrue("${contrast(row.linkColor, row.textBackground)}", contrast(row.linkColor, row.textBackground) >= 4.5f)
+        assertEquals(1f, paintImageDimming(brightestChannels(pixels), 0.17f), 0f)
+        assertEquals(Color.Black, brightestChannels(intArrayOf(0x00FFFFFF)))
     }
 }

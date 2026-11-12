@@ -38,6 +38,7 @@ import me.lesh.chatter.ui.theme.chatColor
 import me.lesh.chatter.ui.theme.maxLumaOnLight
 import kotlin.math.abs
 import kotlin.math.cos
+import kotlin.math.floor
 import kotlin.math.hypot
 import kotlin.math.max
 import kotlin.math.sin
@@ -75,8 +76,8 @@ internal fun TextLayoutResult.boundsOf(range: IntRange): Rect? {
 /** Largest side of a paint's picture, in pixels. */
 private const val PAINT_IMAGE_MAX_SIDE = 512
 
-/** An image paint's picture, as a bitmap a shader can use, and its lightest visible pixel. */
-internal class PaintImage(val bitmap: ImageBitmap, val lightest: Color)
+/** An image paint's picture, as a bitmap a shader can use, and the highest red, green and blue in it. */
+internal class PaintImage(val bitmap: ImageBitmap, val brightest: Color)
 
 /** An image paint's picture; null until it has loaded. */
 @Composable
@@ -95,44 +96,41 @@ internal fun rememberPaintImage(url: String, loader: ImageLoader): PaintImage? {
         value = withContext(Dispatchers.Default) {
             val pixels = IntArray(bitmap.width * bitmap.height)
             bitmap.getPixels(pixels, 0, bitmap.width, 0, 0, bitmap.width, bitmap.height)
-            PaintImage(bitmap.asImageBitmap(), lightestPixel(pixels))
+            PaintImage(bitmap.asImageBitmap(), brightestChannels(pixels))
         }
     }
     return image
 }
 
-/** Linear light of each 8-bit sRGB value, so a whole picture is scanned without a power per pixel. */
-private val LINEAR = FloatArray(256) { Color(it, it, it).luminance() }
-
-/** The lightest of [pixels] (ARGB) that is more opaque than clear, by relative luminance; black if none is. */
-internal fun lightestPixel(pixels: IntArray): Color {
-    var lightest = 0xFF000000.toInt()
-    var most = -1f
+/** The highest red, green and blue among [pixels] (ARGB) that are more opaque than clear; black if none is. */
+internal fun brightestChannels(pixels: IntArray): Color {
+    var red = 0
+    var green = 0
+    var blue = 0
     for (pixel in pixels) {
         if ((pixel ushr 24) < 128) continue
-        val luminance = 0.2126f * LINEAR[(pixel shr 16) and 0xFF] + 0.7152f * LINEAR[(pixel shr 8) and 0xFF] + 0.0722f * LINEAR[pixel and 0xFF]
-        if (luminance > most) {
-            most = luminance
-            lightest = pixel
-        }
+        red = max(red, (pixel shr 16) and 0xFF)
+        green = max(green, (pixel shr 8) and 0xFF)
+        blue = max(blue, pixel and 0xFF)
     }
-    return Color(lightest).copy(alpha = 1f)
+    return Color(red, green, blue)
 }
 
 /**
- * What to multiply an image paint's colors by on a light theme so its [lightest] pixel is no lighter
- * than a readable name ([maxLuma]); 1 when it already is not. Scaling keeps which pixel is lightest,
- * so the rest end up darker still.
+ * What to multiply an image paint's colors by on a light theme so no pixel is lighter than a readable
+ * name ([maxLuma]); 1 when none is. Every pixel stays at or below the [brightest] channels in each
+ * channel, dimmed too, so bounding that one color bounds them all.
  */
-internal fun paintImageDimming(lightest: Color, maxLuma: Float): Float {
-    if (lightest.luminance() <= maxLuma) return 1f
+internal fun paintImageDimming(brightest: Color, maxLuma: Float): Float {
+    if (brightest.luminance() <= maxLuma) return 1f
     var lo = 0f
     var hi = 1f
     repeat(DIMMING_STEPS) {
         val mid = (lo + hi) / 2f
-        if (Color(lightest.red * mid, lightest.green * mid, lightest.blue * mid).luminance() <= maxLuma) lo = mid else hi = mid
+        if (Color(brightest.red * mid, brightest.green * mid, brightest.blue * mid).luminance() <= maxLuma) lo = mid else hi = mid
     }
-    return lo
+    // Down to a step the shader's 8-bit grey holds exactly; rounding up would let it reach past maxLuma.
+    return floor(lo * 255f) / 255f
 }
 
 private const val DIMMING_STEPS = 16
@@ -220,7 +218,7 @@ internal class NamePaintBrush(private val paint: NamePaint, private val image: P
 
     /**
      * The picture covering the name, like CSS's background-size: cover. Only part of it shows, so on
-     * a light theme the whole of it is dimmed until even its lightest part reads, as a gradient's
+     * a light theme the whole of it is dimmed until even its lightest pixel reads, as a gradient's
      * every color does.
      */
     private fun picture(image: PaintImage, bounds: Rect): Shader {
@@ -233,7 +231,7 @@ internal class NamePaintBrush(private val paint: NamePaint, private val image: P
             })
         }
         if (style.dark) return picture
-        val dimming = paintImageDimming(image.lightest, maxLumaOnLight(style.textBackground))
+        val dimming = paintImageDimming(image.brightest, maxLumaOnLight(style.textBackground))
         if (dimming >= 1f) return picture
         val grey = Color(dimming, dimming, dimming)
         return ComposeShader(picture, LinearGradientShader(Offset.Zero, Offset(1f, 0f), listOf(grey, grey)), BlendMode.MODULATE)
