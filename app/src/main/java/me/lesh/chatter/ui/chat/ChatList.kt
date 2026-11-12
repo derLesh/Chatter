@@ -4,7 +4,6 @@ import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.Crossfade
 import androidx.compose.animation.SizeTransform
-import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.VisibilityThreshold
@@ -416,29 +415,33 @@ private fun UnseenLine() {
 }
 
 private sealed interface PillText {
-    data class Busy(val status: ChatStatus) : PillText
+    data class Status(val status: ChatStatus) : PillText
     /** Display names of outside services that did not answer. */
     data class Unreachable(val services: List<String>) : PillText
 }
 
+/** A warning shows at once and with a warning icon; being busy waits a moment, see [StatusPill]. */
+private val PillText.isWarning: Boolean
+    get() = this is PillText.Unreachable || this == PillText.Status(ChatStatus.HistoryFailed)
+
 /**
- * What the chat is busy with, or which outside services did not answer. Being busy waits a moment
- * before showing, so what is over at once does not flicker.
+ * What the chat is busy with, or what went wrong. Being busy waits a moment before showing, so what
+ * is over at once does not flicker.
  */
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 private fun StatusPill(status: ChatStatus?, unreachable: List<String>) {
-    // Being busy goes first: while the connection is gone, every service fails with it.
-    val wanted = status?.let(PillText::Busy) ?: unreachable.takeIf { it.isNotEmpty() }?.let(PillText::Unreachable)
+    // The chat's own status goes first: while the connection is gone, every service fails with it.
+    val wanted = status?.let(PillText::Status) ?: unreachable.takeIf { it.isNotEmpty() }?.let(PillText::Unreachable)
     var shown by remember { mutableStateOf<PillText?>(null) }
     // Kept while the pill fades out, so its text does not vanish first.
-    var lastShown by remember { mutableStateOf<PillText>(PillText.Busy(ChatStatus.Connecting)) }
+    var lastShown by remember { mutableStateOf<PillText>(PillText.Status(ChatStatus.Connecting)) }
     LaunchedEffect(wanted) {
-        if (wanted is PillText.Busy && shown == null) delay(STATUS_PILL_DELAY_MS)
+        if (wanted != null && !wanted.isWarning && shown == null) delay(STATUS_PILL_DELAY_MS)
         if (wanted != null) lastShown = wanted
         shown = wanted
     }
-    val warning = lastShown is PillText.Unreachable
+    val warning = lastShown.isWarning
     val colors = MaterialTheme.colorScheme
     val motion = MaterialTheme.motionScheme
     AnimatedVisibility(
@@ -448,8 +451,8 @@ private fun StatusPill(status: ChatStatus?, unreachable: List<String>) {
     ) {
         Surface(
             shape = CircleShape,
-            color = animateColorAsState(if (warning) colors.errorContainer else colors.secondaryContainer, label = "pill").value,
-            contentColor = animateColorAsState(if (warning) colors.onErrorContainer else colors.onSecondaryContainer, label = "pill text").value,
+            color = colors.secondaryContainer,
+            contentColor = colors.onSecondaryContainer,
             shadowElevation = 3.dp,
         ) {
             Row(
@@ -458,7 +461,13 @@ private fun StatusPill(status: ChatStatus?, unreachable: List<String>) {
             ) {
                 Crossfade(warning, animationSpec = motion.defaultEffectsSpec(), label = "pill icon") { warns ->
                     if (warns) {
-                        Icon(Icons.Filled.Warning, contentDescription = null, modifier = Modifier.padding(4.dp).size(20.dp))
+                        // Only the icon in red: the pill sits where the user writes and should not alarm.
+                        Icon(
+                            Icons.Filled.Warning,
+                            contentDescription = null,
+                            tint = colors.error,
+                            modifier = Modifier.padding(4.dp).size(20.dp),
+                        )
                     } else {
                         LoadingIndicator(Modifier.size(28.dp), color = LocalContentColor.current)
                     }
@@ -477,13 +486,14 @@ private fun StatusPill(status: ChatStatus?, unreachable: List<String>) {
                 ) { text ->
                     Text(
                         when (text) {
-                            is PillText.Busy -> stringResource(
+                            is PillText.Status -> stringResource(
                                 when (text.status) {
                                     ChatStatus.Connecting -> R.string.chat_connecting
                                     ChatStatus.Reconnecting -> R.string.reconnect_connecting
                                     ChatStatus.WaitingForNetwork -> R.string.reconnect_waiting_network
                                     ChatStatus.LoadingMissed -> R.string.reconnect_loading_history
                                     ChatStatus.LoadingHistory -> R.string.chat_history_loading
+                                    ChatStatus.HistoryFailed -> R.string.chat_history_failed
                                 },
                             )
                             is PillText.Unreachable -> pluralStringResource(

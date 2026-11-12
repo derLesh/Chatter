@@ -321,6 +321,9 @@ class MainViewModel(private val c: AppContainer, savedState: SavedStateHandle) :
     /** Just removed channels and combined chats, each offered for undo once. */
     val removals = _removals.receiveAsFlow()
 
+    /** Channels whose recent messages just failed to load; the pill says so for a moment. */
+    private val historyFailed = MutableStateFlow<Set<String>>(emptySet())
+
     private val _unreachable = MutableStateFlow<List<String>>(emptyList())
     /** Outside services that just did not answer, by display name; the pill names them for a moment. */
     val unreachable: StateFlow<List<String>> = _unreachable
@@ -332,9 +335,20 @@ class MainViewModel(private val c: AppContainer, savedState: SavedStateHandle) :
         viewModelScope.launch {
             c.trouble.unreachable.collectLatest { service ->
                 _unreachable.update { if (service in it) it else it + service }
-                delay(UNREACHABLE_SHOWN_MS)
+                delay(NOTICE_SHOWN_MS)
                 _unreachable.value = emptyList()
             }
+        }
+        viewModelScope.launch {
+            c.chat.historyFailed.collectLatest { channel ->
+                historyFailed.update { it + channel }
+                delay(NOTICE_SHOWN_MS)
+                historyFailed.value = emptySet()
+            }
+        }
+        // Loading again makes the failure old news, also when it works within the warning's time.
+        viewModelScope.launch {
+            c.chat.historyLoading.collect { loading -> historyFailed.update { it - loading } }
         }
         viewModelScope.launch { c.chat.refused.collect(composer::onRefused) }
         viewModelScope.launch {
@@ -400,17 +414,25 @@ class MainViewModel(private val c: AppContainer, savedState: SavedStateHandle) :
      * jump to a message knows right away whether the history is still on its way.
      */
     fun chatStatus(page: String): StateFlow<ChatStatus?> =
-        combine(c.chat.connectionStatus, c.chat.historyLoading, groups) { connection, loading, groups ->
-            statusOf(page, connection, loading, groups)
+        combine(c.chat.connectionStatus, c.chat.historyLoading, historyFailed, groups) { connection, loading, failed, groups ->
+            statusOf(page, connection, loading, failed, groups)
         }.stateIn(
             viewModelScope, SharingStarted.WhileSubscribed(),
-            statusOf(page, c.chat.connectionStatus.value, c.chat.historyLoading.value, groups.value),
+            statusOf(page, c.chat.connectionStatus.value, c.chat.historyLoading.value, historyFailed.value, groups.value),
         )
 
-    private fun statusOf(page: String, connection: ChatStatus?, loading: Set<String>, groups: Map<String, ChannelGroup>): ChatStatus? {
+    private fun statusOf(
+        page: String,
+        connection: ChatStatus?,
+        loading: Set<String>,
+        failed: Set<String>,
+        groups: Map<String, ChannelGroup>,
+    ): ChatStatus? {
         val channels = if (ChannelGroup.isKey(page)) groups[page]?.channels.orEmpty() else listOf(page)
         // The history first: it comes over its own connection, and a jump waits for it.
-        return ChatStatus.LoadingHistory.takeIf { channels.any(loading::contains) } ?: connection
+        return ChatStatus.LoadingHistory.takeIf { channels.any(loading::contains) }
+            ?: connection
+            ?: ChatStatus.HistoryFailed.takeIf { channels.any(failed::contains) }
     }
 
     init {
@@ -1330,7 +1352,8 @@ class MainViewModel(private val c: AppContainer, savedState: SavedStateHandle) :
         /** How long a channel must stay on screen to be remembered as the last one. */
         const val LAST_CHANNEL_DELAY_MS = 1_500L
 
-        const val UNREACHABLE_SHOWN_MS = 4_000L
+        /** How long the pill shows a warning. */
+        const val NOTICE_SHOWN_MS = 4_000L
 
         /** Where the drafts are kept when Android saves the window. */
         const val DRAFTS_KEY = "drafts"
