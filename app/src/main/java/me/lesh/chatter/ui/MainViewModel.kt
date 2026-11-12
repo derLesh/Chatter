@@ -27,6 +27,8 @@ import me.lesh.chatter.chat.Bot
 import me.lesh.chatter.chat.BotCommands
 import me.lesh.chatter.chat.BotSuggestion
 import me.lesh.chatter.chat.ChatItem
+import me.lesh.chatter.chat.ChatStatus
+import me.lesh.chatter.chat.GapFilled
 import me.lesh.chatter.chat.ChatModes
 import me.lesh.chatter.chat.ChatRole
 import me.lesh.chatter.chat.ChatRule
@@ -82,9 +84,11 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.util.Locale
@@ -317,12 +321,34 @@ class MainViewModel(private val c: AppContainer, savedState: SavedStateHandle) :
     /** Just removed channels and combined chats, each offered for undo once. */
     val removals = _removals.receiveAsFlow()
 
+    /** Channels whose recent messages just failed to load; the pill says so for a moment. */
+    private val historyFailed = MutableStateFlow<Set<String>>(emptySet())
+
+    private val _unreachable = MutableStateFlow<List<String>>(emptyList())
+    /** Outside services that just did not answer, by display name; the pill names them for a moment. */
+    val unreachable: StateFlow<List<String>> = _unreachable
+
     private var suggestionJob: Job? = null
 
     init {
-        // An outside service did not answer; reported once.
+        // Each new one keeps the pill up a little longer, so an outage of several shows them together.
         viewModelScope.launch {
-            c.trouble.unreachable.collect { _messages.send(UiMessage(R.string.error_service_down, it)) }
+            c.trouble.unreachable.collectLatest { service ->
+                _unreachable.update { if (service in it) it else it + service }
+                delay(NOTICE_SHOWN_MS)
+                _unreachable.value = emptyList()
+            }
+        }
+        viewModelScope.launch {
+            c.chat.historyFailed.collectLatest { channel ->
+                historyFailed.update { it + channel }
+                delay(NOTICE_SHOWN_MS)
+                historyFailed.value = emptySet()
+            }
+        }
+        // Loading again makes the failure old news, also when it works within the warning's time.
+        viewModelScope.launch {
+            c.chat.historyLoading.collect { loading -> historyFailed.update { it - loading } }
         }
         viewModelScope.launch { c.chat.refused.collect(composer::onRefused) }
         viewModelScope.launch {
@@ -369,6 +395,48 @@ class MainViewModel(private val c: AppContainer, savedState: SavedStateHandle) :
     /** The user is leaving [page], for another page or app. */
     private fun leave(page: String) {
         seen[page]?.let { readMarks[page] = it }
+    }
+
+    /**
+     * The history filled a gap after a reconnect: the page on screen gets its unread line above
+     * what was missed, unless an older line already covers it.
+     */
+    private fun markGap(gap: GapFilled) {
+        val page = shownPage ?: return
+        val showsChannel = page == gap.channel || c.channels.groups.value[page]?.channels?.contains(gap.channel) == true
+        if (!showsChannel) return
+        if ((readMarks[page]?.timestamp ?: Long.MAX_VALUE) < gap.oldest) return
+        readMarks[page] = ReadMark(id = "", timestamp = gap.oldest - 1)
+    }
+
+    /**
+     * What the pill over [page] says; null while its chat just runs. A state from the start, so a
+     * jump to a message knows right away whether the history is still on its way.
+     */
+    fun chatStatus(page: String): StateFlow<ChatStatus?> =
+        combine(c.chat.connectionStatus, c.chat.historyLoading, historyFailed, groups) { connection, loading, failed, groups ->
+            statusOf(page, connection, loading, failed, groups)
+        }.stateIn(
+            viewModelScope, SharingStarted.WhileSubscribed(),
+            statusOf(page, c.chat.connectionStatus.value, c.chat.historyLoading.value, historyFailed.value, groups.value),
+        )
+
+    private fun statusOf(
+        page: String,
+        connection: ChatStatus?,
+        loading: Set<String>,
+        failed: Set<String>,
+        groups: Map<String, ChannelGroup>,
+    ): ChatStatus? {
+        val channels = if (ChannelGroup.isKey(page)) groups[page]?.channels.orEmpty() else listOf(page)
+        // The history first: it comes over its own connection, and a jump waits for it.
+        return ChatStatus.LoadingHistory.takeIf { channels.any(loading::contains) }
+            ?: connection
+            ?: ChatStatus.HistoryFailed.takeIf { channels.any(failed::contains) }
+    }
+
+    init {
+        viewModelScope.launch { c.chat.gapsFilled.collect(::markGap) }
     }
 
     /** The messages of a channel, or of a combined chat by its key. */
@@ -1283,6 +1351,9 @@ class MainViewModel(private val c: AppContainer, savedState: SavedStateHandle) :
     private companion object {
         /** How long a channel must stay on screen to be remembered as the last one. */
         const val LAST_CHANNEL_DELAY_MS = 1_500L
+
+        /** How long the pill shows a warning. */
+        const val NOTICE_SHOWN_MS = 4_000L
 
         /** Where the drafts are kept when Android saves the window. */
         const val DRAFTS_KEY = "drafts"

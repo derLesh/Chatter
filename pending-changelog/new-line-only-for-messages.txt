@@ -1,0 +1,1 @@
+patch: Show the new line only for messages from others, not for Chatter's own notes or your own messages

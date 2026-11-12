@@ -1,0 +1,1 @@
+patch: Show connecting in the pill above the input instead of in the bar at the top, and switch its texts smoothly

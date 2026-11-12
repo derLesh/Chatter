@@ -6,7 +6,7 @@ import java.util.concurrent.ConcurrentHashMap
 
 /**
  * Reports once per run when an outside service cannot be reached, so missing badges or history get
- * one line on screen instead of none. A service that answers again may be reported again; see
+ * one note on screen instead of none. A service that answers again may be reported again; see
  * [reachable].
  */
 class ServiceTrouble {

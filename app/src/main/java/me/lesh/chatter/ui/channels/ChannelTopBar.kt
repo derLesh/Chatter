@@ -137,7 +137,7 @@ fun ChannelTopBar(
                                 maxLines = 1,
                                 overflow = TextOverflow.Ellipsis,
                             )
-                            StatusLineView(groupStatus(connection, activeGroup, info), imageLoader)
+                            StatusLineView(groupStatus(activeGroup, info), imageLoader)
                         }
                     } else if (active != null) {
                         val i = info[active]

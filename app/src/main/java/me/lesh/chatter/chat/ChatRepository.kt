@@ -57,11 +57,6 @@ enum class SendResult {
     CommandError,
 }
 
-/** True for the line that stands in for a channel's history while it loads. */
-fun ChatItem.isHistoryLoading(): Boolean = id == historyLoadingId(channel)
-
-private fun historyLoadingId(channel: String) = "history-$channel"
-
 /**
  * Owns the chat of all channels. Every mutation runs on the single-threaded [worker], so no locks
  * are needed. Messages live in [MessageBuffers]; this class handles what Twitch sends.
@@ -173,6 +168,25 @@ class ChatRepository(
     /** Whispers that arrived while the whisper tab was not open, for the notification. */
     val whisperEvents: SharedFlow<InboxWhisper> = _whisperEvents
 
+    private val _connectionStatus = MutableStateFlow<ChatStatus?>(null)
+    /** Set while not connected, and after a reconnect until the history has filled the gap. */
+    val connectionStatus: StateFlow<ChatStatus?> = _connectionStatus
+
+    private val _historyLoading = MutableStateFlow<Set<String>>(emptySet())
+    /** The channels whose recent messages are loading for the first time. */
+    val historyLoading: StateFlow<Set<String>> = _historyLoading
+
+    /** Channels whose recent messages could not be loaded; tried again on the next connect. */
+    private val historyMissing = ConcurrentHashMap.newKeySet<String>()
+
+    private val _historyFailed = MutableSharedFlow<String>(extraBufferCapacity = 16)
+    /** A channel whose recent messages could not be loaded. */
+    val historyFailed: SharedFlow<String> = _historyFailed
+
+    private val _gapsFilled = MutableSharedFlow<GapFilled>(extraBufferCapacity = 64)
+    /** Channels where the history after a reconnect brought messages that were missed. */
+    val gapsFilled: SharedFlow<GapFilled> = _gapsFilled
+
     private val _unreadMentions = MutableStateFlow<Map<String, Int>>(emptyMap())
     val unreadMentions: StateFlow<Map<String, Int>> = _unreadMentions
 
@@ -236,22 +250,28 @@ class ChatRepository(
 
         scope.launch(worker) {
             var wasConnected = false
-            var previous: ConnectionState? = null
+            var gapFill: Job? = null
             irc.state.collect { state ->
+                if (state != ConnectionState.Connected) gapFill?.cancel()
                 when (state) {
-                    ConnectionState.Connected -> if (wasConnected) {
-                        systemAll(R.string.chat_reconnected)
-                        // Fetch what was said while offline, the channel on screen first.
-                        buffers.channels().sortedBy(::priority).forEach { ch ->
-                            scope.launch { loadHistory(ch, since = incoming.lastLive(ch)) }
+                    ConnectionState.Connected -> {
+                        // Offline at the start, or the service was down: the network is back now.
+                        val missing = historyMissing.toList().sortedBy(::priority)
+                        if (missing.isNotEmpty()) scope.launch { reloadHistory(missing) }
+                        if (wasConnected) {
+                            // The channel on screen first.
+                            val channels = buffers.channels().filterNot(missing::contains).sortedBy(::priority)
+                            gapFill = scope.launch { fillGaps(channels) }
+                        } else {
+                            wasConnected = true
+                            _connectionStatus.value = null
                         }
-                    } else wasConnected = true
-                    // Said once when the connection drops, not for every retry.
-                    ConnectionState.Connecting, ConnectionState.WaitingForNetwork ->
-                        if (previous == ConnectionState.Connected) systemAll(R.string.chat_disconnected)
-                    else -> Unit
+                    }
+                    ConnectionState.Connecting ->
+                        _connectionStatus.value = if (wasConnected) ChatStatus.Reconnecting else ChatStatus.Connecting
+                    ConnectionState.WaitingForNetwork -> _connectionStatus.value = ChatStatus.WaitingForNetwork
+                    ConnectionState.Disconnected, ConnectionState.AuthFailed -> _connectionStatus.value = null
                 }
-                previous = state
             }
         }
     }
@@ -385,6 +405,7 @@ class ChatRepository(
         pins.clear()
         rewards.clear()
         loadedChannels.clear()
+        historyMissing.clear()
         listLoads.clear()
         joinedChannels = emptyList()
         _unreadMentions.value = emptyMap()
@@ -413,6 +434,7 @@ class ChatRepository(
             sharedChats.forget(ch)
             pins.forget(ch)
             loadedChannels.remove(ch)
+            historyMissing.remove(ch)
             _unreadMentions.update { it - ch }
         }
         added.forEach { ch ->
@@ -431,14 +453,19 @@ class ChatRepository(
     private suspend fun loadChannels(channels: List<String>) {
         // First, so the user does not look at an empty screen while the ids and emotes load.
         channels.forEach { announceHistory(it) }
-        val unknown = channels.filter { rooms.id(it) == null && channelRepo.info.value[it]?.id == null }
-        val found = if (unknown.isEmpty()) emptyMap() else channelRepo.refreshUsers(unknown)
-        coroutineScope {
-            channels.groupBy(::priority).toSortedMap().values.forEach { group ->
-                val loads = group.map { launch { loadChannelData(it, found[it]) } }
-                // Only a head start: a history service that does not answer would hold up the rest.
-                withTimeoutOrNull(HEAD_START_MS) { loads.joinAll() }
+        try {
+            val unknown = channels.filter { rooms.id(it) == null && channelRepo.info.value[it]?.id == null }
+            val found = if (unknown.isEmpty()) emptyMap() else channelRepo.refreshUsers(unknown)
+            coroutineScope {
+                channels.groupBy(::priority).toSortedMap().values.forEach { group ->
+                    val loads = group.map { launch { loadChannelData(it, found[it]) } }
+                    // Only a head start: a history service that does not answer would hold up the rest.
+                    withTimeoutOrNull(HEAD_START_MS) { loads.joinAll() }
+                }
             }
+        } finally {
+            // A channel whose load never reached its history must not keep the pill up.
+            _historyLoading.update { it - channels.toSet() }
         }
     }
 
@@ -490,23 +517,33 @@ class ChatRepository(
      * Loads recent messages from the recent-messages service and merges them by time. With [since],
      * only messages after it (the gap after a reconnect).
      *
-     * The service is often unavailable, and an empty channel looks broken, so the line
-     * [announceHistory] put up is removed here or replaced by one saying the history failed.
+     * The service is often unavailable, and an empty channel looks broken, so a failed first load is
+     * reported to [historyFailed] and tried again on the next connect. [announceHistory] put the
+     * channel into [historyLoading]; it leaves it here, however the load ends.
      */
-    private suspend fun loadHistory(channel: String, since: Long? = null) {
-        if (!settings.value.loadHistory) return
+    private suspend fun loadHistory(channel: String, since: Long? = null): List<ChatItem> {
         val announce = since == null
+        try {
+            return fetchHistory(channel, since, announce)
+        } finally {
+            if (announce) _historyLoading.update { it - channel }
+        }
+    }
+
+    private suspend fun fetchHistory(channel: String, since: Long?, announce: Boolean): List<ChatItem> {
+        if (!settings.value.loadHistory) return emptyList()
         val lines = try {
             thirdParty.recentMessages(channel, 100).messages
         } catch (e: Exception) {
             Log.w(TAG, "History for $channel failed: ${e.message}")
-            if (announce) withContext(worker) {
-                buffers.remove(channel, historyId(channel))
-                system(channel, context.getString(R.string.chat_history_failed), id = historyFailedId(channel))
+            if (announce && channel in joinedChannels) {
+                historyMissing.add(channel)
+                _historyFailed.tryEmit(channel)
             }
-            return
+            return emptyList()
         }
-        withContext(worker) {
+        if (announce) historyMissing.remove(channel)
+        val (fresh, partners) = withContext(worker) {
             val self = auth.account?.login.orEmpty()
             val current = filters
             val (mentions, _, rules) = current
@@ -518,14 +555,33 @@ class ChatRepository(
                     ?.let { rules.apply(it) }
                     ?.also { incoming.rememberChatter(channel, it) }
             }
-            buffers.merge(channel, items)
+            val fresh = buffers.merge(channel, items)
             items.firstNotNullOfOrNull { it.rewardId }?.let { rewards.seen(it, rooms.id(channel)) }
             pins.takeFromChat(channel)
-            if (announce) buffers.remove(channel, historyId(channel))
             // Old partner messages are marked like new ones. Whether a session is running is
             // decided by live messages only.
-            sharedChats.unknown(items.mapNotNullTo(HashSet()) { it.sourceRoomId })
-        }.let { describePartners(it) }
+            fresh to sharedChats.unknown(items.mapNotNullTo(HashSet()) { it.sourceRoomId })
+        }
+        describePartners(partners)
+        return fresh
+    }
+
+    /**
+     * Fetches what was said while the connection was down. Channels where something was missed are
+     * reported to [gapsFilled]; where nothing was, the reconnect leaves no trace.
+     */
+    private suspend fun fillGaps(channels: List<String>) {
+        _connectionStatus.value = ChatStatus.LoadingMissed
+        if (settings.value.loadHistory) coroutineScope {
+            channels.forEach { channel ->
+                launch {
+                    val fresh = loadHistory(channel, since = incoming.lastLive(channel))
+                    fresh.minOfOrNull { it.timestamp }?.let { _gapsFilled.tryEmit(GapFilled(channel, it)) }
+                }
+            }
+        }
+        // Not if the connection dropped again meanwhile; that step stays.
+        _connectionStatus.compareAndSet(ChatStatus.LoadingMissed, null)
     }
 
     /** Asks Helix who a channel that just started sharing its chat shares it with. */
@@ -585,30 +641,19 @@ class ChatRepository(
         if (!watched && active) _whisperEvents.tryEmit(whisper)
     }
 
-    /** [id] is set for lines that are removed again later, like the history status lines. */
-    private fun system(channel: String, text: String, id: String = UUID.randomUUID().toString()) = buffers.add(
-        ChatItem(id = id, channel = channel, kind = MessageKind.Notice,
+    private fun system(channel: String, text: String) = buffers.add(
+        ChatItem(id = UUID.randomUUID().toString(), channel = channel, kind = MessageKind.Notice,
             timestamp = System.currentTimeMillis(), systemText = text, text = text)
     )
 
-    /**
-     * Shows that the history is loading and removes an older failure line. Only for the initial
-     * load; the gap fill after a reconnect is silent.
-     */
-    private suspend fun announceHistory(channel: String) {
-        if (!settings.value.loadHistory) return
-        withContext(worker) {
-            buffers.remove(channel, historyFailedId(channel))
-            system(channel, context.getString(R.string.chat_history_loading), id = historyId(channel))
-        }
+    /** Shows that the history is loading. Only for a full load; the gap after a reconnect has its own status. */
+    private fun announceHistory(channel: String) {
+        if (settings.value.loadHistory) _historyLoading.update { it + channel }
     }
 
-    private fun historyId(channel: String) = historyLoadingId(channel)
-    private fun historyFailedId(channel: String) = "history-failed-" + channel
-
-    private fun systemAll(res: Int) {
-        val text = context.getString(res)
-        buffers.channels().forEach { system(it, text) }
+    private suspend fun reloadHistory(channels: List<String>) {
+        channels.forEach(::announceHistory)
+        coroutineScope { channels.forEach { launch { loadHistory(it) } } }
     }
 
     private companion object {

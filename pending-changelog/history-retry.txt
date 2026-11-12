@@ -1,0 +1,1 @@
+patch: Load the recent messages again once the connection is back, and tell in the pill when they fail
