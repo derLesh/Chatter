@@ -20,8 +20,9 @@
     <string name="settings_sender_avatars_hint">Zeigt das Profilbild des Absenders in der Benachrichtigung</string>
 
     <!-- Chat system messages -->
-    <string name="chat_reconnected">Wieder verbunden.</string>
-    <string name="chat_disconnected">Verbindung getrennt. Verbinde neu…</string>
+    <string name="reconnect_connecting">Verbinde neu…</string>
+    <string name="reconnect_waiting_network">Warte auf ein Netzwerk…</string>
+    <string name="reconnect_loading_history">Lade verpasste Nachrichten…</string>
     <string name="chat_cleared">Der Chat wurde von einem Moderator geleert.</string>
     <plurals name="chat_timeout">
         <item quantity="one">%1$s wurde für %2$d Sekunde stummgeschaltet.</item>

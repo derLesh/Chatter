@@ -1,0 +1,1 @@
+patch: Show reconnecting in a pill over the chat instead of lines in every channel, and mark what was missed as new

@@ -27,6 +27,7 @@ import me.lesh.chatter.chat.Bot
 import me.lesh.chatter.chat.BotCommands
 import me.lesh.chatter.chat.BotSuggestion
 import me.lesh.chatter.chat.ChatItem
+import me.lesh.chatter.chat.GapFilled
 import me.lesh.chatter.chat.ChatModes
 import me.lesh.chatter.chat.ChatRole
 import me.lesh.chatter.chat.ChatRule
@@ -369,6 +370,25 @@ class MainViewModel(private val c: AppContainer, savedState: SavedStateHandle) :
     /** The user is leaving [page], for another page or app. */
     private fun leave(page: String) {
         seen[page]?.let { readMarks[page] = it }
+    }
+
+    /**
+     * The history filled a gap after a reconnect: the page on screen gets its unread line above
+     * what was missed, unless an older line already covers it.
+     */
+    private fun markGap(gap: GapFilled) {
+        val page = shownPage ?: return
+        val showsChannel = page == gap.channel || c.channels.groups.value[page]?.channels?.contains(gap.channel) == true
+        if (!showsChannel) return
+        if ((readMarks[page]?.timestamp ?: Long.MAX_VALUE) < gap.oldest) return
+        readMarks[page] = ReadMark(id = "", timestamp = gap.oldest - 1)
+    }
+
+    /** What the chat does after a dropped connection, for the pill over it. */
+    val reconnectStep = c.chat.reconnectStep
+
+    init {
+        viewModelScope.launch { c.chat.gapsFilled.collect(::markGap) }
     }
 
     /** The messages of a channel, or of a combined chat by its key. */

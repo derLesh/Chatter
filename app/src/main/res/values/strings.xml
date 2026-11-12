@@ -20,8 +20,9 @@
     <string name="settings_sender_avatars_hint">Shows the sender\'s profile picture in the notification</string>
 
     <!-- Chat system messages -->
-    <string name="chat_reconnected">Reconnected.</string>
-    <string name="chat_disconnected">Disconnected. Reconnecting…</string>
+    <string name="reconnect_connecting">Reconnecting…</string>
+    <string name="reconnect_waiting_network">Waiting for a network…</string>
+    <string name="reconnect_loading_history">Loading missed messages…</string>
     <string name="chat_cleared">Chat has been cleared by a moderator.</string>
     <plurals name="chat_timeout">
         <item quantity="one">%1$s has been timed out for %2$d second.</item>

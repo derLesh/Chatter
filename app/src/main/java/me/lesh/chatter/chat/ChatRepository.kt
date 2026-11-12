@@ -173,6 +173,14 @@ class ChatRepository(
     /** Whispers that arrived while the whisper tab was not open, for the notification. */
     val whisperEvents: SharedFlow<InboxWhisper> = _whisperEvents
 
+    private val _reconnectStep = MutableStateFlow<ReconnectStep?>(null)
+    /** Set from a dropped connection until the history has filled the gap; null otherwise. */
+    val reconnectStep: StateFlow<ReconnectStep?> = _reconnectStep
+
+    private val _gapsFilled = MutableSharedFlow<GapFilled>(extraBufferCapacity = 64)
+    /** Channels where the history after a reconnect brought messages that were missed. */
+    val gapsFilled: SharedFlow<GapFilled> = _gapsFilled
+
     private val _unreadMentions = MutableStateFlow<Map<String, Int>>(emptyMap())
     val unreadMentions: StateFlow<Map<String, Int>> = _unreadMentions
 
@@ -234,24 +242,22 @@ class ChatRepository(
             merge(emotes.arrived, badges.arrived).collect { buffers.rebuildAll() }
         }
 
+        // The first connect is shown by the history line; only a dropped connection gets the pill.
         scope.launch(worker) {
             var wasConnected = false
-            var previous: ConnectionState? = null
+            var gapFill: Job? = null
             irc.state.collect { state ->
+                if (state != ConnectionState.Connected) gapFill?.cancel()
                 when (state) {
                     ConnectionState.Connected -> if (wasConnected) {
-                        systemAll(R.string.chat_reconnected)
-                        // Fetch what was said while offline, the channel on screen first.
-                        buffers.channels().sortedBy(::priority).forEach { ch ->
-                            scope.launch { loadHistory(ch, since = incoming.lastLive(ch)) }
-                        }
+                        // The channel on screen first.
+                        val channels = buffers.channels().sortedBy(::priority)
+                        gapFill = scope.launch { fillGaps(channels) }
                     } else wasConnected = true
-                    // Said once when the connection drops, not for every retry.
-                    ConnectionState.Connecting, ConnectionState.WaitingForNetwork ->
-                        if (previous == ConnectionState.Connected) systemAll(R.string.chat_disconnected)
-                    else -> Unit
+                    ConnectionState.Connecting -> if (wasConnected) _reconnectStep.value = ReconnectStep.Connecting
+                    ConnectionState.WaitingForNetwork -> if (wasConnected) _reconnectStep.value = ReconnectStep.WaitingForNetwork
+                    ConnectionState.Disconnected, ConnectionState.AuthFailed -> _reconnectStep.value = null
                 }
-                previous = state
             }
         }
     }
@@ -493,8 +499,8 @@ class ChatRepository(
      * The service is often unavailable, and an empty channel looks broken, so the line
      * [announceHistory] put up is removed here or replaced by one saying the history failed.
      */
-    private suspend fun loadHistory(channel: String, since: Long? = null) {
-        if (!settings.value.loadHistory) return
+    private suspend fun loadHistory(channel: String, since: Long? = null): List<ChatItem> {
+        if (!settings.value.loadHistory) return emptyList()
         val announce = since == null
         val lines = try {
             thirdParty.recentMessages(channel, 100).messages
@@ -504,9 +510,9 @@ class ChatRepository(
                 buffers.remove(channel, historyId(channel))
                 system(channel, context.getString(R.string.chat_history_failed), id = historyFailedId(channel))
             }
-            return
+            return emptyList()
         }
-        withContext(worker) {
+        val (fresh, partners) = withContext(worker) {
             val self = auth.account?.login.orEmpty()
             val current = filters
             val (mentions, _, rules) = current
@@ -518,14 +524,34 @@ class ChatRepository(
                     ?.let { rules.apply(it) }
                     ?.also { incoming.rememberChatter(channel, it) }
             }
-            buffers.merge(channel, items)
+            val fresh = buffers.merge(channel, items)
             items.firstNotNullOfOrNull { it.rewardId }?.let { rewards.seen(it, rooms.id(channel)) }
             pins.takeFromChat(channel)
             if (announce) buffers.remove(channel, historyId(channel))
             // Old partner messages are marked like new ones. Whether a session is running is
             // decided by live messages only.
-            sharedChats.unknown(items.mapNotNullTo(HashSet()) { it.sourceRoomId })
-        }.let { describePartners(it) }
+            fresh to sharedChats.unknown(items.mapNotNullTo(HashSet()) { it.sourceRoomId })
+        }
+        describePartners(partners)
+        return fresh
+    }
+
+    /**
+     * Fetches what was said while the connection was down. Channels where something was missed are
+     * reported to [gapsFilled]; where nothing was, the reconnect leaves no trace.
+     */
+    private suspend fun fillGaps(channels: List<String>) {
+        _reconnectStep.value = ReconnectStep.LoadingHistory
+        if (settings.value.loadHistory) coroutineScope {
+            channels.forEach { channel ->
+                launch {
+                    val fresh = loadHistory(channel, since = incoming.lastLive(channel))
+                    fresh.minOfOrNull { it.timestamp }?.let { _gapsFilled.tryEmit(GapFilled(channel, it)) }
+                }
+            }
+        }
+        // Not if the connection dropped again meanwhile; that step stays.
+        _reconnectStep.compareAndSet(ReconnectStep.LoadingHistory, null)
     }
 
     /** Asks Helix who a channel that just started sharing its chat shares it with. */
@@ -605,11 +631,6 @@ class ChatRepository(
 
     private fun historyId(channel: String) = historyLoadingId(channel)
     private fun historyFailedId(channel: String) = "history-failed-" + channel
-
-    private fun systemAll(res: Int) {
-        val text = context.getString(res)
-        buffers.channels().forEach { system(it, text) }
-    }
 
     private companion object {
         const val TAG = "ChatRepository"

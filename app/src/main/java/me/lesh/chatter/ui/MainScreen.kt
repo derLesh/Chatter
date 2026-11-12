@@ -95,6 +95,7 @@ fun MainScreen(vm: MainViewModel, onInbox: () -> Unit, onSettings: () -> Unit) {
     val groups by vm.groups.collectAsStateWithLifecycle()
     val info by vm.channelInfo.collectAsStateWithLifecycle()
     val unread by vm.unreadMentions.collectAsStateWithLifecycle()
+    val reconnectStep by vm.reconnectStep.collectAsStateWithLifecycle()
     val withNews by vm.channelsWithNews.collectAsStateWithLifecycle()
     val connection by vm.connection.collectAsStateWithLifecycle()
     val settings by vm.settings.collectAsStateWithLifecycle()
@@ -396,6 +397,7 @@ fun MainScreen(vm: MainViewModel, onInbox: () -> Unit, onSettings: () -> Unit) {
                                 onSeen = if (channel == active) { mark -> vm.onSeen(channel, mark) } else null,
                                 onMentionsSeen = if (channel == active) vm::onMentionsSeen else null,
                                 onCatchUp = if (canCatchUp && channel == active) { missed -> vm.summarize(channel, missed) } else null,
+                                reconnectStep = reconnectStep,
                                 // Only the page in front: a wrapping pager may show the channel twice.
                                 jumpTo = jump?.takeIf { it.channel == channel && channel == active }?.id,
                                 onJumped = { found ->
