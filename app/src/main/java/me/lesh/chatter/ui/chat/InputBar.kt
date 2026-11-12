@@ -916,7 +916,7 @@ private fun ReplyCard(item: ChatItem, pictureUrl: String?, imageLoader: ImageLoa
     val motion = MaterialTheme.motionScheme
     val name = item.displayName ?: item.login.orEmpty()
     val said = stringResource(R.string.replying_to, name, item.text)
-    val nameColor = readableNameColor(item.color, item.login, isAppInDarkTheme())
+    val nameColor = readableNameColor(item.color, item.login, isAppInDarkTheme(), background = MaterialTheme.colorScheme.surfaceContainerHigh)
     val label = stringResource(R.string.reply_card_label)
     var expanded by remember(item.id) { mutableStateOf(false) }
     var cutOff by remember(item.id) { mutableStateOf(false) }

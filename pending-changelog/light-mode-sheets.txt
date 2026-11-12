@@ -1,1 +1,1 @@
-patch: Keep names readable on the user card, in replies and on the pinned message in the light theme
+patch: Keep names readable on the user card, in replies, on the pinned message and the reply card in the light theme

@@ -276,11 +276,11 @@ fun MessageRow(
                 modifier = Modifier.padding(top = 4.dp, bottom = 2.dp),
             ) {
                 val alone = built.images.size + built.gifs.size == 1
-                built.images.forEach { url -> LinkedImage(url, style, imageLoader, alone) }
-                built.gifs.forEach { gif -> LinkedImage(gif.url, style, imageLoader, alone, title = gif.title) }
+                built.images.forEach { url -> LinkedImage(url, rowStyle, imageLoader, alone) }
+                built.gifs.forEach { gif -> LinkedImage(gif.url, rowStyle, imageLoader, alone, title = gif.title) }
             }
         }
-        style.postCard?.let { card -> built.posts.forEach { PostCard(it, card, style, imageLoader) } }
+        style.postCard?.let { card -> built.posts.forEach { PostCard(it, card, rowStyle, imageLoader) } }
     }
 }
 

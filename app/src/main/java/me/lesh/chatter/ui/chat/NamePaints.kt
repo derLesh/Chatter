@@ -1,7 +1,6 @@
 package me.lesh.chatter.ui.chat
 
 import android.graphics.BlendMode
-import android.graphics.Bitmap
 import android.graphics.ComposeShader
 import android.graphics.Matrix
 import androidx.compose.runtime.Composable
@@ -31,18 +30,16 @@ import coil3.request.ImageRequest
 import coil3.request.SuccessResult
 import coil3.request.allowHardware
 import coil3.size.Precision
-import androidx.core.graphics.get
 import coil3.toBitmap
-import me.lesh.chatter.badges.NamePaint
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import me.lesh.chatter.badges.NamePaint
 import me.lesh.chatter.ui.theme.chatColor
 import me.lesh.chatter.ui.theme.maxLumaOnLight
 import kotlin.math.abs
 import kotlin.math.cos
 import kotlin.math.hypot
 import kotlin.math.max
-import kotlin.math.pow
 import kotlin.math.sin
 
 /**
@@ -78,8 +75,8 @@ internal fun TextLayoutResult.boundsOf(range: IntRange): Rect? {
 /** Largest side of a paint's picture, in pixels. */
 private const val PAINT_IMAGE_MAX_SIDE = 512
 
-/** An image paint's picture, as a bitmap a shader can use, and the relative luminance of its lightest part. */
-internal class PaintImage(val bitmap: ImageBitmap, val lightest: Float)
+/** An image paint's picture, as a bitmap a shader can use, and its lightest visible pixel. */
+internal class PaintImage(val bitmap: ImageBitmap, val lightest: Color)
 
 /** An image paint's picture; null until it has loaded. */
 @Composable
@@ -95,32 +92,50 @@ internal fun rememberPaintImage(url: String, loader: ImageLoader): PaintImage? {
             .precision(Precision.INEXACT)
             .build()
         val bitmap = (loader.execute(request) as? SuccessResult)?.image?.toBitmap() ?: return@produceState
-        value = PaintImage(bitmap.asImageBitmap(), withContext(Dispatchers.Default) { lightestLuminance(samples(bitmap)) })
+        value = withContext(Dispatchers.Default) {
+            val pixels = IntArray(bitmap.width * bitmap.height)
+            bitmap.getPixels(pixels, 0, bitmap.width, 0, 0, bitmap.width, bitmap.height)
+            PaintImage(bitmap.asImageBitmap(), lightestPixel(pixels))
+        }
     }
     return image
 }
 
-/** [bitmap]'s pixels on a grid of about 64 by 64, as ARGB. */
-private fun samples(bitmap: Bitmap): IntArray {
-    val stepX = max(1, bitmap.width / SAMPLE_GRID)
-    val stepY = max(1, bitmap.height / SAMPLE_GRID)
-    val xs = 0 until bitmap.width step stepX
-    val ys = 0 until bitmap.height step stepY
-    return ys.flatMap { y -> xs.map { x -> bitmap[x, y] } }.toIntArray()
+/** Linear light of each 8-bit sRGB value, so a whole picture is scanned without a power per pixel. */
+private val LINEAR = FloatArray(256) { Color(it, it, it).luminance() }
+
+/** The lightest of [pixels] (ARGB) that is more opaque than clear, by relative luminance; black if none is. */
+internal fun lightestPixel(pixels: IntArray): Color {
+    var lightest = 0xFF000000.toInt()
+    var most = -1f
+    for (pixel in pixels) {
+        if ((pixel ushr 24) < 128) continue
+        val luminance = 0.2126f * LINEAR[(pixel shr 16) and 0xFF] + 0.7152f * LINEAR[(pixel shr 8) and 0xFF] + 0.0722f * LINEAR[pixel and 0xFF]
+        if (luminance > most) {
+            most = luminance
+            lightest = pixel
+        }
+    }
+    return Color(lightest).copy(alpha = 1f)
 }
 
-private const val SAMPLE_GRID = 64
-
-/** The relative luminance of the lightest of [pixels] (ARGB) that is more opaque than clear. */
-internal fun lightestLuminance(pixels: IntArray): Float =
-    pixels.filter { (it ushr 24) >= 128 }.maxOfOrNull { Color(it).luminance() } ?: 0f
-
 /**
- * What to multiply an image paint's colors by on a light theme so its lightest part is no lighter
- * than a readable name ([maxLuma]); 1 when it already is not. Luminance grows about as sRGB to the 2.2.
+ * What to multiply an image paint's colors by on a light theme so its [lightest] pixel is no lighter
+ * than a readable name ([maxLuma]); 1 when it already is not. Scaling keeps which pixel is lightest,
+ * so the rest end up darker still.
  */
-internal fun paintImageDimming(lightest: Float, maxLuma: Float): Float =
-    if (lightest <= maxLuma) 1f else (maxLuma / lightest).pow(1f / 2.2f)
+internal fun paintImageDimming(lightest: Color, maxLuma: Float): Float {
+    if (lightest.luminance() <= maxLuma) return 1f
+    var lo = 0f
+    var hi = 1f
+    repeat(DIMMING_STEPS) {
+        val mid = (lo + hi) / 2f
+        if (Color(lightest.red * mid, lightest.green * mid, lightest.blue * mid).luminance() <= maxLuma) lo = mid else hi = mid
+    }
+    return lo
+}
+
+private const val DIMMING_STEPS = 16
 
 /**
  * A paint over the name alone. Compose sizes a span's brush to the whole paragraph, so the name's
