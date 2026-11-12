@@ -145,7 +145,7 @@ private fun Bar(
                 )
             }
             Box(if (expanded) Modifier else Modifier.heightIn(max = collapsedHeight).clipToBounds()) {
-                MessageRow(item, style, imageLoader, onGesture = null)
+                MessageRow(item, style.over(MaterialTheme.colorScheme.surfaceContainerHigh), imageLoader, onGesture = null)
             }
             AnimatedVisibility(
                 visible = expanded,

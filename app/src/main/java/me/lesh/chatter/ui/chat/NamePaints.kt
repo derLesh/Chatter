@@ -31,6 +31,7 @@ import coil3.request.ImageRequest
 import coil3.request.SuccessResult
 import coil3.request.allowHardware
 import coil3.size.Precision
+import androidx.core.graphics.get
 import coil3.toBitmap
 import me.lesh.chatter.badges.NamePaint
 import kotlinx.coroutines.Dispatchers
@@ -77,8 +78,8 @@ internal fun TextLayoutResult.boundsOf(range: IntRange): Rect? {
 /** Largest side of a paint's picture, in pixels. */
 private const val PAINT_IMAGE_MAX_SIDE = 512
 
-/** An image paint's picture, as a bitmap a shader can use, and its average relative luminance. */
-internal class PaintImage(val bitmap: ImageBitmap, val luminance: Float)
+/** An image paint's picture, as a bitmap a shader can use, and the relative luminance of its lightest part. */
+internal class PaintImage(val bitmap: ImageBitmap, val lightest: Float)
 
 /** An image paint's picture; null until it has loaded. */
 @Composable
@@ -94,34 +95,32 @@ internal fun rememberPaintImage(url: String, loader: ImageLoader): PaintImage? {
             .precision(Precision.INEXACT)
             .build()
         val bitmap = (loader.execute(request) as? SuccessResult)?.image?.toBitmap() ?: return@produceState
-        value = PaintImage(bitmap.asImageBitmap(), withContext(Dispatchers.Default) { averageLuminance(bitmap) })
+        value = PaintImage(bitmap.asImageBitmap(), withContext(Dispatchers.Default) { lightestLuminance(samples(bitmap)) })
     }
     return image
 }
 
-/** The average relative luminance of [bitmap]'s visible pixels, from a grid of about 32 by 32. */
-private fun averageLuminance(bitmap: Bitmap): Float {
-    val stepX = max(1, bitmap.width / LUMINANCE_GRID)
-    val stepY = max(1, bitmap.height / LUMINANCE_GRID)
-    var sum = 0f
-    var count = 0
-    for (y in 0 until bitmap.height step stepY) for (x in 0 until bitmap.width step stepX) {
-        val pixel = bitmap.getPixel(x, y)
-        if (android.graphics.Color.alpha(pixel) < 128) continue
-        sum += Color(pixel).luminance()
-        count++
-    }
-    return if (count == 0) 0f else sum / count
+/** [bitmap]'s pixels on a grid of about 64 by 64, as ARGB. */
+private fun samples(bitmap: Bitmap): IntArray {
+    val stepX = max(1, bitmap.width / SAMPLE_GRID)
+    val stepY = max(1, bitmap.height / SAMPLE_GRID)
+    val xs = 0 until bitmap.width step stepX
+    val ys = 0 until bitmap.height step stepY
+    return ys.flatMap { y -> xs.map { x -> bitmap[x, y] } }.toIntArray()
 }
 
-private const val LUMINANCE_GRID = 32
+private const val SAMPLE_GRID = 64
+
+/** The relative luminance of the lightest of [pixels] (ARGB) that is more opaque than clear. */
+internal fun lightestLuminance(pixels: IntArray): Float =
+    pixels.filter { (it ushr 24) >= 128 }.maxOfOrNull { Color(it).luminance() } ?: 0f
 
 /**
- * What to multiply an image paint's colors by on a light theme so it is, on average, no lighter than
- * a readable name ([maxLuma]); 1 when it already is not. Luminance grows about as sRGB to the 2.2.
+ * What to multiply an image paint's colors by on a light theme so its lightest part is no lighter
+ * than a readable name ([maxLuma]); 1 when it already is not. Luminance grows about as sRGB to the 2.2.
  */
-internal fun paintImageDimming(luminance: Float, maxLuma: Float): Float =
-    if (luminance <= maxLuma) 1f else (maxLuma / luminance).pow(1f / 2.2f)
+internal fun paintImageDimming(lightest: Float, maxLuma: Float): Float =
+    if (lightest <= maxLuma) 1f else (maxLuma / lightest).pow(1f / 2.2f)
 
 /**
  * A paint over the name alone. Compose sizes a span's brush to the whole paragraph, so the name's
@@ -205,8 +204,9 @@ internal class NamePaintBrush(private val paint: NamePaint, private val image: P
     }
 
     /**
-     * The picture covering the name, like CSS's background-size: cover. A picture cannot be darkened
-     * like a color, so on a light theme the whole of it is dimmed until it reads on average.
+     * The picture covering the name, like CSS's background-size: cover. Only part of it shows, so on
+     * a light theme the whole of it is dimmed until even its lightest part reads, as a gradient's
+     * every color does.
      */
     private fun picture(image: PaintImage, bounds: Rect): Shader {
         val bitmap = image.bitmap
@@ -218,7 +218,7 @@ internal class NamePaintBrush(private val paint: NamePaint, private val image: P
             })
         }
         if (style.dark) return picture
-        val dimming = paintImageDimming(image.luminance, maxLumaOnLight(style.textBackground))
+        val dimming = paintImageDimming(image.lightest, maxLumaOnLight(style.textBackground))
         if (dimming >= 1f) return picture
         val grey = Color(dimming, dimming, dimming)
         return ComposeShader(picture, LinearGradientShader(Offset.Zero, Offset(1f, 0f), listOf(grey, grey)), BlendMode.MODULATE)

@@ -20,7 +20,9 @@ import me.lesh.chatter.settings.Settings
 import me.lesh.chatter.settings.SpecialMessage
 import me.lesh.chatter.settings.TimestampFormat
 import me.lesh.chatter.ui.theme.NameColorPalette
+import me.lesh.chatter.ui.theme.MAX_LUMA_ON_LIGHT
 import me.lesh.chatter.ui.theme.chatColor
+import me.lesh.chatter.ui.theme.maxLumaOnLight
 import me.lesh.chatter.ui.theme.highlightBackground
 import me.lesh.chatter.ui.theme.isAppInDarkTheme
 import me.lesh.chatter.ui.theme.isPureBlack
@@ -76,7 +78,7 @@ data class ChatStyle(
     val hiddenEmotes: HiddenEmotes = HiddenEmotes.NONE,
     /** Kinds of badges left out; see [me.lesh.chatter.badges.Badge.kind]. */
     val hiddenBadges: Set<String> = emptySet(),
-    /** The chat's own background, under every row's tint. */
+    /** What the rows are drawn on, under every row's tint: the chat, or a sheet's surface; see [over]. */
     val background: Color = Color.Unspecified,
     /**
      * On a light theme, the opaque color right behind one row's text when that row is tinted; see
@@ -170,14 +172,17 @@ fun rememberChatStyle(
     }
 }
 
+/** This style for rows drawn on [surface] instead of the chat, such as a sheet or a card. */
+fun ChatStyle.over(surface: Color): ChatStyle = if (surface == background) this else copy(background = surface)
+
 /**
- * This style for [item]'s row. On a light theme, a tinted row (a mention, a highlight, a sub) gets
- * names, cheers, links and labels dark enough to keep their contrast on the tint, not just on white.
+ * This style for [item]'s row. On a light theme, a tinted row (a mention, a highlight, a sub) or a
+ * grey surface gets names, cheers, links and labels dark enough to keep their contrast there too.
  */
 fun ChatStyle.forRow(item: ChatItem): ChatStyle {
     if (dark || background.isUnspecified) return this
     val tint = rowBackground(item)
-    if (tint.alpha == 0f) return this
+    if (tint.alpha == 0f && maxLumaOnLight(background) >= MAX_LUMA_ON_LIGHT) return this
     val behind = tint.compositeOver(background)
     return copy(
         textBackground = behind,

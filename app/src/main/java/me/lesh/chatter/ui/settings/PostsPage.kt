@@ -43,6 +43,7 @@ import me.lesh.chatter.ui.MainViewModel
 import me.lesh.chatter.ui.SettingsSubPage
 import me.lesh.chatter.ui.chat.MessageRow
 import me.lesh.chatter.ui.chat.PostCardContent
+import me.lesh.chatter.ui.chat.over
 import me.lesh.chatter.ui.chat.postCardStyle
 import me.lesh.chatter.ui.chat.rememberChatStyle
 import me.lesh.chatter.ui.chat.siteIcon
@@ -249,7 +250,7 @@ internal fun PostPreview(settings: Settings, vm: MainViewModel, text: Int? = nul
         Surface(color = scheme.surfaceContainer, shape = RoundedCornerShape(12.dp), modifier = Modifier.fillMaxWidth()) {
             // In line with the text of the tiles around it.
             Column(Modifier.padding(horizontal = 8.dp, vertical = 8.dp)) {
-                MessageRow(message, style, vm.imageLoader, onGesture = null)
+                MessageRow(message, style.over(scheme.surfaceContainer), vm.imageLoader, onGesture = null)
                 Box(Modifier.padding(horizontal = 8.dp)) {
                     PostCardContent(post, site, postCardStyle(settings), style, open = {}) { url, _, modifier ->
                         Box(if (url == PREVIEW_AVATAR) modifier.background(scheme.secondary) else modifier.background(pictureBrush))

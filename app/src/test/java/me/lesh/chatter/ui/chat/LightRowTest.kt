@@ -90,13 +90,32 @@ class LightRowTest {
     }
 
     @Test
-    fun aPaleImagePaintIsDimmedUntilItReadsOnAverage() {
+    fun aGreySurfaceDarkensEvenPlainRows() {
+        val sheet = Color(0xFFEBE9EF)
+        val row = style(dark = false).over(sheet).forRow(message())
+        assertEquals(sheet, row.textBackground)
+        val name = readableNameColor(0xFFFFFFFF.toInt(), "a", dark = false, background = row.textBackground)
+        assertTrue("${contrast(name, sheet)}", contrast(name, sheet) >= 4.5f)
+        val mention = style(dark = false).over(sheet).forRow(message(isMention = true))
+        assertTrue(mention.textBackground.luminance() < sheet.luminance())
+    }
+
+    @Test
+    fun anImagePaintWithAWhiteStripIsDimmedUntilTheStripReads() {
+        // Only the top eighth is white: a name shows just that strip, so the average would not do.
+        val pixels = IntArray(64 * 64) { i -> if (i < 64 * 8) 0xFFFFFFFF.toInt() else 0xFF000000.toInt() }
+        val lightest = lightestLuminance(pixels)
+        assertEquals(1f, lightest, 0.001f)
         val maxLuma = 0.17f
-        assertEquals(1f, paintImageDimming(0.1f, maxLuma), 0f)
-        val dimming = paintImageDimming(0.8f, maxLuma)
-        // A pale grey of luminance 0.8, scaled by the dimming, lands near the target.
-        val pale = Color(0.906f, 0.906f, 0.906f)
-        val dimmed = Color(pale.red * dimming, pale.green * dimming, pale.blue * dimming)
-        assertEquals(maxLuma, dimmed.luminance(), 0.03f)
+        val dimming = paintImageDimming(lightest, maxLuma)
+        val dimmedWhite = Color(dimming, dimming, dimming)
+        assertTrue("${contrast(dimmedWhite, Color.White)}", contrast(dimmedWhite, Color.White) >= 4.4f)
+        assertEquals(maxLuma, dimmedWhite.luminance(), 0.02f)
+    }
+
+    @Test
+    fun aDarkImagePaintAndClearPixelsAreLeftAlone() {
+        val pixels = intArrayOf(0xFF202020.toInt(), 0x00FFFFFF, 0x40FFFFFF)
+        assertEquals(1f, paintImageDimming(lightestLuminance(pixels), 0.17f), 0f)
     }
 }
