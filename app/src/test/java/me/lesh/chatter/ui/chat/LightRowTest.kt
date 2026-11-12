@@ -4,6 +4,8 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.luminance
 import me.lesh.chatter.chat.ChatItem
 import me.lesh.chatter.chat.MessageKind
+import me.lesh.chatter.chat.PowerUp
+import me.lesh.chatter.settings.SpecialMessage
 import me.lesh.chatter.settings.TimestampFormat
 import me.lesh.chatter.ui.theme.LiveRed
 import me.lesh.chatter.ui.theme.NameColorPalette
@@ -33,6 +35,7 @@ class LightRowTest {
         haptics = false,
         imageHosts = emptyList(),
         highlightedBackground = accent.copy(alpha = 0.28f),
+        specialMessages = SpecialMessage.entries.toSet(),
         background = if (dark) Color(0xFF141218) else Color.White,
     )
 
@@ -53,13 +56,37 @@ class LightRowTest {
     }
 
     @Test
-    fun aMentionedRowDarkensItsNameAndLinksForTheTint() {
-        val row = style(dark = false).forRow(message(isMention = true))
-        val behind = row.textBackground
-        assertTrue(behind.luminance() < 0.9f)
-        val name = readableNameColor(0xFFDAA520.toInt(), "a", dark = false, background = behind)
-        assertTrue("name ${contrast(name, behind)}", contrast(name, behind) >= 4.5f)
-        assertTrue("link ${contrast(row.linkColor, behind)}", contrast(row.linkColor, behind) >= 4.5f)
+    fun everyTintedRowKeepsItsNameLinksAndLabelsReadable() {
+        val rows = mapOf(
+            "mention" to message(isMention = true),
+            "mention rule" to message().copy(highlight = ChatItem.MENTION_HIGHLIGHT),
+            "blue rule" to message().copy(highlight = 0xFF1E90FF.toInt()),
+            "channel points" to message().copy(powerUp = PowerUp.Highlighted),
+            "first message" to message().copy(isFirstMessage = true),
+            "sub" to message().copy(kind = MessageKind.UserNotice),
+            "cheer" to message().copy(bits = 100),
+        )
+        val names = listOf(0xFFDAA520, 0xFF13FFFF, 0xFF00FF7F, 0xFFFFFFFF).map { it.toInt() }
+        for ((kind, item) in rows) {
+            val row = style(dark = false).forRow(item)
+            val behind = row.textBackground
+            assertTrue("$kind is not tinted", behind.luminance() < 0.99f)
+            for (argb in names) {
+                val name = readableNameColor(argb, "a", dark = false, background = behind)
+                assertTrue("$kind name ${contrast(name, behind)}", contrast(name, behind) >= 4.5f)
+            }
+            assertTrue("$kind link ${contrast(row.linkColor, behind)}", contrast(row.linkColor, behind) >= 4.5f)
+            assertTrue("$kind accent ${contrast(row.accent, behind)}", contrast(row.accent, behind) >= 4.5f)
+        }
+    }
+
+    @Test
+    fun theSameColorIsDarkerOnATintThanOnWhite() {
+        val goldenrod = 0xFFDAA520.toInt()
+        val onWhite = readableNameColor(goldenrod, "a", dark = false)
+        val onTint = readableNameColor(goldenrod, "a", dark = false, background = style(dark = false).forRow(message(isMention = true)).textBackground)
+        assertTrue("${onTint.luminance()} vs ${onWhite.luminance()}", onTint.luminance() < onWhite.luminance())
+        assertEquals(onWhite, readableNameColor(goldenrod, "a", dark = false))
     }
 
     @Test
