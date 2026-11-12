@@ -34,4 +34,17 @@ class ReadMarkTest {
     fun moreThanTheListHoldsStartsAtTheTopAndSaysSo() {
         assertEquals(Unseen(first = 0, count = 4, cutOff = true), ReadMark("trimmed", 50).unseenIn(list))
     }
+
+    @Test
+    fun chattersLinesAloneAreNothingNew() {
+        val withLines = list + ChatItem(id = "line", channel = "forsen", kind = MessageKind.Notice, timestamp = 500) +
+            at("own", 600).copy(isOwn = true)
+        assertNull(ReadMark("d", 400).unseenIn(withLines))
+    }
+
+    @Test
+    fun theLineGoesAboveTheFirstMessageSomeoneElseWrote() {
+        val withLine = listOf(at("a", 100), ChatItem(id = "line", channel = "forsen", kind = MessageKind.Notice, timestamp = 150), at("b", 200))
+        assertEquals(Unseen(first = 2, count = 1, cutOff = false), ReadMark("a", 100).unseenIn(withLine))
+    }
 }
