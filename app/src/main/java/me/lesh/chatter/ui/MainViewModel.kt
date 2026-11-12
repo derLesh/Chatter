@@ -84,9 +84,11 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.util.Locale
@@ -319,12 +321,20 @@ class MainViewModel(private val c: AppContainer, savedState: SavedStateHandle) :
     /** Just removed channels and combined chats, each offered for undo once. */
     val removals = _removals.receiveAsFlow()
 
+    private val _unreachable = MutableStateFlow<List<String>>(emptyList())
+    /** Outside services that just did not answer, by display name; the pill names them for a moment. */
+    val unreachable: StateFlow<List<String>> = _unreachable
+
     private var suggestionJob: Job? = null
 
     init {
-        // An outside service did not answer; reported once.
+        // Each new one keeps the pill up a little longer, so an outage of several shows them together.
         viewModelScope.launch {
-            c.trouble.unreachable.collect { _messages.send(UiMessage(R.string.error_service_down, it)) }
+            c.trouble.unreachable.collectLatest { service ->
+                _unreachable.update { if (service in it) it else it + service }
+                delay(UNREACHABLE_SHOWN_MS)
+                _unreachable.value = emptyList()
+            }
         }
         viewModelScope.launch { c.chat.refused.collect(composer::onRefused) }
         viewModelScope.launch {
@@ -1318,6 +1328,8 @@ class MainViewModel(private val c: AppContainer, savedState: SavedStateHandle) :
     private companion object {
         /** How long a channel must stay on screen to be remembered as the last one. */
         const val LAST_CHANNEL_DELAY_MS = 1_500L
+
+        const val UNREACHABLE_SHOWN_MS = 4_000L
 
         /** Where the drafts are kept when Android saves the window. */
         const val DRAFTS_KEY = "drafts"

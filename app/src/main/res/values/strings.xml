@@ -228,7 +228,10 @@
 
     <!-- Errors -->
     <string name="error_not_connected">Not connected to chat.</string>
-    <string name="error_service_down">%1$s cannot be reached.</string>
+    <plurals name="service_unreachable">
+        <item quantity="one">%1$s cannot be reached</item>
+        <item quantity="other">%1$s cannot be reached</item>
+    </plurals>
     <string name="error_rate_limited">You are sending messages too quickly.</string>
     <string name="error_unsupported_command">Unknown command: /%1$s</string>
     <string name="error_invalid_channel">That is not a valid channel.</string>

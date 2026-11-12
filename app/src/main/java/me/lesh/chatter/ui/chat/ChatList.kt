@@ -1,6 +1,9 @@
 package me.lesh.chatter.ui.chat
 
 import androidx.compose.animation.AnimatedContent
+import androidx.compose.material3.LocalContentColor
+import androidx.compose.material.icons.filled.Warning
+import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.SizeTransform
 import androidx.compose.animation.core.Animatable
@@ -102,7 +105,8 @@ const val CHAT_LIST_TAG = "chat"
  * the newest message on screen, and [onMentionsSeen], which receives the visible mentions by id.
  * [onCatchUp] offers a summary of a long stretch of new messages and receives them, oldest first.
  *
- * [status] shows a pill above the input while the connection comes back or the history loads.
+ * [status] shows a pill above the input while the connection comes back or the history loads;
+ * between those it names the outside services in [unreachable].
  *
  * [jumpTo] is the id of a message to scroll to and flash; [onJumped] then says whether it was still
  * there, and the caller clears [jumpTo].
@@ -128,6 +132,7 @@ fun ChatList(
     onMentionsSeen: ((Set<String>) -> Unit)? = null,
     onCatchUp: ((List<ChatItem>) -> Unit)? = null,
     status: ChatStatus? = null,
+    unreachable: List<String> = emptyList(),
     jumpTo: String? = null,
     onJumped: (found: Boolean) -> Unit = {},
     bottomInset: () -> Dp = { 0.dp },
@@ -316,7 +321,7 @@ fun ChatList(
                 .offset { IntOffset(0, -currentBottomInset().roundToPx()) }
                 .padding(bottom = 12.dp),
         ) {
-            StatusPill(status)
+            StatusPill(status, unreachable)
             NewMessagesButton(
                 visible = !follow,
                 count = newSinceLeft,
@@ -409,21 +414,31 @@ private fun UnseenLine() {
     }
 }
 
+private sealed interface PillText {
+    data class Busy(val status: ChatStatus) : PillText
+    /** Display names of outside services that did not answer. */
+    data class Unreachable(val services: List<String>) : PillText
+}
+
 /**
- * What the chat is busy with: reconnecting, or loading messages. Waits a moment before showing, so
- * what is over at once does not flicker.
+ * What the chat is busy with, or which outside services did not answer. Being busy waits a moment
+ * before showing, so what is over at once does not flicker.
  */
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
-private fun StatusPill(step: ChatStatus?) {
-    var shown by remember { mutableStateOf<ChatStatus?>(null) }
+private fun StatusPill(status: ChatStatus?, unreachable: List<String>) {
+    // Being busy goes first: while the connection is gone, every service fails with it.
+    val wanted = status?.let(PillText::Busy) ?: unreachable.takeIf { it.isNotEmpty() }?.let(PillText::Unreachable)
+    var shown by remember { mutableStateOf<PillText?>(null) }
     // Kept while the pill fades out, so its text does not vanish first.
-    var lastShown by remember { mutableStateOf(ChatStatus.Connecting) }
-    LaunchedEffect(step) {
-        if (step != null && shown == null) delay(STATUS_PILL_DELAY_MS)
-        if (step != null) lastShown = step
-        shown = step
+    var lastShown by remember { mutableStateOf<PillText>(PillText.Busy(ChatStatus.Connecting)) }
+    LaunchedEffect(wanted) {
+        if (wanted is PillText.Busy && shown == null) delay(STATUS_PILL_DELAY_MS)
+        if (wanted != null) lastShown = wanted
+        shown = wanted
     }
+    val warning = lastShown is PillText.Unreachable
+    val colors = MaterialTheme.colorScheme
     AnimatedVisibility(
         visible = shown != null,
         enter = fadeIn() + slideInVertically { it },
@@ -431,26 +446,35 @@ private fun StatusPill(step: ChatStatus?) {
     ) {
         Surface(
             shape = CircleShape,
-            color = MaterialTheme.colorScheme.secondaryContainer,
-            contentColor = MaterialTheme.colorScheme.onSecondaryContainer,
+            color = animateColorAsState(if (warning) colors.errorContainer else colors.secondaryContainer, label = "pill").value,
+            contentColor = animateColorAsState(if (warning) colors.onErrorContainer else colors.onSecondaryContainer, label = "pill text").value,
             shadowElevation = 3.dp,
         ) {
             Row(
                 verticalAlignment = Alignment.CenterVertically,
                 modifier = Modifier.padding(start = 8.dp, end = 16.dp, top = 4.dp, bottom = 4.dp),
             ) {
-                LoadingIndicator(Modifier.size(28.dp), color = MaterialTheme.colorScheme.onSecondaryContainer)
+                if (warning) {
+                    Icon(Icons.Filled.Warning, contentDescription = null, modifier = Modifier.padding(4.dp).size(20.dp))
+                } else {
+                    LoadingIndicator(Modifier.size(28.dp), color = LocalContentColor.current)
+                }
                 Spacer(Modifier.width(4.dp))
-                AnimatedContent(lastShown, label = "chat status") { step ->
+                AnimatedContent(lastShown, label = "chat status") { text ->
                     Text(
-                        stringResource(
-                            when (step) {
-                                ChatStatus.Connecting -> R.string.reconnect_connecting
-                                ChatStatus.WaitingForNetwork -> R.string.reconnect_waiting_network
-                                ChatStatus.LoadingMissed -> R.string.reconnect_loading_history
-                                ChatStatus.LoadingHistory -> R.string.chat_history_loading
-                            },
-                        ),
+                        when (text) {
+                            is PillText.Busy -> stringResource(
+                                when (text.status) {
+                                    ChatStatus.Connecting -> R.string.reconnect_connecting
+                                    ChatStatus.WaitingForNetwork -> R.string.reconnect_waiting_network
+                                    ChatStatus.LoadingMissed -> R.string.reconnect_loading_history
+                                    ChatStatus.LoadingHistory -> R.string.chat_history_loading
+                                },
+                            )
+                            is PillText.Unreachable -> pluralStringResource(
+                                R.plurals.service_unreachable, text.services.size, text.services.joinToString(", "),
+                            )
+                        },
                         style = MaterialTheme.typography.labelLarge,
                     )
                 }

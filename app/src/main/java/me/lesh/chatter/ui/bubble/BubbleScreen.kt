@@ -196,6 +196,7 @@ fun BubbleScreen(vm: MainViewModel, channel: String?) {
                     partners = partnerMarks,
                     onMentionsSeen = vm::onMentionsSeen,
                     status = remember(channel) { vm.chatStatus(channel) }.collectAsStateWithLifecycle().value,
+                    unreachable = vm.unreachable.collectAsStateWithLifecycle().value,
                     jumpTo = jump?.takeIf { it.channel == channel }?.id,
                     onJumped = { found ->
                         vm.requestedMessage.value = null
