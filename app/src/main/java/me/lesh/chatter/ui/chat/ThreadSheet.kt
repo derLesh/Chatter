@@ -106,11 +106,12 @@ fun ThreadSheet(
                 following?.let { FollowButton(it, onFollow) }
             }
             // Reversed like the chat, so the list stays at the newest end.
+            val sheetStyle = style.over(MaterialTheme.colorScheme.surfaceContainerLow)
             LazyColumn(reverseLayout = true, modifier = Modifier.weight(1f, fill = false).fillMaxWidth()) {
                 val count = thread.size
                 items(count = count, key = { thread[count - 1 - it].id }) { index ->
                     val item = thread[count - 1 - index]
-                    MessageRow(item, style, imageLoader, gesture, channel = item.sourceRoomId?.let(partners::get))
+                    MessageRow(item, sheetStyle, imageLoader, gesture, channel = item.sourceRoomId?.let(partners::get))
                 }
                 lostRoot?.let { root -> item(key = "root") { LostRoot(root, style) } }
             }

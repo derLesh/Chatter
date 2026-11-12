@@ -1,8 +1,10 @@
 package me.lesh.chatter
 
 import android.content.Intent
+import android.graphics.Color
 import android.os.Bundle
 import androidx.activity.ComponentActivity
+import androidx.activity.SystemBarStyle
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.viewModels
@@ -42,7 +44,10 @@ class MainActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        enableEdgeToEdge()
+        // No scrim behind the three-button navigation: the default one is a pale band over the
+        // chat's bottom edge in a light theme. ChatterTheme sets the buttons' color to match the app.
+        enableEdgeToEdge(navigationBarStyle = SystemBarStyle.auto(Color.TRANSPARENT, Color.TRANSPARENT))
+        window.isNavigationBarContrastEnforced = false
         // A recreated activity gets its first intent again; handled twice, it would switch back to
         // that notification's channel after every rotation.
         if (savedInstanceState == null) handleIntent(intent)

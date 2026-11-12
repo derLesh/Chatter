@@ -124,7 +124,8 @@ fun MessageRow(
     // message. Kept stable; a new instance would rebuild the line on every recomposition.
     val nameTap = remember { LinkInteractionListener { currentGesture?.invoke(currentItem, MessageGesture.NameTap) } }
     val nameClickable = onGesture != null && item.login != null
-    val built = remember(item, style, nameClickable, channel) { buildLine(item, style, nameTap.takeIf { nameClickable }, channel) }
+    val rowStyle = remember(item, style) { style.forRow(item) }
+    val built = remember(item, rowStyle, nameClickable, channel) { buildLine(item, rowStyle, nameTap.takeIf { nameClickable }, channel) }
     // Stable wrapper, so a new callback instance does not rebuild the inline content.
     val currentEmoteClick by rememberUpdatedState(onEmoteClick)
     val emoteClick = remember { { seg: Segment.EmoteSeg -> currentEmoteClick?.invoke(EmoteTap(seg, currentItem.channel)); Unit } }
@@ -149,18 +150,7 @@ fun MessageRow(
     val lineHeight = remember(built, style) { lineHeightOf(built, style, emoteEm) }
 
     val firstMessage = item.isFirstMessage && SpecialMessage.FirstMessage in style.specialMessages
-    val background = when {
-        item.highlight == ChatItem.MENTION_HIGHLIGHT -> style.mentionBackground
-        // A rule's own color beats the mention color.
-        item.highlight != null -> Color(item.highlight).copy(alpha = HIGHLIGHT_ALPHA)
-        item.isMention -> style.mentionBackground
-        item.powerUp == PowerUp.Highlighted && SpecialMessage.Highlighted in style.specialMessages -> style.highlightedBackground
-        firstMessage -> style.firstMessageBackground
-        // Cheers stand out a little, like subs.
-        item.kind == MessageKind.UserNotice || item.bits > 0 -> style.noticeBackground
-        item.alternate && style.alternateBackground != null -> style.alternateBackground
-        else -> Color.Transparent
-    }
+    val background = style.rowBackground(item)
 
     Column(
         Modifier
@@ -193,12 +183,12 @@ fun MessageRow(
                 Icon(
                     ImageVector.vectorResource(R.drawable.ic_waving_hand),
                     contentDescription = null,
-                    tint = style.accent,
+                    tint = rowStyle.accent,
                     modifier = Modifier.size(with(LocalDensity.current) { labelSize.toDp() }),
                 )
                 Text(
                     text = stringResource(R.string.first_message),
-                    color = style.accent,
+                    color = rowStyle.accent,
                     fontSize = labelSize,
                     fontWeight = FontWeight.Medium,
                 )
@@ -208,7 +198,7 @@ fun MessageRow(
             Text(
                 text = style.rewardNames[item.rewardId]?.let { stringResource(R.string.reward_redeemed_named, it) }
                     ?: stringResource(R.string.reward_redeemed),
-                color = style.accent,
+                color = rowStyle.accent,
                 fontSize = (style.fontSize - 2).sp,
                 fontWeight = FontWeight.Medium,
             )
@@ -223,7 +213,7 @@ fun MessageRow(
         item.reply?.let { reply ->
             // The quote is inserted where the string puts it, whatever order a language uses.
             val template = stringResource(R.string.reply_to, style.nameOf(reply.parentLogin, reply.parentDisplayName), QUOTE_MARK)
-            val quote = remember(template, item, style) { buildQuote(template, item.quote, reply.parentBody, style, item.channel) }
+            val quote = remember(template, item, rowStyle) { buildQuote(template, item.quote, reply.parentBody, rowStyle, item.channel) }
             val quoteMeasured = pendingAspects(quote)
             val quoteContent = remember(quote, imageLoader, quoteMeasured, style.smallEmotes, style.emoteFrameRate) {
                 quote.inline.mapValues { (_, data) ->
@@ -260,7 +250,7 @@ fun MessageRow(
                 inlineContent = if (channel == null) emptyMap() else remember(channel, imageLoader) {
                     mapOf(CHANNEL_ID to inlineFor(InlineData.ChannelData(channel), imageLoader, null))
                 },
-                color = style.accent,
+                color = rowStyle.accent,
                 fontSize = style.fontSize.sp,
                 fontWeight = FontWeight.Medium,
             )
@@ -275,7 +265,7 @@ fun MessageRow(
                     lineHeight = lineHeight,
                 )
             } else {
-                PaintedLine(built, paint, inlineContent, style, lineHeight, imageLoader)
+                PaintedLine(built, paint, inlineContent, rowStyle, lineHeight, imageLoader)
             }
         }
         if (built.images.isNotEmpty() || built.gifs.isNotEmpty()) {
@@ -286,11 +276,11 @@ fun MessageRow(
                 modifier = Modifier.padding(top = 4.dp, bottom = 2.dp),
             ) {
                 val alone = built.images.size + built.gifs.size == 1
-                built.images.forEach { url -> LinkedImage(url, style, imageLoader, alone) }
-                built.gifs.forEach { gif -> LinkedImage(gif.url, style, imageLoader, alone, title = gif.title) }
+                built.images.forEach { url -> LinkedImage(url, rowStyle, imageLoader, alone) }
+                built.gifs.forEach { gif -> LinkedImage(gif.url, rowStyle, imageLoader, alone, title = gif.title) }
             }
         }
-        style.postCard?.let { card -> built.posts.forEach { PostCard(it, card, style, imageLoader) } }
+        style.postCard?.let { card -> built.posts.forEach { PostCard(it, card, rowStyle, imageLoader) } }
     }
 }
 
@@ -302,6 +292,23 @@ fun MessageRow(
 private fun lineHeightOf(built: BuiltLine, style: ChatStyle, emoteEm: Float): TextUnit {
     val emotes = built.inline.values.any { it is InlineData.CheerData || (it is InlineData.EmoteData && !it.giant) }
     return if (emotes && emoteEm > style.lineSpacing) (style.fontSize * emoteEm).sp else style.lineHeight
+}
+
+/** The row's own tint over the chat: a mention, a highlight, a sub; transparent for most. */
+internal fun ChatStyle.rowBackground(item: ChatItem): Color {
+    val firstMessage = item.isFirstMessage && SpecialMessage.FirstMessage in specialMessages
+    return when {
+        item.highlight == ChatItem.MENTION_HIGHLIGHT -> mentionBackground
+        // A rule's own color beats the mention color.
+        item.highlight != null -> Color(item.highlight).copy(alpha = HIGHLIGHT_ALPHA)
+        item.isMention -> mentionBackground
+        item.powerUp == PowerUp.Highlighted && SpecialMessage.Highlighted in specialMessages -> highlightedBackground
+        firstMessage -> firstMessageBackground
+        // Cheers stand out a little, like subs.
+        item.kind == MessageKind.UserNotice || item.bits > 0 -> noticeBackground
+        item.alternate && alternateBackground != null -> alternateBackground
+        else -> Color.Transparent
+    }
 }
 
 /** A hairline along the row's bottom edge, across its full width. */
@@ -325,13 +332,13 @@ private fun PaintedLine(
 ) {
     val range = built.nameRange ?: return
     val image = paint.imageUrl?.let { rememberPaintImage(it, imageLoader) }
-    val brush = remember(built, paint, image) {
-        if (paint.kind == NamePaint.Kind.Image && image == null) null else NamePaintBrush(paint, image)
+    val brush = remember(built, paint, image, style) {
+        if (paint.kind == NamePaint.Kind.Image && image == null) null else NamePaintBrush(paint, image, style)
     }
     val density = LocalDensity.current
-    val text = remember(built, paint, brush, density) {
+    val text = remember(built, paint, brush, density, style) {
         AnnotatedString.Builder(built.text).apply {
-            addStyle(namePaintStyle(paint, brush, density), range.first, range.last + 1)
+            addStyle(namePaintStyle(paint, brush, density, style), range.first, range.last + 1)
         }.toAnnotatedString()
     }
     Text(
