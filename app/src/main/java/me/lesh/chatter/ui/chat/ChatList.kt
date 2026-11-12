@@ -102,7 +102,7 @@ const val CHAT_LIST_TAG = "chat"
  * the newest message on screen, and [onMentionsSeen], which receives the visible mentions by id.
  * [onCatchUp] offers a summary of a long stretch of new messages and receives them, oldest first.
  *
- * [status] shows a pill at the top while the connection comes back or the history loads.
+ * [status] shows a pill above the input while the connection comes back or the history loads.
  *
  * [jumpTo] is the id of a message to scroll to and flash; [onJumped] then says whether it was still
  * there, and the caller clears [jumpTo].
@@ -287,7 +287,6 @@ fun ChatList(
             verticalArrangement = Arrangement.spacedBy(6.dp),
             modifier = Modifier.align(Alignment.TopCenter).padding(top = 8.dp),
         ) {
-            StatusPill(status)
             if (unseen != null && lineIndex != null && !chipDone && !lineShown) {
                 UnseenChip(
                     unseen = unseen,
@@ -308,21 +307,29 @@ fun ChatList(
                 }
             }
         }
-        NewMessagesButton(
-            visible = !follow,
-            count = newSinceLeft,
-            onClick = {
-                scope.launch {
-                    listState.scrollToItem(0)
-                    follow = true
-                    chipDone = true
-                }
-            },
+        // Above the input, where the eye is while writing.
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(8.dp),
             modifier = Modifier
                 .align(Alignment.BottomCenter)
                 .offset { IntOffset(0, -currentBottomInset().roundToPx()) }
                 .padding(bottom = 12.dp),
-        )
+        ) {
+            StatusPill(status)
+            NewMessagesButton(
+                visible = !follow,
+                count = newSinceLeft,
+                onClick = {
+                    scope.launch {
+                        listState.scrollToItem(0)
+                        follow = true
+                        chipDone = true
+                    }
+                },
+                modifier = Modifier,
+            )
+        }
     }
 }
 
@@ -419,8 +426,8 @@ private fun StatusPill(step: ChatStatus?) {
     }
     AnimatedVisibility(
         visible = shown != null,
-        enter = fadeIn() + slideInVertically { -it },
-        exit = fadeOut() + slideOutVertically { -it },
+        enter = fadeIn() + slideInVertically { it },
+        exit = fadeOut() + slideOutVertically { it },
     ) {
         Surface(
             shape = CircleShape,
