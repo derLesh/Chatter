@@ -55,6 +55,7 @@ class IrcConnection(
     private var joinJob: Job? = null
     private val joins = JoinQueue(System::currentTimeMillis, joinRank)
     @Volatile private var lastActivity = 0L
+    private val traffic = Traffic()
     /**
      * Retrying without a network cannot succeed; a night in flight mode would be thousands of DNS
      * lookups. [setNetwork] reconnects when it is back.
@@ -166,7 +167,7 @@ class IrcConnection(
         val sent = synchronized(lock) {
             _state.value == ConnectionState.Connected && socket?.send("${tags}PRIVMSG #$channel :$clean") == true
         }
-        val what = if (replyParentId != null) "a reply" else "a message"
+        val what = (if (replyParentId != null) "a reply" else "a message") + " (${clean.length} characters)"
         if (sent) AppLog.d(TAG, "Sent $what in ${AppLog.channel(channel)}")
         else AppLog.w(TAG, "Could not send $what in ${AppLog.channel(channel)}: not connected")
         return sent
@@ -207,7 +208,10 @@ class IrcConnection(
         joinJob?.cancel()
         val ws = socket ?: return
         val batch = joins.take()
-        if (batch.isNotEmpty()) ws.send("JOIN " + batch.joinToString(",") { "#$it" })
+        if (batch.isNotEmpty()) {
+            ws.send("JOIN " + batch.joinToString(",") { "#$it" })
+            AppLog.d(TAG, "Sent JOIN for ${batch.joinToString { AppLog.channel(it) }}")
+        }
         val due = joins.nextDueAt() ?: return
         joinJob = scope.launch {
             delay((due - System.currentTimeMillis()).coerceAtLeast(0))
@@ -286,9 +290,12 @@ class IrcConnection(
                 // PINGs are answered on the socket thread before any parsing.
                 if (text.startsWith("PING", lineStart)) {
                     webSocket.send("PONG" + text.substring(lineStart + 4, end))
+                    AppLog.v(TAG, "PING answered")
                     continue
                 }
                 val msg = IrcMessage.parse(text, lineStart, end) ?: continue
+                traffic.count(msg)?.let { AppLog.d(TAG, it) }
+                if (msg.command != "PRIVMSG") AppLog.v(TAG, describe(msg))
                 when (msg.command) {
                     "001" -> onWelcome(webSocket)
                     "ROOMSTATE" -> msg.channel?.let { synchronized(lock) { joins.answered(it) } }
@@ -350,8 +357,47 @@ class IrcConnection(
         }
     }
 
+    /**
+     * Counts what comes in and hands back a summary once a minute: one line per chat message would
+     * push everything else out of the log.
+     */
+    private class Traffic {
+        private val counts = HashMap<String, Int>()
+        private val channels = HashSet<String>()
+        private var since = System.currentTimeMillis()
+
+        @Synchronized
+        fun count(msg: IrcMessage): String? {
+            counts.merge(msg.command, 1, Int::plus)
+            msg.channel?.let(channels::add)
+            val now = System.currentTimeMillis()
+            if (now - since < SUMMARY_MS) return null
+            val summary = counts.entries.sortedByDescending { it.value }.joinToString { "${it.value} ${it.key}" }
+            val line = "Last ${(now - since) / 1000} s: $summary, in ${channels.size} channel(s)"
+            counts.clear()
+            channels.clear()
+            since = now
+            return line
+        }
+    }
+
     internal companion object {
         private const val TAG = "IrcConnection"
+        private const val SUMMARY_MS = 60_000L
+
+        /**
+         * "← USERNOTICE in channel 2, msg-id=raid". The full log adds the tags, which name users;
+         * a chat line's text never goes in.
+         */
+        private fun describe(msg: IrcMessage): String {
+            val where = msg.channel?.let { " in ${AppLog.channel(it)}" }.orEmpty()
+            val kind = msg.tag("msg-id")?.let { ", msg-id=$it" }.orEmpty()
+            val tags = msg.tags.takeIf { it.isNotEmpty() }
+                ?.entries?.joinToString(";") { "${it.key}=${it.value}" }
+                ?.let { AppLog.hidden(" [${it.take(400)}]") }
+                .orEmpty()
+            return "← ${msg.command}$where$kind$tags"
+        }
 
         private val CHANNEL = Regex("^[a-z0-9_]{1,25}$")
 

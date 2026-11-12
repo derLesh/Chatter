@@ -10,7 +10,7 @@ import java.net.URLEncoder
 class LogReportTest {
     private val device = listOf("Chatter" to "0.9.0 (9), release", "Android" to "16 (API 36)")
     private fun entry(number: Long, message: String, full: String = message) =
-        AppLog.Entry(number, 0L, AppLog.Level.Warn, "Http", message, full)
+        AppLog.Entry(number, 0L, AppLog.Level.Warn, "Http", "main", message, full)
 
     @Test
     fun theDeviceComesFirstThenOneLinePerEntry() {
@@ -21,8 +21,8 @@ class LogReportTest {
                 "Android: 16 (API 36)",
                 "Log: private (no names, links or login)",
                 "",
-                "1970-01-01 00:00:00.000Z W Http: first",
-                "1970-01-01 00:00:00.000Z W Http: second",
+                "1970-01-01 00:00:00.000Z W Http [main]: first",
+                "1970-01-01 00:00:00.000Z W Http [main]: second",
             ),
             text.lines(),
         )
@@ -32,7 +32,7 @@ class LogReportTest {
     fun aShortLogGoesIntoTheIssueWhole() {
         val issue = LogReport.forIssue(device, listOf(entry(1, "only")), full = false)
         assertTrue(issue.whole)
-        assertTrue(issue.text.endsWith("W Http: only"))
+        assertTrue(issue.text.endsWith("W Http [main]: only"))
     }
 
     @Test
@@ -50,6 +50,6 @@ class LogReportTest {
     fun theFullLogSaysSoAndCarriesTheNames() {
         val text = LogReport.text(device, listOf(entry(1, "Join channel 1", full = "Join #somebody")), full = true)
         assertTrue(text.contains("Log: full (with names and links, no login)"))
-        assertTrue(text.endsWith("W Http: Join #somebody"))
+        assertTrue(text.endsWith("W Http [main]: Join #somebody"))
     }
 }

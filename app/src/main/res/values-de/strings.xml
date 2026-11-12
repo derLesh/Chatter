@@ -1038,6 +1038,27 @@
     <string name="debug_log_clip_label">Chatter-Log</string>
     <string name="debug_log_private">Privat: ohne Namen und Links</string>
     <string name="debug_log_full">Voll: mit Namen und Links</string>
+    <string name="debug_log_search">Log durchsuchen</string>
+    <string name="debug_log_filter">Filtern</string>
+    <string name="debug_log_names">Mit Namen</string>
+    <string name="debug_log_newest">Zum Neuesten</string>
+    <string name="debug_log_no_match">Keine Zeile passt</string>
+    <string name="debug_log_level_error">Fehler</string>
+    <string name="debug_log_level_warn">Warnungen</string>
+    <string name="debug_log_level_info">Info</string>
+    <string name="debug_log_level_debug">Debug</string>
+    <string name="debug_log_level_verbose">Details</string>
+    <string name="debug_log_clear_title">Log leeren?</string>
+    <string name="debug_log_clear_text">Die gespeicherten Zeilen auch.</string>
+    <string name="debug_log_clear_confirm">Leeren</string>
+    <plurals name="debug_log_count">
+        <item quantity="one">%1$d Zeile</item>
+        <item quantity="other">%1$d Zeilen</item>
+    </plurals>
+    <plurals name="debug_log_count_filtered">
+        <item quantity="one">%1$d von %2$d Zeile</item>
+        <item quantity="other">%1$d von %2$d Zeilen</item>
+    </plurals>
     <string name="debug_section_build">Build</string>
     <string name="debug_section_device">Gerät</string>
     <string name="debug_section_memory">Arbeitsspeicher</string>

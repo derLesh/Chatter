@@ -1,6 +1,7 @@
 package me.lesh.chatter.crash
 
 import android.os.Build
+import me.lesh.chatter.debug.AppLog
 import java.io.File
 import java.io.PrintWriter
 import java.io.StringWriter
@@ -40,6 +41,10 @@ class CrashLog(private val dir: File, private val device: DeviceInfo) {
         val previous = Thread.getDefaultUncaughtExceptionHandler()
         Thread.setDefaultUncaughtExceptionHandler { thread, error ->
             // A failure here must not keep the process from ending.
+            runCatching {
+                AppLog.e("Crash", "Chatter closed on thread ${thread.name}", error)
+                AppLog.flushNow()
+            }
             runCatching { write(thread.name, error) }
             previous?.uncaughtException(thread, error)
         }

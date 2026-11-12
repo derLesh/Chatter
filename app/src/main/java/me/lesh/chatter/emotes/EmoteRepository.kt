@@ -140,6 +140,7 @@ class EmoteRepository(
         if (asked.isEmpty()) return@withLock emptySet()
         val loaded = global.merge(ask(asked) { fetchGlobal(it) })
         global = loaded.emotes
+        AppLog.d(TAG, "Global emotes: ${loaded.emotes.counts()}${failedText(loaded.failed)}")
         globalMissing = globalMissing - asked + loaded.failed
         updateWaiting()
         _version.update { it + 1 }
@@ -174,6 +175,7 @@ class EmoteRepository(
         }
         // Follower and bits emotes come from channels too, but only sub emotes mean a sub.
         subscribedChannels = list.filter { it.emoteType == "subscriptions" }.mapNotNullTo(HashSet()) { twitchOwnerId(it.ownerId) }
+        AppLog.d(TAG, "Twitch emotes the account may use: ${twitchUser.size}, subs in ${subscribedChannels.size} channel(s)")
         _version.update { it + 1 }
         loadOwners(twitchUser.values.mapNotNullTo(HashSet()) { it.ownerId })
     }
@@ -204,9 +206,10 @@ class EmoteRepository(
         // the request. Otherwise a 7TV change or another provider's retry finishing in between is
         // lost.
         var failed = emptySet<EmoteProvider>()
-        channels.compute(channelId) { _, current ->
+        val merged = channels.compute(channelId) { _, current ->
             (current ?: ProviderEmotes()).merge(answers).also { failed = it.failed }.emotes
         }
+        AppLog.d(TAG, "Emotes of ${AppLog.hidden("channel id $channelId", "a channel")}: ${merged?.counts()}${failedText(failed)}")
         // Providers not asked this time keep their previous state; before the first load that is
         // missing, so one switched on later is loaded then.
         var owed = emptySet<EmoteProvider>()
@@ -440,6 +443,11 @@ class EmoteRepository(
  * `susge` on 7TV. Like Chatterino and DankChat, FFZ wins over BTTV over 7TV. Keeping the maps apart
  * lets a pushed 7TV change be applied without taking over another provider's name.
  */
+private fun ProviderEmotes.counts() = "7TV ${sevenTv.size}, BTTV ${bttv.size}, FFZ ${ffz.size}"
+
+private fun failedText(failed: Set<EmoteProvider>) =
+    if (failed.isEmpty()) "" else ", no answer from ${failed.joinToString { it.label }}"
+
 internal class ProviderEmotes(
     val ffz: Map<String, Emote> = emptyMap(),
     val bttv: Map<String, Emote> = emptyMap(),

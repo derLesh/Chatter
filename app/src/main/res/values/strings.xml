@@ -1055,6 +1055,27 @@
     <string name="debug_log_clip_label">Chatter log</string>
     <string name="debug_log_private">Private: no names or links</string>
     <string name="debug_log_full">Full: with names and links</string>
+    <string name="debug_log_search">Search the log</string>
+    <string name="debug_log_filter">Filter</string>
+    <string name="debug_log_names">With names</string>
+    <string name="debug_log_newest">To the newest</string>
+    <string name="debug_log_no_match">No line matches</string>
+    <string name="debug_log_level_error">Errors</string>
+    <string name="debug_log_level_warn">Warnings</string>
+    <string name="debug_log_level_info">Info</string>
+    <string name="debug_log_level_debug">Debug</string>
+    <string name="debug_log_level_verbose">Details</string>
+    <string name="debug_log_clear_title">Clear the log?</string>
+    <string name="debug_log_clear_text">The saved lines go too.</string>
+    <string name="debug_log_clear_confirm">Clear</string>
+    <plurals name="debug_log_count">
+        <item quantity="one">%1$d line</item>
+        <item quantity="other">%1$d lines</item>
+    </plurals>
+    <plurals name="debug_log_count_filtered">
+        <item quantity="one">%1$d of %2$d line</item>
+        <item quantity="other">%1$d of %2$d lines</item>
+    </plurals>
     <string name="debug_section_build">Build</string>
     <string name="debug_section_device">Device</string>
     <string name="debug_section_memory">Memory</string>

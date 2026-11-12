@@ -22,9 +22,9 @@ object LogReport {
         device.forEach { (label, value) -> appendLine("$label: $value") }
     }
 
-    /** "2026-11-12 14:03:07.215Z W Http: GET api.twitch.tv/helix/users → 401 in 210 ms", in UTC like the crash log. */
+    /** "2026-11-12 14:03:07.215Z W Http [OkHttp …]: GET api.twitch.tv/helix/users → 401 …", in UTC like the crash log. */
     fun line(entry: AppLog.Entry, full: Boolean): String =
-        "${time(entry.at)} ${entry.level.letter} ${entry.tag}: ${entry.message(full)}"
+        "${time(entry.at)} ${entry.level.letter} ${entry.tag} [${entry.thread}]: ${entry.message(full)}"
 
     /**
      * What fits into the log field of a new GitHub issue: the device and as many of the newest

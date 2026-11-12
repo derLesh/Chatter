@@ -40,7 +40,6 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.AccountCircle
 import androidx.compose.material.icons.filled.Build
 import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Face
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.Info
@@ -135,7 +134,7 @@ import me.lesh.chatter.ui.settings.ImageHostsPage
 import me.lesh.chatter.ui.settings.KeywordsPage
 import me.lesh.chatter.ui.settings.LINE_SPACINGS
 import me.lesh.chatter.ui.settings.LiveChannelsPage
-import me.lesh.chatter.ui.settings.LogPage
+import me.lesh.chatter.ui.settings.LogScreen
 import me.lesh.chatter.ui.settings.LocalSettingsTarget
 import me.lesh.chatter.ui.settings.MediaPage
 import me.lesh.chatter.ui.settings.MessagesPage
@@ -494,6 +493,10 @@ fun SettingsScreen(vm: MainViewModel, onBack: () -> Unit) {
     }
 
     val place = SettingsPlace(page, subPage, searching, rule)
+    LaunchedEffect(place) {
+        val where = listOfNotNull(page?.name, subPage?.name, "rule editor".takeIf { rule != null }, "search".takeIf { searching })
+        AppLog.d("Screen", "Settings: ${where.joinToString(" → ").ifEmpty { "home" }}")
+    }
     // One step up. From the category list, leaving the settings is animated by the parent screen.
     val backTo = when {
         rule != null -> place.copy(rule = null)
@@ -525,6 +528,11 @@ fun SettingsScreen(vm: MainViewModel, onBack: () -> Unit) {
             resizeMode = SharedTransitionScope.ResizeMode.RemeasureToBounds,
             clipInOverlayDuringTransition = OverlayClip(CircleShape),
         )
+        // Full screen with its own bars, so as much of the log as possible fits.
+        if (currentSub == SettingsSubPage.Log) {
+            LogScreen(vm, onBack = goBack)
+            return@AnimatedContent
+        }
         if (currentRule != null) {
             // Looked up once; the editor keeps its own copy from then on.
             val editing = remember(currentRule) { vm.rules.value.find { it.id == currentRule } }
@@ -572,9 +580,6 @@ fun SettingsScreen(vm: MainViewModel, onBack: () -> Unit) {
                     }) { Icon(Icons.Default.Close, stringResource(R.string.settings_debug_hide)) }
                 }
             }
-            currentSub == SettingsSubPage.Log -> {
-                { IconButton(onClick = AppLog::clear) { Icon(Icons.Default.Delete, stringResource(R.string.debug_log_clear)) } }
-            }
             else -> {
                 {}
             }
@@ -584,8 +589,6 @@ fun SettingsScreen(vm: MainViewModel, onBack: () -> Unit) {
             onBack = goBack,
             onSearch = onSearch,
             actions = actions,
-            // The log scrolls in a list of its own, so lines can arrive while it is open.
-            scrolls = currentSub != SettingsSubPage.Log,
             snackbar = snackbar,
             enterInOrder = opening[0] && current == null && currentSub == null,
         ) {
@@ -621,7 +624,8 @@ fun SettingsScreen(vm: MainViewModel, onBack: () -> Unit) {
                 SettingsSubPage.Rules -> RulesPage(vm) { rule = it?.id ?: NEW_RULE }
                 SettingsSubPage.Credits -> CreditsPage()
                 SettingsSubPage.DebugStats -> DebugStatsPage(vm)
-                SettingsSubPage.Log -> LogPage(vm)
+                // Shown above, outside this scaffold.
+                SettingsSubPage.Log -> Unit
                 SettingsSubPage.Changelog -> {
                     val releases by vm.releases.collectAsStateWithLifecycle()
                     ChangelogPage(releases, BuildConfig.VERSION_NAME)
@@ -800,8 +804,6 @@ private fun SettingsPageScaffold(
     onBack: () -> Unit,
     onSearch: (() -> Unit)? = null,
     actions: @Composable () -> Unit = {},
-    /** False for a page that scrolls by itself, e.g. with a lazy list. */
-    scrolls: Boolean = true,
     snackbar: SnackbarHostState? = null,
     enterInOrder: Boolean = false,
     content: @Composable () -> Unit,
@@ -839,10 +841,6 @@ private fun SettingsPageScaffold(
             }
         },
     ) { padding ->
-        if (!scrolls) {
-            Column(Modifier.fillMaxSize().padding(padding).padding(horizontal = 16.dp)) { content() }
-            return@Scaffold
-        }
         Column(
             Modifier
                 .fillMaxSize()

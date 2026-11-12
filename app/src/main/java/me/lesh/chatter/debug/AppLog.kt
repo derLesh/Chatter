@@ -5,29 +5,39 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import me.lesh.chatter.BuildConfig
 import me.lesh.chatter.crash.CrashLog
+import java.io.File
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.atomic.AtomicInteger
 
 /**
  * What the app does, for the log under Settings → Debug, and for logcat. Each line is kept twice:
  * private, cleaned by [LogPrivacy] and with names marked by [hidden] left out, and full, with them.
- * Login secrets are taken out of both. Kept in memory only: gone when the process ends, and off
- * the phone only when the user copies, saves or reports it.
+ * Login secrets are taken out of both. The last [KEPT] lines are kept on the phone by [keepIn], so
+ * they outlast a restart; they leave it only when the user copies, saves or reports them.
  *
  * A single object rather than part of `AppContainer`, so code built before it, and tests, can log.
  */
 object AppLog {
+    /** [Verbose] is for what happens many times a minute: every image, every chat command. */
     enum class Level(val letter: Char, val priority: Int) {
-        Debug('D', Log.DEBUG), Info('I', Log.INFO), Warn('W', Log.WARN), Error('E', Log.ERROR),
+        Verbose('V', Log.VERBOSE), Debug('D', Log.DEBUG), Info('I', Log.INFO), Warn('W', Log.WARN), Error('E', Log.ERROR),
     }
 
     /** One line. [number] counts every line written since the start, so a cleared log goes on from it. */
-    class Entry(val number: Long, val at: Long, val level: Level, val tag: String, val private: String, val full: String) {
+    class Entry(
+        val number: Long,
+        val at: Long,
+        val level: Level,
+        val tag: String,
+        val thread: String,
+        val private: String,
+        val full: String,
+    ) {
         fun message(full: Boolean) = if (full) this.full else private
     }
 
-    /** About an evening of a busy session, and a few hundred kilobytes at most. */
-    const val KEPT = 2_000
+    /** An evening of a busy session, and a megabyte or two at most. */
+    const val KEPT = 5_000
 
     private val lock = Any()
     private val entries = ArrayDeque<Entry>(KEPT)
@@ -37,9 +47,12 @@ object AppLog {
     /** Changes with every line written and with [clear], for a screen showing the log. */
     val revision: StateFlow<Long> = _revision
 
+    @Volatile private var file: LogFile? = null
+
     private val channelNames = ConcurrentHashMap<String, String>()
     private val channelsNamed = AtomicInteger()
 
+    fun v(tag: String, message: String, error: Throwable? = null) = write(Level.Verbose, tag, message, error)
     fun d(tag: String, message: String, error: Throwable? = null) = write(Level.Debug, tag, message, error)
     fun i(tag: String, message: String, error: Throwable? = null) = write(Level.Info, tag, message, error)
     fun w(tag: String, message: String, error: Throwable? = null) = write(Level.Warn, tag, message, error)
@@ -63,11 +76,32 @@ object AppLog {
 
     fun user(login: String): String = hidden(login, "a user")
 
+    /**
+     * Keeps the log in [file] too, and brings back what an earlier start left there. Call it first
+     * thing, so the start itself is in the file.
+     */
+    fun keepIn(file: File) {
+        val log = LogFile(file)
+        this.file = log
+        log.open { earlier ->
+            synchronized(lock) {
+                earlier.takeLast(KEPT - entries.size).asReversed().forEach(entries::addFirst)
+            }
+            _revision.value++
+        }
+    }
+
+    /** Writes out what is still buffered; for a crash, before the process ends. */
+    fun flushNow() {
+        file?.flushNow()
+    }
+
     /** Oldest first. */
     fun entries(): List<Entry> = synchronized(lock) { entries.toList() }
 
     fun clear() {
         synchronized(lock) { entries.clear() }
+        file?.clear()
         _revision.value++
     }
 
@@ -77,13 +111,17 @@ object AppLog {
         val full = CrashLog.hideSecrets(MARKED.replace(raw) { it.groupValues[1] })
         // Only the developer's own build tells logcat the names. runCatching: a stub in unit tests.
         runCatching { Log.println(level.priority, tag, if (BuildConfig.DEBUG) full else private) }
-        synchronized(lock) {
+        val entry = synchronized(lock) {
             if (entries.size == KEPT) entries.removeFirst()
             written++
-            entries.addLast(Entry(written, System.currentTimeMillis(), level, tag, private, full))
+            Entry(written, System.currentTimeMillis(), level, tag, threadName(), private, full).also(entries::addLast)
         }
+        file?.append(entry) { entries() }
         _revision.value++
     }
+
+    /** OkHttp names its threads after the link it loads; cleaned like a message. */
+    private fun threadName(): String = LogPrivacy.clean(Thread.currentThread().name).take(40)
 
     /**
      * The error's kind and message, and the first line of Chatter's own code it passed: enough to

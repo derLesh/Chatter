@@ -56,6 +56,7 @@ import me.lesh.chatter.chat.XPostSource
 import me.lesh.chatter.chat.YouTubePostSource
 import me.lesh.chatter.crash.CrashLog
 import me.lesh.chatter.debug.AppLog
+import me.lesh.chatter.debug.AppWatch
 import me.lesh.chatter.debug.DebugStats
 import me.lesh.chatter.debug.HttpLog
 import me.lesh.chatter.emotes.CheermoteRepository
@@ -82,6 +83,7 @@ import me.lesh.chatter.service.ChatNotifier
 import me.lesh.chatter.service.LiveAlerts
 import me.lesh.chatter.service.ScheduledSendAlarm
 import me.lesh.chatter.settings.BackupManager
+import me.lesh.chatter.settings.Settings
 import me.lesh.chatter.settings.SettingsRepository
 import me.lesh.chatter.stats.StatsRepository
 import me.lesh.chatter.storage.StorageUsage
@@ -154,17 +156,21 @@ class AppContainer(
         .cache(Cache(context.cacheDir.resolve("http"), HTTP_CACHE_BYTES))
         .build()
 
-    // Images and the socket stay out of the log: emotes alone would fill it in a minute.
-    val http: OkHttpClient = baseHttp.newBuilder().addInterceptor(HttpLog).build()
+    val http: OkHttpClient = baseHttp.newBuilder().addInterceptor(HttpLog("Http")).build()
 
     // Same pool, no read timeout: the chat socket may be silent for minutes.
-    private val socketHttp: OkHttpClient = baseHttp.newBuilder().readTimeout(0, TimeUnit.MILLISECONDS).build()
+    private val socketHttp: OkHttpClient = baseHttp.newBuilder()
+        .readTimeout(0, TimeUnit.MILLISECONDS)
+        .addInterceptor(HttpLog("Socket"))
+        .build()
 
     // Coil has its own disk cache; images in the response cache would be stored twice and push out
     // the lists it is meant for.
     private val imageHttp: OkHttpClient = baseHttp.newBuilder()
         .cache(null)
         .followRedirects(false)
+        // First, so it sees what the size limit refuses too.
+        .addInterceptor(HttpLog("Images", AppLog.Level.Verbose))
         .addInterceptor(ImageRedirects)
         .addInterceptor(ImageSizeLimit(MAX_IMAGE_BYTES))
         .build()
@@ -316,6 +322,13 @@ class AppContainer(
         scope.launch {
             auth.state.map { it.javaClass.simpleName }.distinctUntilChanged().collect { AppLog.i("Auth", "Account: $it") }
         }
+        scope.launch {
+            var before: Settings? = null
+            settings.settings.collect { now ->
+                before?.let { old -> AppWatch.changes(old, now).forEach { AppLog.i("Settings", it) } }
+                before = now
+            }
+        }
         scope.launch { chat.refused.collect(scheduled::onRefused) }
         // The wait may have stood still while the phone slept.
         scope.launch { chat.windows.anyVisible.collect { if (it) scheduled.wakeUp() } }
@@ -332,10 +345,18 @@ class AppContainer(
         // Every mention goes into the inbox of the account it was addressed to. Guests have no
         // inbox.
         scope.launch {
-            chat.allMentions.collect { m -> activeUserId.value?.let { inbox.add(m.item, read = m.seen, account = it) } }
+            chat.allMentions.collect { m ->
+                AppLog.d("Chat", "Mention in ${AppLog.channel(m.item.channel)}${if (m.seen) ", seen on screen" else ""}")
+                activeUserId.value?.let { inbox.add(m.item, read = m.seen, account = it) }
+            }
         }
         // A whisper already names its account; the active one may have changed since it arrived.
-        scope.launch { chat.whispers.collect { whisperInbox.add(it) } }
+        scope.launch {
+            chat.whispers.collect {
+                AppLog.d("Chat", "Whisper arrived")
+                whisperInbox.add(it)
+            }
+        }
         scope.launch {
             channels.loadCache()
             auth.restore()
@@ -527,6 +548,7 @@ class AppContainer(
         context.registerReceiver(
             object : BroadcastReceiver() {
                 override fun onReceive(context: Context?, intent: Intent?) {
+                    AppLog.i("Power", "Battery saver ${if (power.isPowerSaveMode) "on" else "off"}")
                     _powerSaveMode.value = power.isPowerSaveMode
                 }
             },
@@ -536,9 +558,16 @@ class AppContainer(
 
     private fun registerNetworkCallback() {
         val cm = context.getSystemService(ConnectivityManager::class.java)
+        var lastNetwork: String? = null
+        fun logNetwork(caps: NetworkCapabilities?) {
+            val now = AppWatch.network(caps)
+            if (now != lastNetwork) AppLog.i("Network", now)
+            lastNetwork = now
+        }
         /** Tells the chat whether there is a network and whether it reaches the internet. */
         fun tellChat(network: Network?) {
             val caps = network?.let { cm.getNetworkCapabilities(it) }
+            logNetwork(caps)
             irc.setNetwork(up = network != null, validated = caps?.hasCapability(NetworkCapabilities.NET_CAPABILITY_VALIDATED) == true)
             sevenTvEvents.setNetwork(up = network != null)
         }
@@ -553,6 +582,7 @@ class AppContainer(
             }
             // Validation, metering or hotspot state changed.
             override fun onCapabilitiesChanged(network: Network, caps: NetworkCapabilities) {
+                logNetwork(caps)
                 irc.setNetwork(up = true, validated = caps.hasCapability(NetworkCapabilities.NET_CAPABILITY_VALIDATED))
                 sevenTvEvents.setNetwork(up = true)
                 dataSaving.networkChanged()

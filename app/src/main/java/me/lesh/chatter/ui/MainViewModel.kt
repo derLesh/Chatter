@@ -10,6 +10,7 @@ import androidx.compose.ui.text.input.TextFieldValue
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import me.lesh.chatter.debug.AppLog
 import me.lesh.chatter.AppContainer
 import me.lesh.chatter.BuildConfig
 import me.lesh.chatter.R
@@ -423,6 +424,7 @@ class MainViewModel(private val c: AppContainer, savedState: SavedStateHandle) :
         val channels = page?.let(::channelsOf).orEmpty()
         val left = shownPage
         if (!composer.show(page, channels)) return
+        AppLog.d("Screen", if (channels.isEmpty()) "No channel open" else "Opened ${channels.joinToString { AppLog.channel(it) }}${if (inBubble) " in a bubble" else ""}")
         if (left != page) left?.let(::leave)
         c.chat.windows.setChannels(this, channels.toSet())
         // The chat screen follows this; a bubble must not move it.

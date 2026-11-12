@@ -175,6 +175,7 @@ class SevenTvEventClient(
     fun setSubscriptions(new: Set<SevenTvSubscription>) = synchronized(lock) {
         val old = subscriptions
         subscriptions = new
+        if (old != new) AppLog.d(TAG, "Subscriptions: ${new.size} (${(new - old).size} new, ${(old - new).size} dropped)")
         val ws = socket
         if (new.isEmpty()) {
             // With 7TV switched off a socket would only bring heartbeats.
@@ -188,6 +189,7 @@ class SevenTvEventClient(
     }
 
     private fun open() {
+        AppLog.i(TAG, "Connecting to 7TV events")
         ready = false
         lastActivity = System.currentTimeMillis()
         val ws = http.newWebSocket(Request.Builder().url("wss://events.7tv.io/v3").build(), Listener())
@@ -225,6 +227,7 @@ class SevenTvEventClient(
         if (!wanted || !networkUp || reconnectJob?.isActive == true) return@synchronized
         val delayMs = (1000L shl attempt.coerceAtMost(6)).coerceAtMost(60_000L) + Random.nextLong(0, 1000)
         attempt++
+        AppLog.i(TAG, "Trying again in ${delayMs / 1000} s (attempt $attempt)")
         reconnectJob = scope.launch {
             delay(delayMs)
             synchronized(lock) { if (wanted && networkUp && socket == null && subscriptions.isNotEmpty()) open() }
@@ -241,14 +244,20 @@ class SevenTvEventClient(
             when (msg["op"]?.jsonPrimitive?.int) {
                 1 -> synchronized(lock) { // hello: (re)send all subscriptions
                     heartbeatMs = heartbeatInterval(msg)
+                    AppLog.i(TAG, "Connected, heartbeat every ${heartbeatMs / 1000} s, subscribing to ${subscriptions.size}")
                     ready = true
                     attempt = 0
                     subscriptions.forEach { webSocket.send(subscriptionMessage(35, it)) }
                     if (helloSinceStart) _reconnected.tryEmit(Unit)
                     helloSinceStart = true
                 }
-                0 -> msg["d"]?.jsonObject?.let { parseDispatch(it) }?.let { _events.tryEmit(it) }
+                0 -> msg["d"]?.jsonObject?.let { parseDispatch(it) }?.let {
+                    AppLog.d(TAG, describe(it))
+                    _events.tryEmit(it)
+                }
+                2 -> AppLog.v(TAG, "Heartbeat")
                 4, 7 -> { // reconnect requested / end of stream
+                    AppLog.i(TAG, "7TV asked to reconnect (op ${msg["op"]})")
                     webSocket.close(1000, null)
                     scheduleReconnect()
                 }
@@ -256,17 +265,38 @@ class SevenTvEventClient(
         }
 
         override fun onClosed(webSocket: WebSocket, code: Int, reason: String) {
-            if (isCurrent(webSocket)) scheduleReconnect()
+            if (!isCurrent(webSocket)) return
+            AppLog.i(TAG, "7TV closed the connection (code $code)")
+            scheduleReconnect()
         }
 
         override fun onFailure(webSocket: WebSocket, t: Throwable, response: Response?) {
-            AppLog.w(TAG, "7TV events failed: ${t.message}")
-            if (isCurrent(webSocket)) scheduleReconnect()
+            // A socket closed on purpose fails with "Canceled"; only the current one is news.
+            if (!isCurrent(webSocket)) return
+            AppLog.w(TAG, "7TV events failed", t)
+            scheduleReconnect()
         }
     }
 
     companion object {
         private const val TAG = "SevenTvEvents"
+
+        /** What changed, with emote names; who changed it only in the full log. */
+        private fun describe(event: SevenTvEvent): String {
+            val by = event.actor?.let { " by ${AppLog.user(it)}" }.orEmpty()
+            return when (event) {
+                is SevenTvEvent.EmoteSetUpdate -> "Emote set changed$by: " + listOfNotNull(
+                    event.added.takeIf { it.isNotEmpty() }?.joinToString(prefix = "added ") { it.name },
+                    event.removed.takeIf { it.isNotEmpty() }?.joinToString(prefix = "removed ") { it.name },
+                    event.renamed.takeIf { it.isNotEmpty() }?.joinToString(prefix = "renamed ") { "${it.first.name} → ${it.second.name}" },
+                ).joinToString("; ")
+                is SevenTvEvent.ActiveSetChanged -> "A channel switched its emote set$by"
+                is SevenTvEvent.BadgeCreated -> "Badge described: ${event.name}"
+                is SevenTvEvent.PaintCreated -> "Paint described"
+                is SevenTvEvent.EntitlementChanged ->
+                    "${AppLog.hidden("User ${event.twitchUserId}", "Someone")} ${if (event.worn) "wears" else "took off"} a ${event.cosmetic.name.lowercase()}"
+            }
+        }
 
         /** 7TV's interval so far, used until the hello says otherwise. */
         private const val DEFAULT_HEARTBEAT_MS = 30_000L
