@@ -24,6 +24,7 @@ import me.lesh.chatter.chat.PowerUp
 import me.lesh.chatter.chat.Segment
 import me.lesh.chatter.emotes.Emote
 import me.lesh.chatter.settings.SpecialMessage
+import me.lesh.chatter.ui.theme.chatColor
 import me.lesh.chatter.ui.theme.readableNameColor
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -244,5 +245,5 @@ private fun AnnotatedString.Builder.appendCheer(seg: Segment.Cheer, id: String, 
     val picture = if (style.dark) seg.dark else seg.light
     inline[id] = InlineData.CheerData(picture)
     appendInlineContent(id, picture.name)
-    withStyle(SpanStyle(color = Color(seg.color), fontWeight = FontWeight.Bold)) { append(seg.amount.toString()) }
+    withStyle(SpanStyle(color = chatColor(seg.color, style.dark), fontWeight = FontWeight.Bold)) { append(seg.amount.toString()) }
 }

@@ -29,8 +29,7 @@ import coil3.request.allowHardware
 import coil3.size.Precision
 import coil3.toBitmap
 import me.lesh.chatter.badges.NamePaint
-import me.lesh.chatter.ui.theme.NameColorPalette
-import me.lesh.chatter.ui.theme.readableNameColor
+import me.lesh.chatter.ui.theme.chatColor
 import kotlin.math.abs
 import kotlin.math.cos
 import kotlin.math.hypot
@@ -38,18 +37,12 @@ import kotlin.math.max
 import kotlin.math.sin
 
 /**
- * A paint's color as drawn. 7TV paints are made for Twitch's dark chat, and many are yellow or pale
- * blue, so on a light theme each color is darkened like a name color until it reads.
- */
-internal fun paintColor(argb: Int, dark: Boolean): Color =
-    if (dark) Color(argb) else readableNameColor(argb, login = null, dark = false, palette = NameColorPalette.HslLuma)
-
-/**
  * How a painted name is drawn: with [brush], or in the paint's main color while an image paint's
  * picture is still loading ([brush] null).
  */
 internal fun namePaintStyle(paint: NamePaint, brush: NamePaintBrush?, density: Density, dark: Boolean): SpanStyle {
-    val shadow = paint.shadows.firstOrNull()?.let {
+    // Paint shadows are dark glows made for a dark chat; on a light one they only smudge the name.
+    val shadow = paint.shadows.firstOrNull()?.takeIf { dark }?.let {
         Shadow(
             color = Color(it.color),
             offset = Offset(it.x * density.density, it.y * density.density),
@@ -57,7 +50,7 @@ internal fun namePaintStyle(paint: NamePaint, brush: NamePaintBrush?, density: D
         )
     }
     return if (brush != null) SpanStyle(brush = brush, shadow = shadow)
-    else SpanStyle(color = paint.fallbackColor?.let { paintColor(it, dark) } ?: Color.Unspecified, shadow = shadow)
+    else SpanStyle(color = paint.fallbackColor?.let { chatColor(it, dark) } ?: Color.Unspecified, shadow = shadow)
 }
 
 /** Where the characters [range] were laid out, or null if they are not in this layout. */
@@ -132,12 +125,12 @@ internal class NamePaintBrush(private val paint: NamePaint, private val image: I
 
     /** For a line drawn before it was placed, which should not happen. */
     private fun solid(): Shader {
-        val color = (paint.fallbackColor ?: paint.stops.firstOrNull()?.color)?.let { paintColor(it, dark) }
+        val color = (paint.fallbackColor ?: paint.stops.firstOrNull()?.color)?.let { chatColor(it, dark) }
             ?: if (dark) Color.White else Color.Black
         return LinearGradientShader(Offset.Zero, Offset(1f, 0f), listOf(color, color))
     }
 
-    private val colors get() = paint.stops.map { paintColor(it.color, dark) }
+    private val colors get() = paint.stops.map { chatColor(it.color, dark) }
 
     private val tileMode get() = if (paint.repeat) TileMode.Repeated else TileMode.Clamp
 

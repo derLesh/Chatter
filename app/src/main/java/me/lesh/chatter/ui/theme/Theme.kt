@@ -67,38 +67,40 @@ private val DarkColors = darkColorScheme(
     surfaceContainerHighest = Color(0xFF36333B),
 )
 
+// White behind the chat for the most contrast; bars, sheets and cards step down in near-neutral
+// greys with only a trace of purple, so they read as separate surfaces without tinting the text.
 private val LightColors = lightColorScheme(
     primary = Color(0xFF7236D9),
     onPrimary = Color.White,
     primaryContainer = Color(0xFFEBDDFF),
     onPrimaryContainer = Color(0xFF25005A),
     inversePrimary = Color(0xFFD3BBFF),
-    secondary = Color(0xFF645A76),
+    secondary = Color(0xFF625B71),
     onSecondary = Color.White,
-    secondaryContainer = Color(0xFFE9DDFC),
-    onSecondaryContainer = Color(0xFF1F182F),
-    tertiary = Color(0xFF7F525F),
+    secondaryContainer = Color(0xFFE8DEF8),
+    onSecondaryContainer = Color(0xFF1E192B),
+    tertiary = Color(0xFF7E5260),
     onTertiary = Color.White,
     tertiaryContainer = Color(0xFFFFD9E3),
-    onTertiaryContainer = Color(0xFF32101D),
-    background = Color(0xFFFEF7FF),
-    onBackground = Color(0xFF1D1A21),
-    surface = Color(0xFFFEF7FF),
-    onSurface = Color(0xFF1D1A21),
-    surfaceVariant = Color(0xFFE8DFF3),
-    onSurfaceVariant = Color(0xFF4A4455),
+    onTertiaryContainer = Color(0xFF31101D),
+    background = Color.White,
+    onBackground = Color(0xFF1B1A1F),
+    surface = Color.White,
+    onSurface = Color(0xFF1B1A1F),
+    surfaceVariant = Color(0xFFE6E1EC),
+    onSurfaceVariant = Color(0xFF48454F),
     surfaceTint = Color(0xFF7236D9),
-    inverseSurface = Color(0xFF322F36),
-    inverseOnSurface = Color(0xFFF5EFF7),
-    outline = Color(0xFF7B7486),
-    outlineVariant = Color(0xFFCCC3D8),
-    surfaceBright = Color(0xFFFEF7FF),
-    surfaceDim = Color(0xFFDFD8E1),
-    surfaceContainerLowest = Color(0xFFFFFFFF),
-    surfaceContainerLow = Color(0xFFF8F1FA),
-    surfaceContainer = Color(0xFFF2ECF5),
-    surfaceContainerHigh = Color(0xFFECE6EF),
-    surfaceContainerHighest = Color(0xFFE7E0E9),
+    inverseSurface = Color(0xFF303034),
+    inverseOnSurface = Color(0xFFF3F0F5),
+    outline = Color(0xFF78747F),
+    outlineVariant = Color(0xFFCAC5D0),
+    surfaceBright = Color.White,
+    surfaceDim = Color(0xFFDCD9E0),
+    surfaceContainerLowest = Color.White,
+    surfaceContainerLow = Color(0xFFF7F5FA),
+    surfaceContainer = Color(0xFFF1EFF4),
+    surfaceContainerHigh = Color(0xFFEBE9EF),
+    surfaceContainerHighest = Color(0xFFE5E3E9),
 )
 
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
@@ -243,6 +245,13 @@ fun highlightBackground(setting: Int, scheme: ColorScheme): Color =
 @Composable
 @ReadOnlyComposable
 fun isAppInDarkTheme(): Boolean = MaterialTheme.colorScheme.background.luminance() < 0.5f
+
+/**
+ * A color Twitch or 7TV picked for their dark chat (a paint, a cheer tier) as drawn here: as it is
+ * on a dark theme, darkened like a name color on a light one, where many of them are too pale.
+ */
+fun chatColor(argb: Int, dark: Boolean): Color =
+    if (dark) Color(argb) else readableNameColor(argb, login = null, dark = false, palette = NameColorPalette.HslLuma)
 
 /** Twitch's palette for users who never picked a name color. */
 private val DefaultNameColors = listOf(

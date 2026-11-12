@@ -31,10 +31,10 @@ enum class NameColorPalette {
     RgbLoop,
 }
 
-// Contrast targets against the chat background, as relative (WCAG) luminance. On a near-white
-// background 0.22 is about 3.7:1, close to the 4.6:1 that 0.18 gives on black.
+// Contrast targets against the chat background, as relative (WCAG) luminance: 0.18 is about 4.6:1
+// on black, 0.17 about 4.8:1 on white and still 4.5:1 on Material You's tinted light surfaces.
 internal const val MIN_LUMA_ON_DARK = 0.18f
-internal const val MAX_LUMA_ON_LIGHT = 0.22f
+internal const val MAX_LUMA_ON_LIGHT = 0.17f
 
 /** True if [color] is readable on this background as it is. */
 private fun readable(color: Color, dark: Boolean): Boolean =

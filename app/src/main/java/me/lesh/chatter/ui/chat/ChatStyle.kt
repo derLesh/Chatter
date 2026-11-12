@@ -127,7 +127,9 @@ fun rememberChatStyle(
             alternateBackground = if (settings.alternateBackground) {
                 colors.onSurface.copy(alpha = if (colors.isPureBlack) 0.08f else 0.05f)
             } else null,
-            noticeBackground = colors.primaryContainer.copy(alpha = 0.35f),
+            // On a light theme the pale container all but vanishes, so subs and cheers take a light
+            // wash of the accent instead.
+            noticeBackground = if (dark) colors.primaryContainer.copy(alpha = 0.35f) else colors.primary.copy(alpha = 0.1f),
             firstMessageBackground = colors.tertiary.copy(alpha = 0.18f),
             accent = colors.primary,
             nameColors = settings.nameColors,
