@@ -40,6 +40,7 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.AccountCircle
 import androidx.compose.material.icons.filled.Build
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Face
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.Info
@@ -103,6 +104,7 @@ import me.lesh.chatter.R
 import me.lesh.chatter.auth.AuthState
 import me.lesh.chatter.chat.Bot
 import me.lesh.chatter.chat.PostSite
+import me.lesh.chatter.debug.AppLog
 import me.lesh.chatter.settings.Settings
 import me.lesh.chatter.stats.Stats
 import me.lesh.chatter.ui.changelog.ChangelogPage
@@ -560,20 +562,30 @@ fun SettingsScreen(vm: MainViewModel, onBack: () -> Unit) {
         }
         // The search field scrolls away with the home; the collapsed bar then offers it as an icon.
         val onSearch = if (current == null && currentSub == null) ({ searching = true }) else null
-        val onHide = if (current == SettingsPage.Debug && currentSub == null) {
-            {
-                vm.setDebugMenu(false)
-                page = null
-                Toast.makeText(context, R.string.debug_hidden, Toast.LENGTH_LONG).show()
+        val actions: @Composable () -> Unit = when {
+            current == SettingsPage.Debug && currentSub == null -> {
+                {
+                    IconButton(onClick = {
+                        vm.setDebugMenu(false)
+                        page = null
+                        Toast.makeText(context, R.string.debug_hidden, Toast.LENGTH_LONG).show()
+                    }) { Icon(Icons.Default.Close, stringResource(R.string.settings_debug_hide)) }
+                }
             }
-        } else {
-            null
+            currentSub == SettingsSubPage.Log -> {
+                { IconButton(onClick = AppLog::clear) { Icon(Icons.Default.Delete, stringResource(R.string.debug_log_clear)) } }
+            }
+            else -> {
+                {}
+            }
         }
         SettingsPageScaffold(
             title = title,
             onBack = goBack,
             onSearch = onSearch,
-            onHide = onHide,
+            actions = actions,
+            // The log scrolls in a list of its own, so lines can arrive while it is open.
+            scrolls = currentSub != SettingsSubPage.Log,
             snackbar = snackbar,
             enterInOrder = opening[0] && current == null && currentSub == null,
         ) {
@@ -787,8 +799,9 @@ private fun SettingsPageScaffold(
     title: Int?,
     onBack: () -> Unit,
     onSearch: (() -> Unit)? = null,
-    /** Takes the page's category out of the settings, from an X in the title bar. */
-    onHide: (() -> Unit)? = null,
+    actions: @Composable () -> Unit = {},
+    /** False for a page that scrolls by itself, e.g. with a lazy list. */
+    scrolls: Boolean = true,
     snackbar: SnackbarHostState? = null,
     enterInOrder: Boolean = false,
     content: @Composable () -> Unit,
@@ -819,15 +832,17 @@ private fun SettingsPageScaffold(
                                 IconButton(onClick = onSearch) { Icon(Icons.Default.Search, stringResource(R.string.settings_search)) }
                             }
                         }
-                        if (onHide != null) {
-                            IconButton(onClick = onHide) { Icon(Icons.Default.Close, stringResource(R.string.settings_debug_hide)) }
-                        }
+                        actions()
                     },
                     scrollBehavior = scrollBehavior,
                 )
             }
         },
     ) { padding ->
+        if (!scrolls) {
+            Column(Modifier.fillMaxSize().padding(padding).padding(horizontal = 16.dp)) { content() }
+            return@Scaffold
+        }
         Column(
             Modifier
                 .fillMaxSize()

@@ -34,7 +34,7 @@ class BlockedUsersRepository(private val helix: HelixApi, scope: CoroutineScope)
     /** Blocks or unblocks on Twitch; the local list follows once Twitch confirmed. */
     suspend fun setBlocked(user: HelixBlockedUser, blocked: Boolean): Boolean {
         val ok = runCatchingCancellable { helix.setBlocked(user.userId, blocked) }
-            .onFailure { AppLog.w(TAG, "Blocking a user failed: ${it.message}") }
+            .onFailure { AppLog.w(TAG, "Blocking ${AppLog.user(user.userLogin)} failed: ${it.message}") }
             .isSuccess
         if (ok) {
             _blocked.update { list ->

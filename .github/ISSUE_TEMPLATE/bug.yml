@@ -64,8 +64,8 @@ body:
       label: Log
       description: |
         What Chatter did before the bug, with the phone on top. Tap the Chatter logo under
-        Settings → About five times, then open Settings → Debug → Log and tap "Report a bug" or
-        "Copy". It holds no names, messages or login.
+        Settings → About five times, then open Settings → Debug → Log and tap "Report" or "Copy".
+        The private log holds no names, messages or login; the full one adds names and links.
       render: text
     validations:
       required: false

@@ -263,9 +263,10 @@ sits next to the signed release (Chatter) and Nightly (Chatter Nightly) instead 
 - **A new setting touches four places:** the `Settings` data class, a key and setter in
   `SettingsRepository`, a setter on `MainViewModel`, and a row on its page in `ui/settings/`
   (plus a line in `SEARCH_INDEX` in `SettingsScreen`, so the search finds it).
-- **Log through `AppLog`, never with a name.** It feeds the log under Settings → Debug that users
-  put into bug reports. A channel goes in as `AppLog.channel(login)`; users, messages and links
-  stay out. `LogPrivacy` cleans links, error pages and secrets, but cannot know a name.
+- **Log through `AppLog`, names only marked.** It feeds the log under Settings → Debug that users
+  put into bug reports, private or full. A name goes in through `AppLog.channel`, `AppLog.user` or
+  `AppLog.hidden`, so only the full log shows it; messages never go in. `LogPrivacy` cleans links,
+  error pages and secrets from the private log, but cannot know a name.
 - **Parsing gets a test.** Anything that reads a format — IRC tags, 7TV events, the changelog —
   belongs in `app/src/test/`, where the existing tests show the style.
 - **Commit subjects describe the change to the app** after their type, as

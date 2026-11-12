@@ -6,8 +6,9 @@ import okhttp3.Response
 import java.io.IOException
 
 /**
- * One log line per request: method, where to, the answer and how long it took. Never the query or
- * the body, and the path only for APIs whose paths name nothing but the endpoint.
+ * One log line per request: method, where to, the answer and how long it took. Never the body. The
+ * private log names only the host, and the path for APIs whose paths name nothing but the endpoint;
+ * the full log has the whole link.
  */
 object HttpLog : Interceptor {
     private const val TAG = "Http"
@@ -17,7 +18,7 @@ object HttpLog : Interceptor {
 
     override fun intercept(chain: Interceptor.Chain): Response {
         val request = chain.request()
-        val what = "${request.method} ${shown(request.url)}"
+        val what = "${request.method} ${AppLog.hidden(request.url.toString(), instead = shown(request.url))}"
         val started = System.nanoTime()
         val response = try {
             chain.proceed(request)

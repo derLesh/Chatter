@@ -300,7 +300,8 @@ class IrcConnection(
                         val channel = msg.channel
                         // The msg-id names the kind of notice; the text can quote a name.
                         val where = channel?.let { " in ${AppLog.channel(it)}" }.orEmpty()
-                        AppLog.d(TAG, "Notice ${msg.tag("msg-id") ?: "without id"}$where")
+                        val says = msg.trailing?.let { AppLog.hidden(": $it") }.orEmpty()
+                        AppLog.d(TAG, "Notice ${msg.tag("msg-id") ?: "without id"}$where$says")
                         if (channel == null && isAuthFailure(msg.trailing)) {
                             AppLog.w(TAG, "Twitch refused the login")
                             synchronized(lock) {

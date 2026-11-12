@@ -1044,21 +1044,17 @@
     </plurals>
     <string name="debug_log">Log</string>
     <string name="debug_log_summary">What Chatter is doing, for a bug report</string>
-    <string name="debug_log_hint">No names, messages or login. It stays on your phone until you share it.</string>
-    <string name="debug_log_device">Phone</string>
-    <string name="debug_log_report">Report a bug</string>
+    <string name="debug_log_report">Report</string>
     <string name="debug_log_copy">Copy</string>
     <string name="debug_log_save">Save</string>
-    <string name="debug_log_clear">Clear</string>
+    <string name="debug_log_clear">Clear the log</string>
     <string name="debug_log_empty">Nothing yet</string>
-    <plurals name="debug_log_shown">
-        <item quantity="one">Newest %1$d of %2$d line. Copy and Save take all of them.</item>
-        <item quantity="other">Newest %1$d of %2$d lines. Copy and Save take all of them.</item>
-    </plurals>
     <string name="debug_log_saved">Log saved</string>
     <string name="debug_log_save_failed">Could not save the log</string>
     <string name="debug_log_report_clipboard">The whole log is in the clipboard. Paste it into the form</string>
     <string name="debug_log_clip_label">Chatter log</string>
+    <string name="debug_log_private">Private: no names or links</string>
+    <string name="debug_log_full">Full: with names and links</string>
     <string name="debug_section_build">Build</string>
     <string name="debug_section_device">Device</string>
     <string name="debug_section_memory">Memory</string>
