@@ -400,16 +400,17 @@ class MainViewModel(private val c: AppContainer, savedState: SavedStateHandle) :
      * jump to a message knows right away whether the history is still on its way.
      */
     fun chatStatus(page: String): StateFlow<ChatStatus?> =
-        combine(c.chat.reconnectStatus, c.chat.historyLoading, groups) { reconnect, loading, groups ->
-            statusOf(page, reconnect, loading, groups)
+        combine(c.chat.connectionStatus, c.chat.historyLoading, groups) { connection, loading, groups ->
+            statusOf(page, connection, loading, groups)
         }.stateIn(
             viewModelScope, SharingStarted.WhileSubscribed(),
-            statusOf(page, c.chat.reconnectStatus.value, c.chat.historyLoading.value, groups.value),
+            statusOf(page, c.chat.connectionStatus.value, c.chat.historyLoading.value, groups.value),
         )
 
-    private fun statusOf(page: String, reconnect: ChatStatus?, loading: Set<String>, groups: Map<String, ChannelGroup>): ChatStatus? {
+    private fun statusOf(page: String, connection: ChatStatus?, loading: Set<String>, groups: Map<String, ChannelGroup>): ChatStatus? {
         val channels = if (ChannelGroup.isKey(page)) groups[page]?.channels.orEmpty() else listOf(page)
-        return reconnect ?: ChatStatus.LoadingHistory.takeIf { channels.any(loading::contains) }
+        // The history first: it comes over its own connection, and a jump waits for it.
+        return ChatStatus.LoadingHistory.takeIf { channels.any(loading::contains) } ?: connection
     }
 
     init {

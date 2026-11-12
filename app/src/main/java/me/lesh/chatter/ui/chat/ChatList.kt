@@ -1,11 +1,10 @@
 package me.lesh.chatter.ui.chat
 
 import androidx.compose.animation.AnimatedContent
-import androidx.compose.material3.LocalContentColor
-import androidx.compose.material.icons.filled.Warning
-import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.Crossfade
 import androidx.compose.animation.SizeTransform
+import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.VisibilityThreshold
@@ -38,11 +37,13 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.KeyboardArrowUp
+import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.ExtendedFloatingActionButton
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.LoadingIndicator
+import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -439,6 +440,7 @@ private fun StatusPill(status: ChatStatus?, unreachable: List<String>) {
     }
     val warning = lastShown is PillText.Unreachable
     val colors = MaterialTheme.colorScheme
+    val motion = MaterialTheme.motionScheme
     AnimatedVisibility(
         visible = shown != null,
         enter = fadeIn() + slideInVertically { it },
@@ -454,18 +456,31 @@ private fun StatusPill(status: ChatStatus?, unreachable: List<String>) {
                 verticalAlignment = Alignment.CenterVertically,
                 modifier = Modifier.padding(start = 8.dp, end = 16.dp, top = 4.dp, bottom = 4.dp),
             ) {
-                if (warning) {
-                    Icon(Icons.Filled.Warning, contentDescription = null, modifier = Modifier.padding(4.dp).size(20.dp))
-                } else {
-                    LoadingIndicator(Modifier.size(28.dp), color = LocalContentColor.current)
+                Crossfade(warning, animationSpec = motion.defaultEffectsSpec(), label = "pill icon") { warns ->
+                    if (warns) {
+                        Icon(Icons.Filled.Warning, contentDescription = null, modifier = Modifier.padding(4.dp).size(20.dp))
+                    } else {
+                        LoadingIndicator(Modifier.size(28.dp), color = LocalContentColor.current)
+                    }
                 }
                 Spacer(Modifier.width(4.dp))
-                AnimatedContent(lastShown, label = "chat status") { text ->
+                // The new text rises in as the old one leaves upwards, while the pill takes its width.
+                AnimatedContent(
+                    lastShown,
+                    transitionSpec = {
+                        (slideInVertically(motion.defaultSpatialSpec()) { it } + fadeIn(motion.defaultEffectsSpec()))
+                            .togetherWith(slideOutVertically(motion.defaultSpatialSpec()) { -it } + fadeOut(motion.fastEffectsSpec()))
+                            .using(SizeTransform { _, _ -> motion.defaultSpatialSpec() })
+                    },
+                    contentAlignment = Alignment.CenterStart,
+                    label = "chat status",
+                ) { text ->
                     Text(
                         when (text) {
                             is PillText.Busy -> stringResource(
                                 when (text.status) {
-                                    ChatStatus.Connecting -> R.string.reconnect_connecting
+                                    ChatStatus.Connecting -> R.string.chat_connecting
+                                    ChatStatus.Reconnecting -> R.string.reconnect_connecting
                                     ChatStatus.WaitingForNetwork -> R.string.reconnect_waiting_network
                                     ChatStatus.LoadingMissed -> R.string.reconnect_loading_history
                                     ChatStatus.LoadingHistory -> R.string.chat_history_loading

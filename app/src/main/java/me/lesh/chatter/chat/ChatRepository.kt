@@ -168,9 +168,9 @@ class ChatRepository(
     /** Whispers that arrived while the whisper tab was not open, for the notification. */
     val whisperEvents: SharedFlow<InboxWhisper> = _whisperEvents
 
-    private val _reconnectStatus = MutableStateFlow<ChatStatus?>(null)
-    /** Set from a dropped connection until the history has filled the gap; null otherwise. */
-    val reconnectStatus: StateFlow<ChatStatus?> = _reconnectStatus
+    private val _connectionStatus = MutableStateFlow<ChatStatus?>(null)
+    /** Set while not connected, and after a reconnect until the history has filled the gap. */
+    val connectionStatus: StateFlow<ChatStatus?> = _connectionStatus
 
     private val _historyLoading = MutableStateFlow<Set<String>>(emptySet())
     /** The channels whose recent messages are loading for the first time. */
@@ -241,7 +241,6 @@ class ChatRepository(
             merge(emotes.arrived, badges.arrived).collect { buffers.rebuildAll() }
         }
 
-        // The first connect is shown by the history line; only a dropped connection gets the pill.
         scope.launch(worker) {
             var wasConnected = false
             var gapFill: Job? = null
@@ -252,10 +251,14 @@ class ChatRepository(
                         // The channel on screen first.
                         val channels = buffers.channels().sortedBy(::priority)
                         gapFill = scope.launch { fillGaps(channels) }
-                    } else wasConnected = true
-                    ConnectionState.Connecting -> if (wasConnected) _reconnectStatus.value = ChatStatus.Connecting
-                    ConnectionState.WaitingForNetwork -> if (wasConnected) _reconnectStatus.value = ChatStatus.WaitingForNetwork
-                    ConnectionState.Disconnected, ConnectionState.AuthFailed -> _reconnectStatus.value = null
+                    } else {
+                        wasConnected = true
+                        _connectionStatus.value = null
+                    }
+                    ConnectionState.Connecting ->
+                        _connectionStatus.value = if (wasConnected) ChatStatus.Reconnecting else ChatStatus.Connecting
+                    ConnectionState.WaitingForNetwork -> _connectionStatus.value = ChatStatus.WaitingForNetwork
+                    ConnectionState.Disconnected, ConnectionState.AuthFailed -> _connectionStatus.value = null
                 }
             }
         }
@@ -552,7 +555,7 @@ class ChatRepository(
      * reported to [gapsFilled]; where nothing was, the reconnect leaves no trace.
      */
     private suspend fun fillGaps(channels: List<String>) {
-        _reconnectStatus.value = ChatStatus.LoadingMissed
+        _connectionStatus.value = ChatStatus.LoadingMissed
         if (settings.value.loadHistory) coroutineScope {
             channels.forEach { channel ->
                 launch {
@@ -562,7 +565,7 @@ class ChatRepository(
             }
         }
         // Not if the connection dropped again meanwhile; that step stays.
-        _reconnectStatus.compareAndSet(ChatStatus.LoadingMissed, null)
+        _connectionStatus.compareAndSet(ChatStatus.LoadingMissed, null)
     }
 
     /** Asks Helix who a channel that just started sharing its chat shares it with. */

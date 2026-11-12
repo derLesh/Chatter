@@ -20,6 +20,7 @@
     <string name="settings_sender_avatars_hint">Shows the sender\'s profile picture in the notification</string>
 
     <!-- Chat system messages -->
+    <string name="chat_connecting">Connecting…</string>
     <string name="reconnect_connecting">Reconnecting…</string>
     <string name="reconnect_waiting_network">Waiting for a network…</string>
     <string name="reconnect_loading_history">Loading missed messages…</string>
@@ -119,8 +120,6 @@
     <string name="no_channels_title">No channels</string>
     <string name="no_channels_text">Add a channel</string>
     <string name="channels">Channels</string>
-    <string name="status_connecting">Connecting…</string>
-    <string name="status_waiting_network">Waiting for a network…</string>
     <string name="status_live">Live · %1$s</string>
     <string name="unread_in_channel">Unread messages in %1$s</string>
     <string name="channel_options">Channel options</string>
