@@ -249,9 +249,14 @@ fun isAppInDarkTheme(): Boolean = MaterialTheme.colorScheme.background.luminance
 /**
  * A color Twitch or 7TV picked for their dark chat (a paint, a cheer tier) as drawn here: as it is
  * on a dark theme, darkened like a name color on a light one, where many of them are too pale.
+ * Keeps its alpha, so a gradient that fades out still does.
  */
-fun chatColor(argb: Int, dark: Boolean): Color =
-    if (dark) Color(argb) else readableNameColor(argb, login = null, dark = false, palette = NameColorPalette.HslLuma)
+fun chatColor(argb: Int, dark: Boolean, background: Color = Color.Unspecified): Color {
+    val color = Color(argb)
+    if (dark || color.alpha == 0f) return color
+    return readableNameColor(argb, login = null, dark = false, palette = NameColorPalette.HslLuma, background = background)
+        .copy(alpha = color.alpha)
+}
 
 /** Twitch's palette for users who never picked a name color. */
 private val DefaultNameColors = listOf(
@@ -261,16 +266,19 @@ private val DefaultNameColors = listOf(
 
 /**
  * A user's name color: their Twitch color, or one derived from the login if they have none,
- * adjusted by [palette] for readability.
+ * adjusted by [palette] for readability. [background] is the opaque color right behind the name on
+ * a light theme, when it is known and may be tinted.
  */
 fun readableNameColor(
     argb: Int?,
     login: String?,
     dark: Boolean,
     palette: NameColorPalette = NameColorPalette.HslLuma,
+    background: Color = Color.Unspecified,
 ): Color {
     val base = argb?.let { Color(it) } ?: DefaultNameColors[fallbackColorIndex(login, DefaultNameColors.size)]
-    return NameColorCache.get(base, dark, palette)
+    val maxLuma = if (dark) MAX_LUMA_ON_LIGHT else maxLumaOnLight(background)
+    return NameColorCache.get(base, dark, palette, maxLuma)
 }
 
 /**
@@ -288,15 +296,18 @@ internal fun fallbackColorIndex(login: String?, size: Int): Int = Math.floorMod(
 private object NameColorCache {
     private val entries = ConcurrentHashMap<Long, Color>()
 
-    fun get(base: Color, dark: Boolean, palette: NameColorPalette): Color {
+    fun get(base: Color, dark: Boolean, palette: NameColorPalette, maxLuma: Float): Color {
+        // Rounded down to 1/256, so the rows of one tint share entries and the key stays a Long.
+        val lumaStep = if (dark) 0 else (maxLuma * 256f).toInt().coerceIn(0, 255)
         val key = (base.toArgb().toLong() and 0xFFFFFFFFL) or
             (palette.ordinal.toLong() shl 32) or
-            (if (dark) 1L shl 40 else 0L)
+            (if (dark) 1L shl 40 else 0L) or
+            (lumaStep.toLong() shl 41)
         entries[key]?.let { return it }
         // Bounded, since a channel full of custom colors could grow it forever; refilling costs one
         // solve per visible color.
         if (entries.size >= MAX_ENTRIES) entries.clear()
-        return palette.adjust(base, dark).also { entries[key] = it }
+        return palette.adjust(base, dark, lumaStep / 256f).also { entries[key] = it }
     }
 
     private const val MAX_ENTRIES = 4096

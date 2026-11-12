@@ -5,9 +5,13 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.compositeOver
+import androidx.compose.ui.graphics.isUnspecified
+import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.sp
 import me.lesh.chatter.emotes.HiddenEmotes
+import me.lesh.chatter.chat.ChatItem
 import me.lesh.chatter.chat.chatterName
 import me.lesh.chatter.settings.EmoteSize
 import me.lesh.chatter.settings.NameStyle
@@ -16,6 +20,7 @@ import me.lesh.chatter.settings.Settings
 import me.lesh.chatter.settings.SpecialMessage
 import me.lesh.chatter.settings.TimestampFormat
 import me.lesh.chatter.ui.theme.NameColorPalette
+import me.lesh.chatter.ui.theme.chatColor
 import me.lesh.chatter.ui.theme.highlightBackground
 import me.lesh.chatter.ui.theme.isAppInDarkTheme
 import me.lesh.chatter.ui.theme.isPureBlack
@@ -71,6 +76,13 @@ data class ChatStyle(
     val hiddenEmotes: HiddenEmotes = HiddenEmotes.NONE,
     /** Kinds of badges left out; see [me.lesh.chatter.badges.Badge.kind]. */
     val hiddenBadges: Set<String> = emptySet(),
+    /** The chat's own background, under every row's tint. */
+    val background: Color = Color.Unspecified,
+    /**
+     * On a light theme, the opaque color right behind one row's text when that row is tinted; see
+     * [forRow]. Unspecified for the plain chat and on dark themes.
+     */
+    val textBackground: Color = Color.Unspecified,
 )
 
 val ChatStyle.lineHeight: TextUnit get() = (fontSize * lineSpacing).sp
@@ -129,7 +141,7 @@ fun rememberChatStyle(
             } else null,
             // On a light theme the pale container all but vanishes, so subs and cheers take a light
             // wash of the accent instead.
-            noticeBackground = if (dark) colors.primaryContainer.copy(alpha = 0.35f) else colors.primary.copy(alpha = 0.1f),
+            noticeBackground = if (dark) colors.primaryContainer.copy(alpha = 0.35f) else colors.primary.copy(alpha = 0.16f),
             firstMessageBackground = colors.tertiary.copy(alpha = 0.18f),
             accent = colors.primary,
             nameColors = settings.nameColors,
@@ -153,6 +165,23 @@ fun rememberChatStyle(
             largeEmotes = settings.emoteSize == EmoteSize.Large,
             hiddenEmotes = hiddenEmotes,
             hiddenBadges = hiddenBadges,
+            background = colors.background,
         )
     }
+}
+
+/**
+ * This style for [item]'s row. On a light theme, a tinted row (a mention, a highlight, a sub) gets
+ * names, cheers, links and labels dark enough to keep their contrast on the tint, not just on white.
+ */
+fun ChatStyle.forRow(item: ChatItem): ChatStyle {
+    if (dark || background.isUnspecified) return this
+    val tint = rowBackground(item)
+    if (tint.alpha == 0f) return this
+    val behind = tint.compositeOver(background)
+    return copy(
+        textBackground = behind,
+        linkColor = chatColor(linkColor.toArgb(), dark = false, background = behind),
+        accent = chatColor(accent.toArgb(), dark = false, background = behind),
+    )
 }

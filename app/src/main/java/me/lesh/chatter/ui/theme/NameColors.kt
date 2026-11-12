@@ -1,6 +1,7 @@
 package me.lesh.chatter.ui.theme
 
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.isUnspecified
 import androidx.compose.ui.graphics.luminance
 import kotlin.math.abs
 import kotlin.math.floor
@@ -36,30 +37,43 @@ enum class NameColorPalette {
 internal const val MIN_LUMA_ON_DARK = 0.18f
 internal const val MAX_LUMA_ON_LIGHT = 0.17f
 
+/** WCAG's contrast for normal text, which a name keeps on a light background. */
+private const val MIN_CONTRAST_ON_LIGHT = 4.5f
+
+/**
+ * The lightest a name may be on the opaque light [background] behind it: [MAX_LUMA_ON_LIGHT], or
+ * darker on a tinted row such as a mention, so it still keeps 4.5:1 there. An unspecified
+ * background is the plain chat.
+ */
+fun maxLumaOnLight(background: Color): Float {
+    if (background.isUnspecified) return MAX_LUMA_ON_LIGHT
+    return minOf(MAX_LUMA_ON_LIGHT, (background.luminance() + 0.05f) / MIN_CONTRAST_ON_LIGHT - 0.05f).coerceAtLeast(0f)
+}
+
 /** True if [color] is readable on this background as it is. */
-private fun readable(color: Color, dark: Boolean): Boolean =
-    if (dark) color.luminance() >= MIN_LUMA_ON_DARK else color.luminance() <= MAX_LUMA_ON_LIGHT
+private fun readable(color: Color, dark: Boolean, maxLuma: Float): Boolean =
+    if (dark) color.luminance() >= MIN_LUMA_ON_DARK else color.luminance() <= maxLuma
 
 /**
  * Applies the palette. [Color.Unspecified] for [NameColorPalette.None], which keeps the surrounding
- * text color.
+ * text color. [maxLuma] only counts on a light background; see [maxLumaOnLight].
  */
-fun NameColorPalette.adjust(base: Color, dark: Boolean): Color = when {
+fun NameColorPalette.adjust(base: Color, dark: Boolean, maxLuma: Float = MAX_LUMA_ON_LIGHT): Color = when {
     this == NameColorPalette.None -> Color.Unspecified
-    this == NameColorPalette.Twitch || readable(base, dark) -> base
+    this == NameColorPalette.Twitch || readable(base, dark, maxLuma) -> base
     this == NameColorPalette.HslLuma -> {
         val hsl = base.toHsl()
-        solveLightness(dark, hsl[2]) { l -> hslColor(hsl[0], hsl[1], l) }
+        solveLightness(dark, maxLuma, hsl[2]) { l -> hslColor(hsl[0], hsl[1], l) }
     }
     this == NameColorPalette.LuvLuma -> {
         val luv = base.toLuv()
-        solveLightness(dark, luv[0] / 100f) { l -> luvColor(l * 100f, luv[1], luv[2]) }
+        solveLightness(dark, maxLuma, luv[0] / 100f) { l -> luvColor(l * 100f, luv[1], luv[2]) }
     }
     this == NameColorPalette.HslLoop -> {
         val hsl = base.toHsl()
-        loop(dark) { step -> hslColor(hsl[0], hsl[1], wrap(hsl[2] + step)) }
+        loop(dark, maxLuma) { step -> hslColor(hsl[0], hsl[1], wrap(hsl[2] + step)) }
     }
-    else -> loop(dark) { step ->
+    else -> loop(dark, maxLuma) { step ->
         Color(wrap(base.red + step), wrap(base.green + step), wrap(base.blue + step))
     }
 }
@@ -68,7 +82,7 @@ fun NameColorPalette.adjust(base: Color, dark: Boolean): Color = when {
  * The smallest lightness change (in [build]'s color space) that makes the color readable. Only up
  * on dark backgrounds and only down on light ones, so the result stays close to the picked color.
  */
-private inline fun solveLightness(dark: Boolean, current: Float, build: (Float) -> Color): Color {
+private inline fun solveLightness(dark: Boolean, maxLuma: Float, current: Float, build: (Float) -> Color): Color {
     var lo = if (dark) current else 0f
     var hi = if (dark) 1f else current
     // The extreme is the fallback: if white is not enough, nothing is.
@@ -76,7 +90,7 @@ private inline fun solveLightness(dark: Boolean, current: Float, build: (Float) 
     repeat(STEPS) {
         val mid = (lo + hi) / 2f
         val color = build(mid)
-        if (readable(color, dark)) {
+        if (readable(color, dark, maxLuma)) {
             best = color
             if (dark) hi = mid else lo = mid
         } else {
@@ -91,12 +105,12 @@ private inline fun solveLightness(dark: Boolean, current: Float, build: (Float) 
  * backgrounds, darker on light ones. Stepping up on a light background would pass through every
  * lighter shade, none readable, and wrap around to nearly black.
  */
-private inline fun loop(dark: Boolean, build: (Float) -> Color): Color {
+private inline fun loop(dark: Boolean, maxLuma: Float, build: (Float) -> Color): Color {
     val direction = if (dark) 1f else -1f
     var fallback = build(direction * LOOP_STEP)
     for (i in 1..LOOP_COUNT) {
         val color = build(direction * i * LOOP_STEP)
-        if (readable(color, dark)) return color
+        if (readable(color, dark, maxLuma)) return color
         // Nothing fits: keep the one closest to the background's opposite.
         if (if (dark) color.luminance() > fallback.luminance() else color.luminance() < fallback.luminance()) {
             fallback = color

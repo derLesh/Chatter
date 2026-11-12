@@ -1,5 +1,8 @@
 package me.lesh.chatter.ui.chat
 
+import android.graphics.BlendMode
+import android.graphics.Bitmap
+import android.graphics.ComposeShader
 import android.graphics.Matrix
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -17,6 +20,7 @@ import androidx.compose.ui.graphics.ShaderBrush
 import androidx.compose.ui.graphics.Shadow
 import androidx.compose.ui.graphics.TileMode
 import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.SpanStyle
@@ -29,20 +33,24 @@ import coil3.request.allowHardware
 import coil3.size.Precision
 import coil3.toBitmap
 import me.lesh.chatter.badges.NamePaint
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import me.lesh.chatter.ui.theme.chatColor
+import me.lesh.chatter.ui.theme.maxLumaOnLight
 import kotlin.math.abs
 import kotlin.math.cos
 import kotlin.math.hypot
 import kotlin.math.max
+import kotlin.math.pow
 import kotlin.math.sin
 
 /**
  * How a painted name is drawn: with [brush], or in the paint's main color while an image paint's
  * picture is still loading ([brush] null).
  */
-internal fun namePaintStyle(paint: NamePaint, brush: NamePaintBrush?, density: Density, dark: Boolean): SpanStyle {
+internal fun namePaintStyle(paint: NamePaint, brush: NamePaintBrush?, density: Density, style: ChatStyle): SpanStyle {
     // Paint shadows are dark glows made for a dark chat; on a light one they only smudge the name.
-    val shadow = paint.shadows.firstOrNull()?.takeIf { dark }?.let {
+    val shadow = paint.shadows.firstOrNull()?.takeIf { style.dark }?.let {
         Shadow(
             color = Color(it.color),
             offset = Offset(it.x * density.density, it.y * density.density),
@@ -50,7 +58,7 @@ internal fun namePaintStyle(paint: NamePaint, brush: NamePaintBrush?, density: D
         )
     }
     return if (brush != null) SpanStyle(brush = brush, shadow = shadow)
-    else SpanStyle(color = paint.fallbackColor?.let { chatColor(it, dark) } ?: Color.Unspecified, shadow = shadow)
+    else SpanStyle(color = paint.fallbackColor?.let { chatColor(it, style.dark, style.textBackground) } ?: Color.Unspecified, shadow = shadow)
 }
 
 /** Where the characters [range] were laid out, or null if they are not in this layout. */
@@ -69,11 +77,14 @@ internal fun TextLayoutResult.boundsOf(range: IntRange): Rect? {
 /** Largest side of a paint's picture, in pixels. */
 private const val PAINT_IMAGE_MAX_SIDE = 512
 
-/** An image paint's picture, as a bitmap a shader can use; null until it has loaded. */
+/** An image paint's picture, as a bitmap a shader can use, and its average relative luminance. */
+internal class PaintImage(val bitmap: ImageBitmap, val luminance: Float)
+
+/** An image paint's picture; null until it has loaded. */
 @Composable
-internal fun rememberPaintImage(url: String, loader: ImageLoader): ImageBitmap? {
+internal fun rememberPaintImage(url: String, loader: ImageLoader): PaintImage? {
     val context = LocalContext.current
-    val image by produceState<ImageBitmap?>(null, url, loader) {
+    val image by produceState<PaintImage?>(null, url, loader) {
         val request = ImageRequest.Builder(context)
             .data(url)
             // Shaders cannot read hardware bitmaps.
@@ -82,10 +93,35 @@ internal fun rememberPaintImage(url: String, loader: ImageLoader): ImageBitmap? 
             .size(PAINT_IMAGE_MAX_SIDE)
             .precision(Precision.INEXACT)
             .build()
-        value = (loader.execute(request) as? SuccessResult)?.image?.toBitmap()?.asImageBitmap()
+        val bitmap = (loader.execute(request) as? SuccessResult)?.image?.toBitmap() ?: return@produceState
+        value = PaintImage(bitmap.asImageBitmap(), withContext(Dispatchers.Default) { averageLuminance(bitmap) })
     }
     return image
 }
+
+/** The average relative luminance of [bitmap]'s visible pixels, from a grid of about 32 by 32. */
+private fun averageLuminance(bitmap: Bitmap): Float {
+    val stepX = max(1, bitmap.width / LUMINANCE_GRID)
+    val stepY = max(1, bitmap.height / LUMINANCE_GRID)
+    var sum = 0f
+    var count = 0
+    for (y in 0 until bitmap.height step stepY) for (x in 0 until bitmap.width step stepX) {
+        val pixel = bitmap.getPixel(x, y)
+        if (android.graphics.Color.alpha(pixel) < 128) continue
+        sum += Color(pixel).luminance()
+        count++
+    }
+    return if (count == 0) 0f else sum / count
+}
+
+private const val LUMINANCE_GRID = 32
+
+/**
+ * What to multiply an image paint's colors by on a light theme so it is, on average, no lighter than
+ * a readable name ([maxLuma]); 1 when it already is not. Luminance grows about as sRGB to the 2.2.
+ */
+internal fun paintImageDimming(luminance: Float, maxLuma: Float): Float =
+    if (luminance <= maxLuma) 1f else (maxLuma / luminance).pow(1f / 2.2f)
 
 /**
  * A paint over the name alone. Compose sizes a span's brush to the whole paragraph, so the name's
@@ -93,7 +129,7 @@ internal fun rememberPaintImage(url: String, loader: ImageLoader): ImageBitmap? 
  * is made, so the line is composed and laid out once. One per line: it keeps its identity, so the
  * text stays equal and is not laid out again.
  */
-internal class NamePaintBrush(private val paint: NamePaint, private val image: ImageBitmap?, private val dark: Boolean) : ShaderBrush() {
+internal class NamePaintBrush(private val paint: NamePaint, private val image: PaintImage?, private val style: ChatStyle) : ShaderBrush() {
     private var bounds: Rect? = null
     private var shader: Shader? = null
     private var shaderBounds: Rect? = null
@@ -125,12 +161,12 @@ internal class NamePaintBrush(private val paint: NamePaint, private val image: I
 
     /** For a line drawn before it was placed, which should not happen. */
     private fun solid(): Shader {
-        val color = (paint.fallbackColor ?: paint.stops.firstOrNull()?.color)?.let { chatColor(it, dark) }
-            ?: if (dark) Color.White else Color.Black
+        val color = (paint.fallbackColor ?: paint.stops.firstOrNull()?.color)?.let { chatColor(it, style.dark, style.textBackground) }
+            ?: if (style.dark) Color.White else Color.Black
         return LinearGradientShader(Offset.Zero, Offset(1f, 0f), listOf(color, color))
     }
 
-    private val colors get() = paint.stops.map { chatColor(it.color, dark) }
+    private val colors get() = paint.stops.map { chatColor(it.color, style.dark, style.textBackground) }
 
     private val tileMode get() = if (paint.repeat) TileMode.Repeated else TileMode.Clamp
 
@@ -168,14 +204,23 @@ internal class NamePaintBrush(private val paint: NamePaint, private val image: I
         return RadialGradientShader(bounds.center, radius, colors, stretch.positions, tileMode)
     }
 
-    /** The picture covering the name, like CSS's background-size: cover. */
-    private fun picture(image: ImageBitmap, bounds: Rect): Shader {
-        val scale = max(bounds.width / image.width, bounds.height / image.height)
-        return ImageShader(image, TileMode.Repeated, TileMode.Repeated).apply {
+    /**
+     * The picture covering the name, like CSS's background-size: cover. A picture cannot be darkened
+     * like a color, so on a light theme the whole of it is dimmed until it reads on average.
+     */
+    private fun picture(image: PaintImage, bounds: Rect): Shader {
+        val bitmap = image.bitmap
+        val scale = max(bounds.width / bitmap.width, bounds.height / bitmap.height)
+        val picture = ImageShader(bitmap, TileMode.Repeated, TileMode.Repeated).apply {
             setLocalMatrix(Matrix().apply {
                 setScale(scale, scale)
                 postTranslate(bounds.left, bounds.top)
             })
         }
+        if (style.dark) return picture
+        val dimming = paintImageDimming(image.luminance, maxLumaOnLight(style.textBackground))
+        if (dimming >= 1f) return picture
+        val grey = Color(dimming, dimming, dimming)
+        return ComposeShader(picture, LinearGradientShader(Offset.Zero, Offset(1f, 0f), listOf(grey, grey)), BlendMode.MODULATE)
     }
 }

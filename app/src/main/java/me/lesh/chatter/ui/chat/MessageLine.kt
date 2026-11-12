@@ -106,7 +106,7 @@ internal fun buildLine(item: ChatItem, style: ChatStyle, onName: LinkInteraction
     }
     if (item.kind == MessageKind.UserNotice && item.segments.isEmpty()) return BuiltLine(AnnotatedString(""), inline)
 
-    val nameColor = readableNameColor(item.color, item.login, style.dark, style.nameColors)
+    val nameColor = readableNameColor(item.color, item.login, style.dark, style.nameColors, style.textBackground)
     val isAction = item.kind == MessageKind.Action
     var nameStart = 0
     var nameEnd = 0
@@ -196,7 +196,7 @@ private fun AnnotatedString.Builder.appendSegments(
                 LinkAnnotation.Url(seg.url, TextLinkStyles(SpanStyle(color = style.linkColor, textDecoration = TextDecoration.Underline))),
             ) { append(LinkText.display(seg.text, style.shortLinks)) }
             is Segment.Mention -> {
-                val color = seg.login?.let { readableNameColor(seg.color, it, style.dark, style.nameColors) } ?: Color.Unspecified
+                val color = seg.login?.let { readableNameColor(seg.color, it, style.dark, style.nameColors, style.textBackground) } ?: Color.Unspecified
                 withStyle(SpanStyle(color = color, fontWeight = FontWeight.Bold)) { append(seg.name) }
             }
             is Segment.Cheer -> appendCheer(seg, "e$i", inline, style)
@@ -245,5 +245,5 @@ private fun AnnotatedString.Builder.appendCheer(seg: Segment.Cheer, id: String, 
     val picture = if (style.dark) seg.dark else seg.light
     inline[id] = InlineData.CheerData(picture)
     appendInlineContent(id, picture.name)
-    withStyle(SpanStyle(color = chatColor(seg.color, style.dark), fontWeight = FontWeight.Bold)) { append(seg.amount.toString()) }
+    withStyle(SpanStyle(color = chatColor(seg.color, style.dark, style.textBackground), fontWeight = FontWeight.Bold)) { append(seg.amount.toString()) }
 }

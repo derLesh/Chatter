@@ -1,2 +1,2 @@
-patch: Give the light theme a clean white chat and darker, easier to read name colors
+patch: Give the light theme a clean white chat and darker names that stay readable on mentions too
 patch: Make subs, cheers and cheer amounts easy to spot in the light theme
