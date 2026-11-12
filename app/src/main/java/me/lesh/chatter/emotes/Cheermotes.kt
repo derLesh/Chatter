@@ -1,6 +1,6 @@
 package me.lesh.chatter.emotes
 
-import android.util.Log
+import me.lesh.chatter.debug.AppLog
 import me.lesh.chatter.chat.CheerSource
 import me.lesh.chatter.chat.MessageBuilder
 import me.lesh.chatter.net.HelixCheermote
@@ -63,7 +63,7 @@ class CheermoteRepository(
             .onFailure {
                 failedChannels.add(channelId)
                 if (it !is NotLoggedInException) trouble.report(ServiceTrouble.TWITCH)
-                Log.w(TAG, "Cheermotes failed: ${it.message}")
+                AppLog.w(TAG, "Cheermotes failed: ${it.message}")
             }
     }
 

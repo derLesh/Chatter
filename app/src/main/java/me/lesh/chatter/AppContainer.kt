@@ -8,7 +8,6 @@ import android.net.ConnectivityManager
 import android.net.Network
 import android.net.NetworkCapabilities
 import android.os.PowerManager
-import android.util.Log
 import androidx.datastore.core.handlers.ReplaceFileCorruptionHandler
 import androidx.datastore.preferences.core.emptyPreferences
 import androidx.datastore.preferences.preferencesDataStore
@@ -56,7 +55,9 @@ import me.lesh.chatter.chat.WhisperSender
 import me.lesh.chatter.chat.XPostSource
 import me.lesh.chatter.chat.YouTubePostSource
 import me.lesh.chatter.crash.CrashLog
+import me.lesh.chatter.debug.AppLog
 import me.lesh.chatter.debug.DebugStats
+import me.lesh.chatter.debug.HttpLog
 import me.lesh.chatter.emotes.CheermoteRepository
 import me.lesh.chatter.emotes.EmojiRepository
 import me.lesh.chatter.emotes.EmoteRepository
@@ -127,7 +128,7 @@ private val Context.scheduledStore by store("scheduled_messages")
 private fun store(name: String) = preferencesDataStore(
     name,
     corruptionHandler = ReplaceFileCorruptionHandler { e ->
-        Log.e("AppContainer", "The $name store could not be read and starts over empty", e)
+        AppLog.e("AppContainer", "The $name store could not be read and starts over empty", e)
         emptyPreferences()
     },
 )
@@ -145,7 +146,7 @@ class AppContainer(
 ) {
     val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
 
-    val http: OkHttpClient = OkHttpClient.Builder()
+    private val baseHttp: OkHttpClient = OkHttpClient.Builder()
         .connectTimeout(10, TimeUnit.SECONDS)
         .readTimeout(20, TimeUnit.SECONDS)
         // Emote and badge lists are a few hundred kilobytes and requested on every start and join.
@@ -153,12 +154,15 @@ class AppContainer(
         .cache(Cache(context.cacheDir.resolve("http"), HTTP_CACHE_BYTES))
         .build()
 
+    // Images and the socket stay out of the log: emotes alone would fill it in a minute.
+    val http: OkHttpClient = baseHttp.newBuilder().addInterceptor(HttpLog).build()
+
     // Same pool, no read timeout: the chat socket may be silent for minutes.
-    private val socketHttp: OkHttpClient = http.newBuilder().readTimeout(0, TimeUnit.MILLISECONDS).build()
+    private val socketHttp: OkHttpClient = baseHttp.newBuilder().readTimeout(0, TimeUnit.MILLISECONDS).build()
 
     // Coil has its own disk cache; images in the response cache would be stored twice and push out
     // the lists it is meant for.
-    private val imageHttp: OkHttpClient = http.newBuilder()
+    private val imageHttp: OkHttpClient = baseHttp.newBuilder()
         .cache(null)
         .followRedirects(false)
         .addInterceptor(ImageRedirects)
@@ -306,6 +310,12 @@ class AppContainer(
                 .collect { assistantAccess.allow(it) }
         }
         scheduled.start()
+        scope.launch {
+            chat.windows.anyVisible.collect { AppLog.i("App", if (it) "On screen" else "In the background") }
+        }
+        scope.launch {
+            auth.state.map { it.javaClass.simpleName }.distinctUntilChanged().collect { AppLog.i("Auth", "Account: $it") }
+        }
         scope.launch { chat.refused.collect(scheduled::onRefused) }
         // The wait may have stood still while the phone slept.
         scope.launch { chat.windows.anyVisible.collect { if (it) scheduled.wakeUp() } }

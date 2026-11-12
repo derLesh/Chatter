@@ -236,6 +236,8 @@ data class Settings(
     val sendLaterButton: SendLaterButton = SendLaterButton.OwnButton,
     /** Beta: send the same line again within 30 seconds, which Twitch would refuse; see `RepeatedMessages`. */
     val sendRepeats: Boolean = false,
+    /** The Debug category in the settings, opened by tapping the logo under About five times. */
+    val debugMenu: Boolean = false,
 ) {
     /** The emote providers whose lists are loaded: none while emotes are off. */
     val emoteProvidersOn: Set<EmoteProvider> get() = if (emotesEnabled) emoteProviders else emptySet()
@@ -328,6 +330,7 @@ class SettingsRepository(
             sendLaterButton = p[SEND_LATER_BUTTON]?.let { v -> SendLaterButton.entries.firstOrNull { it.name == v } }
                 ?: SendLaterButton.OwnButton,
             sendRepeats = p[SEND_REPEATS] ?: false,
+            debugMenu = p[DEBUG_MENU] ?: false,
             nameTap = p[NAME_TAP]?.let { v -> TapAction.entries.firstOrNull { it.name == v } } ?: TapAction.UserCard,
             badgeProviders = badgeProviders(p[BADGE_PROVIDERS]),
             emoteProviders = emoteProviders(p[EMOTE_PROVIDERS]),
@@ -349,6 +352,7 @@ class SettingsRepository(
     suspend fun setSendLater(v: Boolean) = store.edit { it[SEND_LATER] = v }
     suspend fun setSendLaterButton(v: SendLaterButton) = store.edit { it[SEND_LATER_BUTTON] = v.name }
     suspend fun setSendRepeats(v: Boolean) = store.edit { it[SEND_REPEATS] = v }
+    suspend fun setDebugMenu(v: Boolean) = store.edit { it[DEBUG_MENU] = v }
     suspend fun setMessageLimit(v: Int) = store.edit { it[LIMIT] = v }
     // List settings are changed from the stored value inside one edit, so quick successive changes
     // cannot undo each other. Stored comma-separated, as they always were.
@@ -671,6 +675,7 @@ class SettingsRepository(
         val SEND_LATER = booleanPreferencesKey("send_later")
         val SEND_LATER_BUTTON = stringPreferencesKey("send_later_button")
         val SEND_REPEATS = booleanPreferencesKey("send_repeats")
+        val DEBUG_MENU = booleanPreferencesKey("debug_menu")
         val SEEN_VERSION = stringPreferencesKey("seen_changelog_version")
         val NOTIFICATION_INTRO_SEEN = booleanPreferencesKey("notification_intro_seen")
         val ONBOARDING_SEEN = booleanPreferencesKey("onboarding_seen")

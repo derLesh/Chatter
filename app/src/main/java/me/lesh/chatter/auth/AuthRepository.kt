@@ -1,6 +1,6 @@
 package me.lesh.chatter.auth
 
-import android.util.Log
+import me.lesh.chatter.debug.AppLog
 import androidx.core.net.toUri
 import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
@@ -193,7 +193,7 @@ class AuthRepository(
     /** See [AccountStore.readAll]. */
     private suspend fun decryptAll(stored: List<StoredAccount>): Pair<List<Account>, List<StoredAccount>> {
         val read = AccountStore.readAll(stored, wait = { attempt -> delay(DECRYPT_RETRY_MS * attempt) }) { it.decrypted() }
-        if (read.unreadable.isNotEmpty()) Log.w(TAG, "Keeping ${read.unreadable.size} account(s) unread until the keystore answers")
+        if (read.unreadable.isNotEmpty()) AppLog.w(TAG, "Keeping ${read.unreadable.size} account(s) unread until the keystore answers")
         return read.readable to read.unreadable
     }
 

@@ -1,6 +1,6 @@
 package me.lesh.chatter.emotes
 
-import android.util.Log
+import me.lesh.chatter.debug.AppLog
 import me.lesh.chatter.chat.EmoteSource
 import me.lesh.chatter.net.BttvEmote
 import me.lesh.chatter.net.FfzEmote
@@ -356,7 +356,7 @@ class EmoteRepository(
         block().also { trouble.reachable(provider.label) }
     } catch (e: Exception) {
         if (e is CancellationException) throw e
-        Log.w(TAG, "Loading ${provider.label} failed: ${e.message}")
+        AppLog.w(TAG, "Loading ${provider.label} failed: ${e.message}")
         trouble.report(provider.label)
         null
     }
@@ -372,7 +372,7 @@ class EmoteRepository(
         block()
     } catch (e: Exception) {
         if (e is CancellationException) throw e
-        Log.w(TAG, "Loading $what failed: ${e.message}")
+        AppLog.w(TAG, "Loading $what failed: ${e.message}")
         null
     }
 

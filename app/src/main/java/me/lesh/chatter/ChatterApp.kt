@@ -6,6 +6,7 @@ import coil3.PlatformContext
 import coil3.SingletonImageLoader
 import me.lesh.chatter.crash.CrashLog
 import me.lesh.chatter.crash.DeviceInfo
+import me.lesh.chatter.debug.AppLog
 import me.lesh.chatter.util.isFirstStart
 import me.lesh.chatter.util.shownVersion
 
@@ -18,6 +19,7 @@ class ChatterApp : Application(), SingletonImageLoader.Factory {
         // First, so crashes while building the rest are recorded too.
         val crashes = CrashLog(filesDir.resolve("crashes"), DeviceInfo.current(shownVersion, BuildConfig.VERSION_CODE))
         crashes.install()
+        AppLog.i("App", "Started Chatter $shownVersion (${BuildConfig.VERSION_CODE})")
         container = AppContainer(this, crashes, isFirstStart(this))
         container.start()
     }
@@ -29,6 +31,7 @@ class ChatterApp : Application(), SingletonImageLoader.Factory {
     override fun onTrimMemory(level: Int) {
         super.onTrimMemory(level)
         if (level >= TRIM_MEMORY_BACKGROUND) {
+            AppLog.d("App", "Android asks to free memory (level $level), saving now")
             container.stats.saveNow()
             container.inbox.saveNow()
         }

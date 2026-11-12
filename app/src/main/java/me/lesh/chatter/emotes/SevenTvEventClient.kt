@@ -1,6 +1,6 @@
 package me.lesh.chatter.emotes
 
-import android.util.Log
+import me.lesh.chatter.debug.AppLog
 import me.lesh.chatter.badges.NamePaint
 import me.lesh.chatter.net.AppJson
 import me.lesh.chatter.net.SevenTvActiveEmote
@@ -207,7 +207,7 @@ class SevenTvEventClient(
                 val limit = 2 * heartbeatMs
                 val silence = System.currentTimeMillis() - lastActivity
                 if (silence >= limit) {
-                    Log.i(TAG, "No heartbeat for ${silence / 1000}s, reconnecting")
+                    AppLog.i(TAG, "No heartbeat for ${silence / 1000}s, reconnecting")
                     synchronized(lock) { if (socket === ws) scheduleReconnect() }
                     break
                 }
@@ -260,7 +260,7 @@ class SevenTvEventClient(
         }
 
         override fun onFailure(webSocket: WebSocket, t: Throwable, response: Response?) {
-            Log.w(TAG, "7TV events failed: ${t.message}")
+            AppLog.w(TAG, "7TV events failed: ${t.message}")
             if (isCurrent(webSocket)) scheduleReconnect()
         }
     }

@@ -5,7 +5,7 @@ import android.app.ActivityManager.RunningAppProcessInfo
 import android.app.ApplicationExitInfo
 import android.content.Context
 import android.os.PowerManager
-import android.util.Log
+import me.lesh.chatter.debug.AppLog
 import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.edit
@@ -103,7 +103,7 @@ class BackgroundHealth(
 
     /** Checks how previous processes ended; only possible once per process start. */
     fun start() {
-        scope.launch(Dispatchers.IO) { runCatchingCancellable { lookBack() }.onFailure { Log.w(TAG, "Could not read exit reasons", it) } }
+        scope.launch(Dispatchers.IO) { runCatchingCancellable { lookBack() }.onFailure { AppLog.w(TAG, "Could not read exit reasons", it) } }
     }
 
     /** Reads the battery settings again, e.g. after the user returns from changing them. */

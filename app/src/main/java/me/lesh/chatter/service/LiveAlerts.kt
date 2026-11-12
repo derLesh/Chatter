@@ -1,6 +1,6 @@
 package me.lesh.chatter.service
 
-import android.util.Log
+import me.lesh.chatter.debug.AppLog
 import me.lesh.chatter.auth.AuthRepository
 import me.lesh.chatter.auth.TwitchScopes
 import me.lesh.chatter.channels.ChannelRepository
@@ -100,7 +100,7 @@ class LiveAlerts(
     } catch (e: CancellationException) {
         throw e
     } catch (e: Exception) {
-        Log.w(TAG, "$what failed: ${e.message}")
+        AppLog.w(TAG, "$what failed: ${e.message}")
         null
     }
 

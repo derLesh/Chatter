@@ -1,5 +1,6 @@
 package me.lesh.chatter.ui
 
+import android.widget.Toast
 import androidx.compose.animation.ExperimentalSharedTransitionApi
 import androidx.compose.animation.SharedTransitionLayout
 import androidx.compose.animation.SharedTransitionScope
@@ -78,6 +79,7 @@ import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.nestedscroll.nestedScroll
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.res.vectorResource
@@ -119,6 +121,7 @@ import me.lesh.chatter.ui.settings.CategoryHue
 import me.lesh.chatter.ui.settings.CategoryIcon
 import me.lesh.chatter.ui.settings.ChannelsPage
 import me.lesh.chatter.ui.settings.CreditsPage
+import me.lesh.chatter.ui.settings.DebugPage
 import me.lesh.chatter.ui.settings.DebugStatsPage
 import me.lesh.chatter.ui.settings.DeveloperPage
 import me.lesh.chatter.ui.settings.EmotesPage
@@ -130,6 +133,7 @@ import me.lesh.chatter.ui.settings.ImageHostsPage
 import me.lesh.chatter.ui.settings.KeywordsPage
 import me.lesh.chatter.ui.settings.LINE_SPACINGS
 import me.lesh.chatter.ui.settings.LiveChannelsPage
+import me.lesh.chatter.ui.settings.LogPage
 import me.lesh.chatter.ui.settings.LocalSettingsTarget
 import me.lesh.chatter.ui.settings.MediaPage
 import me.lesh.chatter.ui.settings.MessagesPage
@@ -195,17 +199,21 @@ private enum class SettingsPage(
     Beta(R.string.settings_beta, R.string.settings_beta_summary, SettingsSection.App, { drawableIcon(R.drawable.ic_science) }, CategoryHue.Lime),
     Support(R.string.settings_support, R.string.settings_support_summary, SettingsSection.App, { Icons.Default.Favorite }, CategoryHue.Pink),
     About(R.string.settings_about, R.string.settings_about_summary, SettingsSection.App, { Icons.Default.Info }, CategoryHue.Gray),
+    /** Hidden until the logo under About is tapped five times; see [Settings.debugMenu]. */
+    Debug(R.string.settings_debug, R.string.settings_debug_summary, SettingsSection.App, { drawableIcon(R.drawable.ic_bug_report) }, CategoryHue.Red),
     /** Only in debug builds. */
     Developer(R.string.settings_developer, R.string.settings_developer_summary, SettingsSection.App, { Icons.Default.Build }, CategoryHue.Gray),
     /** Opened from the profile card above the sections. */
     Account(R.string.settings_account, R.string.settings_account_summary, null, { Icons.Default.AccountCircle }),
     ;
 
-    val shown: Boolean get() = when (this) {
+    val inThisBuild: Boolean get() = when (this) {
         Support -> BuildConfig.SPONSOR_LINK
         Developer -> BuildConfig.DEBUG
         else -> true
     }
+
+    fun shown(settings: Settings): Boolean = inThisBuild && (this != Debug || settings.debugMenu)
 }
 
 @Composable
@@ -231,6 +239,7 @@ internal enum class SettingsSubPage(val title: Int) {
     Update(R.string.update_page_title),
     Credits(R.string.settings_credits),
     DebugStats(R.string.debug_stats),
+    Log(R.string.debug_log),
 }
 
 /**
@@ -269,7 +278,8 @@ private val SEARCH_INDEX: List<SearchEntry> by lazy {
     buildList {
         // The channel list has no tiles to open at, so its actions find the page.
         val channelActions = listOf(R.string.add_channel, R.string.rename_channel, R.string.combine_channels)
-        SettingsPage.entries.filter { it.shown }.forEach { page ->
+        // Debug is hidden on purpose, from the search too.
+        SettingsPage.entries.filter { it.inThisBuild && it != SettingsPage.Debug }.forEach { page ->
             val also = if (page == SettingsPage.Channels) channelActions else emptyList()
             add(SearchEntry(page.title, page, page.summary, also, key = null))
         }
@@ -445,6 +455,7 @@ fun SettingsScreen(vm: MainViewModel, onBack: () -> Unit) {
     val auth by vm.authState.collectAsStateWithLifecycle()
     val update by vm.availableUpdate.collectAsStateWithLifecycle()
     val scope = rememberCoroutineScope()
+    val context = LocalContext.current
     // The card on top shows what is stored right away; this only updates it now and then.
     LaunchedEffect(Unit) { vm.refreshAccounts() }
     // The channel page can remove channels and offers undo like the chat does.
@@ -549,7 +560,23 @@ fun SettingsScreen(vm: MainViewModel, onBack: () -> Unit) {
         }
         // The search field scrolls away with the home; the collapsed bar then offers it as an icon.
         val onSearch = if (current == null && currentSub == null) ({ searching = true }) else null
-        SettingsPageScaffold(title = title, onBack = goBack, onSearch = onSearch, snackbar = snackbar, enterInOrder = opening[0] && current == null && currentSub == null) {
+        val onHide = if (current == SettingsPage.Debug && currentSub == null) {
+            {
+                vm.setDebugMenu(false)
+                page = null
+                Toast.makeText(context, R.string.debug_hidden, Toast.LENGTH_LONG).show()
+            }
+        } else {
+            null
+        }
+        SettingsPageScaffold(
+            title = title,
+            onBack = goBack,
+            onSearch = onSearch,
+            onHide = onHide,
+            snackbar = snackbar,
+            enterInOrder = opening[0] && current == null && currentSub == null,
+        ) {
           CompositionLocalProvider(LocalSettingsTarget provides target.takeIf { currentSub == null }) {
             when (currentSub) {
                 SettingsSubPage.BlockedUsers -> BlockedUsersPage(vm)
@@ -582,6 +609,7 @@ fun SettingsScreen(vm: MainViewModel, onBack: () -> Unit) {
                 SettingsSubPage.Rules -> RulesPage(vm) { rule = it?.id ?: NEW_RULE }
                 SettingsSubPage.Credits -> CreditsPage()
                 SettingsSubPage.DebugStats -> DebugStatsPage(vm)
+                SettingsSubPage.Log -> LogPage(vm)
                 SettingsSubPage.Changelog -> {
                     val releases by vm.releases.collectAsStateWithLifecycle()
                     ChangelogPage(releases, BuildConfig.VERSION_NAME)
@@ -593,7 +621,7 @@ fun SettingsScreen(vm: MainViewModel, onBack: () -> Unit) {
                         EnterInOrder { SearchField(searchBar) { searching = true } }
                         EnterInOrder { AccountSummaryCard(auth, vm.imageLoader) { page = SettingsPage.Account } }
                         update?.let { EnterInOrder { UpdateCard(it, shownVersion) { subPage = SettingsSubPage.Update } } }
-                        Home(settings.colorfulCategories) { page = it }
+                        Home(settings) { page = it }
                     }
                     SettingsPage.Appearance -> AppearancePage(settings, vm) { subPage = it }
                     SettingsPage.Messages -> MessagesPage(settings, vm) { subPage = it }
@@ -617,6 +645,7 @@ fun SettingsScreen(vm: MainViewModel, onBack: () -> Unit) {
                     SettingsPage.Beta -> BetaPage(settings, vm)
                     SettingsPage.Support -> SupportPage(vm)
                     SettingsPage.About -> AboutPage(settings, vm) { subPage = it }
+                    SettingsPage.Debug -> DebugPage { subPage = it }
                     SettingsPage.Developer -> DeveloperPage(vm) { subPage = it }
                 }
             }
@@ -758,6 +787,8 @@ private fun SettingsPageScaffold(
     title: Int?,
     onBack: () -> Unit,
     onSearch: (() -> Unit)? = null,
+    /** Takes the page's category out of the settings, from an X in the title bar. */
+    onHide: (() -> Unit)? = null,
     snackbar: SnackbarHostState? = null,
     enterInOrder: Boolean = false,
     content: @Composable () -> Unit,
@@ -787,6 +818,9 @@ private fun SettingsPageScaffold(
                             AnimatedVisibility(scrollBehavior.state.collapsedFraction > 0.9f, enter = fadeIn(), exit = fadeOut()) {
                                 IconButton(onClick = onSearch) { Icon(Icons.Default.Search, stringResource(R.string.settings_search)) }
                             }
+                        }
+                        if (onHide != null) {
+                            IconButton(onClick = onHide) { Icon(Icons.Default.Close, stringResource(R.string.settings_debug_hide)) }
                         }
                     },
                     scrollBehavior = scrollBehavior,
@@ -831,8 +865,9 @@ private fun SearchField(modifier: Modifier, onClick: () -> Unit) {
 
 /** The categories, in their sections. */
 @Composable
-private fun Home(colorful: Boolean, open: (SettingsPage) -> Unit) {
-    val pages = SettingsPage.entries.filter { it.shown }
+private fun Home(settings: Settings, open: (SettingsPage) -> Unit) {
+    val colorful = settings.colorfulCategories
+    val pages = SettingsPage.entries.filter { it.shown(settings) }
     SettingsSection.entries.forEach { section ->
         SettingsGroup(section.title) {
             pages.filter { it.section == section }.forEach { p ->
