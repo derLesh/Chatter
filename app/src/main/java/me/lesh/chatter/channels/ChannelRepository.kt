@@ -66,6 +66,11 @@ class ChannelRepository(
         .distinctUntilChanged()
         .stateIn(scope, SharingStarted.Eagerly, emptyList())
 
+    /** Whether [channels] has been read; before that its empty list says nothing. */
+    val loaded: StateFlow<Boolean> = store.data
+        .map { true }
+        .stateIn(scope, SharingStarted.Eagerly, false)
+
     /** Combined chats by their key in [pages]. */
     val groups: StateFlow<Map<String, ChannelGroup>> = store.data
         .map { p -> decodeGroups(p[GROUPS]).orEmpty().associateBy { it.key } }

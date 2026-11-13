@@ -13,7 +13,10 @@ import me.lesh.chatter.chat.Bot
 import me.lesh.chatter.chat.ImageLinks
 import me.lesh.chatter.chat.PostSite
 import me.lesh.chatter.emotes.EmoteProvider
+import me.lesh.chatter.net.AppJson
 import me.lesh.chatter.ui.theme.NameColorPalette
+import me.lesh.chatter.upload.UploadHost
+import me.lesh.chatter.upload.Uploader
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.SharingStarted
@@ -166,6 +169,10 @@ data class Settings(
     val inlineImages: Boolean = true,
     /** The only hosts linked images are loaded from. */
     val imageHosts: List<String> = ImageLinks.DEFAULT_HOSTS,
+    /** Where pictures go unless the send screen picks another site for one. */
+    val uploader: Uploader = Uploader.KappaLol,
+    /** The site [Uploader.Custom] uploads to. */
+    val customUploadHost: UploadHost = UploadHost.EMPTY_CUSTOM,
     /** Show the GIFs subs post instead of their title. */
     val showGifs: Boolean = true,
     /** Sites whose links to a post are shown as a card; each post is fetched from that site. */
@@ -301,6 +308,9 @@ class SettingsRepository(
             updateCheck = p[UPDATE_CHECK] ?: true,
             inlineImages = p[INLINE_IMAGES] ?: true,
             imageHosts = hosts(p[IMAGE_HOSTS]),
+            uploader = p[UPLOADER]?.let { v -> Uploader.entries.firstOrNull { it.name == v } } ?: Uploader.KappaLol,
+            customUploadHost = p[CUSTOM_UPLOAD_HOST]?.let { runCatching { AppJson.decodeFromString<UploadHost>(it) }.getOrNull() }
+                ?: UploadHost.EMPTY_CUSTOM,
             showGifs = p[SHOW_GIFS] ?: true,
             postSites = postSites(p[POST_SITES]),
             blurNsfwPosts = p[BLUR_NSFW_POSTS] ?: true,
@@ -405,6 +415,8 @@ class SettingsRepository(
         p[IMAGE_HOSTS_GIVEN] = (given + ImageLinks.DEFAULT_HOSTS).distinct().joinToString(",")
     }
 
+    suspend fun setUploader(v: Uploader) = store.edit { it[UPLOADER] = v.name }
+    suspend fun setCustomUploadHost(v: UploadHost) = store.edit { it[CUSTOM_UPLOAD_HOST] = AppJson.encodeToString(v) }
     suspend fun updateImageHosts(change: (List<String>) -> List<String>) =
         store.edit { it[IMAGE_HOSTS] = change(hosts(it[IMAGE_HOSTS])).joinToString(",") }
     suspend fun setPostSite(site: PostSite, on: Boolean) = store.edit { p ->
@@ -523,6 +535,8 @@ class SettingsRepository(
         p[UPDATE_CHECK] = s.updateCheck
         p[INLINE_IMAGES] = s.inlineImages
         p[IMAGE_HOSTS] = s.imageHosts.joinToString(",")
+        p[UPLOADER] = s.uploader.name
+        p[CUSTOM_UPLOAD_HOST] = AppJson.encodeToString(s.customUploadHost)
         p[SHOW_GIFS] = s.showGifs
         p[POST_SITES] = s.postSites.joinToString(",") { it.name }
         p[BLUR_NSFW_POSTS] = s.blurNsfwPosts
@@ -647,6 +661,8 @@ class SettingsRepository(
         val USER_CARD_ATTACHMENTS = booleanPreferencesKey("user_card_attachments")
         val MOBILE_DATA = stringPreferencesKey("mobile_data")
         val IMAGE_HOSTS = stringPreferencesKey("image_hosts")
+        val UPLOADER = stringPreferencesKey("uploader")
+        val CUSTOM_UPLOAD_HOST = stringPreferencesKey("custom_upload_host")
         /** Default hosts this install has been given, so each is added only once. */
         val IMAGE_HOSTS_GIVEN = stringPreferencesKey("image_hosts_given")
         val CAROUSEL_CHANNELS = booleanPreferencesKey("carousel_channels")

@@ -1,6 +1,8 @@
 package me.lesh.chatter.ui
 
+import android.net.Uri
 import android.os.Bundle
+import java.io.IOException
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
@@ -14,6 +16,12 @@ import me.lesh.chatter.debug.AppLog
 import me.lesh.chatter.AppContainer
 import me.lesh.chatter.BuildConfig
 import me.lesh.chatter.R
+import me.lesh.chatter.upload.Picture
+import me.lesh.chatter.upload.PictureTooLargeException
+import me.lesh.chatter.upload.RecentUpload
+import me.lesh.chatter.upload.UploadHost
+import me.lesh.chatter.upload.UploadedPicture
+import me.lesh.chatter.upload.Uploader
 import me.lesh.chatter.ai.ModelFailure
 import me.lesh.chatter.ai.ModelTrouble
 import me.lesh.chatter.auth.AuthState
@@ -244,16 +252,42 @@ class MainViewModel(private val c: AppContainer, savedState: SavedStateHandle) :
             override fun slowSeconds(channel: String) =
                 SendLimits.slowSeconds(roomStates.value[channel], roles.value[channel])
 
-            override suspend fun report(result: SendResult) {
-                when (result) {
-                    SendResult.NotConnected -> _messages.send(UiMessage(R.string.error_not_connected))
-                    SendResult.RateLimited -> _messages.send(UiMessage(R.string.error_rate_limited))
-                    // A command error is shown in the chat.
-                    SendResult.Ok, SendResult.Empty, SendResult.CommandError -> Unit
-                }
-            }
+            override suspend fun report(result: SendResult) = reportSendResult(result)
         },
         onInputReplaced = ::updateSuggestions,
+    )
+
+    private suspend fun reportSendResult(result: SendResult) {
+        when (result) {
+            SendResult.NotConnected -> _messages.send(UiMessage(R.string.error_not_connected))
+            SendResult.RateLimited -> _messages.send(UiMessage(R.string.error_rate_limited))
+            // A command error is shown in the chat.
+            SendResult.Ok, SendResult.Empty, SendResult.CommandError -> Unit
+        }
+    }
+
+    /** The picture being sent, shared from another app or picked in the input; see [PictureSender]. */
+    internal val picture = PictureSender(
+        scope = viewModelScope,
+        outbox = object : PictureOutbox {
+            override suspend fun upload(picture: Picture, uploader: Uploader, onProgress: (Float) -> Unit) = try {
+                c.imageUploader.upload(picture, uploader, settings.value.customUploadHost, onProgress)
+            } catch (e: IOException) {
+                AppLog.w("Upload", "The upload failed", e)
+                throw e
+            }
+
+            override suspend fun remember(picture: Picture, uploaded: UploadedPicture, uploader: Uploader) {
+                c.uploadHistory.add(picture, uploaded, uploader)
+            }
+
+            override suspend fun send(channel: String, text: String) = c.chat.send(channel, text, replyTo = null)
+
+            override suspend fun report(result: SendResult) = reportSendResult(result)
+
+            override fun discard(picture: Picture) = c.imageUploader.discard(picture)
+        },
+        onSent = { requestedChannel.value = it },
     )
 
     val input: TextFieldValue get() = composer.input
@@ -360,6 +394,9 @@ class MainViewModel(private val c: AppContainer, savedState: SavedStateHandle) :
         // with the window.
         savedState.get<Bundle>(DRAFTS_KEY)?.getString(DRAFTS_KEY)?.let(composer::restore)
         savedState.setSavedStateProvider(DRAFTS_KEY) { Bundle().apply { putString(DRAFTS_KEY, composer.save()) } }
+        savedState.get<Bundle>(PICTURE_KEY)?.getString(PICTURE_KEY)?.let(picture::restore)
+        savedState.setSavedStateProvider(PICTURE_KEY) { Bundle().apply { putString(PICTURE_KEY, picture.save()) } }
+        viewModelScope.launch { c.imageUploader.discardAllBut(picture.picture) }
         viewModelScope.launch {
             combine(c.auth.state, c.auth.accounts, ::Pair).collect { (state, accounts) ->
                 if (state == AuthState.Loading) return@collect
@@ -643,6 +680,13 @@ class MainViewModel(private val c: AppContainer, savedState: SavedStateHandle) :
         val (text, cursor) = Autocomplete.insert(input.text, input.selection.start, emote.name)
         composer.input = TextFieldValue(text, TextRange(cursor))
         rememberEmote(emote.name)
+    }
+
+    /** Puts an emote or emoji into the message going with a picture. */
+    internal fun insertInto(sender: PictureSender, value: String) {
+        val (text, cursor) = Autocomplete.insert(sender.text.text, sender.text.selection.start, value)
+        sender.text = TextFieldValue(text, TextRange(cursor))
+        rememberEmote(value)
     }
 
     fun insertEmoji(emoji: Emoji) {
@@ -1270,6 +1314,60 @@ class MainViewModel(private val c: AppContainer, savedState: SavedStateHandle) :
     fun setHighlightColor(v: Int) = saveSetting { setHighlightColor(v) }
     fun setSmoothScrolling(v: Boolean) = saveSetting { setSmoothScrolling(v) }
     fun setInlineImages(v: Boolean) = saveSetting { setInlineImages(v) }
+    fun setUploader(v: Uploader) = saveSetting { setUploader(v) }
+    fun setCustomUploadHost(v: UploadHost) = saveSetting { setCustomUploadHost(v) }
+
+    /**
+     * Opens the send screen with [uri], shared from another app or picked in the input. The picture
+     * is copied first: the right to read a shared one ends with the activity that got it.
+     */
+    fun openPicture(uri: Uri) {
+        AppLog.d("Upload", "A picture came in")
+        viewModelScope.launch {
+            runCatchingCancellable { c.imageUploader.copy(uri) }
+                .onSuccess { picture.open(it, pictureChannel(), defaultUploader()) }
+                .onFailure {
+                    AppLog.w("Upload", "The picture could not be copied in", it)
+                    _messages.send(UiMessage(if (it is PictureTooLargeException) R.string.picture_too_large else R.string.picture_unreadable))
+                }
+        }
+    }
+
+    /** The channel the input writes to, else the first one; null before any is open. */
+    private fun pictureChannel(): String? = sendChannel?.takeIf { it in channels.value } ?: channels.value.firstOrNull()
+
+    /** The site from the settings; kappa.lol while a site of the user's own is not set up. */
+    private fun defaultUploader(): Uploader {
+        val s = settings.value
+        return if (s.uploader == Uploader.Custom && !s.customUploadHost.isValid) Uploader.KappaLol else s.uploader
+    }
+
+    /** Whether the channel list was read, so an empty one means no channel is open. */
+    val channelsLoaded = c.channels.loaded
+
+    /** A settings page to open over the current screen, cleared by the settings once open. */
+    internal val requestedSettingsPage = MutableStateFlow<SettingsSubPage?>(null)
+
+    fun openUploaderSettings() {
+        requestedSettingsPage.value = SettingsSubPage.ImageUploader
+    }
+
+    /** The last pictures uploaded, newest first. */
+    val recentUploads = c.uploadHistory.uploads
+
+    fun uploadPreview(upload: RecentUpload) = c.uploadHistory.preview(upload)
+
+    /**
+     * Deletes [upload] from its site and from the list. A site the user set up only gets its
+     * deletion page opened, by the caller; the entry then leaves the list here.
+     */
+    fun deleteUpload(upload: RecentUpload) {
+        val deletion = upload.deletion ?: return
+        viewModelScope.launch {
+            val deleted = deletion.inBrowser || runCatchingCancellable { c.imageUploader.delete(deletion) }.getOrDefault(false)
+            if (deleted) c.uploadHistory.remove(upload.id) else _messages.send(UiMessage(R.string.upload_delete_failed))
+        }
+    }
     fun setShowGifs(v: Boolean) = saveSetting { setShowGifs(v) }
     fun setPostSite(site: PostSite, on: Boolean) = saveSetting { setPostSite(site, on) }
     fun setBlurNsfwPosts(v: Boolean) = saveSetting { setBlurNsfwPosts(v) }
@@ -1360,6 +1458,7 @@ class MainViewModel(private val c: AppContainer, savedState: SavedStateHandle) :
 
         /** Where the drafts are kept when Android saves the window. */
         const val DRAFTS_KEY = "drafts"
+        const val PICTURE_KEY = "picture"
 
         /** Enough to show what a rule finds in a busy chat, few enough to try on every keystroke. */
         const val RULE_TRY_MESSAGES = 300

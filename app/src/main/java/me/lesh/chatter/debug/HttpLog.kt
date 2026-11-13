@@ -17,7 +17,7 @@ import java.io.IOException
 class HttpLog(private val tag: String, private val level: AppLog.Level = AppLog.Level.Debug) : Interceptor {
     override fun intercept(chain: Interceptor.Chain): Response {
         val request = chain.request()
-        val what = "${request.method} ${AppLog.hidden(request.url.toString(), instead = shown(request.url))}"
+        val what = "${request.method} ${AppLog.hidden(full(request.url), instead = shown(request.url))}"
         val started = System.nanoTime()
         val response = try {
             chain.proceed(request)
@@ -44,6 +44,16 @@ class HttpLog(private val tag: String, private val level: AppLog.Level = AppLog.
     companion object {
         /** Twitch's and Chatter's own paths are endpoints; a user or channel is only ever in the query. */
         private val PATH_IS_ENDPOINT = setOf("api.twitch.tv", "api.lesh.me", "api.github.com")
+
+        /** Query values that are keys: kappa.lol's deletes the picture uploaded with it. */
+        private val SECRET_PARAMS = setOf("key")
+
+        /** The whole link for the full log, with [SECRET_PARAMS] blanked. Internal for tests. */
+        internal fun full(url: HttpUrl): String {
+            val secret = url.queryParameterNames.filter { it in SECRET_PARAMS }
+            if (secret.isEmpty()) return url.toString()
+            return url.newBuilder().apply { secret.forEach { setQueryParameter(it, "…") } }.build().toString()
+        }
 
         /** Internal for tests. */
         internal fun shown(url: HttpUrl): String =

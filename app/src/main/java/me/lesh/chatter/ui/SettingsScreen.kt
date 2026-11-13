@@ -136,6 +136,8 @@ import me.lesh.chatter.ui.settings.LINE_SPACINGS
 import me.lesh.chatter.ui.settings.LiveChannelsPage
 import me.lesh.chatter.ui.settings.LogScreen
 import me.lesh.chatter.ui.settings.LocalSettingsTarget
+import me.lesh.chatter.ui.settings.ImageUploaderPage
+import me.lesh.chatter.ui.settings.RecentUploadsPage
 import me.lesh.chatter.ui.settings.MediaPage
 import me.lesh.chatter.ui.settings.MessagesPage
 import me.lesh.chatter.ui.settings.MOBILE_DATA
@@ -226,6 +228,8 @@ internal enum class SettingsSubPage(val title: Int) {
     MentionKeywords(R.string.settings_keywords),
     MuteKeywords(R.string.settings_mute_keywords),
     ImageHosts(R.string.settings_image_hosts),
+    ImageUploader(R.string.settings_uploader),
+    RecentUploads(R.string.settings_recent_uploads),
     HiddenEmotes(R.string.settings_hidden_emotes),
     BadgeKinds(R.string.settings_badge_kinds),
     PostsX(R.string.post_site_x),
@@ -318,6 +322,9 @@ private val SEARCH_INDEX: List<SearchEntry> by lazy {
         add(SearchEntry(R.string.settings_image_hosts, media))
         add(SearchEntry(R.string.settings_show_gifs, media, R.string.settings_show_gifs_hint))
         add(SearchEntry(R.string.settings_full_links, media, R.string.settings_full_links_hint))
+        add(SearchEntry(R.string.settings_group_send_pictures, media))
+        add(SearchEntry(R.string.settings_uploader, media, R.string.settings_uploader_hint, also = listOf(R.string.uploader_custom)))
+        add(SearchEntry(R.string.settings_recent_uploads, media, R.string.uploads_kept))
         val posts = SettingsPage.Posts
         PostSite.entries.forEach { add(SearchEntry(siteName(it), posts, also = POST_PART_TERMS)) }
         add(SearchEntry(R.string.settings_blur_nsfw_posts, posts, R.string.settings_blur_nsfw_posts_hint))
@@ -437,11 +444,25 @@ fun SettingsScreen(vm: MainViewModel, onBack: () -> Unit) {
     // A login from the website takes over from the token screen.
     val linkedLogin by vm.linkedLogin.collectAsStateWithLifecycle()
     LaunchedEffect(linkedLogin != null) { if (linkedLogin != null) addWithToken = false }
+    // A page another screen asked for; back from it returns there instead of to its category.
+    var openedFor by rememberSaveable { mutableStateOf<SettingsSubPage?>(null) }
+    val requested by vm.requestedSettingsPage.collectAsStateWithLifecycle()
+    LaunchedEffect(requested) {
+        val wanted = requested ?: return@LaunchedEffect
+        page = SettingsPage.Media
+        subPage = wanted
+        openedFor = wanted
+        vm.requestedSettingsPage.value = null
+    }
     val goBack = {
         when {
             addWithToken -> addWithToken = false
             addAccount != null -> addAccount = null
             rule != null -> rule = null
+            subPage != null && subPage == openedFor -> {
+                openedFor = null
+                onBack()
+            }
             subPage != null -> subPage = null
             page != null -> {
                 page = null
@@ -612,6 +633,8 @@ fun SettingsScreen(vm: MainViewModel, onBack: () -> Unit) {
                     onRemove = vm::removeMuteKeyword,
                 )
                 SettingsSubPage.ImageHosts -> ImageHostsPage(settings.imageHosts, vm)
+                SettingsSubPage.ImageUploader -> ImageUploaderPage(settings, vm)
+                SettingsSubPage.RecentUploads -> RecentUploadsPage(vm)
                 SettingsSubPage.HiddenEmotes -> HiddenEmotesPage(vm)
                 SettingsSubPage.BadgeKinds -> BadgeKindsPage(vm)
                 SettingsSubPage.PostsX -> PostSitePage(PostSite.X, settings, vm)

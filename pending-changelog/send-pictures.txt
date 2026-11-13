@@ -1,0 +1,1 @@
+minor: Share a picture to Chatter or pick one in the input, and send it to a channel with a message
