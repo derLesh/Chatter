@@ -1,6 +1,8 @@
 package me.lesh.chatter.upload
 
 import android.content.ContentResolver
+import android.graphics.Bitmap
+import android.graphics.ImageDecoder
 import android.net.Uri
 import android.webkit.MimeTypeMap
 import kotlinx.coroutines.Dispatchers
@@ -16,8 +18,10 @@ import okhttp3.RequestBody
 import okhttp3.RequestBody.Companion.toRequestBody
 import okio.BufferedSink
 import okio.source
+import java.io.ByteArrayOutputStream
 import java.io.File
 import java.io.IOException
+import java.nio.ByteBuffer
 import java.util.UUID
 import java.util.concurrent.TimeUnit
 
@@ -37,32 +41,56 @@ class ImageUploader(http: OkHttpClient, private val resolver: ContentResolver, p
     /**
      * Copies [uri] into the app. The permission to read a shared picture ends with the activity
      * that got it, and the picture has to survive a login or the app being closed in between.
+     * With [removeInfo] it is copied without what tells where, when and with what it was taken;
+     * a picture that cannot be cleaned is refused rather than sent with it.
      */
-    suspend fun copy(uri: Uri): Picture = withContext(Dispatchers.IO) {
-        val type = resolver.getType(uri)?.takeIf { it.startsWith("image/") } ?: "image/png"
+    suspend fun copy(uri: Uri, removeInfo: Boolean): Picture = withContext(Dispatchers.IO) {
+        val original = read(uri)
+        val given = resolver.getType(uri)?.takeIf { it.startsWith("image/") } ?: "image/png"
+        val (bytes, type) = if (removeInfo) withoutInfo(original) else original to given
+        if (bytes.size > MAX_BYTES) throw PictureTooLargeException()
         dir.mkdirs()
         val file = File(dir, UUID.randomUUID().toString())
-        val input = resolver.openInputStream(uri) ?: throw IOException("The picture cannot be opened")
         try {
-            input.use { source ->
-                file.outputStream().use { target ->
-                    val buffer = ByteArray(DEFAULT_BUFFER_SIZE)
-                    var copied = 0L
-                    while (true) {
-                        val read = source.read(buffer)
-                        if (read < 0) break
-                        copied += read
-                        // Stops one buffer past the limit, without reading all of a huge file.
-                        if (copied > MAX_BYTES) throw PictureTooLargeException()
-                        target.write(buffer, 0, read)
-                    }
-                }
-            }
+            file.writeBytes(bytes)
         } catch (e: IOException) {
             file.delete()
             throw e
         }
         Picture(file, type)
+    }
+
+    private fun read(uri: Uri): ByteArray {
+        val input = resolver.openInputStream(uri) ?: throw IOException("The picture cannot be opened")
+        return input.use { source ->
+            val out = ByteArrayOutputStream()
+            val buffer = ByteArray(DEFAULT_BUFFER_SIZE)
+            while (true) {
+                val read = source.read(buffer)
+                if (read < 0) break
+                // Stops one buffer past the limit, without reading all of a huge file.
+                if (out.size() + read > MAX_BYTES) throw PictureTooLargeException()
+                out.write(buffer, 0, read)
+            }
+            out.toByteArray()
+        }
+    }
+
+    /**
+     * [bytes] without their metadata, and the format they are in. The format is read from the
+     * picture itself, not from what the sharing app said. JPEG, PNG, WebP and GIF are cleaned as
+     * they are; anything else, HEIC for one, is drawn anew as a JPEG, which keeps none of it.
+     */
+    private fun withoutInfo(bytes: ByteArray): Pair<ByteArray, String> {
+        val type = PictureCleaner.typeOf(bytes)
+        type?.let { PictureCleaner.clean(bytes, it) }?.let { return it to type }
+        val bitmap = ImageDecoder.decodeBitmap(ImageDecoder.createSource(ByteBuffer.wrap(bytes))) { decoder, _, _ ->
+            decoder.allocator = ImageDecoder.ALLOCATOR_SOFTWARE
+        }
+        val out = ByteArrayOutputStream()
+        bitmap.compress(Bitmap.CompressFormat.JPEG, REDRAWN_QUALITY, out)
+        bitmap.recycle()
+        return out.toByteArray() to "image/jpeg"
     }
 
     /** Forgets [picture] once it is sent or the screen is closed. */
@@ -131,6 +159,7 @@ class ImageUploader(http: OkHttpClient, private val resolver: ContentResolver, p
         /** 20 MB, what the common sites take. */
         const val MAX_BYTES = 20 * 1024 * 1024
         private const val SEGMENT = 64 * 1024L
+        private const val REDRAWN_QUALITY = 92
         private val EMPTY_BODY = ByteArray(0).toRequestBody()
     }
 }

@@ -325,6 +325,7 @@ private val SEARCH_INDEX: List<SearchEntry> by lazy {
         add(SearchEntry(R.string.settings_group_send_pictures, media))
         add(SearchEntry(R.string.settings_uploader, media, R.string.settings_uploader_hint, also = listOf(R.string.uploader_add, R.string.uploader_info_key)))
         add(SearchEntry(R.string.settings_recent_uploads, media, R.string.uploads_kept))
+        add(SearchEntry(R.string.settings_remove_picture_info, media, R.string.settings_remove_picture_info_hint, also = listOf(R.string.search_also_exif)))
         val posts = SettingsPage.Posts
         PostSite.entries.forEach { add(SearchEntry(siteName(it), posts, also = POST_PART_TERMS)) }
         add(SearchEntry(R.string.settings_blur_nsfw_posts, posts, R.string.settings_blur_nsfw_posts_hint))

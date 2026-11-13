@@ -404,6 +404,9 @@
     <string name="settings_group_send_pictures">Sending pictures</string>
     <string name="settings_uploader">Image uploader</string>
     <string name="settings_uploader_hint">The default for new pictures, changeable per picture when sending. Anyone with the link sees them.</string>
+    <string name="settings_remove_picture_info">Remove picture info</string>
+    <string name="settings_remove_picture_info_hint">Takes location, camera and time out of a picture before it is uploaded</string>
+    <string name="search_also_exif">EXIF, location, GPS</string>
     <string name="settings_recent_uploads">Recent uploads</string>
     <string name="settings_recent_uploads_none">None yet</string>
     <string name="uploader_url">Address</string>

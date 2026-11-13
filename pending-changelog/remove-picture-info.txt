@@ -1,0 +1,1 @@
+minor: Take location, camera and time out of pictures before they are uploaded, on unless you turn it off

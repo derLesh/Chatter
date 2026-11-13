@@ -171,6 +171,8 @@ data class Settings(
     val imageHosts: List<String> = ImageLinks.DEFAULT_HOSTS,
     /** The id of the upload site pictures go to, unless the send screen picks another for one. */
     val uploader: String = PresetUploader.KappaLol.id,
+    /** Take location, camera and time out of a picture before it is uploaded. */
+    val removePictureInfo: Boolean = true,
     /** Show the GIFs subs post instead of their title. */
     val showGifs: Boolean = true,
     /** Sites whose links to a post are shown as a card; each post is fetched from that site. */
@@ -308,6 +310,7 @@ class SettingsRepository(
             inlineImages = p[INLINE_IMAGES] ?: true,
             imageHosts = hosts(p[IMAGE_HOSTS]),
             uploader = p[UPLOADER] ?: PresetUploader.KappaLol.id,
+            removePictureInfo = p[REMOVE_PICTURE_INFO] ?: true,
             showGifs = p[SHOW_GIFS] ?: true,
             postSites = postSites(p[POST_SITES]),
             blurNsfwPosts = p[BLUR_NSFW_POSTS] ?: true,
@@ -414,6 +417,7 @@ class SettingsRepository(
 
     suspend fun setUploader(v: String) = store.edit { it[UPLOADER] = v }
     suspend fun setPictureButton(v: Boolean) = store.edit { it[PICTURE_BUTTON] = v }
+    suspend fun setRemovePictureInfo(v: Boolean) = store.edit { it[REMOVE_PICTURE_INFO] = v }
     suspend fun updateImageHosts(change: (List<String>) -> List<String>) =
         store.edit { it[IMAGE_HOSTS] = change(hosts(it[IMAGE_HOSTS])).joinToString(",") }
     suspend fun setPostSite(site: PostSite, on: Boolean) = store.edit { p ->
@@ -534,6 +538,7 @@ class SettingsRepository(
         p[INLINE_IMAGES] = s.inlineImages
         p[IMAGE_HOSTS] = s.imageHosts.joinToString(",")
         p[UPLOADER] = s.uploader
+        p[REMOVE_PICTURE_INFO] = s.removePictureInfo
         p[SHOW_GIFS] = s.showGifs
         p[POST_SITES] = s.postSites.joinToString(",") { it.name }
         p[BLUR_NSFW_POSTS] = s.blurNsfwPosts
@@ -660,6 +665,7 @@ class SettingsRepository(
         val IMAGE_HOSTS = stringPreferencesKey("image_hosts")
         val UPLOADER = stringPreferencesKey("uploader")
         val PICTURE_BUTTON = booleanPreferencesKey("picture_button")
+        val REMOVE_PICTURE_INFO = booleanPreferencesKey("remove_picture_info")
         /** Default hosts this install has been given, so each is added only once. */
         val IMAGE_HOSTS_GIVEN = stringPreferencesKey("image_hosts_given")
         val CAROUSEL_CHANNELS = booleanPreferencesKey("carousel_channels")

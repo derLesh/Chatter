@@ -174,6 +174,11 @@ internal fun ImageUploaderPage(settings: Settings, vm: MainViewModel) {
         Spacer(Modifier.width(8.dp))
         Text(stringResource(R.string.uploader_add))
     }
+    SettingsGroup {
+        item(R.string.settings_remove_picture_info) {
+            SwitchItem(R.string.settings_remove_picture_info, settings.removePictureInfo, vm::setRemovePictureInfo, R.string.settings_remove_picture_info_hint)
+        }
+    }
 
     aboutPreset?.let { preset ->
         PresetUploaderSheet(preset, setup.keys[preset.id].orEmpty(), onSave = { vm.setUploaderKey(preset, it) }, onDismiss = { aboutPreset = null })

@@ -1319,6 +1319,7 @@ class MainViewModel(private val c: AppContainer, savedState: SavedStateHandle) :
     fun setInlineImages(v: Boolean) = saveSetting { setInlineImages(v) }
     fun setUploader(v: UploadTarget) = saveSetting { setUploader(v.id) }
     fun setPictureButton(v: Boolean) = saveSetting { setPictureButton(v) }
+    fun setRemovePictureInfo(v: Boolean) = saveSetting { setRemovePictureInfo(v) }
 
     /** The upload sites, the user's own ones and the keys given to the preset ones. */
     val uploaderSetup = c.uploaders.setup
@@ -1352,7 +1353,7 @@ class MainViewModel(private val c: AppContainer, savedState: SavedStateHandle) :
     fun openPicture(uri: Uri) {
         AppLog.d("Upload", "A picture came in")
         viewModelScope.launch {
-            runCatchingCancellable { c.imageUploader.copy(uri) }
+            runCatchingCancellable { c.imageUploader.copy(uri, removeInfo = settings.value.removePictureInfo) }
                 .onSuccess { picture.open(it, pictureChannel(), defaultUploader()) }
                 .onFailure {
                     AppLog.w("Upload", "The picture could not be copied in", it)

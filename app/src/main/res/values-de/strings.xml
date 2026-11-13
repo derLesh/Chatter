@@ -400,6 +400,9 @@
     <string name="settings_group_send_pictures">Bilder senden</string>
     <string name="settings_uploader">Bild-Uploader</string>
     <string name="settings_uploader_hint">Standard für neue Bilder, beim Senden pro Bild änderbar. Jeder mit dem Link sieht sie.</string>
+    <string name="settings_remove_picture_info">Bildinfos entfernen</string>
+    <string name="settings_remove_picture_info_hint">Nimmt Ort, Kamera und Zeit aus dem Bild, bevor es hochgeladen wird</string>
+    <string name="search_also_exif">EXIF, Standort, GPS</string>
     <string name="settings_recent_uploads">Letzte Uploads</string>
     <string name="settings_recent_uploads_none">Noch keine</string>
     <string name="uploader_url">Adresse</string>
