@@ -1,11 +1,15 @@
 package me.lesh.chatter.service
 
+import java.util.TimeZone
+import java.util.Locale
+import java.util.Date
+import java.text.SimpleDateFormat
 import android.app.ActivityManager
 import android.app.ActivityManager.RunningAppProcessInfo
 import android.app.ApplicationExitInfo
 import android.content.Context
 import android.os.PowerManager
-import android.util.Log
+import me.lesh.chatter.debug.AppLog
 import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.edit
@@ -103,7 +107,7 @@ class BackgroundHealth(
 
     /** Checks how previous processes ended; only possible once per process start. */
     fun start() {
-        scope.launch(Dispatchers.IO) { runCatchingCancellable { lookBack() }.onFailure { Log.w(TAG, "Could not read exit reasons", it) } }
+        scope.launch(Dispatchers.IO) { runCatchingCancellable { lookBack() }.onFailure { AppLog.w(TAG, "Could not read exit reasons", it) } }
     }
 
     /** Reads the battery settings again, e.g. after the user returns from changing them. */
@@ -128,13 +132,48 @@ class BackgroundHealth(
         val checked = store.data.first()[CHECKED_UNTIL] ?: 0L
         // Android keeps these for days; old ones say little about now.
         val after = maxOf(checked, now - MAX_AGE_MS)
-        val exits = activity.getHistoricalProcessExitReasons(context.packageName, 0, MAX_EXITS)
-            .map { ProcessExit(it.timestamp, it.reason, wasListening(it)) }
+        val infos = activity.getHistoricalProcessExitReasons(context.packageName, 0, MAX_EXITS)
+        // Oldest first, and only those not told before: why earlier runs ended explains gaps in the log.
+        infos.filter { it.timestamp > checked }.sortedBy { it.timestamp }.forEach { AppLog.i(TAG, describeExit(it)) }
+        val exits = infos.map { ProcessExit(it.timestamp, it.reason, wasListening(it)) }
         val stop = BackgroundStops.latest(exits, after)
         store.edit { p ->
             p[CHECKED_UNTIL] = maxOf(checked, exits.maxOfOrNull { it.at } ?: 0L)
             if (stop != null) p[LAST_STOP] = AppJson.encodeToString(BackgroundStop.serializer(), stop)
         }
+    }
+
+    private fun describeExit(exit: ApplicationExitInfo): String {
+        val time = SimpleDateFormat("yyyy-MM-dd HH:mm:ss'Z'", Locale.ROOT).apply { timeZone = TimeZone.getTimeZone("UTC") }
+        val details = listOfNotNull(
+            exitReason(exit.reason),
+            exit.description?.takeIf { it.isNotBlank() }?.let { "\"$it\"" },
+            "importance ${exit.importance}",
+            if (wasListening(exit)) "was listening" else "was not listening",
+            "memory ${exit.pss / 1024} MB".takeIf { exit.pss > 0 },
+            "status ${exit.status}".takeIf { exit.status != 0 },
+        )
+        return "An earlier run ended at ${time.format(Date(exit.timestamp))}: ${details.joinToString()}"
+    }
+
+    private fun exitReason(reason: Int) = when (reason) {
+        ApplicationExitInfo.REASON_EXIT_SELF -> "ended itself"
+        ApplicationExitInfo.REASON_SIGNALED -> "killed by a signal"
+        ApplicationExitInfo.REASON_LOW_MEMORY -> "Android needed the memory"
+        ApplicationExitInfo.REASON_CRASH -> "crash"
+        ApplicationExitInfo.REASON_CRASH_NATIVE -> "native crash"
+        ApplicationExitInfo.REASON_ANR -> "not responding (ANR)"
+        ApplicationExitInfo.REASON_INITIALIZATION_FAILURE -> "failed to start"
+        ApplicationExitInfo.REASON_PERMISSION_CHANGE -> "a permission changed"
+        ApplicationExitInfo.REASON_EXCESSIVE_RESOURCE_USAGE -> "used too much battery or CPU"
+        ApplicationExitInfo.REASON_USER_REQUESTED -> "the user closed it"
+        ApplicationExitInfo.REASON_USER_STOPPED -> "the user stopped it"
+        ApplicationExitInfo.REASON_DEPENDENCY_DIED -> "something it needed ended"
+        ApplicationExitInfo.REASON_FREEZER -> "frozen by Android"
+        ApplicationExitInfo.REASON_PACKAGE_STATE_CHANGE -> "the app was turned off"
+        ApplicationExitInfo.REASON_PACKAGE_UPDATED -> "updated"
+        ApplicationExitInfo.REASON_OTHER -> "other"
+        else -> "reason $reason"
     }
 
     /**

@@ -1,6 +1,6 @@
 package me.lesh.chatter.irc
 
-import android.util.Log
+import me.lesh.chatter.debug.AppLog
 import me.lesh.chatter.chat.ChatConnection
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
@@ -32,6 +32,8 @@ enum class ConnectionState { Disconnected, Connecting, WaitingForNetwork, Connec
 class IrcConnection(
     private val http: OkHttpClient,
     private val scope: CoroutineScope,
+    /** What the phone and app are doing, for the log when the connection drops; see `AppWatch.situation`. */
+    private val situation: () -> String = { "" },
     /** Join order after a connect, lower first; see [JoinQueue]. */
     joinRank: (String) -> Int = { 0 },
 ) : ChatConnection {
@@ -55,6 +57,12 @@ class IrcConnection(
     private var joinJob: Job? = null
     private val joins = JoinQueue(System::currentTimeMillis, joinRank)
     @Volatile private var lastActivity = 0L
+    private val traffic = Traffic()
+    // For the log when the connection drops: how far it got and what came last.
+    @Volatile private var openedAt = 0L
+    @Volatile private var connectedAt = 0L
+    @Volatile private var linesThisConnection = 0
+    @Volatile private var lastCommand: String? = null
     /**
      * Retrying without a network cannot succeed; a night in flight mode would be thousands of DNS
      * lookups. [setNetwork] reconnects when it is back.
@@ -76,7 +84,10 @@ class IrcConnection(
         val userChanged = credentials?.first != login
         credentials = login to token
         wanted = true
-        if (userChanged) closeSocket()
+        if (userChanged) {
+            AppLog.i(TAG, if (login == ANONYMOUS_LOGIN) "Reading as a guest" else "Reading and writing with an account")
+            closeSocket()
+        }
         if (socket == null) openSocket()
     }
 
@@ -84,6 +95,7 @@ class IrcConnection(
     fun connectAnonymously() = connect(ANONYMOUS_LOGIN, token = "")
 
     fun disconnect(): Unit = synchronized(lock) {
+        if (wanted) AppLog.i(TAG, "Disconnecting")
         wanted = false
         reconnectJob?.cancel()
         watchdogJob?.cancel()
@@ -101,9 +113,13 @@ class IrcConnection(
      */
     fun setNetwork(up: Boolean, validated: Boolean): Unit = synchronized(lock) {
         val cameBack = up && !networkUp
+        val networkUpBefore = networkUp
         val nowReachable = up && validated && !networkValidated
         networkUp = up
         networkValidated = validated
+        if (cameBack) AppLog.i(TAG, "Network is back")
+        if (!up && networkUpBefore) AppLog.i(TAG, "Network lost")
+        if (nowReachable) AppLog.d(TAG, "Network has internet access")
         if (!wanted || _state.value == ConnectionState.Connected) return
         when {
             // Not connected, so any socket is a connection attempt on the network that just went
@@ -131,6 +147,7 @@ class IrcConnection(
      */
     fun retryNow(): Unit = synchronized(lock) {
         if (!wanted || !networkUp || socket != null || _state.value == ConnectionState.Connected) return
+        AppLog.i(TAG, "Skipping the wait after attempt $attempt, trying now")
         attempt = 0
         reconnectJob?.cancel()
         openSocket()
@@ -139,12 +156,14 @@ class IrcConnection(
     // While connecting, the JOINs are sent after the welcome; see onWelcome.
     override fun join(channel: String): Unit = synchronized(lock) {
         if (!isChannel(channel) || !joined.add(channel)) return
+        AppLog.d(TAG, "Join ${AppLog.channel(channel)}")
         joins.add(channel)
         if (_state.value == ConnectionState.Connected) sendJoins()
     }
 
     override fun part(channel: String): Unit = synchronized(lock) {
         if (!isChannel(channel)) return
+        AppLog.d(TAG, "Leave ${AppLog.channel(channel)}")
         joins.remove(channel)
         if (joined.remove(channel) && _state.value == ConnectionState.Connected) socket?.send("PART #$channel")
     }
@@ -153,14 +172,23 @@ class IrcConnection(
         if (!isChannel(channel)) return false
         val tags = replyParentId?.let { "@reply-parent-msg-id=${IrcMessage.escapeTagValue(it)} " } ?: ""
         val clean = text.replace('\n', ' ').replace('\r', ' ')
-        return synchronized(lock) {
+        val sent = synchronized(lock) {
             _state.value == ConnectionState.Connected && socket?.send("${tags}PRIVMSG #$channel :$clean") == true
         }
+        val what = (if (replyParentId != null) "a reply" else "a message") + " (${clean.length} characters)"
+        if (sent) AppLog.d(TAG, "Sent $what in ${AppLog.channel(channel)}")
+        else AppLog.w(TAG, "Could not send $what in ${AppLog.channel(channel)}: not connected")
+        return sent
     }
 
     private fun openSocket() {
         val (login, token) = credentials ?: return
         _state.value = ConnectionState.Connecting
+        AppLog.i(TAG, "Connecting to Twitch chat (attempt ${attempt + 1}, internet ${if (networkValidated) "confirmed" else "not confirmed by Android"})")
+        openedAt = System.currentTimeMillis()
+        connectedAt = 0L
+        linesThisConnection = 0
+        lastCommand = null
         val request = Request.Builder().url("wss://irc-ws.chat.twitch.tv:443").build()
         socket = http.newWebSocket(request, Listener(login, token))
         startHandshakeTimeout()
@@ -178,7 +206,7 @@ class IrcConnection(
         handshakeJob = scope.launch {
             delay(HANDSHAKE_TIMEOUT_MS)
             if (_state.value != ConnectionState.Connected) {
-                Log.i(TAG, "No welcome within ${HANDSHAKE_TIMEOUT_MS / 1000}s, reconnecting")
+                lost("no welcome from Twitch within ${HANDSHAKE_TIMEOUT_MS / 1000} s")
                 scheduleReconnect()
             }
         }
@@ -192,7 +220,10 @@ class IrcConnection(
         joinJob?.cancel()
         val ws = socket ?: return
         val batch = joins.take()
-        if (batch.isNotEmpty()) ws.send("JOIN " + batch.joinToString(",") { "#$it" })
+        if (batch.isNotEmpty()) {
+            ws.send("JOIN " + batch.joinToString(",") { "#$it" })
+            AppLog.d(TAG, "Sent JOIN for ${batch.joinToString { AppLog.channel(it) }}")
+        }
         val due = joins.nextDueAt() ?: return
         joinJob = scope.launch {
             delay((due - System.currentTimeMillis()).coerceAtLeast(0))
@@ -212,12 +243,14 @@ class IrcConnection(
         closeSocket()
         // setNetwork reconnects once the network is back.
         if (!networkUp) {
+            AppLog.i(TAG, "Waiting for a network")
             _state.value = ConnectionState.WaitingForNetwork
             return
         }
         _state.value = ConnectionState.Connecting
         val delayMs = if (immediate) 0L else backoffMs(attempt, networkValidated) + Random.nextLong(0, 1000)
         attempt++
+        AppLog.i(TAG, "Trying again in ${delayMs / 1000} s (attempt ${attempt + 1}${if (networkValidated) "" else ", internet not confirmed by Android, so waiting longer"})")
         reconnectJob = scope.launch {
             delay(delayMs)
             synchronized(lock) { if (wanted && socket == null) openSocket() }
@@ -237,7 +270,7 @@ class IrcConnection(
             while (isActive) {
                 val silence = System.currentTimeMillis() - lastActivity
                 if (silence >= SILENCE_LIMIT_MS) {
-                    Log.i(TAG, "No traffic for ${SILENCE_LIMIT_MS / 60_000} minutes, reconnecting")
+                    lost("no traffic for ${silence / 1000} s, the connection likely died unnoticed")
                     scheduleReconnect(immediate = true)
                     break
                 }
@@ -246,11 +279,29 @@ class IrcConnection(
         }
     }
 
+    /**
+     * Two lines for a dropped connection: why, how long it held and what came last, and what the
+     * phone was doing. Most drops are the network or Android pausing the app, which this tells apart.
+     */
+    private fun lost(why: String, error: Throwable? = null) {
+        val now = System.currentTimeMillis()
+        val held = if (connectedAt > 0) {
+            "connected for ${duration(now - connectedAt)}, $linesThisConnection lines, " +
+                "last traffic ${(now - lastActivity) / 1000} s ago${lastCommand?.let { " ($it)" }.orEmpty()}"
+        } else {
+            "never got connected, ${(now - openedAt) / 1000} s after starting"
+        }
+        AppLog.w(TAG, "Connection lost: $why; $held", error)
+        AppLog.i(TAG, "Situation: ${situation()}")
+    }
+
     private inner class Listener(val login: String, val token: String) : WebSocketListener() {
         private fun isCurrent(ws: WebSocket) = synchronized(lock) { socket === ws }
 
         override fun onOpen(webSocket: WebSocket, response: Response) {
             lastActivity = System.currentTimeMillis()
+            val tls = response.handshake?.let { ", ${it.tlsVersion.javaName}" }.orEmpty()
+            AppLog.d(TAG, "Socket open after ${lastActivity - openedAt} ms (${response.protocol}$tls), logging in")
             webSocket.send("CAP REQ :twitch.tv/tags twitch.tv/commands")
             if (token.isNotEmpty()) webSocket.send("PASS oauth:$token")
             webSocket.send("NICK $login")
@@ -267,18 +318,32 @@ class IrcConnection(
                 start = end + 2
                 if (end == lineStart) continue
                 // PINGs are answered on the socket thread before any parsing.
+                linesThisConnection++
                 if (text.startsWith("PING", lineStart)) {
+                    lastCommand = "PING"
                     webSocket.send("PONG" + text.substring(lineStart + 4, end))
+                    AppLog.v(TAG, "PING answered")
                     continue
                 }
                 val msg = IrcMessage.parse(text, lineStart, end) ?: continue
+                lastCommand = msg.command
+                traffic.count(msg)?.let { AppLog.d(TAG, it) }
+                if (msg.command != "PRIVMSG") AppLog.v(TAG, describe(msg))
                 when (msg.command) {
                     "001" -> onWelcome(webSocket)
                     "ROOMSTATE" -> msg.channel?.let { synchronized(lock) { joins.answered(it) } }
-                    "RECONNECT" -> scheduleReconnect(immediate = true)
+                    "RECONNECT" -> {
+                        lost("Twitch asked to reconnect, e.g. for a server restart")
+                        scheduleReconnect(immediate = true)
+                    }
                     "NOTICE" -> {
                         val channel = msg.channel
+                        // The msg-id names the kind of notice; the text can quote a name.
+                        val where = channel?.let { " in ${AppLog.channel(it)}" }.orEmpty()
+                        val says = msg.trailing?.let { AppLog.hidden(": $it") }.orEmpty()
+                        AppLog.d(TAG, "Notice ${msg.tag("msg-id") ?: "without id"}$where$says")
                         if (channel == null && isAuthFailure(msg.trailing)) {
+                            AppLog.w(TAG, "Twitch refused the login")
                             synchronized(lock) {
                                 wanted = false
                                 closeSocket()
@@ -300,6 +365,8 @@ class IrcConnection(
                 handshakeJob?.cancel()
                 attempt = 0
                 _state.value = ConnectionState.Connected
+                connectedAt = System.currentTimeMillis()
+                AppLog.i(TAG, "Connected ${connectedAt - openedAt} ms after starting, joining ${joined.size} channel(s)")
                 joins.restart(joined)
                 sendJoins()
             }
@@ -311,17 +378,69 @@ class IrcConnection(
         }
 
         override fun onClosed(webSocket: WebSocket, code: Int, reason: String) {
-            if (isCurrent(webSocket)) scheduleReconnect()
+            if (!isCurrent(webSocket)) return
+            lost("Twitch closed it (code $code${reason.takeIf { it.isNotBlank() }?.let { ", \"$it\"" }.orEmpty()})")
+            scheduleReconnect()
         }
 
         override fun onFailure(webSocket: WebSocket, t: Throwable, response: Response?) {
-            Log.w(TAG, "Socket failure: ${t.message}")
-            if (isCurrent(webSocket)) scheduleReconnect()
+            // A socket closed on purpose fails with "Canceled"; only the current one is news.
+            if (!isCurrent(webSocket)) return
+            lost("it failed${response?.let { " (HTTP ${it.code} ${it.message})" }.orEmpty()}", t)
+            scheduleReconnect()
+        }
+    }
+
+    /**
+     * Counts what comes in and hands back a summary once a minute: one line per chat message would
+     * push everything else out of the log.
+     */
+    private class Traffic {
+        private val counts = HashMap<String, Int>()
+        private val channels = HashSet<String>()
+        private var since = System.currentTimeMillis()
+
+        @Synchronized
+        fun count(msg: IrcMessage): String? {
+            counts.merge(msg.command, 1, Int::plus)
+            msg.channel?.let(channels::add)
+            val now = System.currentTimeMillis()
+            if (now - since < SUMMARY_MS) return null
+            val summary = counts.entries.sortedByDescending { it.value }.joinToString { "${it.value} ${it.key}" }
+            val line = "Last ${(now - since) / 1000} s: $summary, in ${channels.size} channel(s)"
+            counts.clear()
+            channels.clear()
+            since = now
+            return line
         }
     }
 
     internal companion object {
         private const val TAG = "IrcConnection"
+        private const val SUMMARY_MS = 60_000L
+
+        private fun duration(millis: Long): String {
+            val seconds = millis / 1000
+            return when {
+                seconds < 60 -> "$seconds s"
+                seconds < 3600 -> "${seconds / 60} min ${seconds % 60} s"
+                else -> "${seconds / 3600} h ${seconds % 3600 / 60} min"
+            }
+        }
+
+        /**
+         * "← USERNOTICE in channel 2, msg-id=raid". The full log adds the tags, which name users;
+         * a chat line's text never goes in.
+         */
+        private fun describe(msg: IrcMessage): String {
+            val where = msg.channel?.let { " in ${AppLog.channel(it)}" }.orEmpty()
+            val kind = msg.tag("msg-id")?.let { ", msg-id=$it" }.orEmpty()
+            val tags = msg.tags.takeIf { it.isNotEmpty() }
+                ?.entries?.joinToString(";") { "${it.key}=${it.value}" }
+                ?.let { AppLog.hidden(" [${it.take(400)}]") }
+                .orEmpty()
+            return "← ${msg.command}$where$kind$tags"
+        }
 
         private val CHANNEL = Regex("^[a-z0-9_]{1,25}$")
 
@@ -331,7 +450,7 @@ class IrcConnection(
          */
         internal fun isChannel(channel: String): Boolean {
             if (CHANNEL.matches(channel)) return true
-            Log.w(TAG, "Refused a channel name that is not a Twitch login")
+            AppLog.w(TAG, "Refused a channel name that is not a Twitch login")
             return false
         }
         private const val ANONYMOUS_LOGIN = "justinfan12345"

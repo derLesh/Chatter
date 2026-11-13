@@ -4,7 +4,7 @@ import android.security.keystore.KeyGenParameterSpec
 import android.security.keystore.KeyPermanentlyInvalidatedException
 import android.security.keystore.KeyProperties
 import android.util.Base64
-import android.util.Log
+import me.lesh.chatter.debug.AppLog
 import java.security.KeyStore
 import java.security.UnrecoverableKeyException
 import javax.crypto.AEADBadTagException
@@ -66,7 +66,7 @@ object TokenCipher {
         // Class name only; the provider's message could contain the input.
         val lost = e is AEADBadTagException || e is KeyPermanentlyInvalidatedException ||
             e is UnrecoverableKeyException || e is IllegalArgumentException
-        Log.w(TAG, "Could not decrypt a token (${e.javaClass.simpleName}); ${if (lost) "it is lost" else "will try again"}")
+        AppLog.w(TAG, "Could not decrypt a token (${e.javaClass.simpleName}); ${if (lost) "it is lost" else "will try again"}")
         if (lost) Decrypted.Lost else Decrypted.Unavailable
     }
 

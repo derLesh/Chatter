@@ -1,6 +1,6 @@
 package me.lesh.chatter.channels
 
-import android.util.Log
+import me.lesh.chatter.debug.AppLog
 import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.MutablePreferences
 import androidx.datastore.preferences.core.Preferences
@@ -293,7 +293,7 @@ class ChannelRepository(
         val users = try {
             helix.users(logins)
         } catch (e: Exception) {
-            Log.w(TAG, "users failed: ${e.message}")
+            AppLog.w(TAG, "users failed: ${e.message}")
             return emptyMap()
         }
         _info.update { current ->
@@ -314,7 +314,7 @@ class ChannelRepository(
         val streams = try {
             helix.liveStreams(logins)
         } catch (e: Exception) {
-            Log.w(TAG, "streams failed: ${e.message}")
+            AppLog.w(TAG, "streams failed: ${e.message}")
             return
         }
         applyLive(logins, streams)

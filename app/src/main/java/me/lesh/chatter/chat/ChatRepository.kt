@@ -1,7 +1,7 @@
 package me.lesh.chatter.chat
 
 import android.content.Context
-import android.util.Log
+import me.lesh.chatter.debug.AppLog
 import me.lesh.chatter.R
 import me.lesh.chatter.auth.AuthRepository
 import me.lesh.chatter.auth.TwitchScopes
@@ -424,6 +424,9 @@ class ChatRepository(
         val added = list - joinedChannels.toSet()
         val removed = joinedChannels - list.toSet()
         joinedChannels = list
+        if (added.isNotEmpty() || removed.isNotEmpty()) {
+            AppLog.i(TAG, "Channels: ${added.size} added, ${removed.size} removed, ${list.size} open")
+        }
         removed.forEach { ch ->
             // Joined again later, the channel loads its lists again.
             rooms.id(ch)?.let { listLoads.remove(it) }
@@ -505,7 +508,7 @@ class ChatRepository(
         val users = try {
             helix.chatters(channelId, userId)
         } catch (e: Exception) {
-            Log.d(TAG, "No chatter list for $channel: ${e.message}")
+            AppLog.d(TAG, "No chatter list for ${AppLog.channel(channel)}: ${e.message}")
             return
         }
         withContext(worker) {
@@ -535,7 +538,7 @@ class ChatRepository(
         val lines = try {
             thirdParty.recentMessages(channel, 100).messages
         } catch (e: Exception) {
-            Log.w(TAG, "History for $channel failed: ${e.message}")
+            AppLog.w(TAG, "History for ${AppLog.channel(channel)} failed: ${e.message}")
             if (announce && channel in joinedChannels) {
                 historyMissing.add(channel)
                 _historyFailed.tryEmit(channel)
@@ -556,6 +559,7 @@ class ChatRepository(
                     ?.also { incoming.rememberChatter(channel, it) }
             }
             val fresh = buffers.merge(channel, items)
+            AppLog.d(TAG, "Loaded ${items.size} recent message(s) for ${AppLog.channel(channel)}")
             items.firstNotNullOfOrNull { it.rewardId }?.let { rewards.seen(it, rooms.id(channel)) }
             pins.takeFromChat(channel)
             // Old partner messages are marked like new ones. Whether a session is running is
@@ -591,7 +595,7 @@ class ChatRepository(
             helix.sharedChatSession(roomId)
         } catch (e: Exception) {
             // Partners still show up one by one as their messages arrive.
-            Log.d(TAG, "No Shared Chat session for $channel: ${e.message}")
+            AppLog.d(TAG, "No Shared Chat session for ${AppLog.channel(channel)}: ${e.message}")
             return
         }
         val ids = session?.participants?.map { it.broadcasterId }.orEmpty()
@@ -613,7 +617,7 @@ class ChatRepository(
         val users = try {
             helix.usersById(ids)
         } catch (e: Exception) {
-            Log.w(TAG, "Shared Chat partners failed: ${e.message}")
+            AppLog.w(TAG, "Shared Chat partners failed: ${e.message}")
             withContext(worker) { sharedChats.failed(ids) }
             return
         }

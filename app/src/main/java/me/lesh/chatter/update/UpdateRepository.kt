@@ -1,6 +1,6 @@
 package me.lesh.chatter.update
 
-import android.util.Log
+import me.lesh.chatter.debug.AppLog
 import me.lesh.chatter.changelog.Version
 import me.lesh.chatter.net.AppJson
 import me.lesh.chatter.net.DataSaving
@@ -63,7 +63,7 @@ class UpdateRepository(
                 .build()
             val json = runCatchingCancellable { http.fetch(request) }.getOrElse {
                 // The user did not ask for this, so nothing goes on screen.
-                Log.i(TAG, "Could not ask GitHub for the latest release", it)
+                AppLog.i(TAG, "Could not ask GitHub for the latest release", it)
                 return@launch
             }
             val update = UpdateCheck.parse(json) ?: return@launch

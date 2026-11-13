@@ -1,6 +1,6 @@
 package me.lesh.chatter.chat
 
-import android.util.Log
+import me.lesh.chatter.debug.AppLog
 import me.lesh.chatter.auth.AuthRepository
 import me.lesh.chatter.auth.TwitchScopes
 import me.lesh.chatter.net.HelixApi
@@ -63,10 +63,10 @@ class PinnedMessages(
         } catch (e: HttpException) {
             // No longer a moderator there: the pin is not the user's to see any more.
             if (e.code == 401 || e.code == 403) forget(channel)
-            Log.d(TAG, "No pin for $channel: ${e.message}")
+            AppLog.d(TAG, "No pin for ${AppLog.channel(channel)}: ${e.message}")
             return
         } catch (e: Exception) {
-            Log.d(TAG, "No pin for $channel: ${e.message}")
+            AppLog.d(TAG, "No pin for ${AppLog.channel(channel)}: ${e.message}")
             return
         }
         val now = System.currentTimeMillis()

@@ -1,6 +1,6 @@
 package me.lesh.chatter.auth
 
-import android.util.Log
+import me.lesh.chatter.debug.AppLog
 import androidx.core.net.toUri
 import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
@@ -193,7 +193,7 @@ class AuthRepository(
     /** See [AccountStore.readAll]. */
     private suspend fun decryptAll(stored: List<StoredAccount>): Pair<List<Account>, List<StoredAccount>> {
         val read = AccountStore.readAll(stored, wait = { attempt -> delay(DECRYPT_RETRY_MS * attempt) }) { it.decrypted() }
-        if (read.unreadable.isNotEmpty()) Log.w(TAG, "Keeping ${read.unreadable.size} account(s) unread until the keystore answers")
+        if (read.unreadable.isNotEmpty()) AppLog.w(TAG, "Keeping ${read.unreadable.size} account(s) unread until the keystore answers")
         return read.readable to read.unreadable
     }
 
@@ -339,6 +339,7 @@ class AuthRepository(
     suspend fun switchTo(userId: String) {
         writeLock.withLock {
             if (userId == activeId || _accounts.value.none { it.userId == userId }) return
+            AppLog.i(TAG, "Switched to another account (${_accounts.value.size} on this phone)")
             activeId = userId
             _sessionExpired.value = false
             persist()
@@ -364,6 +365,7 @@ class AuthRepository(
         val gone = writeLock.withLock {
             val gone = _accounts.value.firstOrNull { it.userId == userId } ?: return
             val rest = _accounts.value - gone
+            AppLog.i(TAG, "${if (expired) "Twitch ended the session of" else "Logged out of"} ${AppLog.user(gone.login)}, ${rest.size} account(s) left")
             _accounts.value = rest
             if (activeId == userId) activeId = rest.firstOrNull()?.userId
             // With another account left the login screen never shows, so there is nothing to
@@ -492,7 +494,12 @@ class AuthRepository(
         val acc = account ?: return false
         // Another caller refreshed while we waited for the lock.
         if (expected != null && acc.token != expected.token) return true
-        val refreshToken = acc.refreshToken ?: run { logout(expired = true); return false }
+        val refreshToken = acc.refreshToken ?: run {
+            AppLog.w(TAG, "No refresh token, the session ends")
+            logout(expired = true)
+            return false
+        }
+        AppLog.d(TAG, "Renewing the login, ${(acc.expiresAt - System.currentTimeMillis()) / 60_000} min left on it")
         try {
             val t = http.postForm<TokenResponse>(
                 "https://id.twitch.tv/oauth2/token",
@@ -511,8 +518,10 @@ class AuthRepository(
                 // The renewed account may not be the active one any more.
                 makeActive = false,
             )
+            AppLog.i(TAG, "Login renewed, valid for ${t.expiresIn / 60} min")
             true
         } catch (e: HttpException) {
+            AppLog.w(TAG, "Renewing the login failed: HTTP ${e.code}")
             if (e.code == 400 || e.code == 401) {
                 logout(expired = true)
                 false
@@ -520,6 +529,7 @@ class AuthRepository(
         } catch (e: kotlinx.coroutines.CancellationException) {
             throw e
         } catch (e: Exception) {
+            AppLog.w(TAG, "Renewing the login failed, trying again later", e)
             true // offline, try again later
         }
     }

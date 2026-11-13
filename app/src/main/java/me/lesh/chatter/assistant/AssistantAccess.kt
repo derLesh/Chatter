@@ -2,7 +2,7 @@ package me.lesh.chatter.assistant
 
 import android.content.Context
 import android.os.Build
-import android.util.Log
+import me.lesh.chatter.debug.AppLog
 import androidx.appfunctions.AppFunctionManager
 import kotlinx.coroutines.CancellationException
 
@@ -24,7 +24,7 @@ class AssistantAccess(private val context: Context) {
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
-                Log.w(TAG, "Could not switch $function", e)
+                AppLog.w(TAG, "Could not switch $function", e)
             }
         }
     }

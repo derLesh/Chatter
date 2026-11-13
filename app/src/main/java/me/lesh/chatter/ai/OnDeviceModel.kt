@@ -1,7 +1,7 @@
 package me.lesh.chatter.ai
 
 import android.content.Context
-import android.util.Log
+import me.lesh.chatter.debug.AppLog
 import com.google.mlkit.common.MlKit
 import com.google.mlkit.genai.common.DownloadStatus
 import com.google.mlkit.genai.common.FeatureStatus
@@ -68,7 +68,7 @@ class OnDeviceModel(private val context: Context) {
         throw e
     } catch (e: Exception) {
         // Thrown where AICore is missing altogether.
-        Log.i(TAG, "No on-device model", e)
+        AppLog.i(TAG, "No on-device model", e)
         ModelState.Unsupported
     }
 
@@ -80,7 +80,7 @@ class OnDeviceModel(private val context: Context) {
                 when (status) {
                     is DownloadStatus.DownloadCompleted -> _state.value = ModelState.Ready
                     is DownloadStatus.DownloadFailed -> {
-                        Log.w(TAG, "Model download failed", status.e)
+                        AppLog.w(TAG, "Model download failed", status.e)
                         _state.value = ModelState.Downloadable
                     }
                     else -> Unit
@@ -89,7 +89,7 @@ class OnDeviceModel(private val context: Context) {
         } catch (e: CancellationException) {
             throw e
         } catch (e: Exception) {
-            Log.w(TAG, "Model download failed", e)
+            AppLog.w(TAG, "Model download failed", e)
             _state.value = check()
         }
     }
@@ -176,7 +176,7 @@ class OnDeviceModel(private val context: Context) {
             // "Request doesn't pass certain policy check"; ML Kit has no code of its own for it.
             GenAiException.ErrorCode.REQUEST_PROCESSING_ERROR -> null
             else -> {
-                Log.w(TAG, "Summary failed with error ${e.errorCode}", e)
+                AppLog.w(TAG, "Summary failed with error ${e.errorCode}", e)
                 throw ModelFailure(troubleOf(e.errorCode), e)
             }
         }

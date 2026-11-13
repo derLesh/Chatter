@@ -1,6 +1,6 @@
 package me.lesh.chatter.auth
 
-import android.util.Log
+import me.lesh.chatter.debug.AppLog
 import android.webkit.CookieManager
 import android.webkit.WebStorage
 import kotlinx.coroutines.Dispatchers
@@ -23,6 +23,6 @@ object WebSession {
                 flush()
             }
             WebStorage.getInstance().deleteAllData()
-        }.onFailure { Log.w("WebSession", "Could not clear the login session: ${it.message}") }
+        }.onFailure { AppLog.w("WebSession", "Could not clear the login session: ${it.message}") }
     }
 }

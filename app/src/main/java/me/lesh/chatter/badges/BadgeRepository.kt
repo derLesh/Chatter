@@ -1,6 +1,6 @@
 package me.lesh.chatter.badges
 
-import android.util.Log
+import me.lesh.chatter.debug.AppLog
 import me.lesh.chatter.chat.BadgeSource
 import me.lesh.chatter.net.ChatterBadgeApi
 import me.lesh.chatter.net.HelixBadgeSet
@@ -171,7 +171,7 @@ class BadgeRepository(
             }
             .onFailure {
                 if (it !is NotLoggedInException) trouble.report(ServiceTrouble.TWITCH)
-                Log.w(TAG, "Global badges failed: ${it.message}")
+                AppLog.w(TAG, "Global badges failed: ${it.message}")
             }
         globalAnswered = true
     }
@@ -186,7 +186,7 @@ class BadgeRepository(
             .onFailure {
                 failedChannels.add(channelId)
                 if (it !is NotLoggedInException) trouble.report(ServiceTrouble.TWITCH)
-                Log.w(TAG, "Channel badges failed: ${it.message}")
+                AppLog.w(TAG, "Channel badges failed: ${it.message}")
             }
         answeredChannels.add(channelId)
     }
@@ -228,7 +228,7 @@ class BadgeRepository(
                 }
                 .onFailure {
                     trouble.report(ServiceTrouble.CHATTERINO)
-                    Log.w(TAG, "Chatterino badges failed: ${it.message}")
+                    AppLog.w(TAG, "Chatterino badges failed: ${it.message}")
                 }
         }
 
@@ -241,7 +241,7 @@ class BadgeRepository(
                 }
                 .onFailure {
                     trouble.report(ServiceTrouble.CHATTER_API)
-                    Log.w(TAG, "Supporter list failed: ${it.message}")
+                    AppLog.w(TAG, "Supporter list failed: ${it.message}")
                 }
         }
 

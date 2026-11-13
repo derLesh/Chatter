@@ -1,6 +1,6 @@
 package me.lesh.chatter.net
 
-import android.util.Log
+import me.lesh.chatter.debug.AppLog
 
 /**
  * Decodes a JSON list or map from a preferences store: [empty] when nothing is stored, null when
@@ -15,7 +15,7 @@ inline fun <reified T> decodeStored(raw: String?, empty: T, what: String): T? {
         AppJson.decodeFromString<T>(raw)
     } catch (e: IllegalArgumentException) {
         // SerializationException is one. Class name only; the message quotes the stored value.
-        Log.e("StoredJson", "The stored $what cannot be read (${e.javaClass.simpleName}); it is kept as it is")
+        AppLog.e("StoredJson", "The stored $what cannot be read (${e.javaClass.simpleName}); it is kept as it is")
         null
     }
 }

@@ -8,7 +8,7 @@ import android.content.Intent
 import android.content.pm.ServiceInfo
 import android.os.Build
 import android.os.IBinder
-import android.util.Log
+import me.lesh.chatter.debug.AppLog
 import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
 import androidx.core.content.ContextCompat
@@ -49,12 +49,13 @@ class ChatService : Service() {
         } catch (e: Exception) {
             // Starting from the background is not always allowed (e.g. sticky restart). The
             // notification is the only way the user learns that mentions stopped.
-            Log.w(TAG, "startForeground failed: ${e.message}")
+            AppLog.w(TAG, "Could not listen in the background", e)
             container.notifier.notifyNotListening(R.string.notif_not_listening_service)
             stopSelf()
             return
         }
 
+        AppLog.i(TAG, "Listening in the background")
         container.notifier.clearNotListening()
         container.backgroundHealth.setListening(true)
         container.connect()
@@ -101,6 +102,7 @@ class ChatService : Service() {
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         if (intent?.action == ACTION_DISCONNECT) {
+            AppLog.i(TAG, "Disconnect tapped in the notification")
             container.disconnect()
             stopSelf()
             return START_NOT_STICKY
@@ -114,6 +116,7 @@ class ChatService : Service() {
      */
     override fun onTaskRemoved(rootIntent: Intent?) {
         if (container.settings.settings.value.closeWithApp && !container.chat.windows.bubbleVisible) {
+            AppLog.i(TAG, "Swiped away, closing with the app")
             container.disconnect()
             stopSelf()
         }
@@ -121,6 +124,7 @@ class ChatService : Service() {
     }
 
     override fun onDestroy() {
+        AppLog.i(TAG, "Stopped listening in the background")
         // Without the service Android may end the process next, and up to ten minutes of statistics
         // and a minute of mentions are not saved yet.
         container.stats.saveNow()
@@ -176,7 +180,7 @@ class ChatService : Service() {
             try {
                 ContextCompat.startForegroundService(context, Intent(context, ChatService::class.java))
             } catch (e: Exception) {
-                Log.w(TAG, "Could not start service: ${e.message}")
+                AppLog.w(TAG, "Could not start service: ${e.message}")
             }
         }
     }

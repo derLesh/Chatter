@@ -1,5 +1,6 @@
 package me.lesh.chatter.service
 
+import me.lesh.chatter.debug.AppLog
 import android.app.NotificationChannel
 import android.app.NotificationChannelGroup
 import android.app.NotificationManager
@@ -139,6 +140,7 @@ class ChatNotifier(
      * start, or the login expired. Otherwise mentions would just stop without any sign.
      */
     fun notifyNotListening(reason: Int) {
+        AppLog.w(TAG, "Telling the user mentions stopped")
         if (!manager.areNotificationsEnabled()) return
         val notification = NotificationCompat.Builder(context, CHANNEL_PROBLEMS)
             .setSmallIcon(R.drawable.ic_notification)
@@ -158,6 +160,7 @@ class ChatNotifier(
 
     /** [stream] went live: its title and category, and a tap opens its chat. */
     suspend fun notifyLive(stream: HelixStream) {
+        AppLog.d(TAG, "Live notification for ${AppLog.channel(stream.userLogin)}")
         if (!manager.areNotificationsEnabled()) return
         val title = context.getString(R.string.notif_live_title, stream.userName.ifEmpty { stream.userLogin })
         val notification = NotificationCompat.Builder(context, CHANNEL_LIVE)
@@ -184,7 +187,12 @@ class ChatNotifier(
 
     /** Loads the pictures and posts [items], mentions in one channel, as one update. */
     suspend fun notify(items: List<ChatItem>) {
-        if (items.isEmpty() || !manager.areNotificationsEnabled()) return
+        if (items.isEmpty()) return
+        if (!manager.areNotificationsEnabled()) {
+            AppLog.d(TAG, "${items.size} mention(s) not shown: notifications are blocked")
+            return
+        }
+        AppLog.d(TAG, "Showing ${items.size} mention(s) in ${AppLog.channel(items.first().channel)}")
         val icon = icons.channel(items.first().channel)
         // Fills the cache for these chatters; older lines use what is cached.
         loadSenderIcons(items.mapNotNull { it.login })
@@ -200,6 +208,7 @@ class ChatNotifier(
      * vibration switch for notifications applies too.
      */
     fun buzz(channelId: String) {
+        AppLog.d(TAG, "Mention while on screen: a short vibration")
         if (!manager.areNotificationsEnabled()) return
         val importance = nm.getNotificationChannel(channelId)?.importance ?: NotificationManager.IMPORTANCE_HIGH
         if (importance < NotificationManager.IMPORTANCE_DEFAULT) return
@@ -333,6 +342,7 @@ class ChatNotifier(
      * still the active one; see [WhisperConversations].
      */
     suspend fun notifyWhisper(whisper: InboxWhisper) {
+        AppLog.d(TAG, "Whisper notification")
         if (!manager.areNotificationsEnabled()) return
         // Fills the cache for this sender; older lines use what is cached.
         loadSenderIcons(listOf(whisper.login))
@@ -563,3 +573,5 @@ class ChatNotifier(
         }
     }
 }
+
+private const val TAG = "Notifications"

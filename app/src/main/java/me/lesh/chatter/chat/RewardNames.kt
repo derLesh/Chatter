@@ -1,6 +1,6 @@
 package me.lesh.chatter.chat
 
-import android.util.Log
+import me.lesh.chatter.debug.AppLog
 import me.lesh.chatter.auth.AuthRepository
 import me.lesh.chatter.auth.TwitchScopes
 import me.lesh.chatter.net.HelixApi
@@ -45,7 +45,7 @@ class RewardNames(
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
-                Log.d(TAG, "No reward names: ${e.message}")
+                AppLog.d(TAG, "No reward names: ${e.message}")
                 return@launch
             }
             _names.update { names -> names + rewards.associate { it.id to it.title } }
