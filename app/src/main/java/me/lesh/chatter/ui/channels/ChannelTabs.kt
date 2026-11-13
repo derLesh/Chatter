@@ -73,7 +73,7 @@ import me.lesh.chatter.ui.theme.barColor
  * The bar above the chat in tab mode: every page in swipe order, the add button, inbox and settings
  * in one row. The user sees where a swipe will go before making it.
  *
- * The line under the tabs only shows the connection, role, Shared Chat and chat modes; a channel
+ * The line under the tabs only shows the role, Shared Chat and chat modes; a channel
  * with none of them has no line. Holding a tab opens the same options as the channel menu.
  */
 @Composable
@@ -150,7 +150,7 @@ fun ChannelTabBar(
             }
             val status = when {
                 active == null -> null
-                activeGroup != null -> groupStatus(connection, activeGroup, info)
+                activeGroup != null -> groupStatus(activeGroup, info)
                 else -> channelStatus(connection, roomState, roleBadge = null, sharedWith)
             }
             // A little room above, so the line does not stick to the tab underline.

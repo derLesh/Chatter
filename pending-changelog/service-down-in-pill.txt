@@ -1,0 +1,1 @@
+patch: Show in the pill when a service like 7TV cannot be reached, instead of a message at the bottom

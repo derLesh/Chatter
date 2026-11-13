@@ -57,9 +57,9 @@ internal data class StatusPart(val key: String, val text: String)
 internal data class StatusLine(val parts: List<StatusPart>, val roleBadge: Badge? = null)
 
 /**
- * A channel's status line: a dropped connection, or the user's role as its badge, a running Shared
- * Chat and the chat modes. The tab bar shows the role in its tab instead and passes no badge.
- * Null when there is nothing to say.
+ * A channel's status line: the user's role as its badge, a running Shared Chat and the chat modes;
+ * the pill over the chat tells the connection. The tab bar shows the role in its tab instead and
+ * passes no badge. Null when there is nothing to say.
  */
 @Composable
 internal fun channelStatus(
@@ -68,10 +68,8 @@ internal fun channelStatus(
     roleBadge: Badge?,
     sharedWith: List<String>?,
 ): StatusLine? {
-    // A dropped connection takes the line, since it also makes role and modes stale.
-    if (connection != ConnectionState.Connected) {
-        return StatusLine(listOf(StatusPart("connection", stringResource(connectionStatus(connection)))))
-    }
+    // A dropped connection makes role and modes stale.
+    if (connection != ConnectionState.Connected) return null
     val parts = buildList {
         // First, because it changes whose messages fill the chat.
         if (sharedWith != null) add(
@@ -98,15 +96,10 @@ internal fun channelStatus(
     return StatusLine(parts, roleBadge)
 }
 
-/** A combined chat's status line: a dropped connection, or its channels when it has a custom name. */
-@Composable
-internal fun groupStatus(connection: ConnectionState, group: ChannelGroup, info: Map<String, ChannelInfo>): StatusLine? {
-    val part = when {
-        connection != ConnectionState.Connected -> StatusPart("connection", stringResource(connectionStatus(connection)))
-        group.name.isNotBlank() -> StatusPart("channels", group.channels.joinToString(" · ") { info[it]?.displayName ?: it })
-        else -> return null
-    }
-    return StatusLine(listOf(part))
+/** A combined chat's status line: its channels, when it has a custom name. */
+internal fun groupStatus(group: ChannelGroup, info: Map<String, ChannelInfo>): StatusLine? {
+    if (group.name.isBlank()) return null
+    return StatusLine(listOf(StatusPart("channels", group.channels.joinToString(" · ") { info[it]?.displayName ?: it })))
 }
 
 /**

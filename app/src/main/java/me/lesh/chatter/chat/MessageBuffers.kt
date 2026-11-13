@@ -142,11 +142,12 @@ class MessageBuffers(
     }
 
     /** Merges fetched history into a channel: what is new, in the order it was written. */
-    fun merge(channel: String, items: List<ChatItem>) {
-        val buffer = buffers[channel] ?: return
+    /** Returns the messages that were not in the channel yet. */
+    fun merge(channel: String, items: List<ChatItem>): List<ChatItem> {
+        val buffer = buffers[channel] ?: return emptyList()
         val known = ids.getOrPut(channel) { HashSet() }
         val fresh = items.filter { known.add(it.id) }
-        if (fresh.isEmpty()) return
+        if (fresh.isEmpty()) return fresh
         // Stable sort, so live messages and history end up in chronological order.
         val merged = ArrayList<ChatItem>(buffer.size + fresh.size).apply {
             addAll(buffer)
@@ -158,6 +159,7 @@ class MessageBuffers(
         merged.forEachIndexed { i, m -> buffer.addLast(if (m.alternate == (i % 2 == 1)) m else m.copy(alternate = i % 2 == 1)) }
         trim(channel, buffer)
         reshape(channel)
+        return fresh
     }
 
     /** Removes one message by the id it was added under. */

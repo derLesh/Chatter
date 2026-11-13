@@ -12,7 +12,6 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import me.lesh.chatter.R
 import me.lesh.chatter.chat.ChatRole
-import me.lesh.chatter.irc.ConnectionState
 
 /** Twitch's colors for the roles it gives a badge; null for a plain viewer. */
 internal val ChatRole.color: Color?
@@ -31,10 +30,6 @@ internal val ChatRole.label: Int?
         ChatRole.Vip -> R.string.role_vip
         ChatRole.Viewer -> null
     }
-
-/** Title bar text while not connected. */
-internal fun connectionStatus(connection: ConnectionState): Int =
-    if (connection == ConnectionState.WaitingForNetwork) R.string.status_waiting_network else R.string.status_connecting
 
 /** Next to a page's name: it has an unsent draft. */
 @Composable

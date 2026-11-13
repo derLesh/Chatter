@@ -47,7 +47,6 @@ import me.lesh.chatter.ui.MainViewModel
 import me.lesh.chatter.ui.replyPictureUrl
 import me.lesh.chatter.ui.sendLater
 import me.lesh.chatter.ui.channels.ChannelAvatar
-import me.lesh.chatter.ui.channels.connectionStatus
 import me.lesh.chatter.ui.chat.ChannelMark
 import me.lesh.chatter.ui.chat.ChatList
 import me.lesh.chatter.ui.chat.EmoteCardSheet
@@ -123,20 +122,12 @@ fun BubbleScreen(vm: MainViewModel, channel: String?) {
             ) {
                 ChannelAvatar(info[channel], loader, 28.dp)
                 Spacer(Modifier.width(10.dp))
-                Column(Modifier.weight(1f)) {
-                    Text(
-                        info[channel]?.displayName ?: channel,
-                        style = MaterialTheme.typography.titleSmall,
-                        maxLines = 1,
-                    )
-                    if (connection != ConnectionState.Connected) {
-                        Text(
-                            stringResource(connectionStatus(connection)),
-                            style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
-                    }
-                }
+                Text(
+                    info[channel]?.displayName ?: channel,
+                    style = MaterialTheme.typography.titleSmall,
+                    maxLines = 1,
+                    modifier = Modifier.weight(1f),
+                )
             }
             HorizontalDivider()
 
@@ -195,6 +186,8 @@ fun BubbleScreen(vm: MainViewModel, channel: String?) {
                     onEmoteClick = { emoteCard = it },
                     partners = partnerMarks,
                     onMentionsSeen = vm::onMentionsSeen,
+                    status = remember(channel) { vm.chatStatus(channel) }.collectAsStateWithLifecycle().value,
+                    unreachable = vm.unreachable.collectAsStateWithLifecycle().value,
                     jumpTo = jump?.takeIf { it.channel == channel }?.id,
                     onJumped = { found ->
                         vm.requestedMessage.value = null

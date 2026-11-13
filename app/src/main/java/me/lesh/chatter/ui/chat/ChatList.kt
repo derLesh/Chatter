@@ -2,6 +2,7 @@ package me.lesh.chatter.ui.chat
 
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.Crossfade
 import androidx.compose.animation.SizeTransform
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.Spring
@@ -35,10 +36,13 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.KeyboardArrowUp
+import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.ExtendedFloatingActionButton
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
+import androidx.compose.material3.LoadingIndicator
+import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -72,9 +76,10 @@ import me.lesh.chatter.R
 import me.lesh.chatter.ai.CatchUp
 import me.lesh.chatter.badges.Badge
 import me.lesh.chatter.chat.ChatItem
-import me.lesh.chatter.chat.isHistoryLoading
+import me.lesh.chatter.chat.ChatStatus
 import me.lesh.chatter.ui.BetaBadge
 import me.lesh.chatter.ui.channels.formatCount
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.filter
@@ -100,6 +105,9 @@ const val CHAT_LIST_TAG = "chat"
  * the newest message on screen, and [onMentionsSeen], which receives the visible mentions by id.
  * [onCatchUp] offers a summary of a long stretch of new messages and receives them, oldest first.
  *
+ * [status] shows a pill above the input while the connection comes back or the history loads;
+ * between those it names the outside services in [unreachable].
+ *
  * [jumpTo] is the id of a message to scroll to and flash; [onJumped] then says whether it was still
  * there, and the caller clears [jumpTo].
  *
@@ -123,6 +131,8 @@ fun ChatList(
     onSeen: ((ReadMark) -> Unit)? = null,
     onMentionsSeen: ((Set<String>) -> Unit)? = null,
     onCatchUp: ((List<ChatItem>) -> Unit)? = null,
+    status: ChatStatus? = null,
+    unreachable: List<String> = emptyList(),
     jumpTo: String? = null,
     onJumped: (found: Boolean) -> Unit = {},
     bottomInset: () -> Dp = { 0.dp },
@@ -195,12 +205,14 @@ fun ChatList(
     var flashing by remember { mutableStateOf<String?>(null) }
     val flash = remember { Animatable(0f) }
     val currentOnJumped by rememberUpdatedState(onJumped)
+    val currentStatus by rememberUpdatedState(status)
     LaunchedEffect(jumpTo) {
         val target = jumpTo ?: return@LaunchedEffect
         // Asks the buffer, not [items]: in the background the list stops updating, and a
         // notification's message arrived then. Right after a start the history may still bring it.
         val inBuffer = withTimeoutOrNull(JUMP_WAIT_MS) {
-            messages.first { list -> list.isNotEmpty() && list.none { it.isHistoryLoading() } }
+            snapshotFlow { currentStatus }.first { it != ChatStatus.LoadingHistory }
+            messages.first { it.isNotEmpty() }
         }?.any { it.id == target } == true
         // The rows are laid out from [items], so the index must come from there once it caught up.
         val found = if (inBuffer) withTimeoutOrNull(JUMP_WAIT_MS) {
@@ -275,12 +287,12 @@ fun ChatList(
                 }
             }
         }
-        if (unseen != null && lineIndex != null && !chipDone && !lineShown) {
-            Column(
-                horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.spacedBy(6.dp),
-                modifier = Modifier.align(Alignment.TopCenter).padding(top = 8.dp),
-            ) {
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(6.dp),
+            modifier = Modifier.align(Alignment.TopCenter).padding(top = 8.dp),
+        ) {
+            if (unseen != null && lineIndex != null && !chipDone && !lineShown) {
                 UnseenChip(
                     unseen = unseen,
                     onClick = {
@@ -300,21 +312,29 @@ fun ChatList(
                 }
             }
         }
-        NewMessagesButton(
-            visible = !follow,
-            count = newSinceLeft,
-            onClick = {
-                scope.launch {
-                    listState.scrollToItem(0)
-                    follow = true
-                    chipDone = true
-                }
-            },
+        // Above the input, where the eye is while writing.
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(8.dp),
             modifier = Modifier
                 .align(Alignment.BottomCenter)
                 .offset { IntOffset(0, -currentBottomInset().roundToPx()) }
                 .padding(bottom = 12.dp),
-        )
+        ) {
+            StatusPill(status, unreachable)
+            NewMessagesButton(
+                visible = !follow,
+                count = newSinceLeft,
+                onClick = {
+                    scope.launch {
+                        listState.scrollToItem(0)
+                        follow = true
+                        chipDone = true
+                    }
+                },
+                modifier = Modifier,
+            )
+        }
     }
 }
 
@@ -360,6 +380,7 @@ private fun NewMessagesButton(visible: Boolean, count: Int, onClick: () -> Unit,
 
 /** How long a jump waits for the history, which may bring its message. */
 private const val JUMP_WAIT_MS = 10_000L
+private const val STATUS_PILL_DELAY_MS = 1_000L
 private const val FLASH_IN_MS = 150
 private const val FLASH_OUT_MS = 1_200
 /** The highlight color at this alpha, stronger than a mention's own background. */
@@ -390,6 +411,100 @@ private fun UnseenLine() {
             style = MaterialTheme.typography.labelSmall,
             modifier = Modifier.padding(start = 6.dp),
         )
+    }
+}
+
+private sealed interface PillText {
+    data class Status(val status: ChatStatus) : PillText
+    /** Display names of outside services that did not answer. */
+    data class Unreachable(val services: List<String>) : PillText
+}
+
+/** A warning shows at once and with a warning icon; being busy waits a moment, see [StatusPill]. */
+private val PillText.isWarning: Boolean
+    get() = this is PillText.Unreachable || this == PillText.Status(ChatStatus.HistoryFailed)
+
+/**
+ * What the chat is busy with, or what went wrong. Being busy waits a moment before showing, so what
+ * is over at once does not flicker.
+ */
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
+@Composable
+private fun StatusPill(status: ChatStatus?, unreachable: List<String>) {
+    // The chat's own status goes first: while the connection is gone, every service fails with it.
+    val wanted = status?.let(PillText::Status) ?: unreachable.takeIf { it.isNotEmpty() }?.let(PillText::Unreachable)
+    var shown by remember { mutableStateOf<PillText?>(null) }
+    // Kept while the pill fades out, so its text does not vanish first.
+    var lastShown by remember { mutableStateOf<PillText>(PillText.Status(ChatStatus.Connecting)) }
+    LaunchedEffect(wanted) {
+        if (wanted != null && !wanted.isWarning && shown == null) delay(STATUS_PILL_DELAY_MS)
+        if (wanted != null) lastShown = wanted
+        shown = wanted
+    }
+    val warning = lastShown.isWarning
+    val colors = MaterialTheme.colorScheme
+    val motion = MaterialTheme.motionScheme
+    AnimatedVisibility(
+        visible = shown != null,
+        enter = fadeIn() + slideInVertically { it },
+        exit = fadeOut() + slideOutVertically { it },
+    ) {
+        Surface(
+            shape = CircleShape,
+            color = colors.secondaryContainer,
+            contentColor = colors.onSecondaryContainer,
+            shadowElevation = 3.dp,
+        ) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier.padding(start = 8.dp, end = 16.dp, top = 4.dp, bottom = 4.dp),
+            ) {
+                Crossfade(warning, animationSpec = motion.defaultEffectsSpec(), label = "pill icon") { warns ->
+                    if (warns) {
+                        // Only the icon in red: the pill sits where the user writes and should not alarm.
+                        Icon(
+                            Icons.Filled.Warning,
+                            contentDescription = null,
+                            tint = colors.error,
+                            modifier = Modifier.padding(4.dp).size(20.dp),
+                        )
+                    } else {
+                        LoadingIndicator(Modifier.size(28.dp), color = LocalContentColor.current)
+                    }
+                }
+                Spacer(Modifier.width(4.dp))
+                // The new text rises in as the old one leaves upwards, while the pill takes its width.
+                AnimatedContent(
+                    lastShown,
+                    transitionSpec = {
+                        (slideInVertically(motion.defaultSpatialSpec()) { it } + fadeIn(motion.defaultEffectsSpec()))
+                            .togetherWith(slideOutVertically(motion.defaultSpatialSpec()) { -it } + fadeOut(motion.fastEffectsSpec()))
+                            .using(SizeTransform { _, _ -> motion.defaultSpatialSpec() })
+                    },
+                    contentAlignment = Alignment.CenterStart,
+                    label = "chat status",
+                ) { text ->
+                    Text(
+                        when (text) {
+                            is PillText.Status -> stringResource(
+                                when (text.status) {
+                                    ChatStatus.Connecting -> R.string.chat_connecting
+                                    ChatStatus.Reconnecting -> R.string.reconnect_connecting
+                                    ChatStatus.WaitingForNetwork -> R.string.reconnect_waiting_network
+                                    ChatStatus.LoadingMissed -> R.string.reconnect_loading_history
+                                    ChatStatus.LoadingHistory -> R.string.chat_history_loading
+                                    ChatStatus.HistoryFailed -> R.string.chat_history_failed
+                                },
+                            )
+                            is PillText.Unreachable -> pluralStringResource(
+                                R.plurals.service_unreachable, text.services.size, text.services.joinToString(", "),
+                            )
+                        },
+                        style = MaterialTheme.typography.labelLarge,
+                    )
+                }
+            }
+        }
     }
 }
 
