@@ -238,8 +238,6 @@ jobs:
       - name: Build the APK and the Play bundle
         env:
           TWITCH_CLIENT_ID: ${{ secrets.TWITCH_CLIENT_ID }}
-          # Optional: without it, Imgur only offers itself once the user enters a key of their own.
-          IMGUR_CLIENT_ID: ${{ secrets.IMGUR_CLIENT_ID }}
         run: |
           ./gradlew :app:assembleRelease -Pdistribution=github -Punsigned
           # The bundle's R8 run writes a mapping of its own over this one.

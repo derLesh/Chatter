@@ -5,7 +5,6 @@ import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.contentOrNull
-import me.lesh.chatter.BuildConfig
 import me.lesh.chatter.R
 import me.lesh.chatter.net.AppJson
 
@@ -40,16 +39,19 @@ data class UploadHost(
 @Serializable
 data class CustomUploader(val id: String, val host: UploadHost)
 
-/** A key a site takes besides the picture, by the name the site gives it; both are optional. */
-enum class SiteKey(val label: String) {
+/** A key a site takes besides the picture, by the name the site gives it. */
+enum class SiteKey(val label: String, val required: Boolean) {
     /** catbox.moe's account hash: uploads then belong to the account and can be deleted again. */
-    CatboxUserhash("Userhash"),
+    CatboxUserhash("Userhash", required = false),
 
-    /** The Client-ID of an Imgur app. Imgur takes no upload without one; Chatter brings its own. */
-    ImgurClientId("Client-ID"),
+    /**
+     * The Client-ID of an Imgur app. Imgur takes no upload without one and registers no new apps
+     * since late 2025, so it is the user's own, from an app they already have.
+     */
+    ImgurClientId("Client-ID", required = true),
 }
 
-/** The sites Chatter knows itself. None needs an account; two take an optional key. */
+/** The sites Chatter knows itself; two take a key. [deletesAt] is empty where nothing can be deleted. */
 enum class PresetUploader(val id: String, val title: String, val favicon: Int, val key: SiteKey?, val deletesAt: String) {
     /** Known from Chatterino. Answers `{"link", "key", "delete"}`; the key deletes the picture again. */
     KappaLol("kappa.lol", "kappa.lol", R.drawable.uploader_kappa_lol, null, "https://kappa.lol/api/delete?key=…"),
@@ -58,10 +60,11 @@ enum class PresetUploader(val id: String, val title: String, val favicon: Int, v
     Catbox("catbox.moe", "catbox.moe", R.drawable.uploader_catbox, SiteKey.CatboxUserhash, "https://catbox.moe/user/api.php"),
 
     /** Answers `{"data": {"link", "deletehash"}}`; the deletehash and the Client-ID delete again. */
-    Imgur("imgur.com", "Imgur", R.drawable.uploader_imgur, SiteKey.ImgurClientId, "https://api.imgur.com/3/image/…");
+    Imgur("imgur.com", "Imgur", R.drawable.uploader_imgur, SiteKey.ImgurClientId, "https://api.imgur.com/3/image/…"),
 
-    /** Whether the site takes uploads without a key of the user's: Imgur only with Chatter's own Client-ID. */
-    val worksWithoutKey: Boolean get() = this != Imgur || BuildConfig.IMGUR_CLIENT_ID.isNotBlank()
+    /** Chatterino's first uploader. Answers with nothing but the link and cannot delete. */
+    Nuuls("nuuls.com", "nuuls.com", R.drawable.uploader_nuuls, null, "");
+
 
     companion object {
         fun byId(id: String): PresetUploader? = entries.firstOrNull { it.id == id }
@@ -81,6 +84,7 @@ data class UploadTarget(val id: String, val name: String, val favicon: Int?, val
         get() = when (preset) {
             PresetUploader.KappaLol, PresetUploader.Imgur -> true
             PresetUploader.Catbox -> key != null
+            PresetUploader.Nuuls -> false
             null -> host.deleteKey.isNotBlank()
         }
 
@@ -94,6 +98,7 @@ data class UploadTarget(val id: String, val name: String, val favicon: Int?, val
                 form = mapOf("reqtype" to "deletefiles", "userhash" to it, "files" to link.substringAfterLast('/')),
             )
         }
+        PresetUploader.Nuuls -> null
         PresetUploader.Imgur -> UploadAnswer.text(answer, "data.deletehash")?.let {
             Deletion("https://api.imgur.com/3/image/$it", method = "DELETE", headers = host.headers)
         }
@@ -104,25 +109,24 @@ data class UploadTarget(val id: String, val name: String, val favicon: Int?, val
     companion object {
         private const val CATBOX_API = "https://catbox.moe/user/api.php"
 
-        /**
-         * [preset] with the user's [key]. Imgur falls back to Chatter's own Client-ID
-         * ([builtInImgurId]); null when neither is there.
-         */
-        fun of(preset: PresetUploader, key: String?, builtInImgurId: String = BuildConfig.IMGUR_CLIENT_ID): UploadTarget? {
-            val own = key?.trim()?.takeIf { it.isNotEmpty() }
-            val set = if (preset == PresetUploader.Imgur) own ?: builtInImgurId.ifBlank { return null } else own
+        /** [preset] with the user's [key], or null while a key it requires is missing. */
+        fun of(preset: PresetUploader, key: String?): UploadTarget? {
+            val set = key?.trim()?.takeIf { it.isNotEmpty() }
+            if (preset.key?.required == true && set == null) return null
             val host = when (preset) {
                 PresetUploader.KappaLol -> UploadHost("https://kappa.lol/api/upload", "file", "link")
                 PresetUploader.Catbox -> UploadHost(
                     CATBOX_API, "fileToUpload", "",
                     extraFields = mapOf("reqtype" to "fileupload") + listOfNotNull(set?.let { "userhash" to it }),
                 )
+                PresetUploader.Nuuls -> UploadHost("https://i.nuuls.com/upload", "attachment", "")
                 PresetUploader.Imgur -> UploadHost(
                     "https://api.imgur.com/3/image", "image", "data.link", "data.deletehash",
+                    extraFields = mapOf("type" to "file"),
                     headers = mapOf("Authorization" to "Client-ID $set"),
                 )
             }
-            return UploadTarget(preset.id, preset.title, preset.favicon, host, preset, own)
+            return UploadTarget(preset.id, preset.title, preset.favicon, host, preset, set)
         }
 
         fun of(custom: CustomUploader): UploadTarget? =

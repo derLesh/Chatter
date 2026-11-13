@@ -35,13 +35,13 @@ class UploadAnswerTest {
         assertEquals(mapOf("reqtype" to "deletefiles", "userhash" to "hash123", "files" to "abc123.png"), deletion.form)
     }
 
-    /** Imgur needs a Client-ID: the user's own, else Chatter's; without either it is not offered. */
+    /** Imgur takes no upload without a Client-ID, and only the user's own: it is not offered without one. */
     @Test
-    fun imgurTakesTheUsersClientIdOrChattersOwn() {
-        assertNull(UploadTarget.of(PresetUploader.Imgur, null, builtInImgurId = ""))
-        assertEquals(mapOf("Authorization" to "Client-ID chatter"), UploadTarget.of(PresetUploader.Imgur, null, builtInImgurId = "chatter")!!.host.headers)
+    fun imgurNeedsTheUsersClientId() {
+        assertNull(UploadTarget.of(PresetUploader.Imgur, null))
+        assertNull(UploadTarget.of(PresetUploader.Imgur, " "))
 
-        val own = UploadTarget.of(PresetUploader.Imgur, "mine", builtInImgurId = "chatter")!!
+        val own = UploadTarget.of(PresetUploader.Imgur, "mine")!!
         assertEquals(mapOf("Authorization" to "Client-ID mine"), own.host.headers)
         val answer = """{"data":{"id":"x","link":"https://i.imgur.com/x.png","deletehash":"d3l"},"success":true,"status":200}"""
         assertEquals("https://i.imgur.com/x.png", UploadAnswer.link(answer, own.host.linkKey))

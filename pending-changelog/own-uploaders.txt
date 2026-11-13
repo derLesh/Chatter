@@ -1,1 +1,1 @@
-minor: Add your own image uploaders, and give Imgur or catbox.moe a key of your own
+minor: Upload to nuuls.com, to Imgur with your own Client-ID, or to uploaders you add yourself

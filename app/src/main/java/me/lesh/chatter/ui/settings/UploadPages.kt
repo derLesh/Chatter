@@ -25,7 +25,6 @@ import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -243,8 +242,8 @@ private fun PresetUploaderSheet(preset: PresetUploader, key: String, onSave: (St
                 R.string.uploader_info_key,
                 when {
                     siteKey == null -> stringResource(R.string.uploader_key_none)
-                    preset.worksWithoutKey -> stringResource(R.string.uploader_key_optional, siteKey.label)
-                    else -> stringResource(R.string.uploader_key_needed, siteKey.label)
+                    siteKey.required -> stringResource(R.string.uploader_key_needed, siteKey.label)
+                    else -> stringResource(R.string.uploader_key_optional, siteKey.label)
                 },
             )
         }
@@ -291,12 +290,20 @@ private fun CustomUploaderSheet(existing: CustomUploader?, onSave: (UploadHost) 
         headers = parsedHeader?.let { mapOf(it) }.orEmpty(),
     )
     FormSheet(
-        title = stringResource(if (existing == null) R.string.uploader_add else R.string.uploader_edit),
+        // Named like the sites Chatter knows, whose sheets carry their name.
+        title = existing?.host?.domain ?: stringResource(R.string.uploader_add),
         confirmLabel = stringResource(R.string.save),
         confirmEnabled = host.isValid && !headerWrong,
         onConfirm = { onSave(host) },
         onDismiss = onDismiss,
-    ) { finish ->
+        titleAction = onRemove?.let { remove ->
+            { finish ->
+                IconButton(onClick = { finish(remove) }) {
+                    Icon(Icons.Default.Delete, contentDescription = stringResource(R.string.uploader_remove), tint = MaterialTheme.colorScheme.error)
+                }
+            }
+        },
+    ) {
         item(key = "url") { UploaderField(R.string.uploader_url, R.string.uploader_url_hint, url, KeyboardType.Uri) { url = it } }
         item(key = "field") { UploaderField(R.string.uploader_field, R.string.uploader_field_hint, field) { field = it } }
         item(key = "link") { UploaderField(R.string.uploader_link, R.string.uploader_link_hint, link) { link = it } }
@@ -306,13 +313,6 @@ private fun CustomUploaderSheet(existing: CustomUploader?, onSave: (UploadHost) 
                 R.string.uploader_header, R.string.uploader_header_hint, header,
                 error = R.string.uploader_header_invalid.takeIf { headerWrong },
             ) { header = it }
-        }
-        if (onRemove != null) {
-            item(key = "remove") {
-                TextButton(onClick = { finish(onRemove) }, modifier = Modifier.padding(top = 8.dp)) {
-                    Text(stringResource(R.string.uploader_remove), color = MaterialTheme.colorScheme.error)
-                }
-            }
         }
     }
 }

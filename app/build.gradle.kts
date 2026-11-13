@@ -27,10 +27,6 @@ fun env(name: String): String? = providers.environmentVariable(name).orNull?.tak
 val twitchClientId: String = localProps.getProperty("twitch.clientId").orEmpty()
     .ifBlank { env("TWITCH_CLIENT_ID").orEmpty() }
 
-// Imgur takes uploads only with an app's Client-ID; without one, a user's own key is needed.
-val imgurClientId: String = localProps.getProperty("imgur.clientId").orEmpty()
-    .ifBlank { env("IMGUR_CLIENT_ID").orEmpty() }
-
 /**
  * `-Punsigned`: the release and nightly workflows build without a key and sign in a job of their
  * own, so no Gradle plugin or library ever sees it. Without it a release build is signed with the
@@ -112,7 +108,6 @@ android {
         // A nightly names the last release and its commit: "0.9.0-nightly+6d134cb".
         versionName = versionProps.getProperty("version") + (nightlyCommit?.let { "-nightly+$it" } ?: "")
         buildConfigField("String", "TWITCH_CLIENT_ID", "\"$twitchClientId\"")
-        buildConfigField("String", "IMGUR_CLIENT_ID", "\"$imgurClientId\"")
         buildConfigField("boolean", "ASSISTANT_ACCESS", "$assistantAccess")
         buildConfigField("boolean", "NIGHTLY", "$nightly")
         // Release, Nightly and the debug build can sit side by side, so the launcher tells them apart.

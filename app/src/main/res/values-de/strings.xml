@@ -399,7 +399,7 @@
     <string name="input_pick_picture">Bild senden</string>
     <string name="settings_group_send_pictures">Bilder senden</string>
     <string name="settings_uploader">Bild-Uploader</string>
-    <string name="settings_uploader_hint">Jeder mit dem Link sieht die Bilder.</string>
+    <string name="settings_uploader_hint">Standard für neue Bilder, beim Senden pro Bild änderbar. Jeder mit dem Link sieht sie.</string>
     <string name="settings_recent_uploads">Letzte Uploads</string>
     <string name="settings_recent_uploads_none">Noch keine</string>
     <string name="uploader_url">Adresse</string>
@@ -420,7 +420,6 @@
     <string name="settings_picture_button">Bild-Button</string>
     <string name="settings_picture_button_hint">Neben den Emotes. Bilder mit Chatter teilen geht immer</string>
     <string name="uploader_add">Uploader hinzufügen</string>
-    <string name="uploader_edit">Uploader bearbeiten</string>
     <string name="uploader_remove">Entfernen</string>
     <string name="uploader_about">Mehr zu %1$s</string>
     <string name="uploader_info_address">Hochladen an</string>

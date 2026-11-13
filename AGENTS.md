@@ -194,7 +194,6 @@ under the same names, each with its own key, and both environments only let `mas
 | `TWITCH_CLIENT_ID` | what `local.properties` holds on a dev machine | the release stops, rather than ship an APK that cannot log in |
 | `KEYSTORE_BASE64` | the keystore of that environment, as `base64 -w0 chatter-release.jks` | the release stops; only a `dry_run` signs with a throwaway key instead |
 | `KEYSTORE_PASSWORD`, `KEY_ALIAS`, `KEY_PASSWORD` | how to open that keystore | same |
-| `IMGUR_CLIENT_ID` | the Client-ID of Chatter's Imgur app, `imgur.clientId` in `local.properties` | Imgur only shows up once a user enters a Client-ID of their own |
 | `PLAY_SERVICE_ACCOUNT_JSON` | the service account allowed to release to Play, as a repository secret | only needed for a `play_track` other than `none`, which stops without it |
 
 ## The baseline profile
