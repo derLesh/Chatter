@@ -1,5 +1,8 @@
 package me.lesh.chatter.ui
 
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.PickVisualMediaRequest
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -533,7 +536,15 @@ private fun ChatInput(
         replyPictureUrl = if (settings.replyCard) replyPictureUrl(vm) else null,
         onCoveredHeight = onCoveredHeight,
         suggestionsOverChat = settings.suggestionsOverChat,
+        onPickPicture = pickPicture(vm).takeIf { settings.pictureButton },
     )
+}
+
+/** Opens Android's photo picker, which needs no storage permission; the pick opens the send screen. */
+@Composable
+private fun pickPicture(vm: MainViewModel): () -> Unit {
+    val picker = rememberLauncherForActivityResult(ActivityResultContracts.PickVisualMedia()) { uri -> uri?.let(vm::openPicture) }
+    return { picker.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)) }
 }
 
 /** The profile picture of the person the input answers, asked for once a reply starts. */

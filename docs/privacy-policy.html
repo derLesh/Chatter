@@ -44,7 +44,7 @@
 <p class="lang"><a href="#deutsch">Auf Deutsch lesen →</a></p>
 
 <h1>Chatter — Privacy Policy</h1>
-<p class="sub">Last updated: 12 November 2026</p>
+<p class="sub">Last updated: 13 November 2026</p>
 
 <p>Chatter is an independent Twitch chat client for Android with public source code. There is no
 account with Chatter, and no analytics, crash reporting or advertising in the app. The one exception
@@ -73,6 +73,12 @@ developer:</p>
   <li><strong>When Android last ended Chatter</strong> while it was listening for mentions, and
       the reason Android gives, so that the notification settings can tell you why mentions stopped.
       This, too, is not reported anywhere.</li>
+  <li><strong>The last ten pictures you uploaded</strong>: each one's link, a small preview, the
+      site, the time, and, where the site gives one, the link that deletes it again, so you can
+      copy or delete them under Settings → Links &amp; images. A picture you are about to send waits
+      in the app's cache until it is sent or you close the screen. None of it goes into a backup or
+      to a new phone, and the log never holds a link to delete with. The same goes for the upload
+      sites you set up and the keys you gave them.</li>
   <li><strong>What went wrong when Chatter last crashed</strong>: the error and where in the code it
       happened, the app version, the Android version and the phone model, for the last three
       crashes. Chatter never sends it. When you report a problem under Settings → About, it offers
@@ -168,6 +174,17 @@ Twitch access token except Twitch itself.</p>
         when you start a message with a sign like &ldquo;!&rdquo; or &ldquo;$&rdquo;. The answer is
         kept on the phone, so each bot is asked at most once a day for a channel. Only for a bot
         that is on under Settings &rarr; Typing &rarr; Bot commands.</td>
+  </tr>
+  <tr>
+    <td>Picture upload: kappa.lol, catbox.moe, Imgur, nuuls.com, or sites you set up</td>
+    <td><code>kappa.lol</code>, <code>catbox.moe</code>, <code>api.imgur.com</code>, <code>i.nuuls.com</code>, or the addresses under Settings &rarr; Links &amp; images &rarr; Image uploader</td>
+    <td>The picture you send, and nothing else, only when you tap Send on it; the site you picked
+        for it gets it. Unless you turn off &ldquo;Remove picture info&rdquo;, Chatter first takes out
+        what tells where, when and with what it was taken (EXIF with the location, XMP, IPTC,
+        comments); only the rotation stays. The site gets it with the key you gave that site, if any (catbox.moe's userhash, Imgur's
+        Client-ID, or a header for a site of your own). Anyone with the link can see the picture. Deleting it under Recent uploads asks
+        the site to delete it; for a site of your own, its deletion page opens in your browser. A
+        site of your own is never contacted before you send, not even for its icon.</td>
   </tr>
   <tr>
     <td>Chatter (the developer)</td>
@@ -272,7 +289,7 @@ Twitch Interactive, Inc.</p>
 <hr>
 
 <h1 id="deutsch">Chatter — Datenschutzerklärung</h1>
-<p class="sub">Zuletzt aktualisiert: 10. November 2026</p>
+<p class="sub">Zuletzt aktualisiert: 13. November 2026</p>
 
 <p>Chatter ist ein unabhängiger Twitch-Chat-Client für Android mit öffentlichem Quellcode. Es gibt
 kein Konto bei Chatter und in der App weder Analyse- noch Absturzberichte oder Werbung. Die einzige
@@ -299,6 +316,13 @@ Erklärung beschreibt, was auf dem Telefon bleibt und was es verlässt.</p>
   <li><strong>Wann Android Chatter zuletzt beendet hat</strong>, während es auf Erwähnungen gewartet
       hat, und den Grund, den Android nennt, damit die Benachrichtigungseinstellungen erklären können,
       warum keine Erwähnungen mehr kamen. Auch das wird nirgends gemeldet.</li>
+  <li><strong>Die letzten zehn Bilder, die du hochgeladen hast</strong>: jeweils der Link, eine kleine
+      Vorschau, die Seite, die Zeit und, wo die Seite einen liefert, der Link, der es wieder löscht,
+      damit du sie unter Einstellungen → Links &amp; Bilder kopieren oder löschen kannst. Ein Bild,
+      das du gleich senden willst, wartet im Cache der App, bis es gesendet ist oder du den
+      Bildschirm schließt. Nichts davon kommt in ein Backup oder auf ein neues Handy, und ein Link
+      zum Löschen steht nie im Log. Dasselbe gilt für die Upload-Seiten, die du einrichtest, und
+      die Schlüssel, die du ihnen gibst.</li>
   <li><strong>Was beim letzten Absturz von Chatter schiefging</strong>: der Fehler und wo im Code er
       auftrat, die App-Version, die Android-Version und das Telefonmodell, für die letzten drei
       Abstürze. Chatter sendet das nie. Beim Melden eines Problems unter Einstellungen → Über bietet
@@ -386,6 +410,19 @@ und außer Twitch selbst erhält kein Dritter das Twitch-Token.</p>
         bleibt auf dem Handy, jeder Bot wird für einen Kanal also höchstens einmal am Tag gefragt.
         Nur für einen Bot, der unter Einstellungen &rarr; Schreiben &rarr; Bot-Befehle
         eingeschaltet ist.</td>
+  </tr>
+  <tr>
+    <td>Bild-Upload: kappa.lol, catbox.moe, Imgur, nuuls.com oder eigene Seiten</td>
+    <td><code>kappa.lol</code>, <code>catbox.moe</code>, <code>api.imgur.com</code>, <code>i.nuuls.com</code> oder die Adressen unter Einstellungen &rarr; Links &amp; Bilder &rarr; Bild-Uploader</td>
+    <td>Das Bild, das du sendest, und sonst nichts, erst wenn du darauf auf Senden tippst; es geht
+        an die Seite, die du dafür gewählt hast. Solange „Bildinfos entfernen“ an ist, nimmt Chatter
+        vorher heraus, was sagt, wo, wann und womit es aufgenommen wurde (EXIF mit dem Ort, XMP,
+        IPTC, Kommentare); nur die Drehung bleibt. Die Seite bekommt es mit dem Schlüssel, den du ihr gegeben hast (der
+        Userhash von catbox.moe, die Client-ID von Imgur oder ein Header für eine eigene Seite).
+        Jeder mit dem Link kann das Bild
+        sehen. Löschen unter „Letzte Uploads“ bittet die Seite, es zu löschen; bei einer eigenen
+        Seite öffnet sich deren Löschseite im Browser. Eine eigene Seite wird vor dem Senden nie
+        angefragt, auch nicht für ihr Symbol.</td>
   </tr>
   <tr>
     <td>Chatter (die Entwicklung)</td>

@@ -33,7 +33,7 @@ import me.lesh.chatter.settings.Settings
 import me.lesh.chatter.ui.MainViewModel
 import me.lesh.chatter.ui.SettingsSubPage
 
-/** Linked images and GIFs in the chat, and how links are written. */
+/** Linked images and GIFs in the chat, how links are written, and where pictures sent go. */
 @Composable
 internal fun MediaPage(settings: Settings, vm: MainViewModel, open: (SettingsSubPage) -> Unit) {
     SettingsGroup {
@@ -66,6 +66,7 @@ internal fun MediaPage(settings: Settings, vm: MainViewModel, open: (SettingsSub
         }
         item(R.string.settings_full_links) { SwitchItem(R.string.settings_full_links, settings.fullLinks, vm::setFullLinks, R.string.settings_full_links_hint) }
     }
+    SettingsGroup(R.string.settings_group_send_pictures) { sendingPictures(settings, vm, open) }
 }
 
 /**

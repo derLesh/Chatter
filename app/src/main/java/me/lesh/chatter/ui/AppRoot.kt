@@ -19,8 +19,8 @@ import me.lesh.chatter.ui.changelog.UpdateNotesSheet
 import me.lesh.chatter.ui.inbox.InboxScreen
 import me.lesh.chatter.ui.onboarding.OnboardingScreen
 
-/** The screens after login: the chat and the two it opens over itself. */
-private enum class Screen { Chat, Inbox, Settings }
+/** The screens after login: the chat and those it opens over itself, deepest last for the slide's direction. */
+private enum class Screen { Chat, Inbox, Picture, Settings }
 
 @Composable
 fun AppRoot(vm: MainViewModel) {
@@ -47,6 +47,9 @@ fun AppRoot(vm: MainViewModel) {
         if (auth is AuthState.LoggedOut) showSettings = false
         if (auth !is AuthState.LoggedIn) showInbox = false
     }
+    // The send screen's way to its uploader settings; back from there returns to the picture.
+    val requestedSettings by vm.requestedSettingsPage.collectAsStateWithLifecycle()
+    LaunchedEffect(requestedSettings) { if (requestedSettings != null) showSettings = true }
     when (auth) {
         AuthState.Loading -> Box(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background))
         AuthState.LoggedOut -> LoginScreen(vm)
@@ -70,8 +73,11 @@ fun AppRoot(vm: MainViewModel) {
                 NotificationIntroScreen(onDone = vm::markNotificationIntroSeen)
                 return
             }
+            // A picture shared in shows over the chat and the inbox, below the settings it opens.
+            val picture = vm.picture.isOpen
             val screen = when {
                 showSettings -> Screen.Settings
+                picture -> Screen.Picture
                 showInbox -> Screen.Inbox
                 else -> Screen.Chat
             }
@@ -80,18 +86,30 @@ fun AppRoot(vm: MainViewModel) {
                 showInbox = false
                 vm.closeWhisper()
             }
+            val back: () -> Unit = when (screen) {
+                Screen.Settings -> if (picture) ({ showSettings = false }) else toChat
+                Screen.Picture -> ({ if (vm.picture.isBusy) vm.picture.cancel() else vm.picture.close() })
+                else -> toChat
+            }
             // The chat leaves composition while another screen covers it, and is only underneath
             // while one slides or is dragged away.
             rememberPredictiveTransition(
                 current = screen,
-                backTo = Screen.Chat.takeIf { screen != Screen.Chat },
-                onBack = toChat,
+                backTo = when {
+                    screen == Screen.Chat -> null
+                    screen == Screen.Settings && picture -> Screen.Picture
+                    screen == Screen.Settings && showInbox -> Screen.Inbox
+                    screen == Screen.Picture && showInbox -> Screen.Inbox
+                    else -> Screen.Chat
+                },
+                onBack = back,
                 label = "screen",
             ).AnimatedContent(
-                transitionSpec = { slideBetweenScreens(forward = targetState != Screen.Chat) },
+                transitionSpec = { slideBetweenScreens(forward = targetState.ordinal > initialState.ordinal) },
             ) { shown ->
                 when (shown) {
-                    Screen.Settings -> SettingsScreen(vm, onBack = toChat)
+                    Screen.Settings -> SettingsScreen(vm, onBack = back)
+                    Screen.Picture -> SendPictureScreen(vm)
                     Screen.Inbox -> InboxScreen(
                         vm,
                         onOpenMention = { mention ->

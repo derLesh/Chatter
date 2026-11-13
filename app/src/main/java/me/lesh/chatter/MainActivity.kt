@@ -1,6 +1,7 @@
 package me.lesh.chatter
 
 import android.content.Intent
+import android.net.Uri
 import android.graphics.Color
 import android.os.Bundle
 import androidx.activity.ComponentActivity
@@ -80,8 +81,8 @@ class MainActivity : ComponentActivity() {
     }
 
     /**
-     * Handles a channel from a mention or live notification, the inbox from a shortcut, or a login
-     * from the Chatter website.
+     * Handles a channel from a mention or live notification, the inbox from a shortcut, a login from
+     * the Chatter website, or a picture shared from another app.
      */
     private fun handleIntent(intent: Intent?) {
         intent ?: return
@@ -89,6 +90,10 @@ class MainActivity : ComponentActivity() {
         val fromRecents = intent.flags and Intent.FLAG_ACTIVITY_LAUNCHED_FROM_HISTORY != 0
         if (intent.action == Intent.ACTION_VIEW && !fromRecents) {
             LinkedToken.read(intent.dataString)?.let(vm::offerLinkedToken)
+        }
+        // Recents would bring back a picture that was sent or closed long ago.
+        if (intent.action == Intent.ACTION_SEND && intent.type?.startsWith("image/") == true && !fromRecents) {
+            intent.getParcelableExtra(Intent.EXTRA_STREAM, Uri::class.java)?.let(vm::openPicture)
         }
         val channel = intent.getStringExtra(EXTRA_CHANNEL)
         val message = intent.getStringExtra(EXTRA_MESSAGE)

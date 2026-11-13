@@ -17,7 +17,7 @@ import java.io.IOException
 class HttpLog(private val tag: String, private val level: AppLog.Level = AppLog.Level.Debug) : Interceptor {
     override fun intercept(chain: Interceptor.Chain): Response {
         val request = chain.request()
-        val what = "${request.method} ${AppLog.hidden(request.url.toString(), instead = shown(request.url))}"
+        val what = "${request.method} ${AppLog.hidden(full(request.url), instead = shown(request.url))}"
         val started = System.nanoTime()
         val response = try {
             chain.proceed(request)
@@ -44,6 +44,23 @@ class HttpLog(private val tag: String, private val level: AppLog.Level = AppLog.
     companion object {
         /** Twitch's and Chatter's own paths are endpoints; a user or channel is only ever in the query. */
         private val PATH_IS_ENDPOINT = setOf("api.twitch.tv", "api.lesh.me", "api.github.com")
+
+        /** Query values that are keys: kappa.lol's deletes the picture uploaded with it. */
+        private val SECRET_PARAMS = setOf("key")
+
+        /** Paths that end in a key: Imgur deletes a picture at /3/image/<deletehash>. */
+        private val SECRET_PATH_ENDS = mapOf("api.imgur.com" to listOf("3", "image"))
+
+        /** The whole link for the full log, with keys blanked. Internal for tests. */
+        internal fun full(url: HttpUrl): String {
+            val builder = url.newBuilder()
+            url.queryParameterNames.filter { it in SECRET_PARAMS }.forEach { builder.setQueryParameter(it, "…") }
+            val prefix = SECRET_PATH_ENDS[url.host]
+            if (prefix != null && url.pathSegments.size == prefix.size + 1 && url.pathSegments.take(prefix.size) == prefix) {
+                builder.setPathSegment(prefix.size, "…")
+            }
+            return builder.build().toString()
+        }
 
         /** Internal for tests. */
         internal fun shown(url: HttpUrl): String =

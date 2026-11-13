@@ -88,6 +88,9 @@ import me.lesh.chatter.settings.SettingsRepository
 import me.lesh.chatter.stats.StatsRepository
 import me.lesh.chatter.storage.StorageUsage
 import me.lesh.chatter.update.UpdateRepository
+import me.lesh.chatter.upload.ImageUploader
+import me.lesh.chatter.upload.UploadHistory
+import me.lesh.chatter.upload.UploaderStore
 import me.lesh.chatter.util.AppIconSwitcher
 import me.lesh.chatter.util.ChannelIcons
 import me.lesh.chatter.util.ChannelShortcuts
@@ -182,6 +185,10 @@ class AppContainer(
     val auth = AuthRepository(context.authStore, http)
     val helix = HelixApi(http) { auth.freshToken() }.also { auth.helix = it }
     val thirdParty = ThirdPartyApi(http)
+    /** The picture being sent sits in the cache; what was uploaded is listed in files, not backed up. */
+    val imageUploader = ImageUploader(http, context.contentResolver, context.cacheDir.resolve("picture"))
+    val uploadHistory = UploadHistory(context.filesDir.resolve("uploads"), scope)
+    val uploaders = UploaderStore(context.filesDir.resolve("uploads/uploaders.json"), scope)
     val botCommands = BotCommands(
         BotApi(http), BotListFiles(context.cacheDir.resolve("bot-commands")), scope,
         botsOn = { settings.settings.value.botCommands },

@@ -158,6 +158,10 @@ import kotlinx.coroutines.launch
  *
  * With [suggestionsOverChat] the suggestions take no room: they slide up above the input, over
  * the chat, so a chat that makes room for the input does not move while typing.
+ *
+ * With [onPickPicture] a button next to the emotes picks a picture to send. [attachedLength] is
+ * what the message gets on top of the typed text, like a picture's link: it counts towards
+ * Twitch's limit, and the message may go out without text.
  */
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
@@ -192,6 +196,8 @@ fun InputBar(
     replyPictureUrl: String? = null,
     onCoveredHeight: ((Int) -> Unit)? = null,
     suggestionsOverChat: Boolean = false,
+    onPickPicture: (() -> Unit)? = null,
+    attachedLength: Int = 0,
 ) {
     val stripe = buildStripe && BuildStripe.offered
     val choosing = sendChannels.size > 1 && sendChannel != null
@@ -217,18 +223,19 @@ fun InputBar(
             delay(250)
         }
     }
-    val length = remember(value.text) { SendLimits.length(value.text) }
+    val length = remember(value.text, attachedLength) { SendLimits.length(value.text) + attachedLength }
     val tooLong = length > SendLimits.MAX_LENGTH
-    val canSend = enabled && value.text.isNotBlank() && !tooLong && waitLeft == 0 && timeoutLeft == 0L
+    val canSend = enabled && (value.text.isNotBlank() || attachedLength > 0) && !tooLong && waitLeft == 0 && timeoutLeft == 0L
     // Slow mode and a timeout end, so a message can be planned for after them.
     val canPlan = sendLater?.button != null && enabled && value.text.isNotBlank() && !tooLong
     var planning by rememberSaveable { mutableStateOf(false) }
     if (planning) {
         SendLaterSheet(value.text.trim(), onPlan = { sendLater?.onPlan(it) }, onDismiss = { planning = false })
     }
-    val recentInInput = recentlySentButton == RecentlySentButton.InInput && value.text.isEmpty()
+    // With something attached the empty input is a message too, so Send stays.
+    val recentInInput = recentlySentButton == RecentlySentButton.InInput && value.text.isEmpty() && attachedLength == 0
     // Slow mode's countdown keeps the button: it is what the user waits for right after sending.
-    val recentOnSend = recentlySentButton == RecentlySentButton.ReplacesSend && value.text.isEmpty() && waitLeft == 0
+    val recentOnSend = recentlySentButton == RecentlySentButton.ReplacesSend && value.text.isEmpty() && waitLeft == 0 && attachedLength == 0
     val offersRecent = recentInInput || recentOnSend
     val scope = rememberCoroutineScope()
     // One panel at a time above the input, so the chat keeps its room.
@@ -305,6 +312,11 @@ fun InputBar(
             }
             IconButton(onClick = onEmotePicker, shapes = IconButtonDefaults.shapes(), enabled = enabled) {
                 Icon(Icons.Default.Face, contentDescription = stringResource(R.string.emotes))
+            }
+            if (onPickPicture != null) {
+                IconButton(onClick = onPickPicture, shapes = IconButtonDefaults.shapes(), enabled = enabled) {
+                    Icon(painterResource(R.drawable.ic_image), contentDescription = stringResource(R.string.input_pick_picture))
+                }
             }
         }
         val placeholder = @Composable {

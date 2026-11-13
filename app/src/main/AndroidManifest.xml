@@ -37,6 +37,13 @@
                 <category android:name="android.intent.category.BROWSABLE" />
                 <data android:scheme="chatter" android:host="login" />
             </intent-filter>
+            <!-- One picture shared from another app opens the send screen. Several at once are not
+                 offered: a message carries one link. -->
+            <intent-filter>
+                <action android:name="android.intent.action.SEND" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:mimeType="image/*" />
+            </intent-filter>
         </activity>
 
         <!--

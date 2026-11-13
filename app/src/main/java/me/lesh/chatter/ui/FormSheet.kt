@@ -27,6 +27,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.platform.LocalFocusManager
@@ -50,6 +51,7 @@ import me.lesh.chatter.R
  * that: logging out the last account would otherwise take the screen away mid-slide.
  * [focusOnOpen] takes the focus and the keyboard once the sheet is open. [content] gets `finish`,
  * which slides the sheet away and then runs its action, like the confirm button does.
+ * [titleAction] sits right of the title, such as a button that deletes what the sheet edits.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -62,6 +64,7 @@ fun FormSheet(
     destructive: Boolean = false,
     text: String? = null,
     focusOnOpen: FocusRequester? = null,
+    titleAction: (@Composable (finish: (() -> Unit) -> Unit) -> Unit)? = null,
     content: LazyListScope.(finish: (() -> Unit) -> Unit) -> Unit = {},
 ) {
     // Full height right away: a half-open sheet would put the buttons under the keyboard.
@@ -124,12 +127,15 @@ fun FormSheet(
                 modifier = Modifier.weight(1f, fill = false),
             ) {
                 item(key = "title") {
-                    Text(
-                        title,
-                        style = MaterialTheme.typography.headlineSmall,
-                        fontWeight = FontWeight.Bold,
-                        modifier = Modifier.semantics { heading() },
-                    )
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text(
+                            title,
+                            style = MaterialTheme.typography.headlineSmall,
+                            fontWeight = FontWeight.Bold,
+                            modifier = Modifier.weight(1f).semantics { heading() },
+                        )
+                        titleAction?.invoke(close)
+                    }
                 }
                 text?.let {
                     item(key = "text") {
