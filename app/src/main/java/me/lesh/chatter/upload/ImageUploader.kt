@@ -13,6 +13,7 @@ import okhttp3.MultipartBody
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.RequestBody
+import okhttp3.RequestBody.Companion.toRequestBody
 import okio.BufferedSink
 import okio.source
 import java.io.File
@@ -74,27 +75,34 @@ class ImageUploader(http: OkHttpClient, private val resolver: ContentResolver, p
         dir.listFiles()?.filter { it != open?.file }?.forEach { it.delete() }
     }
 
-    /** Uploads [picture] to [uploader]; [onProgress] gets the share sent so far, 0 to 1. */
-    suspend fun upload(picture: Picture, uploader: Uploader, custom: UploadHost, onProgress: (Float) -> Unit): UploadedPicture {
-        val host = uploader.host(custom)
+    /** Uploads [picture] to [target]; [onProgress] gets the share sent so far, 0 to 1. */
+    suspend fun upload(picture: Picture, target: UploadTarget, onProgress: (Float) -> Unit): UploadedPicture {
+        val host = target.host
         val extension = MimeTypeMap.getSingleton().getExtensionFromMimeType(picture.type) ?: "png"
         val body = MultipartBody.Builder().setType(MultipartBody.FORM).apply {
             host.extraFields.forEach { (name, value) -> addFormDataPart(name, value) }
             addFormDataPart(host.field, "image.$extension", ProgressBody(picture.file, picture.type.toMediaType(), onProgress))
         }.build()
         // A site of the user's own is named only in the full log; it may say whose it is.
-        val site = if (uploader == Uploader.Custom) AppLog.hidden(uploader.name(custom), "own site") else uploader.title
+        val site = if (target.isCustom) AppLog.hidden(target.name, "own site") else target.name
         AppLog.i(TAG, "Uploading a picture of ${picture.file.length() / 1024} KB to $site")
-        val answer = http.fetch(Request.Builder().url(host.url).post(body).build())
+        val request = Request.Builder().url(host.url).post(body).apply { host.headers.forEach { (name, value) -> header(name, value) } }
+        val answer = http.fetch(request.build())
         val link = UploadAnswer.link(answer, host.linkKey) ?: throw NoLinkException()
         AppLog.i(TAG, "Uploaded to $site")
-        return UploadedPicture(link, uploader.deletion(answer, host))
+        return UploadedPicture(link, target.deletion(answer, link))
     }
 
     /** Asks the site to delete a picture; true once it says it did. Never for [Deletion.inBrowser]. */
     suspend fun delete(deletion: Deletion): Boolean {
         check(!deletion.inBrowser) { "A deletion page is opened in the browser" }
-        return UploadAnswer.deleted(http.fetch(Request.Builder().url(deletion.url).build()))
+        val form = deletion.form.takeIf { it.isNotEmpty() }?.let { fields ->
+            MultipartBody.Builder().setType(MultipartBody.FORM).apply { fields.forEach { (name, value) -> addFormDataPart(name, value) } }.build()
+        }
+        val request = Request.Builder().url(deletion.url)
+            .method(deletion.method, form ?: if (deletion.method == "GET") null else EMPTY_BODY)
+            .apply { deletion.headers.forEach { (name, value) -> header(name, value) } }
+        return UploadAnswer.deleted(http.fetch(request.build()))
     }
 
     /** Sends [file] and counts what has gone out, for the pill on the send screen. */
@@ -123,5 +131,6 @@ class ImageUploader(http: OkHttpClient, private val resolver: ContentResolver, p
         /** 20 MB, what the common sites take. */
         const val MAX_BYTES = 20 * 1024 * 1024
         private const val SEGMENT = 64 * 1024L
+        private val EMPTY_BODY = ByteArray(0).toRequestBody()
     }
 }

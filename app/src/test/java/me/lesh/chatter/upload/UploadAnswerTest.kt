@@ -13,34 +13,59 @@ class UploadAnswerTest {
 
     @Test
     fun kappaLolAnswersWithJsonAndAKeyToDeleteWith() {
-        val host = Uploader.KappaLol.host(UploadHost.EMPTY_CUSTOM)
-        assertEquals("https://kappa.lol/AbCdE", UploadAnswer.link(kappaAnswer, host.linkKey))
-        assertEquals(Deletion("https://kappa.lol/api/delete?key=s3cr3t", inBrowser = false), Uploader.KappaLol.deletion(kappaAnswer, host))
+        val kappa = UploadTarget.of(PresetUploader.KappaLol, null)!!
+        assertEquals("https://kappa.lol/AbCdE", UploadAnswer.link(kappaAnswer, kappa.host.linkKey))
+        assertEquals(Deletion("https://kappa.lol/api/delete?key=s3cr3t"), kappa.deletion(kappaAnswer, "https://kappa.lol/AbCdE"))
     }
 
-    /** catbox.moe answers with nothing but the link, and cannot delete without an account. */
+    /** catbox.moe answers with nothing but the link, and deletes only for the account's userhash. */
     @Test
-    fun catboxAnswersWithThePlainLink() {
-        val host = Uploader.Catbox.host(UploadHost.EMPTY_CUSTOM)
+    fun catboxDeletesOnlyWithAUserhash() {
         val answer = "https://files.catbox.moe/abc123.png\n"
-        assertEquals("https://files.catbox.moe/abc123.png", UploadAnswer.link(answer, host.linkKey))
-        assertNull(Uploader.Catbox.deletion(answer, host))
-        assertEquals(mapOf("reqtype" to "fileupload"), host.extraFields)
+        val anonymous = UploadTarget.of(PresetUploader.Catbox, null)!!
+        assertEquals("https://files.catbox.moe/abc123.png", UploadAnswer.link(answer, anonymous.host.linkKey))
+        assertEquals(mapOf("reqtype" to "fileupload"), anonymous.host.extraFields)
+        assertFalse(anonymous.canDelete)
+        assertNull(anonymous.deletion(answer, "https://files.catbox.moe/abc123.png"))
+
+        val account = UploadTarget.of(PresetUploader.Catbox, " hash123 ")!!
+        assertEquals("hash123", account.host.extraFields["userhash"])
+        val deletion = account.deletion(answer, "https://files.catbox.moe/abc123.png")!!
+        assertEquals("POST", deletion.method)
+        assertEquals(mapOf("reqtype" to "deletefiles", "userhash" to "hash123", "files" to "abc123.png"), deletion.form)
+    }
+
+    /** Imgur needs a Client-ID: the user's own, else Chatter's; without either it is not offered. */
+    @Test
+    fun imgurTakesTheUsersClientIdOrChattersOwn() {
+        assertNull(UploadTarget.of(PresetUploader.Imgur, null, builtInImgurId = ""))
+        assertEquals(mapOf("Authorization" to "Client-ID chatter"), UploadTarget.of(PresetUploader.Imgur, null, builtInImgurId = "chatter")!!.host.headers)
+
+        val own = UploadTarget.of(PresetUploader.Imgur, "mine", builtInImgurId = "chatter")!!
+        assertEquals(mapOf("Authorization" to "Client-ID mine"), own.host.headers)
+        val answer = """{"data":{"id":"x","link":"https://i.imgur.com/x.png","deletehash":"d3l"},"success":true,"status":200}"""
+        assertEquals("https://i.imgur.com/x.png", UploadAnswer.link(answer, own.host.linkKey))
+        assertEquals(
+            Deletion("https://api.imgur.com/3/image/d3l", method = "DELETE", headers = mapOf("Authorization" to "Client-ID mine")),
+            own.deletion(answer, "https://i.imgur.com/x.png"),
+        )
     }
 
     @Test
-    fun aNestedFieldIsFoundByItsPath() {
+    fun aCustomSiteDeletesThroughItsPageInTheBrowser() {
         val answer = """{"success":true,"data":{"link":"https://i.example.com/a.png","delete":"https://i.example.com/d/xyz"}}"""
-        val custom = UploadHost("https://i.example.com/upload", "image", "data.link", deleteKey = "data.delete")
-        assertEquals("https://i.example.com/a.png", UploadAnswer.link(answer, custom.linkKey))
-        // A site of the user's own: only its own page knows what deleting there takes.
-        assertEquals(Deletion("https://i.example.com/d/xyz", inBrowser = true), Uploader.Custom.deletion(answer, custom))
+        val host = UploadHost("https://i.example.com/upload", "image", "data.link", deleteKey = "data.delete")
+        val custom = UploadTarget.of(CustomUploader("1", host))!!
+        assertEquals("i.example.com", custom.name)
+        assertEquals("https://i.example.com/a.png", UploadAnswer.link(answer, host.linkKey))
+        assertEquals(Deletion("https://i.example.com/d/xyz", inBrowser = true), custom.deletion(answer, "https://i.example.com/a.png"))
     }
 
     @Test
     fun aCustomSiteWithoutDeleteFieldCannotDelete() {
-        val custom = UploadHost("https://i.example.com/upload", "image", "link")
-        assertNull(Uploader.Custom.deletion("""{"link":"https://i.example.com/a.png","delete":"https://x"}""", custom))
+        val custom = UploadTarget.of(CustomUploader("1", UploadHost("https://i.example.com/upload", "image", "link")))!!
+        assertFalse(custom.canDelete)
+        assertNull(custom.deletion("""{"link":"https://i.example.com/a.png","delete":"https://x"}""", "https://i.example.com/a.png"))
     }
 
     @Test
@@ -56,20 +81,33 @@ class UploadAnswerTest {
     fun aDeletionSaysWhetherItWorked() {
         assertTrue(UploadAnswer.deleted("""{"success":true}"""))
         assertFalse(UploadAnswer.deleted("""{"success":false}"""))
+        assertTrue(UploadAnswer.deleted("Files successfully deleted."))
         assertFalse(UploadAnswer.deleted("Not found"))
     }
 
     @Test
     fun aCustomSiteNeedsAnHttpsAddressAndAField() {
-        assertFalse(UploadHost.EMPTY_CUSTOM.isValid)
+        assertFalse(UploadHost.EMPTY.isValid)
         assertFalse(UploadHost("http://i.example.com/upload", "file", "link").isValid)
         assertFalse(UploadHost("https://i.example.com/upload", " ", "link").isValid)
         assertTrue(UploadHost("https://i.example.com/upload", "file", "").isValid)
+        assertNull(UploadTarget.of(CustomUploader("1", UploadHost.EMPTY)))
     }
 
     @Test
-    fun aCustomSiteIsNamedByItsAddress() {
-        assertEquals("i.example.com", Uploader.Custom.name(UploadHost("https://i.example.com/api/upload", "file", "link")))
-        assertEquals("kappa.lol", Uploader.KappaLol.name(UploadHost.EMPTY_CUSTOM))
+    fun aHeaderIsReadAsNameAndValue() {
+        assertEquals("Authorization" to "Client-ID abc", UploadAnswer.header("Authorization: Client-ID abc"))
+        assertNull(UploadAnswer.header("no colon"))
+        assertNull(UploadAnswer.header("Two words: x"))
+        assertNull(UploadAnswer.header("Name:"))
+    }
+
+    @Test
+    fun theUsersSetupListsPresetsAndTheirOwnSites() {
+        val own = CustomUploader("mine", UploadHost("https://i.example.com/upload", "file", "link"))
+        val setup = UploaderSetup(custom = listOf(own), keys = mapOf("catbox.moe" to "hash"))
+        assertEquals("i.example.com", setup.target("mine")?.name)
+        assertTrue(setup.target("catbox.moe")!!.canDelete)
+        assertNull(setup.target("gone"))
     }
 }

@@ -19,9 +19,12 @@ import me.lesh.chatter.R
 import me.lesh.chatter.upload.Picture
 import me.lesh.chatter.upload.PictureTooLargeException
 import me.lesh.chatter.upload.RecentUpload
+import me.lesh.chatter.upload.CustomUploader
+import me.lesh.chatter.upload.PresetUploader
 import me.lesh.chatter.upload.UploadHost
+import me.lesh.chatter.upload.UploadTarget
 import me.lesh.chatter.upload.UploadedPicture
-import me.lesh.chatter.upload.Uploader
+import java.util.UUID
 import me.lesh.chatter.ai.ModelFailure
 import me.lesh.chatter.ai.ModelTrouble
 import me.lesh.chatter.auth.AuthState
@@ -270,15 +273,15 @@ class MainViewModel(private val c: AppContainer, savedState: SavedStateHandle) :
     internal val picture = PictureSender(
         scope = viewModelScope,
         outbox = object : PictureOutbox {
-            override suspend fun upload(picture: Picture, uploader: Uploader, onProgress: (Float) -> Unit) = try {
-                c.imageUploader.upload(picture, uploader, settings.value.customUploadHost, onProgress)
+            override suspend fun upload(picture: Picture, target: UploadTarget, onProgress: (Float) -> Unit) = try {
+                c.imageUploader.upload(picture, target, onProgress)
             } catch (e: IOException) {
                 AppLog.w("Upload", "The upload failed", e)
                 throw e
             }
 
-            override suspend fun remember(picture: Picture, uploaded: UploadedPicture, uploader: Uploader) {
-                c.uploadHistory.add(picture, uploaded, uploader)
+            override suspend fun remember(picture: Picture, uploaded: UploadedPicture, target: UploadTarget) {
+                c.uploadHistory.add(picture, uploaded, target.name)
             }
 
             override suspend fun send(channel: String, text: String) = c.chat.send(channel, text, replyTo = null)
@@ -394,7 +397,7 @@ class MainViewModel(private val c: AppContainer, savedState: SavedStateHandle) :
         // with the window.
         savedState.get<Bundle>(DRAFTS_KEY)?.getString(DRAFTS_KEY)?.let(composer::restore)
         savedState.setSavedStateProvider(DRAFTS_KEY) { Bundle().apply { putString(DRAFTS_KEY, composer.save()) } }
-        savedState.get<Bundle>(PICTURE_KEY)?.getString(PICTURE_KEY)?.let(picture::restore)
+        savedState.get<Bundle>(PICTURE_KEY)?.getString(PICTURE_KEY)?.let { picture.restore(it, c.uploaders.setup.value::target) }
         savedState.setSavedStateProvider(PICTURE_KEY) { Bundle().apply { putString(PICTURE_KEY, picture.save()) } }
         viewModelScope.launch { c.imageUploader.discardAllBut(picture.picture) }
         viewModelScope.launch {
@@ -1314,8 +1317,33 @@ class MainViewModel(private val c: AppContainer, savedState: SavedStateHandle) :
     fun setHighlightColor(v: Int) = saveSetting { setHighlightColor(v) }
     fun setSmoothScrolling(v: Boolean) = saveSetting { setSmoothScrolling(v) }
     fun setInlineImages(v: Boolean) = saveSetting { setInlineImages(v) }
-    fun setUploader(v: Uploader) = saveSetting { setUploader(v) }
-    fun setCustomUploadHost(v: UploadHost) = saveSetting { setCustomUploadHost(v) }
+    fun setUploader(v: UploadTarget) = saveSetting { setUploader(v.id) }
+    fun setPictureButton(v: Boolean) = saveSetting { setPictureButton(v) }
+
+    /** The upload sites, the user's own ones and the keys given to the preset ones. */
+    val uploaderSetup = c.uploaders.setup
+
+    /** Gives a preset site the user's key, or takes it back with a blank one. */
+    fun setUploaderKey(preset: PresetUploader, key: String) = viewModelScope.launch {
+        c.uploaders.update { setup ->
+            val trimmed = key.trim()
+            setup.copy(keys = if (trimmed.isEmpty()) setup.keys - preset.id else setup.keys + (preset.id to trimmed))
+        }
+    }
+
+    /** Adds a site of the user's own, or replaces the one with the same id; returns its id. */
+    fun saveCustomUploader(id: String?, host: UploadHost): String {
+        val saved = CustomUploader(id ?: UUID.randomUUID().toString(), host)
+        viewModelScope.launch {
+            c.uploaders.update { setup -> setup.copy(custom = setup.custom.filterNot { it.id == saved.id } + saved) }
+        }
+        return saved.id
+    }
+
+    fun removeCustomUploader(id: String) = viewModelScope.launch {
+        c.uploaders.update { setup -> setup.copy(custom = setup.custom.filterNot { it.id == id }) }
+        if (settings.value.uploader == id) c.settings.setUploader(PresetUploader.KappaLol.id)
+    }
 
     /**
      * Opens the send screen with [uri], shared from another app or picked in the input. The picture
@@ -1336,10 +1364,10 @@ class MainViewModel(private val c: AppContainer, savedState: SavedStateHandle) :
     /** The channel the input writes to, else the first one; null before any is open. */
     private fun pictureChannel(): String? = sendChannel?.takeIf { it in channels.value } ?: channels.value.firstOrNull()
 
-    /** The site from the settings; kappa.lol while a site of the user's own is not set up. */
-    private fun defaultUploader(): Uploader {
-        val s = settings.value
-        return if (s.uploader == Uploader.Custom && !s.customUploadHost.isValid) Uploader.KappaLol else s.uploader
+    /** The site from the settings; the first one there is when it is gone or lacks its key. */
+    private fun defaultUploader(): UploadTarget? {
+        val setup = c.uploaders.setup.value
+        return setup.target(settings.value.uploader) ?: setup.targets.firstOrNull()
     }
 
     /** Whether the channel list was read, so an empty one means no channel is open. */

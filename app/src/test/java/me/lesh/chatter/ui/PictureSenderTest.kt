@@ -10,7 +10,8 @@ import me.lesh.chatter.net.HttpException
 import me.lesh.chatter.upload.Deletion
 import me.lesh.chatter.upload.Picture
 import me.lesh.chatter.upload.UploadedPicture
-import me.lesh.chatter.upload.Uploader
+import me.lesh.chatter.upload.PresetUploader
+import me.lesh.chatter.upload.UploadTarget
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
@@ -33,10 +34,10 @@ class PictureSenderTest {
         val reported = mutableListOf<SendResult>()
         val discarded = mutableListOf<Picture>()
 
-        override suspend fun upload(picture: Picture, uploader: Uploader, onProgress: (Float) -> Unit): UploadedPicture =
+        override suspend fun upload(picture: Picture, target: UploadTarget, onProgress: (Float) -> Unit): UploadedPicture =
             CompletableDeferred<UploadedPicture>().also(uploads::addLast).await()
 
-        override suspend fun remember(picture: Picture, uploaded: UploadedPicture, uploader: Uploader) {
+        override suspend fun remember(picture: Picture, uploaded: UploadedPicture, target: UploadTarget) {
             remembered += uploaded
         }
 
@@ -52,13 +53,16 @@ class PictureSenderTest {
         }
     }
 
+    private val kappa = UploadTarget.of(PresetUploader.KappaLol, null)!!
+    private val catbox = UploadTarget.of(PresetUploader.Catbox, null)!!
+
     private val scope = TestScope()
     private val outbox = ControlledOutbox()
     private val sentTo = mutableListOf<String>()
     private val sender = PictureSender(scope, outbox) { sentTo += it }
 
     private fun openAndType(text: String = "look at this") {
-        sender.open(picture, "forsen", Uploader.KappaLol)
+        sender.open(picture, "forsen", kappa)
         sender.text = TextFieldValue(text)
     }
 
@@ -125,7 +129,7 @@ class PictureSenderTest {
         assertTrue(outbox.remembered.isEmpty())
 
         // Another site may be tried; then Send uploads anew.
-        sender.selectUploader(Uploader.Catbox)
+        sender.selectUploader(catbox)
         assertEquals(PictureStep.Ready, sender.step)
         sender.send()
         scope.runCurrent()
@@ -156,23 +160,23 @@ class PictureSenderTest {
         scope.runCurrent()
         outbox.sends.removeFirst().second.complete(SendResult.RateLimited)
         scope.runCurrent()
-        sender.selectUploader(Uploader.Catbox)
-        assertEquals(Uploader.KappaLol, sender.uploader)
+        sender.selectUploader(catbox)
+        assertEquals(kappa, sender.uploader)
     }
 
     @Test
     fun anOpenPictureComesBackAfterTheAppWasEnded() {
         val file = File.createTempFile("picture", ".png").apply { deleteOnExit() }
-        sender.open(Picture(file, "image/png"), "xqc", Uploader.Catbox)
+        sender.open(Picture(file, "image/png"), "xqc", catbox)
         sender.text = TextFieldValue("hi")
         val saved = sender.save()
 
         val again = PictureSender(scope, ControlledOutbox()) {}
-        again.restore(saved!!)
+        again.restore(saved!!) { id -> catbox.takeIf { it.id == id } }
         assertEquals(file, again.picture?.file)
         assertEquals("hi", again.text.text)
         assertEquals("xqc", again.channel)
-        assertEquals(Uploader.Catbox, again.uploader)
+        assertEquals(catbox, again.uploader)
         assertNull(again.uploaded)
     }
 

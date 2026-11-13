@@ -48,11 +48,18 @@ class HttpLog(private val tag: String, private val level: AppLog.Level = AppLog.
         /** Query values that are keys: kappa.lol's deletes the picture uploaded with it. */
         private val SECRET_PARAMS = setOf("key")
 
-        /** The whole link for the full log, with [SECRET_PARAMS] blanked. Internal for tests. */
+        /** Paths that end in a key: Imgur deletes a picture at /3/image/<deletehash>. */
+        private val SECRET_PATH_ENDS = mapOf("api.imgur.com" to listOf("3", "image"))
+
+        /** The whole link for the full log, with keys blanked. Internal for tests. */
         internal fun full(url: HttpUrl): String {
-            val secret = url.queryParameterNames.filter { it in SECRET_PARAMS }
-            if (secret.isEmpty()) return url.toString()
-            return url.newBuilder().apply { secret.forEach { setQueryParameter(it, "…") } }.build().toString()
+            val builder = url.newBuilder()
+            url.queryParameterNames.filter { it in SECRET_PARAMS }.forEach { builder.setQueryParameter(it, "…") }
+            val prefix = SECRET_PATH_ENDS[url.host]
+            if (prefix != null && url.pathSegments.size == prefix.size + 1 && url.pathSegments.take(prefix.size) == prefix) {
+                builder.setPathSegment(prefix.size, "…")
+            }
+            return builder.build().toString()
         }
 
         /** Internal for tests. */

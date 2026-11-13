@@ -73,6 +73,9 @@ internal fun TypingPage(settings: Settings, vm: MainViewModel, open: (SettingsSu
         item(R.string.settings_chat_modes_button) {
             SwitchItem(R.string.settings_chat_modes_button, settings.chatModesButton, vm::setChatModesButton, R.string.settings_chat_modes_button_hint)
         }
+        item(R.string.settings_picture_button) {
+            SwitchItem(R.string.settings_picture_button, settings.pictureButton, vm::setPictureButton, R.string.settings_picture_button_hint)
+        }
         item(R.string.settings_reply_card) {
             BetaSwitchItem(R.string.settings_reply_card, settings.replyCard, vm::setReplyCard, R.string.settings_reply_card_hint)
         }
@@ -116,6 +119,8 @@ private fun InputPreview(settings: Settings, vm: MainViewModel) {
             chatModes = modes.takeIf { settings.chatModesButton },
             onChatModes = { modes = it },
             buildStripe = settings.buildStripe,
+            // Shown, so the switch shows what it does; a tap here picks nothing.
+            onPickPicture = {}.takeIf { settings.pictureButton },
         )
     }
 }

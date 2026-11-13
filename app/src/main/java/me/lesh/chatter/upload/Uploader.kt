@@ -5,14 +5,15 @@ import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.contentOrNull
+import me.lesh.chatter.BuildConfig
 import me.lesh.chatter.R
 import me.lesh.chatter.net.AppJson
 
 /**
  * A site set up the way Chatterino sets one up: a form POST to [url] with the picture in [field].
  * [linkKey] and [deleteKey] are fields of the JSON answer, "data.link" for a nested one; an empty
- * [linkKey] means the answer is only the link, as catbox.moe sends it. [extraFields] go along with
- * every upload.
+ * [linkKey] means the answer is only the link, as catbox.moe sends it. [extraFields] and [headers]
+ * go along with every upload; a header carries an API key.
  */
 @Serializable
 data class UploadHost(
@@ -21,55 +22,126 @@ data class UploadHost(
     val linkKey: String,
     val deleteKey: String = "",
     val extraFields: Map<String, String> = emptyMap(),
+    val headers: Map<String, String> = emptyMap(),
 ) {
     val isValid: Boolean
         get() = url.startsWith(HTTPS) && url.length > HTTPS.length && this.field.isNotBlank()
 
+    /** The site's name: its address without "https://" and path. */
+    val domain: String get() = url.removePrefix(HTTPS).substringBefore('/')
+
     companion object {
         private const val HTTPS = "https://"
-        val EMPTY_CUSTOM = UploadHost(HTTPS, "file", "link")
+        val EMPTY = UploadHost(HTTPS, "file", "link")
     }
 }
 
-/** Where pictures can go. The sites are ones that need no account. */
+/** A site the user set up, by an [id] of its own so the settings can name it. */
 @Serializable
-enum class Uploader(val title: String, val favicon: Int?) {
+data class CustomUploader(val id: String, val host: UploadHost)
+
+/** A key a site takes besides the picture, by the name the site gives it; both are optional. */
+enum class SiteKey(val label: String) {
+    /** catbox.moe's account hash: uploads then belong to the account and can be deleted again. */
+    CatboxUserhash("Userhash"),
+
+    /** The Client-ID of an Imgur app. Imgur takes no upload without one; Chatter brings its own. */
+    ImgurClientId("Client-ID"),
+}
+
+/** The sites Chatter knows itself. None needs an account; two take an optional key. */
+enum class PresetUploader(val id: String, val title: String, val favicon: Int, val key: SiteKey?, val deletesAt: String) {
     /** Known from Chatterino. Answers `{"link", "key", "delete"}`; the key deletes the picture again. */
-    KappaLol("kappa.lol", R.drawable.uploader_kappa_lol),
+    KappaLol("kappa.lol", "kappa.lol", R.drawable.uploader_kappa_lol, null, "https://kappa.lol/api/delete?key=…"),
 
-    /** Answers with nothing but the link, and cannot delete what was uploaded without an account. */
-    Catbox("catbox.moe", R.drawable.uploader_catbox),
+    /** Answers with nothing but the link. Deleting needs the account's userhash. */
+    Catbox("catbox.moe", "catbox.moe", R.drawable.uploader_catbox, SiteKey.CatboxUserhash, "https://catbox.moe/user/api.php"),
 
-    /** The site set under Settings; its favicon is never loaded, so it learns nothing before a send. */
-    Custom("", null);
+    /** Answers `{"data": {"link", "deletehash"}}`; the deletehash and the Client-ID delete again. */
+    Imgur("imgur.com", "Imgur", R.drawable.uploader_imgur, SiteKey.ImgurClientId, "https://api.imgur.com/3/image/…");
 
-    /** How to upload to this site, [custom] for [Custom]. */
-    fun host(custom: UploadHost): UploadHost = when (this) {
-        KappaLol -> UploadHost("https://kappa.lol/api/upload", "file", "link")
-        Catbox -> UploadHost("https://catbox.moe/user/api.php", "fileToUpload", "", extraFields = mapOf("reqtype" to "fileupload"))
-        Custom -> custom
+    /** Whether the site takes uploads without a key of the user's: Imgur only with Chatter's own Client-ID. */
+    val worksWithoutKey: Boolean get() = this != Imgur || BuildConfig.IMGUR_CLIENT_ID.isNotBlank()
+
+    companion object {
+        fun byId(id: String): PresetUploader? = entries.firstOrNull { it.id == id }
     }
-
-    /** How a picture uploaded here is deleted, read from the site's [answer]. */
-    fun deletion(answer: String, host: UploadHost): Deletion? = when (this) {
-        KappaLol -> UploadAnswer.text(answer, "key")?.let { Deletion("https://kappa.lol/api/delete?key=$it", inBrowser = false) }
-        Catbox -> null
-        Custom -> host.deleteKey.takeIf { it.isNotBlank() }
-            ?.let { UploadAnswer.link(answer, it) }
-            ?.let { Deletion(it, inBrowser = true) }
-    }
-
-    /** The name shown for this site: for [Custom] the address it uploads to. */
-    fun name(custom: UploadHost): String =
-        if (this == Custom) custom.url.removePrefix("https://").substringBefore('/') else title
 }
 
 /**
- * How to delete an uploaded picture. A site of Chatter's own is asked directly; for a site the user
- * set up, its deletion page opens in the browser, since only the site knows what that page wants.
+ * One place a picture can go right now: a preset with its key, or a site of the user's own.
+ * [favicon] is null for the user's own sites, whose icons are never loaded, so a site learns
+ * nothing before a picture is sent there.
+ */
+data class UploadTarget(val id: String, val name: String, val favicon: Int?, val host: UploadHost, private val preset: PresetUploader?, private val key: String?) {
+    val isCustom: Boolean get() = preset == null
+
+    /** Whether a picture uploaded here can be deleted from the list of uploads. */
+    val canDelete: Boolean
+        get() = when (preset) {
+            PresetUploader.KappaLol, PresetUploader.Imgur -> true
+            PresetUploader.Catbox -> key != null
+            null -> host.deleteKey.isNotBlank()
+        }
+
+    /** How a picture uploaded here is deleted, read from the site's [answer] for [link]. */
+    fun deletion(answer: String, link: String): Deletion? = when (preset) {
+        PresetUploader.KappaLol -> UploadAnswer.text(answer, "key")?.let { Deletion("https://kappa.lol/api/delete?key=$it") }
+        PresetUploader.Catbox -> key?.let {
+            Deletion(
+                CATBOX_API,
+                method = "POST",
+                form = mapOf("reqtype" to "deletefiles", "userhash" to it, "files" to link.substringAfterLast('/')),
+            )
+        }
+        PresetUploader.Imgur -> UploadAnswer.text(answer, "data.deletehash")?.let {
+            Deletion("https://api.imgur.com/3/image/$it", method = "DELETE", headers = host.headers)
+        }
+        // Only the site knows what its deletion page wants, so it opens in the browser.
+        null -> host.deleteKey.takeIf { it.isNotBlank() }?.let { UploadAnswer.link(answer, it) }?.let { Deletion(it, inBrowser = true) }
+    }
+
+    companion object {
+        private const val CATBOX_API = "https://catbox.moe/user/api.php"
+
+        /**
+         * [preset] with the user's [key]. Imgur falls back to Chatter's own Client-ID
+         * ([builtInImgurId]); null when neither is there.
+         */
+        fun of(preset: PresetUploader, key: String?, builtInImgurId: String = BuildConfig.IMGUR_CLIENT_ID): UploadTarget? {
+            val own = key?.trim()?.takeIf { it.isNotEmpty() }
+            val set = if (preset == PresetUploader.Imgur) own ?: builtInImgurId.ifBlank { return null } else own
+            val host = when (preset) {
+                PresetUploader.KappaLol -> UploadHost("https://kappa.lol/api/upload", "file", "link")
+                PresetUploader.Catbox -> UploadHost(
+                    CATBOX_API, "fileToUpload", "",
+                    extraFields = mapOf("reqtype" to "fileupload") + listOfNotNull(set?.let { "userhash" to it }),
+                )
+                PresetUploader.Imgur -> UploadHost(
+                    "https://api.imgur.com/3/image", "image", "data.link", "data.deletehash",
+                    headers = mapOf("Authorization" to "Client-ID $set"),
+                )
+            }
+            return UploadTarget(preset.id, preset.title, preset.favicon, host, preset, own)
+        }
+
+        fun of(custom: CustomUploader): UploadTarget? =
+            custom.host.takeIf { it.isValid }?.let { UploadTarget(custom.id, it.domain, null, it, null, null) }
+    }
+}
+
+/**
+ * How to delete an uploaded picture: a request to the site, or for a site the user set up its
+ * deletion page, opened in the browser. It may hold the site's key, so it never goes into the log.
  */
 @Serializable
-data class Deletion(val url: String, val inBrowser: Boolean)
+data class Deletion(
+    val url: String,
+    val method: String = "GET",
+    val form: Map<String, String> = emptyMap(),
+    val headers: Map<String, String> = emptyMap(),
+    val inBrowser: Boolean = false,
+)
 
 /** A picture on a site: its [link] for the chat, and how to delete it again if the site allows. */
 data class UploadedPicture(val link: String, val deletion: Deletion?)
@@ -89,8 +161,20 @@ object UploadAnswer {
         return (element as? JsonPrimitive)?.takeIf { it.isString }?.contentOrNull?.trim()?.takeIf { it.isNotEmpty() }
     }
 
-    /** Whether a deletion answered with success; kappa.lol says `{"success": true}`. */
-    fun deleted(body: String): Boolean =
-        runCatching { (AppJson.parseToJsonElement(body) as? JsonObject)?.get("success") }
-            .getOrNull()?.let { (it as? JsonPrimitive)?.contentOrNull == "true" } ?: false
+    /**
+     * Whether a deletion the site answered without an error worked: a JSON answer says so in
+     * `success` (kappa.lol, Imgur), catbox.moe answers in words.
+     */
+    fun deleted(body: String): Boolean {
+        val json = runCatching { AppJson.parseToJsonElement(body) as? JsonObject }.getOrNull()
+        if (json != null) return (json["success"] as? JsonPrimitive)?.contentOrNull == "true"
+        return body.contains("deleted", ignoreCase = true)
+    }
+
+    /** "Authorization: Client-ID abc" as a header, or null when it is not one. */
+    fun header(line: String): Pair<String, String>? {
+        val name = line.substringBefore(':', "").trim()
+        val value = line.substringAfter(':', "").trim()
+        return if (name.isEmpty() || value.isEmpty() || name.any { it.isWhitespace() }) null else name to value
+    }
 }

@@ -4,6 +4,7 @@ import android.content.ClipData
 import android.content.Intent
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -13,14 +14,18 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.outlined.Info
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.ListItem
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -52,18 +57,22 @@ import me.lesh.chatter.ui.FormSheet
 import me.lesh.chatter.ui.MainViewModel
 import me.lesh.chatter.ui.SettingsSubPage
 import me.lesh.chatter.ui.UploaderIcon
-import me.lesh.chatter.ui.uploaderTitle
 import me.lesh.chatter.upload.RecentUpload
 import me.lesh.chatter.upload.UploadHost
-import me.lesh.chatter.upload.Uploader
+import me.lesh.chatter.upload.CustomUploader
+import me.lesh.chatter.upload.PresetUploader
+import me.lesh.chatter.upload.UploadAnswer
+import me.lesh.chatter.upload.UploadTarget
 
 /** The rows under "Sending pictures" on the Links & images page. */
 internal fun GroupScope.sendingPictures(settings: Settings, vm: MainViewModel, open: (SettingsSubPage) -> Unit) {
     item(R.string.settings_uploader) {
+        val setup by vm.uploaderSetup.collectAsStateWithLifecycle()
+        val chosen = setup.target(settings.uploader) ?: setup.targets.firstOrNull()
         ListItem(
-            leadingContent = { Leading { UploaderIcon(settings.uploader, settings.customUploadHost, 32.dp) } },
+            leadingContent = { Leading { UploaderIcon(chosen, 32.dp) } },
             headlineContent = { Text(stringResource(R.string.settings_uploader)) },
-            supportingContent = { Text(uploaderTitle(settings.uploader, settings.customUploadHost)) },
+            supportingContent = { Text(chosen?.name.orEmpty()) },
             trailingContent = { NavChevron() },
             colors = transparentItem(),
             modifier = Modifier.tileClickable { open(SettingsSubPage.ImageUploader) },
@@ -114,9 +123,18 @@ private fun Preview(upload: RecentUpload, vm: MainViewModel, sizeDp: Int) {
     )
 }
 
-/** Where pictures go: kappa.lol, catbox.moe, or a site set up here like in Chatterino. */
+/**
+ * Where pictures go: the sites Chatter knows and any number of the user's own. Each row has an
+ * info button for what the site does with a picture and, where it takes one, its key.
+ */
 @Composable
 internal fun ImageUploaderPage(settings: Settings, vm: MainViewModel) {
+    val setup by vm.uploaderSetup.collectAsStateWithLifecycle()
+    val chosen = (setup.target(settings.uploader) ?: setup.targets.firstOrNull())?.id
+    var aboutPreset by rememberSaveable { mutableStateOf<PresetUploader?>(null) }
+    // The id of the site being edited; "" for a new one.
+    var editing by rememberSaveable { mutableStateOf<String?>(null) }
+
     Text(
         stringResource(R.string.settings_uploader_hint),
         style = MaterialTheme.typography.bodyMedium,
@@ -124,45 +142,179 @@ internal fun ImageUploaderPage(settings: Settings, vm: MainViewModel) {
         modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp),
     )
     SettingsGroup {
-        Uploader.entries.forEach { uploader ->
+        PresetUploader.entries.forEach { preset ->
             item {
-                ListItem(
-                    leadingContent = {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            RadioButton(selected = settings.uploader == uploader, onClick = { vm.setUploader(uploader) })
-                            UploaderIcon(uploader, settings.customUploadHost, 28.dp)
-                        }
-                    },
-                    headlineContent = { Text(uploaderTitle(uploader, settings.customUploadHost), maxLines = 1) },
-                    colors = transparentItem(),
-                    modifier = Modifier.tileClickable { vm.setUploader(uploader) },
+                val target = UploadTarget.of(preset, setup.keys[preset.id])
+                UploaderRow(
+                    target = target,
+                    favicon = preset.favicon,
+                    name = preset.title,
+                    selected = chosen == preset.id,
+                    // Imgur without any Client-ID: its sheet is where one is entered.
+                    onSelect = { if (target != null) vm.setUploader(target) else aboutPreset = preset },
+                    onInfo = { aboutPreset = preset },
+                )
+            }
+        }
+        setup.custom.forEach { custom ->
+            item {
+                val target = UploadTarget.of(custom)
+                UploaderRow(
+                    target = target,
+                    favicon = null,
+                    name = custom.host.domain,
+                    selected = chosen == custom.id,
+                    onSelect = { if (target != null) vm.setUploader(target) else editing = custom.id },
+                    onInfo = { editing = custom.id },
                 )
             }
         }
     }
-    if (settings.uploader == Uploader.Custom) CustomUploaderFields(settings.customUploadHost, vm::setCustomUploadHost)
+    OutlinedButton(onClick = { editing = "" }, modifier = Modifier.fillMaxWidth()) {
+        Icon(Icons.Default.Add, contentDescription = null)
+        Spacer(Modifier.width(8.dp))
+        Text(stringResource(R.string.uploader_add))
+    }
+
+    aboutPreset?.let { preset ->
+        PresetUploaderSheet(preset, setup.keys[preset.id].orEmpty(), onSave = { vm.setUploaderKey(preset, it) }, onDismiss = { aboutPreset = null })
+    }
+    editing?.let { id ->
+        val existing = setup.custom.firstOrNull { it.id == id }
+        CustomUploaderSheet(
+            existing = existing,
+            onSave = { host ->
+                val saved = CustomUploader(vm.saveCustomUploader(existing?.id, host), host)
+                // A new site is what the user wants to try; an edited one keeps the choice as it was.
+                if (existing == null) UploadTarget.of(saved)?.let(vm::setUploader)
+            },
+            onRemove = existing?.let { { vm.removeCustomUploader(it.id) } },
+            onDismiss = { editing = null },
+        )
+    }
 }
 
-/** The four fields of a site of the user's own, saved as they are typed. */
 @Composable
-private fun CustomUploaderFields(saved: UploadHost, onChange: (UploadHost) -> Unit) {
-    var host by remember { mutableStateOf(saved) }
-    val change = { next: UploadHost ->
-        host = next
-        onChange(next)
-    }
-    Text(
-        stringResource(R.string.uploader_custom),
-        style = MaterialTheme.typography.titleSmall,
-        color = MaterialTheme.colorScheme.primary,
-        modifier = Modifier.padding(start = 16.dp, top = 8.dp),
+private fun UploaderRow(target: UploadTarget?, favicon: Int?, name: String, selected: Boolean, onSelect: () -> Unit, onInfo: () -> Unit) {
+    ListItem(
+        leadingContent = {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                RadioButton(selected = selected, onClick = onSelect)
+                UploaderIcon(favicon, name, 28.dp)
+            }
+        },
+        headlineContent = { Text(name, maxLines = 1, overflow = TextOverflow.Ellipsis) },
+        trailingContent = {
+            IconButton(onClick = onInfo) {
+                Icon(Icons.Outlined.Info, contentDescription = stringResource(R.string.uploader_about, name))
+            }
+        },
+        colors = transparentItem(),
+        modifier = Modifier.tileClickable(onClick = onSelect),
     )
-    UploaderField(R.string.uploader_url, R.string.uploader_url_hint, host.url, KeyboardType.Uri, isError = !host.isValid && host.url.length > "https://".length) {
-        change(host.copy(url = it.trim()))
+}
+
+/** What a site Chatter knows does with a picture, and the field for its key if it takes one. */
+@Composable
+private fun PresetUploaderSheet(preset: PresetUploader, key: String, onSave: (String) -> Unit, onDismiss: () -> Unit) {
+    var entered by rememberSaveable { mutableStateOf(key) }
+    val target = UploadTarget.of(preset, entered)
+    val siteKey = preset.key
+    FormSheet(
+        title = preset.title,
+        confirmLabel = stringResource(if (siteKey != null) R.string.save else R.string.ok),
+        onConfirm = { if (siteKey != null) onSave(entered) },
+        onDismiss = onDismiss,
+    ) {
+        // Asked with a stand-in key, so the address shows before a needed key is entered.
+        UploadTarget.of(preset, "key")?.let { item(key = "address") { InfoRow(R.string.uploader_info_address, it.host.url) } }
+        item(key = "delete") {
+            InfoRow(
+                R.string.uploader_info_delete,
+                when {
+                    target?.canDelete == true -> stringResource(R.string.uploader_delete_possible, preset.deletesAt)
+                    siteKey != null -> stringResource(R.string.uploader_delete_with_key, siteKey.label)
+                    else -> stringResource(R.string.uploader_delete_none)
+                },
+            )
+        }
+        item(key = "key") {
+            InfoRow(
+                R.string.uploader_info_key,
+                when {
+                    siteKey == null -> stringResource(R.string.uploader_key_none)
+                    preset.worksWithoutKey -> stringResource(R.string.uploader_key_optional, siteKey.label)
+                    else -> stringResource(R.string.uploader_key_needed, siteKey.label)
+                },
+            )
+        }
+        if (siteKey != null) {
+            item(key = "field") {
+                OutlinedTextField(
+                    value = entered,
+                    onValueChange = { entered = it },
+                    label = { Text(siteKey.label) },
+                    supportingText = { Text(stringResource(R.string.uploader_key_local)) },
+                    singleLine = true,
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Ascii, autoCorrectEnabled = false),
+                    modifier = Modifier.fillMaxWidth().padding(top = 16.dp),
+                )
+            }
+        }
     }
-    UploaderField(R.string.uploader_field, R.string.uploader_field_hint, host.field) { change(host.copy(field = it.trim())) }
-    UploaderField(R.string.uploader_link, R.string.uploader_link_hint, host.linkKey) { change(host.copy(linkKey = it.trim())) }
-    UploaderField(R.string.uploader_delete, R.string.uploader_delete_hint, host.deleteKey) { change(host.copy(deleteKey = it.trim())) }
+}
+
+@Composable
+private fun InfoRow(label: Int, value: String) {
+    Column(Modifier.padding(top = 12.dp)) {
+        Text(stringResource(label), style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary)
+        Text(value, style = MaterialTheme.typography.bodyMedium)
+    }
+}
+
+/**
+ * A site of the user's own, set up like Chatterino's: address, form field, where the answer has
+ * the link and the deletion link, and a header for an API key. [onRemove] is there when editing.
+ */
+@Composable
+private fun CustomUploaderSheet(existing: CustomUploader?, onSave: (UploadHost) -> Unit, onRemove: (() -> Unit)?, onDismiss: () -> Unit) {
+    val start = existing?.host ?: UploadHost.EMPTY
+    var url by rememberSaveable { mutableStateOf(start.url) }
+    var field by rememberSaveable { mutableStateOf(start.field) }
+    var link by rememberSaveable { mutableStateOf(start.linkKey) }
+    var delete by rememberSaveable { mutableStateOf(start.deleteKey) }
+    var header by rememberSaveable { mutableStateOf(start.headers.entries.firstOrNull()?.let { "${it.key}: ${it.value}" }.orEmpty()) }
+    val parsedHeader = UploadAnswer.header(header)
+    val headerWrong = header.isNotBlank() && parsedHeader == null
+    val host = UploadHost(
+        url = url.trim(), field = field.trim(), linkKey = link.trim(), deleteKey = delete.trim(),
+        headers = parsedHeader?.let { mapOf(it) }.orEmpty(),
+    )
+    FormSheet(
+        title = stringResource(if (existing == null) R.string.uploader_add else R.string.uploader_edit),
+        confirmLabel = stringResource(R.string.save),
+        confirmEnabled = host.isValid && !headerWrong,
+        onConfirm = { onSave(host) },
+        onDismiss = onDismiss,
+    ) { finish ->
+        item(key = "url") { UploaderField(R.string.uploader_url, R.string.uploader_url_hint, url, KeyboardType.Uri) { url = it } }
+        item(key = "field") { UploaderField(R.string.uploader_field, R.string.uploader_field_hint, field) { field = it } }
+        item(key = "link") { UploaderField(R.string.uploader_link, R.string.uploader_link_hint, link) { link = it } }
+        item(key = "delete") { UploaderField(R.string.uploader_delete, R.string.uploader_delete_hint, delete) { delete = it } }
+        item(key = "header") {
+            UploaderField(
+                R.string.uploader_header, R.string.uploader_header_hint, header,
+                error = R.string.uploader_header_invalid.takeIf { headerWrong },
+            ) { header = it }
+        }
+        if (onRemove != null) {
+            item(key = "remove") {
+                TextButton(onClick = { finish(onRemove) }, modifier = Modifier.padding(top = 8.dp)) {
+                    Text(stringResource(R.string.uploader_remove), color = MaterialTheme.colorScheme.error)
+                }
+            }
+        }
+    }
 }
 
 @Composable
@@ -171,7 +323,7 @@ private fun UploaderField(
     hint: Int,
     value: String,
     keyboard: KeyboardType = KeyboardType.Ascii,
-    isError: Boolean = false,
+    error: Int? = null,
     onChange: (String) -> Unit,
 ) {
     OutlinedTextField(
@@ -179,11 +331,11 @@ private fun UploaderField(
         onValueChange = onChange,
         label = { Text(stringResource(label)) },
         placeholder = { Text(stringResource(hint)) },
-        supportingText = if (isError) ({ Text(stringResource(R.string.uploader_url_hint)) }) else null,
-        isError = isError,
+        supportingText = error?.let { { Text(stringResource(it)) } },
+        isError = error != null,
         singleLine = true,
         keyboardOptions = KeyboardOptions(keyboardType = keyboard, autoCorrectEnabled = false),
-        modifier = Modifier.fillMaxWidth(),
+        modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
     )
 }
 

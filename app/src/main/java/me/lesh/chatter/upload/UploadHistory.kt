@@ -17,12 +17,12 @@ import me.lesh.chatter.net.AppJson
 import java.io.File
 import java.util.UUID
 
-/** One picture the user uploaded, newest first in [UploadHistory.uploads]. [at] is in ms. */
+/** One picture the user uploaded, newest first in [UploadHistory.uploads]. [at] is in ms; [site] its name. */
 @Serializable
 data class RecentUpload(
     val id: String,
     val link: String,
-    val uploader: Uploader,
+    val site: String,
     val deletion: Deletion? = null,
     val at: Long,
 )
@@ -55,11 +55,11 @@ class UploadHistory(
     fun preview(upload: RecentUpload): File = File(dir, "${upload.id}.jpg")
 
     /** Keeps [uploaded], with a preview of [picture], and lets the oldest go past [MAX]. */
-    suspend fun add(picture: Picture, uploaded: UploadedPicture, uploader: Uploader): RecentUpload = withContext(io) {
+    suspend fun add(picture: Picture, uploaded: UploadedPicture, site: String): RecentUpload = withContext(io) {
         lock.withLock {
             loadOnce()
             dir.mkdirs()
-            val upload = RecentUpload(UUID.randomUUID().toString(), uploaded.link, uploader, uploaded.deletion, now())
+            val upload = RecentUpload(UUID.randomUUID().toString(), uploaded.link, site, uploaded.deletion, now())
             // Without a preview the entry still holds the link, which is what matters.
             runCatching { makePreview(picture, preview(upload)) }
             val all = listOf(upload) + _uploads.value

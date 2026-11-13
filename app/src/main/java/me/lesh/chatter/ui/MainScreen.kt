@@ -536,7 +536,7 @@ private fun ChatInput(
         replyPictureUrl = if (settings.replyCard) replyPictureUrl(vm) else null,
         onCoveredHeight = onCoveredHeight,
         suggestionsOverChat = settings.suggestionsOverChat,
-        onPickPicture = pickPicture(vm),
+        onPickPicture = pickPicture(vm).takeIf { settings.pictureButton },
     )
 }
 

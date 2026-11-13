@@ -35,7 +35,7 @@ class UploadHistoryTest {
     fun theNewestComesFirstAndOnlyTenStay() = runTest {
         val dir = folder.newFolder()
         val history = history(dir, this)
-        repeat(12) { history.add(picture, uploaded(it), Uploader.KappaLol) }
+        repeat(12) { history.add(picture, uploaded(it), "kappa.lol") }
 
         val links = history.uploads.value.map { it.link }
         assertEquals((11 downTo 2).map { "https://kappa.lol/$it" }, links)
@@ -46,22 +46,22 @@ class UploadHistoryTest {
     @Test
     fun theListIsReadAgainAfterARestart() = runTest {
         val dir = folder.newFolder()
-        history(dir, this).add(picture, uploaded(1), Uploader.Catbox)
+        history(dir, this).add(picture, uploaded(1), "catbox.moe")
 
         val again = history(dir, this)
         testScheduler.advanceUntilIdle()
         assertEquals(listOf("https://kappa.lol/1"), again.uploads.value.map { it.link })
-        assertEquals(Uploader.Catbox, again.uploads.value.single().uploader)
+        assertEquals("catbox.moe", again.uploads.value.single().site)
     }
 
     /** An upload right after the start must not push out the ones from before. */
     @Test
     fun anUploadBeforeTheListIsReadKeepsTheOlderOnes() = runTest {
         val dir = folder.newFolder()
-        history(dir, this).add(picture, uploaded(1), Uploader.KappaLol)
+        history(dir, this).add(picture, uploaded(1), "kappa.lol")
 
         val again = history(dir, this)
-        again.add(picture, uploaded(2), Uploader.KappaLol)
+        again.add(picture, uploaded(2), "kappa.lol")
         assertEquals(listOf("https://kappa.lol/2", "https://kappa.lol/1"), again.uploads.value.map { it.link })
     }
 
@@ -69,7 +69,7 @@ class UploadHistoryTest {
     fun removingTakesThePreviewAlong() = runTest {
         val dir = folder.newFolder()
         val history = history(dir, this)
-        val upload = history.add(picture, uploaded(1), Uploader.KappaLol)
+        val upload = history.add(picture, uploaded(1), "kappa.lol")
         assertTrue(history.preview(upload).exists())
 
         history.remove(upload.id)
@@ -81,7 +81,7 @@ class UploadHistoryTest {
     fun aPreviewThatCannotBeMadeLeavesTheLink() = runTest {
         val dir = folder.newFolder()
         val history = UploadHistory(dir, this, makePreview = { _, _ -> error("not a picture") }, io = StandardTestDispatcher(testScheduler))
-        history.add(picture, uploaded(1), Uploader.KappaLol)
+        history.add(picture, uploaded(1), "kappa.lol")
         assertEquals(1, history.uploads.value.size)
     }
 }

@@ -1,0 +1,1 @@
+minor: Add your own image uploaders, and give Imgur or catbox.moe a key of your own

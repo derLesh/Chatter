@@ -16,6 +16,8 @@ class HttpLogTest {
     fun theFullLinkLeavesOutKeys() {
         assertEquals("https://kappa.lol/api/delete?key=%E2%80%A6", HttpLog.full("https://kappa.lol/api/delete?key=s3cr3t".toHttpUrl()))
         assertEquals("https://7tv.io/v3/users?id=1", HttpLog.full("https://7tv.io/v3/users?id=1".toHttpUrl()))
+        assertEquals("https://api.imgur.com/3/image/%E2%80%A6", HttpLog.full("https://api.imgur.com/3/image/d3l3t3h4sh".toHttpUrl()))
+        assertEquals("https://api.imgur.com/3/image", HttpLog.full("https://api.imgur.com/3/image".toHttpUrl()))
     }
 
     @Test

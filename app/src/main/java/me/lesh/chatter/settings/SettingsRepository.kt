@@ -13,10 +13,8 @@ import me.lesh.chatter.chat.Bot
 import me.lesh.chatter.chat.ImageLinks
 import me.lesh.chatter.chat.PostSite
 import me.lesh.chatter.emotes.EmoteProvider
-import me.lesh.chatter.net.AppJson
 import me.lesh.chatter.ui.theme.NameColorPalette
-import me.lesh.chatter.upload.UploadHost
-import me.lesh.chatter.upload.Uploader
+import me.lesh.chatter.upload.PresetUploader
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.SharingStarted
@@ -157,6 +155,8 @@ data class Settings(
     val recentlySentButton: RecentlySentButton = RecentlySentButton.ReplacesSend,
     /** A shield next to the emotes, in channels the user moderates, to change the chat modes. */
     val chatModesButton: Boolean = true,
+    /** A button next to the emotes that picks a picture to send; sharing one to Chatter always works. */
+    val pictureButton: Boolean = true,
     /** Beta: who a reply answers as a card with their picture, instead of a one-line strip. */
     val replyCard: Boolean = true,
     /** A strip of the build's icon at the left of the input; only offered in Dev and Nightly. */
@@ -169,10 +169,8 @@ data class Settings(
     val inlineImages: Boolean = true,
     /** The only hosts linked images are loaded from. */
     val imageHosts: List<String> = ImageLinks.DEFAULT_HOSTS,
-    /** Where pictures go unless the send screen picks another site for one. */
-    val uploader: Uploader = Uploader.KappaLol,
-    /** The site [Uploader.Custom] uploads to. */
-    val customUploadHost: UploadHost = UploadHost.EMPTY_CUSTOM,
+    /** The id of the upload site pictures go to, unless the send screen picks another for one. */
+    val uploader: String = PresetUploader.KappaLol.id,
     /** Show the GIFs subs post instead of their title. */
     val showGifs: Boolean = true,
     /** Sites whose links to a post are shown as a card; each post is fetched from that site. */
@@ -302,15 +300,14 @@ class SettingsRepository(
             recentlySentButton = p[RECENTLY_SENT_BUTTON]?.let { v -> RecentlySentButton.entries.firstOrNull { it.name == v } }
                 ?: RecentlySentButton.ReplacesSend,
             chatModesButton = p[CHAT_MODES_BUTTON] ?: true,
+            pictureButton = p[PICTURE_BUTTON] ?: true,
             replyCard = p[REPLY_CARD] ?: true,
             buildStripe = p[BUILD_STRIPE] ?: true,
             showDeleted = p[SHOW_DELETED] ?: true,
             updateCheck = p[UPDATE_CHECK] ?: true,
             inlineImages = p[INLINE_IMAGES] ?: true,
             imageHosts = hosts(p[IMAGE_HOSTS]),
-            uploader = p[UPLOADER]?.let { v -> Uploader.entries.firstOrNull { it.name == v } } ?: Uploader.KappaLol,
-            customUploadHost = p[CUSTOM_UPLOAD_HOST]?.let { runCatching { AppJson.decodeFromString<UploadHost>(it) }.getOrNull() }
-                ?: UploadHost.EMPTY_CUSTOM,
+            uploader = p[UPLOADER] ?: PresetUploader.KappaLol.id,
             showGifs = p[SHOW_GIFS] ?: true,
             postSites = postSites(p[POST_SITES]),
             blurNsfwPosts = p[BLUR_NSFW_POSTS] ?: true,
@@ -415,8 +412,8 @@ class SettingsRepository(
         p[IMAGE_HOSTS_GIVEN] = (given + ImageLinks.DEFAULT_HOSTS).distinct().joinToString(",")
     }
 
-    suspend fun setUploader(v: Uploader) = store.edit { it[UPLOADER] = v.name }
-    suspend fun setCustomUploadHost(v: UploadHost) = store.edit { it[CUSTOM_UPLOAD_HOST] = AppJson.encodeToString(v) }
+    suspend fun setUploader(v: String) = store.edit { it[UPLOADER] = v }
+    suspend fun setPictureButton(v: Boolean) = store.edit { it[PICTURE_BUTTON] = v }
     suspend fun updateImageHosts(change: (List<String>) -> List<String>) =
         store.edit { it[IMAGE_HOSTS] = change(hosts(it[IMAGE_HOSTS])).joinToString(",") }
     suspend fun setPostSite(site: PostSite, on: Boolean) = store.edit { p ->
@@ -528,6 +525,7 @@ class SettingsRepository(
         p[SUGGESTIONS_OVER_CHAT] = s.suggestionsOverChat
         p[RECENTLY_SENT_BUTTON] = s.recentlySentButton.name
         p[CHAT_MODES_BUTTON] = s.chatModesButton
+        p[PICTURE_BUTTON] = s.pictureButton
         p[REPLY_CARD] = s.replyCard
         p[BUILD_STRIPE] = s.buildStripe
         p[READ_ONLY] = s.readOnly
@@ -535,8 +533,7 @@ class SettingsRepository(
         p[UPDATE_CHECK] = s.updateCheck
         p[INLINE_IMAGES] = s.inlineImages
         p[IMAGE_HOSTS] = s.imageHosts.joinToString(",")
-        p[UPLOADER] = s.uploader.name
-        p[CUSTOM_UPLOAD_HOST] = AppJson.encodeToString(s.customUploadHost)
+        p[UPLOADER] = s.uploader
         p[SHOW_GIFS] = s.showGifs
         p[POST_SITES] = s.postSites.joinToString(",") { it.name }
         p[BLUR_NSFW_POSTS] = s.blurNsfwPosts
@@ -662,7 +659,7 @@ class SettingsRepository(
         val MOBILE_DATA = stringPreferencesKey("mobile_data")
         val IMAGE_HOSTS = stringPreferencesKey("image_hosts")
         val UPLOADER = stringPreferencesKey("uploader")
-        val CUSTOM_UPLOAD_HOST = stringPreferencesKey("custom_upload_host")
+        val PICTURE_BUTTON = booleanPreferencesKey("picture_button")
         /** Default hosts this install has been given, so each is added only once. */
         val IMAGE_HOSTS_GIVEN = stringPreferencesKey("image_hosts_given")
         val CAROUSEL_CHANNELS = booleanPreferencesKey("carousel_channels")

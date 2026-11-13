@@ -83,8 +83,7 @@ import me.lesh.chatter.ui.channels.AddChannelSheet
 import me.lesh.chatter.ui.channels.ChannelAvatar
 import me.lesh.chatter.ui.chat.EmotePickerSheet
 import me.lesh.chatter.ui.chat.InputBar
-import me.lesh.chatter.upload.UploadHost
-import me.lesh.chatter.upload.Uploader
+import me.lesh.chatter.upload.UploadTarget
 
 /** Room the message keeps for a link not uploaded yet; kappa.lol's are about 25 characters. */
 private const val LINK_ROOM = 40
@@ -103,7 +102,7 @@ fun SendPictureScreen(vm: MainViewModel) {
     val channels by vm.channels.collectAsStateWithLifecycle()
     val channelsLoaded by vm.channelsLoaded.collectAsStateWithLifecycle()
     val info by vm.channelInfo.collectAsStateWithLifecycle()
-    val settings by vm.settings.collectAsStateWithLifecycle()
+    val targets = vm.uploaderSetup.collectAsStateWithLifecycle().value.targets
     val connection by vm.connection.collectAsStateWithLifecycle()
     var choosingChannel by rememberSaveable { mutableStateOf(false) }
     var choosingUploader by rememberSaveable { mutableStateOf(false) }
@@ -113,6 +112,11 @@ fun SendPictureScreen(vm: MainViewModel) {
     // A channel closed meanwhile, or none known yet when the picture came in on a cold start.
     LaunchedEffect(channels, sender.channel) {
         if (sender.channel !in channels) channels.firstOrNull()?.let(sender::selectChannel)
+    }
+    // A key changed under Settings, or the site was removed there meanwhile.
+    LaunchedEffect(targets) {
+        val now = targets.firstOrNull { it.id == sender.uploader?.id } ?: targets.firstOrNull()
+        if (now != null && now != sender.uploader) sender.selectUploader(now)
     }
     BackHandler { if (sender.isBusy) sender.cancel() else sender.close() }
 
@@ -170,7 +174,7 @@ fun SendPictureScreen(vm: MainViewModel) {
                 auth == AuthState.Guest -> Gate(R.string.picture_log_in, R.string.guest_log_in, vm::leaveGuest)
                 channelsLoaded && channels.isEmpty() -> Gate(R.string.picture_no_channel, R.string.picture_open_channel) { addingChannel = true }
                 else -> {
-                    UploadPill(sender.step, sender.uploader.name(settings.customUploadHost))
+                    UploadPill(sender.step, sender.uploader?.name.orEmpty())
                     if (sender.step == PictureStep.Ready) {
                         Text(
                             stringResource(R.string.picture_public),
@@ -193,8 +197,8 @@ fun SendPictureScreen(vm: MainViewModel) {
                             // Once online, the picture stays where it is; the pill shows its link.
                             enabled = !sender.isBusy && uploaded == null,
                             onClick = { choosingUploader = true },
-                            icon = { UploaderIcon(sender.uploader, settings.customUploadHost, 24.dp) },
-                            text = uploaded?.link?.removePrefix("https://") ?: sender.uploader.name(settings.customUploadHost),
+                            icon = { UploaderIcon(sender.uploader, 24.dp) },
+                            text = uploaded?.link?.removePrefix("https://") ?: sender.uploader?.name.orEmpty(),
                             modifier = Modifier.weight(1f, fill = false),
                         )
                     }
@@ -234,15 +238,13 @@ fun SendPictureScreen(vm: MainViewModel) {
         )
     }
     if (choosingUploader) {
-        val custom = settings.customUploadHost
         PickSheet(
             title = stringResource(R.string.picture_uploader),
             hint = stringResource(R.string.picture_uploader_once),
-            // A site of the user's own only once it is set up.
-            options = Uploader.entries.filter { it != Uploader.Custom || custom.isValid },
+            options = targets,
             selected = sender.uploader,
-            label = { uploaderTitle(it, custom) },
-            icon = { UploaderIcon(it, custom, 28.dp) },
+            label = { it.name },
+            icon = { UploaderIcon(it, 28.dp) },
             onPick = sender::selectUploader,
             onDismiss = { choosingUploader = false },
             footer = { close ->
@@ -411,8 +413,11 @@ private fun ChoicePill(
 
 /** The site's favicon, shipped with the app; a site of the user's own gets its first letter. */
 @Composable
-internal fun UploaderIcon(uploader: Uploader, custom: UploadHost, size: Dp) {
-    val favicon = uploader.favicon
+internal fun UploaderIcon(target: UploadTarget?, size: Dp) = UploaderIcon(target?.favicon, target?.name, size)
+
+/** [favicon], or the first letter of [name] where there is none. */
+@Composable
+internal fun UploaderIcon(favicon: Int?, name: String?, size: Dp) {
     if (favicon != null) {
         Image(
             painterResource(favicon),
@@ -425,18 +430,13 @@ internal fun UploaderIcon(uploader: Uploader, custom: UploadHost, size: Dp) {
             modifier = Modifier.size(size).clip(CircleShape).background(MaterialTheme.colorScheme.secondaryContainer),
         ) {
             Text(
-                uploader.name(custom).firstOrNull()?.uppercase() ?: "⋯",
+                name?.firstOrNull()?.uppercase() ?: "⋯",
                 style = MaterialTheme.typography.labelMedium,
                 color = MaterialTheme.colorScheme.onSecondaryContainer,
             )
         }
     }
 }
-
-/** kappa.lol, catbox.moe, or "Custom uploader". */
-@Composable
-internal fun uploaderTitle(uploader: Uploader, custom: UploadHost): String =
-    if (uploader == Uploader.Custom) stringResource(R.string.uploader_custom) else uploader.name(custom)
 
 /**
  * A sheet of options, one row each with a radio button and a picture. Picking one closes it.

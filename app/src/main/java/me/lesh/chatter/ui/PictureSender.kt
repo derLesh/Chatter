@@ -20,15 +20,15 @@ import me.lesh.chatter.upload.NoLinkException
 import me.lesh.chatter.upload.Picture
 import me.lesh.chatter.upload.PictureTooLargeException
 import me.lesh.chatter.upload.UploadedPicture
-import me.lesh.chatter.upload.Uploader
+import me.lesh.chatter.upload.UploadTarget
 import java.io.File
 
 /** What the send screen needs from the app: the upload site, the list of uploads and the chat. */
 internal interface PictureOutbox {
-    suspend fun upload(picture: Picture, uploader: Uploader, onProgress: (Float) -> Unit): UploadedPicture
+    suspend fun upload(picture: Picture, target: UploadTarget, onProgress: (Float) -> Unit): UploadedPicture
 
     /** Keeps an upload under Settings → Links & images, even when the message is never sent. */
-    suspend fun remember(picture: Picture, uploaded: UploadedPicture, uploader: Uploader)
+    suspend fun remember(picture: Picture, uploaded: UploadedPicture, target: UploadTarget)
 
     suspend fun send(channel: String, text: String): SendResult
 
@@ -71,7 +71,8 @@ internal class PictureSender(
     var text by mutableStateOf(TextFieldValue(""))
     var channel by mutableStateOf<String?>(null)
         private set
-    var uploader by mutableStateOf(Uploader.KappaLol)
+    /** Where the picture goes; null only while no site can take it. */
+    var uploader by mutableStateOf<UploadTarget?>(null)
         private set
     var step by mutableStateOf<PictureStep>(PictureStep.Ready)
         private set
@@ -84,7 +85,7 @@ internal class PictureSender(
     val isBusy: Boolean get() = step is PictureStep.Uploading || step == PictureStep.Sending
 
     /** Starts over with [picture]; a picture already open is let go. */
-    fun open(picture: Picture, channel: String?, uploader: Uploader) {
+    fun open(picture: Picture, channel: String?, uploader: UploadTarget?) {
         close()
         this.picture = picture
         this.channel = channel
@@ -96,7 +97,7 @@ internal class PictureSender(
     }
 
     /** Another site for this picture only; not once it is uploaded. */
-    fun selectUploader(choice: Uploader) {
+    fun selectUploader(choice: UploadTarget) {
         if (!isBusy && uploaded == null) {
             uploader = choice
             if (step is PictureStep.UploadFailed) step = PictureStep.Ready
@@ -106,9 +107,10 @@ internal class PictureSender(
     fun send() {
         val picture = picture ?: return
         val channel = channel ?: return
+        val target = uploader ?: return
         if (isBusy) return
         job = scope.launch {
-            val link = uploaded ?: upload(picture) ?: return@launch
+            val link = uploaded ?: upload(picture, target) ?: return@launch
             step = PictureStep.Sending
             val result = outbox.send(channel, messageWith(link.link))
             if (result == SendResult.Ok) {
@@ -124,11 +126,10 @@ internal class PictureSender(
     }
 
     /** Null after a failure, which [step] then names. */
-    private suspend fun upload(picture: Picture): UploadedPicture? {
+    private suspend fun upload(picture: Picture, target: UploadTarget): UploadedPicture? {
         step = PictureStep.Uploading(0f)
-        val chosen = uploader
         val done = try {
-            outbox.upload(picture, chosen) { step = PictureStep.Uploading(it.coerceIn(0f, 1f)) }
+            outbox.upload(picture, target) { step = PictureStep.Uploading(it.coerceIn(0f, 1f)) }
         } catch (e: CancellationException) {
             throw e
         } catch (e: Exception) {
@@ -143,7 +144,7 @@ internal class PictureSender(
         }
         uploaded = done
         // A cancel right now must not lose a picture that is already online.
-        withContext(NonCancellable) { outbox.remember(picture, done, chosen) }
+        withContext(NonCancellable) { outbox.remember(picture, done, target) }
         return done
     }
 
@@ -172,17 +173,18 @@ internal class PictureSender(
     fun save(): String? {
         val picture = picture ?: return null
         return AppJson.encodeToString(
-            SavedPicture(picture.file.path, picture.type, text.text, channel, uploader, uploaded?.link, uploaded?.deletion),
+            SavedPicture(picture.file.path, picture.type, text.text, channel, uploader?.id, uploaded?.link, uploaded?.deletion),
         )
     }
 
-    fun restore(saved: String) {
+    /** Takes back what [save] wrote; [site] finds the upload site by its id, if it is still there. */
+    fun restore(saved: String, site: (String) -> UploadTarget?) {
         val restored = runCatching { AppJson.decodeFromString<SavedPicture>(saved) }.getOrNull() ?: return
         val file = File(restored.path).takeIf { it.isFile } ?: return
         picture = Picture(file, restored.type)
         text = TextFieldValue(restored.text, TextRange(restored.text.length))
         channel = restored.channel
-        uploader = restored.uploader
+        uploader = restored.uploader?.let(site)
         uploaded = restored.link?.let { UploadedPicture(it, restored.deletion) }
         step = if (uploaded != null) PictureStep.NotSent else PictureStep.Ready
     }
@@ -194,7 +196,7 @@ internal class SavedPicture(
     val type: String,
     val text: String,
     val channel: String?,
-    val uploader: Uploader,
+    val uploader: String?,
     val link: String? = null,
     val deletion: Deletion? = null,
 )
