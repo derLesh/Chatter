@@ -24,7 +24,7 @@ testRunner = "1.7.0"
 uiautomator = "2.4.0"
 changelog = "0.1.0"
 # Only the AppFunctions compiler needs it.
-ksp = "2.3.12"
+ksp = "2.3.13"
 appfunctions = "1.0.0-beta01"
 # Gemini Nano through Android's AICore; beta, like the features built on it.
 mlkitGenaiPrompt = "1.0.0-beta5"
