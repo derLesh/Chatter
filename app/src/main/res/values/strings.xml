@@ -236,7 +236,6 @@
     <string name="error_invalid_channel">That is not a valid channel.</string>
 
     <!-- Commands & moderation -->
-    <string name="action_delete">Delete</string>
     <string name="action_timeout">Timeout</string>
     <string name="timeout_1m">1 minute</string>
     <string name="action_ban">Ban</string>

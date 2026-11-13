@@ -232,7 +232,6 @@
     <string name="error_invalid_channel">Das ist kein gültiger Kanal.</string>
 
     <!-- Commands & moderation -->
-    <string name="action_delete">Löschen</string>
     <string name="action_timeout">Timeout</string>
     <string name="timeout_1m">1 Minute</string>
     <string name="action_ban">Bannen</string>
