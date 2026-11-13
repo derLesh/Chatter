@@ -1,0 +1,1 @@
+patch: Keep the login from failing when Android closes Chatter while you fetch Twitch's code from another app
