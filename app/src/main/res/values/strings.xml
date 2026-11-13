@@ -239,9 +239,6 @@
     <string name="action_delete">Delete</string>
     <string name="action_timeout">Timeout</string>
     <string name="timeout_1m">1 minute</string>
-    <string name="timeout_10m">10 minutes</string>
-    <string name="timeout_1h">1 hour</string>
-    <string name="timeout_1d">1 day</string>
     <string name="action_ban">Ban</string>
     <string name="action_pin">Pin</string>
     <string name="action_unpin">Unpin</string>
@@ -285,11 +282,19 @@
     <string name="cmd_error_no_user">User %1$s not found</string>
 
     <!-- User card -->
-    <string name="user_recent_messages">Recent messages in this channel</string>
     <string name="user_no_messages">No messages yet</string>
     <string name="user_partner">Partner</string>
     <string name="user_affiliate">Affiliate</string>
     <string name="user_created">Account created %1$s</string>
+    <string name="user_account_since">Account since %1$s</string>
+    <string name="user_card_tab_message">Message</string>
+    <string name="user_card_tab_history">History</string>
+    <string name="user_card_tab_moderate">Moderate</string>
+    <string name="user_card_delete_message">Delete message</string>
+    <string name="timeout_short_1m">1 min</string>
+    <string name="timeout_short_10m">10 min</string>
+    <string name="timeout_short_1h">1 h</string>
+    <string name="timeout_short_1d">1 day</string>
 
     <!-- Settings pages -->
     <string name="settings_appearance_summary">Theme, colors, text size</string>
