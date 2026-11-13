@@ -232,12 +232,8 @@
     <string name="error_invalid_channel">Das ist kein gültiger Kanal.</string>
 
     <!-- Commands & moderation -->
-    <string name="action_delete">Löschen</string>
     <string name="action_timeout">Timeout</string>
     <string name="timeout_1m">1 Minute</string>
-    <string name="timeout_10m">10 Minuten</string>
-    <string name="timeout_1h">1 Stunde</string>
-    <string name="timeout_1d">1 Tag</string>
     <string name="action_ban">Bannen</string>
     <string name="action_pin">Anpinnen</string>
     <string name="action_unpin">Lösen</string>
@@ -281,11 +277,19 @@
     <string name="cmd_error_no_user">Nutzer %1$s nicht gefunden</string>
 
     <!-- User card -->
-    <string name="user_recent_messages">Letzte Nachrichten in diesem Kanal</string>
     <string name="user_no_messages">Noch keine Nachrichten</string>
     <string name="user_partner">Partner</string>
     <string name="user_affiliate">Affiliate</string>
     <string name="user_created">Konto erstellt am %1$s</string>
+    <string name="user_account_since">Konto seit %1$s</string>
+    <string name="user_card_tab_message">Nachricht</string>
+    <string name="user_card_tab_history">Verlauf</string>
+    <string name="user_card_tab_moderate">Moderieren</string>
+    <string name="user_card_delete_message">Nachricht löschen</string>
+    <string name="timeout_short_1m">1 Min.</string>
+    <string name="timeout_short_10m">10 Min.</string>
+    <string name="timeout_short_1h">1 Std.</string>
+    <string name="timeout_short_1d">1 Tag</string>
 
     <!-- Settings pages -->
     <string name="settings_appearance_summary">Design, Farben, Textgröße</string>
