@@ -11,8 +11,8 @@ import java.util.zip.GZIPOutputStream
  * One small gzip file per scope: "global" or a Twitch channel id. A channel with a few hundred
  * emotes takes a few kilobytes. The lists can be downloaded again, so they live in the cache folder.
  */
-internal class EmoteListFiles(private val folder: File) {
-    fun read(scope: String): ProviderEmotes? {
+class EmoteListFiles(private val folder: File) {
+    internal fun read(scope: String): ProviderEmotes? {
         val file = file(scope) ?: return null
         return runCatching {
             if (!file.isFile) return null
@@ -20,7 +20,7 @@ internal class EmoteListFiles(private val folder: File) {
         }.getOrNull()
     }
 
-    fun write(scope: String, emotes: ProviderEmotes) {
+    internal fun write(scope: String, emotes: ProviderEmotes) {
         val file = file(scope) ?: return
         runCatching {
             folder.mkdirs()
@@ -31,13 +31,13 @@ internal class EmoteListFiles(private val folder: File) {
         }
     }
 
-    /** Drops the lists of channels that are no longer open; the global one stays. */
-    fun keepOnly(channelIds: Set<String>) {
-        folder.listFiles()?.forEach { file ->
-            val scope = file.name.substringBefore('.')
-            if (scope != GLOBAL && scope !in channelIds) file.delete()
-        }
+    fun delete(scope: String) {
+        file(scope)?.delete()
     }
+
+    /** Bytes on disk, for the storage page. */
+    fun size(): Long = folder.listFiles()?.sumOf { it.length() } ?: 0L
+
 
     fun clear() {
         folder.deleteRecursively()
@@ -59,7 +59,7 @@ internal class EmoteListFiles(private val folder: File) {
         private const val UNLISTED = 8
 
         /** One emote per line, tab-separated: provider, name, id, url, aspect ratio, flags, owner, author. */
-        fun encode(emotes: ProviderEmotes): String = buildString {
+        internal fun encode(emotes: ProviderEmotes): String = buildString {
             append(FORMAT).append('\n')
             for (map in listOf(emotes.ffz, emotes.bttv, emotes.sevenTv)) for (e in map.values) {
                 val flags = (if (e.sizeKnown) SIZE_KNOWN else 0) or (if (e.zeroWidth) ZERO_WIDTH else 0) or
@@ -70,7 +70,7 @@ internal class EmoteListFiles(private val folder: File) {
             }
         }
 
-        fun decode(text: String): ProviderEmotes? {
+        internal fun decode(text: String): ProviderEmotes? {
             val lines = text.lineSequence().iterator()
             if (!lines.hasNext() || lines.next() != FORMAT) return null
             val byProvider = HashMap<EmoteProvider, HashMap<String, Emote>>()

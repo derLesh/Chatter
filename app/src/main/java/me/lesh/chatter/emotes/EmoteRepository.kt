@@ -31,6 +31,8 @@ class EmoteRepository(
     private val trouble: ServiceTrouble = ServiceTrouble(),
     /** The providers the user has switched on; the others are never asked. */
     private val providersOn: () -> Set<EmoteProvider> = { EmoteProvider.entries.toSet() },
+    /** The lists of the last start; none in tests. */
+    private val files: EmoteListFiles? = null,
     /** Injected for tests. */
     private val now: () -> Long = System::currentTimeMillis,
 ) : EmoteSource {
@@ -138,15 +140,42 @@ class EmoteRepository(
         globalAsked = true
         val asked = wanted.thatAreOn()
         if (asked.isEmpty()) return@withLock emptySet()
+        if (global.byName.isEmpty()) restoreGlobal()
         val loaded = global.merge(ask(asked) { fetchGlobal(it) })
         val changed = global.byName != loaded.emotes.byName
         global = loaded.emotes
+        if (changed) files?.write(EmoteListFiles.GLOBAL, loaded.emotes)
         AppLog.d(TAG, "Global emotes: ${loaded.emotes.counts()}${failedText(loaded.failed)}")
         if (changed) changes.changed()
         globalMissing = globalMissing - asked + loaded.failed
         updateWaiting()
         _version.update { it + 1 }
         loaded.failed
+    }
+
+    /** Until the providers answer, the global emotes of the last start. */
+    private fun restoreGlobal() {
+        val kept = files?.read(EmoteListFiles.GLOBAL) ?: return
+        global = kept
+        changes.changed()
+        _version.update { it + 1 }
+    }
+
+    /**
+     * Puts the channel's emotes of the last start in place until the providers answer, so its
+     * messages get their emotes right away. True if there are any, kept or loaded.
+     */
+    fun restoreChannel(channelId: String): Boolean {
+        if (channels.containsKey(channelId)) return true
+        val kept = files?.read(channelId) ?: return false
+        synchronized(channelLock) {
+            channelLifetimes.getOrPut(channelId) { Any() }
+            if (channels.putIfAbsent(channelId, kept) == null) {
+                changes.changed(channelId)
+                _version.update { it + 1 }
+            }
+        }
+        return true
     }
 
     /**
@@ -206,6 +235,7 @@ class EmoteRepository(
         wanted: Set<EmoteProvider>,
         expectedLifetime: Any?,
     ) = coroutineScope {
+        if (expectedLifetime == null) restoreChannel(channelId)
         val lifetime = synchronized(channelLock) {
             if (expectedLifetime != null && channelLifetimes[channelId] !== expectedLifetime) return@coroutineScope
             channelLifetimes.getOrPut(channelId) { Any() }
@@ -217,7 +247,7 @@ class EmoteRepository(
         // the request. Otherwise a 7TV change or another provider's retry finishing in between is
         // lost.
         follower.await()
-        synchronized(channelLock) {
+        val toKeep = synchronized(channelLock) {
             if (channelLifetimes[channelId] !== lifetime) return@coroutineScope
             var changed = false
             var failed = emptySet<EmoteProvider>()
@@ -240,7 +270,10 @@ class EmoteRepository(
             answered.add(channelId)
             updateWaiting()
             _version.update { it + 1 }
+            merged?.takeIf { changed }
         }
+        // Outside the lock: a pushed 7TV change must not wait for the disk.
+        toKeep?.let { files?.write(channelId, it) }
     }
 
     /**
@@ -330,6 +363,7 @@ class EmoteRepository(
 
     /** Explicit removal also invalidates requests still on their way back. */
     fun removeChannel(channelId: String) = synchronized(channelLock) {
+        files?.delete(channelId)
         channelLifetimes.remove(channelId)
         channels.remove(channelId)
         channelTwitch.remove(channelId)

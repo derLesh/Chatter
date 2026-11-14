@@ -46,17 +46,15 @@ class EmoteListFilesTest {
     }
 
     @Test
-    fun closedChannelsLoseTheirListsButTheGlobalOneStays() {
+    fun aRemovedChannelLosesItsListButTheGlobalOneStays() {
         val files = files()
         val list = ProviderEmotes(bttv = mapOf("AngelThump" to wide))
         files.write(EmoteListFiles.GLOBAL, list)
         files.write("1", list)
-        files.write("2", list)
 
-        files.keepOnly(setOf("2"))
+        files.delete("1")
 
         assertTrue(files.read(EmoteListFiles.GLOBAL) != null)
         assertNull(files.read("1"))
-        assertTrue(files.read("2") != null)
     }
 }

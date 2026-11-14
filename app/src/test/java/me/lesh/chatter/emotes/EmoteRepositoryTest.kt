@@ -25,7 +25,9 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
+import org.junit.Rule
 import org.junit.Test
+import org.junit.rules.TemporaryFolder
 import java.io.IOException
 
 /** The emote repository against fake providers, including ones that do not answer. */
@@ -154,6 +156,28 @@ class EmoteRepositoryTest {
 
         assertEquals(EmoteProvider.Bttv, emotes.lookup(channel, "catJAM")?.provider)
         assertEquals("elsewhere the global one still stands", EmoteProvider.SevenTv, emotes.lookup(null, "catJAM")?.provider)
+    }
+
+    // ---- the lists of the last start --------------------------------------------------------
+
+    @get:Rule val folder = TemporaryFolder()
+
+    @Test
+    fun theNextStartHasTheEmotesBeforeAnyProviderAnswers() = runTest {
+        val files = EmoteListFiles(folder.root)
+        providers.bttv = listOf("catJAM")
+        providers.sevenTv = listOf("peepoHappy")
+        EmoteRepository(twitch, providers, trouble, files = files).run {
+            loadGlobal()
+            loadChannel(channel, userId = null)
+        }
+
+        val nextStart = EmoteRepository(twitch, FakeProviders(), trouble, files = files)
+        assertTrue(nextStart.restoreChannel(channel))
+        assertEquals(EmoteProvider.Bttv, nextStart.lookup(channel, "catJAM")?.provider)
+
+        nextStart.removeChannel(channel)
+        assertFalse("a removed channel's list is gone", EmoteRepository(twitch, providers, trouble, files = files).restoreChannel(channel))
     }
 
     // ---- a provider that does not answer ------------------------------------------------------
