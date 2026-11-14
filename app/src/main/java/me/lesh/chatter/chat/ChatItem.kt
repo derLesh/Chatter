@@ -131,6 +131,8 @@ data class ReplyInfo(
      * for a direct answer to it.
      */
     val threadId: String = parentId,
+    /** The parent's chat color, if known here when the answer arrived; Twitch's tags carry none. */
+    val parentColor: Int? = null,
 )
 
 /** An immutable, render-ready chat line. */
@@ -187,6 +189,24 @@ data class ChatItem(
 
     /** The message this one answers, as segments; empty if it answers nothing. */
     val quote: List<Segment> get() = body.quote
+
+    /**
+     * The message this one answers, made from what the answer carries, for when the message itself
+     * is no longer in the chat. Twitch sends neither its badges nor its time, so it has none.
+     */
+    fun answered(): ChatItem? = reply?.let {
+        ChatItem(
+            id = it.parentId,
+            channel = channel,
+            kind = MessageKind.Chat,
+            timestamp = timestamp,
+            login = it.parentLogin,
+            displayName = it.parentDisplayName,
+            color = it.parentColor,
+            body = MessageBody.of(quote),
+            text = it.parentBody,
+        )
+    }
 
     companion object {
         /**

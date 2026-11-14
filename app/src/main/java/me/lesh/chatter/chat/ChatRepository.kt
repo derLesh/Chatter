@@ -368,7 +368,7 @@ class ChatRepository(
         lastSent[channel] = outgoing to now
         val reply = replyParent?.let {
             // Twitch files the answer under the parent's conversation; the echo does the same.
-            ReplyInfo(it.id, it.login.orEmpty(), it.displayName.orEmpty(), it.text, threadId = it.reply?.threadId ?: it.id)
+            ReplyInfo(it.id, it.login.orEmpty(), it.displayName.orEmpty(), it.text, threadId = it.reply?.threadId ?: it.id, parentColor = it.color)
         }
         // Shown as typed: the extra space is only for Twitch.
         incoming.sent(

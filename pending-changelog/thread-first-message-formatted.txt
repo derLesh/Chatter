@@ -1,0 +1,1 @@
+patch: Show the first message of a conversation with name color, emotes and links when it left the chat
