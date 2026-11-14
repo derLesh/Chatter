@@ -8,6 +8,8 @@ import me.lesh.chatter.net.ChatterinoBadge
 import me.lesh.chatter.net.ChatterinoBadges
 import me.lesh.chatter.net.FfzBadge
 import me.lesh.chatter.net.FfzBadges
+import me.lesh.chatter.net.FfzRoom
+import me.lesh.chatter.net.FfzRoomInfo
 import me.lesh.chatter.net.HelixBadgeSet
 import me.lesh.chatter.net.HelixBadgeVersion
 import me.lesh.chatter.net.ServiceTrouble
@@ -65,6 +67,13 @@ class BadgeRepositoryTest {
         /** Wearers of FFZ's supporter badge, unsorted as FFZ sends them; null makes FFZ unreachable. */
         var ffzSupporters: LongArray? = longArrayOf(900, 77, 300)
         var ffzCalls = 0
+        var ffzRoom: FfzRoom? = null
+        var ffzRoomCalls = 0
+
+        override suspend fun ffzRoom(channelId: String): FfzRoom? {
+            ffzRoomCalls++
+            return ffzRoom
+        }
 
         override suspend fun ffzBadges(): FfzBadges {
             ffzCalls++
@@ -121,6 +130,44 @@ class BadgeRepositoryTest {
 
         val elsewhere = badges.resolve("999", "subscriber/0", userId = null)
         assertEquals(listOf("Subscriber"), elsewhere.map { it.title })
+    }
+
+    @Test
+    fun modsAndVipsWearThePictureTheirChannelPickedOnFfz() = runTest {
+        twitch.global = MOD_AND_VIP
+        badges.loadGlobal()
+        badges.ffzRoom("1", FfzRoomInfo(modUrls = mapOf("2" to "https://cdn.frankerfacez.com/room-badge/mod/id/1/v/a/2")))
+
+        val mod = badges.resolve("1", "moderator/1,vip/1", userId = null)
+        assertEquals("https://cdn.frankerfacez.com/room-badge/mod/id/1/v/a/2", mod[0].url)
+        assertEquals("Moderator", mod[0].title)
+        // Without a VIP picture of its own, the channel keeps Twitch's.
+        assertEquals("https://static-cdn.jtvnw.net/badges/v1/vip/2", mod[1].url)
+        assertEquals("https://static-cdn.jtvnw.net/badges/v1/moderator/2", badges.resolve("2", "moderator/1", userId = null).single().url)
+
+        badges.ffzChannelBadges = false
+        assertEquals("https://static-cdn.jtvnw.net/badges/v1/moderator/2", badges.resolve("1", "moderator/1", userId = null).single().url)
+        badges.ffzChannelBadges = true
+        badges.enabled = BadgeProvider.entries.toSet() - BadgeProvider.Ffz
+        assertEquals("https://static-cdn.jtvnw.net/badges/v1/moderator/2", badges.resolve("1", "moderator/1", userId = null).single().url)
+    }
+
+    @Test
+    fun theRoomIsAskedForOnlyWhileTheEmoteRepositoryDoesNotAskForIt() = runTest {
+        twitch.global = MOD_AND_VIP
+        others.ffzRoom = FfzRoom(room = FfzRoomInfo(vipBadge = mapOf("2" to "https://cdn.frankerfacez.com/room-badge/vip/id/1/v/b/2")))
+        badges.loadGlobal()
+        badges.loadChannel("1")
+        assertEquals(1, others.ffzRoomCalls)
+        assertEquals("https://cdn.frankerfacez.com/room-badge/vip/id/1/v/b/2", badges.resolve("1", "vip/1", userId = null).single().url)
+
+        val withEmotes = BadgeRepository(twitch, others, chatter, supporterTitle = { "Supporter" }, trouble, ffzRoomFromEmotes = { true }) { clock }
+        withEmotes.loadChannel("1")
+        assertEquals(1, others.ffzRoomCalls)
+    }
+
+    private companion object {
+        val MOD_AND_VIP = listOf(FakeTwitchBadges.badgeSet("moderator", "1", "Moderator"), FakeTwitchBadges.badgeSet("vip", "1", "VIP"))
     }
 
     @Test

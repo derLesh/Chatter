@@ -5,6 +5,7 @@ import me.lesh.chatter.chat.AssetChanges
 import me.lesh.chatter.chat.EmoteSource
 import me.lesh.chatter.net.BttvEmote
 import me.lesh.chatter.net.FfzEmote
+import me.lesh.chatter.net.FfzRoomInfo
 import me.lesh.chatter.net.ServiceTrouble
 import me.lesh.chatter.net.SevenTvActiveEmote
 import me.lesh.chatter.net.ThirdPartyEmoteApi
@@ -33,6 +34,8 @@ class EmoteRepository(
     private val providersOn: () -> Set<EmoteProvider> = { EmoteProvider.entries.toSet() },
     /** The lists of the last start; none in tests. */
     private val files: EmoteListFiles? = null,
+    /** Gets each channel's FFZ room as it arrives, for the mod and VIP pictures in it. */
+    private val onFfzRoom: (channelId: String, room: FfzRoomInfo?) -> Unit = { _, _ -> },
     /** Injected for tests. */
     private val now: () -> Long = System::currentTimeMillis,
 ) : EmoteSource {
@@ -416,7 +419,9 @@ class EmoteRepository(
 
     private suspend fun fetchChannel(channelId: String, provider: EmoteProvider, lifetime: Any): List<Emote>? = when (provider) {
         EmoteProvider.Ffz -> answer(provider) {
-            thirdParty.ffzChannel(channelId)?.sets?.values?.flatMap { it.emoticons }?.mapNotNull { it.toEmote(true) }.orEmpty()
+            val room = thirdParty.ffzChannel(channelId)
+            if (synchronized(channelLock) { channelLifetimes[channelId] === lifetime }) onFfzRoom(channelId, room?.room)
+            room?.sets?.values?.flatMap { it.emoticons }?.mapNotNull { it.toEmote(true) }.orEmpty()
         }
         EmoteProvider.Bttv -> answer(provider) {
             thirdParty.bttvChannel(channelId)?.let { it.channelEmotes + it.sharedEmotes }?.map { it.toEmote(true) }.orEmpty()

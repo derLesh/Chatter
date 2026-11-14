@@ -28,6 +28,7 @@ import me.lesh.chatter.net.ChatterBadges
 import me.lesh.chatter.net.ChatterSupporters
 import me.lesh.chatter.net.ChatterinoBadge
 import me.lesh.chatter.net.ChatterinoBadges
+import me.lesh.chatter.net.FfzBadges
 import me.lesh.chatter.net.FfzEmote
 import me.lesh.chatter.net.FfzGlobal
 import me.lesh.chatter.net.FfzRoom
@@ -216,6 +217,8 @@ private object OtherClientBadges : ThirdPartyBadgeApi {
     override suspend fun chatterinoBadges() = ChatterinoBadges(
         listOf(ChatterinoBadge(tooltip = "Chatterino Top Donator", image2 = "https://c.invalid/2", users = (0 until 50).map { (100_000 + it * 370).toString() })),
     )
+    override suspend fun ffzBadges() = FfzBadges()
+    override suspend fun ffzRoom(channelId: String) = null
 }
 
 private object NoSupporters : ChatterBadgeApi {

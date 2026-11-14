@@ -1492,6 +1492,7 @@ class MainViewModel(private val c: AppContainer, savedState: SavedStateHandle) :
     fun setShowUnlisted7tv(v: Boolean) = saveSetting { setShowUnlisted7tv(v) }
     fun setSevenTvEvents(v: Boolean) = saveSetting { setSevenTvEvents(v) }
     fun setSevenTvPaints(v: Boolean) = saveSetting { setSevenTvPaints(v) }
+    fun setFfzChannelBadges(v: Boolean) = saveSetting { setFfzChannelBadges(v) }
     fun setLoadHistory(v: Boolean) = saveSetting { setLoadHistory(v) }
     fun setAnimatedEmotes(v: Boolean) = saveSetting { setAnimatedEmotes(v) }
     fun setSlowIdleEmotes(v: Boolean) = saveSetting { setSlowIdleEmotes(v) }

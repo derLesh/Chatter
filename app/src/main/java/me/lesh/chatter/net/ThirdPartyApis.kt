@@ -49,7 +49,14 @@ data class FfzGlobal(
 )
 
 @Serializable
-data class FfzRoom(val sets: Map<String, FfzSet> = emptyMap())
+data class FfzRoom(val sets: Map<String, FfzSet> = emptyMap(), val room: FfzRoomInfo? = null)
+
+/** The mod and VIP pictures a channel picked on FFZ, by scale ("1", "2", "4"); null without one. */
+@Serializable
+data class FfzRoomInfo(
+    @kotlinx.serialization.SerialName("mod_urls") val modUrls: Map<String, String?>? = null,
+    @kotlinx.serialization.SerialName("vip_badge") val vipBadge: Map<String, String?>? = null,
+)
 
 // ---- 7TV ---------------------------------------------------------------------
 
@@ -142,6 +149,7 @@ interface ThirdPartyEmoteApi {
 interface ThirdPartyBadgeApi {
     suspend fun chatterinoBadges(): ChatterinoBadges
     suspend fun ffzBadges(): FfzBadges
+    suspend fun ffzRoom(channelId: String): FfzRoom?
 }
 
 class ThirdPartyApi(private val http: OkHttpClient) : ThirdPartyEmoteApi, ThirdPartyBadgeApi {
@@ -161,6 +169,7 @@ class ThirdPartyApi(private val http: OkHttpClient) : ThirdPartyEmoteApi, ThirdP
         http.getJson("https://api.chatterino.com/badges")
 
     override suspend fun ffzBadges(): FfzBadges = http.getJson("https://api.frankerfacez.com/v1/badges/ids")
+    override suspend fun ffzRoom(channelId: String): FfzRoom? = ffzChannel(channelId)
 
     suspend fun recentMessages(channel: String, limit: Int): RecentMessages =
         http.getJson("https://recent-messages.robotty.de/api/v2/recent-messages/$channel?limit=$limit")
