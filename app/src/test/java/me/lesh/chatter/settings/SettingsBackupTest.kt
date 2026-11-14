@@ -1,5 +1,6 @@
 package me.lesh.chatter.settings
 
+import me.lesh.chatter.badges.BadgeProvider
 import me.lesh.chatter.channels.ChannelGroup
 import me.lesh.chatter.chat.ChatRule
 import me.lesh.chatter.chat.RuleAction
@@ -58,6 +59,21 @@ class SettingsBackupTest {
             """{"app":"Chatter","version":99,"whatIsThis":true,"nicknames":{"forsen":"Sen"}}"""
         )
         assertEquals(mapOf("forsen" to "Sen"), restored.nicknames)
+    }
+
+    @Test
+    fun ffzBadgesStartOnWhenABackupFromBeforeThemIsRestored() {
+        val old = json.decodeFromString<SettingsBackup>(
+            """{"app":"Chatter","version":1,"settings":{"badgeProviders":["Twitch","Chatter"]}}"""
+        ).upgraded()
+        assertEquals(setOf(BadgeProvider.Twitch, BadgeProvider.Ffz, BadgeProvider.Chatter), old.settings?.badgeProviders)
+    }
+
+    @Test
+    fun ffzBadgesTurnedOffStayOffInANewerBackup() {
+        val backup = SettingsBackup(settings = Settings(badgeProviders = setOf(BadgeProvider.Twitch)))
+        val restored = json.decodeFromString<SettingsBackup>(json.encodeToString(backup)).upgraded()
+        assertEquals(setOf(BadgeProvider.Twitch), restored.settings?.badgeProviders)
     }
 
     @Test

@@ -662,6 +662,7 @@ private fun BadgeIcon(badge: Badge, hidden: Boolean, imageLoader: ImageLoader, o
                 .size(20.dp)
                 .alpha(if (hidden) 0.4f else 1f)
                 .clip(RoundedCornerShape(4.dp))
+                .badgeBackground(badge.background)
                 .clickable { menuOpen = true },
         )
         DropdownMenu(expanded = menuOpen, onDismissRequest = { menuOpen = false }) {
