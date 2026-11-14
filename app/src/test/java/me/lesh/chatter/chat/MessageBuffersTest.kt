@@ -1,5 +1,7 @@
 package me.lesh.chatter.chat
 
+import me.lesh.chatter.badges.Badge
+import me.lesh.chatter.badges.BadgeProvider
 import me.lesh.chatter.settings.Settings
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.async
@@ -66,6 +68,24 @@ class MessageBuffersTest {
         buffers.rebuildAll()
         advanceUntilIdle()
         assertEquals(listOf(Segment.Text("<emote>")), shown("forsen").single().segments)
+    }
+
+    @Test
+    fun aSevenTvBadgeToldAfterTheMessageIsAddedToIt() = watching("forsen") { shown ->
+        val twitch = Badge("https://twitch/sub.png", "Subscriber", set = "subscriber")
+        val oldSevenTv = Badge("https://7tv/old.webp", "Old", BadgeProvider.SevenTv, set = "old")
+        val newSevenTv = Badge("https://7tv/new.webp", "New", BadgeProvider.SevenTv, set = "new")
+        fun body() = MessageBody.lazily(segments = { emptyList() }, badges = { listOf(twitch, oldSevenTv) })
+        buffers.add(message("forsen", "1", login = "lukas").copy(body = body()))
+        buffers.add(message("forsen", "2", login = "someone").copy(body = body()))
+        advanceUntilIdle()
+
+        buffers.restyle("Lukas", newSevenTv, paint = null)
+        advanceUntilIdle()
+
+        val (lukas, someone) = shown("forsen")
+        assertEquals(listOf(twitch, newSevenTv), lukas.badges)
+        assertEquals(listOf(twitch, oldSevenTv), someone.badges)
     }
 
     @Test

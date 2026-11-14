@@ -1,6 +1,7 @@
 package me.lesh.chatter.chat
 
 import me.lesh.chatter.badges.Badge
+import me.lesh.chatter.badges.BadgeProvider
 import me.lesh.chatter.badges.NamePaint
 import me.lesh.chatter.emotes.Emote
 
@@ -99,6 +100,18 @@ class MessageBody private constructor(
             return this
         }
         return MessageBody(from, null)
+    }
+
+    /**
+     * The same message with the sender's 7TV badge and paint swapped for these. A body not built
+     * yet is returned as is, since it looks them up when it is built.
+     */
+    fun withSevenTv(badge: Badge?, paint: NamePaint?): MessageBody {
+        val built = parts ?: return this
+        // Last in the row, where the builder puts it too.
+        val badges = built.badges.filter { it.provider != BadgeProvider.SevenTv } + listOfNotNull(badge)
+        if (badges == built.badges && paint == built.paint) return this
+        return MessageBody(source, Parts(built.segments, badges, built.quote, paint))
     }
 
     private fun parts(): Parts = parts ?: synchronized(this) {

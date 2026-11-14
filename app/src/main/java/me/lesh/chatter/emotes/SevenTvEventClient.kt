@@ -66,6 +66,8 @@ sealed interface SevenTvEvent {
         val refId: String,
         val worn: Boolean,
         val cosmetic: Cosmetic = Cosmetic.Badge,
+        /** Finds the messages this person already sent; 7TV usually tells seconds after them. */
+        val twitchLogin: String? = null,
     ) : SevenTvEvent {
         override val actor: String? get() = null
     }
@@ -400,12 +402,13 @@ class SevenTvEventClient(
             val obj = body["object"]?.let { it as? JsonObject } ?: return null
             val cosmetic = COSMETICS[obj["kind"]?.jsonPrimitive?.contentOrNull] ?: return null
             val refId = obj["ref_id"]?.jsonPrimitive?.contentOrNull ?: return null
-            val twitchId = obj["user"]?.let { it as? JsonObject }
+            val twitch = obj["user"]?.let { it as? JsonObject }
                 ?.get("connections")?.let { it as? JsonArray }.orEmpty()
                 .map { it.jsonObject }
-                .firstOrNull { it["platform"]?.jsonPrimitive?.contentOrNull == "TWITCH" }
-                ?.get("id")?.jsonPrimitive?.contentOrNull ?: return null
-            return SevenTvEvent.EntitlementChanged(twitchId, refId, worn, cosmetic)
+                .firstOrNull { it["platform"]?.jsonPrimitive?.contentOrNull == "TWITCH" } ?: return null
+            val twitchId = twitch["id"]?.jsonPrimitive?.contentOrNull ?: return null
+            val login = twitch["username"]?.jsonPrimitive?.contentOrNull?.ifEmpty { null }
+            return SevenTvEvent.EntitlementChanged(twitchId, refId, worn, cosmetic, login)
         }
 
         private fun emote(e: JsonElement?): SevenTvActiveEmote? =

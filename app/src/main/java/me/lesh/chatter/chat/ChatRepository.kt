@@ -324,6 +324,14 @@ class ChatRepository(
         }
     }
 
+    /**
+     * A chatter's 7TV badge or paint changed. 7TV tells only after their message arrived, so the
+     * messages already shown get them too.
+     */
+    fun sevenTvStyleChanged(login: String, userId: String) = scope.launch(worker) {
+        buffers.restyle(login, badges.sevenTvBadgeOf(userId), badges.paint(userId))
+    }
+
     /** Adds an info line (e.g. 7TV activity), optionally followed by emote and text segments. */
     fun postNotice(channel: String, text: String, segments: List<Segment> = emptyList()) = scope.launch(worker) {
         buffers.add(

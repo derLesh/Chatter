@@ -1,0 +1,1 @@
+patch: Show 7TV badges and paints already on the message that made 7TV send them

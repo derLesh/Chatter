@@ -103,9 +103,12 @@ class SevenTvLiveUpdates(
             }
             is SevenTvEvent.BadgeCreated -> badges.sevenTvBadge(event.id, event.name, event.tooltip)
             is SevenTvEvent.PaintCreated -> badges.sevenTvPaint(event.paint)
-            is SevenTvEvent.EntitlementChanged -> when (event.cosmetic) {
-                SevenTvEvent.Cosmetic.Badge -> badges.sevenTvWearer(event.twitchUserId, event.refId, event.worn)
-                SevenTvEvent.Cosmetic.Paint -> badges.sevenTvPaintWearer(event.twitchUserId, event.refId, event.worn)
+            is SevenTvEvent.EntitlementChanged -> {
+                when (event.cosmetic) {
+                    SevenTvEvent.Cosmetic.Badge -> badges.sevenTvWearer(event.twitchUserId, event.refId, event.worn)
+                    SevenTvEvent.Cosmetic.Paint -> badges.sevenTvPaintWearer(event.twitchUserId, event.refId, event.worn)
+                }
+                event.twitchLogin?.let { chat.sevenTvStyleChanged(it, event.twitchUserId) }
             }
             is SevenTvEvent.ActiveSetChanged -> {
                 emotes.channelsForSevenTvUser(event.userId).forEach { channelId ->
