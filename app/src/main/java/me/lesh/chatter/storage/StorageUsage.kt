@@ -5,6 +5,7 @@ import android.content.Context
 import android.os.Process
 import android.os.storage.StorageManager
 import me.lesh.chatter.debug.AppLog
+import me.lesh.chatter.emotes.EmoteListFiles
 import coil3.disk.DiskCache
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -27,6 +28,7 @@ class StorageUsage(
     private val context: Context,
     private val images: () -> DiskCache,
     private val emoteLists: Cache?,
+    private val keptEmoteLists: EmoteListFiles,
     private val forgetBotCommands: suspend () -> Unit,
 ) {
     suspend fun measure(): StorageReport = withContext(Dispatchers.IO) {
@@ -37,7 +39,7 @@ class StorageUsage(
         }.onFailure { AppLog.w(TAG, "Android did not say how much space Chatter takes", it) }.getOrNull()
         StorageReport(
             images = runCatching { images().size }.getOrDefault(0L),
-            emoteLists = runCatching { emoteLists?.size() }.getOrNull() ?: 0L,
+            emoteLists = (runCatching { emoteLists?.size() }.getOrNull() ?: 0L) + runCatching { keptEmoteLists.size() }.getOrDefault(0L),
             saved = stats?.let { it.dataBytes - it.cacheBytes },
             app = stats?.appBytes,
         )
@@ -46,6 +48,7 @@ class StorageUsage(
     suspend fun clearCache() = withContext(Dispatchers.IO) {
         runCatching { images().clear() }.onFailure { AppLog.w(TAG, "Could not clear the image cache", it) }
         runCatching { emoteLists?.evictAll() }.onFailure { AppLog.w(TAG, "Could not clear the list cache", it) }
+        keptEmoteLists.clear()
         forgetBotCommands()
     }
 

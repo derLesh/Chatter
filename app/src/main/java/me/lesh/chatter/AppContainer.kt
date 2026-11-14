@@ -61,6 +61,7 @@ import me.lesh.chatter.debug.DebugStats
 import me.lesh.chatter.debug.HttpLog
 import me.lesh.chatter.emotes.CheermoteRepository
 import me.lesh.chatter.emotes.EmojiRepository
+import me.lesh.chatter.emotes.EmoteListFiles
 import me.lesh.chatter.emotes.EmoteRepository
 import me.lesh.chatter.emotes.HiddenEmoteRepository
 import me.lesh.chatter.badges.HiddenBadgeRepository
@@ -198,7 +199,12 @@ class AppContainer(
         listOf(XPostSource(FxTwitterApi(http)), BlueskyPostSource(BlueskyApi(http)), YouTubePostSource(YouTubeApi(http))),
         scope,
     )
-    val emotes = EmoteRepository(helix, thirdParty, trouble, providersOn = { settings.settings.value.emoteProvidersOn })
+    private val emoteListFiles = EmoteListFiles(context.cacheDir.resolve("emote-lists"))
+    val emotes = EmoteRepository(
+        helix, thirdParty, trouble,
+        providersOn = { settings.settings.value.emoteProvidersOn },
+        files = emoteListFiles,
+    )
     val emoji = EmojiRepository(context)
     val badges = BadgeRepository(
         helix, thirdParty, ChatterApi(http),
@@ -253,7 +259,7 @@ class AppContainer(
             .build()
     }
 
-    val storage = StorageUsage(context, { diskCache }, http.cache, botCommands::forget)
+    val storage = StorageUsage(context, { diskCache }, http.cache, emoteListFiles, botCommands::forget)
 
     private fun emoteOptions() = settings.settings.value.let {
         EmoteOptions(

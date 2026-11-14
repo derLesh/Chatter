@@ -20,6 +20,9 @@ interface EmoteSource {
      * arrive, so it stays rebuildable. See [MessageBody].
      */
     fun complete(channelId: String?): Boolean = true
+
+    /** Changes to the tables this channel reads; null for sources without version tracking. */
+    fun revision(channelId: String?): Long? = null
 }
 
 /** Where the builder finds cheermotes, by channel and prefix ("Cheer" of "Cheer100"). */
@@ -51,6 +54,9 @@ fun interface BadgeSource {
 
     /** False while badges for [channelId] are still on their way; see [EmoteSource.complete]. */
     fun complete(channelId: String?): Boolean = true
+
+    /** Changes to the tables this channel reads; null for sources without version tracking. */
+    fun revision(channelId: String?): Long? = null
 }
 
 /** Turns IRC messages into [ChatItem]s, once per message. */
@@ -173,7 +179,13 @@ class MessageBuilder(
         /** Only a message that carries bits turns "Cheer100" into a cheermote. */
         private val cheered: Boolean = false,
     ) : MessageBody.Source {
+        private var emoteRevision: Long? = null
+        private var badgeRevision: Long? = null
+
         override fun segments(): List<Segment> {
+            // A provider can finish on another thread while these parts are being built.
+            emoteRevision = emotes.revision(channelId)
+            badgeRevision = badges.revision(badgeChannelId)
             val text = if (strippedPrefix == 0) rawBody else rawBody.substring(strippedPrefix)
             var ranges = twitchEmotes(rawBody, emotesTag)
             var gifs = twitchGifs(rawBody, gifsTag)
@@ -196,8 +208,17 @@ class MessageBuilder(
 
         override fun quote() = builtQuote ?: reply?.let { quoteSegments(channel, it.parentBody, channelId) }.orEmpty()
 
+        override fun affectedBy(channelIds: Set<String>) = channelId in channelIds || badgeChannelId in channelIds
+
+        override fun hasChanges() = emoteRevision == null || badgeRevision == null ||
+            emoteRevision != emotes.revision(channelId) || badgeRevision != badges.revision(badgeChannelId)
+
         // A list still on its way would change the message once it arrives.
-        override fun worthKeeping() = !emotes.complete(channelId) || !badges.complete(badgeChannelId)
+        override fun worthKeeping(): Boolean {
+            return !emotes.complete(channelId) || !badges.complete(badgeChannelId) ||
+                (emoteRevision != null && emoteRevision != emotes.revision(channelId)) ||
+                (badgeRevision != null && badgeRevision != badges.revision(badgeChannelId))
+        }
     }
 
     private fun buildPrivmsg(

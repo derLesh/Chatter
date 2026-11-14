@@ -7,6 +7,8 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.TestScope
+import kotlinx.coroutines.test.advanceTimeBy
+import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
@@ -424,4 +426,101 @@ class MessageBuffersTest {
         watcher.cancel()
         live.setGroups(emptyMap())
     }
+    @Test
+    fun nearbyArrivalsRebuildOnlyTheirChannelsOnce() = watching("a", "b", "c") { shown ->
+        val builds = HashMap<String, Int>()
+        listOf("a", "b", "c").forEach { channel ->
+            val source = object : MessageBody.Source {
+                override fun segments(): List<Segment> {
+                    builds[channel] = (builds[channel] ?: 0) + 1
+                    return listOf(Segment.Text(channel))
+                }
+                override fun badges() = emptyList<me.lesh.chatter.badges.Badge>()
+                override fun worthKeeping() = true
+                override fun affectedBy(channelIds: Set<String>) = channel in channelIds
+            }
+            buffers.add(message(channel, channel).copy(body = MessageBody.from(source)))
+        }
+        advanceUntilIdle()
+        val untouched = shown("c").single()
+        buffers.rebuildAfterArrival(setOf("a"))
+        advanceTimeBy(50)
+        buffers.rebuildAfterArrival(setOf("b"))
+        buffers.rebuildAfterArrival(setOf("a"))
+        advanceUntilIdle()
+        assertEquals(mapOf("a" to 2, "b" to 2, "c" to 1), builds)
+        assertTrue(untouched === shown("c").single())
+        buffers.rebuildAfterArrival(null)
+        advanceUntilIdle()
+        assertEquals(mapOf("a" to 3, "b" to 3, "c" to 2), builds)
+    }
+
+    @Test
+    fun recentMessagesArePublishedBeforeOlderBodiesArePrepared() = watching("a", "+all") { shown ->
+        settings.value = settings.value.copy(messageLimit = 2_000)
+        buffers.setGroups(mapOf("+all" to listOf("a")))
+        var builds = 0
+        repeat(2_000) { index ->
+            buffers.add(message("a", "$index").copy(
+                body = MessageBody.lazily(
+                    segments = { builds++; listOf(Segment.Text("$index")) },
+                    badges = { emptyList() },
+                ),
+            ))
+        }
+        advanceTimeBy(100)
+        runCurrent()
+        assertEquals(100, builds)
+        listOf("a", "+all").forEach { channel ->
+            assertEquals((1_900 until 2_000).map { "$it" }, shown(channel).map { it.id })
+            assertTrue(shown(channel).all { it.body.isPrepared })
+        }
+        // A new line can be ingested before the next preparation chunk.
+        buffers.open("b")
+        buffers.add(message("b", "new"))
+        advanceTimeBy(1)
+        runCurrent()
+        assertTrue("each watched list prepares at most one chunk", builds in 150..200)
+        advanceUntilIdle()
+        assertEquals(2_000, builds)
+        listOf("a", "+all").forEach { channel ->
+            assertEquals(2_000, shown(channel).size)
+            assertEquals("1999", shown(channel).last().id)
+            assertTrue(shown(channel).all { it.body.isPrepared })
+        }
+    }
+
+    @Test
+    fun rebuildingHistoryKeepsDisplayedRowsWhileOlderReplacementsArePrepared() = watching("a") { shown ->
+        settings.value = settings.value.copy(messageLimit = 300)
+        repeat(300) { index ->
+            buffers.add(message("a", "$index").copy(body = MessageBody.lazily(
+                segments = { listOf(Segment.Text("$index")) },
+                badges = { emptyList() },
+                worthKeeping = { true },
+            )))
+        }
+        advanceUntilIdle()
+        val previous = shown("a").associateBy { it.id }
+        buffers.rebuildAll()
+        advanceTimeBy(100)
+        runCurrent()
+        assertEquals(previous.keys.toList(), shown("a").map { it.id })
+        assertTrue(previous.getValue("0").body === shown("a").first().body)
+        assertTrue(shown("a").all { it.body.isPrepared })
+        advanceUntilIdle()
+        assertTrue(previous.getValue("0").body !== shown("a").first().body)
+    }
+
+    @Test
+    fun aSharedChatCopyKeepsItsSourceChannelsBadgesNeeded() = runTest(dispatcher) {
+        buffers.open("a")
+        buffers.open("b")
+        buffers.add(message("b", "copy").copy(sourceRoomId = "source"))
+        buffers.close("a")
+        assertTrue(buffers.usesBadgeChannel("source"))
+        buffers.close("b")
+        assertTrue(!buffers.usesBadgeChannel("source"))
+    }
+
 }

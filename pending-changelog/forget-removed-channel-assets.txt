@@ -1,0 +1,1 @@
+patch: Free emotes and badges when a channel is removed

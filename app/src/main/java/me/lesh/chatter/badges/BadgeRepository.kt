@@ -1,6 +1,7 @@
 package me.lesh.chatter.badges
 
 import me.lesh.chatter.debug.AppLog
+import me.lesh.chatter.chat.AssetChanges
 import me.lesh.chatter.chat.BadgeSource
 import me.lesh.chatter.net.ChatterBadgeApi
 import me.lesh.chatter.net.HelixBadgeSet
@@ -10,8 +11,6 @@ import me.lesh.chatter.net.ThirdPartyBadgeApi
 import me.lesh.chatter.net.TrustedImages
 import me.lesh.chatter.net.TwitchBadgeApi
 import me.lesh.chatter.util.runCatchingCancellable
-import kotlinx.coroutines.flow.MutableSharedFlow
-import kotlinx.coroutines.flow.SharedFlow
 import java.io.IOException
 import java.util.concurrent.ConcurrentHashMap
 
@@ -55,6 +54,8 @@ class BadgeRepository(
 ) : BadgeSource {
     @Volatile private var global: Map<String, Badge> = emptyMap()
     private val channels = ConcurrentHashMap<String, Map<String, Badge>>()
+    private val channelLock = Any()
+    private val channelLifetimes = HashMap<String, Any>()
 
     /** Third-party badges by Twitch user id; a user can have several. */
     @Volatile private var thirdPartyBadges: Map<String, List<Badge>> = emptyMap()
@@ -71,13 +72,13 @@ class BadgeRepository(
      * over the EventAPI as a badge description ([sevenTvBadge]) and, separately, who wears it
      * ([sevenTvWearer]). Chatterino does the same.
      */
-    private val sevenTvCosmetics = ConcurrentHashMap<String, Badge>()
+    private val sevenTvCosmetics = RecentDefinitions<Badge>(MAX_DEFINITIONS) { sevenTvWearers.cosmeticIds() }
 
     /** Twitch user id to the cosmetic they wear; 7TV shows one badge per person. */
     private val sevenTvWearers = RecentWearers(MAX_WEARERS)
 
     /** 7TV paints by id, and who wears which, arriving like the badges. */
-    private val sevenTvPaints = ConcurrentHashMap<String, NamePaint>()
+    private val sevenTvPaints = RecentDefinitions<NamePaint>(MAX_DEFINITIONS) { sevenTvPaintWearers.cosmeticIds() }
     private val sevenTvPaintWearers = RecentWearers(MAX_WEARERS)
 
     /** Channels whose badges failed to load, retried when the app comes back. */
@@ -87,9 +88,11 @@ class BadgeRepository(
     @Volatile private var globalAnswered = false
     private val answeredChannels = ConcurrentHashMap.newKeySet<String>()
 
-    private val _arrived = MutableSharedFlow<Unit>(extraBufferCapacity = 1)
-    /** Badges arrived that messages built earlier lack; those messages are rebuilt. */
-    val arrived: SharedFlow<Unit> = _arrived
+    private val changes = AssetChanges()
+    /** Latest arrivals by Twitch channel id; null means global badges. */
+    val arrived = changes.arrived
+
+    override fun revision(channelId: String?): Long = changes.revision(channelId)
 
     @Volatile private var lastRetry = 0L
 
@@ -165,9 +168,11 @@ class BadgeRepository(
         if (global.isNotEmpty()) return
         runCatchingCancellable { helix.globalBadges() }
             .onSuccess {
-                global = it.toMap()
+                val loaded = it.toMap()
+                val changed = global != loaded
+                global = loaded
                 trouble.reachable(ServiceTrouble.TWITCH)
-                _arrived.tryEmit(Unit)
+                if (changed) changes.changed()
             }
             .onFailure {
                 if (it !is NotLoggedInException) trouble.report(ServiceTrouble.TWITCH)
@@ -176,19 +181,36 @@ class BadgeRepository(
         globalAnswered = true
     }
 
-    suspend fun loadChannel(channelId: String) {
-        runCatchingCancellable { helix.channelBadges(channelId) }
-            .onSuccess {
-                channels[channelId] = it.toMap()
+    suspend fun loadChannel(channelId: String) = loadChannel(channelId, expectedLifetime = null)
+
+    private suspend fun loadChannel(channelId: String, expectedLifetime: Any?) {
+        val lifetime = synchronized(channelLock) {
+            if (expectedLifetime != null && channelLifetimes[channelId] !== expectedLifetime) return
+            channelLifetimes.getOrPut(channelId) { Any() }
+        }
+        val result = runCatchingCancellable { helix.channelBadges(channelId) }
+        synchronized(channelLock) {
+            if (channelLifetimes[channelId] !== lifetime) return
+            result.onSuccess {
+                val loaded = it.toMap()
+                val changed = channels.put(channelId, loaded) != loaded
                 failedChannels.remove(channelId)
-                _arrived.tryEmit(Unit)
-            }
-            .onFailure {
+                if (changed) changes.changed(channelId)
+            }.onFailure {
                 failedChannels.add(channelId)
                 if (it !is NotLoggedInException) trouble.report(ServiceTrouble.TWITCH)
                 AppLog.w(TAG, "Channel badges failed: ${it.message}")
             }
-        answeredChannels.add(channelId)
+            answeredChannels.add(channelId)
+        }
+    }
+
+    fun removeChannel(channelId: String) = synchronized(channelLock) {
+        channelLifetimes.remove(channelId)
+        channels.remove(channelId)
+        changes.forget(channelId)
+        failedChannels.remove(channelId)
+        answeredChannels.remove(channelId)
     }
 
     /**
@@ -202,7 +224,8 @@ class BadgeRepository(
         lastRetry = at
         loadGlobal()
         loadThirdParty()
-        failedChannels.toList().forEach { loadChannel(it) }
+        val pending = synchronized(channelLock) { failedChannels.mapNotNull { id -> channelLifetimes[id]?.let { id to it } } }
+        pending.forEach { (id, lifetime) -> loadChannel(id, expectedLifetime = lifetime) }
     }
 
     /**
@@ -247,7 +270,7 @@ class BadgeRepository(
 
         if (changed) {
             thirdPartyBadges = mergeThirdParty()
-            _arrived.tryEmit(Unit)
+            changes.changed()
         }
     }
 
@@ -287,6 +310,9 @@ class BadgeRepository(
 
         /** Per map, a few hundred kilobytes; far more chatters than a busy evening shows. */
         const val MAX_WEARERS = 5_000
+
+        /** Enough for every tracked wearer plus definitions awaiting their wearer event. */
+        const val MAX_DEFINITIONS = MAX_WEARERS + 512
 
         /** The supporter badge's id in Chatter's badge list. */
         const val SUPPORTER_BADGE_ID = "chatter"

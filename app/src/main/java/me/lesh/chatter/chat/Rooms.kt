@@ -93,6 +93,7 @@ class Rooms {
 
     /** The channel was left; forget what Twitch said about it. */
     fun forget(channel: String) {
+        ids.remove(channel)
         userStates.remove(channel)
         _states.update { it - channel }
         _roles.update { it - channel }

@@ -3,6 +3,8 @@ package me.lesh.chatter
 import android.app.Application
 import android.os.Process
 import android.os.SystemClock
+import androidx.compose.ui.ExperimentalComposeUiApi
+import androidx.compose.ui.contentcapture.ContentCaptureManager
 import coil3.ImageLoader
 import coil3.PlatformContext
 import coil3.SingletonImageLoader
@@ -17,8 +19,12 @@ class ChatterApp : Application(), SingletonImageLoader.Factory {
     lateinit var container: AppContainer
         private set
 
+    @OptIn(ExperimentalComposeUiApi::class)
     override fun onCreate() {
         super.onCreate()
+        // Compose walks the whole chat for content capture after nearly every frame of a moving
+        // chat: a sixth of the main thread and most of the garbage, measured in a busy channel.
+        ContentCaptureManager.isEnabled = false
         AppLog.keepIn(filesDir.resolve("log/log.tsv"))
         // First, so crashes while building the rest are recorded too.
         val crashes = CrashLog(filesDir.resolve("crashes"), DeviceInfo.current(shownVersion, BuildConfig.VERSION_CODE))

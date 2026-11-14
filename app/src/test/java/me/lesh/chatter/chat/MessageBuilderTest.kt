@@ -380,4 +380,57 @@ class MessageBuilderTest {
         assertEquals(null, build(notice("msg-id=viewermilestone;msg-param-category=other;msg-param-value=5")).watchStreak)
         assertEquals(null, build(notice("msg-id=resub;msg-param-value=5")).watchStreak)
     }
+    @Test
+    fun sharedChatBadgesRebuildOnlyWhenTheirTablesChange() {
+        var badgeVersion = 0L
+        val versionedBadges = object : BadgeSource {
+            override fun resolve(channelId: String?, badgesTag: String?, userId: String?) = emptyList<Badge>()
+            override fun complete(channelId: String?) = false
+            override fun revision(channelId: String?) = badgeVersion
+        }
+        val versionedEmotes = object : EmoteSource {
+            override fun lookup(channelId: String?, word: String) = null
+            override fun lookupOwnTwitch(channelId: String?, word: String) = null
+            override fun revision(channelId: String?) = 0L
+        }
+        val body = MessageBuilder(versionedEmotes, versionedBadges)
+            .build(privmsg("hello", "room-id=1;source-room-id=2;source-badges=subscriber/1"), "lukas", "1", mentions)!!.body
+        body.prepare()
+        assertTrue(body === body.rebuilt(setOf("2")))
+        badgeVersion++
+        assertTrue(body === body.rebuilt(setOf("3")))
+        assertTrue(body !== body.rebuilt(setOf("2")))
+    }
+
+    @Test
+    fun anArrivalWhileABodyIsBeingBuiltStillRebuildsThatBody() {
+        var loaded = false
+        var version = 0L
+        val racingEmotes = object : EmoteSource {
+            override fun lookup(channelId: String?, word: String): Emote? {
+                val found = thirdParty[word]?.takeIf { loaded }
+                if (!loaded) {
+                    loaded = true
+                    version++
+                }
+                return found
+            }
+            override fun lookupOwnTwitch(channelId: String?, word: String) = null
+            override fun revision(channelId: String?) = version
+            override fun complete(channelId: String?) = loaded
+        }
+        val versionedBadges = object : BadgeSource {
+            override fun resolve(channelId: String?, badgesTag: String?, userId: String?) = emptyList<Badge>()
+            override fun revision(channelId: String?) = 0L
+        }
+        val body = MessageBuilder(racingEmotes, versionedBadges)
+            .build(privmsg("OMEGALUL"), "lukas", "1", mentions)!!.body
+        body.prepare()
+        assertEquals(listOf(Segment.Text("OMEGALUL")), body.segments)
+        val rebuilt = body.rebuilt(setOf("1"))
+        assertTrue(body !== rebuilt)
+        rebuilt.prepare()
+        assertEquals("OMEGALUL", (rebuilt.segments.single() as Segment.EmoteSeg).emote.name)
+    }
+
 }

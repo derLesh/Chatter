@@ -25,7 +25,9 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
+import org.junit.Rule
 import org.junit.Test
+import org.junit.rules.TemporaryFolder
 import java.io.IOException
 
 /** The emote repository against fake providers, including ones that do not answer. */
@@ -47,6 +49,7 @@ class EmoteRepositoryTest {
         var bttv: List<String>? = emptyList()
         var sevenTv: List<String>? = emptyList()
         var calls = 0
+        var sharedSevenTvSet = false
 
         /** While set, BTTV's channel answer waits for it. */
         var bttvGate: CompletableDeferred<Unit>? = null
@@ -70,7 +73,7 @@ class EmoteRepositoryTest {
         override suspend fun sevenTvGlobal() = answer(sevenTv) { SevenTvEmoteSet("global", it.toSevenTv()) }
 
         override suspend fun sevenTvChannel(channelId: String) = answer(sevenTv) {
-            SevenTvUser(SevenTvEmoteSet("set-$channelId", it.toSevenTv()), SevenTvUserRef("user-$channelId"))
+            SevenTvUser(SevenTvEmoteSet(if (sharedSevenTvSet) "shared-set" else "set-$channelId", it.toSevenTv()), SevenTvUserRef("user-$channelId"))
         }
 
         private fun List<String>.toBttv() = map { BttvEmote(id = "bttv-$it", code = it) }
@@ -153,6 +156,28 @@ class EmoteRepositoryTest {
 
         assertEquals(EmoteProvider.Bttv, emotes.lookup(channel, "catJAM")?.provider)
         assertEquals("elsewhere the global one still stands", EmoteProvider.SevenTv, emotes.lookup(null, "catJAM")?.provider)
+    }
+
+    // ---- the lists of the last start --------------------------------------------------------
+
+    @get:Rule val folder = TemporaryFolder()
+
+    @Test
+    fun theNextStartHasTheEmotesBeforeAnyProviderAnswers() = runTest {
+        val files = EmoteListFiles(folder.root)
+        providers.bttv = listOf("catJAM")
+        providers.sevenTv = listOf("peepoHappy")
+        EmoteRepository(twitch, providers, trouble, files = files).run {
+            loadGlobal()
+            loadChannel(channel, userId = null)
+        }
+
+        val nextStart = EmoteRepository(twitch, FakeProviders(), trouble, files = files)
+        assertTrue(nextStart.restoreChannel(channel))
+        assertEquals(EmoteProvider.Bttv, nextStart.lookup(channel, "catJAM")?.provider)
+
+        nextStart.removeChannel(channel)
+        assertFalse("a removed channel's list is gone", EmoteRepository(twitch, providers, trouble, files = files).restoreChannel(channel))
     }
 
     // ---- a provider that does not answer ------------------------------------------------------
@@ -251,8 +276,8 @@ class EmoteRepositoryTest {
 
     @Test
     fun theChatIsToldToBuildItsMessagesAgainWhenEmotesArriveLate() = runTest {
-        val rebuilds = mutableListOf<Unit>()
-        val watching = launch { emotes.arrived.collect { rebuilds += it } }
+        val rebuilds = mutableListOf<Map<String?, Long>>()
+        val watching = launch { emotes.arrived.collect { if (it.isNotEmpty()) rebuilds += it } }
         runCurrent()
 
         providers.ffz = null
@@ -580,8 +605,79 @@ class EmoteRepositoryTest {
             ),
             emotes.sevenTvSubscriptions(),
         )
-        assertEquals(channel, emotes.channelForSevenTvSet("set-$channel"))
-        assertEquals(channel, emotes.channelForSevenTvUser("user-$channel"))
+        assertEquals(listOf(channel), emotes.channelsForSevenTvSet("set-$channel"))
+        assertEquals(listOf(channel), emotes.channelsForSevenTvUser("user-$channel"))
+    }
+
+    @Test
+    fun removingAChannelDropsItsEmotesAndFollowerEmotesButKeepsGlobalAndOtherChannels() = runTest {
+        providers.ffz = listOf("global")
+        emotes.loadGlobal()
+        providers.ffz = listOf("channel")
+        twitch.follower = listOf("follower")
+        emotes.loadChannel(channel, userId = channel)
+        emotes.loadChannel("other", userId = null)
+        assertTrue(emotes.lookupOwnTwitch(channel, "follower") != null)
+        emotes.removeChannel(channel)
+        assertNull(emotes.lookup(channel, "channel"))
+        assertNull(emotes.lookupOwnTwitch(channel, "follower"))
+        assertTrue(emotes.lookup(channel, "global") != null)
+        assertTrue(emotes.lookup("other", "channel") != null)
+        assertTrue(emotes.channelsForSevenTvSet("set-$channel").isEmpty())
+        assertTrue(emotes.channelsForSevenTvUser("user-$channel").isEmpty())
+        emotes.loadChannel(channel, userId = null)
+        assertTrue(emotes.lookup(channel, "channel") != null)
+    }
+
+    @Test
+    fun removingOneChannelKeepsTheSevenTvSetAnotherChannelShares() = runTest {
+        providers.sharedSevenTvSet = true
+        emotes.loadChannel(channel, userId = null)
+        emotes.loadChannel("other", userId = null)
+        assertEquals(setOf(channel, "other"), emotes.channelsForSevenTvSet("shared-set").toSet())
+        emotes.removeChannel(channel)
+        assertEquals(listOf("other"), emotes.channelsForSevenTvSet("shared-set"))
+        assertEquals(setOf(
+            SevenTvSubscription.ofObject("emote_set.update", "shared-set"),
+            SevenTvSubscription.ofObject("user.update", "user-other"),
+        ), emotes.sevenTvSubscriptions())
+    }
+
+    @Test
+    fun anInFlightLoadCannotRestoreARemovedChannelOrOverwriteItsRejoin() = runTest {
+        providers.ffz = listOf("old")
+        val gate = CompletableDeferred<Unit>()
+        providers.bttvGate = gate
+        val pending = launch { emotes.loadChannel(channel, userId = null) }
+        runCurrent()
+        emotes.removeChannel(channel)
+        providers.bttvGate = null
+        providers.ffz = listOf("new")
+        emotes.loadChannel(channel, userId = null)
+        gate.complete(Unit)
+        pending.join()
+        assertNull(emotes.lookup(channel, "old"))
+        assertTrue(emotes.lookup(channel, "new") != null)
+        emotes.removeChannel(channel)
+        val calls = providers.calls
+        emotes.refreshChannel(channel, force = true)
+        emotes.retryMissing()
+        assertEquals(calls, providers.calls)
+        assertTrue(emotes.sevenTvSubscriptions().isEmpty())
+    }
+
+    @Test
+    fun removingWhileProvidersAreLoadingLeavesNoEmotesOrSubscriptions() = runTest {
+        val gate = CompletableDeferred<Unit>()
+        providers.bttvGate = gate
+        val pending = launch { emotes.loadChannel(channel, userId = null) }
+        runCurrent()
+        emotes.removeChannel(channel)
+        gate.complete(Unit)
+        pending.join()
+        assertEquals(0, emotes.loadedCount())
+        assertTrue(emotes.sevenTvSubscriptions().isEmpty())
+        assertTrue(emotes.arrived.value.isEmpty())
     }
 
     private fun sevenTvEmote(name: String) = SevenTvActiveEmote(

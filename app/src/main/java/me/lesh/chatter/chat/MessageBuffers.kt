@@ -32,9 +32,13 @@ class MessageBuffers(
     private val ids = HashMap<String, HashSet<String>>()
     private val dirty = HashSet<String>()
     private var publishJob: Job? = null
+    private var rebuildJob: Job? = null
+    private val rebuildChannels = HashSet<String>()
+    private var rebuildGlobal = false
 
     private val flows = ConcurrentHashMap<String, MutableStateFlow<List<ChatItem>>>()
     private val watchers = ConcurrentHashMap<String, Job>()
+    private val preparationJobs = HashMap<String, Job>()
 
     /** The channels of each combined chat, by its key. */
     private var groups: Map<String, List<String>> = emptyMap()
@@ -96,6 +100,7 @@ class MessageBuffers(
         dirty.remove(channel)
         flows.remove(channel)
         watchers.remove(channel)?.cancel()
+        preparationJobs.remove(channel)?.cancel()
         clearUnread(channel)
     }
 
@@ -106,6 +111,7 @@ class MessageBuffers(
         (groups.keys - next.keys).forEach { key ->
             flows.remove(key)
             watchers.remove(key)?.cancel()
+            preparationJobs.remove(key)?.cancel()
             dirty.remove(key)
             groupStates.remove(key)
         }
@@ -118,6 +124,8 @@ class MessageBuffers(
 
     /** Drops everything, e.g. after logout. */
     fun clearAll() {
+        preparationJobs.values.forEach { it.cancel() }
+        preparationJobs.clear()
         buffers.clear()
         ids.clear()
         dirty.clear()
@@ -185,17 +193,25 @@ class MessageBuffers(
         reshape(channel)
     }
 
-    /**
-     * Rebuilds every message, for emotes that arrived later. Bodies are replaced, not emptied: the
-     * UI compares lists by identity, so the same body object would not be redrawn. Lines the app
-     * wrote itself cannot be rebuilt and stay.
-     */
-    fun rebuildAll() {
+    /** Coalesces nearby arrivals; null covers global tables, otherwise ids name Twitch channels. */
+    fun rebuildAfterArrival(channelIds: Set<String>?) {
+        if (channelIds == null) rebuildGlobal = true else rebuildChannels.addAll(channelIds)
+        if (rebuildJob?.isActive == true) return
+        rebuildJob = scope.launch(worker) {
+            delay(PUBLISH_INTERVAL_MS)
+            rebuildAll(if (rebuildGlobal) null else rebuildChannels.toSet())
+            rebuildGlobal = false
+            rebuildChannels.clear()
+        }
+    }
+
+    /** Bodies are replaced so Compose redraws them; untouched channels keep their body objects. */
+    fun rebuildAll(channelIds: Set<String>? = null) {
         buffers.forEach { (channel, buffer) ->
             var changed = false
             for (i in buffer.indices) {
                 val item = buffer[i]
-                val body = item.body.rebuilt()
+                val body = item.body.rebuilt(channelIds)
                 if (body !== item.body) {
                     buffer[i] = item.copy(body = body)
                     changed = true
@@ -218,6 +234,10 @@ class MessageBuffers(
         }
         if (changed) reshape(channel)
     }
+
+    /** A retained Shared Chat copy still needs badges from the channel it was written in. */
+    fun usesBadgeChannel(channelId: String): Boolean =
+        buffers.values.any { buffer -> buffer.any { it.sourceRoomId == channelId } }
 
     /** Drops what the mute list covers now, e.g. after a word was added. */
     fun dropMuted(muted: MuteFilter) {
@@ -283,9 +303,6 @@ class MessageBuffers(
         val buffer = buffers[channel] ?: return emptyList()
         val out = if (settings.value.showDeleted) buffer.toList()
         else buffer.filterTo(ArrayList(buffer.size)) { !it.deleted }
-        // Built here rather than while drawing: the emote tables belong to this worker and the main
-        // thread must not read them. Everything but the newest messages is built already.
-        out.forEach { it.body.prepare() }
         return out
     }
 
@@ -470,12 +487,47 @@ class MessageBuffers(
             }
         }
 
-        /** A new list for the UI with its messages built; see [snapshot]. */
+        /** A new list in display order; preparation happens before publication. */
         fun publish(): List<ChatItem> {
             val out = rows.map { it.shown }
-            out.forEach { it.body.prepare() }
             published = out
             return out
+        }
+    }
+
+    /** Only worker-built bodies reach the UI, with older rows filled in between incoming messages. */
+    private fun publishSnapshot(channel: String, flow: MutableStateFlow<List<ChatItem>>, items: List<ChatItem>) {
+        preparationJobs.remove(channel)?.cancel()
+        items.takeLast(INITIAL_PREPARATION_COUNT).forEach { it.body.prepare() }
+        publishPrepared(flow, items)
+        if (items.all { it.body.isPrepared }) return
+        preparationJobs[channel] = scope.launch(worker) {
+            var remaining = PREPARATION_CHUNK_SIZE
+            for (i in items.lastIndex downTo 0) {
+                if (items[i].body.isPrepared) continue
+                if (remaining == PREPARATION_CHUNK_SIZE) {
+                    delay(1)
+                    if (flow.subscriptionCount.value == 0) return@launch
+                }
+                items[i].body.prepare()
+                remaining--
+                if (remaining == 0) {
+                    publishPrepared(flow, items)
+                    remaining = PREPARATION_CHUNK_SIZE
+                }
+            }
+            publishPrepared(flow, items)
+        }
+    }
+
+    private fun publishPrepared(flow: MutableStateFlow<List<ChatItem>>, items: List<ChatItem>) {
+        // Keep an already displayed body until its replacement is ready, preserving scroll anchors.
+        val previous = flow.value.associateBy { it.id }
+        flow.value = items.mapNotNull { item ->
+            when {
+                item.body.isPrepared -> item
+                else -> previous[item.id]?.let { item.copy(body = it.body) }
+            }
         }
     }
 
@@ -500,7 +552,7 @@ class MessageBuffers(
                 val flow = flows[channel]
                 // Nobody is collecting: stay dirty and publish on subscription.
                 if (flow == null || flow.subscriptionCount.value == 0) continue
-                flow.value = snapshot(channel)
+                publishSnapshot(channel, flow, snapshot(channel))
                 iterator.remove()
             }
             if (unreadDirty) {
@@ -511,6 +563,9 @@ class MessageBuffers(
     }
 
     private companion object {
+        const val INITIAL_PREPARATION_COUNT = 100
+        const val PREPARATION_CHUNK_SIZE = 50
+
         /**
          * How often a channel's list is replaced. Each publish copies the whole buffer and gives
          * Compose a new list to diff; at every frame that was thirty lists of up to 500 messages a

@@ -18,10 +18,12 @@ import me.lesh.chatter.net.ThirdPartyApi
 import me.lesh.chatter.settings.Settings
 import me.lesh.chatter.settings.SpecialMessage
 import me.lesh.chatter.util.RateLimiter
+import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.joinAll
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.MutableSharedFlow
@@ -31,8 +33,8 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.drop
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
-import kotlinx.coroutines.flow.merge
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -111,6 +113,12 @@ class ChatRepository(
     private val rateLimiter = RateLimiter(30_000)
     private val loadedChannels = HashSet<String>()
     private var joinedChannels: List<String> = emptyList()
+
+    /**
+     * Messages of channels just joined whose emotes are not there yet. Shown at once, their words
+     * would turn into emotes a moment later and the taller lines would make the chat jump.
+     */
+    private val held = HashMap<String, ArrayList<IrcMessage>>()
 
     /**
      * The emote and badge load of each channel id, started by whichever comes first: the channel's
@@ -203,7 +211,19 @@ class ChatRepository(
     val activePage = MutableStateFlow<String?>(null)
 
     fun start() {
-        scope.launch(worker) { irc.messages.collect { incoming.handle(it) } }
+        scope.launch(worker) {
+            irc.messages.collect {
+                val channel = it.channel
+                if (channel != null && channel !in joinedChannels) return@collect
+                val waiting = channel?.let(held::get)
+                // ROOMSTATE brings the channel id, which the emotes are loaded by.
+                if (waiting == null || it.command == "ROOMSTATE") incoming.handle(it)
+                else {
+                    waiting += it
+                    if (waiting.size >= MAX_HELD) release(channel)
+                }
+            }
+        }
 
         // Only what the filters are made of: another setting or a token refresh must not send every
         // message in memory through them again.
@@ -245,7 +265,18 @@ class ChatRepository(
 
         // Emotes or badges arrived late: messages built without them are rebuilt.
         scope.launch(worker) {
-            merge(emotes.arrived, badges.arrived).collect { buffers.rebuildAll() }
+            var previousEmotes = emptyMap<String?, Long>()
+            var previousBadges = emptyMap<String?, Long>()
+            combine(emotes.arrived, badges.arrived) { emotes, badges -> emotes to badges }
+                .collect { (emotes, badges) ->
+                    val changed = (emotes.keys.filter { emotes[it] != previousEmotes[it] } +
+                        badges.keys.filter { badges[it] != previousBadges[it] }).toSet()
+                    previousEmotes = emotes
+                    previousBadges = badges
+                    if (changed.isNotEmpty()) buffers.rebuildAfterArrival(
+                        if (null in changed) null else changed.filterNotNull().toSet(),
+                    )
+                }
         }
 
         scope.launch(worker) {
@@ -405,6 +436,7 @@ class ChatRepository(
         pins.clear()
         rewards.clear()
         loadedChannels.clear()
+        held.clear()
         historyMissing.clear()
         listLoads.clear()
         joinedChannels = emptyList()
@@ -427,9 +459,8 @@ class ChatRepository(
         if (added.isNotEmpty() || removed.isNotEmpty()) {
             AppLog.i(TAG, "Channels: ${added.size} added, ${removed.size} removed, ${list.size} open")
         }
+        val removedIds = removed.mapNotNull { rooms.id(it) ?: channelRepo.info.value[it]?.id }
         removed.forEach { ch ->
-            // Joined again later, the channel loads its lists again.
-            rooms.id(ch)?.let { listLoads.remove(it) }
             irc.part(ch)
             buffers.close(ch)
             chatterRegistry.remove(ch)
@@ -437,14 +468,28 @@ class ChatRepository(
             sharedChats.forget(ch)
             pins.forget(ch)
             loadedChannels.remove(ch)
+            held.remove(ch)
             historyMissing.remove(ch)
             _unreadMentions.update { it - ch }
         }
+        val keptIds = list.mapNotNullTo(HashSet()) { rooms.id(it) ?: channelRepo.info.value[it]?.id }
+        removedIds.filterNot { it in keptIds }.forEach { id ->
+            val keepBadges = buffers.usesBadgeChannel(id) || sharedChats.sessions.value.values.any { id in it }
+            val load = listLoads.remove(id)
+            if (!keepBadges) {
+                load?.cancel()
+                badges.removeChannel(id)
+            }
+            // Version changes resync 7TV after the room and its subscriptions have been removed.
+            emotes.removeChannel(id)
+        }
+        val toLoad = added.filter { loadedChannels.add(it) }
+        // Only channels that load: loading is what lets them go again.
+        toLoad.forEach { held[it] = ArrayList() }
         added.forEach { ch ->
             irc.join(ch)
             buffers.open(ch)
         }
-        val toLoad = added.filter { loadedChannels.add(it) }
         if (toLoad.isNotEmpty()) scope.launch { loadChannels(toLoad) }
     }
 
@@ -478,14 +523,36 @@ class ChatRepository(
      * seconds of empty channel. Emotes that arrive later are put into the messages afterwards.
      */
     private suspend fun loadChannelData(channel: String, foundId: String?) {
-        val id = rooms.id(channel) ?: channelRepo.info.value[channel]?.id ?: foundId
-        if (id != null) {
-            rooms.setId(channel, id)
-            val listLoad = loadEmotesAndBadges(id)
-            loadChatters(channel, id)
-            withTimeoutOrNull(EMOTES_BEFORE_HISTORY_MS) { listLoad.join() }
+        try {
+            if (channel !in channelRepo.channels.value) return
+            // Without a login Twitch's API tells no ids, so a channel new to the app waits for its
+            // ROOMSTATE; without the id its history would come before its emotes.
+            val id = rooms.id(channel) ?: channelRepo.info.value[channel]?.id ?: foundId
+                ?: withTimeoutOrNull(ROOM_ID_WAIT_MS) { rooms.states.first { channel in it } }?.let { rooms.id(channel) }
+            if (id != null) {
+                channelRepo.rememberId(channel, id)
+                // The emotes of the last start: messages can show right away.
+                val kept = withContext(Dispatchers.IO) { emotes.restoreChannel(id) }
+                if (kept) withContext(worker) { release(channel) }
+                val listLoad = withContext(worker) {
+                    if (channel !in joinedChannels) return@withContext null
+                    rooms.setId(channel, id)
+                    loadEmotesAndBadges(id)
+                } ?: return
+                loadChatters(channel, id)
+                // With kept emotes only the badges are waited for, and only briefly.
+                withTimeoutOrNull(if (kept) BADGES_BEFORE_HISTORY_MS else EMOTES_BEFORE_HISTORY_MS) { listLoad.join() }
+            }
+            withContext(worker) { release(channel) }
+            loadHistory(channel)
+        } finally {
+            withContext(NonCancellable + worker) { release(channel) }
         }
-        loadHistory(channel)
+    }
+
+    /** Lets the messages [held] for [channel] through, in the order they came. Worker only. */
+    private fun release(channel: String) {
+        held.remove(channel)?.forEach(incoming::handle)
     }
 
     private fun loadEmotesAndBadges(channelId: String): Job = listLoads.computeIfAbsent(channelId) {
@@ -512,6 +579,7 @@ class ChatRepository(
             return
         }
         withContext(worker) {
+            if (channel !in joinedChannels) return@withContext
             chatterRegistry.setPresent(channel, users.associate { it.userLogin.lowercase() to it.userName.ifEmpty { it.userLogin } })
         }
     }
@@ -547,6 +615,7 @@ class ChatRepository(
         }
         if (announce) historyMissing.remove(channel)
         val (fresh, partners) = withContext(worker) {
+            if (channel !in joinedChannels) return@withContext emptyList<ChatItem>() to emptyList<String>()
             val self = auth.account?.login.orEmpty()
             val current = filters
             val (mentions, _, rules) = current
@@ -612,8 +681,12 @@ class ChatRepository(
      */
     private suspend fun describePartners(ids: List<String>) {
         if (ids.isEmpty()) return
-        val known = rooms.knownIds().toSet()
-        ids.filter { it !in known }.forEach { scope.launch { badges.loadChannel(it) } }
+        withContext(worker) {
+            val known = rooms.knownIds().toSet()
+            ids.filter { id -> id !in known &&
+                (buffers.usesBadgeChannel(id) || sharedChats.sessions.value.values.any { id in it })
+            }.forEach { id -> scope.launch(start = CoroutineStart.UNDISPATCHED) { badges.loadChannel(id) } }
+        }
         val users = try {
             helix.usersById(ids)
         } catch (e: Exception) {
@@ -665,6 +738,15 @@ class ChatRepository(
 
         /** How long channels of one [priority] load before the next ones start. */
         const val HEAD_START_MS = 5_000L
+
+        /** How long a channel new to the app waits for its id when Twitch's API cannot tell it. */
+        const val ROOM_ID_WAIT_MS = 2_000L
+
+        /** How long the history waits for the badges when the emotes of the last start are there. */
+        const val BADGES_BEFORE_HISTORY_MS = 500L
+
+        /** At most this many messages wait for a channel's emotes; a busy channel's first seconds. */
+        const val MAX_HELD = 500
 
         /** How long the history waits for the channel's emotes. */
         const val EMOTES_BEFORE_HISTORY_MS = 3_000L

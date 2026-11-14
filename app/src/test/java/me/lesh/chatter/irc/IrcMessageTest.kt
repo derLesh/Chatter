@@ -110,4 +110,25 @@ class IrcMessageTest {
         assertEquals("b!b@b", msg.prefix)
         assertEquals("second", msg.trailing)
     }
+    @Test
+    fun tagValuesStayInsideTheirLineInAMultiMessageFrame() {
+        val lines = listOf(
+            "@id=1;flag;last=plain :a!a@a PRIVMSG #c :no escapes",
+            "@id=2;escaped=hello\\sworld\\:;last=tail\\\\ :b!b@b PRIVMSG #c :with escapes",
+            "@id=3;last :server NOTICE #c :a=1; b\\sc",
+        )
+        val frame = lines.joinToString("\r\n", postfix = "\r\n")
+        var start = 0
+        val messages = lines.map { line ->
+            IrcMessage.parse(frame, start, start + line.length)!!.also { start += line.length + 2 }
+        }
+        assertEquals("plain", messages[0].tag("last"))
+        assertEquals(mapOf("id" to "1", "flag" to "", "last" to "plain"), messages[0].tags)
+        assertEquals("hello world;", messages[1].tag("escaped"))
+        assertEquals("tail\\", messages[1].tag("last"))
+        assertEquals("tail\\", messages[1].tags["last"])
+        assertNull(messages[2].tag("last"))
+        assertEquals(mapOf("id" to "3", "last" to ""), messages[2].tags)
+    }
+
 }

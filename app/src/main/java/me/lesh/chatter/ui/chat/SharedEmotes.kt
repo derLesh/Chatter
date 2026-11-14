@@ -38,6 +38,11 @@ import coil3.request.ImageRequest
 import coil3.request.SuccessResult
 import coil3.size.Precision
 import coil3.size.ScaleDrawable
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Deferred
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.async
 import java.util.IdentityHashMap
 import java.util.WeakHashMap
 
@@ -59,9 +64,10 @@ import java.util.WeakHashMap
 object SharedEmotes {
     /**
      * Memory for recently shown emotes kept off screen, so scrolling back does not decode them
-     * again. A few hundred of the usual size.
+     * again. Enough for the distinct emotes of a busy channel's scrollback: with 4 MB, scrolling
+     * up decoded them again and again.
      */
-    private const val KEEP_BYTES = 4 * 1024 * 1024
+    private const val KEEP_BYTES = 24 * 1024 * 1024
 
     /**
      * Largest an emote is decoded, in pixels; larger ones are scaled down with their shape kept.
@@ -112,6 +118,9 @@ object SharedEmotes {
      */
     private class Store {
         val shown = HashMap<String, Shown>()
+
+        /** One load per emote, shared by every place waiting for it. */
+        val loading = HashMap<String, Deferred<Drawable?>>()
         val recent = object : LruCache<String, Drawable>(KEEP_BYTES) {
             override fun sizeOf(key: String, value: Drawable) = value.pixels() * 4
         }
@@ -234,8 +243,31 @@ object SharedEmotes {
         return store.shown[url]?.drawable ?: store.recent.get(url)
     }
 
+    /**
+     * Loads outside the caller's scope: a row scrolled away mid-load would otherwise cancel the
+     * load for every other place waiting on it, and the finished emote is wanted in the cache
+     * anyway. Not Main.immediate: a load finished on the spot would leave [Store.loading] before
+     * it is entered and stay there.
+     */
+    private val loads = CoroutineScope(SupervisorJob() + Dispatchers.Main)
+
     suspend fun load(context: Context, loader: ImageLoader, url: String): Drawable? {
         cached(loader, url)?.let { return it }
+        val store = store(loader)
+        val load = store.loading.getOrPut(url) {
+            val app = context.applicationContext
+            loads.async {
+                try {
+                    decode(app, loader, url)?.also { store.recent.put(url, it) }
+                } finally {
+                    store.loading.remove(url)
+                }
+            }
+        }
+        return load.await()
+    }
+
+    private suspend fun decode(context: Context, loader: ImageLoader, url: String): Drawable? {
         val request = ImageRequest.Builder(context)
             .data(url)
             .size(MAX_WIDTH, MAX_HEIGHT)
@@ -243,11 +275,8 @@ object SharedEmotes {
             .precision(Precision.INEXACT)
             .build()
         val result = loader.execute(request) as? SuccessResult ?: return null
-        // Another occurrence may have loaded the same emote meanwhile.
-        cached(loader, url)?.let { return it }
         val drawable = result.image.asDrawable(context.resources)
         drawable.setBounds(0, 0, drawable.intrinsicWidth.coerceAtLeast(1), drawable.intrinsicHeight.coerceAtLeast(1))
-        store(loader).recent.put(url, drawable)
         return drawable
     }
 

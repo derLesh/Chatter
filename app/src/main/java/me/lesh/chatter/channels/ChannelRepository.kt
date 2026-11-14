@@ -311,6 +311,16 @@ class ChannelRepository(
         return users.associate { it.login to it.id }
     }
 
+    /**
+     * Keeps an id learned from chat, so the next start knows it without asking Twitch's API, which
+     * does not answer without a login.
+     */
+    suspend fun rememberId(login: String, id: String) {
+        if (_info.value[login]?.id == id) return
+        _info.update { current -> current + (login to (current[login] ?: ChannelInfo(login)).copy(id = id)) }
+        saveCache()
+    }
+
     /** Asks Twitch at once, e.g. for a channel just added; [me.lesh.chatter.service.LiveAlerts] keeps
      * it current. */
     suspend fun refreshLive() {

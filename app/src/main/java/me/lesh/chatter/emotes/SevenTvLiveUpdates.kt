@@ -85,21 +85,20 @@ class SevenTvLiveUpdates(
         val actor = event.actor ?: context.getString(R.string.seventv_someone)
         when (event) {
             is SevenTvEvent.EmoteSetUpdate -> {
-                val channelId = emotes.channelForSevenTvSet(event.setId) ?: return
-                // Applied first, so the emotes change even if no channel name is known for the
-                // notice.
-                val added = emotes.applySevenTvUpdate(channelId, event)
-                val channel = chat.rooms.channelOf(channelId)?.takeIf { settings.value.sevenTvEvents } ?: return
-                if (added.isNotEmpty()) {
-                    chat.postNotice(
-                        channel,
-                        context.getString(R.string.seventv_added, actor),
-                        added.flatMap { listOf(Segment.EmoteSeg(it), Segment.Text(" ${it.name} ")) },
-                    )
-                }
-                event.removed.forEach { chat.postNotice(channel, context.getString(R.string.seventv_removed, actor, it.name)) }
-                event.renamed.forEach { (old, new) ->
-                    chat.postNotice(channel, context.getString(R.string.seventv_renamed, actor, old.name), listOf(Segment.Text(new.name)))
+                emotes.channelsForSevenTvSet(event.setId).forEach { channelId ->
+                    val added = emotes.applySevenTvUpdate(channelId, event)
+                    val channel = chat.rooms.channelOf(channelId)?.takeIf { settings.value.sevenTvEvents } ?: return@forEach
+                    if (added.isNotEmpty()) {
+                        chat.postNotice(
+                            channel,
+                            context.getString(R.string.seventv_added, actor),
+                            added.flatMap { listOf(Segment.EmoteSeg(it), Segment.Text(" ${it.name} ")) },
+                        )
+                    }
+                    event.removed.forEach { chat.postNotice(channel, context.getString(R.string.seventv_removed, actor, it.name)) }
+                    event.renamed.forEach { (old, new) ->
+                        chat.postNotice(channel, context.getString(R.string.seventv_renamed, actor, old.name), listOf(Segment.Text(new.name)))
+                    }
                 }
             }
             is SevenTvEvent.BadgeCreated -> badges.sevenTvBadge(event.id, event.name, event.tooltip)
@@ -109,10 +108,11 @@ class SevenTvLiveUpdates(
                 SevenTvEvent.Cosmetic.Paint -> badges.sevenTvPaintWearer(event.twitchUserId, event.refId, event.worn)
             }
             is SevenTvEvent.ActiveSetChanged -> {
-                val channelId = emotes.channelForSevenTvUser(event.userId) ?: return
-                emotes.loadChannel(channelId, null) // new set id leads to new subscriptions via version
-                val channel = chat.rooms.channelOf(channelId)?.takeIf { settings.value.sevenTvEvents } ?: return
-                chat.postNotice(channel, context.getString(R.string.seventv_set_changed, actor))
+                emotes.channelsForSevenTvUser(event.userId).forEach { channelId ->
+                    emotes.refreshChannel(channelId, force = true)
+                    val channel = chat.rooms.channelOf(channelId)?.takeIf { settings.value.sevenTvEvents } ?: return@forEach
+                    chat.postNotice(channel, context.getString(R.string.seventv_set_changed, actor))
+                }
             }
         }
     }
