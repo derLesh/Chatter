@@ -223,17 +223,18 @@ private fun AnnotatedString.Builder.appendEmote(
     val hidden = style.hiddenEmotes
     val layers = listOf(seg.emote) + seg.overlays
     val shown = if (hidden.isEmpty()) layers else layers.filterNot { hidden.hides(it, channel) }
-    if (shown.size == layers.size) {
+    val modifiers = if (hidden.isEmpty()) seg.modifiers else seg.modifiers.filterNot { hidden.hides(it, channel) }
+    if (shown.size == layers.size && modifiers.size == seg.modifiers.size) {
         inline[id] = InlineData.EmoteData(seg, giant)
         appendInlineContent(id, seg.emote.name)
         return
     }
-    val hiddenNames = layers.filter { it !in shown }.map { it.name }
+    val hiddenNames = layers.filter { it !in shown }.map { it.name } + seg.modifiers.filter { it !in modifiers }.map { it.name }
     val baseHidden = seg.emote !in shown
     if (baseHidden) append(hiddenNames.first())
     if (shown.isNotEmpty()) {
         if (baseHidden) append(' ')
-        val stack = Segment.EmoteSeg(shown.first(), shown.drop(1))
+        val stack = Segment.EmoteSeg(shown.first(), shown.drop(1), modifiers)
         inline[id] = InlineData.EmoteData(stack, giant)
         appendInlineContent(id, stack.emote.name)
     }

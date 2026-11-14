@@ -8,7 +8,11 @@ import me.lesh.chatter.emotes.Emote
 /** A piece of a chat message, computed once when the message arrives. */
 sealed interface Segment {
     data class Text(val text: String) : Segment
-    data class EmoteSeg(val emote: Emote, val overlays: List<Emote> = emptyList()) : Segment
+    /** [modifiers] are FFZ effect emotes that follow it; see [me.lesh.chatter.emotes.FfzEffects]. */
+    data class EmoteSeg(val emote: Emote, val overlays: List<Emote> = emptyList(), val modifiers: List<Emote> = emptyList()) : Segment {
+        /** Every emote in it, for the emote card. */
+        val all: List<Emote> get() = listOf(emote) + overlays + modifiers
+    }
     data class Link(val text: String, val url: String) : Segment
     /**
      * "@name". [login] and [color] are only set while that user is chatting in the channel, so

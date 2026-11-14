@@ -34,6 +34,9 @@ data class FfzEmote(
     val urls: Map<String, String?> = emptyMap(),
     val animated: Map<String, String?>? = null,
     val owner: FfzOwner? = null,
+    /** An effect emote; see [me.lesh.chatter.emotes.FfzEffects]. */
+    val modifier: Boolean = false,
+    @kotlinx.serialization.SerialName("modifier_flags") val modifierFlags: Int = 0,
 )
 
 @Serializable

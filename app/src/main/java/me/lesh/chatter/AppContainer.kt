@@ -271,6 +271,7 @@ class AppContainer(
             showUnlisted = it.showUnlisted7tv,
             providers = it.emoteProviders,
             globalsOff = it.globalEmotesOff,
+            ffzEffects = it.ffzEffects,
         )
     }
 

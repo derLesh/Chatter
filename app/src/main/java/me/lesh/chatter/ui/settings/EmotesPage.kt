@@ -132,6 +132,11 @@ internal fun ProviderPage(provider: Provider, settings: Settings, vm: MainViewMo
                     )
                 }
             }
+            if (emotes == EmoteProvider.Ffz && emotes in settings.emoteProviders) {
+                item(R.string.settings_ffz_effects) {
+                    SwitchItem(R.string.settings_ffz_effects, settings.ffzEffects, vm::setFfzEffects, R.string.settings_ffz_effects_hint)
+                }
+            }
         }
         provider.badges?.let { badges ->
             item(R.string.settings_provider_badges) {

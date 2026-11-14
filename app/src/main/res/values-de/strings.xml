@@ -668,6 +668,8 @@
     <string name="settings_seventv_paints_hint">Namen in ihren 7TV-Farben und -Mustern. Manche sind schwer zu lesen.</string>
     <string name="settings_ffz_channel_badges">Mod-Badges der Kanäle</string>
     <string name="settings_ffz_channel_badges_hint">Mods und VIPs tragen das Badge, das ihr Kanal bei FFZ ausgesucht hat</string>
+    <string name="settings_ffz_effects">Emote-Effekte</string>
+    <string name="settings_ffz_effects_hint">ffzX spiegelt das Emote davor, ffzW macht es breit</string>
     <string name="seventv_added">7TV: %1$s hat hinzugefügt:</string>
     <string name="seventv_removed">7TV: %1$s hat %2$s entfernt</string>
     <string name="seventv_renamed">7TV: %1$s hat %2$s umbenannt in</string>

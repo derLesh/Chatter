@@ -1,0 +1,1 @@
+minor: Draw the FrankerFaceZ effects ffzX, ffzY, ffzW and ffzCursed on the emote before them
