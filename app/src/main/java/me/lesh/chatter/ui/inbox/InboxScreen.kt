@@ -400,17 +400,26 @@ private fun ConversationList(
     onOpen: (WhisperConversation) -> Unit,
 ) {
     if (conversations.isEmpty()) {
-        EmptyTab(
-            icon = rememberVectorPainter(Icons.Filled.Email),
-            title = stringResource(R.string.inbox_whispers_empty),
-            hint = stringResource(R.string.inbox_whispers_empty_hint),
-        )
+        Box(Modifier.fillMaxSize()) {
+            EmptyTab(
+                icon = rememberVectorPainter(Icons.Filled.Email),
+                title = stringResource(R.string.inbox_whispers_empty),
+                hint = stringResource(R.string.inbox_whispers_empty_hint),
+            )
+            WhisperHistoryNote(Modifier.align(Alignment.BottomCenter).fillMaxWidth().padding(bottom = 24.dp))
+        }
         return
     }
     val dark = isAppInDarkTheme()
     val you = stringResource(R.string.inbox_you)
     // Each person once, so day headings would only cut the list into ones and twos.
-    DayList(conversations, { it.latest.timestamp }, WhisperConversation::login, byDay = false) { conversation ->
+    DayList(
+        conversations,
+        { it.latest.timestamp },
+        WhisperConversation::login,
+        byDay = false,
+        footer = { WhisperHistoryNote(Modifier.fillMaxWidth().padding(top = 16.dp)) },
+    ) { conversation ->
         val name = nameOf(conversation.login, conversation.displayName)
         val latest = conversation.latest
         InboxRow(
@@ -446,6 +455,7 @@ private fun <T> DayList(
     timestamp: (T) -> Long,
     key: (T) -> String,
     byDay: Boolean = true,
+    footer: (@Composable () -> Unit)? = null,
     row: @Composable (T) -> Unit,
 ) {
     val zone = remember { ZoneId.systemDefault() }
@@ -471,6 +481,7 @@ private fun <T> DayList(
                 ) { row(entry) }
             }
         }
+        if (footer != null) item(key = "footer", contentType = "footer") { footer() }
     }
 }
 

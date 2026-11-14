@@ -1,0 +1,1 @@
+patch: Note in the whispers that they only hold messages received while connected
