@@ -38,9 +38,22 @@ import me.lesh.chatter.ui.chat.badgeKindName
 import me.lesh.chatter.ui.chat.badgePicture
 import me.lesh.chatter.ui.chat.isWellKnownBadge
 
-/** Emotes and badges in one place, providers included. */
+/** Emotes and badges in one place: one entry per provider, each opening its own page, and what holds for all of them. */
 @Composable
 internal fun EmotesPage(settings: Settings, vm: MainViewModel, open: (SettingsSubPage) -> Unit) {
+    SettingsGroup(R.string.settings_providers) {
+        Provider.entries.forEach { provider ->
+            item(provider.title) {
+                ListItem(
+                    headlineContent = { Text(stringResource(provider.title)) },
+                    supportingContent = { Text(stringResource(providerSummary(provider, settings))) },
+                    trailingContent = { NavChevron() },
+                    colors = transparentItem(),
+                    modifier = Modifier.tileClickable { open(providerPage(provider)) },
+                )
+            }
+        }
+    }
     SettingsGroup(R.string.settings_group_emotes) {
         item(R.string.settings_emotes_enabled) { SwitchItem(R.string.settings_emotes_enabled, settings.emotesEnabled, vm::setEmotesEnabled, R.string.settings_emotes_new_messages_hint) }
         item(R.string.settings_animated_emotes) { SwitchItem(R.string.settings_animated_emotes, settings.animatedEmotes, vm::setAnimatedEmotes) }
@@ -67,20 +80,7 @@ internal fun EmotesPage(settings: Settings, vm: MainViewModel, open: (SettingsSu
             )
         }
     }
-    SettingsGroup(R.string.settings_emote_providers) {
-        PROVIDERS.forEach { (provider, label) ->
-            item { SwitchItem(label, provider in settings.emoteProviders, { vm.setEmoteProvider(provider, it) }) }
-        }
-    }
-    SettingsGroup(R.string.settings_provider_seventv) {
-        item(R.string.settings_unlisted_7tv) { SwitchItem(R.string.settings_unlisted_7tv, settings.showUnlisted7tv, vm::setShowUnlisted7tv, R.string.settings_unlisted_7tv_hint) }
-        item(R.string.settings_seventv_events) { SwitchItem(R.string.settings_seventv_events, settings.sevenTvEvents, vm::setSevenTvEvents, R.string.settings_seventv_events_hint) }
-        item(R.string.settings_seventv_paints) { SwitchItem(R.string.settings_seventv_paints, settings.sevenTvPaints, vm::setSevenTvPaints, R.string.settings_seventv_paints_hint) }
-    }
-    SettingsGroup(R.string.settings_badge_providers) {
-        BADGE_PROVIDERS.forEach { (provider, label) ->
-            item { SwitchItem(label, provider in settings.badgeProviders, { vm.setBadgeProvider(provider, it) }) }
-        }
+    SettingsGroup(R.string.settings_group_badges) {
         item(R.string.settings_badge_kinds) {
             val hidden by vm.hiddenBadges.collectAsStateWithLifecycle()
             ListItem(
@@ -95,6 +95,55 @@ internal fun EmotesPage(settings: Settings, vm: MainViewModel, open: (SettingsSu
                 colors = transparentItem(),
                 modifier = Modifier.tileClickable { open(SettingsSubPage.BadgeKinds) },
             )
+        }
+    }
+}
+
+/** Emotes count as off while all emotes are, since none of the provider's show then. */
+private fun providerSummary(provider: Provider, settings: Settings): Int {
+    val emotes = provider.emotes != null && provider.emotes in settings.emoteProvidersOn
+    val badges = provider.badges != null && provider.badges in settings.badgeProviders
+    return when {
+        provider.emotes == null || provider.badges == null -> if (emotes || badges) R.string.settings_provider_on else R.string.settings_off
+        emotes && badges -> R.string.settings_provider_emotes_and_badges
+        emotes -> R.string.settings_provider_only_emotes
+        badges -> R.string.settings_provider_only_badges
+        else -> R.string.settings_off
+    }
+}
+
+/** One provider: whether its emotes and badges show, and for 7TV what else it brings. */
+@Composable
+internal fun ProviderPage(provider: Provider, settings: Settings, vm: MainViewModel) {
+    SettingsGroup {
+        provider.emotes?.let { emotes ->
+            item(R.string.settings_provider_emotes) {
+                val hint = if (settings.emotesEnabled) R.string.settings_provider_emotes_hint else R.string.settings_provider_emotes_all_off
+                SwitchItem(R.string.settings_provider_emotes, emotes in settings.emoteProviders, { vm.setEmoteProvider(emotes, it) }, hint)
+            }
+        }
+        provider.badges?.let { badges ->
+            item(R.string.settings_provider_badges) {
+                SwitchItem(R.string.settings_provider_badges, badges in settings.badgeProviders, { vm.setBadgeProvider(badges, it) }, R.string.settings_provider_badges_hint)
+            }
+        }
+    }
+    if (provider == Provider.SevenTv) SevenTvExtras(settings, vm)
+}
+
+/** Each only while what it belongs to is on: activity and unlisted emotes to the emotes, paints to the badges. */
+@Composable
+private fun SevenTvExtras(settings: Settings, vm: MainViewModel) {
+    val emotes = EmoteProvider.SevenTv in settings.emoteProvidersOn
+    val badges = BadgeProvider.SevenTv in settings.badgeProviders
+    if (!emotes && !badges) return
+    SettingsGroup(R.string.settings_group_seventv_more) {
+        if (emotes) {
+            item(R.string.settings_unlisted_7tv) { SwitchItem(R.string.settings_unlisted_7tv, settings.showUnlisted7tv, vm::setShowUnlisted7tv, R.string.settings_unlisted_7tv_hint) }
+            item(R.string.settings_seventv_events) { SwitchItem(R.string.settings_seventv_events, settings.sevenTvEvents, vm::setSevenTvEvents, R.string.settings_seventv_events_hint) }
+        }
+        if (badges) {
+            item(R.string.settings_seventv_paints) { SwitchItem(R.string.settings_seventv_paints, settings.sevenTvPaints, vm::setSevenTvPaints, R.string.settings_seventv_paints_hint) }
         }
     }
 }
@@ -146,7 +195,7 @@ internal fun BadgeKindsPage(vm: MainViewModel) {
                 val change = { show: Boolean -> if (show) vm.showBadge(row.kind) else vm.hideBadge(row.toBadge()) }
                 ListItem(
                     headlineContent = { Text(name) },
-                    supportingContent = { Text(stringResource(BADGE_PROVIDERS.first { it.first == row.provider }.second)) },
+                    supportingContent = { Text(stringResource(Provider.entries.first { it.badges == row.provider }.title)) },
                     leadingContent = {
                         AsyncImage(
                             model = badgePicture(row.url, row.urlOnLight),
@@ -225,19 +274,21 @@ internal fun HiddenEmotesPage(vm: MainViewModel) {
     }
 }
 
-/** Badge providers in the order their badges appear before a name. */
-internal val BADGE_PROVIDERS = listOf(
-    BadgeProvider.Twitch to R.string.settings_provider_twitch,
-    BadgeProvider.SevenTv to R.string.settings_provider_seventv,
-    BadgeProvider.Ffz to R.string.settings_provider_ffz,
-    BadgeProvider.Chatterino to R.string.settings_provider_chatterino,
-    BadgeProvider.Chatter to R.string.settings_provider_chatter,
-)
+/** Where emotes and badges come from. The emote providers come first, in order of precedence. */
+internal enum class Provider(val title: Int, val emotes: EmoteProvider?, val badges: BadgeProvider?) {
+    Twitch(R.string.settings_provider_twitch, EmoteProvider.Twitch, BadgeProvider.Twitch),
+    SevenTv(R.string.settings_provider_seventv, EmoteProvider.SevenTv, BadgeProvider.SevenTv),
+    Bttv(R.string.settings_provider_bttv, EmoteProvider.Bttv, null),
+    Ffz(R.string.settings_provider_ffz, EmoteProvider.Ffz, BadgeProvider.Ffz),
+    Chatterino(R.string.settings_provider_chatterino, null, BadgeProvider.Chatterino),
+    Chatter(R.string.settings_provider_chatter, null, BadgeProvider.Chatter),
+}
 
-/** Emote providers in order of precedence. */
-internal val PROVIDERS = listOf(
-    EmoteProvider.Twitch to R.string.settings_provider_twitch,
-    EmoteProvider.SevenTv to R.string.settings_provider_seventv,
-    EmoteProvider.Bttv to R.string.settings_provider_bttv,
-    EmoteProvider.Ffz to R.string.settings_provider_ffz,
-)
+internal fun providerPage(provider: Provider): SettingsSubPage = when (provider) {
+    Provider.Twitch -> SettingsSubPage.ProviderTwitch
+    Provider.SevenTv -> SettingsSubPage.ProviderSevenTv
+    Provider.Bttv -> SettingsSubPage.ProviderBttv
+    Provider.Ffz -> SettingsSubPage.ProviderFfz
+    Provider.Chatterino -> SettingsSubPage.ProviderChatterino
+    Provider.Chatter -> SettingsSubPage.ProviderChatter
+}

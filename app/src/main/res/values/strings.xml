@@ -345,7 +345,6 @@
     <string name="settings_keep_screen_on_hint">The screen stays on while messages arrive in the chat</string>
     <string name="settings_keep_screen_on_when_quiet">Also when the chat is quiet</string>
     <string name="settings_keep_screen_on_when_quiet_hint">Stays on even after 10 minutes without a message. Uses more battery.</string>
-    <string name="settings_emote_providers">Emote providers</string>
     <string name="settings_provider_twitch">Twitch</string>
     <string name="settings_provider_seventv">7TV</string>
     <string name="settings_provider_bttv">BetterTTV</string>
@@ -845,9 +844,20 @@
     <string name="note_hint">Only you can see it, on this phone. Leave empty to delete it</string>
 
     <!-- Badges -->
-    <string name="settings_badge_providers">Badges</string>
+    <string name="settings_group_badges">Badges</string>
     <string name="settings_provider_chatterino">Chatterino</string>
     <string name="settings_provider_chatter">Chatter supporters</string>
+    <string name="settings_providers">Providers</string>
+    <string name="settings_provider_on">On</string>
+    <string name="settings_provider_emotes_and_badges">Emotes and badges</string>
+    <string name="settings_provider_only_emotes">Only emotes</string>
+    <string name="settings_provider_only_badges">Only badges</string>
+    <string name="settings_provider_emotes">Emotes</string>
+    <string name="settings_provider_emotes_hint">In messages and in the emote list</string>
+    <string name="settings_provider_emotes_all_off">All emotes are off. Turn on Show emotes one page back.</string>
+    <string name="settings_provider_badges">Badges</string>
+    <string name="settings_provider_badges_hint">In front of names</string>
+    <string name="settings_group_seventv_more">More from 7TV</string>
     <string name="settings_badge_kinds">Individual badges</string>
     <string name="settings_badge_kinds_hint">Turn a badge off to hide it in every channel. Holding a badge in chat does the same.</string>
     <plurals name="settings_badge_kinds_more">
