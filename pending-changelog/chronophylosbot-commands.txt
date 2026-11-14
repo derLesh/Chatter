@@ -1,0 +1,1 @@
+minor: Suggest ChronophylosBot's commands while typing in its channel

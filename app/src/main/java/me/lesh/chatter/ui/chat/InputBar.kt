@@ -827,6 +827,7 @@ private fun SuggestionRow(suggestions: List<Suggestion>, imageLoader: ImageLoade
 fun botName(bot: Bot): Int = when (bot) {
     Bot.Supibot -> R.string.bot_supibot
     Bot.PotatBot -> R.string.bot_potatbot
+    Bot.ChronophylosBot -> R.string.bot_chronophylosbot
     Bot.Fossabot -> R.string.bot_fossabot
     Bot.Moobot -> R.string.bot_moobot
     Bot.Nightbot -> R.string.bot_nightbot

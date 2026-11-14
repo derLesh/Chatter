@@ -18,6 +18,7 @@ import me.lesh.chatter.ui.chat.botName
 private fun exampleOf(bot: Bot): String? = when (bot) {
     Bot.Supibot -> "\$ping"
     Bot.PotatBot -> "#ping"
+    Bot.ChronophylosBot -> "!dpi"
     Bot.Fossabot, Bot.Moobot, Bot.Nightbot, Bot.StreamElements, Bot.Streamlabs -> null
 }
 
