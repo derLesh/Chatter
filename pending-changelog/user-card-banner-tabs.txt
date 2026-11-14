@@ -1,0 +1,1 @@
+minor: The user card shows a banner in the colors of the profile picture and sorts its parts into tabs

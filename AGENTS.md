@@ -241,6 +241,10 @@ A change is not confirmed by compiling. Install it and open the screen it touche
 The debug build is an app of its own, `me.lesh.chatter.dev`, called Chatter Dev on the phone, so it
 sits next to the signed release (Chatter) and Nightly (Chatter Nightly) instead of replacing one.
 
+Screenshots for a pull request leave out the phone's status bar at the top: crop it off, unless
+someone asks for it. It shows the time, notifications and the battery, none of which belong in a
+review.
+
 ## Conventions worth matching
 
 - **Both locales.** Every user-visible string lives in `app/src/main/res/values/strings.xml` *and*

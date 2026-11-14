@@ -108,6 +108,7 @@ fun ChatSheets(
             onNickname = { sheets.nicknameTarget = item },
             onNote = { sheets.noteTarget = item.login },
             onBadgeHidden = { badge, hidden -> if (hidden) vm.hideBadge(badge) else vm.showBadge(badge.kind) },
+            onOpenMessage = { sheets.actionItem = it },
             // Both write into the input, which is gone while the user only reads.
             onReply = if (settings.readOnly) null else ({ vm.startReply(item) }),
             onMention = if (settings.readOnly) null else ({ vm.mention(item) }),
