@@ -41,6 +41,8 @@ data class EmoteOptions(
     val showUnlisted: Boolean = false,
     /** Emotes from other providers stay plain text. */
     val providers: Set<EmoteProvider> = EmoteProvider.entries.toSet(),
+    /** The global emotes of these providers stay plain text; their channel emotes do not. */
+    val globalsOff: Set<EmoteProvider> = emptySet(),
 )
 
 fun interface BadgeSource {
@@ -458,6 +460,7 @@ class MessageBuilder(
             val emote = if (!opts.enabled) null else {
                 ((if (ownMessage) emotes.lookupOwnTwitch(channelId, word) else null) ?: emotes.lookup(channelId, word))
                     ?.takeIf { it.provider in opts.providers }
+                    ?.takeIf { it.isChannel || it.provider !in opts.globalsOff }
                     ?.takeIf { opts.showUnlisted || !it.unlisted }
             }
             when {

@@ -859,6 +859,8 @@
     <string name="settings_provider_emotes">Emotes</string>
     <string name="settings_provider_emotes_hint">In messages and in the emote list</string>
     <string name="settings_provider_emotes_all_off">All emotes are off. Turn on Show emotes one page back.</string>
+    <string name="settings_provider_global_emotes">Global emotes</string>
+    <string name="settings_provider_global_emotes_hint">Emotes every channel has. Off shows only the channel\'s own</string>
     <string name="settings_provider_badges">Badges</string>
     <string name="settings_provider_badges_hint">In front of names</string>
     <string name="settings_group_seventv_more">More from 7TV</string>

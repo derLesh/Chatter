@@ -123,6 +123,15 @@ internal fun ProviderPage(provider: Provider, settings: Settings, vm: MainViewMo
                 val hint = if (settings.emotesEnabled) R.string.settings_provider_emotes_hint else R.string.settings_provider_emotes_all_off
                 SwitchItem(R.string.settings_provider_emotes, emotes in settings.emoteProviders, { vm.setEmoteProvider(emotes, it) }, hint)
             }
+            // Twitch's global emotes come with the message, not from a list Chatter could leave out.
+            if (emotes != EmoteProvider.Twitch && emotes in settings.emoteProviders) {
+                item(R.string.settings_provider_global_emotes) {
+                    SwitchItem(
+                        R.string.settings_provider_global_emotes, emotes !in settings.globalEmotesOff,
+                        { vm.setGlobalEmotes(emotes, it) }, R.string.settings_provider_global_emotes_hint,
+                    )
+                }
+            }
         }
         provider.badges?.let { badges ->
             item(R.string.settings_provider_badges) {
