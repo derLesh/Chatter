@@ -126,7 +126,6 @@ import me.lesh.chatter.ui.settings.DebugStatsPage
 import me.lesh.chatter.ui.settings.DeveloperPage
 import me.lesh.chatter.ui.settings.EmotesPage
 import me.lesh.chatter.ui.settings.HiddenEmotesPage
-import me.lesh.chatter.ui.settings.BadgeKindsPage
 import me.lesh.chatter.ui.settings.BotCommandsPage
 import me.lesh.chatter.ui.settings.FiltersPage
 import me.lesh.chatter.ui.settings.ImageHostsPage
@@ -231,7 +230,6 @@ internal enum class SettingsSubPage(val title: Int) {
     ImageUploader(R.string.settings_uploader),
     RecentUploads(R.string.settings_recent_uploads),
     HiddenEmotes(R.string.settings_hidden_emotes),
-    BadgeKinds(R.string.settings_badge_kinds),
     ProviderTwitch(R.string.settings_provider_twitch),
     ProviderSevenTv(R.string.settings_provider_seventv),
     ProviderBttv(R.string.settings_provider_bttv),
@@ -353,8 +351,9 @@ private val SEARCH_INDEX: List<SearchEntry> by lazy {
         add(SearchEntry(R.string.settings_slow_idle_emotes, emotes, R.string.settings_slow_idle_emotes_hint, shownWhen = ShownWhen(R.string.settings_animated_emotes) { s, _ -> s.animatedEmotes }))
         add(SearchEntry(R.string.settings_zero_width, emotes, R.string.settings_zero_width_hint))
         add(SearchEntry(R.string.settings_hidden_emotes, emotes, R.string.settings_hidden_emotes_hint))
-        add(SearchEntry(R.string.settings_badge_kinds, emotes, R.string.settings_badge_kinds_hint))
-        add(SearchEntry(R.string.settings_providers, emotes, also = Provider.entries.map { it.title }))
+        add(SearchEntry(R.string.settings_providers, emotes, R.string.settings_providers_hint, also = Provider.entries.map { it.title }))
+        // On each provider's own page, so it opens at their list.
+        add(SearchEntry(R.string.settings_badge_kinds, emotes, R.string.settings_badge_kinds_hint, key = R.string.settings_providers))
         Provider.entries.forEach { add(SearchEntry(it.title, emotes, also = listOf(R.string.settings_providers))) }
         // On 7TV's own page, so they open at its entry.
         val sevenTv = R.string.settings_provider_seventv
@@ -646,7 +645,6 @@ fun SettingsScreen(vm: MainViewModel, onBack: () -> Unit) {
                 SettingsSubPage.ImageUploader -> ImageUploaderPage(settings, vm)
                 SettingsSubPage.RecentUploads -> RecentUploadsPage(vm)
                 SettingsSubPage.HiddenEmotes -> HiddenEmotesPage(vm)
-                SettingsSubPage.BadgeKinds -> BadgeKindsPage(vm)
                 SettingsSubPage.ProviderTwitch -> ProviderPage(Provider.Twitch, settings, vm)
                 SettingsSubPage.ProviderSevenTv -> ProviderPage(Provider.SevenTv, settings, vm)
                 SettingsSubPage.ProviderBttv -> ProviderPage(Provider.Bttv, settings, vm)

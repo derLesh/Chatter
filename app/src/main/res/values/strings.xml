@@ -844,10 +844,14 @@
     <string name="note_hint">Only you can see it, on this phone. Leave empty to delete it</string>
 
     <!-- Badges -->
-    <string name="settings_group_badges">Badges</string>
     <string name="settings_provider_chatterino">Chatterino</string>
     <string name="settings_provider_chatter">Chatter supporters</string>
     <string name="settings_providers">Providers</string>
+    <string name="settings_providers_hint">Tap one to choose what it shows</string>
+    <plurals name="settings_provider_badges_hidden">
+        <item quantity="one">%1$d badge hidden</item>
+        <item quantity="other">%1$d badges hidden</item>
+    </plurals>
     <string name="settings_provider_on">On</string>
     <string name="settings_provider_emotes_and_badges">Emotes and badges</string>
     <string name="settings_provider_only_emotes">Only emotes</string>
@@ -865,12 +869,7 @@
         <item quantity="other">%1$d more badges. Search to find them</item>
     </plurals>
     <string name="settings_badge_kinds_search">For example: prediction</string>
-    <string name="settings_badge_kinds_none">None hidden</string>
     <string name="settings_badge_kinds_empty">No badges loaded yet. Open a chat, then come back.</string>
-    <plurals name="settings_badge_kinds_hidden">
-        <item quantity="one">%1$d hidden</item>
-        <item quantity="other">%1$d hidden</item>
-    </plurals>
     <string name="badge_hide">Hide this kind of badge</string>
     <string name="badge_show">Show this kind of badge</string>
     <string name="badge_hide_title">Hide this kind of badge?</string>

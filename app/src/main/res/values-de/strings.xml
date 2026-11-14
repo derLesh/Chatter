@@ -829,10 +829,14 @@
     <string name="note_hint">Nur du siehst sie, auf diesem Telefon. Leer lassen, um sie zu löschen</string>
 
     <!-- Badges -->
-    <string name="settings_group_badges">Badges</string>
     <string name="settings_provider_chatterino">Chatterino</string>
     <string name="settings_provider_chatter">Chatter-Unterstützer</string>
     <string name="settings_providers">Anbieter</string>
+    <string name="settings_providers_hint">Tippe auf einen, um einzustellen, was er zeigt</string>
+    <plurals name="settings_provider_badges_hidden">
+        <item quantity="one">%1$d Badge ausgeblendet</item>
+        <item quantity="other">%1$d Badges ausgeblendet</item>
+    </plurals>
     <string name="settings_provider_on">An</string>
     <string name="settings_provider_emotes_and_badges">Emotes und Badges</string>
     <string name="settings_provider_only_emotes">Nur Emotes</string>
@@ -850,12 +854,7 @@
         <item quantity="other">%1$d weitere Badges. Such danach, um sie zu finden</item>
     </plurals>
     <string name="settings_badge_kinds_search">Zum Beispiel: Vorhersage</string>
-    <string name="settings_badge_kinds_none">Keine ausgeblendet</string>
     <string name="settings_badge_kinds_empty">Noch keine Badges geladen. Öffne einen Chat und komm dann zurück.</string>
-    <plurals name="settings_badge_kinds_hidden">
-        <item quantity="one">%1$d ausgeblendet</item>
-        <item quantity="other">%1$d ausgeblendet</item>
-    </plurals>
     <string name="badge_hide">Diese Art Badge ausblenden</string>
     <string name="badge_show">Diese Art Badge wieder zeigen</string>
     <string name="badge_hide_title">Diese Art Badge ausblenden?</string>
