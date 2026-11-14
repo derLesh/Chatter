@@ -59,6 +59,7 @@ import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.zIndex
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.pluralStringResource
@@ -290,7 +291,8 @@ fun ChatList(
         Column(
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.spacedBy(6.dp),
-            modifier = Modifier.align(Alignment.TopCenter).padding(top = 8.dp),
+            // Before the rows for a tap, like the button below.
+            modifier = Modifier.align(Alignment.TopCenter).zIndex(1f).padding(top = 8.dp),
         ) {
             if (unseen != null && lineIndex != null && !chipDone && !lineShown) {
                 UnseenChip(
@@ -312,12 +314,14 @@ fun ChatList(
                 }
             }
         }
-        // Above the input, where the eye is while writing.
+        // Above the input, where the eye is while writing. zIndex has a tap tried on the button
+        // before the rows below it, whatever order they were last placed in.
         Column(
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.spacedBy(8.dp),
             modifier = Modifier
                 .align(Alignment.BottomCenter)
+                .zIndex(1f)
                 .offset { IntOffset(0, -currentBottomInset().roundToPx()) }
                 .padding(bottom = 12.dp),
         ) {
