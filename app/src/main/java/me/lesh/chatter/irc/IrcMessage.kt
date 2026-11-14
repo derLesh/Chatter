@@ -39,7 +39,7 @@ class IrcMessage private constructor(
     val nick: String?
         get() {
             if (prefixStart < 0) return null
-            val bang = line.indexOf('!', prefixStart).let { if (it == -1 || it > prefixEnd) prefixEnd else it }
+            val bang = line.indexOfWithin('!', prefixStart, prefixEnd)
             return if (bang > prefixStart) line.substring(prefixStart, bang) else null
         }
 
@@ -94,7 +94,7 @@ class IrcMessage private constructor(
     }
 
     /** The end of the tag that runs through [pos]. */
-    private fun valueEnd(pos: Int): Int = line.indexOf(';', pos).let { if (it == -1 || it > tagsEnd) tagsEnd else it }
+    private fun valueEnd(pos: Int): Int = line.indexOfWithin(';', pos, tagsEnd)
 
     override fun toString(): String = "IrcMessage($command $params)"
 
@@ -113,7 +113,7 @@ class IrcMessage private constructor(
             var tagsStart = 0
             var tagsEnd = 0
             if (text[pos] == '@') {
-                val space = text.indexOf(' ', pos)
+                val space = text.indexOfWithin(' ', pos, end)
                 if (space == -1 || space >= end) return null
                 tagsStart = pos + 1
                 tagsEnd = space
@@ -124,7 +124,7 @@ class IrcMessage private constructor(
             var prefixStart = -1
             var prefixEnd = -1
             if (pos < end && text[pos] == ':') {
-                val space = text.indexOf(' ', pos)
+                val space = text.indexOfWithin(' ', pos, end)
                 if (space == -1 || space >= end) return null
                 prefixStart = pos + 1
                 prefixEnd = space
@@ -132,7 +132,7 @@ class IrcMessage private constructor(
             }
             while (pos < end && text[pos] == ' ') pos++
 
-            val cmdEnd = text.indexOf(' ', pos).let { if (it == -1 || it > end) end else it }
+            val cmdEnd = text.indexOfWithin(' ', pos, end)
             if (cmdEnd <= pos) return null
             val command = text.substring(pos, cmdEnd)
             pos = cmdEnd
@@ -145,11 +145,16 @@ class IrcMessage private constructor(
                     params.add(text.substring(pos + 1, end))
                     break
                 }
-                val paramEnd = text.indexOf(' ', pos).let { if (it == -1 || it > end) end else it }
+                val paramEnd = text.indexOfWithin(' ', pos, end)
                 params.add(text.substring(pos, paramEnd))
                 pos = paramEnd
             }
             return IrcMessage(text, tagsStart, tagsEnd, prefixStart, prefixEnd, command, params)
+        }
+
+        private fun String.indexOfWithin(char: Char, start: Int, end: Int): Int {
+            for (i in start until end) if (this[i] == char) return i
+            return end
         }
 
         private fun parseTags(line: String, start: Int, end: Int): Map<String, String> {
@@ -157,9 +162,8 @@ class IrcMessage private constructor(
             val result = HashMap<String, String>(32)
             var pos = start
             while (pos < end) {
-                var sep = line.indexOf(';', pos)
-                if (sep == -1 || sep > end) sep = end
-                val eq = line.indexOf('=', pos)
+                val sep = line.indexOfWithin(';', pos, end)
+                val eq = line.indexOfWithin('=', pos, sep)
                 if (eq in pos until sep) {
                     result[line.substring(pos, eq)] = unescapeTagValue(line, eq + 1, sep)
                 } else {
@@ -172,7 +176,7 @@ class IrcMessage private constructor(
 
         /** IRCv3 tag value unescaping: `\s` space, `\:` semicolon, `\\` backslash, `\r`, `\n`. */
         private fun unescapeTagValue(line: String, start: Int, end: Int): String {
-            if (line.indexOf('\\', start).let { it == -1 || it >= end }) return line.substring(start, end)
+            if (line.indexOfWithin('\\', start, end) == end) return line.substring(start, end)
             val sb = StringBuilder(end - start)
             var i = start
             while (i < end) {
