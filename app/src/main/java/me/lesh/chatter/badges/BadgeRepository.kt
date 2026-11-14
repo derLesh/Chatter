@@ -119,7 +119,7 @@ class BadgeRepository(
             badgesTag.split(',').mapNotNull { key -> channel?.get(key) ?: global[key] }
         }
         val extra = userId?.let { thirdPartyBadges[it] }?.filter { it.provider in providers }.orEmpty()
-        val sevenTv = if (BadgeProvider.SevenTv in providers) userId?.let(::sevenTvBadgeOf) else null
+        val sevenTv = userId?.let(::sevenTvBadgeOf)
         return when {
             extra.isEmpty() && sevenTv == null -> twitch
             sevenTv == null -> twitch + extra
@@ -145,8 +145,9 @@ class BadgeRepository(
         else sevenTvPaintWearers.remove(userId, paintId)
     }
 
-    private fun sevenTvBadgeOf(userId: String): Badge? =
-        sevenTvWearers[userId]?.let { sevenTvCosmetics[it] }
+    /** The 7TV badge [userId] wears, while 7TV badges are shown. */
+    fun sevenTvBadgeOf(userId: String): Badge? =
+        if (BadgeProvider.SevenTv !in enabled) null else sevenTvWearers[userId]?.let { sevenTvCosmetics[it] }
 
     /** A badge 7TV described over the EventAPI. */
     fun sevenTvBadge(id: String, name: String, tooltip: String) {

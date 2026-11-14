@@ -1,5 +1,7 @@
 package me.lesh.chatter.chat
 
+import me.lesh.chatter.badges.Badge
+import me.lesh.chatter.badges.NamePaint
 import me.lesh.chatter.settings.Settings
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
@@ -212,6 +214,23 @@ class MessageBuffers(
             for (i in buffer.indices) {
                 val item = buffer[i]
                 val body = item.body.rebuilt(channelIds)
+                if (body !== item.body) {
+                    buffer[i] = item.copy(body = body)
+                    changed = true
+                }
+            }
+            if (changed) reshape(channel)
+        }
+    }
+
+    /** Gives [login]'s messages the 7TV badge and paint they wear now. */
+    fun restyle(login: String, badge: Badge?, paint: NamePaint?) {
+        buffers.forEach { (channel, buffer) ->
+            var changed = false
+            for (i in buffer.indices) {
+                val item = buffer[i]
+                if (!login.equals(item.login, ignoreCase = true)) continue
+                val body = item.body.withSevenTv(badge, paint)
                 if (body !== item.body) {
                     buffer[i] = item.copy(body = body)
                     changed = true

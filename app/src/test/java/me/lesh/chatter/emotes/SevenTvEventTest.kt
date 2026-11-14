@@ -58,7 +58,7 @@ class SevenTvEventTest {
               "user":{"id":"7TV1","connections":[{"platform":"DISCORD","id":"999"},{"platform":"TWITCH","id":"12345","username":"lukas"}]}}}}
             """
         )
-        assertEquals(SevenTvEvent.EntitlementChanged("12345", "BADGE1", worn = true), event)
+        assertEquals(SevenTvEvent.EntitlementChanged("12345", "BADGE1", worn = true, twitchLogin = "lukas"), event)
     }
 
     @Test
