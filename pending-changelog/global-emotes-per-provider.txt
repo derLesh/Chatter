@@ -1,0 +1,1 @@
+minor: Turn off the global emotes of 7TV, BetterTTV or FrankerFaceZ and keep only the channel's own

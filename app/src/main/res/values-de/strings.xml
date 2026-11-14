@@ -844,6 +844,8 @@
     <string name="settings_provider_emotes">Emotes</string>
     <string name="settings_provider_emotes_hint">In Nachrichten und in der Emote-Auswahl</string>
     <string name="settings_provider_emotes_all_off">Alle Emotes sind aus. Schalte „Emotes anzeigen“ eine Seite zurück ein.</string>
+    <string name="settings_provider_global_emotes">Globale Emotes</string>
+    <string name="settings_provider_global_emotes_hint">Emotes, die es in jedem Kanal gibt. Aus zeigt nur die des Kanals</string>
     <string name="settings_provider_badges">Badges</string>
     <string name="settings_provider_badges_hint">Vor den Namen</string>
     <string name="settings_group_seventv_more">Mehr von 7TV</string>

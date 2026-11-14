@@ -194,6 +194,8 @@ data class Settings(
     val badgeProviders: Set<BadgeProvider> = BadgeProvider.entries.toSet(),
     /** Emote providers shown; the others stay text. */
     val emoteProviders: Set<EmoteProvider> = EmoteProvider.entries.toSet(),
+    /** Providers whose global emotes stay text, while their channel emotes still show. */
+    val globalEmotesOff: Set<EmoteProvider> = emptySet(),
     /**
      * Short vibrations for things the user did not trigger: a mention arriving on screen, a held
      * message, a send that failed.
@@ -345,6 +347,7 @@ class SettingsRepository(
             nameTap = p[NAME_TAP]?.let { v -> TapAction.entries.firstOrNull { it.name == v } } ?: TapAction.UserCard,
             badgeProviders = badgeProviders(p),
             emoteProviders = emoteProviders(p[EMOTE_PROVIDERS]),
+            globalEmotesOff = emoteProviderNames(p[GLOBAL_EMOTES_OFF].orEmpty()),
         )
     }.stateIn(scope, SharingStarted.Eagerly, Settings())
 
@@ -450,6 +453,10 @@ class SettingsRepository(
         store.edit { p -> writeBadgeProviders(p, change(badgeProviders(p))) }
     suspend fun updateEmoteProviders(change: (Set<EmoteProvider>) -> Set<EmoteProvider>) =
         store.edit { p -> p[EMOTE_PROVIDERS] = change(emoteProviders(p[EMOTE_PROVIDERS])).joinToString(",") { it.name } }
+    suspend fun setGlobalEmotes(provider: EmoteProvider, on: Boolean) = store.edit { p ->
+        val off = emoteProviderNames(p[GLOBAL_EMOTES_OFF].orEmpty())
+        p[GLOBAL_EMOTES_OFF] = (if (on) off - provider else off + provider).joinToString(",") { it.name }
+    }
 
     /** The version whose changelog the user has read. Null until one was read. */
     val seenVersion: Flow<String?> = store.data.map { it[SEEN_VERSION] }
@@ -571,6 +578,7 @@ class SettingsRepository(
         p[SEND_REPEATS] = s.sendRepeats
         writeBadgeProviders(p, s.badgeProviders)
         p[EMOTE_PROVIDERS] = s.emoteProviders.joinToString(",") { it.name }
+        p[GLOBAL_EMOTES_OFF] = s.globalEmotesOff.joinToString(",") { it.name }
     }
 
     /**
@@ -624,9 +632,10 @@ class SettingsRepository(
         fun badgeProviderNames(raw: String): Set<BadgeProvider> =
             raw.split(',').mapNotNull { v -> BadgeProvider.entries.firstOrNull { it.name == v } }.toSet()
 
-        fun emoteProviders(raw: String?): Set<EmoteProvider> =
-            raw?.split(',')?.mapNotNull { v -> EmoteProvider.entries.firstOrNull { it.name == v } }?.toSet()
-                ?: EmoteProvider.entries.toSet()
+        fun emoteProviders(raw: String?): Set<EmoteProvider> = raw?.let(::emoteProviderNames) ?: EmoteProvider.entries.toSet()
+
+        fun emoteProviderNames(raw: String): Set<EmoteProvider> =
+            raw.split(',').mapNotNull { v -> EmoteProvider.entries.firstOrNull { it.name == v } }.toSet()
 
         val FONT_SIZE = floatPreferencesKey("font_size")
         val LINE_SPACING = stringPreferencesKey("line_spacing")
@@ -690,6 +699,7 @@ class SettingsRepository(
         val LIVE_NOTIFICATIONS = booleanPreferencesKey("live_notifications")
         val SENDER_AVATARS = booleanPreferencesKey("notification_sender_avatars")
         val EMOTE_PROVIDERS = stringPreferencesKey("emote_providers")
+        val GLOBAL_EMOTES_OFF = stringPreferencesKey("global_emotes_off")
         // The ones turned on; read until the first change writes BADGE_PROVIDERS_OFF.
         val BADGE_PROVIDERS = stringPreferencesKey("badge_providers")
         // The ones turned off, so a provider added later starts on.

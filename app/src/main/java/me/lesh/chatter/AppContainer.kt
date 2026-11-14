@@ -267,6 +267,7 @@ class AppContainer(
             zeroWidth = it.zeroWidthEmotes,
             showUnlisted = it.showUnlisted7tv,
             providers = it.emoteProviders,
+            globalsOff = it.globalEmotesOff,
         )
     }
 

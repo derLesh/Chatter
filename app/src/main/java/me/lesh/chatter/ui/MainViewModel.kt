@@ -771,6 +771,7 @@ class MainViewModel(private val c: AppContainer, savedState: SavedStateHandle) :
         val channel: String?,
         val version: Int,
         val providers: Set<EmoteProvider>,
+        val globalsOff: Set<EmoteProvider>,
         val unlisted: Boolean,
         val hidden: HiddenEmotes,
         val emotes: List<Emote>,
@@ -789,14 +790,16 @@ class MainViewModel(private val c: AppContainer, savedState: SavedStateHandle) :
         val hidden = hiddenEmotes.value
         lastEmoteList?.let {
             if (it.channel == channel && it.version == version &&
-                it.providers == s.emoteProviders && it.unlisted == s.showUnlisted7tv && it.hidden == hidden
+                it.providers == s.emoteProviders && it.globalsOff == s.globalEmotesOff &&
+                it.unlisted == s.showUnlisted7tv && it.hidden == hidden
             ) return it.emotes
         }
         val emotes = c.emotes.available(channel?.let { c.chat.rooms.id(it) })
             .filter { it.provider in s.emoteProviders }
+            .filter { it.isChannel || it.provider !in s.globalEmotesOff }
             .filterNot { !s.showUnlisted7tv && it.unlisted }
             .filterNot { hidden.hides(it, channel) }
-        lastEmoteList = EmoteList(channel, version, s.emoteProviders, s.showUnlisted7tv, hidden, emotes)
+        lastEmoteList = EmoteList(channel, version, s.emoteProviders, s.globalEmotesOff, s.showUnlisted7tv, hidden, emotes)
         return emotes
     }
 
@@ -1163,6 +1166,8 @@ class MainViewModel(private val c: AppContainer, savedState: SavedStateHandle) :
     fun setEmoteProvider(provider: EmoteProvider, enabled: Boolean) {
         saveSetting { updateEmoteProviders { if (enabled) it + provider else it - provider } }
     }
+
+    fun setGlobalEmotes(provider: EmoteProvider, on: Boolean) = saveSetting { setGlobalEmotes(provider, on) }
 
     fun setTimestamps(v: TimestampFormat) = saveSetting { setTimestamps(v) }
     fun setNameStyle(v: NameStyle) = saveSetting { setNameStyle(v) }
