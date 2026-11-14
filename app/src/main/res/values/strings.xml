@@ -964,6 +964,7 @@
     <string name="inbox_you">You</string>
     <string name="whisper_chat_empty">Say hi to %1$s</string>
     <string name="whisper_chat_empty_hint">What you whisper to each other from now on shows up here</string>
+    <string name="whisper_history_note">Only messages received while connected</string>
     <string name="whisper_delete">Delete conversation</string>
     <string name="whisper_delete_title">Delete the conversation with %1$s?</string>
     <string name="action_whisper">Whisper</string>

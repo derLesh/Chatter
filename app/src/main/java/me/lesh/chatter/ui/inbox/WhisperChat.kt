@@ -2,6 +2,7 @@ package me.lesh.chatter.ui.inbox
 
 import android.text.format.DateFormat
 import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -12,6 +13,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.layout.only
 import androidx.compose.foundation.layout.safeDrawing
@@ -25,6 +27,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.Send
 import androidx.compose.material.icons.outlined.Delete
+import androidx.compose.material.icons.outlined.Info
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilledIconButton
@@ -55,6 +58,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardCapitalization
+import androidx.compose.ui.text.style.LineBreak
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import coil3.ImageLoader
@@ -181,6 +185,32 @@ private fun Bubbles(messages: List<InboxWhisper>, modifier: Modifier) {
                 Bubble(whisper, joinsOlder = joinsOlder, joinsNewer = joinsNewer)
             }
         }
+        // Last in a reversed list, so it sits above the oldest whisper.
+        item(key = "history-note", contentType = "note") {
+            WhisperHistoryNote(Modifier.fillMaxWidth().padding(top = 4.dp, bottom = 8.dp))
+        }
+    }
+}
+
+/** Twitch keeps no whisper history, so a conversation can miss what came while Chatter was offline. */
+@Composable
+internal fun WhisperHistoryNote(modifier: Modifier = Modifier) {
+    Row(
+        horizontalArrangement = Arrangement.Center,
+        modifier = modifier.padding(horizontal = 16.dp),
+    ) {
+        Icon(
+            Icons.Outlined.Info,
+            contentDescription = null,
+            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.padding(top = 1.dp, end = 8.dp).size(16.dp),
+        )
+        Text(
+            stringResource(R.string.whisper_history_note),
+            style = MaterialTheme.typography.bodySmall.copy(lineBreak = LineBreak.Paragraph),
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.widthIn(max = 320.dp),
+        )
     }
 }
 

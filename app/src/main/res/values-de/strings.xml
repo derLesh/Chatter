@@ -947,6 +947,7 @@
     <string name="inbox_you">Du</string>
     <string name="whisper_chat_empty">Sag %1$s Hallo</string>
     <string name="whisper_chat_empty_hint">Hier steht, was ihr euch ab jetzt flüstert</string>
+    <string name="whisper_history_note">Nur während der Verbindung empfangene Nachrichten</string>
     <string name="whisper_delete">Unterhaltung löschen</string>
     <string name="whisper_delete_title">Unterhaltung mit %1$s löschen?</string>
     <string name="action_whisper">Flüstern</string>
