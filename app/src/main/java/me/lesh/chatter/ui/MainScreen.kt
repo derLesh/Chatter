@@ -510,6 +510,7 @@ private fun ChatInput(
         enabled = vm.sendChannel != null && connection == ConnectionState.Connected,
         replyTo = vm.replyTo.takeIf { inThread || sheets.threadOf == null },
         suggestions = vm.suggestions,
+        argumentHint = vm.argumentHint,
         imageLoader = loader,
         onSuggestion = vm::applySuggestion,
         // In the conversation the reply is the point; it closes with the sheet.

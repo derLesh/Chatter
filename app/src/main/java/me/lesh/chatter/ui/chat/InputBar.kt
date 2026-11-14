@@ -27,6 +27,7 @@ import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
@@ -88,6 +89,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.withStyle
@@ -110,8 +112,10 @@ import androidx.navigationevent.compose.rememberNavigationEventState
 import coil3.compose.AsyncImage
 import me.lesh.chatter.R
 import me.lesh.chatter.channels.ChannelInfo
+import me.lesh.chatter.chat.ArgumentHint
 import me.lesh.chatter.chat.Bot
 import me.lesh.chatter.chat.BotSuggestion
+import me.lesh.chatter.chat.UsageForm
 import me.lesh.chatter.chat.ChatItem
 import me.lesh.chatter.chat.ChatModes
 import me.lesh.chatter.chat.ChatRestriction
@@ -198,6 +202,7 @@ fun InputBar(
     suggestionsOverChat: Boolean = false,
     onPickPicture: (() -> Unit)? = null,
     attachedLength: Int = 0,
+    argumentHint: ArgumentHint? = null,
 ) {
     val stripe = buildStripe && BuildStripe.offered
     val choosing = sendChannels.size > 1 && sendChannel != null
@@ -268,12 +273,18 @@ fun InputBar(
     // No bar of its own: the input sits on the chat background.
     Column(modifier.then(covered)) {
         if (suggestionsOverChat) {
-            RisingFromInput(suggestions.takeIf { it.isNotEmpty() }, Modifier.takingNoHeight()) { shown ->
-                SuggestionRow(shown, imageLoader, onSuggestion, bottomGap = 4.dp)
+            val above = (argumentHint to suggestions).takeIf { argumentHint != null || suggestions.isNotEmpty() }
+            RisingFromInput(above, Modifier.takingNoHeight()) { (hint, shown) ->
+                Column {
+                    hint?.let { ArgumentHintBar(it) }
+                    if (shown.isNotEmpty()) SuggestionRow(shown, imageLoader, onSuggestion, bottomGap = 4.dp)
+                    else Spacer(Modifier.height(4.dp))
+                }
             }
-        } else if (suggestions.isNotEmpty()) {
+        } else {
+            argumentHint?.let { ArgumentHintBar(it) }
             // The field keeps its own gap above, as wide as the one below it.
-            SuggestionRow(suggestions, imageLoader, onSuggestion, bottomGap = 0.dp)
+            if (suggestions.isNotEmpty()) SuggestionRow(suggestions, imageLoader, onSuggestion, bottomGap = 0.dp)
         }
         AnimatedVisibility(recentOpen) {
             RecentlySentPanel(recent, onPick = { openPanel = null; onReuseSent(it) }, onClose = { openPanel = null })
@@ -775,7 +786,11 @@ private val ChatRestriction.hint: Int
 
 @Composable
 private fun SuggestionRow(suggestions: List<Suggestion>, imageLoader: ImageLoader, onClick: (Suggestion) -> Unit, bottomGap: Dp) {
+    // New suggestions start at the front: the list would keep the chip it showed first and hide
+    // the best ones, which come before it.
+    val state = remember(suggestions) { LazyListState() }
     LazyRow(
+        state = state,
         contentPadding = PaddingValues(start = 8.dp, end = 8.dp, top = 4.dp, bottom = bottomGap),
         horizontalArrangement = Arrangement.spacedBy(6.dp),
         modifier = Modifier.fillMaxWidth(),
@@ -786,6 +801,7 @@ private fun SuggestionRow(suggestions: List<Suggestion>, imageLoader: ImageLoade
                 is Suggestion.UserSuggestion -> "u:" + it.name
                 is Suggestion.CommandSuggestion -> "c:" + it.name
                 is Suggestion.BotCommandSuggestion -> "b:" + it.command.typed.lowercase()
+                is Suggestion.ArgumentSuggestion -> "a:" + it.value
                 is Suggestion.EmojiSuggestion -> "j:" + it.emoji.value
             }
         }) { s ->
@@ -813,6 +829,7 @@ private fun SuggestionRow(suggestions: List<Suggestion>, imageLoader: ImageLoade
                     is Suggestion.UserSuggestion -> Text("@" + s.name, style = MaterialTheme.typography.bodyMedium)
                     is Suggestion.CommandSuggestion -> Text(s.usage, style = MaterialTheme.typography.bodyMedium)
                     is Suggestion.BotCommandSuggestion -> BotCommandChip(s.command)
+                    is Suggestion.ArgumentSuggestion -> Text(s.value, style = MaterialTheme.typography.bodyMedium)
                     is Suggestion.EmojiSuggestion -> {
                         Text(s.emoji.value, fontSize = 20.sp)
                         Spacer(Modifier.width(6.dp))
@@ -835,13 +852,20 @@ fun botName(bot: Bot): Int = when (bot) {
     Bot.Streamlabs -> R.string.bot_streamlabs
 }
 
-/** A bot command and, below it, what it does or answers, cut short so the chip stays small. */
+/**
+ * A bot command with what follows it and, below, what it does or answers, cut short so the chip
+ * stays small.
+ */
 @Composable
 private fun BotCommandChip(command: BotSuggestion) {
+    val faint = MaterialTheme.colorScheme.onSurfaceVariant
     Column(Modifier.widthIn(max = 220.dp).padding(vertical = 4.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Text(
-                command.typed,
+                buildAnnotatedString {
+                    append(command.typed)
+                    if (command.arguments.isNotEmpty()) withStyle(SpanStyle(color = faint)) { append(" " + command.arguments) }
+                },
                 style = MaterialTheme.typography.bodyMedium,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
@@ -865,6 +889,82 @@ private fun BotCommandChip(command: BotSuggestion) {
         }
     }
 }
+
+/**
+ * How a bot command is written, with the argument the cursor is in picked out, and what the
+ * command does. Several ways of writing it are split by "|", three at most; a tap opens all of
+ * them, one per line, with the whole description.
+ */
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
+@Composable
+private fun ArgumentHintBar(hint: ArgumentHint) {
+    val motion = MaterialTheme.motionScheme
+    val faint = MaterialTheme.colorScheme.onSurfaceVariant
+    val current = SpanStyle(color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Bold)
+    fun AnnotatedString.Builder.appendForm(form: UsageForm) {
+        append(hint.command)
+        form.arguments.forEachIndexed { index, argument ->
+            append(" ")
+            withStyle(if (index == form.current) current else SpanStyle(color = faint)) { append(argument.shown) }
+        }
+    }
+    // Per command, so the next keystroke keeps it open.
+    var open by remember(hint.command.lowercase()) { mutableStateOf(false) }
+    var cutOff by remember(hint.command.lowercase()) { mutableStateOf(false) }
+    val more = cutOff || hint.forms.size > MAX_FORMS_SHOWN
+    Column(
+        Modifier
+            .fillMaxWidth()
+            .padding(start = 8.dp, end = 8.dp, top = 4.dp)
+            .clip(RoundedCornerShape(12.dp))
+            .background(MaterialTheme.colorScheme.surfaceContainerHighest)
+            .clickable(
+                enabled = more || open,
+                onClickLabel = stringResource(if (open) R.string.bot_hint_collapse else R.string.bot_hint_expand),
+            ) { open = !open }
+            .animateContentSize(motion.defaultSpatialSpec())
+            .heightIn(max = 280.dp)
+            .verticalScroll(rememberScrollState(), enabled = open)
+            .padding(horizontal = 12.dp, vertical = 6.dp),
+    ) {
+        if (open) {
+            // One line each, so every way of writing it can be read.
+            hint.forms.forEach { form ->
+                Text(buildAnnotatedString { appendForm(form) }, style = MaterialTheme.typography.bodyMedium)
+            }
+            if (hint.forms.isEmpty()) Text(hint.command, style = MaterialTheme.typography.bodyMedium)
+        } else {
+            val usage = buildAnnotatedString {
+                hint.forms.take(MAX_FORMS_SHOWN).forEachIndexed { i, form ->
+                    if (i > 0) withStyle(SpanStyle(color = faint)) { append("  |  ") }
+                    appendForm(form)
+                }
+                if (hint.forms.isEmpty()) append(hint.command)
+                if (hint.forms.size > MAX_FORMS_SHOWN) withStyle(SpanStyle(color = faint)) { append("  |  …") }
+            }
+            Text(
+                usage,
+                style = MaterialTheme.typography.bodyMedium,
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis,
+                onTextLayout = { if (it.hasVisualOverflow) cutOff = true },
+            )
+        }
+        if (hint.description.isNotBlank()) {
+            Text(
+                hint.description,
+                style = MaterialTheme.typography.labelSmall,
+                color = faint,
+                maxLines = if (open) Int.MAX_VALUE else 1,
+                overflow = TextOverflow.Ellipsis,
+                onTextLayout = { if (!open && it.hasVisualOverflow) cutOff = true },
+                modifier = Modifier.padding(top = if (open) 4.dp else 0.dp),
+            )
+        }
+    }
+}
+
+private const val MAX_FORMS_SHOWN = 3
 
 /**
  * Reports no height and places the content right above where it would be, so it lies over what is

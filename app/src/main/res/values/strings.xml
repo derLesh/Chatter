@@ -249,6 +249,8 @@
     <string name="pinned_by">Pinned by %1$s</string>
     <string name="pin_show_all">Show all</string>
     <string name="pin_show_less">Show less</string>
+    <string name="bot_hint_expand">Show the whole help</string>
+    <string name="bot_hint_collapse">Show less</string>
     <string name="settings_appearance">Appearance</string>
     <string name="theme_system">System</string>
     <string name="theme_light">Light</string>

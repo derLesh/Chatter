@@ -48,8 +48,9 @@ object Autocomplete {
     }
 
     /** Replaces [word] with [replacement] and a space. Returns the new text and cursor position. */
-    fun replace(text: String, word: Word, replacement: String): Pair<String, Int> {
+    fun replace(text: String, word: Word, replacement: String, space: Boolean = true): Pair<String, Int> {
         val after = text.substring(word.end)
+        if (!space) return text.substring(0, word.start) + replacement + after to word.start + replacement.length
         val insert = if (after.startsWith(" ")) replacement else "$replacement "
         val newText = text.substring(0, word.start) + insert + after
         return newText to (word.start + insert.length + if (after.startsWith(" ")) 1 else 0)

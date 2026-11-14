@@ -9,6 +9,7 @@ import me.lesh.chatter.chat.Bot
 import me.lesh.chatter.chat.BotCommand
 import me.lesh.chatter.chat.BotCommands
 import me.lesh.chatter.chat.BotLists
+import me.lesh.chatter.chat.BotUsage
 import me.lesh.chatter.chat.ChannelBot
 import okhttp3.OkHttpClient
 
@@ -25,6 +26,27 @@ data class SupibotCommand(
     val flags: List<String> = emptyList(),
 )
 
+/** Null for a name Supibot does not know. */
+@Serializable
+data class SupibotDetail(val data: SupibotCommandDetail? = null)
+
+/**
+ * [dynamicDescription] is the long help, one line of HTML each, with examples in "<code>" like
+ * "$cookie donate (user)". A param is typed as "name:value" anywhere after the command.
+ */
+@Serializable
+data class SupibotCommandDetail(
+    val name: String,
+    val prefix: String = "$",
+    val aliases: List<String> = emptyList(),
+    val description: String? = null,
+    val dynamicDescription: List<String>? = null,
+    val params: List<SupibotParam> = emptyList(),
+)
+
+@Serializable
+data class SupibotParam(val name: String, val type: String = "")
+
 /** One row per name the channel ever had. */
 @Serializable
 data class SupibotChannels(val data: List<SupibotChannel> = emptyList())
@@ -40,6 +62,8 @@ data class PotatCommand(
     val aliases: List<String> = emptyList(),
     val description: String = "",
     val category: String = "",
+    /** Starts with the command and its default prefix: "#mymostused <user> in:<channel>". */
+    val usage: String = "",
     /** 1 is everyone; more is the people who run the bot. */
     val level: Int = 1,
     val userRequires: String = "NONE",
@@ -86,13 +110,17 @@ data class PotatChannelCommand(
 @Serializable
 data class ChronophylosCommands(val channel: String = "", val commands: List<ChronophylosCommand> = emptyList())
 
-/** [name] carries its "!". A group that can be pinged is listed as a command too. */
+/**
+ * [name] carries its "!". A group that can be pinged is listed as a command too. [usage] repeats
+ * the name before each way of writing it: "!p <join|leave> <name> | !p list".
+ */
 @Serializable
 data class ChronophylosCommand(
     val name: String,
     val aliases: List<String> = emptyList(),
     val permission: String = "everyone",
     val description: String = "",
+    val usage: String = "",
 )
 
 // ---- StreamElements --------------------------------------------------------------
@@ -200,7 +228,33 @@ internal object BotCommandLists {
     /** Supibot's own and restricted commands ("system", "developer", "whitelist") are left out. */
     fun supibot(list: SupibotCommands): List<BotCommand> = list.data
         .filter { c -> c.flags.none { it in SUPIBOT_HIDDEN_FLAGS } }
-        .map { command(it.name, it.aliases, it.description.orEmpty()) }
+        .map { SupibotGuide.applyTo(command(it.name, it.aliases, it.description.orEmpty())) }
+
+    /**
+     * A boolean param is offered as "name:true", the others as "name:" for the value to follow.
+     * What [SupibotGuide] says about the command wins over what is read from its examples.
+     */
+    fun supibotHelp(detail: SupibotDetail): BotCommand? {
+        val command = detail.data ?: return null
+        val examples = command.dynamicDescription.orEmpty().flatMap { line ->
+            CODE.findAll(line).map { unescapeHtml(it.groupValues[1].replace(TAG, "")) }.toList()
+        }
+        val names = (listOf(command.name) + command.aliases).map { command.prefix + it }
+        val params = command.params.filter { it.name.isNotBlank() && ' ' !in it.name }
+        val paramNames = params.map { it.name }
+        return command(
+            command.name,
+            command.aliases,
+            command.description.orEmpty(),
+            parameters = params.map { if (it.type == "boolean") "${it.name}:true" else "${it.name}:" },
+        ).copy(
+            usage = BotUsage.fromExamples(examples, names, paramNames),
+            // Only what the help shows for the alias itself: "$remindme" reminds the one who writes it.
+            aliasUsages = command.aliases.associateWith {
+                BotUsage.fromExamples(examples, listOf(command.prefix + it), paramNames, subcommands = false)
+            },
+        ).let(SupibotGuide::applyTo)
+    }
 
     /** Null where Supibot is not, or only reads along. */
     fun supibotIn(channels: SupibotChannels): ChannelBot? =
@@ -210,7 +264,7 @@ internal object BotCommandLists {
         .filter { it.level <= 1 && it.userRequires == "NONE" && !it.isDisabled && it.category !in POTAT_HIDDEN_CATEGORIES }
         .filter { it.availablePlatforms?.contains("TWITCH") != false }
         // PotatBot lists phrases like ", prefix" among the aliases.
-        .map { c -> command(c.name, c.aliases.filter { ' ' !in it }, c.description) }
+        .map { c -> command(c.name, c.aliases.filter { ' ' !in it }, c.description, c.usage) }
 
     /**
      * Null where PotatBot is not. A command the channel added is typed after the prefix, unless
@@ -243,27 +297,27 @@ internal object BotCommandLists {
         return ChannelBot(
             commands = list.commands
                 .filter { it.permission == "everyone" && BotCommands.startsLikeCommand(it.name) }
-                .map { c -> command(c.name, c.aliases.filter { BotCommands.startsLikeCommand(it) }, c.description) },
+                .map { c -> command(c.name, c.aliases.filter { BotCommands.startsLikeCommand(it) }, c.description, c.usage) },
         )
     }
 
     fun streamElements(list: List<StreamElementsCommand>): ChannelBot = ChannelBot(
         commands = list
             .filter { it.enabled && !it.hidden && it.accessLevel <= STREAM_ELEMENTS_EVERYONE }
-            .map { c -> command("!${c.command}", c.aliases.map { "!$it" }, c.reply) },
+            .map { c -> command("!${c.command}", c.aliases.map { "!$it" }, c.reply, STREAM_ELEMENTS_TAKES.usage(c.reply)) },
     )
 
     fun fossabot(list: FossabotCommands): ChannelBot = ChannelBot(
         commands = list.commands
             .filter { (it.enabledOnline || it.enabledOffline) && it.roleIds.isEmpty() }
-            .map { c -> command("!${c.name}", c.aliases.map { "!$it" }, c.response) },
+            .map { c -> command("!${c.name}", c.aliases.map { "!$it" }, c.response, FOSSABOT_TAKES.usage(c.response)) },
     )
 
     /** Nightbot names carry their "!"; one without a sign is a word it reacts to, not a command. */
     fun nightbot(list: NightbotCommands): ChannelBot = ChannelBot(
         commands = list.commands
             .filter { it.name.length > 1 && BotCommands.startsLikeCommand(it.name) && it.userLevel == "everyone" }
-            .map { command(it.name, emptyList(), it.message) },
+            .map { command(it.name, emptyList(), it.message, NIGHTBOT_TAKES.usage(it.message)) },
     )
 
     /** Moobot lists only what everyone may use. An alias is kept with the command it stands for. */
@@ -281,12 +335,67 @@ internal object BotCommandLists {
         commands = list
             .filter { it.command.length > 1 && BotCommands.startsLikeCommand(it.command) }
             .filter { c -> (c.permission ?: c.staticPermission)?.let { it.level and STREAMLABS_EVERYONE != 0 } != false }
-            .map { command(it.command, emptyList(), it.response ?: it.description.orEmpty()) },
+            .map { command(it.command, emptyList(), it.response ?: it.description.orEmpty(), STREAMLABS_TAKES.usage(it.response.orEmpty())) },
     )
 
-    /** The text is cut: a chip shows one line of it, and answers can be a whole paragraph. */
-    private fun command(name: String, aliases: List<String>, text: String) =
-        BotCommand(name, aliases, text.replace(WHITESPACE, " ").trim().take(DESCRIPTION_CHARS))
+    /**
+     * How a bot's answer takes what follows the command: [target] matches the one it is aimed at,
+     * who is the sender when no name follows; [word] the number of a word; [rest] the word from
+     * which on it takes the rest, without a number for all of it. Android's regex wants "}" escaped.
+     */
+    internal class AnswerVariables(private val target: Regex, private val word: Regex, private val rest: Regex?) {
+        /** "[user]" when only aimed at someone, else "<user> <2>" up to a "<text>" for the rest. */
+        fun usage(answer: String): String {
+            val aimed = target.containsMatchIn(answer)
+            // A number past MAX_WORD is left out, so "${100000000:}" cannot build a hundred million arguments.
+            val restFrom = rest?.findAll(answer)
+                ?.mapNotNull { match -> match.groupValues.getOrNull(1).let { if (it.isNullOrEmpty()) 1 else it.toIntOrNull() } }
+                ?.filter { it in 1..MAX_WORD }
+                ?.minOrNull()
+            // Every number counts, so "${1:3}" takes the words up to the third.
+            val words = word.findAll(answer).flatMap { match -> match.groupValues.drop(1).mapNotNull { it.toIntOrNull() } }
+                .filter { it in 1..MAX_WORD && (restFrom == null || it < restFrom) }
+            val last = maxOf(words.maxOrNull() ?: 0, (restFrom ?: 1) - 1)
+            val arguments = (1..last).map { if (it == 1 && aimed) "<user>" else "<$it>" }.toMutableList()
+            if (restFrom != null) arguments += "<text>"
+            if (arguments.isEmpty() && aimed) arguments += "[user]"
+            return arguments.joinToString(" ")
+        }
+
+        private companion object {
+            const val MAX_WORD = 9
+        }
+    }
+
+    /** Nightbot's list shows its variables as "[touser]", "[query]" or "[eval [1]]". Its "[user]" is the sender. */
+    private val NIGHTBOT_TAKES = AnswerVariables(Regex("""\[touser\b"""), Regex("""\[(\d)\b"""), Regex("""\[query(?:string)?\b"""))
+
+    /** Fossabot's "$(user)" is the name that follows, or the sender. */
+    private val FOSSABOT_TAKES = AnswerVariables(
+        Regex("""\$\((?:to)?user(?:\.\w+)?\)"""),
+        Regex("""\$\(index(\d+)"""),
+        Regex("""\$\((?:fromindex(\d+)|query)\b"""),
+    )
+
+    /**
+     * StreamElements' "${user}" is the name that follows, or the sender; "${2:}" is the rest from the
+     * second word. It reads "$(user)" the same way.
+     */
+    private val STREAM_ELEMENTS_TAKES = AnswerVariables(
+        Regex("""\$[\{(](?:to)?user(?:\.\w+)?[\})]"""),
+        Regex("""\$[\{(](\d+)(?::(\d+))?[\})]"""),
+        Regex("""\$[\{(](\d+):[\})]"""),
+    )
+
+    /** Streamlabs' "{touser.name}" is the name that follows, or the sender. */
+    private val STREAMLABS_TAKES = AnswerVariables(Regex("""\{touser(?:\.\w+)?\}"""), Regex("""\{(\d)\}"""), rest = null)
+
+    /** The text is cut: a chip shows one line of it, the opened hint all, and answers can be a whole page. */
+    private fun command(name: String, aliases: List<String>, text: String, usage: String = "", parameters: List<String> = emptyList()) =
+        BotCommand(name, aliases, text.replace(WHITESPACE, " ").trim().take(DESCRIPTION_CHARS), BotUsage.withoutCommand(usage), parameters)
+
+    private fun unescapeHtml(text: String) = text
+        .replace("&lt;", "<").replace("&gt;", ">").replace("&quot;", "\"").replace("&#39;", "'").replace("&amp;", "&")
 
     private val SUPIBOT_HIDDEN_FLAGS = setOf("system", "developer", "whitelist")
     private val SUPIBOT_ANSWERING = setOf("Write", "VIP", "Moderator")
@@ -296,8 +405,10 @@ internal object BotCommandLists {
     private const val POTAT_DEFAULT_PREFIX = "#"
     private const val STREAM_ELEMENTS_EVERYONE = 100
     private const val STREAMLABS_EVERYONE = 1
-    private const val DESCRIPTION_CHARS = 120
+    private const val DESCRIPTION_CHARS = 500
     private val WHITESPACE = Regex("\\s+")
+    private val CODE = Regex("<code>(.*?)</code>")
+    private val TAG = Regex("<[^>]+>")
 }
 
 /** The public command lists of the chat bots Chatter suggests commands for. None needs a login. */
@@ -307,6 +418,13 @@ class BotApi(private val http: OkHttpClient) : BotLists {
         Bot.PotatBot -> BotCommandLists.potatBot(http.getJson("https://api.potat.app/help"))
         // ChronophylosBot's list says which channel it is in, so it is read for the channel.
         Bot.ChronophylosBot, Bot.Fossabot, Bot.Moobot, Bot.Nightbot, Bot.StreamElements, Bot.Streamlabs -> emptyList()
+    }
+
+    override suspend fun help(bot: Bot, name: String): BotCommand? = when (bot) {
+        Bot.Supibot -> BotCommandLists.supibotHelp(
+            http.getJsonOrNull("https://supinic.com/api/bot/command/detail/$name?includeDynamicDescription=true") ?: SupibotDetail(),
+        )
+        else -> null
     }
 
     override suspend fun inChannel(bot: Bot, login: String): ChannelBot? = when (bot) {

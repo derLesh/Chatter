@@ -39,6 +39,32 @@ class BotCommandsTest {
         assertEquals(listOf(BotCommand("percent", listOf("%"), "Rolls a random percentage.")), commands)
     }
 
+    /** A command the guide does not know is read from the examples in its long help. */
+    @Test
+    fun supibotsHelpGivesTheArgumentsAndParameters() {
+        val command = BotCommandLists.supibotHelp(
+            read(
+                """{"statusCode":200,"data":{"prefix":"$","aliases":["snacks"],"description":"Eat a snack.",
+                    "dynamicDescription":["<h5>Eat</h5>","<code>${'$'}snack <b>eat</b></code>",
+                        "<code>${'$'}snack donate (user)</code> gives it away","<code>${'$'}snack Is this &quot;good&quot;?</code>",
+                        "<code>${'$'}snack stats:true</code>"],
+                    "flags":["mention"],"name":"snack","params":[{"name":"stats","type":"boolean"},{"name":"for","type":"string"}]},"error":null}""",
+            ),
+        )
+        assertEquals(
+            BotCommand(
+                "snack",
+                listOf("snacks"),
+                "Eat a snack.",
+                "eat | donate <user>",
+                listOf("stats:true", "for:"),
+                aliasUsages = mapOf("snacks" to ""),
+            ),
+            command,
+        )
+        assertNull(BotCommandLists.supibotHelp(read("""{"statusCode":404,"data":null}""")))
+    }
+
     @Test
     fun supibotIsOnlyWhereItAnswers() {
         fun channel(json: String) = BotCommandLists.supibotIn(read("""{"statusCode":200,"data":$json,"error":null}"""))
@@ -193,8 +219,8 @@ class BotCommandsTest {
         )
         assertEquals(
             listOf(
-                BotCommand("!döner", listOf("!doener"), "Zahl in Döner umrechnen"),
-                BotCommand("!ai", emptyList(), "Frag Aurora"),
+                BotCommand("!döner", listOf("!doener"), "Zahl in Döner umrechnen", "<Zahl>"),
+                BotCommand("!ai", emptyList(), "Frag Aurora", "<anweisung>"),
                 BotCommand("!cs", emptyList(), "Pingt die cs-Gruppe"),
             ),
             BotCommandLists.chronophylosBotIn(list, "euterheissgetraenk")?.commands,
@@ -222,10 +248,46 @@ class BotCommandsTest {
             listOf(
                 BotCommand("!raffle", emptyList(), "Join the active raffle."),
                 BotCommand("!redeem", emptyList(), "Redeem items"),
-                BotCommand("!age", emptyList(), "{touser.name} Nick is 31 years old."),
+                BotCommand("!age", emptyList(), "{touser.name} Nick is 31 years old.", "[user]"),
             ),
             bot.commands,
         )
+    }
+
+    /** A cloud bot's answer says what it takes from the message: a name, words, or the rest. */
+    @Test
+    fun aCloudBotsAnswerSaysWhatFollowsTheCommand() {
+        fun nightbot(message: String) = BotCommandLists.nightbot(
+            read("""{"commands":[{"name":"!x","message":${AppJson.encodeToString(message)},"userLevel":"everyone"}]}"""),
+        ).commands.single().usage
+        assertEquals("[user]", nightbot("[touser] look at the !monitors"))
+        assertEquals("", nightbot("[user] rolled a [customapi]"))
+        assertEquals("<text>", nightbot("https://www.google.com/search?q=[querystring]"))
+        assertEquals("<1> <2>", nightbot("[customapi [1] [2]] idiots subbed"))
+
+        fun fossabot(response: String) = BotCommandLists.fossabot(
+            read("""{"commands":[{"name":"x","response":${AppJson.encodeToString(response)}}]}"""),
+        ).commands.single().usage
+        assertEquals("[user]", fossabot("@${'$'}(user) THURSDAYS are LIRIK day off"))
+        assertEquals("", fossabot("F for ${'$'}(sender) ${'$'}(randint 1 750)"))
+        assertEquals("<text>", fossabot("${'$'}(weather ${'$'}(query))"))
+        assertEquals("<1> <text>", fossabot("${'$'}(repeat ${'$'}(index1) ${'$'}(fromindex2))"))
+
+        fun streamElements(reply: String) = BotCommandLists.streamElements(
+            read("""[{"command":"x","reply":${AppJson.encodeToString(reply)},"enabled":true}]"""),
+        ).commands.single().usage
+        assertEquals("[user]", streamElements("${'$'}{user} was last seen here ${'$'}{user.lastseen} ago"))
+        // A name written into the answer is not one that follows the command.
+        assertEquals("", streamElements("xQc was last seen ${'$'}{user.lastseen xqcow} ago"))
+        assertEquals("<1> <text>", streamElements("/ban ${'$'}{1} ${'$'}{2:}"))
+        assertEquals("<user> <2>", streamElements("${'$'}{user} hugs ${'$'}{2}"))
+        // StreamElements reads "$(...)" like "${...}", and "${1:3}" is the first three words.
+        assertEquals("[user]", streamElements("Hello ${'$'}(touser)"))
+        assertEquals("<text>", streamElements("${'$'}(1:)"))
+        assertEquals("<1> <2> <3>", streamElements("${'$'}{1:3}"))
+        // A number no message reaches is left out instead of building that many arguments.
+        assertEquals("", streamElements("${'$'}{100000000:}"))
+        assertEquals("", streamElements("${'$'}{99999999999:}"))
     }
 
     @Test
@@ -234,7 +296,7 @@ class BotCommandsTest {
         val bot = BotCommandLists.fossabot(read("""{"commands":[{"name":"rules","response":"line one\nline two $answer"}]}"""))
         val description = bot.commands.single().description
         assertTrue(description.startsWith("line one line two word"))
-        assertEquals(120, description.length)
+        assertEquals(500, description.length)
     }
 
     // ---- What is suggested -------------------------------------------------------
@@ -249,7 +311,21 @@ class BotCommandsTest {
     @Test
     fun namesComeBeforeAliases() {
         val supibot = offered(Bot.Supibot, "$", command("percent", "pi%"), command("ping"), command("weather", "pi"), command("Pizza"))
-        assertEquals(listOf("\$ping", "\$Pizza", "\$percent", "\$weather"), BotCommands.rank("\$pi", listOf(supibot)).map { it.typed })
+        assertEquals(listOf("\$ping", "\$Pizza", "\$pi", "\$pi%"), BotCommands.rank("\$pi", listOf(supibot)).map { it.typed })
+    }
+
+    /** "$remindme" is what the user is typing, and it takes other arguments than "$remind". */
+    @Test
+    fun anAliasIsOfferedAsItIsTyped() {
+        val remind = BotCommand("remind", listOf("remindme", "notify"), "Reminds", "<person> <text>", aliasUsages = mapOf("remindme" to ""))
+        val offered = BotCommands.rank("\$remindm", listOf(BotCommands.Offered(Bot.Supibot, "$", listOf(remind))))
+        assertEquals(listOf(BotSuggestion(Bot.Supibot, "\$remindme", "Reminds", "")), offered)
+        assertEquals("<person> <text>", BotCommands.rank("\$not", listOf(BotCommands.Offered(Bot.Supibot, "$", listOf(remind)))).single().arguments)
+        // Its name fits as well, so both are there, the name first.
+        assertEquals(
+            listOf("\$remind", "\$remindme"),
+            BotCommands.rank("\$remi", listOf(BotCommands.Offered(Bot.Supibot, "$", listOf(remind)))).map { it.typed },
+        )
     }
 
     @Test
@@ -294,6 +370,14 @@ class BotCommandsTest {
             if (broken) throw IOException("no network")
             return everywhere.getValue(bot)
         }
+
+        override suspend fun help(bot: Bot, name: String): BotCommand? {
+            asked += "$bot help $name"
+            if (broken) throw IOException("no network")
+            return help[name]
+        }
+
+        val help = HashMap<String, BotCommand>()
     }
 
     private class MemoryStore : BotListStore {
@@ -427,6 +511,60 @@ class BotCommandsTest {
         assertTrue(phone.store.lists.isEmpty())
         commands.suggest("forsen", "\$p")
         assertEquals(listOf("Supibot in forsen", "Fossabot in forsen", "Supibot"), phone.lists.asked)
+    }
+
+    // ---- Arguments -------------------------------------------------------------------
+
+    @Test
+    fun aCommandTypedByAnAliasShowsItsArguments() = runTest {
+        val phone = phone()
+        phone.lists.channels[Bot.Fossabot] = ChannelBot(commands = listOf(BotCommand("!hug", listOf("!cuddle"), "Hugs someone", "<user>")))
+        val hint = phone.botCommands().hint("forsen", TypedArguments("!Cuddle", emptyList(), ""))
+        assertEquals("!Cuddle", hint?.command)
+        assertEquals("Hugs someone", hint?.description)
+        assertTrue(hint!!.namesSomeone)
+    }
+
+    /** The hint comes at once from what is known, and the help, which can take seconds, after. */
+    @Test
+    fun withoutAskingTheHelpIsOnlyUsedWhenKept() = runTest {
+        val phone = phone()
+        phone.lists.everywhere[Bot.Supibot] = listOf(BotCommand("weather", usage = "<place>"))
+        phone.lists.help["weather"] = BotCommand("weather", usage = "<place>", parameters = listOf("alerts:true"))
+        val commands = phone.botCommands()
+        val typed = TypedArguments("\$weather", emptyList(), "")
+        val known = commands.hint("forsen", typed, askHelp = false)
+        assertEquals("<place>", known?.forms?.single()?.arguments?.single()?.shown)
+        assertEquals(emptyList<String>(), known?.parameters)
+        assertFalse("Supibot help weather" in phone.lists.asked)
+
+        commands.hint("forsen", typed)
+        assertEquals(listOf("alerts:true"), commands.hint("forsen", typed, askHelp = false)?.parameters)
+    }
+
+    @Test
+    fun supibotsHelpIsAskedOncePerCommandAndKept() = runTest {
+        val phone = phone()
+        phone.lists.everywhere[Bot.Supibot] = listOf(command("weather"))
+        phone.lists.help["weather"] = BotCommand("weather", usage = "<place>", parameters = listOf("alerts:true"))
+        val typed = TypedArguments("\$weather", emptyList(), "")
+        assertEquals(listOf("alerts:true"), phone.botCommands().hint("forsen", typed)?.parameters)
+        assertEquals(1, phone.lists.asked.count { it == "Supibot help weather" })
+
+        phone.time += 6 * 24 * HOUR
+        assertEquals(listOf("alerts:true"), phone.botCommands().hint("nymn", typed)?.parameters)
+        assertEquals(1, phone.lists.asked.count { it == "Supibot help weather" })
+    }
+
+    /** A list kept by a version that did not read the usage yet would never show arguments. */
+    @Test
+    fun aListKeptBeforeUsagesWereReadIsDownloadedAgain() = runTest {
+        val phone = phone()
+        phone.store.lists["Fossabot/forsen"] = """{"at":${phone.time},"value":{"commands":[{"name":"!discord"}]}}"""
+        phone.store.lists["Supibot/forsen"] = """{"at":${phone.time},"value":{"prefixes":["$"]},"format":1}"""
+        phone.lists.channels[Bot.Fossabot] = ChannelBot(commands = listOf(command("!dpi")))
+        assertEquals(listOf("!dpi"), phone.botCommands().suggest("forsen", "!d").map { it.typed })
+        assertEquals(listOf("Fossabot in forsen"), phone.lists.asked)
     }
 
     private fun command(name: String, vararg aliases: String) = BotCommand(name, aliases.toList(), "")

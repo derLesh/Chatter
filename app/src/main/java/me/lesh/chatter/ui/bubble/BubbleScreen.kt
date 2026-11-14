@@ -142,6 +142,7 @@ fun BubbleScreen(vm: MainViewModel, channel: String?) {
                     enabled = connection == ConnectionState.Connected,
                     replyTo = vm.replyTo,
                     suggestions = vm.suggestions,
+                    argumentHint = vm.argumentHint,
                     imageLoader = loader,
                     onSuggestion = vm::applySuggestion,
                     onCancelReply = vm::cancelReply,
