@@ -13,6 +13,10 @@ internal class AssetChanges {
         versions.update { it + (channelId to ((it[channelId] ?: 0L) + 1)) }
     }
 
+    fun forget(channelId: String) {
+        versions.update { it - channelId }
+    }
+
     fun revision(channelId: String?): Long = versions.value.let {
         (it[null] ?: 0L) + (if (channelId == null) 0L else it[channelId] ?: 0L)
     }

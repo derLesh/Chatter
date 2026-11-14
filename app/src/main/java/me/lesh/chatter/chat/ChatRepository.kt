@@ -18,6 +18,7 @@ import me.lesh.chatter.net.ThirdPartyApi
 import me.lesh.chatter.settings.Settings
 import me.lesh.chatter.settings.SpecialMessage
 import me.lesh.chatter.util.RateLimiter
+import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -202,7 +203,11 @@ class ChatRepository(
     val activePage = MutableStateFlow<String?>(null)
 
     fun start() {
-        scope.launch(worker) { irc.messages.collect { incoming.handle(it) } }
+        scope.launch(worker) {
+            irc.messages.collect {
+                if (it.channel == null || it.channel in joinedChannels) incoming.handle(it)
+            }
+        }
 
         // Only what the filters are made of: another setting or a token refresh must not send every
         // message in memory through them again.
@@ -437,9 +442,8 @@ class ChatRepository(
         if (added.isNotEmpty() || removed.isNotEmpty()) {
             AppLog.i(TAG, "Channels: ${added.size} added, ${removed.size} removed, ${list.size} open")
         }
+        val removedIds = removed.mapNotNull { rooms.id(it) ?: channelRepo.info.value[it]?.id }
         removed.forEach { ch ->
-            // Joined again later, the channel loads its lists again.
-            rooms.id(ch)?.let { listLoads.remove(it) }
             irc.part(ch)
             buffers.close(ch)
             chatterRegistry.remove(ch)
@@ -449,6 +453,17 @@ class ChatRepository(
             loadedChannels.remove(ch)
             historyMissing.remove(ch)
             _unreadMentions.update { it - ch }
+        }
+        val keptIds = list.mapNotNullTo(HashSet()) { rooms.id(it) ?: channelRepo.info.value[it]?.id }
+        removedIds.filterNot { it in keptIds }.forEach { id ->
+            val keepBadges = buffers.usesBadgeChannel(id) || sharedChats.sessions.value.values.any { id in it }
+            val load = listLoads.remove(id)
+            if (!keepBadges) {
+                load?.cancel()
+                badges.removeChannel(id)
+            }
+            // Version changes resync 7TV after the room and its subscriptions have been removed.
+            emotes.removeChannel(id)
         }
         added.forEach { ch ->
             irc.join(ch)
@@ -488,10 +503,14 @@ class ChatRepository(
      * seconds of empty channel. Emotes that arrive later are put into the messages afterwards.
      */
     private suspend fun loadChannelData(channel: String, foundId: String?) {
+        if (channel !in channelRepo.channels.value) return
         val id = rooms.id(channel) ?: channelRepo.info.value[channel]?.id ?: foundId
         if (id != null) {
-            rooms.setId(channel, id)
-            val listLoad = loadEmotesAndBadges(id)
+            val listLoad = withContext(worker) {
+                if (channel !in joinedChannels) return@withContext null
+                rooms.setId(channel, id)
+                loadEmotesAndBadges(id)
+            } ?: return
             loadChatters(channel, id)
             withTimeoutOrNull(EMOTES_BEFORE_HISTORY_MS) { listLoad.join() }
         }
@@ -522,6 +541,7 @@ class ChatRepository(
             return
         }
         withContext(worker) {
+            if (channel !in joinedChannels) return@withContext
             chatterRegistry.setPresent(channel, users.associate { it.userLogin.lowercase() to it.userName.ifEmpty { it.userLogin } })
         }
     }
@@ -557,6 +577,7 @@ class ChatRepository(
         }
         if (announce) historyMissing.remove(channel)
         val (fresh, partners) = withContext(worker) {
+            if (channel !in joinedChannels) return@withContext emptyList<ChatItem>() to emptyList<String>()
             val self = auth.account?.login.orEmpty()
             val current = filters
             val (mentions, _, rules) = current
@@ -622,8 +643,12 @@ class ChatRepository(
      */
     private suspend fun describePartners(ids: List<String>) {
         if (ids.isEmpty()) return
-        val known = rooms.knownIds().toSet()
-        ids.filter { it !in known }.forEach { scope.launch { badges.loadChannel(it) } }
+        withContext(worker) {
+            val known = rooms.knownIds().toSet()
+            ids.filter { id -> id !in known &&
+                (buffers.usesBadgeChannel(id) || sharedChats.sessions.value.values.any { id in it })
+            }.forEach { id -> scope.launch(start = CoroutineStart.UNDISPATCHED) { badges.loadChannel(id) } }
+        }
         val users = try {
             helix.usersById(ids)
         } catch (e: Exception) {

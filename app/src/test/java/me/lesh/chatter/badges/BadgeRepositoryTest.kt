@@ -11,6 +11,7 @@ import me.lesh.chatter.net.HelixBadgeVersion
 import me.lesh.chatter.net.ServiceTrouble
 import me.lesh.chatter.net.ThirdPartyBadgeApi
 import me.lesh.chatter.net.TwitchBadgeApi
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
@@ -35,6 +36,7 @@ class BadgeRepositoryTest {
         var channel: List<HelixBadgeSet>? = listOf(badgeSet("subscriber", "0", "Subscriber of this channel"))
         var globalCalls = 0
         var channelCalls = 0
+        var channelGate: CompletableDeferred<Unit>? = null
 
         override suspend fun globalBadges(): List<HelixBadgeSet> {
             globalCalls++
@@ -43,6 +45,7 @@ class BadgeRepositoryTest {
 
         override suspend fun channelBadges(channelId: String): List<HelixBadgeSet> {
             channelCalls++
+            channelGate?.await()
             return channel ?: throw IOException("Twitch is down")
         }
 
@@ -320,4 +323,42 @@ class BadgeRepositoryTest {
         badges.sevenTvWearer("42", "old", worn = false)
         assertEquals(listOf("New"), badges.resolve(null, null, userId = "42").map { it.title })
     }
+    @Test
+    fun removingAChannelDropsOnlyItsBadges() = runTest {
+        badges.loadGlobal()
+        badges.loadChannel("a")
+        badges.loadChannel("b")
+        badges.removeChannel("a")
+        assertEquals("Subscriber", badges.resolve("a", "subscriber/0", null).single().title)
+        assertEquals("Subscriber of this channel", badges.resolve("b", "subscriber/0", null).single().title)
+        assertTrue(!badges.complete("a"))
+        badges.loadChannel("a")
+        assertEquals("Subscriber of this channel", badges.resolve("a", "subscriber/0", null).single().title)
+    }
+
+    @Test
+    fun aBadgeAnswerAfterRemovalCannotRestoreTheChannel() = runTest {
+        val gate = CompletableDeferred<Unit>()
+        twitch.channelGate = gate
+        val pending = launch { badges.loadChannel("a") }
+        runCurrent()
+        badges.removeChannel("a")
+        gate.complete(Unit)
+        pending.join()
+        assertTrue(badges.resolve("a", "subscriber/0", null).isEmpty())
+        assertTrue(!badges.complete("a"))
+        assertTrue(badges.arrived.value.isEmpty())
+    }
+
+    @Test
+    fun removedFailedBadgesAreNotRetried() = runTest {
+        badges.loadGlobal()
+        badges.loadThirdParty()
+        twitch.channel = null
+        badges.loadChannel("a")
+        badges.removeChannel("a")
+        badges.retryMissing()
+        assertEquals(1, twitch.channelCalls)
+    }
+
 }

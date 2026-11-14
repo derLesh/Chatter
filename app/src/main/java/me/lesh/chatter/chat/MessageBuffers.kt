@@ -235,6 +235,10 @@ class MessageBuffers(
         if (changed) reshape(channel)
     }
 
+    /** A retained Shared Chat copy still needs badges from the channel it was written in. */
+    fun usesBadgeChannel(channelId: String): Boolean =
+        buffers.values.any { buffer -> buffer.any { it.sourceRoomId == channelId } }
+
     /** Drops what the mute list covers now, e.g. after a word was added. */
     fun dropMuted(muted: MuteFilter) {
         buffers.forEach { (channel, buffer) ->

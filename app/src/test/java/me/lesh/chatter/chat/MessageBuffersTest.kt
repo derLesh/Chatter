@@ -512,4 +512,15 @@ class MessageBuffersTest {
         assertTrue(previous.getValue("0").body !== shown("a").first().body)
     }
 
+    @Test
+    fun aSharedChatCopyKeepsItsSourceChannelsBadgesNeeded() = runTest(dispatcher) {
+        buffers.open("a")
+        buffers.open("b")
+        buffers.add(message("b", "copy").copy(sourceRoomId = "source"))
+        buffers.close("a")
+        assertTrue(buffers.usesBadgeChannel("source"))
+        buffers.close("b")
+        assertTrue(!buffers.usesBadgeChannel("source"))
+    }
+
 }

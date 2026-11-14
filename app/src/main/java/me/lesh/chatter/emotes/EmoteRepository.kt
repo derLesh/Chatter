@@ -37,6 +37,8 @@ class EmoteRepository(
     @Volatile private var global: ProviderEmotes = ProviderEmotes()
     @Volatile private var twitchUser: Map<String, Emote> = emptyMap()
     private val channels = ConcurrentHashMap<String, ProviderEmotes>()
+    private val channelLock = Any()
+    private val channelLifetimes = HashMap<String, Any>()
     /** Twitch follower emotes the user may use, by channel id. */
     private val channelTwitch = ConcurrentHashMap<String, Map<String, Emote>>()
 
@@ -140,10 +142,10 @@ class EmoteRepository(
         val changed = global.byName != loaded.emotes.byName
         global = loaded.emotes
         AppLog.d(TAG, "Global emotes: ${loaded.emotes.counts()}${failedText(loaded.failed)}")
+        if (changed) changes.changed()
         globalMissing = globalMissing - asked + loaded.failed
         updateWaiting()
         _version.update { it + 1 }
-        if (changed) changes.changed()
         loaded.failed
     }
 
@@ -196,35 +198,49 @@ class EmoteRepository(
         channelId: String,
         userId: String?,
         wanted: Set<EmoteProvider> = THIRD_PARTY,
+    ) = loadChannel(channelId, userId, wanted, expectedLifetime = null)
+
+    private suspend fun loadChannel(
+        channelId: String,
+        userId: String?,
+        wanted: Set<EmoteProvider>,
+        expectedLifetime: Any?,
     ) = coroutineScope {
-        val follower = async { if (userId != null) loadFollowerEmotes(channelId, userId) }
+        val lifetime = synchronized(channelLock) {
+            if (expectedLifetime != null && channelLifetimes[channelId] !== expectedLifetime) return@coroutineScope
+            channelLifetimes.getOrPut(channelId) { Any() }
+        }
+        val follower = async { if (userId != null) loadFollowerEmotes(channelId, userId, lifetime) }
         val asked = wanted.thatAreOn()
-        val answers = ask(asked) { fetchChannel(channelId, it) }
+        val answers = ask(asked) { fetchChannel(channelId, it, lifetime) }
         // Merged into the current emotes once the answers are in, not into a snapshot from before
         // the request. Otherwise a 7TV change or another provider's retry finishing in between is
         // lost.
-        var changed = false
-        var failed = emptySet<EmoteProvider>()
-        val merged = channels.compute(channelId) { _, current ->
-            (current ?: ProviderEmotes()).merge(answers).also {
-                failed = it.failed
-                changed = current?.byName != it.emotes.byName
-            }.emotes
-        }
-        AppLog.d(TAG, "Emotes of ${AppLog.hidden("channel id $channelId", "a channel")}: ${merged?.counts()}${failedText(failed)}")
-        // Providers not asked this time keep their previous state; before the first load that is
-        // missing, so one switched on later is loaded then.
-        var owed = emptySet<EmoteProvider>()
-        val missing = channelMissing.compute(channelId) { _, before ->
-            owed = before ?: THIRD_PARTY
-            owed - asked + failed
-        }.orEmpty()
-        if (missing.thatAreOn().isEmpty()) lastFullLoad[channelId] = now() else lastFullLoad.remove(channelId)
-        answered.add(channelId)
-        updateWaiting()
         follower.await()
-        _version.update { it + 1 }
-        if (changed) changes.changed(channelId)
+        synchronized(channelLock) {
+            if (channelLifetimes[channelId] !== lifetime) return@coroutineScope
+            var changed = false
+            var failed = emptySet<EmoteProvider>()
+            val merged = channels.compute(channelId) { _, current ->
+                (current ?: ProviderEmotes()).merge(answers).also {
+                    failed = it.failed
+                    changed = current?.byName != it.emotes.byName
+                }.emotes
+            }
+            AppLog.d(TAG, "Emotes of ${AppLog.hidden("channel id $channelId", "a channel")}: ${merged?.counts()}${failedText(failed)}")
+            if (changed) changes.changed(channelId)
+            // Providers not asked this time keep their previous state; before the first load that is
+            // missing, so one switched on later is loaded then.
+            var owed = emptySet<EmoteProvider>()
+            val missing = channelMissing.compute(channelId) { _, before ->
+                owed = before ?: THIRD_PARTY
+                owed - asked + failed
+            }.orEmpty()
+            if (missing.thatAreOn().isEmpty()) lastFullLoad[channelId] = now() else lastFullLoad.remove(channelId)
+            answered.add(channelId)
+            updateWaiting()
+            _version.update { it + 1 }
+        }
     }
 
     /**
@@ -242,9 +258,12 @@ class EmoteRepository(
             if (globalMissing != before) recovered = true
         }
         // Over a copy: loading writes into this map.
-        channelMissing.entries.map { it.key to it.value }.forEach { (channelId, missing) ->
+        val pending = synchronized(channelLock) {
+            channelMissing.mapNotNull { (id, missing) -> channelLifetimes[id]?.let { Triple(id, missing, it) } }
+        }
+        pending.forEach { (channelId, missing, lifetime) ->
             if (missing.thatAreOn().isEmpty()) return@forEach
-            loadChannel(channelId, userId = null, wanted = missing)
+            loadChannel(channelId, userId = null, wanted = missing, expectedLifetime = lifetime)
             if (channelMissing[channelId].orEmpty() != missing) recovered = true
         }
         return recovered
@@ -256,20 +275,24 @@ class EmoteRepository(
      * channel on each return would be a lot of requests for nothing. A failed load is retried at
      * once.
      */
-    suspend fun refreshChannel(channelId: String) {
+    suspend fun refreshChannel(channelId: String, force: Boolean = false) {
+        val lifetime = synchronized(channelLock) { channelLifetimes[channelId] } ?: return
         val last = lastFullLoad[channelId]
-        if (last != null && now() - last < RELOAD_AFTER_MS) return
-        loadChannel(channelId, null)
+        if (!force && last != null && now() - last < RELOAD_AFTER_MS) return
+        loadChannel(channelId, null, THIRD_PARTY, expectedLifetime = lifetime)
     }
 
-    private suspend fun loadFollowerEmotes(channelId: String, userId: String) {
+    private suspend fun loadFollowerEmotes(channelId: String, userId: String, lifetime: Any) {
         val emotes = safe("Twitch channel emotes") { helix.channelEmotes(channelId) }
             ?.filter { it.emoteType == "follower" }
             ?.takeIf { it.isNotEmpty() } ?: return
         // The broadcaster can always use their own emotes.
         val usable = userId == channelId || safe("follow status") { helix.isFollowing(userId, channelId) } == true
         if (usable) {
-            channelTwitch[channelId] = emotes.associate { it.name to Emote(it.name, it.id, twitchEmoteUrl(it.id), EmoteProvider.Twitch, isChannel = true, ownerId = channelId) }
+            synchronized(channelLock) {
+                if (channelLifetimes[channelId] !== lifetime) return
+                channelTwitch[channelId] = emotes.associate { it.name to Emote(it.name, it.id, twitchEmoteUrl(it.id), EmoteProvider.Twitch, isChannel = true, ownerId = channelId) }
+            }
             loadOwners(setOf(channelId))
         }
     }
@@ -281,11 +304,12 @@ class EmoteRepository(
             sevenTvUsers.values.map { SevenTvSubscription.ofObject("user.update", it) }
     }
 
-    fun channelForSevenTvSet(setId: String): String? = sevenTvSets.entries.firstOrNull { it.value == setId }?.key
-    fun channelForSevenTvUser(userId: String): String? = sevenTvUsers.entries.firstOrNull { it.value == userId }?.key
+    fun channelsForSevenTvSet(setId: String): List<String> = sevenTvSets.entries.filter { it.value == setId }.map { it.key }
+    fun channelsForSevenTvUser(userId: String): List<String> = sevenTvUsers.entries.filter { it.value == userId }.map { it.key }
 
     /** Applies a pushed 7TV set change. Returns the added emotes. */
-    fun applySevenTvUpdate(channelId: String, event: SevenTvEvent.EmoteSetUpdate): List<Emote> {
+    fun applySevenTvUpdate(channelId: String, event: SevenTvEvent.EmoteSetUpdate): List<Emote> = synchronized(channelLock) {
+        if (channelId !in channelLifetimes) return emptyList()
         val added = event.added.mapNotNull { it.toEmote(true) }
         // Atomic with other changes to the channel's emotes; see loadChannel.
         channels.compute(channelId) { _, existing ->
@@ -304,7 +328,23 @@ class EmoteRepository(
         return added
     }
 
-    fun clear() {
+    /** Explicit removal also invalidates requests still on their way back. */
+    fun removeChannel(channelId: String) = synchronized(channelLock) {
+        channelLifetimes.remove(channelId)
+        channels.remove(channelId)
+        channelTwitch.remove(channelId)
+        channelMissing.remove(channelId)
+        changes.forget(channelId)
+        answered.remove(channelId)
+        lastFullLoad.remove(channelId)
+        sevenTvSets.remove(channelId)
+        sevenTvUsers.remove(channelId)
+        updateWaiting()
+        _version.update { it + 1 }
+    }
+
+    fun clear() = synchronized(channelLock) {
+        channelLifetimes.clear()
         channels.clear()
         channelMissing.clear()
         answered.clear()
@@ -340,7 +380,7 @@ class EmoteRepository(
         EmoteProvider.Twitch -> null
     }
 
-    private suspend fun fetchChannel(channelId: String, provider: EmoteProvider): List<Emote>? = when (provider) {
+    private suspend fun fetchChannel(channelId: String, provider: EmoteProvider, lifetime: Any): List<Emote>? = when (provider) {
         EmoteProvider.Ffz -> answer(provider) {
             thirdParty.ffzChannel(channelId)?.sets?.values?.flatMap { it.emoticons }?.mapNotNull { it.toEmote(true) }.orEmpty()
         }
@@ -349,8 +389,12 @@ class EmoteRepository(
         }
         EmoteProvider.SevenTv -> answer(provider) {
             val user = thirdParty.sevenTvChannel(channelId)
-            user?.emoteSet?.id?.takeIf { it.isNotEmpty() }?.let { sevenTvSets[channelId] = it } ?: sevenTvSets.remove(channelId)
-            user?.user?.id?.takeIf { it.isNotEmpty() }?.let { sevenTvUsers[channelId] = it } ?: sevenTvUsers.remove(channelId)
+            synchronized(channelLock) {
+                if (channelLifetimes[channelId] === lifetime) {
+                    user?.emoteSet?.id?.takeIf { it.isNotEmpty() }?.let { sevenTvSets[channelId] = it } ?: sevenTvSets.remove(channelId)
+                    user?.user?.id?.takeIf { it.isNotEmpty() }?.let { sevenTvUsers[channelId] = it } ?: sevenTvUsers.remove(channelId)
+                }
+            }
             user?.emoteSet?.emotes.orEmpty().mapNotNull { it.toEmote(true) }
         }
         EmoteProvider.Twitch -> null

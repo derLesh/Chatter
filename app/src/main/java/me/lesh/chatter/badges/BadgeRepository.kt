@@ -54,6 +54,8 @@ class BadgeRepository(
 ) : BadgeSource {
     @Volatile private var global: Map<String, Badge> = emptyMap()
     private val channels = ConcurrentHashMap<String, Map<String, Badge>>()
+    private val channelLock = Any()
+    private val channelLifetimes = HashMap<String, Any>()
 
     /** Third-party badges by Twitch user id; a user can have several. */
     @Volatile private var thirdPartyBadges: Map<String, List<Badge>> = emptyMap()
@@ -179,20 +181,36 @@ class BadgeRepository(
         globalAnswered = true
     }
 
-    suspend fun loadChannel(channelId: String) {
-        runCatchingCancellable { helix.channelBadges(channelId) }
-            .onSuccess {
+    suspend fun loadChannel(channelId: String) = loadChannel(channelId, expectedLifetime = null)
+
+    private suspend fun loadChannel(channelId: String, expectedLifetime: Any?) {
+        val lifetime = synchronized(channelLock) {
+            if (expectedLifetime != null && channelLifetimes[channelId] !== expectedLifetime) return
+            channelLifetimes.getOrPut(channelId) { Any() }
+        }
+        val result = runCatchingCancellable { helix.channelBadges(channelId) }
+        synchronized(channelLock) {
+            if (channelLifetimes[channelId] !== lifetime) return
+            result.onSuccess {
                 val loaded = it.toMap()
                 val changed = channels.put(channelId, loaded) != loaded
                 failedChannels.remove(channelId)
                 if (changed) changes.changed(channelId)
-            }
-            .onFailure {
+            }.onFailure {
                 failedChannels.add(channelId)
                 if (it !is NotLoggedInException) trouble.report(ServiceTrouble.TWITCH)
                 AppLog.w(TAG, "Channel badges failed: ${it.message}")
             }
-        answeredChannels.add(channelId)
+            answeredChannels.add(channelId)
+        }
+    }
+
+    fun removeChannel(channelId: String) = synchronized(channelLock) {
+        channelLifetimes.remove(channelId)
+        channels.remove(channelId)
+        changes.forget(channelId)
+        failedChannels.remove(channelId)
+        answeredChannels.remove(channelId)
     }
 
     /**
@@ -206,7 +224,8 @@ class BadgeRepository(
         lastRetry = at
         loadGlobal()
         loadThirdParty()
-        failedChannels.toList().forEach { loadChannel(it) }
+        val pending = synchronized(channelLock) { failedChannels.mapNotNull { id -> channelLifetimes[id]?.let { id to it } } }
+        pending.forEach { (id, lifetime) -> loadChannel(id, expectedLifetime = lifetime) }
     }
 
     /**
