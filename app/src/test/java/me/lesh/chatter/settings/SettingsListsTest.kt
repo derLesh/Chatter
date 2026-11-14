@@ -1,5 +1,6 @@
 package me.lesh.chatter.settings
 
+import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.stringPreferencesKey
 import me.lesh.chatter.badges.BadgeProvider
 import me.lesh.chatter.chat.ImageLinks
@@ -39,7 +40,18 @@ class SettingsListsTest {
     @Test
     fun providersSwitchedTogetherAllStaySwitched() = runBlocking {
         BadgeProvider.entries.map { p -> async { settings.updateBadgeProviders { it - p } } }.awaitAll()
-        assertEquals("", stored("badge_providers"))
+        assertEquals(BadgeProvider.entries.toSet(), stored("badge_providers_off")!!.split(',').map(BadgeProvider::valueOf).toSet())
+    }
+
+    @Test
+    fun aBadgeProviderAddedLaterStartsOnForWhoeverChoseBefore() = runBlocking {
+        store.edit { it[stringPreferencesKey("badge_providers")] = "Twitch,Chatter" }
+        val chosen = settings.settings.first { it.badgeProviders != BadgeProvider.entries.toSet() }.badgeProviders
+        assertEquals(setOf(BadgeProvider.Twitch, BadgeProvider.Ffz, BadgeProvider.Chatter), chosen)
+
+        settings.updateBadgeProviders { it - BadgeProvider.Twitch }
+        assertEquals("the old list goes once the new one is written", null, stored("badge_providers"))
+        assertEquals(setOf("SevenTv", "Chatterino", "Twitch"), stored("badge_providers_off")!!.split(',').toSet())
     }
 
     @Test

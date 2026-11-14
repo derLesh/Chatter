@@ -27,6 +27,8 @@ data class HiddenBadge(
     val url: String? = null,
     /** Its picture for light themes; see [Badge.urlOnLight]. */
     val urlOnLight: String? = null,
+    /** The colour behind its picture; see [Badge.background]. */
+    val background: Int? = null,
 ) {
     val kind: String get() = Badge.kindOf(provider, set)
 }
@@ -43,7 +45,7 @@ class HiddenBadgeRepository(private val store: DataStore<Preferences>, scope: Co
         .stateIn(scope, SharingStarted.Eagerly, emptySet())
 
     suspend fun hide(badge: Badge) = change { all ->
-        all.filterNot { it.kind == badge.kind } + HiddenBadge(badge.provider, badge.set, badge.title, badge.url, badge.urlOnLight)
+        all.filterNot { it.kind == badge.kind } + HiddenBadge(badge.provider, badge.set, badge.title, badge.url, badge.urlOnLight, badge.background)
     }
 
     suspend fun show(kind: String) = change { all -> all.filterNot { it.kind == kind } }

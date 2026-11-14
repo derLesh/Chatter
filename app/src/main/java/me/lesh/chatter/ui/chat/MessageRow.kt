@@ -430,7 +430,7 @@ private fun inlineFor(
             model = badgePicture(data.badge.url, data.badge.urlOnLight),
             contentDescription = data.badge.title,
             imageLoader = loader,
-            modifier = Modifier.fillMaxSize().then(
+            modifier = Modifier.fillMaxSize().badgeBackground(data.badge.background).then(
                 if (badgeGestures == null) Modifier else Modifier.combinedClickable(
                     onClick = badgeGestures.onTap,
                     onLongClick = { badgeGestures.onHold(data.badge) },

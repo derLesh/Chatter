@@ -33,6 +33,7 @@ import me.lesh.chatter.emotes.label
 import me.lesh.chatter.settings.Settings
 import me.lesh.chatter.ui.MainViewModel
 import me.lesh.chatter.ui.SettingsSubPage
+import me.lesh.chatter.ui.chat.badgeBackground
 import me.lesh.chatter.ui.chat.badgeKindName
 import me.lesh.chatter.ui.chat.badgePicture
 import me.lesh.chatter.ui.chat.isWellKnownBadge
@@ -111,8 +112,8 @@ internal fun BadgeKindsPage(vm: MainViewModel) {
     val known = remember { vm.knownBadgeKinds() }
     val hiddenOnOpen = remember { hiddenKinds }
     var query by rememberSaveable { mutableStateOf("") }
-    val rows = (hidden.map { BadgeKindRow(it.kind, it.provider, it.set, it.title, it.url, it.urlOnLight) } +
-        known.map { BadgeKindRow(it.kind, it.provider, it.set, it.title, it.url, it.urlOnLight) })
+    val rows = (hidden.map { BadgeKindRow(it.kind, it.provider, it.set, it.title, it.url, it.urlOnLight, it.background) } +
+        known.map { BadgeKindRow(it.kind, it.provider, it.set, it.title, it.url, it.urlOnLight, it.background) })
         .distinctBy { it.kind }
     val search = query.trim()
     val matches = rows.map { it to badgeKindName(it.provider, it.set, it.title) }
@@ -151,7 +152,7 @@ internal fun BadgeKindsPage(vm: MainViewModel) {
                             model = badgePicture(row.url, row.urlOnLight),
                             contentDescription = null,
                             imageLoader = vm.imageLoader,
-                            modifier = Modifier.size(24.dp),
+                            modifier = Modifier.size(24.dp).badgeBackground(row.background),
                         )
                     },
                     trailingContent = { SettingsSwitch(checked = shown, onCheckedChange = change) },
@@ -180,8 +181,9 @@ private class BadgeKindRow(
     val title: String,
     val url: String?,
     val urlOnLight: String?,
+    val background: Int?,
 ) {
-    fun toBadge() = Badge(url.orEmpty(), title, provider, set, urlOnLight)
+    fun toBadge() = Badge(url.orEmpty(), title, provider, set, urlOnLight, background)
 }
 
 /** The emotes the user hid, each with where it is hidden and a button to show it again. */
@@ -227,6 +229,7 @@ internal fun HiddenEmotesPage(vm: MainViewModel) {
 internal val BADGE_PROVIDERS = listOf(
     BadgeProvider.Twitch to R.string.settings_provider_twitch,
     BadgeProvider.SevenTv to R.string.settings_provider_seventv,
+    BadgeProvider.Ffz to R.string.settings_provider_ffz,
     BadgeProvider.Chatterino to R.string.settings_provider_chatterino,
     BadgeProvider.Chatter to R.string.settings_provider_chatter,
 )

@@ -12,14 +12,23 @@ import me.lesh.chatter.net.TrustedImages
 import me.lesh.chatter.net.TwitchBadgeApi
 import me.lesh.chatter.util.runCatchingCancellable
 import java.io.IOException
+import java.util.Arrays
 import java.util.concurrent.ConcurrentHashMap
 
 /** Where a badge comes from. Each can be turned off in the settings. */
-enum class BadgeProvider { Twitch, SevenTv, Chatterino, Chatter }
+enum class BadgeProvider {
+    Twitch, SevenTv, Ffz, Chatterino, Chatter;
+
+    companion object {
+        /** The providers there were before FFZ. A list of the ones turned on from then names only these. */
+        val BEFORE_FFZ = setOf(Twitch, SevenTv, Chatterino, Chatter)
+    }
+}
 
 /**
  * One badge picture. [set] names its kind within the provider, the same for every version of it:
- * Twitch's set id ("subscriber", "predictions"), 7TV's cosmetic id, Chatterino's tooltip.
+ * Twitch's set id ("subscriber", "predictions"), 7TV's cosmetic id, FFZ's badge name, Chatterino's
+ * tooltip.
  */
 data class Badge(
     val url: String,
@@ -28,6 +37,8 @@ data class Badge(
     val set: String = "",
     /** A picture for light themes, where the provider has one; [url] is then the dark one. */
     val urlOnLight: String? = null,
+    /** Drawn behind the picture, as ARGB; FFZ's pictures are white symbols on nothing. */
+    val background: Int? = null,
 ) {
     /** What hiding a kind of badge matches; see [HiddenBadge]. */
     val kind: String = kindOf(provider, set)
@@ -68,6 +79,12 @@ class BadgeRepository(
     @Volatile private var supporterBadges: Map<String, List<Badge>>? = null
 
     /**
+     * FFZ's badges, each with its wearers. Not in [thirdPartyBadges]: FFZ lists tens of thousands of
+     * supporters, and an entry per person would take megabytes. Null until fetched.
+     */
+    @Volatile private var ffzBadges: List<WornBy>? = null
+
+    /**
      * 7TV badges. There is no list to fetch since the cosmetics endpoint was retired; they arrive
      * over the EventAPI as a badge description ([sevenTvBadge]) and, separately, who wears it
      * ([sevenTvWearer]). Chatterino does the same.
@@ -98,14 +115,16 @@ class BadgeRepository(
 
     /**
      * One badge of every kind loaded so far, for the list in the settings: Twitch's global set and
-     * those of the joined channels, Chatterino's list, the 7TV badges described and the supporter.
+     * those of the joined channels, Chatterino's and FFZ's lists, the 7TV badges described and the
+     * supporter.
      */
     fun knownKinds(): List<Badge> {
         val byKind = LinkedHashMap<String, Badge>()
         // Sorted by key, so a set shows its first version ("subscriber/0") whatever the map order.
         val twitch = global.entries.sortedBy { it.key }.map { it.value } +
             channels.values.flatMap { set -> set.entries.sortedBy { it.key }.map { it.value } }
-        (twitch + thirdPartyBadges.values.flatten() + sevenTvCosmetics.values).forEach { byKind.putIfAbsent(it.kind, it) }
+        val ffz = ffzBadges.orEmpty().map { it.badge }
+        (twitch + thirdPartyBadges.values.flatten() + ffz + sevenTvCosmetics.values).forEach { byKind.putIfAbsent(it.kind, it) }
         return byKind.values.toList()
     }
 
@@ -119,12 +138,16 @@ class BadgeRepository(
             badgesTag.split(',').mapNotNull { key -> channel?.get(key) ?: global[key] }
         }
         val extra = userId?.let { thirdPartyBadges[it] }?.filter { it.provider in providers }.orEmpty()
+        val ffz = if (userId == null || BadgeProvider.Ffz !in providers) emptyList() else ffzBadgesOf(userId)
         val sevenTv = userId?.let(::sevenTvBadgeOf)
-        return when {
-            extra.isEmpty() && sevenTv == null -> twitch
-            sevenTv == null -> twitch + extra
-            else -> twitch + extra + sevenTv
-        }
+        if (extra.isEmpty() && ffz.isEmpty() && sevenTv == null) return twitch
+        return twitch + extra + ffz + listOfNotNull(sevenTv)
+    }
+
+    private fun ffzBadgesOf(userId: String): List<Badge> {
+        val worn = ffzBadges ?: return emptyList()
+        val id = userId.toLongOrNull() ?: return emptyList()
+        return worn.filter { Arrays.binarySearch(it.userIds, id) >= 0 }.map { it.badge }
     }
 
     override fun complete(channelId: String?): Boolean =
@@ -230,9 +253,9 @@ class BadgeRepository(
     }
 
     /**
-     * Chatterino's badge list and Chatter's supporters. One request each for all users, then looked
-     * up by user id. Only missing lists are fetched, so one that failed at start is picked up
-     * later. 7TV badges arrive over the EventAPI.
+     * Chatterino's and FFZ's badge lists and Chatter's supporters. One request each for all users,
+     * then looked up by user id. Only missing lists are fetched, so one that failed at start is
+     * picked up later. 7TV badges arrive over the EventAPI.
      */
     suspend fun loadThirdParty() {
         var changed = false
@@ -253,6 +276,29 @@ class BadgeRepository(
                 .onFailure {
                     trouble.report(ServiceTrouble.CHATTERINO)
                     AppLog.w(TAG, "Chatterino badges failed: ${it.message}")
+                }
+        }
+
+        if (ffzBadges == null) {
+            runCatchingCancellable { thirdParty.ffzBadges() }
+                .onSuccess { list ->
+                    ffzBadges = list.badges.mapNotNull { badge ->
+                        val urls = badge.urls
+                        // Only from FFZ's own host; see TrustedImages.
+                        val url = (urls["2"] ?: urls["1"] ?: urls["4"])?.let(TrustedImages::url) ?: return@mapNotNull null
+                        val userIds = list.users[badge.id.toString()]?.takeIf { it.isNotEmpty() } ?: return@mapNotNull null
+                        val image = Badge(
+                            url, badge.title.ifEmpty { badge.name }, BadgeProvider.Ffz,
+                            set = badge.name.ifEmpty { badge.id.toString() }, background = cssColor(badge.color),
+                        )
+                        WornBy(image, userIds.also { it.sort() })
+                    }
+                    trouble.reachable(ServiceTrouble.FFZ)
+                    changed = true
+                }
+                .onFailure {
+                    trouble.report(ServiceTrouble.FFZ)
+                    AppLog.w(TAG, "FFZ badges failed: ${it.message}")
                 }
         }
 
@@ -294,6 +340,9 @@ class BadgeRepository(
         return merged
     }
 
+    /** A badge and the sorted Twitch user ids of who wears it, searched instead of mapped. */
+    private class WornBy(val badge: Badge, val userIds: LongArray)
+
     private fun List<HelixBadgeSet>.toMap(): Map<String, Badge> {
         val map = HashMap<String, Badge>()
         for (set in this) for (v in set.versions) {
@@ -320,4 +369,10 @@ class BadgeRepository(
 
         const val SUPPORTER_SET = "supporter"
     }
+}
+
+/** "#RRGGBB" as an opaque ARGB colour; anything else is no colour. */
+internal fun cssColor(raw: String?): Int? {
+    val hex = raw?.removePrefix("#")?.takeIf { it.length == 6 } ?: return null
+    return hex.toLongOrNull(16)?.let { (0xFF000000L or it).toInt() }
 }

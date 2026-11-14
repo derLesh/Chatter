@@ -6,6 +6,8 @@ import me.lesh.chatter.net.ChatterBadges
 import me.lesh.chatter.net.ChatterSupporters
 import me.lesh.chatter.net.ChatterinoBadge
 import me.lesh.chatter.net.ChatterinoBadges
+import me.lesh.chatter.net.FfzBadge
+import me.lesh.chatter.net.FfzBadges
 import me.lesh.chatter.net.HelixBadgeSet
 import me.lesh.chatter.net.HelixBadgeVersion
 import me.lesh.chatter.net.ServiceTrouble
@@ -60,6 +62,20 @@ class BadgeRepositoryTest {
     private class FakeOtherClients : ThirdPartyBadgeApi {
         var chatterino: List<String>? = listOf("42")
         var chatterinoCalls = 0
+        /** Wearers of FFZ's supporter badge, unsorted as FFZ sends them; null makes FFZ unreachable. */
+        var ffzSupporters: LongArray? = longArrayOf(900, 77, 300)
+        var ffzCalls = 0
+
+        override suspend fun ffzBadges(): FfzBadges {
+            ffzCalls++
+            val users = ffzSupporters ?: throw IOException("FFZ is down")
+            val supporter = FfzBadge(
+                id = 3, name = "supporter", title = "FFZ Supporter", color = "#755000",
+                urls = mapOf("1" to "https://cdn.frankerfacez.com/badge/3/1", "2" to "https://cdn.frankerfacez.com/badge/3/2"),
+            )
+            val elsewhere = FfzBadge(id = 9, name = "elsewhere", urls = mapOf("2" to "https://example.com/badge.png"))
+            return FfzBadges(listOf(supporter, elsewhere), mapOf("3" to users, "9" to longArrayOf(77)))
+        }
 
         override suspend fun chatterinoBadges(): ChatterinoBadges {
             chatterinoCalls++
@@ -156,7 +172,7 @@ class BadgeRepositoryTest {
 
         val known = badges.knownKinds()
         assertEquals(
-            setOf("Twitch/subscriber", "Twitch/bits", "Chatterino/Chatterino Fan", "Chatter/supporter", "SevenTv/cosmetic-1"),
+            setOf("Twitch/subscriber", "Twitch/bits", "Chatterino/Chatterino Fan", "Ffz/supporter", "Chatter/supporter", "SevenTv/cosmetic-1"),
             known.map { it.kind }.toSet(),
         )
         assertEquals("the first version stands for the set", "Subscriber", known.first { it.kind == "Twitch/subscriber" }.title)
@@ -286,6 +302,72 @@ class BadgeRepositoryTest {
         badges.loadThirdParty()
         assertEquals(1, badges.resolve(null, null, userId = "7").size)
         assertTrue(badges.resolve(null, null, userId = "").isEmpty())
+    }
+
+    // ---- FFZ's list ------------------------------------------------------------------------------------
+
+    @Test
+    fun anFfzBadgeIsFoundForEveryoneOnItsList() = runTest {
+        badges.loadThirdParty()
+
+        listOf("900", "77", "300").forEach { id ->
+            val shown = badges.resolve(null, null, userId = id).single()
+            assertEquals("FFZ Supporter", shown.title)
+            assertEquals(BadgeProvider.Ffz, shown.provider)
+            assertEquals("https://cdn.frankerfacez.com/badge/3/2", shown.url)
+        }
+        assertTrue(badges.resolve(null, null, userId = "78").isEmpty())
+        assertTrue("not a Twitch id", badges.resolve(null, null, userId = "abc").isEmpty())
+    }
+
+    @Test
+    fun anFfzBadgeKeepsItsColourBehindThePicture() = runTest {
+        badges.loadThirdParty()
+        assertEquals(0xFF755000.toInt(), badges.resolve(null, null, userId = "77").single().background)
+    }
+
+    @Test
+    fun anFfzBadgeFromAnotherHostIsLeftOut() = runTest {
+        badges.loadThirdParty()
+        assertEquals(listOf("supporter"), badges.resolve(null, null, userId = "77").map { it.set })
+    }
+
+    @Test
+    fun ffzBadgesGoWhenTurnedOff() = runTest {
+        badges.loadThirdParty()
+        badges.enabled = BadgeProvider.entries.toSet() - BadgeProvider.Ffz
+        assertTrue(badges.resolve(null, null, userId = "77").isEmpty())
+    }
+
+    @Test
+    fun ffzThatIsDownIsNamedAndTriedAgain() = runTest {
+        val said = mutableListOf<String>()
+        val watching = launch { trouble.unreachable.collect { said += it } }
+        runCurrent()
+
+        others.ffzSupporters = null
+        badges.loadThirdParty()
+        runCurrent()
+        assertEquals(listOf(ServiceTrouble.FFZ), said)
+
+        others.ffzSupporters = longArrayOf(77)
+        clock += 6 * 60_000L
+        badges.retryMissing()
+        assertEquals(1, badges.resolve(null, null, userId = "77").size)
+
+        clock += 6 * 60_000L
+        badges.retryMissing()
+        assertEquals("once it answered, it is not asked again", 2, others.ffzCalls)
+        watching.cancel()
+    }
+
+    @Test
+    fun onlyAPlainHexColourIsAColour() {
+        assertEquals(0xFFFAAF19.toInt(), cssColor("#FAAF19"))
+        assertEquals(0xFF595959.toInt(), cssColor("595959"))
+        assertEquals(null, cssColor("red"))
+        assertEquals(null, cssColor("#FFF"))
+        assertEquals(null, cssColor(null))
     }
 
     // ---- what 7TV pushes over the socket ---------------------------------------------------------

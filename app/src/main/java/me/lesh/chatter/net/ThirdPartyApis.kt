@@ -102,6 +102,24 @@ data class ChatterinoBadge(
     val users: List<String> = emptyList(),
 )
 
+/**
+ * FFZ's badges and who wears them: [users] maps a badge id to Twitch user ids. Tens of thousands
+ * of ids, so read straight into arrays rather than boxed numbers.
+ */
+@Serializable
+class FfzBadges(val badges: List<FfzBadge> = emptyList(), val users: Map<String, LongArray> = emptyMap())
+
+@Serializable
+data class FfzBadge(
+    val id: Long,
+    val name: String = "",
+    val title: String = "",
+    /** Drawn behind the picture, which is a white symbol; "#RRGGBB". */
+    val color: String? = null,
+    /** Picture by scale: "1", "2", "4". */
+    val urls: Map<String, String?> = emptyMap(),
+)
+
 // ---- Recent messages (history) -----------------------------------------------
 
 @Serializable
@@ -123,6 +141,7 @@ interface ThirdPartyEmoteApi {
 /** The badge lists of other clients, as the badge repository needs them. */
 interface ThirdPartyBadgeApi {
     suspend fun chatterinoBadges(): ChatterinoBadges
+    suspend fun ffzBadges(): FfzBadges
 }
 
 class ThirdPartyApi(private val http: OkHttpClient) : ThirdPartyEmoteApi, ThirdPartyBadgeApi {
@@ -140,6 +159,8 @@ class ThirdPartyApi(private val http: OkHttpClient) : ThirdPartyEmoteApi, ThirdP
 
     override suspend fun chatterinoBadges(): ChatterinoBadges =
         http.getJson("https://api.chatterino.com/badges")
+
+    override suspend fun ffzBadges(): FfzBadges = http.getJson("https://api.frankerfacez.com/v1/badges/ids")
 
     suspend fun recentMessages(channel: String, limit: Int): RecentMessages =
         http.getJson("https://recent-messages.robotty.de/api/v2/recent-messages/$channel?limit=$limit")

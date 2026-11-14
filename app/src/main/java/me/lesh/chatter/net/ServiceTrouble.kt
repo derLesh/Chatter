@@ -27,6 +27,7 @@ class ServiceTrouble {
     companion object {
         const val TWITCH = "Twitch"
         const val CHATTERINO = "Chatterino"
+        const val FFZ = "FrankerFaceZ"
         const val CHATTER_API = "api.lesh.me"
     }
 }

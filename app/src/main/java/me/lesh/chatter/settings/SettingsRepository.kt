@@ -1,6 +1,7 @@
 package me.lesh.chatter.settings
 
 import androidx.datastore.core.DataStore
+import androidx.datastore.preferences.core.MutablePreferences
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
@@ -342,7 +343,7 @@ class SettingsRepository(
             sendRepeats = p[SEND_REPEATS] ?: false,
             debugMenu = p[DEBUG_MENU] ?: false,
             nameTap = p[NAME_TAP]?.let { v -> TapAction.entries.firstOrNull { it.name == v } } ?: TapAction.UserCard,
-            badgeProviders = badgeProviders(p[BADGE_PROVIDERS]),
+            badgeProviders = badgeProviders(p),
             emoteProviders = emoteProviders(p[EMOTE_PROVIDERS]),
         )
     }.stateIn(scope, SharingStarted.Eagerly, Settings())
@@ -446,7 +447,7 @@ class SettingsRepository(
     }
     suspend fun setNameColors(v: NameColorPalette) = store.edit { it[NAME_COLORS] = v.name }
     suspend fun updateBadgeProviders(change: (Set<BadgeProvider>) -> Set<BadgeProvider>) =
-        store.edit { p -> p[BADGE_PROVIDERS] = change(badgeProviders(p[BADGE_PROVIDERS])).joinToString(",") { it.name } }
+        store.edit { p -> writeBadgeProviders(p, change(badgeProviders(p))) }
     suspend fun updateEmoteProviders(change: (Set<EmoteProvider>) -> Set<EmoteProvider>) =
         store.edit { p -> p[EMOTE_PROVIDERS] = change(emoteProviders(p[EMOTE_PROVIDERS])).joinToString(",") { it.name } }
 
@@ -568,7 +569,7 @@ class SettingsRepository(
         p[SEND_LATER] = s.sendLater
         p[SEND_LATER_BUTTON] = s.sendLaterButton.name
         p[SEND_REPEATS] = s.sendRepeats
-        p[BADGE_PROVIDERS] = s.badgeProviders.joinToString(",") { it.name }
+        writeBadgeProviders(p, s.badgeProviders)
         p[EMOTE_PROVIDERS] = s.emoteProviders.joinToString(",") { it.name }
     }
 
@@ -608,9 +609,20 @@ class SettingsRepository(
         fun postSites(raw: String?): Set<PostSite> =
             raw.orEmpty().split(',').mapNotNull { v -> PostSite.entries.firstOrNull { it.name == v } }.toSet()
 
-        fun badgeProviders(raw: String?): Set<BadgeProvider> =
-            raw?.split(',')?.mapNotNull { v -> BadgeProvider.entries.firstOrNull { it.name == v } }?.toSet()
-                ?: BadgeProvider.entries.toSet()
+        fun badgeProviders(p: Preferences): Set<BadgeProvider> {
+            val all = BadgeProvider.entries.toSet()
+            p[BADGE_PROVIDERS_OFF]?.let { return all - badgeProviderNames(it) }
+            val on = p[BADGE_PROVIDERS] ?: return all
+            return all - (BadgeProvider.BEFORE_FFZ - badgeProviderNames(on))
+        }
+
+        fun writeBadgeProviders(p: MutablePreferences, on: Set<BadgeProvider>) {
+            p[BADGE_PROVIDERS_OFF] = (BadgeProvider.entries - on).joinToString(",") { it.name }
+            p.remove(BADGE_PROVIDERS)
+        }
+
+        fun badgeProviderNames(raw: String): Set<BadgeProvider> =
+            raw.split(',').mapNotNull { v -> BadgeProvider.entries.firstOrNull { it.name == v } }.toSet()
 
         fun emoteProviders(raw: String?): Set<EmoteProvider> =
             raw?.split(',')?.mapNotNull { v -> EmoteProvider.entries.firstOrNull { it.name == v } }?.toSet()
@@ -678,7 +690,10 @@ class SettingsRepository(
         val LIVE_NOTIFICATIONS = booleanPreferencesKey("live_notifications")
         val SENDER_AVATARS = booleanPreferencesKey("notification_sender_avatars")
         val EMOTE_PROVIDERS = stringPreferencesKey("emote_providers")
+        // The ones turned on; read until the first change writes BADGE_PROVIDERS_OFF.
         val BADGE_PROVIDERS = stringPreferencesKey("badge_providers")
+        // The ones turned off, so a provider added later starts on.
+        val BADGE_PROVIDERS_OFF = stringPreferencesKey("badge_providers_off")
         val NAME_COLORS = stringPreferencesKey("name_colors")
         // First messages had a switch of their own; a false here still turns them off.
         val FIRST_MESSAGES = booleanPreferencesKey("highlight_first_messages")

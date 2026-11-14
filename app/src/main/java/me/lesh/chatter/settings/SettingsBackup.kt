@@ -1,5 +1,6 @@
 package me.lesh.chatter.settings
 
+import me.lesh.chatter.badges.BadgeProvider
 import me.lesh.chatter.badges.HiddenBadge
 import me.lesh.chatter.badges.HiddenBadgeRepository
 import me.lesh.chatter.channels.ChannelGroup
@@ -34,9 +35,18 @@ data class SettingsBackup(
     val hiddenEmotes: List<HiddenEmote>? = null,
     val hiddenBadges: List<HiddenBadge>? = null,
 ) {
+    /** This backup as the current [VERSION] reads it. */
+    fun upgraded(): SettingsBackup {
+        if (version >= 2 || settings == null) return this
+        // Version 1 listed the badge providers turned on, from before FFZ; one added since starts on.
+        val added = BadgeProvider.entries - BadgeProvider.BEFORE_FFZ
+        return copy(settings = settings.copy(badgeProviders = settings.badgeProviders + added))
+    }
+
     companion object {
         const val APP = "Chatter"
-        const val VERSION = 1
+        /** 2 since FFZ badges; see [upgraded]. */
+        const val VERSION = 2
 
         // Readable, users may edit backups by hand.
         val json = Json {
@@ -106,7 +116,7 @@ class BackupManager(
     fun read(text: String): SettingsBackup? {
         val backup = runCatching { SettingsBackup.json.decodeFromString<SettingsBackup>(text) }.getOrNull() ?: return null
         if (backup.app != SettingsBackup.APP) return null
-        return BackupCheck.clean(backup)
+        return BackupCheck.clean(backup.upgraded())
     }
 
     /** Applies [backup] as [read] returned it. */

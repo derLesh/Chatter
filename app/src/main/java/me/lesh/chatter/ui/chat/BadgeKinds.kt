@@ -1,8 +1,10 @@
 package me.lesh.chatter.ui.chat
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -10,6 +12,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.ReadOnlyComposable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import coil3.ImageLoader
@@ -36,6 +39,10 @@ fun badgeKindName(provider: BadgeProvider, set: String, title: String): String {
 fun badgePicture(url: String?, urlOnLight: String?): String? =
     if (urlOnLight != null && !isAppInDarkTheme()) urlOnLight else url
 
+/** The colour behind a badge's picture, where its provider has one; see [Badge.background]. */
+fun Modifier.badgeBackground(color: Int?): Modifier =
+    if (color == null) this else background(Color(color), RoundedCornerShape(percent = 15))
+
 /** Whether a badge is one people know by name, which the settings list shows without a search. */
 fun isWellKnownBadge(provider: BadgeProvider, set: String) = provider == BadgeProvider.Twitch && set in TWITCH_KIND_NAMES
 
@@ -52,7 +59,7 @@ fun HideBadgeDialog(badge: Badge, imageLoader: ImageLoader, onHide: () -> Unit, 
                     model = badgePicture(badge.url, badge.urlOnLight),
                     contentDescription = null,
                     imageLoader = imageLoader,
-                    modifier = Modifier.size(32.dp),
+                    modifier = Modifier.size(32.dp).badgeBackground(badge.background),
                 )
                 Text(stringResource(R.string.badge_hide_text, name))
             }
