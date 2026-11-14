@@ -24,6 +24,7 @@ import java.io.File
 enum class Bot(val sameEverywhere: Boolean = false) {
     Supibot(sameEverywhere = true),
     PotatBot(sameEverywhere = true),
+    ChronophylosBot(sameEverywhere = true),
     Fossabot,
     Moobot,
     Nightbot,

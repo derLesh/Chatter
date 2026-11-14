@@ -80,6 +80,21 @@ data class PotatChannelCommand(
     @SerialName("reward_id") val rewardId: JsonElement? = null,
 )
 
+// ---- ChronophylosBot -------------------------------------------------------------
+
+/** [channel] is the one channel the bot is in; its commands are not that channel's own. */
+@Serializable
+data class ChronophylosCommands(val channel: String = "", val commands: List<ChronophylosCommand> = emptyList())
+
+/** [name] carries its "!". A group that can be pinged is listed as a command too. */
+@Serializable
+data class ChronophylosCommand(
+    val name: String,
+    val aliases: List<String> = emptyList(),
+    val permission: String = "everyone",
+    val description: String = "",
+)
+
 // ---- StreamElements --------------------------------------------------------------
 
 @Serializable
@@ -222,6 +237,16 @@ internal object BotCommandLists {
         return ChannelBot(prefixes, commands.filter { BotCommands.startsLikeCommand(it.name) })
     }
 
+    /** Null in every channel but the one the list names. An alias like "@grok" is no command. */
+    fun chronophylosBotIn(list: ChronophylosCommands, login: String): ChannelBot? {
+        if (!list.channel.equals(login, ignoreCase = true)) return null
+        return ChannelBot(
+            commands = list.commands
+                .filter { it.permission == "everyone" && BotCommands.startsLikeCommand(it.name) }
+                .map { c -> command(c.name, c.aliases.filter { BotCommands.startsLikeCommand(it) }, c.description) },
+        )
+    }
+
     fun streamElements(list: List<StreamElementsCommand>): ChannelBot = ChannelBot(
         commands = list
             .filter { it.enabled && !it.hidden && it.accessLevel <= STREAM_ELEMENTS_EVERYONE }
@@ -280,12 +305,14 @@ class BotApi(private val http: OkHttpClient) : BotLists {
     override suspend fun everywhere(bot: Bot): List<BotCommand> = when (bot) {
         Bot.Supibot -> BotCommandLists.supibot(http.getJson("https://supinic.com/api/bot/command/list"))
         Bot.PotatBot -> BotCommandLists.potatBot(http.getJson("https://api.potat.app/help"))
-        Bot.Fossabot, Bot.Moobot, Bot.Nightbot, Bot.StreamElements, Bot.Streamlabs -> emptyList()
+        // ChronophylosBot's list says which channel it is in, so it is read for the channel.
+        Bot.ChronophylosBot, Bot.Fossabot, Bot.Moobot, Bot.Nightbot, Bot.StreamElements, Bot.Streamlabs -> emptyList()
     }
 
     override suspend fun inChannel(bot: Bot, login: String): ChannelBot? = when (bot) {
         Bot.Supibot -> BotCommandLists.supibotIn(http.getJson("https://supinic.com/api/bot/channel/previousList?username=$login"))
         Bot.PotatBot -> BotCommandLists.potatBotIn(http.getJson("https://api.potat.app/users/$login"))
+        Bot.ChronophylosBot -> BotCommandLists.chronophylosBotIn(http.getJson("https://twitch.chronophylos.com/commands.json"), login)
         Bot.Fossabot -> fossabot(login)
         Bot.Moobot -> moobot(login)
         Bot.Nightbot -> nightbot(login)

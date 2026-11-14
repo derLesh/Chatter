@@ -7,6 +7,7 @@ import kotlinx.coroutines.test.runTest
 import kotlinx.serialization.json.decodeFromJsonElement
 import me.lesh.chatter.net.AppJson
 import me.lesh.chatter.net.BotCommandLists
+import me.lesh.chatter.net.ChronophylosCommands
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
@@ -177,6 +178,28 @@ class BotCommandsTest {
             ),
         )
         assertEquals(listOf(BotCommand("!song", emptyList(), "\$(song)"), BotCommand("?help", emptyList(), "Ask a mod")), bot.commands)
+    }
+
+    /** ChronophylosBot's list names the one channel it is in; its pings are offered like commands. */
+    @Test
+    fun chronophylosBotIsOnlyInTheChannelItsListNames() {
+        val list = read<ChronophylosCommands>(
+            """{"version":1,"bot":"twitch-1337","channel":"euterheissgetraenk","lang":"de","commands":[
+                {"name":"!döner","aliases":["!doener"],"kind":"command","permission":"everyone","description":"Zahl in Döner umrechnen","usage":"!döner <Zahl>"},
+                {"name":"!ai","aliases":["@grok"],"kind":"command","permission":"everyone","description":"Frag Aurora","usage":"!ai <anweisung>"},
+                {"name":"!suspend","aliases":[],"kind":"command","permission":"moderator","description":"Command stummschalten","usage":"!suspend <command>"},
+                {"name":"!cs","aliases":[],"kind":"ping","permission":"everyone","description":"Pingt die cs-Gruppe","usage":"!cs"}
+            ]}""",
+        )
+        assertEquals(
+            listOf(
+                BotCommand("!döner", listOf("!doener"), "Zahl in Döner umrechnen"),
+                BotCommand("!ai", emptyList(), "Frag Aurora"),
+                BotCommand("!cs", emptyList(), "Pingt die cs-Gruppe"),
+            ),
+            BotCommandLists.chronophylosBotIn(list, "euterheissgetraenk")?.commands,
+        )
+        assertNull(BotCommandLists.chronophylosBotIn(list, "forsen"))
     }
 
     /** Streamlabs lists its built-in commands with a description, the channel's with their answer. */
