@@ -36,8 +36,10 @@ import me.lesh.chatter.channels.RemovedPage
 import me.lesh.chatter.channels.displayName
 import me.lesh.chatter.chat.ChatCommand
 import me.lesh.chatter.chat.Bot
+import me.lesh.chatter.chat.ArgumentHint
 import me.lesh.chatter.chat.BotCommands
 import me.lesh.chatter.chat.BotSuggestion
+import me.lesh.chatter.chat.BotUsage
 import me.lesh.chatter.chat.ChatItem
 import me.lesh.chatter.chat.ChatStatus
 import me.lesh.chatter.chat.GapFilled
@@ -136,6 +138,8 @@ sealed interface Suggestion {
     data class UserSuggestion(val name: String) : Suggestion
     data class CommandSuggestion(val name: String, val usage: String) : Suggestion
     data class BotCommandSuggestion(val command: BotSuggestion) : Suggestion
+    /** A word for a bot command's argument, like one of its choices or a name. */
+    data class ArgumentSuggestion(val value: String) : Suggestion
     /** [shortcode] is the one that matched what was typed. */
     data class EmojiSuggestion(val emoji: Emoji, val shortcode: String) : Suggestion
 }
@@ -305,6 +309,9 @@ class MainViewModel(private val c: AppContainer, savedState: SavedStateHandle) :
     val sendWaitUntil: Long get() = composer.sendWaitUntil
 
     var suggestions by mutableStateOf<List<Suggestion>>(emptyList())
+        private set
+
+    var argumentHint by mutableStateOf<ArgumentHint?>(null)
         private set
 
     /**
@@ -545,7 +552,10 @@ class MainViewModel(private val c: AppContainer, savedState: SavedStateHandle) :
         }
         // Remembered for after a restart: the chat screen's page, not a bubble's channel.
         if (page != null && !inBubble) rememberLastChannel(page)
+        // A suggestion still on its way belongs to the page that was left.
+        suggestionJob?.cancel()
         suggestions = emptyList()
+        argumentHint = null
     }
 
     /** Writes in [channel] from now on; it must be one of the page's channels. */
@@ -616,15 +626,45 @@ class MainViewModel(private val c: AppContainer, savedState: SavedStateHandle) :
         suggestionJob?.cancel()
         val channel = sendChannel
         val word = Autocomplete.currentWord(input.text, input.selection.start)
-        if (channel == null || word == null) {
+        val arguments = BotUsage.typed(input.text, input.selection.start)
+        if (channel == null || (word == null && arguments == null)) {
             suggestions = emptyList()
+            argumentHint = null
             return
         }
         // Off the main thread: ranking runs per keystroke over every emote the account has, a few
         // thousand for a well subscribed one.
+        val typed = input
         suggestionJob = viewModelScope.launch {
-            suggestions = withContext(Dispatchers.Default) { rank(channel, word) }
+            suspend fun show(hint: ArgumentHint?) {
+                val ranked = withContext(Dispatchers.Default) {
+                    val forArgument = if (hint == null || arguments == null) emptyList() else argumentSuggestions(channel, hint, arguments.current)
+                    if (forArgument.isNotEmpty() || word == null) forArgument else rank(channel, word)
+                }
+                // Only for the input and channel they were made for.
+                if (input != typed || sendChannel != channel) return
+                argumentHint = hint
+                suggestions = ranked
+            }
+            if (arguments == null) return@launch show(null)
+            // What is known now first: a bot's help for the command can take seconds the first time.
+            val known = c.botCommands.hint(channel, arguments, askHelp = false)
+            show(known)
+            val withHelp = c.botCommands.hint(channel, arguments)
+            if (withHelp != known) show(withHelp)
         }
+    }
+
+    /**
+     * The argument's choices, names where it wants someone, then the named parameters. Offered
+     * before anything is typed; an "@" the user typed stays.
+     */
+    private suspend fun argumentSuggestions(channel: String, hint: ArgumentHint, typed: String): List<Suggestion> {
+        val at = if (typed.startsWith("@")) "@" else ""
+        val names = if (!hint.namesSomeone || !settings.value.userSuggestions) emptyList()
+        else Autocomplete.rankUsers(typed, c.chat.chatters(channel), limit = 15).map { at + it }
+        // A chatter can be called like a choice, and the chip row takes each one once.
+        return (hint.choices + names + hint.parameters).distinctBy { it.lowercase() }.map { Suggestion.ArgumentSuggestion(it) }
     }
 
     private suspend fun rank(channel: String, word: Autocomplete.Word): List<Suggestion> {
@@ -664,7 +704,11 @@ class MainViewModel(private val c: AppContainer, savedState: SavedStateHandle) :
     }
 
     fun applySuggestion(s: Suggestion) {
-        val word = Autocomplete.currentWord(input.text, input.selection.start) ?: return
+        val cursor = input.selection.start
+        // An argument can be offered between two words, before anything of it is typed.
+        val word = Autocomplete.currentWord(input.text, cursor)
+            ?: Autocomplete.Word(cursor, cursor, "").takeIf { s is Suggestion.ArgumentSuggestion }
+            ?: return
         val value = when (s) {
             is Suggestion.EmoteSuggestion -> s.emote.name.also { rememberEmote(it) }
             // An "@" the user typed stays either way.
@@ -672,11 +716,15 @@ class MainViewModel(private val c: AppContainer, savedState: SavedStateHandle) :
                 if (settings.value.mentionWithAt || word.text.startsWith("@")) "@${s.name}" else s.name
             is Suggestion.CommandSuggestion -> "/${s.name}"
             is Suggestion.BotCommandSuggestion -> s.command.typed
+            is Suggestion.ArgumentSuggestion -> s.value
             is Suggestion.EmojiSuggestion -> s.emoji.value.also { rememberEmote(it) }
         }
-        val (text, cursor) = Autocomplete.replace(input.text, word, value)
-        composer.input = TextFieldValue(text, TextRange(cursor))
-        suggestions = emptyList()
+        // "format:" is followed by its value, not a space.
+        val space = !(s is Suggestion.ArgumentSuggestion && value.endsWith(":"))
+        val (text, newCursor) = Autocomplete.replace(input.text, word, value, space)
+        composer.input = TextFieldValue(text, TextRange(newCursor))
+        // A command or an argument is followed by the hint for the next argument.
+        updateSuggestions()
     }
 
     fun insertEmote(emote: Emote) {

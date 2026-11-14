@@ -245,6 +245,8 @@
     <string name="pinned_by">Angepinnt von %1$s</string>
     <string name="pin_show_all">Alles zeigen</string>
     <string name="pin_show_less">Weniger zeigen</string>
+    <string name="bot_hint_expand">Ganze Hilfe zeigen</string>
+    <string name="bot_hint_collapse">Weniger zeigen</string>
     <string name="settings_appearance">Darstellung</string>
     <string name="theme_system">System</string>
     <string name="theme_light">Hell</string>
