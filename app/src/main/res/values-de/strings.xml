@@ -848,7 +848,6 @@
     <string name="settings_provider_badges_hint">Vor den Namen</string>
     <string name="settings_group_seventv_more">Mehr von 7TV</string>
     <string name="settings_badge_kinds">Einzelne Badges</string>
-    <string name="settings_badge_kinds_hint">Schalte ein Badge aus, um es in allen Kanälen auszublenden. Ein Badge im Chat gedrückt halten geht auch.</string>
     <plurals name="settings_badge_kinds_more">
         <item quantity="one">%1$d weiteres Badge. Such danach, um es zu finden</item>
         <item quantity="other">%1$d weitere Badges. Such danach, um sie zu finden</item>

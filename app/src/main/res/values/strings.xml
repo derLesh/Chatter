@@ -863,7 +863,6 @@
     <string name="settings_provider_badges_hint">In front of names</string>
     <string name="settings_group_seventv_more">More from 7TV</string>
     <string name="settings_badge_kinds">Individual badges</string>
-    <string name="settings_badge_kinds_hint">Turn a badge off to hide it in every channel. Holding a badge in chat does the same.</string>
     <plurals name="settings_badge_kinds_more">
         <item quantity="one">%1$d more badge. Search to find it</item>
         <item quantity="other">%1$d more badges. Search to find them</item>

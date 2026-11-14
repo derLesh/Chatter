@@ -352,8 +352,8 @@ private val SEARCH_INDEX: List<SearchEntry> by lazy {
         add(SearchEntry(R.string.settings_zero_width, emotes, R.string.settings_zero_width_hint))
         add(SearchEntry(R.string.settings_hidden_emotes, emotes, R.string.settings_hidden_emotes_hint))
         add(SearchEntry(R.string.settings_providers, emotes, R.string.settings_providers_hint, also = Provider.entries.map { it.title }))
-        // On each provider's own page, so it opens at their list.
-        add(SearchEntry(R.string.settings_badge_kinds, emotes, R.string.settings_badge_kinds_hint, key = R.string.settings_providers))
+        // On Twitch's own page, so it opens at its entry.
+        add(SearchEntry(R.string.settings_badge_kinds, emotes, key = R.string.settings_provider_twitch))
         Provider.entries.forEach { add(SearchEntry(it.title, emotes, also = listOf(R.string.settings_providers))) }
         // On 7TV's own page, so they open at its entry.
         val sevenTv = R.string.settings_provider_seventv

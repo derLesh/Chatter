@@ -96,7 +96,7 @@ private fun ProviderLogo(provider: Provider) {
     Icon(
         painterResource(provider.logo),
         contentDescription = null,
-        tint = provider.color?.let(::Color) ?: MaterialTheme.colorScheme.onSurface,
+        tint = provider.tint ?: MaterialTheme.colorScheme.onSurface,
         modifier = Modifier.size(24.dp),
     )
 }
@@ -131,7 +131,7 @@ internal fun ProviderPage(provider: Provider, settings: Settings, vm: MainViewMo
         }
     }
     if (provider == Provider.SevenTv) SevenTvExtras(settings, vm)
-    provider.badges?.takeIf { it in settings.badgeProviders }?.let { IndividualBadges(vm, it) }
+    provider.badges?.takeIf { it in settings.badgeProviders }?.let { IndividualBadges(vm, it, searchable = provider == Provider.Twitch) }
 }
 
 /** Each only while what it belongs to is on: activity and unlisted emotes to the emotes, paints to the badges. */
@@ -152,12 +152,13 @@ private fun SevenTvExtras(settings: Settings, vm: MainViewModel) {
 }
 
 /**
- * Every kind of badge from [provider] Chatter has loaded, Twitch's whole global list included, each
+ * The kinds of badge from [provider] Chatter has loaded, Twitch's whole global list included, each
  * with a switch. Without a search only hidden and well-known kinds are listed: all of them would be
- * hundreds of rows, and settings pages draw every row at once.
+ * hundreds of rows, and settings pages draw every row at once. Unless [searchable], only the hidden
+ * ones show, so a badge hidden by holding it in chat can be shown again.
  */
 @Composable
-private fun IndividualBadges(vm: MainViewModel, provider: BadgeProvider) {
+private fun IndividualBadges(vm: MainViewModel, provider: BadgeProvider, searchable: Boolean) {
     val hidden by vm.hiddenBadges.collectAsStateWithLifecycle()
     val hiddenKinds by vm.hiddenBadgeKinds.collectAsStateWithLifecycle()
     // Read once, and sorted only by what was hidden on opening: a switch must not move its row.
@@ -166,8 +167,9 @@ private fun IndividualBadges(vm: MainViewModel, provider: BadgeProvider) {
     var query by rememberSaveable { mutableStateOf("") }
     val rows = (hidden.map { BadgeKindRow(it.kind, it.provider, it.set, it.title, it.url, it.urlOnLight, it.background) } +
         known.map { BadgeKindRow(it.kind, it.provider, it.set, it.title, it.url, it.urlOnLight, it.background) })
-        .filter { it.provider == provider }
+        .filter { it.provider == provider && (searchable || it.kind in hiddenOnOpen) }
         .distinctBy { it.kind }
+    if (!searchable && rows.isEmpty()) return
     val search = query.trim()
     val matches = rows.map { it to badgeKindName(it.provider, it.set, it.title) }
         .filter { (row, name) ->
@@ -178,17 +180,18 @@ private fun IndividualBadges(vm: MainViewModel, provider: BadgeProvider) {
     val named = matches.take(MAX_BADGE_ROWS)
     val more = (if (search.isEmpty()) rows.size else matches.size) - named.size
     SettingsGroup(R.string.settings_badge_kinds) {
-        item {
+        if (searchable) item {
             Column(Modifier.padding(horizontal = 16.dp, vertical = 12.dp)) {
-                Text(stringResource(if (rows.isEmpty()) R.string.settings_badge_kinds_empty else R.string.settings_badge_kinds_hint))
-                if (rows.isNotEmpty()) {
+                if (rows.isEmpty()) {
+                    Text(stringResource(R.string.settings_badge_kinds_empty))
+                } else {
                     OutlinedTextField(
                         value = query,
                         onValueChange = { query = it },
                         singleLine = true,
                         placeholder = { Text(stringResource(R.string.settings_badge_kinds_search)) },
                         leadingIcon = { Icon(Icons.Default.Search, contentDescription = null) },
-                        modifier = Modifier.fillMaxWidth().padding(top = 12.dp),
+                        modifier = Modifier.fillMaxWidth(),
                     )
                 }
             }
@@ -279,14 +282,15 @@ internal fun HiddenEmotesPage(vm: MainViewModel) {
 
 /**
  * Where emotes and badges come from. The emote providers come first, in order of precedence.
- * [color] is for logos known by their color; the plain ones take the text color.
+ * [tint] colors a logo known by its color; null takes the text color, [Color.Unspecified] keeps the
+ * colors it is drawn in.
  */
-internal enum class Provider(val title: Int, val logo: Int, val color: Long?, val emotes: EmoteProvider?, val badges: BadgeProvider?) {
-    Twitch(R.string.settings_provider_twitch, R.drawable.ic_site_twitch, 0xFF9146FF, EmoteProvider.Twitch, BadgeProvider.Twitch),
+internal enum class Provider(val title: Int, val logo: Int, val tint: Color?, val emotes: EmoteProvider?, val badges: BadgeProvider?) {
+    Twitch(R.string.settings_provider_twitch, R.drawable.ic_site_twitch, Color(0xFF9146FF), EmoteProvider.Twitch, BadgeProvider.Twitch),
     SevenTv(R.string.settings_provider_seventv, R.drawable.ic_provider_seventv, null, EmoteProvider.SevenTv, BadgeProvider.SevenTv),
-    Bttv(R.string.settings_provider_bttv, R.drawable.ic_provider_bttv, 0xFFD50014, EmoteProvider.Bttv, null),
+    Bttv(R.string.settings_provider_bttv, R.drawable.ic_provider_bttv, Color(0xFFD50014), EmoteProvider.Bttv, null),
     Ffz(R.string.settings_provider_ffz, R.drawable.ic_provider_ffz, null, EmoteProvider.Ffz, BadgeProvider.Ffz),
-    Chatterino(R.string.settings_provider_chatterino, R.drawable.ic_provider_chatterino, 0xFF4BA6F0, null, BadgeProvider.Chatterino),
+    Chatterino(R.string.settings_provider_chatterino, R.drawable.ic_provider_chatterino, Color.Unspecified, null, BadgeProvider.Chatterino),
     Chatter(R.string.settings_provider_chatter, R.drawable.ic_notification, null, null, BadgeProvider.Chatter),
 }
 
