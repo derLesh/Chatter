@@ -1,6 +1,7 @@
 package me.lesh.chatter.badges
 
 import me.lesh.chatter.debug.AppLog
+import me.lesh.chatter.chat.AssetChanges
 import me.lesh.chatter.chat.BadgeSource
 import me.lesh.chatter.net.ChatterBadgeApi
 import me.lesh.chatter.net.HelixBadgeSet
@@ -10,8 +11,6 @@ import me.lesh.chatter.net.ThirdPartyBadgeApi
 import me.lesh.chatter.net.TrustedImages
 import me.lesh.chatter.net.TwitchBadgeApi
 import me.lesh.chatter.util.runCatchingCancellable
-import kotlinx.coroutines.flow.MutableSharedFlow
-import kotlinx.coroutines.flow.SharedFlow
 import java.io.IOException
 import java.util.concurrent.ConcurrentHashMap
 
@@ -87,9 +86,11 @@ class BadgeRepository(
     @Volatile private var globalAnswered = false
     private val answeredChannels = ConcurrentHashMap.newKeySet<String>()
 
-    private val _arrived = MutableSharedFlow<Unit>(extraBufferCapacity = 1)
-    /** Badges arrived that messages built earlier lack; those messages are rebuilt. */
-    val arrived: SharedFlow<Unit> = _arrived
+    private val changes = AssetChanges()
+    /** Latest arrivals by Twitch channel id; null means global badges. */
+    val arrived = changes.arrived
+
+    override fun revision(channelId: String?): Long = changes.revision(channelId)
 
     @Volatile private var lastRetry = 0L
 
@@ -165,9 +166,11 @@ class BadgeRepository(
         if (global.isNotEmpty()) return
         runCatchingCancellable { helix.globalBadges() }
             .onSuccess {
-                global = it.toMap()
+                val loaded = it.toMap()
+                val changed = global != loaded
+                global = loaded
                 trouble.reachable(ServiceTrouble.TWITCH)
-                _arrived.tryEmit(Unit)
+                if (changed) changes.changed()
             }
             .onFailure {
                 if (it !is NotLoggedInException) trouble.report(ServiceTrouble.TWITCH)
@@ -179,9 +182,10 @@ class BadgeRepository(
     suspend fun loadChannel(channelId: String) {
         runCatchingCancellable { helix.channelBadges(channelId) }
             .onSuccess {
-                channels[channelId] = it.toMap()
+                val loaded = it.toMap()
+                val changed = channels.put(channelId, loaded) != loaded
                 failedChannels.remove(channelId)
-                _arrived.tryEmit(Unit)
+                if (changed) changes.changed(channelId)
             }
             .onFailure {
                 failedChannels.add(channelId)
@@ -247,7 +251,7 @@ class BadgeRepository(
 
         if (changed) {
             thirdPartyBadges = mergeThirdParty()
-            _arrived.tryEmit(Unit)
+            changes.changed()
         }
     }
 

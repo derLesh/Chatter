@@ -67,6 +67,10 @@ class MessageBody private constructor(
 
         /** Asked after building: true keeps the source for [rebuilt]. */
         fun worthKeeping(): Boolean = false
+
+        /** Shared Chat can use another channel's badges. */
+        fun affectedBy(channelIds: Set<String>): Boolean = true
+        fun hasChanges(): Boolean = true
     }
 
     private class Parts(val segments: List<Segment>, val badges: List<Badge>, val quote: List<Segment>, val paint: NamePaint?)
@@ -85,8 +89,15 @@ class MessageBody private constructor(
      * The same message, to be built again for emotes that arrived later. A body that was never
      * built, or no longer knows how it was built, is returned as is.
      */
-    fun rebuilt(): MessageBody =
-        if (parts == null) this else source?.let { MessageBody(it, null) } ?: this
+    fun rebuilt(channelIds: Set<String>? = null): MessageBody {
+        val from = source ?: return this
+        if (parts == null || (channelIds != null && !from.affectedBy(channelIds))) return this
+        if (!from.hasChanges()) {
+            if (!from.worthKeeping()) source = null
+            return this
+        }
+        return MessageBody(from, null)
+    }
 
     private fun parts(): Parts = parts ?: synchronized(this) {
         parts ?: source!!.let { from ->

@@ -32,6 +32,9 @@ class MessageBuffers(
     private val ids = HashMap<String, HashSet<String>>()
     private val dirty = HashSet<String>()
     private var publishJob: Job? = null
+    private var rebuildJob: Job? = null
+    private val rebuildChannels = HashSet<String>()
+    private var rebuildGlobal = false
 
     private val flows = ConcurrentHashMap<String, MutableStateFlow<List<ChatItem>>>()
     private val watchers = ConcurrentHashMap<String, Job>()
@@ -185,17 +188,25 @@ class MessageBuffers(
         reshape(channel)
     }
 
-    /**
-     * Rebuilds every message, for emotes that arrived later. Bodies are replaced, not emptied: the
-     * UI compares lists by identity, so the same body object would not be redrawn. Lines the app
-     * wrote itself cannot be rebuilt and stay.
-     */
-    fun rebuildAll() {
+    /** Coalesces nearby arrivals; null covers global tables, otherwise ids name Twitch channels. */
+    fun rebuildAfterArrival(channelIds: Set<String>?) {
+        if (channelIds == null) rebuildGlobal = true else rebuildChannels.addAll(channelIds)
+        if (rebuildJob?.isActive == true) return
+        rebuildJob = scope.launch(worker) {
+            delay(PUBLISH_INTERVAL_MS)
+            rebuildAll(if (rebuildGlobal) null else rebuildChannels.toSet())
+            rebuildGlobal = false
+            rebuildChannels.clear()
+        }
+    }
+
+    /** Bodies are replaced so Compose redraws them; untouched channels keep their body objects. */
+    fun rebuildAll(channelIds: Set<String>? = null) {
         buffers.forEach { (channel, buffer) ->
             var changed = false
             for (i in buffer.indices) {
                 val item = buffer[i]
-                val body = item.body.rebuilt()
+                val body = item.body.rebuilt(channelIds)
                 if (body !== item.body) {
                     buffer[i] = item.copy(body = body)
                     changed = true

@@ -1,6 +1,7 @@
 package me.lesh.chatter.emotes
 
 import me.lesh.chatter.debug.AppLog
+import me.lesh.chatter.chat.AssetChanges
 import me.lesh.chatter.chat.EmoteSource
 import me.lesh.chatter.net.BttvEmote
 import me.lesh.chatter.net.FfzEmote
@@ -13,9 +14,7 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
-import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.sync.Mutex
@@ -88,12 +87,11 @@ class EmoteRepository(
     /** True while a provider still owes emotes. */
     val waitingForProvider: StateFlow<Boolean> = _waitingForProvider
 
-    private val _arrived = MutableSharedFlow<Unit>(extraBufferCapacity = 1)
-    /**
-     * Emotes arrived that messages built earlier may lack: a first load, or a provider that was
-     * unreachable answered. Those messages are rebuilt.
-     */
-    val arrived: SharedFlow<Unit> = _arrived
+    private val changes = AssetChanges()
+    /** Latest arrivals by Twitch channel id; null means global emotes. */
+    val arrived = changes.arrived
+
+    override fun revision(channelId: String?): Long = changes.revision(channelId)
 
     /** Third-party emote for a word, channel before global. */
     override fun lookup(channelId: String?, word: String): Emote? =
@@ -139,12 +137,13 @@ class EmoteRepository(
         val asked = wanted.thatAreOn()
         if (asked.isEmpty()) return@withLock emptySet()
         val loaded = global.merge(ask(asked) { fetchGlobal(it) })
+        val changed = global.byName != loaded.emotes.byName
         global = loaded.emotes
         AppLog.d(TAG, "Global emotes: ${loaded.emotes.counts()}${failedText(loaded.failed)}")
         globalMissing = globalMissing - asked + loaded.failed
         updateWaiting()
         _version.update { it + 1 }
-        if (loaded.failed != asked) _arrived.tryEmit(Unit)
+        if (changed) changes.changed()
         loaded.failed
     }
 
@@ -162,8 +161,7 @@ class EmoteRepository(
             }
         }
         twitch.await()
-        // The chat rebuilds what it still can, even when no list was missing before.
-        (global.await() + channels.awaitAll().flatten()).also { _arrived.tryEmit(Unit) }
+        (global.await() + channels.awaitAll().flatten())
     }
 
     suspend fun loadTwitchUserEmotes(userId: String) {
@@ -205,9 +203,13 @@ class EmoteRepository(
         // Merged into the current emotes once the answers are in, not into a snapshot from before
         // the request. Otherwise a 7TV change or another provider's retry finishing in between is
         // lost.
+        var changed = false
         var failed = emptySet<EmoteProvider>()
         val merged = channels.compute(channelId) { _, current ->
-            (current ?: ProviderEmotes()).merge(answers).also { failed = it.failed }.emotes
+            (current ?: ProviderEmotes()).merge(answers).also {
+                failed = it.failed
+                changed = current?.byName != it.emotes.byName
+            }.emotes
         }
         AppLog.d(TAG, "Emotes of ${AppLog.hidden("channel id $channelId", "a channel")}: ${merged?.counts()}${failedText(failed)}")
         // Providers not asked this time keep their previous state; before the first load that is
@@ -218,11 +220,11 @@ class EmoteRepository(
             owed - asked + failed
         }.orEmpty()
         if (missing.thatAreOn().isEmpty()) lastFullLoad[channelId] = now() else lastFullLoad.remove(channelId)
-        val first = answered.add(channelId)
+        answered.add(channelId)
         updateWaiting()
         follower.await()
         _version.update { it + 1 }
-        if (first || (owed - missing).isNotEmpty()) _arrived.tryEmit(Unit)
+        if (changed) changes.changed(channelId)
     }
 
     /**

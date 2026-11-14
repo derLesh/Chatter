@@ -7,6 +7,8 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.TestScope
+import kotlinx.coroutines.test.advanceTimeBy
+import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
@@ -424,4 +426,33 @@ class MessageBuffersTest {
         watcher.cancel()
         live.setGroups(emptyMap())
     }
+    @Test
+    fun nearbyArrivalsRebuildOnlyTheirChannelsOnce() = watching("a", "b", "c") { shown ->
+        val builds = HashMap<String, Int>()
+        listOf("a", "b", "c").forEach { channel ->
+            val source = object : MessageBody.Source {
+                override fun segments(): List<Segment> {
+                    builds[channel] = (builds[channel] ?: 0) + 1
+                    return listOf(Segment.Text(channel))
+                }
+                override fun badges() = emptyList<me.lesh.chatter.badges.Badge>()
+                override fun worthKeeping() = true
+                override fun affectedBy(channelIds: Set<String>) = channel in channelIds
+            }
+            buffers.add(message(channel, channel).copy(body = MessageBody.from(source)))
+        }
+        advanceUntilIdle()
+        val untouched = shown("c").single()
+        buffers.rebuildAfterArrival(setOf("a"))
+        advanceTimeBy(50)
+        buffers.rebuildAfterArrival(setOf("b"))
+        buffers.rebuildAfterArrival(setOf("a"))
+        advanceUntilIdle()
+        assertEquals(mapOf("a" to 2, "b" to 2, "c" to 1), builds)
+        assertTrue(untouched === shown("c").single())
+        buffers.rebuildAfterArrival(null)
+        advanceUntilIdle()
+        assertEquals(mapOf("a" to 3, "b" to 3, "c" to 2), builds)
+    }
+
 }

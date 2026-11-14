@@ -251,8 +251,8 @@ class EmoteRepositoryTest {
 
     @Test
     fun theChatIsToldToBuildItsMessagesAgainWhenEmotesArriveLate() = runTest {
-        val rebuilds = mutableListOf<Unit>()
-        val watching = launch { emotes.arrived.collect { rebuilds += it } }
+        val rebuilds = mutableListOf<Map<String?, Long>>()
+        val watching = launch { emotes.arrived.collect { if (it.isNotEmpty()) rebuilds += it } }
         runCurrent()
 
         providers.ffz = null

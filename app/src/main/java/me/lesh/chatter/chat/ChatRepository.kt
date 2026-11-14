@@ -32,7 +32,6 @@ import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.drop
 import kotlinx.coroutines.flow.map
-import kotlinx.coroutines.flow.merge
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -245,7 +244,18 @@ class ChatRepository(
 
         // Emotes or badges arrived late: messages built without them are rebuilt.
         scope.launch(worker) {
-            merge(emotes.arrived, badges.arrived).collect { buffers.rebuildAll() }
+            var previousEmotes = emptyMap<String?, Long>()
+            var previousBadges = emptyMap<String?, Long>()
+            combine(emotes.arrived, badges.arrived) { emotes, badges -> emotes to badges }
+                .collect { (emotes, badges) ->
+                    val changed = (emotes.keys.filter { emotes[it] != previousEmotes[it] } +
+                        badges.keys.filter { badges[it] != previousBadges[it] }).toSet()
+                    previousEmotes = emotes
+                    previousBadges = badges
+                    if (changed.isNotEmpty()) buffers.rebuildAfterArrival(
+                        if (null in changed) null else changed.filterNotNull().toSet(),
+                    )
+                }
         }
 
         scope.launch(worker) {

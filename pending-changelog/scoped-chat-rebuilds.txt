@@ -1,0 +1,1 @@
+patch: Use less battery when channel emotes and badges finish loading
