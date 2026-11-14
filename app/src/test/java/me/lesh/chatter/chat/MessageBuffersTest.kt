@@ -455,4 +455,61 @@ class MessageBuffersTest {
         assertEquals(mapOf("a" to 3, "b" to 3, "c" to 2), builds)
     }
 
+    @Test
+    fun recentMessagesArePublishedBeforeOlderBodiesArePrepared() = watching("a", "+all") { shown ->
+        settings.value = settings.value.copy(messageLimit = 2_000)
+        buffers.setGroups(mapOf("+all" to listOf("a")))
+        var builds = 0
+        repeat(2_000) { index ->
+            buffers.add(message("a", "$index").copy(
+                body = MessageBody.lazily(
+                    segments = { builds++; listOf(Segment.Text("$index")) },
+                    badges = { emptyList() },
+                ),
+            ))
+        }
+        advanceTimeBy(100)
+        runCurrent()
+        assertEquals(100, builds)
+        listOf("a", "+all").forEach { channel ->
+            assertEquals((1_900 until 2_000).map { "$it" }, shown(channel).map { it.id })
+            assertTrue(shown(channel).all { it.body.isPrepared })
+        }
+        // A new line can be ingested before the next preparation chunk.
+        buffers.open("b")
+        buffers.add(message("b", "new"))
+        advanceTimeBy(1)
+        runCurrent()
+        assertTrue("each watched list prepares at most one chunk", builds in 150..200)
+        advanceUntilIdle()
+        assertEquals(2_000, builds)
+        listOf("a", "+all").forEach { channel ->
+            assertEquals(2_000, shown(channel).size)
+            assertEquals("1999", shown(channel).last().id)
+            assertTrue(shown(channel).all { it.body.isPrepared })
+        }
+    }
+
+    @Test
+    fun rebuildingHistoryKeepsDisplayedRowsWhileOlderReplacementsArePrepared() = watching("a") { shown ->
+        settings.value = settings.value.copy(messageLimit = 300)
+        repeat(300) { index ->
+            buffers.add(message("a", "$index").copy(body = MessageBody.lazily(
+                segments = { listOf(Segment.Text("$index")) },
+                badges = { emptyList() },
+                worthKeeping = { true },
+            )))
+        }
+        advanceUntilIdle()
+        val previous = shown("a").associateBy { it.id }
+        buffers.rebuildAll()
+        advanceTimeBy(100)
+        runCurrent()
+        assertEquals(previous.keys.toList(), shown("a").map { it.id })
+        assertTrue(previous.getValue("0").body === shown("a").first().body)
+        assertTrue(shown("a").all { it.body.isPrepared })
+        advanceUntilIdle()
+        assertTrue(previous.getValue("0").body !== shown("a").first().body)
+    }
+
 }

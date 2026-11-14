@@ -1,0 +1,1 @@
+patch: Show recent chat sooner when returning to the app

@@ -80,6 +80,8 @@ class MessageBody private constructor(
     val paint: NamePaint? get() = parts().paint
     val quote: List<Segment> get() = parts().quote
 
+    val isPrepared: Boolean get() = parts != null
+
     /** Builds the parts now on the calling thread, if not built yet. */
     fun prepare() {
         parts()
