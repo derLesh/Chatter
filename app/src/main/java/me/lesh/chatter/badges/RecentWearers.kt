@@ -21,5 +21,7 @@ internal class RecentWearers(private val max: Int) {
         synchronized(wearers) { if (wearers[userId] == cosmeticId) wearers.remove(userId) }
     }
 
+    fun cosmeticIds(): Set<String> = synchronized(wearers) { wearers.values.toSet() }
+
     val size: Int get() = synchronized(wearers) { wearers.size }
 }

@@ -72,13 +72,13 @@ class BadgeRepository(
      * over the EventAPI as a badge description ([sevenTvBadge]) and, separately, who wears it
      * ([sevenTvWearer]). Chatterino does the same.
      */
-    private val sevenTvCosmetics = ConcurrentHashMap<String, Badge>()
+    private val sevenTvCosmetics = RecentDefinitions<Badge>(MAX_DEFINITIONS) { sevenTvWearers.cosmeticIds() }
 
     /** Twitch user id to the cosmetic they wear; 7TV shows one badge per person. */
     private val sevenTvWearers = RecentWearers(MAX_WEARERS)
 
     /** 7TV paints by id, and who wears which, arriving like the badges. */
-    private val sevenTvPaints = ConcurrentHashMap<String, NamePaint>()
+    private val sevenTvPaints = RecentDefinitions<NamePaint>(MAX_DEFINITIONS) { sevenTvPaintWearers.cosmeticIds() }
     private val sevenTvPaintWearers = RecentWearers(MAX_WEARERS)
 
     /** Channels whose badges failed to load, retried when the app comes back. */
@@ -310,6 +310,9 @@ class BadgeRepository(
 
         /** Per map, a few hundred kilobytes; far more chatters than a busy evening shows. */
         const val MAX_WEARERS = 5_000
+
+        /** Enough for every tracked wearer plus definitions awaiting their wearer event. */
+        const val MAX_DEFINITIONS = MAX_WEARERS + 512
 
         /** The supporter badge's id in Chatter's badge list. */
         const val SUPPORTER_BADGE_ID = "chatter"

@@ -361,4 +361,24 @@ class BadgeRepositoryTest {
         assertEquals(1, twitch.channelCalls)
     }
 
+    @Test
+    fun cosmeticDefinitionsStayBoundedWithoutLosingCurrentWearers() {
+        badges.sevenTvBadge("worn", "Worn", "Worn")
+        badges.sevenTvWearer("42", "worn", worn = true)
+        val paint = NamePaint("worn", NamePaint.Kind.Linear, emptyList())
+        badges.sevenTvPaint(paint)
+        badges.sevenTvPaintWearer("42", "worn", worn = true)
+        repeat(6_000) { index ->
+            badges.sevenTvBadge("badge-$index", "Badge", "Badge")
+            badges.sevenTvPaint(paint.copy(id = "paint-$index"))
+        }
+        assertTrue(badges.knownKinds().size <= 5_512)
+        assertEquals("worn", badges.resolve(null, null, "42").single().set)
+        assertEquals(paint, badges.paint("42"))
+        badges.sevenTvWearer("43", "badge-5999", worn = true)
+        badges.sevenTvPaintWearer("43", "paint-5999", worn = true)
+        assertEquals("badge-5999", badges.resolve(null, null, "43").single().set)
+        assertEquals("paint-5999", badges.paint("43")?.id)
+    }
+
 }

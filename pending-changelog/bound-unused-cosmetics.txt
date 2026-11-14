@@ -1,0 +1,1 @@
+patch: Use less memory during long chats with 7TV badges and paints
