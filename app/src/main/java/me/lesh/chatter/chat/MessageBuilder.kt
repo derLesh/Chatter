@@ -208,7 +208,7 @@ class MessageBuilder(
         val trailing = msg.trailing.orEmpty()
         val isAction = isAction(trailing)
         val raw = if (isAction) actionText(trailing) else trailing
-        val reply = replyInfo(msg)
+        val reply = replyInfo(msg, channel)
 
         // Twitch prefixes replies with "@<display name> ", not the login. A display name in other
         // letters (Japanese, Cyrillic) would never match the login, so the display name is tried
@@ -489,7 +489,7 @@ class MessageBuilder(
     internal fun quoteSegments(channel: String, text: String, channelId: String?): List<Segment> =
         if (text.isEmpty()) emptyList() else segments(channel, text, emptyList(), channelId, ownMessage = false)
 
-    private fun replyInfo(msg: IrcMessage): ReplyInfo? {
+    private fun replyInfo(msg: IrcMessage, channel: String): ReplyInfo? {
         val id = msg.tag("reply-parent-msg-id") ?: return null
         val login = msg.tag("reply-parent-user-login").orEmpty()
         return ReplyInfo(
@@ -498,6 +498,7 @@ class MessageBuilder(
             parentDisplayName = msg.tag("reply-parent-display-name") ?: login,
             parentBody = msg.tag("reply-parent-msg-body").orEmpty(),
             threadId = msg.tag("reply-thread-parent-msg-id") ?: id,
+            parentColor = login.takeIf { it.isNotEmpty() }?.let { chatters.find(channel, it)?.color },
         )
     }
 

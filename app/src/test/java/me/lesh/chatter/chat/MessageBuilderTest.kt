@@ -292,6 +292,23 @@ class MessageBuilderTest {
     }
 
     @Test
+    fun theAnsweredMessageIsRebuiltFromTheAnswerInItsWritersColor() {
+        val chatters = ChatterRegistry().apply { remember("chan", "ole", "Ole", 0xFF00FF00.toInt()) }
+        val builder = MessageBuilder(emotes, { _, _, _ -> emptyList() }, chatters)
+        val tags = "reply-parent-msg-id=p;reply-parent-user-login=ole;reply-parent-display-name=Ole;" +
+            "reply-parent-msg-body=OMEGALUL\\sexample.com"
+        val answer = builder.build(privmsg("@Ole nice", tags), "lukas", "1", mentions)!!
+
+        val answered = answer.answered()!!
+        assertEquals("p", answered.id)
+        assertEquals("Ole", answered.displayName)
+        assertEquals(0xFF00FF00.toInt(), answered.color)
+        assertEquals(answer.quote, answered.segments)
+        assertTrue(answered.segments[2] is Segment.Link)
+        assertEquals(null, build(privmsg("OMEGALUL")).answered())
+    }
+
+    @Test
     fun aMessageThatAnswersNothingQuotesNothing() {
         assertTrue(build(privmsg("OMEGALUL")).quote.isEmpty())
     }

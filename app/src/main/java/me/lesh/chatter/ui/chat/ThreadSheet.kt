@@ -31,15 +31,12 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.font.FontStyle
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil3.ImageLoader
 import me.lesh.chatter.R
 import me.lesh.chatter.chat.ChatItem
-import me.lesh.chatter.chat.ReplyInfo
+import me.lesh.chatter.settings.TimestampFormat
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.filter
 
@@ -68,7 +65,7 @@ fun ThreadSheet(
     // The first message may have left the buffer; every direct answer still quotes it.
     val lostRoot = remember(thread, threadId) {
         if (thread.firstOrNull()?.id == threadId) null
-        else thread.firstNotNullOfOrNull { item -> item.reply?.takeIf { it.parentId == threadId } }
+        else thread.firstOrNull { it.reply?.parentId == threadId }?.answered()
     }
     val gesture = remember(onAnswer) { { item: ChatItem, _: MessageGesture -> onAnswer(item) } }
 
@@ -113,7 +110,13 @@ fun ThreadSheet(
                     val item = thread[count - 1 - index]
                     MessageRow(item, sheetStyle, imageLoader, gesture, channel = item.sourceRoomId?.let(partners::get))
                 }
-                lostRoot?.let { root -> item(key = "root") { LostRoot(root, style) } }
+                lostRoot?.let { root ->
+                    item(key = "root") {
+                        // Twitch does not say when it was written.
+                        val rootStyle = remember(sheetStyle) { sheetStyle.copy(timestamps = TimestampFormat.Off) }
+                        MessageRow(root, rootStyle, imageLoader, gesture)
+                    }
+                }
             }
             input()
         }
@@ -132,18 +135,4 @@ private fun FollowButton(following: Boolean, onFollow: (Boolean) -> Unit) {
             Text(stringResource(R.string.thread_follow))
         }
     }
-}
-
-/** A first message no longer in the buffer, shown from the quote its answers carry. */
-@Composable
-private fun LostRoot(root: ReplyInfo, style: ChatStyle) {
-    Text(
-        text = "${style.nameOf(root.parentLogin, root.parentDisplayName)}: ${root.parentBody}",
-        color = style.secondaryText,
-        fontSize = style.fontSize.sp,
-        fontStyle = FontStyle.Italic,
-        maxLines = 3,
-        overflow = TextOverflow.Ellipsis,
-        modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp),
-    )
 }
