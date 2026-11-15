@@ -496,6 +496,10 @@
     <string name="settings_blur_nsfw_posts">Blur NSFW posts</string>
     <string name="settings_blur_nsfw_posts_hint">Pictures marked NSFW stay blurred until tapped</string>
     <string name="post_picture">Picture of the post</string>
+    <string name="post_label_clip">Clip</string>
+    <string name="post_label_vod">VOD</string>
+    <string name="post_label_highlight">Highlight</string>
+    <string name="post_label_upload">Video</string>
     <string name="post_video">Video</string>
     <string name="post_nsfw">NSFW · tap to show</string>
     <string name="settings_group_history">History</string>

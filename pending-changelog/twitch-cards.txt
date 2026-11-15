@@ -1,1 +1,1 @@
-minor: Show links to Twitch channels, clips and videos as a card, with the stream if the channel is live
+minor: Show links to Twitch channels, clips and videos as a card, and whether a channel is live

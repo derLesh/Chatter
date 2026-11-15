@@ -488,6 +488,10 @@
     <string name="settings_blur_nsfw_posts">NSFW-Posts unscharf</string>
     <string name="settings_blur_nsfw_posts_hint">Als NSFW markierte Bilder bleiben unscharf, bis du draufgetippt hast</string>
     <string name="post_picture">Bild des Posts</string>
+    <string name="post_label_clip">Clip</string>
+    <string name="post_label_vod">VOD</string>
+    <string name="post_label_highlight">Highlight</string>
+    <string name="post_label_upload">Video</string>
     <string name="post_video">Video</string>
     <string name="post_nsfw">NSFW · Tippen zum Anzeigen</string>
     <string name="settings_group_history">Verlauf</string>

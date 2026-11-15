@@ -50,6 +50,12 @@ data class Post(
     val followers: Long = 0,
     /** What a live stream is playing or doing, like "Just Chatting"; empty for anything else. */
     val category: String = "",
+    /** A channel rather than something it posted: its picture large on the left, no other picture. */
+    val profile: Boolean = false,
+    /** A channel streaming right now. */
+    val live: Boolean = false,
+    /** What kind of video it is, where the site has more than one, like a clip or a VOD on Twitch. */
+    val label: PostLabel? = null,
     /** Milliseconds since the epoch; 0 where there is no date worth showing, like for a channel. */
     val postedAt: Long,
     /** Marked NSFW by the site or its author; its picture is blurred if the user wants that. */
@@ -59,17 +65,12 @@ data class Post(
 
 /**
  * The first picture of a post, or a still of its video. [more]: how many other attachments it has.
- * [lengthSeconds]: how long the video runs, 0 where it is not known. [live]: a still of a stream
- * that is on right now.
+ * [lengthSeconds]: how long the video runs, 0 where it is not known.
  */
-data class PostMedia(
-    val pictureUrl: String,
-    val video: Boolean,
-    val aspectRatio: Float?,
-    val more: Int,
-    val lengthSeconds: Int = 0,
-    val live: Boolean = false,
-)
+data class PostMedia(val pictureUrl: String, val video: Boolean, val aspectRatio: Float?, val more: Int, val lengthSeconds: Int = 0)
+
+/** The kinds of video Twitch has. */
+enum class PostLabel { Clip, Vod, Highlight, Upload }
 
 /** Reads the posts of one [site]. */
 interface PostSource {

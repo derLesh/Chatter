@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -54,6 +55,7 @@ import coil3.ImageLoader
 import coil3.compose.AsyncImage
 import me.lesh.chatter.R
 import me.lesh.chatter.chat.Post
+import me.lesh.chatter.chat.PostLabel
 import me.lesh.chatter.chat.PostLink
 import me.lesh.chatter.chat.PostMedia
 import me.lesh.chatter.chat.PostRepository
@@ -161,6 +163,8 @@ typealias PostPicture = @Composable (url: String, description: String?, modifier
 
 private val AVATAR_SIZE = 20.dp
 private val COMPACT_AVATAR_SIZE = 16.dp
+private val PROFILE_PICTURE_SIZE = 56.dp
+private val LIVE_RING = 2.dp
 /** As many as YouTube shows in its own lists; the card stays about as tall as its picture. */
 private const val COMPACT_TEXT_LINES = 2
 private const val COMPACT_PICTURE_ASPECT = 16f / 9f
@@ -206,6 +210,10 @@ internal fun PostCard(link: PostLink, card: PostCardStyle, style: ChatStyle, loa
 @Composable
 internal fun PostCardContent(post: Post, site: PostSite, cards: PostCardStyle, style: ChatStyle, open: () -> Unit, picture: PostPicture) {
     val card = cards.look(site)
+    if (post.profile) {
+        ProfileCardContent(post, site, card, style, open, picture)
+        return
+    }
     if (card.compact) {
         CompactCardContent(post, site, card, style, open, picture)
         return
@@ -250,7 +258,7 @@ internal fun PostCardContent(post: Post, site: PostSite, cards: PostCardStyle, s
         }
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             Text(
-                if (card.counts) counts(post) else "",
+                withLabel(post, if (card.counts) counts(post) else ""),
                 color = style.secondaryText,
                 fontSize = secondarySize,
                 maxLines = 1,
@@ -259,6 +267,71 @@ internal fun PostCardContent(post: Post, site: PostSite, cards: PostCardStyle, s
             )
             SiteLogo(site, style)
         }
+    }
+}
+
+/**
+ * A channel: its picture large on the left, and beside it the name, what it says about itself or
+ * the stream's title, and its numbers. Live, the picture gets Twitch's red ring and mark.
+ */
+@Composable
+private fun ProfileCardContent(post: Post, site: PostSite, card: PostCardLook, style: ChatStyle, open: () -> Unit, picture: PostPicture) {
+    val secondarySize = (style.fontSize - 2).sp
+    // The chat's line height would spread three short lines far apart beside the picture.
+    val textLineHeight = (style.fontSize * COMPACT_LINE_HEIGHT).sp
+    val secondaryLineHeight = ((style.fontSize - 2) * COMPACT_LINE_HEIGHT).sp
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(10.dp),
+        modifier = Modifier.cardFrame(MaterialTheme.colorScheme.outlineVariant, open).padding(10.dp),
+    ) {
+        post.avatarUrl?.takeIf { card.avatar }?.let { url ->
+            Box(contentAlignment = Alignment.BottomCenter) {
+                val ring = if (post.live) Modifier.border(LIVE_RING, LIVE_RED, CircleShape).padding(LIVE_RING * 2) else Modifier
+                picture(url, null, ring.size(PROFILE_PICTURE_SIZE).clip(CircleShape))
+                if (post.live) Overlay(LIVE, Modifier.offset(y = 4.dp), small = true, background = LIVE_RED)
+            }
+        }
+        Column(verticalArrangement = Arrangement.spacedBy(1.dp), modifier = Modifier.weight(1f)) {
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                Text(
+                    text = post.name,
+                    fontSize = style.fontSize.sp,
+                    lineHeight = textLineHeight,
+                    fontWeight = FontWeight.Bold,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.weight(1f, fill = false),
+                )
+                if (post.handle.isNotEmpty()) {
+                    Text(
+                        post.handle, color = style.secondaryText, fontSize = secondarySize, lineHeight = secondaryLineHeight,
+                        maxLines = 1, overflow = TextOverflow.Ellipsis,
+                    )
+                }
+            }
+            if (post.text.isNotEmpty() && card.textLines > 0) {
+                Text(
+                    text = post.text,
+                    fontSize = style.fontSize.sp,
+                    lineHeight = textLineHeight,
+                    maxLines = if (card.compact) minOf(card.textLines, COMPACT_TEXT_LINES) else card.textLines,
+                    overflow = TextOverflow.Ellipsis,
+                )
+            }
+            if (card.counts) {
+                Text(
+                    counts(post),
+                    color = style.secondaryText,
+                    fontSize = secondarySize,
+                    lineHeight = secondaryLineHeight,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+            }
+        }
+        // In the bottom corner like on every other card, not centred with the text.
+        SiteLogo(site, style, Modifier.align(Alignment.Bottom))
     }
 }
 
@@ -347,7 +420,7 @@ private fun ViewsLine(post: Post, card: PostCardLook, style: ChatStyle, fontSize
     val counts = if (card.counts) counts(post) else ""
     val posted = rememberPostedDate(post)?.takeIf { card.date }
     Text(
-        text = listOfNotNull(counts.ifEmpty { null }, posted).joinToString(" · "),
+        text = withLabel(post, listOfNotNull(counts.ifEmpty { null }, posted).joinToString(" · ")),
         color = style.secondaryText,
         fontSize = fontSize,
         lineHeight = lineHeight,
@@ -396,12 +469,12 @@ private fun Modifier.cardFrame(outline: Color, open: () -> Unit): Modifier {
 
 /** Always shown: with the link taken out of the line, nothing else says where the post is. */
 @Composable
-private fun SiteLogo(site: PostSite, style: ChatStyle) {
+private fun SiteLogo(site: PostSite, style: ChatStyle, modifier: Modifier = Modifier) {
     Icon(
         painterResource(siteIcon(site)),
         contentDescription = stringResource(siteName(site)),
         tint = siteTint(site, style.secondaryText),
-        modifier = Modifier.size(style.fontSize.dp),
+        modifier = modifier.size(style.fontSize.dp),
     )
 }
 
@@ -458,9 +531,6 @@ private fun PostMediaBox(
             else -> null
         }
         corner?.let { Overlay(it, Modifier.align(Alignment.BottomEnd).padding(if (compact) 4.dp else 6.dp), small = compact) }
-        if (media.live && !hidden) {
-            Overlay(LIVE, Modifier.align(Alignment.TopStart).padding(if (compact) 4.dp else 6.dp), small = compact, background = LIVE_RED)
-        }
     }
 }
 
@@ -487,6 +557,20 @@ private fun Overlay(text: String, modifier: Modifier = Modifier, small: Boolean 
             .background(background, RoundedCornerShape(if (small) 4.dp else 6.dp))
             .padding(horizontal = if (small) 4.dp else 8.dp, vertical = if (small) 1.dp else 4.dp),
     )
+}
+
+/** "Clip · [rest]", so a clip and a VOD can be told apart without their picture. */
+@Composable
+private fun withLabel(post: Post, rest: String): String {
+    val label = post.label?.let { stringResource(labelName(it)) } ?: return rest
+    return if (rest.isEmpty()) label else "$label · $rest"
+}
+
+private fun labelName(label: PostLabel): Int = when (label) {
+    PostLabel.Clip -> R.string.post_label_clip
+    PostLabel.Vod -> R.string.post_label_vod
+    PostLabel.Highlight -> R.string.post_label_highlight
+    PostLabel.Upload -> R.string.post_label_upload
 }
 
 /** "3:33" or "1:02:03", as YouTube writes it. */

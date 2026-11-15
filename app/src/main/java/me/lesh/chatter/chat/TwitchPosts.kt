@@ -86,7 +86,7 @@ object TwitchPosts {
     }
 
     /**
-     * A channel's card: the stream's title, still and viewers while it is [live], its description
+     * A channel's card: the stream's title, viewers and category while it is [live], its description
      * otherwise. No date, since when the channel was made says nothing about it.
      */
     fun channel(user: HelixUser, live: HelixStream?, followers: Long) = Post(
@@ -101,15 +101,15 @@ object TwitchPosts {
         viewers = live?.viewerCount?.toLong() ?: 0,
         followers = followers,
         category = live?.gameName.orEmpty(),
+        profile = true,
+        live = live != null,
         postedAt = 0,
         nsfw = false,
-        media = live?.let { stream ->
-            picture(stream.thumbnailUrl.replace("{width}", STILL_WIDTH).replace("{height}", STILL_HEIGHT))
-                ?.let { PostMedia(it, video = true, aspectRatio = STILL_ASPECT, more = 0, live = true) }
-        },
+        media = null,
     )
 
     fun clip(clip: HelixClip, avatarUrl: String?) = video(
+        label = PostLabel.Clip,
         channel = clip.broadcasterName,
         avatarUrl = avatarUrl,
         title = clip.title,
@@ -120,6 +120,11 @@ object TwitchPosts {
     )
 
     fun video(video: HelixVideo, avatarUrl: String?) = video(
+        label = when (video.type) {
+            "highlight" -> PostLabel.Highlight
+            "upload" -> PostLabel.Upload
+            else -> PostLabel.Vod
+        },
         channel = video.userName,
         avatarUrl = avatarUrl,
         title = video.title,
@@ -131,6 +136,7 @@ object TwitchPosts {
     )
 
     private fun video(
+        label: PostLabel,
         channel: String,
         avatarUrl: String?,
         title: String,
@@ -147,6 +153,7 @@ object TwitchPosts {
         reposts = 0,
         likes = 0,
         views = views,
+        label = label,
         postedAt = runCatching { OffsetDateTime.parse(createdAt).toInstant().toEpochMilli() }.getOrDefault(0),
         nsfw = false,
         media = still?.let { PostMedia(it, video = true, aspectRatio = STILL_ASPECT, more = 0, lengthSeconds = lengthSeconds) },

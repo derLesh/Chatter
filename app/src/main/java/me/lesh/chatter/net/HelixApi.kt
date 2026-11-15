@@ -326,8 +326,6 @@ data class HelixStream(
     @SerialName("viewer_count") val viewerCount: Int = 0,
     val title: String = "",
     @SerialName("game_name") val gameName: String = "",
-    /** With `{width}` and `{height}` to fill in. */
-    @SerialName("thumbnail_url") val thumbnailUrl: String = "",
 )
 
 @Serializable
@@ -356,6 +354,8 @@ data class HelixVideo(
     @SerialName("thumbnail_url") val thumbnailUrl: String = "",
     /** Like "3h8m33s". */
     val duration: String = "",
+    /** "archive" for a past broadcast, "highlight" or "upload". */
+    val type: String = "",
 )
 
 @Serializable

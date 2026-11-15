@@ -31,6 +31,7 @@ import me.lesh.chatter.chat.ChatItem
 import me.lesh.chatter.chat.MessageBody
 import me.lesh.chatter.chat.MessageKind
 import me.lesh.chatter.chat.Post
+import me.lesh.chatter.chat.PostLabel
 import me.lesh.chatter.chat.PostMedia
 import me.lesh.chatter.chat.PostSite
 import me.lesh.chatter.chat.Segment
@@ -241,6 +242,7 @@ internal fun PostPreview(settings: Settings, vm: MainViewModel, text: Int? = nul
             Post(
                 name = "Chatter", handle = "", avatarUrl = PREVIEW_AVATAR, text = postText,
                 replies = 0, reposts = 0, likes = 0, views = 13370, postedAt = System.currentTimeMillis(), nsfw = false,
+                label = PostLabel.Clip.takeIf { site == PostSite.Twitch },
                 media = PostMedia(
                     PREVIEW_PICTURE, video = true, aspectRatio = 16f / 9f, more = 0,
                     lengthSeconds = if (site == PostSite.Twitch) PREVIEW_CLIP_SECONDS else PREVIEW_VIDEO_SECONDS,

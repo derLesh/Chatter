@@ -7,6 +7,7 @@ import me.lesh.chatter.net.HelixStream
 import me.lesh.chatter.net.HelixUser
 import me.lesh.chatter.net.HelixVideo
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -84,7 +85,7 @@ class TwitchPostsTest {
     }
 
     @Test
-    fun aLiveChannelShowsItsStreamWithStillViewersAndCategory() {
+    fun aLiveChannelShowsItsStreamWithViewersAndCategory() {
         val user = AppJson.decodeFromString<HelixList<HelixUser>>(USER).data.single()
         val stream = AppJson.decodeFromString<HelixList<HelixStream>>(STREAM).data.single()
         val post = TwitchPosts.channel(user, stream, followers = 1234)
@@ -96,19 +97,20 @@ class TwitchPostsTest {
         assertEquals(1234, post.followers)
         assertEquals("Software and Game Development", post.category)
         assertEquals(0, post.postedAt)
-        val media = post.media!!
-        assertEquals("https://static-cdn.jtvnw.net/previews-ttv/live_user_chatter_app-640x360.jpg", media.pictureUrl)
-        assertTrue(media.live)
+        assertTrue(post.profile)
+        assertTrue(post.live)
+        assertNull(post.media)
     }
 
     @Test
-    fun anOfflineChannelShowsItsDescriptionAndNoStill() {
+    fun anOfflineChannelShowsItsDescription() {
         val user = AppJson.decodeFromString<HelixList<HelixUser>>(USER).data.single()
         val post = TwitchPosts.channel(user, live = null, followers = 0)
         assertEquals("A chat client for Twitch.", post.text)
         assertEquals(0, post.viewers)
         assertEquals("", post.category)
-        assertNull(post.media)
+        assertTrue(post.profile)
+        assertFalse(post.live)
     }
 
     @Test
@@ -124,6 +126,7 @@ class TwitchPostsTest {
         assertEquals("Chatter_App", post.name)
         assertEquals("The chat goes wild", post.text)
         assertEquals(98765, post.views)
+        assertEquals(PostLabel.Clip, post.label)
         assertEquals(1_763_208_000_000, post.postedAt)
         val media = post.media!!
         assertEquals("https://static-cdn.jtvnw.net/twitch-clips-thumbnails-prod/$SLUG/abc/preview-480x272.jpg", media.pictureUrl)
@@ -144,8 +147,15 @@ class TwitchPostsTest {
         assertEquals("Chatter_App", post.name)
         assertEquals("Long stream", post.text)
         assertEquals(555, post.views)
+        assertEquals(PostLabel.Vod, post.label)
         assertEquals("https://static-cdn.jtvnw.net/cf_vods/d1m7jfoe9zdc1j/abc/thumb/thumb0-640x360.jpg", post.media?.pictureUrl)
         assertEquals(3 * 3600 + 8 * 60 + 33, post.media?.lengthSeconds)
+    }
+
+    @Test
+    fun aHighlightAndAnUploadAreNotCalledVods() {
+        assertEquals(PostLabel.Highlight, TwitchPosts.video(HelixVideo(id = "1", type = "highlight"), null).label)
+        assertEquals(PostLabel.Upload, TwitchPosts.video(HelixVideo(id = "1", type = "upload"), null).label)
     }
 
     @Test
