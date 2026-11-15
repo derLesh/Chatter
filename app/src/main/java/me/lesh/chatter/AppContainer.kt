@@ -19,6 +19,7 @@ import coil3.memory.MemoryCache
 import coil3.network.okhttp.OkHttpNetworkFetcherFactory
 import coil3.request.crossfade
 import coil3.request.maxBitmapSize
+import coil3.serviceLoaderEnabled
 import coil3.size.Size
 import me.lesh.chatter.ai.OnDeviceModel
 import me.lesh.chatter.assistant.AssistantAccess
@@ -666,6 +667,9 @@ class AppContainer(
     }
 
     private fun imageLoader(animated: Boolean) = ImageLoader.Builder(context)
+        // coil-gif registers its animated decoder through the ServiceLoader, which would put it
+        // into the static loader too.
+        .serviceLoaderEnabled(false)
         .components {
             add(OkHttpNetworkFetcherFactory(callFactory = { imageHttp }))
             if (animated) add(AnimatedImageDecoder.Factory())
