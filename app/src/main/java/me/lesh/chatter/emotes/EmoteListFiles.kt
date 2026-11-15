@@ -57,13 +57,15 @@ class EmoteListFiles(private val folder: File) {
         private const val ZERO_WIDTH = 2
         private const val CHANNEL = 4
         private const val UNLISTED = 8
+        /** [Emote.modifier] goes above the flags, so a file without it reads as no effect. */
+        private const val MODIFIER_SHIFT = 8
 
         /** One emote per line, tab-separated: provider, name, id, url, aspect ratio, flags, owner, author. */
         internal fun encode(emotes: ProviderEmotes): String = buildString {
             append(FORMAT).append('\n')
             for (map in listOf(emotes.ffz, emotes.bttv, emotes.sevenTv)) for (e in map.values) {
                 val flags = (if (e.sizeKnown) SIZE_KNOWN else 0) or (if (e.zeroWidth) ZERO_WIDTH else 0) or
-                    (if (e.isChannel) CHANNEL else 0) or (if (e.unlisted) UNLISTED else 0)
+                    (if (e.isChannel) CHANNEL else 0) or (if (e.unlisted) UNLISTED else 0) or (e.modifier shl MODIFIER_SHIFT)
                 listOf(e.provider.name, e.name, e.id, e.url, e.aspectRatio.toString(), flags.toString(), e.ownerId.orEmpty(), e.author.orEmpty())
                     .joinTo(this, "\t") { it.replace('\t', ' ').replace('\n', ' ') }
                 append('\n')
@@ -91,6 +93,7 @@ class EmoteListFiles(private val folder: File) {
                     ownerId = f[6].ifEmpty { null },
                     unlisted = flags and UNLISTED != 0,
                     author = f[7].ifEmpty { null },
+                    modifier = flags ushr MODIFIER_SHIFT,
                 )
                 byProvider.getOrPut(provider) { HashMap() }[emote.name] = emote
             }

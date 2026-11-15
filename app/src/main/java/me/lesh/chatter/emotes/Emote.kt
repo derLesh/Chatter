@@ -30,6 +30,8 @@ data class Emote(
     val unlisted: Boolean = false,
     /** Creator or uploader, if the provider reports one. */
     val author: String? = null,
+    /** FFZ's effect flags for an emote that changes the emote before it instead of showing itself; see [FfzEffects]. */
+    val modifier: Int = 0,
 ) {
     /** Largest size, for the emote card. */
     val largeUrl: String
@@ -63,3 +65,18 @@ data class Emote(
 }
 
 fun twitchEmoteUrl(id: String) = "https://static-cdn.jtvnw.net/emoticons/v2/$id/default/dark/2.0"
+
+/**
+ * FFZ's effect emotes: "Kappa ffzX" draws Kappa mirrored. The flags are FFZ's `modifier_flags`; only
+ * those of the effects everyone has are drawn, the others come with FFZ's paid tier.
+ */
+object FfzEffects {
+    const val FLIP_X = 2
+    const val FLIP_Y = 4
+    /** Twice as wide. */
+    const val GROW_X = 8
+    /** Grey, dark and harsh. */
+    const val CURSED = 16384
+
+    fun of(modifiers: List<Emote>): Int = modifiers.fold(0) { flags, e -> flags or e.modifier } and (FLIP_X or FLIP_Y or GROW_X or CURSED)
+}

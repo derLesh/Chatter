@@ -357,6 +357,7 @@ private val SEARCH_INDEX: List<SearchEntry> by lazy {
         Provider.entries.forEach { add(SearchEntry(it.title, emotes, also = listOf(R.string.settings_providers))) }
         add(SearchEntry(R.string.settings_provider_global_emotes, emotes, R.string.settings_provider_global_emotes_hint, key = R.string.settings_providers))
         add(SearchEntry(R.string.settings_ffz_channel_badges, emotes, R.string.settings_ffz_channel_badges_hint, also = listOf(R.string.settings_provider_ffz), key = R.string.settings_provider_ffz))
+        add(SearchEntry(R.string.settings_ffz_effects, emotes, R.string.settings_ffz_effects_hint, also = listOf(R.string.settings_provider_ffz), key = R.string.settings_provider_ffz))
         // On 7TV's own page, so they open at its entry.
         val sevenTv = R.string.settings_provider_seventv
         add(SearchEntry(R.string.settings_unlisted_7tv, emotes, R.string.settings_unlisted_7tv_hint, key = sevenTv))

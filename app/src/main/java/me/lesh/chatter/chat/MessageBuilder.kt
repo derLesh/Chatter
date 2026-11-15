@@ -43,6 +43,8 @@ data class EmoteOptions(
     val providers: Set<EmoteProvider> = EmoteProvider.entries.toSet(),
     /** The global emotes of these providers stay plain text; their channel emotes do not. */
     val globalsOff: Set<EmoteProvider> = emptySet(),
+    /** FFZ's effect emotes change the emote before them; off, they show as emotes of their own. */
+    val ffzEffects: Boolean = true,
 )
 
 fun interface BadgeSource {
@@ -413,7 +415,10 @@ class MessageBuilder(
 
         fun addEmote(emote: Emote) {
             val last = out.lastOrNull()
-            if (emote.zeroWidth && opts.zeroWidth && last is Segment.EmoteSeg && buf.isBlank()) {
+            if (emote.modifier != 0 && opts.ffzEffects && last is Segment.EmoteSeg && buf.isBlank()) {
+                buf.setLength(0)
+                out[out.lastIndex] = last.copy(modifiers = last.modifiers + emote)
+            } else if (emote.zeroWidth && opts.zeroWidth && last is Segment.EmoteSeg && buf.isBlank()) {
                 buf.setLength(0)
                 out[out.lastIndex] = last.copy(overlays = last.overlays + emote)
             } else {

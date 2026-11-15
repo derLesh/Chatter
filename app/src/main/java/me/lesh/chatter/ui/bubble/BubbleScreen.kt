@@ -209,7 +209,7 @@ fun BubbleScreen(vm: MainViewModel, channel: String?) {
 
     emoteCard?.let { tap ->
         EmoteCardSheet(
-            emotes = listOf(tap.seg.emote) + tap.seg.overlays,
+            emotes = tap.seg.all,
             channel = tap.channel,
             imageLoader = loader,
             onInsert = { vm.insertEmote(it) },

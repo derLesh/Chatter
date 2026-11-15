@@ -3,6 +3,7 @@ package me.lesh.chatter.chat
 import me.lesh.chatter.badges.Badge
 import me.lesh.chatter.emotes.Emote
 import me.lesh.chatter.emotes.EmoteProvider
+import me.lesh.chatter.emotes.FfzEffects
 import me.lesh.chatter.irc.IrcMessage
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -208,6 +209,27 @@ class MessageBuilderTest {
         val channelUserState = mapOf("badges" to "subscriber/12", "display-name" to "Lukas")
         val item = builder.buildOwn("chan", "hi", channelUserState, "lukas", "42", "1", null)
         assertEquals(listOf("Chatter supporter"), item.badges.map { it.title })
+    }
+
+    @Test
+    fun anFfzEffectEmoteChangesTheEmoteBeforeIt() {
+        val flip = Emote("ffzX", "720508", "x", EmoteProvider.Ffz, modifier = 3)
+        val source = object : EmoteSource {
+            override fun lookup(channelId: String?, word: String) = if (word == "ffzX") flip else thirdParty[word]
+            override fun lookupOwnTwitch(channelId: String?, word: String) = null
+        }
+        fun segments(text: String, options: EmoteOptions = EmoteOptions()) =
+            MessageBuilder(source, { _, _, _ -> emptyList() }) { options }.build(privmsg(text), "lukas", "1", mentions)!!.segments
+
+        val flipped = segments("OMEGALUL RainTime ffzX").single() as Segment.EmoteSeg
+        assertEquals(listOf("RainTime"), flipped.overlays.map { it.name })
+        assertEquals(listOf("ffzX"), flipped.modifiers.map { it.name })
+        assertEquals(FfzEffects.FLIP_X, FfzEffects.of(flipped.modifiers))
+        // With nothing before it, or with effects off, it is an emote of its own.
+        assertEquals(listOf("ffzX"), segments("ffzX").filterIsInstance<Segment.EmoteSeg>().map { it.emote.name })
+        assertEquals(listOf("OMEGALUL", "ffzX"), segments("OMEGALUL ffzX", EmoteOptions(ffzEffects = false)).filterIsInstance<Segment.EmoteSeg>().map { it.emote.name })
+        // A word between them ends the emote it could change.
+        assertEquals(2, segments("OMEGALUL hi ffzX").filterIsInstance<Segment.EmoteSeg>().size)
     }
 
     @Test

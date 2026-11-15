@@ -17,15 +17,17 @@ class EmoteListFilesTest {
     private val wide = Emote("AngelThump", "566ca1a365dbbdab32ec055b", "https://cdn.betterttv.net/emote/566ca1a365dbbdab32ec055b/2x.webp", EmoteProvider.Bttv, aspectRatio = 3f)
     private val overlay = Emote("RainTime", "01F", "https://cdn.7tv.app/emote/01F/2x.webp", EmoteProvider.SevenTv, zeroWidth = true, isChannel = true, unlisted = true, author = "some\tone")
     private val unmeasured = Emote("LUL", "9", "https://cdn.frankerfacez.com/emote/9/2", EmoteProvider.Ffz, sizeKnown = false, ownerId = "123")
+    private val cursed = Emote("ffzCursed", "720729", "https://cdn.frankerfacez.com/emote/720729/2", EmoteProvider.Ffz, modifier = 16385)
 
     @Test
     fun aListComesBackAsItWasWritten() {
         val files = files()
-        files.write("71092938", ProviderEmotes(ffz = mapOf("LUL" to unmeasured), bttv = mapOf("AngelThump" to wide), sevenTv = mapOf("RainTime" to overlay)))
+        files.write("71092938", ProviderEmotes(ffz = mapOf("LUL" to unmeasured, "ffzCursed" to cursed), bttv = mapOf("AngelThump" to wide), sevenTv = mapOf("RainTime" to overlay)))
 
         val read = files.read("71092938")!!
         assertEquals(wide, read.bttv["AngelThump"])
         assertEquals(unmeasured, read.ffz["LUL"])
+        assertEquals(cursed, read.ffz["ffzCursed"])
         // A tab in a name would break the line apart.
         assertEquals(overlay.copy(author = "some one"), read.sevenTv["RainTime"])
     }
@@ -35,6 +37,12 @@ class EmoteListFilesTest {
         val files = files()
         assertNull(files.read("123"))
         assertNull(EmoteListFiles.decode("0\nBttv\tx\t1\tu\t1.0\t1\t\t"))
+    }
+
+    @Test
+    fun aListFromBeforeEffectsReadsAsNoEffects() {
+        val read = EmoteListFiles.decode("1\nFfz\tffzX\t720508\tu\t1.0\t1\t\t")!!
+        assertEquals(0, read.ffz.getValue("ffzX").modifier)
     }
 
     @Test

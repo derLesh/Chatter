@@ -1,5 +1,8 @@
 package me.lesh.chatter.ui.chat
 
+import android.graphics.ColorMatrix
+import android.graphics.ColorMatrixColorFilter
+import android.graphics.RenderEffect
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -33,6 +36,7 @@ import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.CompositingStrategy
+import androidx.compose.ui.graphics.asComposeRenderEffect
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -70,6 +74,7 @@ import me.lesh.chatter.chat.LinkText
 import me.lesh.chatter.chat.MessageKind
 import me.lesh.chatter.chat.PowerUp
 import me.lesh.chatter.chat.Segment
+import me.lesh.chatter.emotes.FfzEffects
 import me.lesh.chatter.settings.SpecialMessage
 
 private const val BADGE_EM = 1.35f
@@ -452,14 +457,18 @@ private fun inlineFor(
     }
     is InlineData.EmoteData -> {
         val base = data.seg.emote
+        val effects = FfzEffects.of(data.seg.modifiers)
         // Wide zero-width overlays should not be clipped, so the widest aspect ratio is used.
-        val aspect = (data.seg.overlays + base).maxOf { EmoteSizes.aspectRatio(it) }
+        val aspect = (data.seg.overlays + base).maxOf { EmoteSizes.aspectRatio(it) } * (if (effects and FfzEffects.GROW_X != 0) 2 else 1)
         // A giant emote keeps Twitch's size whatever the emote size.
         val em = if (data.giant) EMOTE_EM * GIANT_EMOTE_SCALE else emoteEm
         InlineTextContent(
             Placeholder((em * aspect).em, em.em, PlaceholderVerticalAlign.Center),
         ) {
-            Box(Modifier.fillMaxSize().preferredFrameRate(frameRate).then(if (onEmoteClick != null) Modifier.clickable { onEmoteClick(data.seg) } else Modifier)) {
+            Box(
+                Modifier.fillMaxSize().preferredFrameRate(frameRate).ffzEffects(effects)
+                    .then(if (onEmoteClick != null) Modifier.clickable { onEmoteClick(data.seg) } else Modifier),
+            ) {
                 (listOf(base) + data.seg.overlays).forEach { e ->
                     SharedEmoteImage(
                         url = when {
@@ -477,6 +486,24 @@ private fun inlineFor(
             }
         }
     }
+}
+
+/**
+ * FFZ's effects on a stack of emotes. A wide one has a placeholder twice as wide, which the emote,
+ * fitted by its height, fills once stretched.
+ */
+private fun Modifier.ffzEffects(effects: Int): Modifier = if (effects == 0) this else graphicsLayer {
+    scaleX = (if (effects and FfzEffects.GROW_X != 0) 2f else 1f) * (if (effects and FfzEffects.FLIP_X != 0) -1f else 1f)
+    scaleY = if (effects and FfzEffects.FLIP_Y != 0) -1f else 1f
+    if (effects and FfzEffects.CURSED != 0) renderEffect = CURSED_EFFECT
+}
+
+/** FFZ's cursed look, as its CSS has it: grayscale(1) brightness(.7) contrast(2.5). Lazy, as it needs Android. */
+private val CURSED_EFFECT by lazy {
+    // Brightness .7, then contrast 2.5 around the middle: v * 1.75 - 191.25.
+    val harsh = ColorMatrix(floatArrayOf(1.75f, 0f, 0f, 0f, -191.25f, 0f, 1.75f, 0f, 0f, -191.25f, 0f, 0f, 1.75f, 0f, -191.25f, 0f, 0f, 0f, 1f, 0f))
+    val cursed = ColorMatrix().apply { setSaturation(0f) }.apply { postConcat(harsh) }
+    RenderEffect.createColorFilterEffect(ColorMatrixColorFilter(cursed)).asComposeRenderEffect()
 }
 
 /** About the size Twitch draws a giant emote at, next to its usual one. */

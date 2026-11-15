@@ -485,6 +485,7 @@ class EmoteRepository(
             aspectRatio = if (height > 0) width.toFloat() / height else 1f,
             isChannel = channel,
             author = owner?.displayName?.ifEmpty { null },
+            modifier = if (modifier) modifierFlags else 0,
         )
     }
 
