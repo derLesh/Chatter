@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -54,6 +55,7 @@ import coil3.ImageLoader
 import coil3.compose.AsyncImage
 import me.lesh.chatter.R
 import me.lesh.chatter.chat.Post
+import me.lesh.chatter.chat.PostLabel
 import me.lesh.chatter.chat.PostLink
 import me.lesh.chatter.chat.PostMedia
 import me.lesh.chatter.chat.PostRepository
@@ -131,6 +133,7 @@ fun siteName(site: PostSite): Int = when (site) {
     PostSite.X -> R.string.post_site_x
     PostSite.Bluesky -> R.string.post_site_bluesky
     PostSite.YouTube -> R.string.post_site_youtube
+    PostSite.Twitch -> R.string.post_site_twitch
 }
 
 /** The site's logo, drawn on its cards. */
@@ -138,23 +141,30 @@ fun siteIcon(site: PostSite): Int = when (site) {
     PostSite.X -> R.drawable.ic_site_x
     PostSite.Bluesky -> R.drawable.ic_site_bluesky
     PostSite.YouTube -> R.drawable.ic_site_youtube
+    PostSite.Twitch -> R.drawable.ic_site_twitch
 }
 
-/** Bluesky's butterfly and YouTube's button are known by their color; X's logo is plain, so it takes [plain]. */
+/** Bluesky's butterfly, YouTube's button and Twitch's glitch are known by their color; X's logo is plain, so it takes [plain]. */
 fun siteTint(site: PostSite, plain: Color): Color = when (site) {
     PostSite.X -> plain
     PostSite.Bluesky -> BLUESKY_BLUE
     PostSite.YouTube -> YOUTUBE_RED
+    PostSite.Twitch -> TWITCH_PURPLE
 }
 
 private val BLUESKY_BLUE = Color(0xFF1185FE)
 private val YOUTUBE_RED = Color(0xFFFF0033)
+private val TWITCH_PURPLE = Color(0xFF9146FF)
+/** The red Twitch marks a live stream with. */
+private val LIVE_RED = Color(0xFFEB0400)
 
 /** Draws a picture of the card; the settings preview draws its own instead of fetching. */
 typealias PostPicture = @Composable (url: String, description: String?, modifier: Modifier) -> Unit
 
 private val AVATAR_SIZE = 20.dp
 private val COMPACT_AVATAR_SIZE = 16.dp
+private val PROFILE_PICTURE_SIZE = 56.dp
+private val LIVE_RING = 2.dp
 /** As many as YouTube shows in its own lists; the card stays about as tall as its picture. */
 private const val COMPACT_TEXT_LINES = 2
 private const val COMPACT_PICTURE_ASPECT = 16f / 9f
@@ -166,6 +176,8 @@ private const val PICTURE_DEFAULT_ASPECT = 16f / 9f
 private val NSFW_BLUR = 24.dp
 /** The same word in every language; "tap to show" does not fit on a small still. */
 private const val NSFW_SHORT = "NSFW"
+/** Twitch writes it in English in every language too. */
+private const val LIVE = "LIVE"
 
 /**
  * A post in place of its link. Tapping opens the post. Shows the link while the post loads, and for
@@ -175,8 +187,9 @@ private const val NSFW_SHORT = "NSFW"
 internal fun PostCard(link: PostLink, card: PostCardStyle, style: ChatStyle, loader: ImageLoader) {
     val repository = LocalPosts.current
     // Starts from the cache, so a card scrolled back into view does not shrink to a link for a frame.
+    // One due to be asked again stays on screen until the answer comes, and if none does.
     val fetched by produceState(repository?.known(link), link, repository) {
-        if (value == null) value = repository?.post(link)
+        if (repository != null && !repository.isFresh(link)) value = repository.post(link) ?: value
     }
     val post = fetched
     if (post == null) {
@@ -197,6 +210,10 @@ internal fun PostCard(link: PostLink, card: PostCardStyle, style: ChatStyle, loa
 @Composable
 internal fun PostCardContent(post: Post, site: PostSite, cards: PostCardStyle, style: ChatStyle, open: () -> Unit, picture: PostPicture) {
     val card = cards.look(site)
+    if (post.profile) {
+        ProfileCardContent(post, site, card, style, open, picture)
+        return
+    }
     if (card.compact) {
         CompactCardContent(post, site, card, style, open, picture)
         return
@@ -241,7 +258,7 @@ internal fun PostCardContent(post: Post, site: PostSite, cards: PostCardStyle, s
         }
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             Text(
-                if (card.counts) counts(post) else "",
+                withLabel(post, if (card.counts) counts(post) else ""),
                 color = style.secondaryText,
                 fontSize = secondarySize,
                 maxLines = 1,
@@ -250,6 +267,71 @@ internal fun PostCardContent(post: Post, site: PostSite, cards: PostCardStyle, s
             )
             SiteLogo(site, style)
         }
+    }
+}
+
+/**
+ * A channel: its picture large on the left, and beside it the name, what it says about itself or
+ * the stream's title, and its numbers. Live, the picture gets Twitch's red ring and mark.
+ */
+@Composable
+private fun ProfileCardContent(post: Post, site: PostSite, card: PostCardLook, style: ChatStyle, open: () -> Unit, picture: PostPicture) {
+    val secondarySize = (style.fontSize - 2).sp
+    // The chat's line height would spread three short lines far apart beside the picture.
+    val textLineHeight = (style.fontSize * COMPACT_LINE_HEIGHT).sp
+    val secondaryLineHeight = ((style.fontSize - 2) * COMPACT_LINE_HEIGHT).sp
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(10.dp),
+        modifier = Modifier.cardFrame(MaterialTheme.colorScheme.outlineVariant, open).padding(10.dp),
+    ) {
+        post.avatarUrl?.takeIf { card.avatar }?.let { url ->
+            Box(contentAlignment = Alignment.BottomCenter) {
+                val ring = if (post.live) Modifier.border(LIVE_RING, LIVE_RED, CircleShape).padding(LIVE_RING * 2) else Modifier
+                picture(url, null, ring.size(PROFILE_PICTURE_SIZE).clip(CircleShape))
+                if (post.live) Overlay(LIVE, Modifier.offset(y = 4.dp), small = true, background = LIVE_RED)
+            }
+        }
+        Column(verticalArrangement = Arrangement.spacedBy(1.dp), modifier = Modifier.weight(1f)) {
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                Text(
+                    text = post.name,
+                    fontSize = style.fontSize.sp,
+                    lineHeight = textLineHeight,
+                    fontWeight = FontWeight.Bold,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.weight(1f, fill = false),
+                )
+                if (post.handle.isNotEmpty()) {
+                    Text(
+                        post.handle, color = style.secondaryText, fontSize = secondarySize, lineHeight = secondaryLineHeight,
+                        maxLines = 1, overflow = TextOverflow.Ellipsis,
+                    )
+                }
+            }
+            if (post.text.isNotEmpty() && card.textLines > 0) {
+                Text(
+                    text = post.text,
+                    fontSize = style.fontSize.sp,
+                    lineHeight = textLineHeight,
+                    maxLines = if (card.compact) minOf(card.textLines, COMPACT_TEXT_LINES) else card.textLines,
+                    overflow = TextOverflow.Ellipsis,
+                )
+            }
+            if (card.counts) {
+                Text(
+                    counts(post),
+                    color = style.secondaryText,
+                    fontSize = secondarySize,
+                    lineHeight = secondaryLineHeight,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+            }
+        }
+        // In the bottom corner like on every other card, not centred with the text.
+        SiteLogo(site, style, Modifier.align(Alignment.Bottom))
     }
 }
 
@@ -263,7 +345,7 @@ private fun CompactCardContent(post: Post, site: PostSite, card: PostCardLook, s
     // The chat's line height would make two lines of text taller than the picture beside them.
     val textLineHeight = (style.fontSize * COMPACT_LINE_HEIGHT).sp
     val secondaryLineHeight = ((style.fontSize - 2) * COMPACT_LINE_HEIGHT).sp
-    val video = site == PostSite.YouTube
+    val video = site.videos
     Row(
         horizontalArrangement = Arrangement.spacedBy(10.dp),
         modifier = Modifier.cardFrame(MaterialTheme.colorScheme.outlineVariant, open).padding(8.dp),
@@ -338,7 +420,7 @@ private fun ViewsLine(post: Post, card: PostCardLook, style: ChatStyle, fontSize
     val counts = if (card.counts) counts(post) else ""
     val posted = rememberPostedDate(post)?.takeIf { card.date }
     Text(
-        text = listOfNotNull(counts.ifEmpty { null }, posted).joinToString(" · "),
+        text = withLabel(post, listOfNotNull(counts.ifEmpty { null }, posted).joinToString(" · ")),
         color = style.secondaryText,
         fontSize = fontSize,
         lineHeight = lineHeight,
@@ -387,12 +469,12 @@ private fun Modifier.cardFrame(outline: Color, open: () -> Unit): Modifier {
 
 /** Always shown: with the link taken out of the line, nothing else says where the post is. */
 @Composable
-private fun SiteLogo(site: PostSite, style: ChatStyle) {
+private fun SiteLogo(site: PostSite, style: ChatStyle, modifier: Modifier = Modifier) {
     Icon(
         painterResource(siteIcon(site)),
         contentDescription = stringResource(siteName(site)),
         tint = siteTint(site, style.secondaryText),
-        modifier = Modifier.size(style.fontSize.dp),
+        modifier = modifier.size(style.fontSize.dp),
     )
 }
 
@@ -465,16 +547,30 @@ private fun Modifier.heightByAspect(aspect: Float, maxHeight: Dp) = layout { mea
 }
 
 @Composable
-private fun Overlay(text: String, modifier: Modifier = Modifier, small: Boolean = false) {
+private fun Overlay(text: String, modifier: Modifier = Modifier, small: Boolean = false, background: Color = Color.Black.copy(alpha = 0.6f)) {
     Text(
         text = text,
         color = Color.White,
         fontSize = if (small) 11.sp else 13.sp,
         lineHeight = if (small) 13.sp else TextUnit.Unspecified,
         modifier = modifier
-            .background(Color.Black.copy(alpha = 0.6f), RoundedCornerShape(if (small) 4.dp else 6.dp))
+            .background(background, RoundedCornerShape(if (small) 4.dp else 6.dp))
             .padding(horizontal = if (small) 4.dp else 8.dp, vertical = if (small) 1.dp else 4.dp),
     )
+}
+
+/** "Clip · [rest]", so a clip and a VOD can be told apart without their picture. */
+@Composable
+private fun withLabel(post: Post, rest: String): String {
+    val label = post.label?.let { stringResource(labelName(it)) } ?: return rest
+    return if (rest.isEmpty()) label else "$label · $rest"
+}
+
+private fun labelName(label: PostLabel): Int = when (label) {
+    PostLabel.Clip -> R.string.post_label_clip
+    PostLabel.Vod -> R.string.post_label_vod
+    PostLabel.Highlight -> R.string.post_label_highlight
+    PostLabel.Upload -> R.string.post_label_upload
 }
 
 /** "3:33" or "1:02:03", as YouTube writes it. */
@@ -485,7 +581,10 @@ internal fun videoLength(seconds: Int): String {
     return if (hours > 0) "%d:%02d:%02d".format(Locale.ROOT, hours, minutes, rest) else "%d:%02d".format(Locale.ROOT, minutes, rest)
 }
 
-/** "12K replies · 3K reposts · 40K likes · 2M views", leaving out what nobody did. */
+/**
+ * "12K replies · 3K reposts · 40K likes · 2M views", leaving out what nobody did. A channel has
+ * "12K viewers · 1.2M followers · Just Chatting" instead.
+ */
 @Composable
 private fun counts(post: Post): String {
     val compact = remember { CompactDecimalFormat.getInstance(Locale.getDefault(), CompactDecimalFormat.CompactStyle.SHORT) }
@@ -493,7 +592,10 @@ private fun counts(post: Post): String {
         count(R.plurals.post_replies, post.replies, compact),
         count(R.plurals.post_reposts, post.reposts, compact),
         count(R.plurals.post_likes, post.likes, compact),
+        count(R.plurals.post_viewers, post.viewers, compact),
+        count(R.plurals.post_followers, post.followers, compact),
         count(R.plurals.post_views, post.views, compact),
+        post.category.ifEmpty { null },
     ).joinToString(" · ")
 }
 

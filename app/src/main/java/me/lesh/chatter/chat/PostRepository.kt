@@ -1,5 +1,6 @@
 package me.lesh.chatter.chat
 
+import android.os.SystemClock
 import android.util.LruCache
 import me.lesh.chatter.net.HttpException
 import kotlinx.coroutines.CancellationException
@@ -15,19 +16,27 @@ import java.io.IOException
 class PostRepository(sources: List<PostSource>, private val scope: CoroutineScope) {
     private val sources = sources.associateBy { it.site }
 
-    /** A missing post is remembered too; [Known] holds the null that [LruCache] cannot. */
-    private class Known(val post: Post?)
+    /**
+     * A missing post is remembered too; [Known] holds the null that [LruCache] cannot. [until]:
+     * [SystemClock.elapsedRealtime] after which it is asked again.
+     */
+    private class Known(val post: Post?, val until: Long) {
+        val fresh get() = SystemClock.elapsedRealtime() < until
+    }
 
     private val known = LruCache<PostLink, Known>(CACHE_SIZE)
     private val loading = HashMap<PostLink, Deferred<Post?>>()
 
-    /** The post [link] points to if it was already fetched, without waiting. */
+    /** The post [link] points to if it was already fetched, without waiting, even if it is due to be asked again. */
     fun known(link: PostLink): Post? = known.get(cacheKey(link))?.post
+
+    /** Whether [post] would answer without asking. */
+    fun isFresh(link: PostLink): Boolean = known.get(cacheKey(link))?.fresh == true
 
     /** The post [link] points to, or null if it is deleted, private, or could not be read right now. */
     suspend fun post(link: PostLink): Post? {
         val key = cacheKey(link)
-        known.get(key)?.let { return it.post }
+        known.get(key)?.takeIf { it.fresh }?.let { return it.post }
         val source = sources[link.site] ?: return null
         // The same post is often on screen twice, in the chat and in a user card.
         val load = synchronized(loading) { loading.getOrPut(key) { scope.async { fetch(source, key) } } }
@@ -38,19 +47,25 @@ class PostRepository(sources: List<PostSource>, private val scope: CoroutineScop
     private fun cacheKey(link: PostLink) = link.copy(url = "")
 
     private suspend fun fetch(source: PostSource, key: PostLink): Post? = try {
-        source.fetch(key.key).also { known.put(key, Known(it)) }
+        source.fetch(key.key).also { remember(source, key, it) }
     } catch (e: CancellationException) {
         throw e
     } catch (e: HttpException) {
-        null.also { known.put(key, Known(null)) }
+        null.also { remember(source, key, null) }
     } catch (e: IOException) {
         // Offline for a moment; the next time the card is shown it asks again.
         null
     } catch (e: IllegalArgumentException) {
         // Not the JSON expected, like the HTML page FxTwitter answers a deleted post with.
-        null.also { known.put(key, Known(null)) }
+        null.also { remember(source, key, null) }
     } finally {
         synchronized(loading) { loading.remove(key) }
+    }
+
+    private fun remember(source: PostSource, key: PostLink, post: Post?) {
+        val freshFor = source.freshFor(key.key)
+        val until = if (freshFor == Long.MAX_VALUE) Long.MAX_VALUE else SystemClock.elapsedRealtime() + freshFor
+        known.put(key, Known(post, until))
     }
 
     private companion object {

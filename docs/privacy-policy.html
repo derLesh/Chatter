@@ -110,7 +110,7 @@ Twitch access token except Twitch itself.</p>
   <tr><th>Service</th><th>Hosts</th><th>What is sent</th></tr>
   <tr>
     <td>Twitch</td>
-    <td><code>id.twitch.tv</code>, <code>api.twitch.tv</code>, <code>irc-ws.chat.twitch.tv</code>, <code>static-cdn.jtvnw.net</code>, <code>d3aqoihi2n8ty8.cloudfront.net</code> (cheermotes)</td>
+    <td><code>id.twitch.tv</code>, <code>api.twitch.tv</code>, <code>irc-ws.chat.twitch.tv</code>, <code>static-cdn.jtvnw.net</code>, <code>clips-media-assets2.twitch.tv</code> (clip stills), <code>d3aqoihi2n8ty8.cloudfront.net</code> (cheermotes)</td>
     <td>Your access token, the messages you write, and the channels you join. This is the chat
         service itself. While live notifications are on, the app also asks every few minutes which
         of your channels and the channels you follow are live.</td>
@@ -226,7 +226,7 @@ address of the GIF, which Twitch makes up and which can tell Giphy that the GIF 
 chat; nothing about you is sent. With the switch off, while the battery saver is on, or while
 Chatter saves data, nothing is loaded and the GIF's title stays text you can tap.</p>
 
-<p><strong>Posts from X and Bluesky and videos from YouTube linked in chat.</strong> Each site has its own switch under
+<p><strong>Posts from X and Bluesky and videos from YouTube and Twitch linked in chat.</strong> Each site has its own switch under
 Settings &rarr; Chat &rarr; Social media posts, and all are off until you turn them on. With one on,
 a link to a post on that site is shown as a card with its author, text and picture. X offers no free
 way to read a post, so Chatter asks FxTwitter, an independent open-source service, for it: the
@@ -236,7 +236,10 @@ carries the post's author and number, and the pictures come from Bluesky's serve
 YouTube is read from YouTube itself, the way its website does: the request carries the video's
 number and your phone's language, so titles come in your language where the channel translated
 them, and the still and the channel's picture come from YouTube's image servers. It is sent
-without an account or cookies. A post is only asked for when its message is on your screen, never
+without an account or cookies. A channel, clip or video on Twitch is read from Twitch's API with
+your login, like everything else Chatter asks Twitch: the request carries the channel's name or the
+clip's or video's number, and the pictures come from Twitch's image servers. As a guest, Twitch links
+stay links. A post is only asked for when its message is on your screen, never
 for a chat running in the background, and not while the battery saver is on or Chatter saves
 data.</p>
 
@@ -346,7 +349,7 @@ und außer Twitch selbst erhält kein Dritter das Twitch-Token.</p>
   <tr><th>Dienst</th><th>Hosts</th><th>Was gesendet wird</th></tr>
   <tr>
     <td>Twitch</td>
-    <td><code>id.twitch.tv</code>, <code>api.twitch.tv</code>, <code>irc-ws.chat.twitch.tv</code>, <code>static-cdn.jtvnw.net</code>, <code>d3aqoihi2n8ty8.cloudfront.net</code> (Cheermotes)</td>
+    <td><code>id.twitch.tv</code>, <code>api.twitch.tv</code>, <code>irc-ws.chat.twitch.tv</code>, <code>static-cdn.jtvnw.net</code>, <code>clips-media-assets2.twitch.tv</code> (clip stills), <code>d3aqoihi2n8ty8.cloudfront.net</code> (Cheermotes)</td>
     <td>Das Token, die geschriebenen Nachrichten und die betretenen Kanäle — der Chat-Dienst selbst.
         Solange Live-Benachrichtigungen an sind, fragt die App außerdem alle paar Minuten, welche
         Kanäle aus der Liste und welche gefolgten Kanäle live sind.</td>
@@ -468,7 +471,7 @@ Giphy erkennen kann, dass das GIF im Twitch-Chat gezeigt wurde; nichts über dic
 der Schalter aus, der Akkusparmodus an oder spart Chatter Daten, wird nichts geladen, und der Titel
 des GIFs bleibt antippbarer Text.</p>
 
-<p><strong>Im Chat verlinkte Posts von X und Bluesky und Videos von YouTube.</strong> Jede Seite hat ihren eigenen
+<p><strong>Im Chat verlinkte Posts von X und Bluesky und Videos von YouTube und Twitch.</strong> Jede Seite hat ihren eigenen
 Schalter unter Einstellungen &rarr; Chat &rarr; Social-Media-Posts, und alle sind aus, bis du sie
 einschaltest. Ist einer an, wird ein Link auf einen Post dieser Seite als Karte mit Autor, Text und
 Bild angezeigt. X bietet keinen freien Weg, einen Post zu lesen, deshalb fragt Chatter FxTwitter,
@@ -479,7 +482,10 @@ die Bilder kommen von den Servern von Bluesky. Ein Video auf YouTube liest Chatt
 YouTube, so wie es die Website von YouTube tut: Die Anfrage enthält die Nummer des Videos und die
 Sprache deines Geräts, damit Titel in deiner Sprache kommen, wo der Kanal sie übersetzt hat, und
 Vorschaubild und Kanalbild kommen von den Bildservern von YouTube. Sie geht ohne Konto und ohne
-Cookies raus. Ein Post wird erst abgefragt, wenn seine Nachricht auf dem Bildschirm ist, nie für
+Cookies raus. Einen Kanal, Clip oder ein Video auf Twitch liest Chatter mit deiner Anmeldung über
+die API von Twitch, wie alles andere, was Chatter Twitch fragt: Die Anfrage enthält den Namen des
+Kanals oder die Nummer des Clips oder Videos, die Bilder kommen von den Bildservern von Twitch. Als
+Gast bleiben Twitch-Links Links. Ein Post wird erst abgefragt, wenn seine Nachricht auf dem Bildschirm ist, nie für
 einen Chat im Hintergrund, und nicht im Akkusparmodus oder während Chatter Daten spart.</p>
 
 <p><strong>Zusammenfassungen auf dem Gerät (Beta).</strong> Ist &bdquo;Verpasstes

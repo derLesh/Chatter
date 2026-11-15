@@ -46,6 +46,7 @@ import me.lesh.chatter.chat.RuleRepository
 import me.lesh.chatter.chat.ScheduledMessage
 import me.lesh.chatter.chat.ScheduledMessages
 import me.lesh.chatter.chat.SendResult
+import me.lesh.chatter.chat.TwitchPostSource
 import me.lesh.chatter.chat.UserPictures
 import me.lesh.chatter.chat.BotCommands
 import me.lesh.chatter.chat.BotListFiles
@@ -198,7 +199,10 @@ class AppContainer(
     )
     /** Posts for the cards that replace their links, one source per site. */
     val posts = PostRepository(
-        listOf(XPostSource(FxTwitterApi(http)), BlueskyPostSource(BlueskyApi(http)), YouTubePostSource(YouTubeApi(http))),
+        listOf(
+            XPostSource(FxTwitterApi(http)), BlueskyPostSource(BlueskyApi(http)), YouTubePostSource(YouTubeApi(http)),
+            TwitchPostSource(helix),
+        ),
         scope,
     )
     private val emoteListFiles = EmoteListFiles(context.cacheDir.resolve("emote-lists"))

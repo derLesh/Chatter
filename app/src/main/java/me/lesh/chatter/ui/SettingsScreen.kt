@@ -239,6 +239,7 @@ internal enum class SettingsSubPage(val title: Int) {
     PostsX(R.string.post_site_x),
     PostsBluesky(R.string.post_site_bluesky),
     PostsYouTube(R.string.post_site_youtube),
+    PostsTwitch(R.string.post_site_twitch),
     SpecialMessages(R.string.settings_special_messages),
     BotCommands(R.string.settings_bot_commands),
     AppIcons(R.string.settings_app_icon),
@@ -657,6 +658,7 @@ fun SettingsScreen(vm: MainViewModel, onBack: () -> Unit) {
                 SettingsSubPage.PostsX -> PostSitePage(PostSite.X, settings, vm)
                 SettingsSubPage.PostsBluesky -> PostSitePage(PostSite.Bluesky, settings, vm)
                 SettingsSubPage.PostsYouTube -> PostSitePage(PostSite.YouTube, settings, vm)
+                SettingsSubPage.PostsTwitch -> PostSitePage(PostSite.Twitch, settings, vm)
                 SettingsSubPage.SpecialMessages -> SpecialMessagesPage(settings, vm)
                 SettingsSubPage.BotCommands -> BotCommandsPage(settings, vm)
                 SettingsSubPage.AppIcons -> AppIconsPage(settings, vm)

@@ -16,11 +16,19 @@ enum class PostSite {
     },
     YouTube {
         override fun key(url: HttpUrl) = YouTubeVideos.key(url)
+        override val videos get() = true
+    },
+    Twitch {
+        override fun key(url: HttpUrl) = TwitchPosts.key(url)
+        override val videos get() = true
     },
     ;
 
     /** What [PostSource.fetch] needs to find the post [url] links to, or null if it is none. */
     abstract fun key(url: HttpUrl): String?
+
+    /** Its cards show videos: a title above who made it, its views and a still beside them. */
+    open val videos: Boolean get() = false
 }
 
 /** A link to a post, shown as a card below its message. */
@@ -37,7 +45,18 @@ data class Post(
     val reposts: Long,
     val likes: Long,
     val views: Long = 0,
-    /** Milliseconds since the epoch. */
+    /** Watching a live stream right now. */
+    val viewers: Long = 0,
+    val followers: Long = 0,
+    /** What a live stream is playing or doing, like "Just Chatting"; empty for anything else. */
+    val category: String = "",
+    /** A channel rather than something it posted: its picture large on the left, no other picture. */
+    val profile: Boolean = false,
+    /** A channel streaming right now. */
+    val live: Boolean = false,
+    /** What kind of video it is, where the site has more than one, like a clip or a VOD on Twitch. */
+    val label: PostLabel? = null,
+    /** Milliseconds since the epoch; 0 where there is no date worth showing, like for a channel. */
     val postedAt: Long,
     /** Marked NSFW by the site or its author; its picture is blurred if the user wants that. */
     val nsfw: Boolean,
@@ -50,12 +69,21 @@ data class Post(
  */
 data class PostMedia(val pictureUrl: String, val video: Boolean, val aspectRatio: Float?, val more: Int, val lengthSeconds: Int = 0)
 
+/** The kinds of video Twitch has. */
+enum class PostLabel { Clip, Vod, Highlight, Upload }
+
 /** Reads the posts of one [site]. */
 interface PostSource {
     val site: PostSite
 
     /** The post [key] stands for, or null if it is gone or private. Throws on a network failure. */
     suspend fun fetch(key: String): Post?
+
+    /**
+     * How long, in milliseconds, what [fetch] said about [key] holds. A post does not change enough
+     * to ask twice; whether a channel is live does.
+     */
+    fun freshFor(key: String): Long = Long.MAX_VALUE
 }
 
 object PostLinks {
