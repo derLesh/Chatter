@@ -163,6 +163,21 @@ class HelixApi(
     suspend fun followedCount(userId: String): Int =
         http.getJson<HelixTotal>(url("channels/followed", "user_id" to userId, "first" to "1"), headers()).total
 
+    /**
+     * How many follow [broadcasterId]. Without being its mod Twitch sends only the total, which is
+     * all this asks for.
+     */
+    suspend fun followerCount(broadcasterId: String): Long =
+        http.getJson<HelixTotal>(url("channels/followers", "broadcaster_id" to broadcasterId, "first" to "1"), headers()).total.toLong()
+
+    /** The clip with the slug [id], or null if it is deleted. */
+    suspend fun clip(id: String): HelixClip? =
+        http.getJson<HelixList<HelixClip>>(url("clips", "id" to id), headers()).data.firstOrNull()
+
+    /** The past broadcast, highlight or upload [id], or null if it is deleted or private. */
+    suspend fun video(id: String): HelixVideo? =
+        http.getJson<HelixList<HelixVideo>>(url("videos", "id" to id), headers()).data.firstOrNull()
+
     override suspend fun isFollowing(userId: String, channelId: String): Boolean =
         http.getJson<HelixList<JsonObject>>(url("channels/followed", "user_id" to userId, "broadcaster_id" to channelId), headers())
             .data.isNotEmpty()
@@ -311,6 +326,36 @@ data class HelixStream(
     @SerialName("viewer_count") val viewerCount: Int = 0,
     val title: String = "",
     @SerialName("game_name") val gameName: String = "",
+    /** With `{width}` and `{height}` to fill in. */
+    @SerialName("thumbnail_url") val thumbnailUrl: String = "",
+)
+
+@Serializable
+data class HelixClip(
+    val id: String,
+    @SerialName("broadcaster_id") val broadcasterId: String = "",
+    @SerialName("broadcaster_name") val broadcasterName: String = "",
+    val title: String = "",
+    @SerialName("view_count") val viewCount: Long = 0,
+    /** ISO 8601, like "2026-11-15T12:00:00Z". */
+    @SerialName("created_at") val createdAt: String = "",
+    @SerialName("thumbnail_url") val thumbnailUrl: String = "",
+    /** Seconds, with a fraction. */
+    val duration: Double = 0.0,
+)
+
+@Serializable
+data class HelixVideo(
+    val id: String,
+    @SerialName("user_id") val userId: String = "",
+    @SerialName("user_name") val userName: String = "",
+    val title: String = "",
+    @SerialName("view_count") val viewCount: Long = 0,
+    @SerialName("created_at") val createdAt: String = "",
+    /** With `%{width}` and `%{height}` to fill in; empty while a stream is still being recorded. */
+    @SerialName("thumbnail_url") val thumbnailUrl: String = "",
+    /** Like "3h8m33s". */
+    val duration: String = "",
 )
 
 @Serializable

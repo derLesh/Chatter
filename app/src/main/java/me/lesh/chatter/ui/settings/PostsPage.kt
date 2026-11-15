@@ -62,12 +62,14 @@ private fun siteHint(site: PostSite): Int = when (site) {
     PostSite.X -> R.string.settings_post_site_x_hint
     PostSite.Bluesky -> R.string.settings_post_site_bluesky_hint
     PostSite.YouTube -> R.string.settings_post_site_youtube_hint
+    PostSite.Twitch -> R.string.settings_post_site_twitch_hint
 }
 
-/** YouTube has videos, not posts. */
+/** YouTube has videos and Twitch has channels and clips, not posts. */
 @Composable
 private fun siteTitle(site: PostSite): String = when (site) {
     PostSite.YouTube -> stringResource(R.string.settings_post_site_youtube)
+    PostSite.Twitch -> stringResource(R.string.settings_post_site_twitch)
     else -> stringResource(R.string.settings_post_site, stringResource(siteName(site)))
 }
 
@@ -76,6 +78,7 @@ internal fun postSitePage(site: PostSite): SettingsSubPage = when (site) {
     PostSite.X -> SettingsSubPage.PostsX
     PostSite.Bluesky -> SettingsSubPage.PostsBluesky
     PostSite.YouTube -> SettingsSubPage.PostsYouTube
+    PostSite.Twitch -> SettingsSubPage.PostsTwitch
 }
 
 /** Social media posts: one entry per site, each opening its own page, and what holds for all of them. */
@@ -134,19 +137,23 @@ internal fun PostSitePage(site: PostSite, settings: Settings, vm: MainViewModel)
                 { v -> update { it.copy(compact = v) } }, R.string.settings_post_compact_hint,
             )
         }
-        val avatar = if (site == PostSite.YouTube) R.string.settings_post_channel_picture else R.string.settings_post_avatar
+        val avatar = if (site.videos) R.string.settings_post_channel_picture else R.string.settings_post_avatar
         item(avatar) { SwitchItem(avatar, card.avatar, { v -> update { it.copy(avatar = v) } }) }
         item(R.string.settings_post_date) { SwitchItem(R.string.settings_post_date, card.date, { v -> update { it.copy(date = v) } }) }
-        val text = if (site == PostSite.YouTube) R.string.settings_post_title else R.string.settings_post_text
+        val text = if (site.videos) R.string.settings_post_title else R.string.settings_post_text
         item(text) { TextLinesItem(text, card.textLines) { lines -> update { it.copy(textLines = lines) } } }
-        val media = if (site == PostSite.YouTube) R.string.settings_post_thumbnail else R.string.settings_post_media
+        val media = if (site.videos) R.string.settings_post_thumbnail else R.string.settings_post_media
         item(media) { SwitchItem(media, card.media, { v -> update { it.copy(media = v) } }) }
         if (card.media) {
             item(R.string.settings_post_picture_size) {
                 PictureSizeItem(card.pictureSize) { size -> update { it.copy(pictureSize = size) } }
             }
         }
-        val counts = if (site == PostSite.YouTube) R.string.settings_post_views else R.string.settings_post_counts
+        val counts = when (site) {
+            PostSite.YouTube -> R.string.settings_post_views
+            PostSite.Twitch -> R.string.settings_post_twitch_counts
+            else -> R.string.settings_post_counts
+        }
         item(counts) { SwitchItem(counts, card.counts, { v -> update { it.copy(counts = v) } }) }
     }
 }
@@ -223,13 +230,21 @@ internal fun PostPreview(settings: Settings, vm: MainViewModel, text: Int? = nul
             body = MessageBody.of(listOf(Segment.Text(messageText))), text = messageText,
         )
     }
-    val postText = stringResource(text ?: if (site == PostSite.YouTube) R.string.post_preview_video else R.string.post_preview_text)
+    val defaultText = when (site) {
+        PostSite.YouTube -> R.string.post_preview_video
+        PostSite.Twitch -> R.string.post_preview_clip
+        else -> R.string.post_preview_text
+    }
+    val postText = stringResource(text ?: defaultText)
     val post = remember(postText, site) {
-        if (site == PostSite.YouTube) {
+        if (site.videos) {
             Post(
                 name = "Chatter", handle = "", avatarUrl = PREVIEW_AVATAR, text = postText,
                 replies = 0, reposts = 0, likes = 0, views = 13370, postedAt = System.currentTimeMillis(), nsfw = false,
-                media = PostMedia(PREVIEW_PICTURE, video = true, aspectRatio = 16f / 9f, more = 0, lengthSeconds = 213),
+                media = PostMedia(
+                    PREVIEW_PICTURE, video = true, aspectRatio = 16f / 9f, more = 0,
+                    lengthSeconds = if (site == PostSite.Twitch) PREVIEW_CLIP_SECONDS else PREVIEW_VIDEO_SECONDS,
+                ),
             )
         } else {
             Post(
@@ -265,5 +280,7 @@ internal fun PostPreview(settings: Settings, vm: MainViewModel, text: Int? = nul
 private val PREVIEW_HANDLES = mapOf(PostSite.X to "chatter_app", PostSite.Bluesky to "chatter.bsky.social")
 private const val PREVIEW_AVATAR = "avatar"
 private const val PREVIEW_PICTURE = "picture"
+private const val PREVIEW_VIDEO_SECONDS = 213
+private const val PREVIEW_CLIP_SECONDS = 30
 /** Tall enough that every picture size cuts it differently. */
 private const val PREVIEW_PICTURE_ASPECT = 4f / 3f

@@ -131,6 +131,7 @@ fun siteName(site: PostSite): Int = when (site) {
     PostSite.X -> R.string.post_site_x
     PostSite.Bluesky -> R.string.post_site_bluesky
     PostSite.YouTube -> R.string.post_site_youtube
+    PostSite.Twitch -> R.string.post_site_twitch
 }
 
 /** The site's logo, drawn on its cards. */
@@ -138,17 +139,22 @@ fun siteIcon(site: PostSite): Int = when (site) {
     PostSite.X -> R.drawable.ic_site_x
     PostSite.Bluesky -> R.drawable.ic_site_bluesky
     PostSite.YouTube -> R.drawable.ic_site_youtube
+    PostSite.Twitch -> R.drawable.ic_site_twitch
 }
 
-/** Bluesky's butterfly and YouTube's button are known by their color; X's logo is plain, so it takes [plain]. */
+/** Bluesky's butterfly, YouTube's button and Twitch's glitch are known by their color; X's logo is plain, so it takes [plain]. */
 fun siteTint(site: PostSite, plain: Color): Color = when (site) {
     PostSite.X -> plain
     PostSite.Bluesky -> BLUESKY_BLUE
     PostSite.YouTube -> YOUTUBE_RED
+    PostSite.Twitch -> TWITCH_PURPLE
 }
 
 private val BLUESKY_BLUE = Color(0xFF1185FE)
 private val YOUTUBE_RED = Color(0xFFFF0033)
+private val TWITCH_PURPLE = Color(0xFF9146FF)
+/** The red Twitch marks a live stream with. */
+private val LIVE_RED = Color(0xFFEB0400)
 
 /** Draws a picture of the card; the settings preview draws its own instead of fetching. */
 typealias PostPicture = @Composable (url: String, description: String?, modifier: Modifier) -> Unit
@@ -166,6 +172,8 @@ private const val PICTURE_DEFAULT_ASPECT = 16f / 9f
 private val NSFW_BLUR = 24.dp
 /** The same word in every language; "tap to show" does not fit on a small still. */
 private const val NSFW_SHORT = "NSFW"
+/** Twitch writes it in English in every language too. */
+private const val LIVE = "LIVE"
 
 /**
  * A post in place of its link. Tapping opens the post. Shows the link while the post loads, and for
@@ -175,8 +183,9 @@ private const val NSFW_SHORT = "NSFW"
 internal fun PostCard(link: PostLink, card: PostCardStyle, style: ChatStyle, loader: ImageLoader) {
     val repository = LocalPosts.current
     // Starts from the cache, so a card scrolled back into view does not shrink to a link for a frame.
+    // One due to be asked again stays on screen until the answer comes, and if none does.
     val fetched by produceState(repository?.known(link), link, repository) {
-        if (value == null) value = repository?.post(link)
+        if (repository != null && !repository.isFresh(link)) value = repository.post(link) ?: value
     }
     val post = fetched
     if (post == null) {
@@ -263,7 +272,7 @@ private fun CompactCardContent(post: Post, site: PostSite, card: PostCardLook, s
     // The chat's line height would make two lines of text taller than the picture beside them.
     val textLineHeight = (style.fontSize * COMPACT_LINE_HEIGHT).sp
     val secondaryLineHeight = ((style.fontSize - 2) * COMPACT_LINE_HEIGHT).sp
-    val video = site == PostSite.YouTube
+    val video = site.videos
     Row(
         horizontalArrangement = Arrangement.spacedBy(10.dp),
         modifier = Modifier.cardFrame(MaterialTheme.colorScheme.outlineVariant, open).padding(8.dp),
@@ -449,6 +458,9 @@ private fun PostMediaBox(
             else -> null
         }
         corner?.let { Overlay(it, Modifier.align(Alignment.BottomEnd).padding(if (compact) 4.dp else 6.dp), small = compact) }
+        if (media.live && !hidden) {
+            Overlay(LIVE, Modifier.align(Alignment.TopStart).padding(if (compact) 4.dp else 6.dp), small = compact, background = LIVE_RED)
+        }
     }
 }
 
@@ -465,14 +477,14 @@ private fun Modifier.heightByAspect(aspect: Float, maxHeight: Dp) = layout { mea
 }
 
 @Composable
-private fun Overlay(text: String, modifier: Modifier = Modifier, small: Boolean = false) {
+private fun Overlay(text: String, modifier: Modifier = Modifier, small: Boolean = false, background: Color = Color.Black.copy(alpha = 0.6f)) {
     Text(
         text = text,
         color = Color.White,
         fontSize = if (small) 11.sp else 13.sp,
         lineHeight = if (small) 13.sp else TextUnit.Unspecified,
         modifier = modifier
-            .background(Color.Black.copy(alpha = 0.6f), RoundedCornerShape(if (small) 4.dp else 6.dp))
+            .background(background, RoundedCornerShape(if (small) 4.dp else 6.dp))
             .padding(horizontal = if (small) 4.dp else 8.dp, vertical = if (small) 1.dp else 4.dp),
     )
 }
@@ -485,7 +497,10 @@ internal fun videoLength(seconds: Int): String {
     return if (hours > 0) "%d:%02d:%02d".format(Locale.ROOT, hours, minutes, rest) else "%d:%02d".format(Locale.ROOT, minutes, rest)
 }
 
-/** "12K replies · 3K reposts · 40K likes · 2M views", leaving out what nobody did. */
+/**
+ * "12K replies · 3K reposts · 40K likes · 2M views", leaving out what nobody did. A channel has
+ * "12K viewers · 1.2M followers · Just Chatting" instead.
+ */
 @Composable
 private fun counts(post: Post): String {
     val compact = remember { CompactDecimalFormat.getInstance(Locale.getDefault(), CompactDecimalFormat.CompactStyle.SHORT) }
@@ -493,7 +508,10 @@ private fun counts(post: Post): String {
         count(R.plurals.post_replies, post.replies, compact),
         count(R.plurals.post_reposts, post.reposts, compact),
         count(R.plurals.post_likes, post.likes, compact),
+        count(R.plurals.post_viewers, post.viewers, compact),
+        count(R.plurals.post_followers, post.followers, compact),
         count(R.plurals.post_views, post.views, compact),
+        post.category.ifEmpty { null },
     ).joinToString(" · ")
 }
 

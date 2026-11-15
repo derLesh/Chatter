@@ -69,8 +69,8 @@ data class PostCardSettings(
     val compact: Boolean = false,
 ) {
     companion object {
-        /** A video's still beside its title is how YouTube lists them; posts keep their big picture. */
-        fun default(site: PostSite) = PostCardSettings(compact = site == PostSite.YouTube)
+        /** A video's still beside its title is how YouTube and Twitch list them; posts keep their big picture. */
+        fun default(site: PostSite) = PostCardSettings(compact = site.videos)
 
         val DEFAULTS: Map<PostSite, PostCardSettings> = PostSite.entries.associateWith(::default)
     }
