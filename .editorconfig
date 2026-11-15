@@ -1,0 +1,8 @@
+root = true
+
+# Android Studio on Windows would otherwise write new files with CRLF; see .gitattributes.
+[*]
+end_of_line = lf
+
+[*.bat]
+end_of_line = crlf
