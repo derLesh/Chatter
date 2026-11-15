@@ -231,6 +231,20 @@ class MessageBuilderTest {
     }
 
     @Test
+    fun aProvidersGlobalEmotesCanStayTextWhileItsChannelEmotesShow() {
+        val global = Emote("monkaS", "5", "u5", EmoteProvider.Bttv)
+        val channel = Emote("forsenE", "6", "u6", EmoteProvider.Bttv, isChannel = true)
+        val source = object : EmoteSource {
+            override fun lookup(channelId: String?, word: String) = mapOf("monkaS" to global, "forsenE" to channel, "LULW" to thirdParty.getValue("LULW"))[word]
+            override fun lookupOwnTwitch(channelId: String?, word: String) = null
+        }
+        val options = EmoteOptions(globalsOff = setOf(EmoteProvider.Bttv))
+        val segments = MessageBuilder(source, { _, _, _ -> emptyList() }) { options }.build(privmsg("monkaS forsenE LULW"), "lukas", "1", mentions)!!.segments
+        assertEquals(Segment.Text("monkaS "), segments.first())
+        assertEquals(listOf("forsenE", "LULW"), segments.filterIsInstance<Segment.EmoteSeg>().map { it.emote.name })
+    }
+
+    @Test
     fun sharedChatMessagesFromAPartnerWearTheBadgesOfTheirChannel() {
         val asked = mutableListOf<Pair<String?, String?>>()
         val builder = MessageBuilder(emotes, { channelId, tag, _ -> asked += channelId to tag; emptyList() })

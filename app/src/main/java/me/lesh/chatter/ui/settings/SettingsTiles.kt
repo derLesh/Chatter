@@ -83,10 +83,11 @@ private const val REVEAL_DELAY_MS = 350L
 /**
  * Related settings as separate tiles with small gaps (Android 16 style): strong outer corners,
  * slight ones between tiles. A held tile rounds all its corners; a tile that shows up later, such
- * as one a switch above reveals, opens out instead of appearing at once.
+ * as one a switch above reveals, opens out instead of appearing at once. [hint] is a line under
+ * the title about the group as a whole.
  */
 @Composable
-internal fun SettingsGroup(title: Int? = null, build: GroupScope.() -> Unit) {
+internal fun SettingsGroup(title: Int? = null, hint: Int? = null, build: GroupScope.() -> Unit) {
     val items = GroupScope().apply(build).items.mapIndexed { i, (itemKey, content) -> TileEntry(itemKey ?: i, itemKey, content) }
     val target = LocalSettingsTarget.current
     val (groupReveal, groupGlow) = reveal(title != null && title == target)
@@ -106,7 +107,15 @@ internal fun SettingsGroup(title: Int? = null, build: GroupScope.() -> Unit) {
                     stringResource(title),
                     style = MaterialTheme.typography.titleSmall,
                     color = MaterialTheme.colorScheme.primary,
-                    modifier = Modifier.padding(start = 16.dp, bottom = 8.dp),
+                    modifier = Modifier.padding(start = 16.dp, bottom = if (hint == null) 8.dp else 2.dp),
+                )
+            }
+            if (hint != null) {
+                Text(
+                    stringResource(hint),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(start = 16.dp, end = 16.dp, bottom = 8.dp),
                 )
             }
             Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {

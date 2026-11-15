@@ -1,0 +1,1 @@
+patch: Give each emote and badge provider its own page under Emotes & badges
