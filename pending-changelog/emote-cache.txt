@@ -1,1 +1,0 @@
-patch: Scroll back through a chat without loading its emotes again

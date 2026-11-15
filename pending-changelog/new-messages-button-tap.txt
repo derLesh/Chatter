@@ -1,1 +1,0 @@
-patch: Keep a tap on the button back to new messages from opening the message under it

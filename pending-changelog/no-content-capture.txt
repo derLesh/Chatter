@@ -1,1 +1,0 @@
-patch: Use less battery and memory while a busy chat is open

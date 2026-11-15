@@ -1,1 +1,0 @@
-patch: Keep the chat from jumping when you open a channel and its emotes load

@@ -1,1 +1,0 @@
-minor: Show FrankerFaceZ badges, like FFZ Supporter or Bot, in front of names

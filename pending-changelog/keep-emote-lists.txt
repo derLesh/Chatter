@@ -1,1 +1,0 @@
-patch: Show emotes in chat right away after starting the app, instead of words that turn into emotes

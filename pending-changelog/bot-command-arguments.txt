@@ -1,1 +1,0 @@
-minor: Show what a bot command expects after its name, with choices and names to tap

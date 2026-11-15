@@ -3,6 +3,46 @@
 Every release of Chatter, newest first. Written from the entries in `pending-changelog/` by
 `./gradlew releaseVersion`, and shown in the app under Settings → About → Changelog.
 
+## 0.14.0 — 2026-11-15
+- minor: Draw the FrankerFaceZ effects ffzX, ffzY, ffzW and ffzCursed on the emote before them
+- minor: See your last 10 uploaded pictures under Links & images, copy their link or delete them
+- minor: Share a picture to Chatter or pick one in the input, and send it to a channel with a message
+- minor: Show FrankerFaceZ badges, like FFZ Supporter or Bot, in front of names
+- minor: Show the mod and VIP badges a channel picked on FrankerFaceZ
+- minor: Show what a bot command expects after its name, with choices and names to tap
+- minor: Suggest ChronophylosBot's commands while typing in its channel
+- minor: Take location, camera and time out of pictures before they are uploaded, on unless you turn it off
+- minor: Tap the logo under About five times for a Debug log that explains dropped connections and goes into bug reports
+- minor: The user card shows a banner in the colors of the profile picture and sorts its parts into tabs
+- minor: Turn off the global emotes of 7TV, BetterTTV or FrankerFaceZ and keep only the channel's own
+- minor: Upload to nuuls.com, to Imgur with your own Client-ID, or to uploaders you add yourself
+- patch: Drop the pale band behind the navigation buttons at the bottom of the screen
+- patch: Free emotes and badges when a channel is removed
+- patch: Give each emote and badge provider its own page under Emotes & badges
+- patch: Give the light theme a clean white chat and darker names that stay readable on mentions too
+- patch: Keep a tap on the button back to new messages from opening the message under it
+- patch: Keep emotes still in the chat and the emote picker when animated emotes are off
+- patch: Keep names readable on the user card, in replies, on the pinned message and the reply card in the light theme
+- patch: Keep the chat from jumping when you open a channel and its emotes load
+- patch: Load the recent messages again once the connection is back, and tell in the pill when they fail
+- patch: Make 7TV name paints readable in the light theme, picture paints too
+- patch: Make subs, cheers and cheer amounts easy to spot in the light theme
+- patch: Note in the whispers that they only hold messages received while connected
+- patch: Scroll back through a chat without loading its emotes again
+- patch: Show 7TV badges and paints already on the message that made 7TV send them
+- patch: Show connecting in the pill above the input instead of in the bar at the top, and switch its texts smoothly
+- patch: Show emotes in chat right away after starting the app, instead of words that turn into emotes
+- patch: Show in the pill when a service like 7TV cannot be reached, instead of a message at the bottom
+- patch: Show loading the recent messages in the pill too, instead of a line in the chat
+- patch: Show recent chat sooner when returning to the app
+- patch: Show reconnecting in a pill above the input instead of lines in every channel, and mark what was missed as new
+- patch: Show the first message of a conversation with name color, emotes and links when it left the chat
+- patch: Show the new line only for messages from others, not for Chatter's own notes or your own messages
+- patch: Use less battery and memory while a busy chat is open
+- patch: Use less battery when channel emotes and badges finish loading
+- patch: Use less battery when many chat messages arrive together
+- patch: Use less memory during long chats with 7TV badges and paints
+
 ## 0.13.0 — 2026-11-10
 - minor: First messages are now one of the special messages, with a preview, and your own first message is marked too
 - minor: Give X, Bluesky and YouTube each their own card settings, a compact card with the picture on the left included
