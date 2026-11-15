@@ -1,0 +1,1 @@
+patch: Keep emotes still in the chat and the emote picker when animated emotes are off
