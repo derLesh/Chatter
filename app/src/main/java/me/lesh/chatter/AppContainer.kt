@@ -61,6 +61,7 @@ import me.lesh.chatter.debug.DebugStats
 import me.lesh.chatter.debug.HttpLog
 import me.lesh.chatter.emotes.CheermoteRepository
 import me.lesh.chatter.emotes.EmojiRepository
+import me.lesh.chatter.emotes.EmoteProvider
 import me.lesh.chatter.emotes.EmoteListFiles
 import me.lesh.chatter.emotes.EmoteRepository
 import me.lesh.chatter.emotes.HiddenEmoteRepository
@@ -204,12 +205,14 @@ class AppContainer(
         helix, thirdParty, trouble,
         providersOn = { settings.settings.value.emoteProvidersOn },
         files = emoteListFiles,
+        onFfzRoom = { channelId, room -> badges.ffzRoom(channelId, room) },
     )
     val emoji = EmojiRepository(context)
     val badges = BadgeRepository(
         helix, thirdParty, ChatterApi(http),
         supporterTitle = { context.getString(R.string.badge_supporter) },
         trouble = trouble,
+        ffzRoomFromEmotes = { EmoteProvider.Ffz in settings.settings.value.emoteProvidersOn },
     )
     private val cheermotes = CheermoteRepository(helix, trouble)
     val channels = ChannelRepository(context.channelStore, helix, scope)
@@ -316,7 +319,12 @@ class AppContainer(
         changelog.start()
         scope.launch { settings.decideOnboarding(firstStart) }
         // Read for every message, so mirrored onto the repository.
-        scope.launch { settings.settings.collect { badges.enabled = it.badgeProviders } }
+        scope.launch {
+            settings.settings.collect {
+                badges.enabled = it.badgeProviders
+                badges.ffzChannelBadges = it.ffzChannelBadges
+            }
+        }
         // A provider switched on is loaded now; one switched off is no longer waited for.
         scope.launch {
             settings.settings.map { it.emoteProvidersOn }.distinctUntilChanged().drop(1).collect { emotes.retryMissing() }

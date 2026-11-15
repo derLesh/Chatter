@@ -4,6 +4,7 @@ import me.lesh.chatter.debug.AppLog
 import me.lesh.chatter.chat.AssetChanges
 import me.lesh.chatter.chat.BadgeSource
 import me.lesh.chatter.net.ChatterBadgeApi
+import me.lesh.chatter.net.FfzRoomInfo
 import me.lesh.chatter.net.HelixBadgeSet
 import me.lesh.chatter.net.NotLoggedInException
 import me.lesh.chatter.net.ServiceTrouble
@@ -60,6 +61,8 @@ class BadgeRepository(
     private val supporterTitle: () -> String,
     /** Where unreachable lists are reported. */
     private val trouble: ServiceTrouble = ServiceTrouble(),
+    /** True while the emote repository loads FFZ's rooms anyway and hands them over through [ffzRoom]. */
+    private val ffzRoomFromEmotes: () -> Boolean = { false },
     /** Injected for tests. */
     private val now: () -> Long = System::currentTimeMillis,
 ) : BadgeSource {
@@ -98,6 +101,12 @@ class BadgeRepository(
     private val sevenTvPaints = RecentDefinitions<NamePaint>(MAX_DEFINITIONS) { sevenTvPaintWearers.cosmeticIds() }
     private val sevenTvPaintWearers = RecentWearers(MAX_WEARERS)
 
+    /** The mod and VIP pictures channels picked on FFZ, by Twitch channel id; see [ffzRoom]. */
+    private val ffzRoomBadges = ConcurrentHashMap<String, FfzRoomBadges>()
+
+    /** Show [ffzRoomBadges] instead of Twitch's mod and VIP badges. Set from the settings. */
+    @Volatile var ffzChannelBadges: Boolean = true
+
     /** Channels whose badges failed to load, retried when the app comes back. */
     private val failedChannels = ConcurrentHashMap.newKeySet<String>()
 
@@ -135,7 +144,11 @@ class BadgeRepository(
         val providers = enabled
         val twitch = if (badgesTag.isNullOrEmpty() || BadgeProvider.Twitch !in providers) emptyList() else {
             val channel = channelId?.let { channels[it] }
-            badgesTag.split(',').mapNotNull { key -> channel?.get(key) ?: global[key] }
+            val room = if (BadgeProvider.Ffz in providers && ffzChannelBadges) channelId?.let { ffzRoomBadges[it] } else null
+            badgesTag.split(',').mapNotNull { key ->
+                val badge = channel?.get(key) ?: global[key] ?: return@mapNotNull null
+                room?.replacing(key, badge) ?: badge
+            }
         }
         val extra = userId?.let { thirdPartyBadges[it] }?.filter { it.provider in providers }.orEmpty()
         val ffz = if (userId == null || BadgeProvider.Ffz !in providers) emptyList() else ffzBadgesOf(userId)
@@ -207,10 +220,23 @@ class BadgeRepository(
 
     suspend fun loadChannel(channelId: String) = loadChannel(channelId, expectedLifetime = null)
 
+    /** A channel's FFZ room, from the emote repository or asked here; null if it has none. */
+    fun ffzRoom(channelId: String, room: FfzRoomInfo?) {
+        val badges = FfzRoomBadges(room?.modUrls?.picture(), room?.vipBadge?.picture()).takeIf { it.mod != null || it.vip != null }
+        val before = if (badges == null) ffzRoomBadges.remove(channelId) else ffzRoomBadges.put(channelId, badges)
+        if (before != badges) changes.changed(channelId)
+    }
+
     private suspend fun loadChannel(channelId: String, expectedLifetime: Any?) {
         val lifetime = synchronized(channelLock) {
             if (expectedLifetime != null && channelLifetimes[channelId] !== expectedLifetime) return
             channelLifetimes.getOrPut(channelId) { Any() }
+        }
+        // FFZ's room is mostly emotes, so it is asked here only while the emote repository does not.
+        if (BadgeProvider.Ffz in enabled && ffzChannelBadges && !ffzRoomFromEmotes()) {
+            runCatchingCancellable { thirdParty.ffzRoom(channelId) }
+                .onSuccess { room -> if (synchronized(channelLock) { channelLifetimes[channelId] === lifetime }) ffzRoom(channelId, room?.room) }
+                .onFailure { AppLog.w(TAG, "FFZ room failed: ${it.message}") }
         }
         val result = runCatchingCancellable { helix.channelBadges(channelId) }
         synchronized(channelLock) {
@@ -232,6 +258,7 @@ class BadgeRepository(
     fun removeChannel(channelId: String) = synchronized(channelLock) {
         channelLifetimes.remove(channelId)
         channels.remove(channelId)
+        ffzRoomBadges.remove(channelId)
         changes.forget(channelId)
         failedChannels.remove(channelId)
         answeredChannels.remove(channelId)
@@ -340,6 +367,18 @@ class BadgeRepository(
         return merged
     }
 
+    private data class FfzRoomBadges(val mod: String?, val vip: String?) {
+        /** [badge] with the channel's own picture, if it has one for that kind; Twitch's title stays. */
+        fun replacing(key: String, badge: Badge): Badge? = when {
+            key.startsWith("moderator/") && mod != null -> badge.copy(url = mod, background = FFZ_MOD_GREEN)
+            key.startsWith("vip/") && vip != null -> badge.copy(url = vip)
+            else -> null
+        }
+    }
+
+    /** Only from FFZ's own host; see TrustedImages. */
+    private fun Map<String, String?>.picture(): String? = (this["2"] ?: this["1"] ?: this["4"])?.let(TrustedImages::url)
+
     /** A badge and the sorted Twitch user ids of who wears it, searched instead of mapped. */
     private class WornBy(val badge: Badge, val userIds: LongArray)
 
@@ -368,6 +407,9 @@ class BadgeRepository(
         const val SUPPORTER_BADGE_ID = "chatter"
 
         const val SUPPORTER_SET = "supporter"
+
+        /** FFZ's mod pictures are white symbols; FFZ draws them on Twitch's mod green. */
+        const val FFZ_MOD_GREEN = 0xFF34AE0A.toInt()
     }
 }
 

@@ -137,6 +137,11 @@ internal fun ProviderPage(provider: Provider, settings: Settings, vm: MainViewMo
             item(R.string.settings_provider_badges) {
                 SwitchItem(R.string.settings_provider_badges, badges in settings.badgeProviders, { vm.setBadgeProvider(badges, it) }, R.string.settings_provider_badges_hint)
             }
+            if (badges == BadgeProvider.Ffz && badges in settings.badgeProviders) {
+                item(R.string.settings_ffz_channel_badges) {
+                    SwitchItem(R.string.settings_ffz_channel_badges, settings.ffzChannelBadges, vm::setFfzChannelBadges, R.string.settings_ffz_channel_badges_hint)
+                }
+            }
         }
     }
     if (provider == Provider.SevenTv) SevenTvExtras(settings, vm)
