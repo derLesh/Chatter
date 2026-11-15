@@ -4,13 +4,23 @@ Chatter is an Android Twitch chat client: Kotlin, Jetpack Compose, one Gradle mo
 dependency injection framework — everything long-lived is built and wired in `AppContainer`, and the
 UI reaches it through `MainViewModel`.
 
-## Every change gets a changelog entry
+Answer in the language the user writes in. What goes into the repository or onto GitHub — code,
+comments, commits, changelog entries, pull requests, docs — is in English.
 
-Chatter keeps its changelog the way [Changesets](https://github.com/changesets/changesets) keeps
-one: **one file per change** in `pending-changelog/`, instead of everyone editing a shared list. Two
-branches then never collide over the changelog, and a release can work out its own version.
+## When a change is done
 
-A change is not finished until it has an entry. Write it in the same commit as the change itself:
+1. **It has a changelog entry** if its commit is a `feat`, `fix` or `perf` (see below).
+2. **The checks pass:** `./gradlew checkChangelog :app:testDebugUnitTest :app:lintRelease`. CI runs
+   the same plus a release bundle, and a new lint error fails the branch.
+3. **It runs on the phone.** Compiling confirms nothing: install it and open the screen it touches.
+   ```sh
+   ./gradlew :app:installDebug && adb shell am start -n me.lesh.chatter.dev/me.lesh.chatter.MainActivity
+   ```
+
+## Changelog entries
+
+Every change a user can notice leaves one file in `pending-changelog/`, written in the same commit
+as the change, the way [Changesets](https://github.com/changesets/changesets) does it:
 
 ```text
 pending-changelog/nicknames-per-channel.txt
@@ -20,29 +30,19 @@ pending-changelog/nicknames-per-channel.txt
 minor: Let chatters be given a nickname in one channel only
 ```
 
-Pick the level by what the change does to someone using the app — `major:` takes something away,
+The level says what the change does to someone using the app: `major:` takes something away,
 `minor:` gives them something new, `patch:` fixes or polishes. A release moves the version by the
-largest level among the pending entries. `pending-changelog/README.md` has the full format.
+largest level among the pending entries.
 
-Write the line for the person who will read it in the app, not for whoever reviews the diff: what
-they can now do, one line, no trailing dot, under 120 characters. Run `./gradlew checkChangelog` and
-it will tell you if the line does not hold up.
-
-The commit type says whether a change needs one. `feat`, `fix` and `perf` do; `ref`, `docs`,
-`test`, `build`, `ci` and `chore` are for what nobody using the app can notice, and need none.
-
-## Never edit these by hand
-
-- `version.properties` — `./gradlew releaseVersion` writes it. Describe the change in
-  `pending-changelog/` and let the level decide the version.
-- `CHANGELOG.md` — the same release task writes it, folding in the pending entries. The app ships
-  this very file as an asset and shows it under Settings → About → Changelog, so its shape matters:
-  `## <version> — <date>` opens a release and `- <level>: <text>` is one entry.
+Write the line for the person who reads it in the app: what they can now do, one line, no trailing
+dot, under 120 characters. `./gradlew checkChangelog` says when a line does not hold up, and
+`pending-changelog/README.md` has the full format.
 
 ## Commit messages
 
 Every subject is `type(scope): what changed`, in the imperative, with no trailing dot and at most
-100 characters:
+100 characters. After the type it describes the change to the app — "move the block list into a
+page of its own", not "add blocklist page":
 
 ```text
 feat(chat): count down in the input while timed out
@@ -51,229 +51,108 @@ ref(irc): move tag parsing into its own class
 build!: move the app id and packages to me.lesh.chatter
 ```
 
-| Type | For |
-| --- | --- |
-| `feat` | something users can now do |
-| `fix` | something that was broken for users |
-| `perf` | faster, lighter on the battery or memory |
-| `ref` | code changed, behaviour kept |
-| `docs` | README, AGENTS.md, docs/, comments only |
-| `test` | tests only |
-| `build` | Gradle, dependencies, checksums, the app id |
-| `ci` | workflows and their scripts |
-| `chore` | anything else nobody using the app notices: releases, the supporter list |
-| `revert` | undoing an earlier commit |
+| Type | For | Changelog entry |
+| --- | --- | --- |
+| `feat` | something users can now do | yes |
+| `fix` | something that was broken for users | yes |
+| `perf` | faster, lighter on the battery or memory | yes |
+| `ref` | code changed, behaviour kept | no |
+| `docs` | README, AGENTS.md, docs/, comments only | no |
+| `test` | tests only | no |
+| `build` | Gradle, dependencies, checksums, the app id | no |
+| `ci` | workflows and their scripts | no |
+| `chore` | anything else nobody using the app notices: releases, the supporter list | no |
+| `revert` | undoing an earlier commit | no |
 
 The scope is optional and names the part of the app in lower case: `chat`, `irc`, `emotes`,
 `settings`, `notifications`, `release`, `deps`. A `!` before the colon marks a change that takes
-something away. CI checks every new commit on each push and pull request, and that a `feat`,
-`fix` or `perf` commit brings its file in `pending-changelog/`. Since master takes pushes directly,
-that check comes after the push: get the subject right before committing. Dependabot and the
-workflows that commit write the same form.
+something away. CI checks every subject, but master takes pushes directly, so that check comes
+after the push: get the subject right before committing.
 
-## CI does the releasing
+## Never edit these by hand
 
-`.github/workflows/ci.yml` runs on every push and pull request, in two stages. `Checks` needs no
-Gradle and is done in seconds: the Gradle wrapper, the commit messages and the workflow scripts.
-Then three jobs run side by side, each with one Gradle call: `checkChangelog` with the unit tests,
-Android lint on the release variant, and a release bundle it throws away. Lint and R8 get a job
-each because in one Gradle call they share the runner's cores and both take twice as long. A push that only
-touches Markdown or `docs/` skips the second stage and still counts as green. Lint is part of the
-gate, so a new lint error fails the branch — and so is the release bundle, because R8, the
-resource shrinker and resource linking only ever run there, and a release is a bad time to find
-out one of them is unhappy. Release builds skip lint's own cut-down check (`checkReleaseBuilds`),
-since CI runs the full one and a release only builds a commit CI passed.
+- `version.properties` — `./gradlew releaseVersion` writes it, from the pending entries.
+- `CHANGELOG.md` — the same task writes it. The app ships this file and shows it under Settings →
+  About → Changelog, so its shape matters: `## <version> — <date>` opens a release and
+  `- <level>: <text>` is one entry.
 
-`.github/workflows/codeql.yml` is the code scanning. It replaces GitHub's default setup, which
-built every variant and wrote 2.4 GB of cache per commit. It compiles only debug and release, and
-reads CI's dependency cache without writing one. Default setup must stay off (Settings → Code
-security), or GitHub refuses the results.
+## How Chatter behaves
 
-Every action in the workflows is named by a commit, not by a tag, with the version in a comment
-next to it. A tag can be moved by whoever controls the action, and the release job hands actions
-the upload key and the Play credentials. Dependabot (`.github/dependabot.yml`) opens a pull request
-when one of them has a new version; read what changed before merging it, and pin a new action the
-same way.
+- **It stays connected in the background.** Every joined channel keeps receiving everything while
+  the app is in the background, so it is all there on return. Battery work never parts channels,
+  pauses the connection or falls back to fetching recent messages; it saves on per-message work,
+  drawing and other wakeups instead. History is fetched on the first join and after a real
+  reconnect only.
+- **Fast, but small.** A cache on the phone is fine when it stays small and bounded, is deleted
+  with what it belongs to (a removed channel takes its files along), and shows up under Settings →
+  Storage. Say how big it gets when proposing one.
+- **Sheets, not dialogs.** Confirmations and questions are bottom sheets built on `FormSheet`, like
+  `ConfirmUnblockSheet`, never an `AlertDialog`.
+- **Wide screens show one chat.** On foldables, tablets and in landscape nothing opens beside the
+  chat by default; a second pane only appears when the user opens one. App-wide buttons such as
+  the inbox and settings sit at the top right.
+- **Short texts, with examples.** Write in short sentences and everyday words: "Show images from
+  links", not "Enable inline media rendering". A hint is one or two short sentences, an option
+  title a noun, and where a feature needs explaining a concrete example ("e.g. Write gg in xqc")
+  does it. A placeholder names what goes there (`<text>`), never a sample word like `test`.
+  Use a technical word only when no plain one fits, and a Twitch word only when people who use
+  Twitch know it (emote, mod, sub). The same goes for changelog lines, comments, commits and docs.
+- **The declarations follow the app.** When the app's network or storage behaviour changes,
+  `docs/privacy-policy.html` and `docs/play-store/data-safety.md` change with it; a stale one is a
+  policy violation.
 
-The build checks what it downloads. `gradle/wrapper/gradle-wrapper.properties` carries the
-checksum of the Gradle distribution, CI compares `gradle-wrapper.jar` with the ones Gradle
-publishes, and `gradle/verification-metadata.xml` holds the SHA-256 of every plugin and library.
-A new or updated dependency fails the build until its checksum is in there:
+### Switched off for now
 
-```sh
-./gradlew --write-verification-metadata sha256 build :app:bundleRelease :app:assembleMicrobenchmarkAndroidTest :baselineprofile:assemble
-```
+- **Asking for support**, until GitHub Sponsors is set up: `sponsoring` in `app/build.gradle.kts`
+  takes the settings category and its link out of every build. The supporter badge itself works:
+  `net/ChatterApi.kt` asks `api.lesh.me` for the supporters' Twitch ids (without the user's token,
+  so guests see them too) and for the badge picture. A new supporter goes into the API's database,
+  not into a release.
+- **Assistants**, because Gemini only calls the AppFunctions of apps in Google's preview:
+  `assistantAccess` in `app/build.gradle.kts` hides the switch under Settings → Labs. The functions
+  in `assistant/` are tested with `adb shell cmd app_function`. Turning it on is that line plus the
+  assistant sections of the privacy policy and `data-safety.md`, as commit 81a8da3 had them.
 
-Read what it adds before committing it — a checksum that changed for a version that did not is
-exactly what the file is there to catch. The release job builds without a Gradle cache from earlier
-runs, so nothing another run wrote ends up in a signed build.
-
-Dependabot does the same for the libraries and Gradle plugins in `gradle/libs.versions.toml`, once
-a week, grouped so that what is released together arrives together: Compose with its BOM, Kotlin
-with its plugins, the Android Gradle plugin, the other AndroidX libraries, and every other minor
-or patch update in one. Such a pull request would fail on the missing checksums, so
-`.github/workflows/dependabot-checksums.yml` runs the command above on it, adds the file and starts
-CI again. It only ever adds checksums: `.github/scripts/check-verification-metadata.py` reads
-both files and lets through nothing but a SHA-256 for an artifact that was not listed before. A
-changed or extra checksum, a removed entry or anything new in `<configuration>` stops it and leaves
-it to you; its rules are tested in `.github/scripts/test_check_verification_metadata.py`. It pushes to Dependabot's branch, after which Dependabot no longer rebases it on its own —
-comment `@dependabot recreate` to start the pull request over.
-
-The supporter badge comes from Chatter's own API on `api.lesh.me` (`net/ChatterApi.kt`):
-`/v2/chatter/supporters` lists the supporters' Twitch ids and is asked without the user's Twitch
-token, so guests see them too; `/v2/chatter/badges` serves the picture, one for light and one
-for dark themes. A new supporter goes into the API's database, not into a release. Asking
-people to support Chatter is still **switched off** until GitHub Sponsors is set up: `sponsoring`
-in `app/build.gradle.kts` takes the settings category and its link out of every build.
-
-Letting assistants into Chatter is **switched off** the same way: `assistantAccess` in
-`app/build.gradle.kts` hides its switch under Settings → Labs, because Gemini only calls
-the AppFunctions of apps in Google's preview. The functions in `assistant/` are built and tested
-with `adb shell cmd app_function`. Turning it on is that line plus the assistant sections of the
-privacy policy and `data-safety.md`, as commit 81a8da3 had them.
-
-`MessageCostBenchmark` in `app/src/androidTest` measures what one message costs on its way in —
-parsing, building, the mute list, the rules, the buffer — fed a busy channel's worth of made-up
-lines by `BusyChannel`. Run it on the connected phone before and after a change to `irc/` or
-`chat/`. It runs against the `microbenchmark` build type: the debug build, not debuggable (a
-debuggable app runs unoptimized and would measure nothing a user runs), with an application id of
-its own, because a connected test uninstalls what it tested afterwards.
-
-The screen tests in `app/src/androidTest/.../flows` run on the connected phone, not in CI: the real
-activity, recreated, must come back on the same screen and page. Run them after a change to the
-navigation or to what a screen keeps. They read as a guest without channels, so they need no login
-and no message arrives. They share the `microbenchmark` build with the benchmark, so both commands below name
-their package. What is written, sent and restored is tested on the JVM instead, through
-`Composer` and a sender the test controls (`ComposerFlowTest`); a new composer flow goes there.
-
-`.github/workflows/release.yml` is the release itself, started by hand from the Actions tab. Nobody
-picks a version there either — it runs `releaseVersion`, so the pending entries decide it. It then
-builds and signs both the APK and the Play bundle, pushes the release commit and the `v<version>`
-tag, and publishes a GitHub release carrying that version's changelog section, grouped by level
-in English, the APK, its SHA-256 and its R8 mapping. GitHub attests the APK and the bundle as built
-by that run, and the README lists the signing certificate's SHA-256; a new upload key means a new
-line there. Building and signing come before the push, so a failed one leaves the repository
-untouched, and `dry_run` does everything except push and publish — and is the only run allowed off
-`master`.
-
-It is five jobs: `preflight`, `build`, `sign`, `publish` and `play`. `play` uploads the bundle
-after the release is out; when Play refuses it, re-run that job alone instead of releasing again. The release does not test again:
-`preflight` asks for a green CI run of the newest commit that changed more than Markdown, `docs/`,
-`version.properties` and `pending-changelog/`. The release commit touches only those, and CI never
-runs for it: a push with the workflow token starts no workflow. Everything that could be wrong is checked before anything is built: every missing secret
-at once, that the keystore opens, holds the alias and that `KEY_PASSWORD` unlocks the key, that CI
-passed, that there is something to release, that the tag is free and that the versionCode is
-above the one the last tag released. `build` runs Gradle with `-Punsigned` and no key. `sign` is the only job with the signing
-secrets, and it runs no Gradle: `apksigner` and `jarsigner` from the runner's SDK sign what `build`
-made, so no plugin or library can ever reach the key. The `play_track` input uploads the bundle to
-that Play track; `none`, the default, uploads nowhere.
-
-`.github/workflows/nightly.yml` builds Chatter Nightly from master every night: the newest commit
-CI passed for that the last nightly did not have, checked the way the release checks it. A red or
-missing CI run on the newest commit only means an older one is built, and a run still going is
-waited for; with nothing green since the last nightly it builds nothing and stays green. Nightly is a release build made with
-`-Pnightly=<hash>`: its own app (`me.lesh.chatter.nightly`), signed with a key of its own in a job
-without Gradle, the way the release is, only on GitHub. Its versionCode is the number of commits on master, because Android refuses an update to a
-lower one; the hash is in the version name, `0.9.0-nightly+6d134cb`. There is one release, tagged
-`nightly`, which every run deletes and creates again on the new commit, as a pre-release so the
-update check never sees it. Release tags are `v*` for that reason; anything reading the last
-release asks for `--match 'v*'`. Starting it by hand builds even when master has not moved.
-
-`docs/play-store/` holds what the Play Console needs — the data safety answers, the foreground
-service justification and the listing text. It is in `.gitignore` and lives only on the
-maintainer's machine, so a fresh clone does not have it. When the app's network or storage
-behaviour changes, `docs/privacy-policy.html` and `docs/play-store/data-safety.md` change with it:
-they are declarations, and a stale one is a policy violation.
-
-What it reads from Settings → Secrets and variables → Actions. The four keystore secrets are not
-repository secrets: they live in the `release` and `nightly` environments (Settings → Environments),
-under the same names, each with its own key, and both environments only let `master` in.
-
-| Secret | What it is | Missing |
-| --- | --- | --- |
-| `TWITCH_CLIENT_ID` | what `local.properties` holds on a dev machine | the release stops, rather than ship an APK that cannot log in |
-| `KEYSTORE_BASE64` | the keystore of that environment, as `base64 -w0 chatter-release.jks` | the release stops; only a `dry_run` signs with a throwaway key instead |
-| `KEYSTORE_PASSWORD`, `KEY_ALIAS`, `KEY_PASSWORD` | how to open that keystore | same |
-| `PLAY_SERVICE_ACCOUNT_JSON` | the service account allowed to release to Play, as a repository secret | only needed for a `play_track` other than `none`, which stops without it |
-
-## The baseline profile
-
-The release carries two lists of what ART compiles ahead of time. `app/src/release/generated/` is
-what `./gradlew :app:generateReleaseBaselineProfile` records on the connected phone: the login
-screen of a fresh install, the start into the chat and a busy channel being read and scrolled.
-`app/src/main/baseline-prof.txt` is written by hand and names whole packages — the message path
-that runs all night in the background and the chat drawing — so it does not go stale when a method
-is renamed. A new hot package goes into the hand-written file.
-
-The journeys read a busy channel as a guest, so they need no Twitch login, and the phone's own
-Chatter is never touched: the builds the profile is recorded and measured on are an app of their
-own (`me.lesh.chatter.profiling`), and the only ones that can be told from outside to read a
-channel. `-Pandroid.testInstrumentationRunnerArguments.chatterChannel=<login>` picks another
-channel when the default is offline — a chat with nothing arriving profiles next to nothing.
-
-Generate it again before a release that changed what the start or the chat runs through: a new
-screen on the way, a new kind of message, a change to the list. Then run
-`./gradlew :baselineprofile:connectedBenchmarkReleaseAndroidTest` and put what `ChatBenchmark`
-says about the cold start and the chat frames, with the profile and without, into the commit.
-
-## Commands
-
-```sh
-./gradlew changelogStatus            # what is pending, and which version it would release
-./gradlew checkChangelog             # are the pending entries well formed?
-./gradlew releaseVersion             # fold them into CHANGELOG.md, bump the version, clear pending
-./gradlew :app:testDebugUnitTest     # unit tests
-./gradlew :app:installDebug          # build and install on the connected phone
-./gradlew devLogin                   # log the debug build in where Twitch's login page refuses, e.g. on an emulator
-./gradlew :app:connectedMicrobenchmarkAndroidTest -Pandroid.testInstrumentationRunnerArguments.package=me.lesh.chatter.benchmark   # what a message costs, on the connected phone
-./gradlew :app:connectedMicrobenchmarkAndroidTest -Pandroid.testInstrumentationRunnerArguments.package=me.lesh.chatter.flows       # the screen tests, on the connected phone
-./gradlew :app:generateReleaseBaselineProfile       # record the baseline profile on the connected phone
-./gradlew :baselineprofile:connectedBenchmarkReleaseAndroidTest   # what the profile is worth
-./gradlew :baselineprofile:connectedBenchmarkReleaseAndroidTest -Pandroid.testInstrumentationRunnerArguments.class=me.lesh.chatter.baselineprofile.PowerBenchmark   # what an open chat draws, per power rail; see docs/power.md
-```
-
-A change is not confirmed by compiling. Install it and open the screen it touches:
-
-```sh
-./gradlew :app:installDebug && adb shell am start -n me.lesh.chatter.dev/me.lesh.chatter.MainActivity
-```
-
-The debug build is an app of its own, `me.lesh.chatter.dev`, called Chatter Dev on the phone, so it
-sits next to the signed release (Chatter) and Nightly (Chatter Nightly) instead of replacing one.
-
-Screenshots for a pull request leave out the phone's status bar at the top: crop it off, unless
-someone asks for it. It shows the time, notifications and the battery, none of which belong in a
-review.
-
-## Conventions worth matching
+## Code conventions
 
 - **Both locales.** Every user-visible string lives in `app/src/main/res/values/strings.xml` *and*
-  `values-de/strings.xml`. Adding one and not the other leaves the app half-translated.
-- **Simple language.** Write everything in short sentences and everyday words: strings, hints,
-  changelog lines, comments, commit messages and docs. "Show images from links", not "Enable
-  inline media rendering". Use a technical word only when no plain one fits, and a Twitch word
-  only when people who use Twitch know it (emote, mod, sub).
-- **Names explain what.** Variables, functions and types are named so the code reads without a
-  comment: `unreadMentions`, `markChannelRead`, `retryMissing` rather than `count`, `update`,
-  `handle`. If a name needs a comment to say what it holds or does, rename it first; a comment is
-  for what no name can carry.
-- **Comments say why, not what.** The codebase explains the reason a thing is the way it is —
-  the Twitch quirk, the Compose limitation, the choice between two designs. KDoc goes on types and
-  on any function whose purpose is not obvious from its name.
-- **Comments are short.** One line where one does, three at most for a single point. No history
-  ("used to", "before this change") — that is what the commit message is for. No retelling of
-  the code below, no story of what would go wrong without it beyond the one fact that matters,
-  and no rhetorical flourish. A comment that only repeats a name is deleted, not shortened.
-- **A new setting touches four places:** the `Settings` data class, a key and setter in
-  `SettingsRepository`, a setter on `MainViewModel`, and a row on its page in `ui/settings/`
-  (plus a line in `SEARCH_INDEX` in `SettingsScreen`, so the search finds it).
+  `values-de/strings.xml`.
+- **Names explain what.** `unreadMentions`, `markChannelRead`, `retryMissing` rather than `count`,
+  `update`, `handle`. If a name needs a comment to say what it holds or does, rename it first.
+- **Comments say why, in a line or three.** The Twitch quirk, the Compose limitation, the choice
+  between two designs. No history ("used to", "before this change"), no retelling of the code
+  below. KDoc goes on types and on any function whose purpose is not obvious from its name.
+- **A new setting touches five places:** the `Settings` data class, a key and setter in
+  `SettingsRepository`, a setter on `MainViewModel`, a row on its page in `ui/settings/`, and a line
+  in `SEARCH_INDEX` in `SettingsScreen` so the search finds it.
 - **Log through `AppLog`, names only marked.** It feeds the log under Settings → Debug that users
-  put into bug reports, private or full, and the last 5,000 lines are stored on the phone. Use
-  `AppLog.v` for what happens many times a minute. A name goes in through `AppLog.channel`, `AppLog.user` or
+  put into bug reports, and the last 5,000 lines are stored on the phone. Use `AppLog.v` for what
+  happens many times a minute. A name goes in through `AppLog.channel`, `AppLog.user` or
   `AppLog.hidden`, so only the full log shows it; messages never go in. `LogPrivacy` cleans links,
   error pages and secrets from the private log, but cannot know a name.
 - **Parsing gets a test.** Anything that reads a format — IRC tags, 7TV events, the changelog —
-  belongs in `app/src/test/`, where the existing tests show the style.
-- **Commit subjects describe the change to the app** after their type, as
-  [Commit messages](#commit-messages) says: "feat(settings): move the block list into a page of
-  its own", not "feat(settings): add blocklist page".
+  gets a test in `app/src/test/`.
+
+## Phone, builds and screenshots
+
+```sh
+./gradlew changelogStatus            # what is pending, and which version it would release
+./gradlew releaseVersion             # fold the entries into CHANGELOG.md, bump the version, clear pending
+./gradlew devLogin                   # log the debug build in where Twitch's login page refuses, e.g. on an emulator
+```
+
+The debug build is an app of its own, `me.lesh.chatter.dev` (Chatter Dev), next to the release
+(`me.lesh.chatter`, Chatter) and Nightly (`me.lesh.chatter.nightly`, Chatter Nightly).
+
+A screenshot for a pull request or an issue shows the change and nothing else: no status bar,
+no other chatters, no messages, no channel names. The pull request text names no channels either.
+
+## Read more when
+
+- **changing `irc/` or `chat/`, the navigation, or what the start runs through** —
+  [docs/phone-tests.md](docs/phone-tests.md) has the benchmark, the screen tests and the baseline
+  profile to run.
+- **adding or updating a dependency, changing `.github/`, or releasing** —
+  [docs/ci-and-release.md](docs/ci-and-release.md); a new dependency fails the build until its
+  checksum is written.
+- **measuring battery** — [docs/power.md](docs/power.md).

@@ -46,7 +46,7 @@ jobs:
         with:
           cache-disabled: true
 
-      # The command from AGENTS.md. An update that breaks the build still gets its checksums, so CI
+      # The command from docs/ci-and-release.md. An update that breaks the build still gets its checksums, so CI
       # fails on the breakage and not on the file.
       - name: Write the checksums
         continue-on-error: true
