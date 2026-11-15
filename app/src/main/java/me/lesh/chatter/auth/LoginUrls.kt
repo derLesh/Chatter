@@ -32,6 +32,15 @@ object LoginUrls {
         }
     }
 
+    /** The `state` parameter of an authorize address, which Twitch's answer has to repeat. */
+    fun stateOf(authorizeUrl: String): String? {
+        val query = parse(authorizeUrl)?.rawQuery ?: return null
+        return query.split('&')
+            .firstOrNull { decode(it.substringBefore('=')) == "state" }
+            ?.let { decode(it.substringAfter('=', "")) }
+            ?.takeIf { it.isNotEmpty() }
+    }
+
     /**
      * Whether the login WebView may load [url]: https on Twitch hosts only. Everything else opens
      * in the browser, which shows the address.

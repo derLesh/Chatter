@@ -207,8 +207,8 @@ class AuthRepository(
 
     // ---- WebView login (implicit flow) -----------------------------------------------------
 
-    /** Expected `state` parameter of the running login, to reject forged redirects. */
-    private var pendingState: String? = null
+    /** `state` parameters already answered, so one answer cannot log in twice. */
+    private val answeredStates = mutableSetOf<String>()
 
     /**
      * [forceVerify] makes Twitch ask who is logging in even if its session already knows. Needed
@@ -217,7 +217,6 @@ class AuthRepository(
      */
     fun authorizeUrl(forceVerify: Boolean = false): String {
         val state = UUID.randomUUID().toString()
-        pendingState = state
         return "https://id.twitch.tv/oauth2/authorize".toUri().buildUpon()
             .appendQueryParameter("response_type", "token")
             .appendQueryParameter("client_id", BuildConfig.TWITCH_CLIENT_ID)
@@ -229,17 +228,21 @@ class AuthRepository(
     }
 
     /**
-     * Handles the redirect `http://localhost#access_token=...&state=...`. Returns null if [url] is
-     * not our redirect, otherwise whether the login succeeded.
+     * Handles the redirect `http://localhost#access_token=...&state=...` for the login page that
+     * opened [authorizeUrl]. Returns null if [url] is not our redirect, otherwise whether the login
+     * succeeded.
+     *
+     * The state is read from [authorizeUrl], not kept here: the screen saves that address, and
+     * Android may end the app while the user fetches Twitch's code from their mail.
      */
-    suspend fun handleRedirect(url: String): Result<Unit>? {
+    suspend fun handleRedirect(url: String, authorizeUrl: String): Result<Unit>? {
         if (!LoginUrls.isRedirect(url)) return null
-        // A state is valid for one answer, and only while a login is running.
-        val expected = pendingState
-        pendingState = null
+        val expected = LoginUrls.stateOf(authorizeUrl)
         val params = LoginUrls.answer(url)
         params["error"]?.let { return Result.failure(IllegalStateException(params["error_description"] ?: it)) }
-        if (expected == null || params["state"] != expected) return Result.failure(IllegalStateException("State mismatch"))
+        val state = params["state"]
+        val fresh = synchronized(answeredStates) { state != null && state == expected && answeredStates.add(state) }
+        if (!fresh) return Result.failure(IllegalStateException("State mismatch"))
         val token = params["access_token"] ?: return Result.failure(IllegalStateException("No token"))
         return addToken(token)
     }

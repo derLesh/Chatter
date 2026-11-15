@@ -101,7 +101,7 @@ fun LoginScreen(vm: MainViewModel) {
         )
         LoginWebView(url, Modifier.fillMaxSize().safeDrawingPadding()) { redirect ->
             scope.launch {
-                val result = vm.handleRedirect(redirect) ?: return@launch
+                val result = vm.handleRedirect(redirect, url) ?: return@launch
                 webLoginUrl = null
                 webError = result.exceptionOrNull()?.let { it.message ?: it.toString() }
             }

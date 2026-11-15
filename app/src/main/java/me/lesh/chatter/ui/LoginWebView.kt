@@ -47,10 +47,15 @@ fun LoginWebView(url: String, modifier: Modifier, signedOut: Boolean = false, on
                     clearCache(true)
                     clearFormData()
                     webViewClient = object : WebViewClient() {
+                        // Twitch's page can navigate to the redirect twice; the second would fail
+                        // the login the first just finished.
+                        private var answered = false
+
                         override fun shouldOverrideUrlLoading(view: WebView, request: WebResourceRequest): Boolean {
                             val target = request.url.toString()
                             if (LoginUrls.isRedirect(target)) {
-                                onRedirect(target)
+                                if (!answered) onRedirect(target)
+                                answered = true
                                 return true
                             }
                             // Frames inside the page (e.g. the captcha) belong to it.
