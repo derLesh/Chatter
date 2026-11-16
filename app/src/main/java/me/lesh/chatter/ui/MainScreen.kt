@@ -219,8 +219,7 @@ fun MainScreen(vm: MainViewModel, onInbox: () -> Unit, onSettings: () -> Unit) {
     val focusManager = LocalFocusManager.current
     LaunchedEffect(resources, settings.haptics) {
         vm.messages.collect { message ->
-            // Everything in the snackbar is a failure.
-            if (settings.haptics) haptics.performHapticFeedback(HapticFeedbackType.Reject)
+            if (settings.haptics && message.failure) haptics.performHapticFeedback(HapticFeedbackType.Reject)
             val text = message.fill
                 ?.let { resources.getString(message.text, it) }
                 ?: resources.getString(message.text)

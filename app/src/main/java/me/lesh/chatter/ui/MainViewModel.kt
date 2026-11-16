@@ -66,7 +66,10 @@ import me.lesh.chatter.emotes.EmoteOwner
 import me.lesh.chatter.emotes.EmoteProvider
 import me.lesh.chatter.emotes.HiddenEmote
 import me.lesh.chatter.emotes.HiddenEmotes
-import me.lesh.chatter.emotes.EmoteAddOutcome
+import me.lesh.chatter.emotes.EmoteAccess
+import me.lesh.chatter.emotes.EmoteEditOutcome
+import me.lesh.chatter.emotes.EmoteSetChoice
+import me.lesh.chatter.ui.chat.EmoteEditing
 import me.lesh.chatter.emotes.EmoteButton
 import me.lesh.chatter.auth.SevenTvLogin
 import me.lesh.chatter.net.SevenTvLoginStart
@@ -117,18 +120,56 @@ import me.lesh.chatter.util.shownVersion
 
 /**
  * A snackbar message: a string resource and its argument. Resolved on screen, so a message that is
- * up follows a language change.
+ * up follows a language change. [failure]: buzzes like an error; a change that worked does not.
  */
-data class UiMessage(val text: Int, val fill: String? = null)
+data class UiMessage(val text: Int, val fill: String? = null, val failure: Boolean = true)
 
 /**
- * A 7TV emote to add once the 7TV login is done: to [channel]'s emotes, or to [sourceRoomId]'s for
- * a Shared Chat message. [account] is the Twitch account it was tapped for.
+ * A change to a channel's 7TV emotes, made again once the 7TV login is done if it needed one.
+ * [account] is the Twitch account it was tapped for; [name] is the emote's name in the channel.
  */
-data class PendingEmote(val channel: String, val sourceRoomId: String?, val emoteId: String, val name: String, val account: String?)
+sealed interface PendingEmoteEdit {
+    val channel: String
+    val emoteId: String
+    val name: String
+    val account: String?
 
-/** 7TV's login page, opened for the Twitch account [account]; [then] is added once it is done. */
-data class SevenTvLoginPage(val start: SevenTvLoginStart, val account: String, val then: PendingEmote?)
+    /**
+     * To [set], or to the channel's active set for null: [channel]'s, or [sourceRoomId]'s for a
+     * Shared Chat message. [quiet]: from a linked emote's card, whose button shows it got added.
+     */
+    data class Add(
+        override val channel: String,
+        val sourceRoomId: String?,
+        val set: EmoteSetChoice?,
+        override val emoteId: String,
+        override val name: String,
+        override val account: String?,
+        val quiet: Boolean,
+    ) : PendingEmoteEdit
+
+    /** In [setId], the channel's active set when the card asked. */
+    data class Rename(
+        override val channel: String,
+        val setId: String,
+        override val emoteId: String,
+        override val name: String,
+        val newName: String,
+        override val account: String?,
+    ) : PendingEmoteEdit
+
+    /** Out of [setId], the channel's active set when the card asked. */
+    data class Remove(
+        override val channel: String,
+        val setId: String,
+        override val emoteId: String,
+        override val name: String,
+        override val account: String?,
+    ) : PendingEmoteEdit
+}
+
+/** 7TV's login page, opened for the Twitch account [account]; [then] is made once it is done. */
+data class SevenTvLoginPage(val start: SevenTvLoginStart, val account: String, val then: PendingEmoteEdit?)
 
 /** A message to scroll to: [id] in [channel]'s chat. */
 data class MessageJump(val channel: String, val id: String)
@@ -267,40 +308,97 @@ class MainViewModel(private val c: AppContainer, savedState: SavedStateHandle) :
     val staticImageLoader get() = c.staticImageLoader
     val posts get() = c.posts
 
-    // ---- Adding 7TV emotes from their cards ---------------------------------------------------
+    // ---- Changing 7TV emotes from their cards --------------------------------------------------
 
-    private val _askSevenTvLogin = MutableStateFlow<PendingEmote?>(null)
-    /** The emote whose add button needs the 7TV login, while the sheet asking for it is up. */
-    val askSevenTvLogin: StateFlow<PendingEmote?> = _askSevenTvLogin
+    private val _askSevenTvLogin = MutableStateFlow<PendingEmoteEdit?>(null)
+    /** The change that needs the 7TV login, while the sheet asking for it is up. */
+    val askSevenTvLogin: StateFlow<PendingEmoteEdit?> = _askSevenTvLogin
     private val _sevenTvLogin = MutableStateFlow<SevenTvLoginPage?>(null)
     /** 7TV's login page while it is open. */
     val sevenTvLogin: StateFlow<SevenTvLoginPage?> = _sevenTvLogin
     val sevenTvLoggedIn: StateFlow<Boolean> get() = c.sevenTvEditing.loggedIn
     private var sevenTvLoginStarting: Job? = null
-    private val emoteAddRevision = MutableStateFlow(0)
+    private val emoteChanges = MutableStateFlow(0)
     private val activeAccountId: StateFlow<String?> = c.auth.state
         .map { (it as? AuthState.LoggedIn)?.account?.userId }
         .stateIn(viewModelScope, SharingStarted.Eagerly, null)
 
+    // A change or login here, another account, or 7TV's live update of any channel's emotes.
+    private val emoteEditRevision: Flow<Any> = combine(emoteChanges, activeAccountId, c.emotes.version) { added, account, emotes ->
+        Triple(added, account, emotes)
+    }
+
     val emoteAdding: EmoteAdding = object : EmoteAdding {
-        // An add or login here, another account, or 7TV's live update of any channel's emotes.
-        override val revision: Flow<Any> = combine(emoteAddRevision, activeAccountId, c.emotes.arrived) { added, account, emotes ->
-            Triple(added, account, emotes)
-        }
+        override val revision: Flow<Any> = emoteEditRevision
 
         override suspend fun button(channel: String, sourceRoomId: String?, emoteId: String): EmoteButton =
             c.sevenTvEditing.button(channel, sourceRoomId, emoteId)
 
         override suspend fun add(channel: String, sourceRoomId: String?, emoteId: String, name: String) =
-            addSevenTvEmote(PendingEmote(channel, sourceRoomId, emoteId, name, activeAccountId.value))
+            editSevenTvEmote(PendingEmoteEdit.Add(channel, sourceRoomId, null, emoteId, name, activeAccountId.value, quiet = true))
     }
 
-    private suspend fun addSevenTvEmote(emote: PendingEmote) {
-        when (c.sevenTvEditing.add(emote.channel, emote.sourceRoomId, emote.emoteId, emote.name, emote.account)) {
-            EmoteAddOutcome.Added -> emoteAddRevision.update { it + 1 }
-            EmoteAddOutcome.NameTaken -> _messages.send(UiMessage(R.string.seventv_name_taken, emote.name))
-            EmoteAddOutcome.Failed -> _messages.send(UiMessage(R.string.seventv_add_failed, emote.name))
-            EmoteAddOutcome.NeedsLogin -> _askSevenTvLogin.value = emote
+    /** The emote card's changes run here rather than on the card, which closes as they start. */
+    val emoteEditing: EmoteEditing = object : EmoteEditing {
+        override val revision: Flow<Any> = emoteEditRevision
+
+        override suspend fun access(channel: String, emoteId: String, shownName: String, fresh: Boolean): EmoteAccess? =
+            c.sevenTvEditing.access(channel, emoteId, shownName, fresh)
+
+        override suspend fun sets(channel: String, emoteId: String, name: String): List<EmoteSetChoice>? =
+            c.sevenTvEditing.sets(channel, emoteId, name)
+
+        override fun add(channel: String, set: EmoteSetChoice?, emoteId: String, name: String) {
+            viewModelScope.launch { editSevenTvEmote(PendingEmoteEdit.Add(channel, null, set, emoteId, name, activeAccountId.value, quiet = false)) }
+        }
+
+        override fun rename(channel: String, setId: String, emoteId: String, name: String, newName: String) {
+            viewModelScope.launch { editSevenTvEmote(PendingEmoteEdit.Rename(channel, setId, emoteId, name, newName, activeAccountId.value)) }
+        }
+
+        override fun remove(channel: String, setId: String, emoteId: String, name: String) {
+            viewModelScope.launch { editSevenTvEmote(PendingEmoteEdit.Remove(channel, setId, emoteId, name, activeAccountId.value)) }
+        }
+    }
+
+    private suspend fun editSevenTvEmote(edit: PendingEmoteEdit) {
+        val editing = c.sevenTvEditing
+        val outcome = when (edit) {
+            is PendingEmoteEdit.Add ->
+                editing.add(edit.channel, edit.sourceRoomId, edit.set?.id, edit.set?.active == true, edit.emoteId, edit.name, edit.account)
+            is PendingEmoteEdit.Rename -> editing.rename(edit.channel, edit.setId, edit.emoteId, edit.name, edit.newName, edit.account)
+            is PendingEmoteEdit.Remove -> editing.remove(edit.channel, edit.setId, edit.emoteId, edit.name, edit.account)
+        }
+        when (outcome) {
+            EmoteEditOutcome.Done -> {
+                emoteChanges.update { it + 1 }
+                val done = when (edit) {
+                    is PendingEmoteEdit.Add -> when {
+                        edit.quiet -> null
+                        edit.set != null && !edit.set.active -> UiMessage(R.string.seventv_added_to_set, edit.set.name, failure = false)
+                        else -> UiMessage(R.string.seventv_added_to_channel, edit.name, failure = false)
+                    }
+                    is PendingEmoteEdit.Rename -> UiMessage(R.string.seventv_renamed_to, edit.newName, failure = false)
+                    is PendingEmoteEdit.Remove -> UiMessage(R.string.seventv_removed_from_channel, edit.name, failure = false)
+                }
+                done?.let { _messages.send(it) }
+            }
+            EmoteEditOutcome.NameTaken -> _messages.send(
+                when (edit) {
+                    is PendingEmoteEdit.Rename -> UiMessage(R.string.seventv_name_taken, edit.newName)
+                    is PendingEmoteEdit.Add if edit.set != null && !edit.set.active -> UiMessage(R.string.seventv_name_taken_in_set, edit.set.name)
+                    else -> UiMessage(R.string.seventv_name_taken, edit.name)
+                },
+            )
+            EmoteEditOutcome.Failed -> _messages.send(
+                when (edit) {
+                    is PendingEmoteEdit.Add -> UiMessage(R.string.seventv_add_failed, edit.name)
+                    is PendingEmoteEdit.Rename -> UiMessage(R.string.seventv_rename_failed, edit.name)
+                    is PendingEmoteEdit.Remove -> UiMessage(R.string.seventv_remove_failed, edit.name)
+                },
+            )
+            EmoteEditOutcome.SetSwitched -> _messages.send(UiMessage(R.string.seventv_set_switched))
+            EmoteEditOutcome.NeedsLogin -> _askSevenTvLogin.value = edit
         }
     }
 
@@ -309,10 +407,10 @@ class MainViewModel(private val c: AppContainer, savedState: SavedStateHandle) :
     }
 
     /**
-     * Opens 7TV's login page for the active account; [then] is added once it is done. A second tap
+     * Opens 7TV's login page for the active account; [then] is made once it is done. A second tap
      * while one is starting or open does nothing, so the page and its verifier stay one pair.
      */
-    fun openSevenTvLogin(then: PendingEmote? = null) {
+    fun openSevenTvLogin(then: PendingEmoteEdit? = null) {
         _askSevenTvLogin.value = null
         val account = activeAccountId.value ?: return
         if (_sevenTvLogin.value != null || sevenTvLoginStarting?.isActive == true) return
@@ -337,8 +435,8 @@ class MainViewModel(private val c: AppContainer, savedState: SavedStateHandle) :
                 _messages.send(UiMessage(R.string.seventv_login_failed))
                 return@launch
             }
-            emoteAddRevision.update { it + 1 }
-            page.then?.takeIf { it.account == page.account }?.let { addSevenTvEmote(it) }
+            emoteChanges.update { it + 1 }
+            page.then?.takeIf { it.account == page.account }?.let { editSevenTvEmote(it) }
         }
     }
 

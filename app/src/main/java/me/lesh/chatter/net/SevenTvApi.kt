@@ -66,28 +66,56 @@ private data class ChannelData(val users: ChannelUsers? = null)
 @Serializable
 private data class ChannelUsers(val userByConnection: SevenTvChannel? = null)
 
+/**
+ * An emote set a channel owns. [kind] is "NORMAL" for the sets a channel switches between, else
+ * "PERSONAL", "GLOBAL" or "SPECIAL". [emotes] holds only those found by the name asked for.
+ */
+@Serializable
+data class SevenTvOwnedSet(
+    val id: String = "",
+    val name: String = "",
+    val kind: String = "",
+    val emotes: SevenTvSetEmotes = SevenTvSetEmotes(),
+)
+
+@Serializable
+data class SevenTvSetEmotes(val items: List<SevenTvSetEmote> = emptyList())
+
+/** [id] is the emote's, [alias] the name it has in the set. */
+@Serializable
+data class SevenTvSetEmote(val id: String = "", val alias: String = "")
+
+@Serializable
+private data class SetsData(val users: SetsUsers? = null)
+
+@Serializable
+private data class SetsUsers(val userByConnection: SetsOwner? = null)
+
+@Serializable
+private data class SetsOwner(val ownedEmoteSets: List<SevenTvOwnedSet> = emptyList())
+
 /** The first step of 7TV's login: the Twitch page to open, and the cookie [SevenTvApi.finishLogin] must send back. */
 class SevenTvLoginStart(val authorizeUrl: String, val verifier: String) {
     override fun toString() = "SevenTvLoginStart(‹redacted›)"
 }
 
-/** How adding an emote to a set went. */
-sealed interface SevenTvAddResult {
-    data object Added : SevenTvAddResult
+/** How adding, renaming or removing an emote in a set went. */
+sealed interface SevenTvEditResult {
+    data object Done : SevenTvEditResult
 
     /** The set has an emote of that name already. */
-    data object NameTaken : SevenTvAddResult
+    data object NameTaken : SevenTvEditResult
 
     /** The login is no longer valid. */
-    data object LoggedOut : SevenTvAddResult
+    data object LoggedOut : SevenTvEditResult
 
     /** 7TV said no; [message] is its own words, in English. */
-    data class Refused(val message: String) : SevenTvAddResult
+    data class Refused(val message: String) : SevenTvEditResult
 }
 
 /**
  * 7TV's API for what needs more than the emote lists in [ThirdPartyApi]: an emote of its own, who
- * may edit a channel's emotes, the login, and adding an emote to a set.
+ * may edit a channel's emotes, the login, and changing the emotes of a set.
  */
 class SevenTvApi(private val http: OkHttpClient) {
     /** OkHttp would follow the login's redirect to Twitch; the app opens that in the WebView instead. */
@@ -133,15 +161,45 @@ class SevenTvApi(private val http: OkHttpClient) {
     suspend fun me(token: String): String? = SevenTvAnswers.me(gql(token, "query Me { users { me { id } } }", JsonObject(emptyMap())))
 
     /** Adds the emote [emoteId] to the set [setId] under [alias]. */
-    suspend fun addEmote(token: String, setId: String, emoteId: String, alias: String): SevenTvAddResult {
+    suspend fun addEmote(token: String, setId: String, emoteId: String, alias: String): SevenTvEditResult =
+        SevenTvAnswers.editResult(gql(token, ADD_EMOTE, setEmote(setId, emoteId, alias)))
+
+    /**
+     * The emote sets the 7TV account of the Twitch channel [channelId] owns, each with its emotes
+     * whose name contains [search]. Public like [channel]; null if the channel has no 7TV account.
+     */
+    suspend fun ownedSets(channelId: String, search: String): List<SevenTvOwnedSet>? {
+        val variables = buildJsonObject {
+            put("id", channelId)
+            put("search", search)
+        }
+        return SevenTvAnswers.ownedSets(gql(null, OWNED_SETS, variables))
+    }
+
+    /** Takes the emote [emoteId], named [alias] there, out of the set [setId]. */
+    suspend fun removeEmote(token: String, setId: String, emoteId: String, alias: String): SevenTvEditResult =
+        SevenTvAnswers.editResult(gql(token, REMOVE_EMOTE, setEmote(setId, emoteId, alias)))
+
+    /** Renames the emote [emoteId] in the set [setId] from [alias] to [newAlias]. */
+    suspend fun renameEmote(token: String, setId: String, emoteId: String, alias: String, newAlias: String): SevenTvEditResult {
         val variables = buildJsonObject {
             put("setId", setId)
             putJsonObject("emote") {
                 put("emoteId", emoteId)
                 put("alias", alias)
             }
+            put("alias", newAlias)
         }
-        return SevenTvAnswers.addResult(gql(token, ADD_EMOTE, variables))
+        return SevenTvAnswers.editResult(gql(token, RENAME_EMOTE, variables))
+    }
+
+    /** A set can hold the same emote under several names, so 7TV names one by both. */
+    private fun setEmote(setId: String, emoteId: String, alias: String) = buildJsonObject {
+        put("setId", setId)
+        putJsonObject("emote") {
+            put("emoteId", emoteId)
+            put("alias", alias)
+        }
     }
 
     private suspend fun gql(token: String?, query: String, variables: JsonObject): GqlAnswer {
@@ -173,6 +231,32 @@ class SevenTvApi(private val http: OkHttpClient) {
                   editors { editorId state permissions { emoteSet { manage } } editor { connections { platform platformId } } }
                 }
               }
+            }
+        """.trimIndent()
+
+        /**
+         * 7TV's search finds the text anywhere in the name an emote has in the set, so the caller
+         * matches by id; a short name like L matches most of a set, hence a page as large as a set.
+         */
+        val OWNED_SETS = """
+            query OwnedSets(${'$'}id: String!, ${'$'}search: String!) {
+              users {
+                userByConnection(platform: TWITCH, platformId: ${'$'}id) {
+                  ownedEmoteSets { id name kind emotes(query: ${'$'}search, page: 1, perPage: 1000) { items { id alias } } }
+                }
+              }
+            }
+        """.trimIndent()
+
+        val REMOVE_EMOTE = """
+            mutation RemoveEmote(${'$'}setId: Id!, ${'$'}emote: EmoteSetEmoteId!) {
+              emoteSets { emoteSet(id: ${'$'}setId) { removeEmote(id: ${'$'}emote) { id } } }
+            }
+        """.trimIndent()
+
+        val RENAME_EMOTE = """
+            mutation RenameEmote(${'$'}setId: Id!, ${'$'}emote: EmoteSetEmoteId!, ${'$'}alias: String!) {
+              emoteSets { emoteSet(id: ${'$'}setId) { updateEmoteAlias(id: ${'$'}emote, alias: ${'$'}alias) { id } } }
             }
         """.trimIndent()
 
@@ -214,17 +298,24 @@ internal object SevenTvAnswers {
         return AppJson.decodeFromJsonElement(ChannelData.serializer(), data).users?.userByConnection
     }
 
+    /** Throws on an error, like [channel]. */
+    fun ownedSets(answer: GqlAnswer): List<SevenTvOwnedSet>? {
+        answer.errors.firstOrNull()?.let { throw HttpException(it.status ?: 200, it.message) }
+        val data = answer.data ?: return null
+        return AppJson.decodeFromJsonElement(SetsData.serializer(), data).users?.userByConnection?.ownedEmoteSets
+    }
+
     fun me(answer: GqlAnswer): String? =
         ((answer.data as? JsonObject)?.get("users") as? JsonObject)?.get("me")?.let { me ->
             (me as? JsonObject)?.get("id")?.jsonPrimitive?.contentOrNull
         }
 
-    fun addResult(answer: GqlAnswer): SevenTvAddResult {
-        val error = answer.errors.firstOrNull() ?: return SevenTvAddResult.Added
+    fun editResult(answer: GqlAnswer): SevenTvEditResult {
+        val error = answer.errors.firstOrNull() ?: return SevenTvEditResult.Done
         return when (error.status) {
-            401 -> SevenTvAddResult.LoggedOut
-            409 -> SevenTvAddResult.NameTaken
-            else -> SevenTvAddResult.Refused(error.message)
+            401 -> SevenTvEditResult.LoggedOut
+            409 -> SevenTvEditResult.NameTaken
+            else -> SevenTvEditResult.Refused(error.message)
         }
     }
 

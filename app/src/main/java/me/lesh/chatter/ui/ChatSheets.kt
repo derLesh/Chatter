@@ -180,6 +180,7 @@ fun ChatSheets(
             onInsert = { vm.insertEmote(it) },
             onHide = vm::hideEmote,
             onDismiss = { sheets.emoteCard = null },
+            editing = vm.emoteEditing,
         )
     }
     if (sheets.showPicker) {
