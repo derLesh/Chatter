@@ -46,6 +46,7 @@ import me.lesh.chatter.ui.sendLater
 import me.lesh.chatter.ui.channels.ChannelAvatar
 import me.lesh.chatter.ui.chat.ChannelMark
 import me.lesh.chatter.ui.chat.ChatList
+import me.lesh.chatter.ui.chat.LocalLinkTabShowing
 import me.lesh.chatter.ui.chat.EmoteCardSheet
 import me.lesh.chatter.ui.chat.EmoteTap
 import me.lesh.chatter.ui.chat.EmotePickerSheet
@@ -129,7 +130,7 @@ fun BubbleScreen(vm: MainViewModel, channel: String?) {
             HorizontalDivider()
 
             // The input floats over the chat, like in the app.
-            val floatingInput = !settings.readOnly
+            val floatingInput = !settings.readOnly && !LocalLinkTabShowing.current
             var floatingInputHeight by remember { mutableIntStateOf(0) }
             val density = LocalDensity.current
             val input = @Composable { modifier: Modifier ->

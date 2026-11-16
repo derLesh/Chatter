@@ -16,6 +16,7 @@ import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.compositionLocalOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -68,7 +69,7 @@ fun LinkGuard(settings: Settings, content: @Composable () -> Unit) {
     val coveredBottom by animateDpAsState(with(density) { sheet?.top?.let { (window.height - it).coerceAtLeast(0) }?.toDp() ?: 0.dp })
     val coveredEnd by animateDpAsState(with(density) { sheet?.left?.let { (window.width - it).coerceAtLeast(0) }?.toDp() ?: 0.dp })
     val covered = PaddingValues(bottom = coveredBottom, end = coveredEnd)
-    CompositionLocalProvider(LocalUriHandler provides guard) {
+    CompositionLocalProvider(LocalUriHandler provides guard, LocalLinkTabShowing provides tabs.showing) {
         // The sheet already covers the navigation bar, so what is under it counts as its insets.
         Box(Modifier.fillMaxSize().padding(covered).consumeWindowInsets(covered)) { content() }
     }
@@ -101,6 +102,12 @@ fun LinkGuard(settings: Settings, content: @Composable () -> Unit) {
         )
     }
 }
+
+/**
+ * True while a link's tab shows over the app. The chat behind it takes no taps, so screens hide
+ * their input meanwhile.
+ */
+val LocalLinkTabShowing = compositionLocalOf { false }
 
 /**
  * Keeps the navigation bar's inset while [active]. Grabbing a link's sheet takes it away for a
