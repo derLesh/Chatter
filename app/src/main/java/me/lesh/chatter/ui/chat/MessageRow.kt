@@ -17,13 +17,16 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.sizeIn
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.InlineTextContent
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -60,12 +63,14 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.text.withLink
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.em
 import androidx.compose.ui.unit.sp
 import coil3.ImageLoader
 import coil3.compose.AsyncImage
+import kotlinx.coroutines.delay
 import me.lesh.chatter.R
 import me.lesh.chatter.badges.Badge
 import me.lesh.chatter.badges.NamePaint
@@ -100,6 +105,11 @@ private val IMAGE_MAX_HEIGHT = 180.dp
 private val IMAGE_SHARED_MAX_WIDTH = 150.dp
 private val IMAGE_SHARED_MAX_HEIGHT = 130.dp
 private val IMAGE_GAP = 4.dp
+/**
+ * How long a linked image may take before its link and a spinner stand in for it. Pictures from
+ * the cache arrive well within it, so scrolling back does not flash the link.
+ */
+private const val IMAGE_LOADING_HINT_DELAY_MS = 300L
 
 /**
  * How a message was touched; the screen decides what each does. [Thread] is a tap on the reply
@@ -358,11 +368,18 @@ private fun PaintedLine(
 /**
  * A linked image or GIF shown in place of its URL. Tapping shows it full screen in [LocalImageViewer],
  * or opens the link where there is none. The link is also the fallback when the image fails to load,
- * written as [title] if there is one. [alone]: the only picture in the message, which may use more width.
+ * written as [title] if there is one, and stands in with a spinner while a slow image loads.
+ * [alone]: the only picture in the message, which may use more width.
  */
 @Composable
 private fun LinkedImage(url: String, style: ChatStyle, loader: ImageLoader, alone: Boolean, title: String? = null) {
     var failed by remember(url) { mutableStateOf(false) }
+    var loaded by remember(url) { mutableStateOf(false) }
+    var slow by remember(url) { mutableStateOf(false) }
+    LaunchedEffect(url) {
+        delay(IMAGE_LOADING_HINT_DELAY_MS)
+        slow = true
+    }
     if (failed) {
         Text(
             text = remember(url, title, style.linkColor) { linkText(url, style, title) },
@@ -376,24 +393,49 @@ private fun LinkedImage(url: String, style: ChatStyle, loader: ImageLoader, alon
     val origin = remember(url) { ImageOrigin() }
     // A recycled row is attached again for another message; the viewer must not shrink into it.
     DisposableEffect(origin) { onDispose { origin.coordinates = null } }
-    AsyncImage(
-        model = url,
-        contentDescription = title?.removeSurrounding("[", "]") ?: stringResource(R.string.linked_image),
-        imageLoader = loader,
-        contentScale = ContentScale.Fit,
-        alignment = Alignment.TopStart,
-        onSuccess = { origin.image = it.result.image },
-        onError = { failed = true },
-        modifier = Modifier
-            .sizeIn(
-                maxWidth = if (alone) IMAGE_MAX_WIDTH else IMAGE_SHARED_MAX_WIDTH,
-                maxHeight = if (alone) IMAGE_MAX_HEIGHT else IMAGE_SHARED_MAX_HEIGHT,
-            )
-            .onPlaced { origin.coordinates = it }
-            .graphicsLayer { alpha = if (viewer?.covers(origin) == true) 0f else 1f }
-            .clip(RoundedCornerShape(LINKED_IMAGE_CORNER))
-            .clickable { viewer?.show(url, title, origin) ?: uriHandler.openUri(url) },
-    )
+    val maxWidth = if (alone) IMAGE_MAX_WIDTH else IMAGE_SHARED_MAX_WIDTH
+    // Until it has loaded the image takes no room, so only the link drawn over it shows.
+    Box {
+        AsyncImage(
+            model = url,
+            contentDescription = title?.removeSurrounding("[", "]") ?: stringResource(R.string.linked_image),
+            imageLoader = loader,
+            contentScale = ContentScale.Fit,
+            alignment = Alignment.TopStart,
+            onSuccess = {
+                origin.image = it.result.image
+                loaded = true
+            },
+            onError = { failed = true },
+            modifier = Modifier
+                .sizeIn(maxWidth = maxWidth, maxHeight = if (alone) IMAGE_MAX_HEIGHT else IMAGE_SHARED_MAX_HEIGHT)
+                .onPlaced { origin.coordinates = it }
+                .graphicsLayer { alpha = if (viewer?.covers(origin) == true) 0f else 1f }
+                .clip(RoundedCornerShape(LINKED_IMAGE_CORNER))
+                .clickable { viewer?.show(url, title, origin) ?: uriHandler.openUri(url) },
+        )
+        if (slow && !loaded) LoadingLink(url, title, style, maxWidth)
+    }
+}
+
+/** The link of an image that is still loading, after a spinner and cut to [maxWidth]. */
+@Composable
+private fun LoadingLink(url: String, title: String?, style: ChatStyle, maxWidth: Dp) {
+    val spinnerSize = with(LocalDensity.current) { style.fontSize.sp.toDp() }
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(6.dp),
+        modifier = Modifier.widthIn(max = maxWidth),
+    ) {
+        CircularProgressIndicator(strokeWidth = 2.dp, modifier = Modifier.size(spinnerSize))
+        Text(
+            text = remember(url, title, style.linkColor) { linkText(url, style, title) },
+            fontSize = style.fontSize.sp,
+            lineHeight = style.lineHeight,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+        )
+    }
 }
 
 /** [url] as a link in the chat, for a picture or post that could not be shown. */
