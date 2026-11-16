@@ -128,9 +128,9 @@ class EmoteRepository(
         return result.values.toList()
     }
 
-    /** Whether the 7TV emote [emoteId] is in the emote set loaded for [channelId], under any name. */
-    fun hasSevenTvEmote(channelId: String, emoteId: String): Boolean =
-        channels[channelId]?.sevenTv?.values?.any { it.id == emoteId } == true
+    /** The names the 7TV emote [emoteId] has in the emote set loaded for [channelId]; empty if it is not in it. */
+    fun sevenTvNames(channelId: String, emoteId: String): List<String> =
+        channels[channelId]?.sevenTv?.values?.filter { it.id == emoteId }?.map { it.name }.orEmpty()
 
     /** Every emote held in memory, counted once per channel it is loaded for. */
     fun loadedCount(): Int =

@@ -239,7 +239,7 @@ class AppContainer(
     val sevenTvEditing = SevenTvEditing(
         context.authStore, sevenTvApi, activeUserId,
         channelId = { chat.rooms.id(it) },
-        hasEmote = emotes::hasSevenTvEmote,
+        loadedNames = emotes::sevenTvNames,
         scope = scope,
     )
     val rules = RuleRepository(context.ruleStore, scope)

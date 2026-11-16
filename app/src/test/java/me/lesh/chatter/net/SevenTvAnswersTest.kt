@@ -34,19 +34,35 @@ class SevenTvAnswersTest {
 
     @Test
     fun addingSaysWhatWentWrongByStatus() {
-        assertEquals(SevenTvAddResult.Added, SevenTvAnswers.addResult(SevenTvAnswers.gql(ADDED)))
-        assertEquals(SevenTvAddResult.LoggedOut, SevenTvAnswers.addResult(SevenTvAnswers.gql(error(401, "LOGIN_REQUIRED you are not logged in"))))
-        assertEquals(SevenTvAddResult.NameTaken, SevenTvAnswers.addResult(SevenTvAnswers.gql(error(409, "CONFLICTING_NAME"))))
+        assertEquals(SevenTvEditResult.Done, SevenTvAnswers.editResult(SevenTvAnswers.gql(ADDED)))
+        assertEquals(SevenTvEditResult.LoggedOut, SevenTvAnswers.editResult(SevenTvAnswers.gql(error(401, "LOGIN_REQUIRED you are not logged in"))))
+        assertEquals(SevenTvEditResult.NameTaken, SevenTvAnswers.editResult(SevenTvAnswers.gql(error(409, "CONFLICTING_NAME"))))
         assertEquals(
-            SevenTvAddResult.Refused("LACKING_PRIVILEGES"),
-            SevenTvAnswers.addResult(SevenTvAnswers.gql(error(403, "LACKING_PRIVILEGES"))),
+            SevenTvEditResult.Refused("LACKING_PRIVILEGES"),
+            SevenTvAnswers.editResult(SevenTvAnswers.gql(error(403, "LACKING_PRIVILEGES"))),
         )
+    }
+
+    @Test
+    fun ownedSetsAreReadWithTheEmotesFound() {
+        val sets = SevenTvAnswers.ownedSets(SevenTvAnswers.gql(OWNED_SETS))!!
+        assertEquals(listOf("ACTIVE", "PERSONAL", "HALLOWEEN"), sets.map { it.id })
+        assertEquals("Halloween", sets[2].name)
+        assertEquals("NORMAL", sets[2].kind)
+        assertEquals(SevenTvSetEmote("EMOTE", "OMEGALUL"), sets[0].emotes.items.single())
+        assertEquals(emptyList<SevenTvSetEmote>(), sets[1].emotes.items)
+    }
+
+    @Test
+    fun ownedSetsOfAChannelWithout7tvAreNullAndAFailureThrows() {
+        assertNull(SevenTvAnswers.ownedSets(SevenTvAnswers.gql("""{"data":{"users":{"userByConnection":null}}}""")))
+        assertThrows(HttpException::class.java) { SevenTvAnswers.ownedSets(SevenTvAnswers.gql(error(500, "INTERNAL"))) }
     }
 
     @Test
     fun anErrorWithoutExtensionsKeepsItsMessage() {
         val answer = SevenTvAnswers.gql("""{"errors":[{"message":"bad query"}]}""")
-        assertEquals(SevenTvAddResult.Refused("bad query"), SevenTvAnswers.addResult(answer))
+        assertEquals(SevenTvEditResult.Refused("bad query"), SevenTvAnswers.editResult(answer))
     }
 
     @Test
@@ -95,5 +111,13 @@ class SevenTvAnswersTest {
         """.trimIndent()
 
         const val ADDED = """{"data":{"emoteSets":{"emoteSet":{"addEmote":{"id":"SET"}}}}}"""
+
+        /** Shortened from 7TV's answer to the owned sets query in SevenTvApi. */
+        val OWNED_SETS = """
+            {"data":{"users":{"userByConnection":{"ownedEmoteSets":[
+              {"id":"ACTIVE","name":"Emotes","kind":"NORMAL","emotes":{"items":[{"id":"EMOTE","alias":"OMEGALUL"}]}},
+              {"id":"PERSONAL","name":"Personal Emotes","kind":"PERSONAL","emotes":{"items":[]}},
+              {"id":"HALLOWEEN","name":"Halloween","kind":"NORMAL","emotes":{"items":[{"id":"OTHER","alias":"OMEGALULiguess"}]}}]}}}}
+        """.trimIndent()
     }
 }
