@@ -7,9 +7,15 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.outlined.Info
+import androidx.compose.material3.Button
 import androidx.compose.material3.Icon
 import androidx.compose.material3.ListItem
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.SegmentedButton
 import androidx.compose.material3.SegmentedButtonDefaults
 import androidx.compose.material3.SingleChoiceSegmentedButtonRow
@@ -17,9 +23,11 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.res.painterResource
@@ -27,10 +35,12 @@ import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import me.lesh.chatter.R
+import me.lesh.chatter.auth.AuthState
 import me.lesh.chatter.chat.ChatItem
 import me.lesh.chatter.chat.MessageBody
 import me.lesh.chatter.chat.MessageKind
 import me.lesh.chatter.chat.Post
+import me.lesh.chatter.chat.PostEmote
 import me.lesh.chatter.chat.PostLabel
 import me.lesh.chatter.chat.PostMedia
 import me.lesh.chatter.chat.PostSite
@@ -64,13 +74,15 @@ private fun siteHint(site: PostSite): Int = when (site) {
     PostSite.Bluesky -> R.string.settings_post_site_bluesky_hint
     PostSite.YouTube -> R.string.settings_post_site_youtube_hint
     PostSite.Twitch -> R.string.settings_post_site_twitch_hint
+    PostSite.SevenTv -> R.string.settings_post_site_seventv_hint
 }
 
-/** YouTube has videos and Twitch has channels and clips, not posts. */
+/** YouTube has videos, Twitch has channels and clips, and 7TV has emotes, not posts. */
 @Composable
 private fun siteTitle(site: PostSite): String = when (site) {
     PostSite.YouTube -> stringResource(R.string.settings_post_site_youtube)
     PostSite.Twitch -> stringResource(R.string.settings_post_site_twitch)
+    PostSite.SevenTv -> stringResource(R.string.settings_post_site_seventv)
     else -> stringResource(R.string.settings_post_site, stringResource(siteName(site)))
 }
 
@@ -80,6 +92,7 @@ internal fun postSitePage(site: PostSite): SettingsSubPage = when (site) {
     PostSite.Bluesky -> SettingsSubPage.PostsBluesky
     PostSite.YouTube -> SettingsSubPage.PostsYouTube
     PostSite.Twitch -> SettingsSubPage.PostsTwitch
+    PostSite.SevenTv -> SettingsSubPage.PostsSevenTv
 }
 
 /** Social media posts: one entry per site, each opening its own page, and what holds for all of them. */
@@ -118,6 +131,8 @@ internal fun PostsPage(settings: Settings, vm: MainViewModel, open: (SettingsSub
 
 private fun siteSummary(site: PostSite, settings: Settings): Int = when {
     site !in settings.postSites -> R.string.settings_off
+    // Its cards have one look only.
+    site == PostSite.SevenTv -> R.string.settings_post_site_on
     settings.postCard(site).compact -> R.string.settings_post_site_on_compact
     else -> R.string.settings_post_site_on
 }
@@ -131,6 +146,10 @@ internal fun PostSitePage(site: PostSite, settings: Settings, vm: MainViewModel)
     val card = settings.postCard(site)
     val update = { change: (PostCardSettings) -> PostCardSettings -> vm.updatePostCard(site, change) }
     PostPreview(settings, vm, site = site)
+    if (site == PostSite.SevenTv) {
+        SevenTvAccountGroup(vm)
+        return
+    }
     SettingsGroup(R.string.settings_group_post_parts) {
         item(R.string.settings_post_compact) {
             SwitchItem(
@@ -156,6 +175,55 @@ internal fun PostSitePage(site: PostSite, settings: Settings, vm: MainViewModel)
             else -> R.string.settings_post_counts
         }
         item(counts) { SwitchItem(counts, card.counts, { v -> update { it.copy(counts = v) } }) }
+    }
+}
+
+/**
+ * The 7TV login that adding emotes from their cards needs: first whether there is one, with an
+ * icon so it shows at a glance, then the button that changes it.
+ */
+@Composable
+private fun SevenTvAccountGroup(vm: MainViewModel) {
+    val loggedIn by vm.sevenTvLoggedIn.collectAsStateWithLifecycle()
+    // A 7TV login belongs to a Twitch account; a guest has none to keep it for.
+    val auth by vm.authState.collectAsStateWithLifecycle()
+    if (auth !is AuthState.LoggedIn) return
+    val scheme = MaterialTheme.colorScheme
+    SettingsGroup(R.string.settings_group_seventv_status) {
+        item(R.string.settings_group_seventv_status) {
+            ListItem(
+                leadingContent = {
+                    Icon(
+                        if (loggedIn) Icons.Default.CheckCircle else Icons.Outlined.Info,
+                        contentDescription = null,
+                        tint = if (loggedIn) scheme.primary else scheme.onSurfaceVariant,
+                    )
+                },
+                headlineContent = {
+                    Text(stringResource(if (loggedIn) R.string.settings_seventv_logged_in else R.string.settings_seventv_logged_out))
+                },
+                supportingContent = {
+                    Text(stringResource(if (loggedIn) R.string.settings_seventv_logged_in_hint else R.string.settings_seventv_logged_out_hint))
+                },
+                colors = transparentItem(),
+            )
+        }
+        item(R.string.settings_seventv_login) {
+            ListItem(
+                headlineContent = { Text(stringResource(if (loggedIn) R.string.settings_seventv_logout else R.string.settings_seventv_login)) },
+                supportingContent = {
+                    Text(stringResource(if (loggedIn) R.string.settings_seventv_logout_hint else R.string.settings_seventv_login_hint))
+                },
+                trailingContent = {
+                    if (loggedIn) {
+                        OutlinedButton(onClick = vm::logoutSevenTv) { Text(stringResource(R.string.settings_seventv_logout_button)) }
+                    } else {
+                        Button(onClick = { vm.openSevenTvLogin() }) { Text(stringResource(R.string.settings_seventv_login_button)) }
+                    }
+                },
+                colors = transparentItem(),
+            )
+        }
     }
 }
 
@@ -238,7 +306,13 @@ internal fun PostPreview(settings: Settings, vm: MainViewModel, text: Int? = nul
     }
     val postText = stringResource(text ?: defaultText)
     val post = remember(postText, site) {
-        if (site.videos) {
+        if (site == PostSite.SevenTv) {
+            Post(
+                name = PREVIEW_EMOTE_NAME, handle = "", avatarUrl = null, text = "",
+                replies = 0, reposts = 0, likes = 0, postedAt = 0, nsfw = false, media = null,
+                emote = PostEmote(id = "preview", pictureUrl = PREVIEW_PICTURE, creator = "Chatter", aspectRatio = 1f),
+            )
+        } else if (site.videos) {
             Post(
                 name = "Chatter", handle = "", avatarUrl = PREVIEW_AVATAR, text = postText,
                 replies = 0, reposts = 0, likes = 0, views = 13370, postedAt = System.currentTimeMillis(), nsfw = false,
@@ -269,7 +343,7 @@ internal fun PostPreview(settings: Settings, vm: MainViewModel, text: Int? = nul
             Column(Modifier.padding(horizontal = 8.dp, vertical = 8.dp)) {
                 MessageRow(message, style.over(scheme.surfaceContainer), vm.imageLoader, onGesture = null)
                 Box(Modifier.padding(horizontal = 8.dp)) {
-                    PostCardContent(post, site, postCardStyle(settings), style, open = {}) { url, _, modifier ->
+                    PostCardContent(post, site, postCardStyle(settings), style, open = {}, action = previewAction(site)) { url, _, modifier ->
                         Box(if (url == PREVIEW_AVATAR) modifier.background(scheme.secondary) else modifier.background(pictureBrush))
                     }
                 }
@@ -278,9 +352,19 @@ internal fun PostPreview(settings: Settings, vm: MainViewModel, text: Int? = nul
     }
 }
 
+/** The add button an emote's card has for the channel's editors, drawn only, so they know where it is. */
+private fun previewAction(site: PostSite): (@Composable () -> Unit)? = if (site != PostSite.SevenTv) null else {
+    {
+        Box(Modifier.size(40.dp), contentAlignment = Alignment.Center) {
+            Icon(Icons.Default.Add, contentDescription = null)
+        }
+    }
+}
+
 /** How the made-up author is written on each site. */
 private val PREVIEW_HANDLES = mapOf(PostSite.X to "chatter_app", PostSite.Bluesky to "chatter.bsky.social")
 private const val PREVIEW_AVATAR = "avatar"
+private const val PREVIEW_EMOTE_NAME = "chatterHype"
 private const val PREVIEW_PICTURE = "picture"
 private const val PREVIEW_VIDEO_SECONDS = 213
 private const val PREVIEW_CLIP_SECONDS = 30

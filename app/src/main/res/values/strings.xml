@@ -455,7 +455,7 @@
     <string name="settings_post_site">Show posts from %1$s</string>
     <string name="settings_post_site_x_hint">Shows links to X posts as a card</string>
     <string name="settings_posts">Social media posts</string>
-    <string name="settings_posts_summary">X, Bluesky, YouTube, Twitch</string>
+    <string name="settings_posts_summary">X, Bluesky, YouTube, Twitch, 7TV</string>
     <string name="settings_post_site_on">On</string>
     <string name="settings_post_site_on_compact">On · compact</string>
     <string name="settings_group_post_all">For every site</string>
@@ -463,6 +463,31 @@
     <string name="settings_post_site_youtube">Show videos from YouTube</string>
     <string name="settings_post_site_twitch">Show channels and clips from Twitch</string>
     <string name="settings_post_site_twitch_hint">Shows links to Twitch channels, clips and videos as a card. Only while you are logged in.</string>
+    <string name="settings_post_site_seventv">Show emotes from 7TV</string>
+    <string name="settings_post_site_seventv_hint">Shows links to 7TV emotes as a card. If you edit a channel\'s emotes, you can add one there with a tap.</string>
+    <string name="post_site_seventv" translatable="false">7TV</string>
+    <string name="post_emote">7TV emote</string>
+    <string name="post_emote_by">by %1$s</string>
+    <string name="post_emote_add">Add %1$s to this channel</string>
+    <string name="post_emote_added">Already in this channel</string>
+    <string name="seventv_name_taken">This channel already has an emote called %1$s</string>
+    <string name="seventv_add_failed">7TV did not add %1$s</string>
+    <string name="seventv_login_failed">The 7TV login did not work</string>
+    <string name="seventv_login_title">Log in to 7TV</string>
+    <string name="seventv_login_text">To add emotes, log in to 7TV once with your Twitch account. The login stays on this phone.</string>
+    <string name="seventv_login_confirm">Log in</string>
+    <string name="seventv_login_close">Close</string>
+    <string name="settings_group_seventv_status">Status</string>
+    <string name="settings_seventv_logged_in">Logged in to 7TV</string>
+    <string name="settings_seventv_logged_in_hint">You can add emotes in channels whose emotes you edit</string>
+    <string name="settings_seventv_logged_out">Not logged in to 7TV</string>
+    <string name="settings_seventv_logged_out_hint">Adding emotes works once you log in</string>
+    <string name="settings_seventv_login">Log in to 7TV</string>
+    <string name="settings_seventv_login_hint">With your Twitch account</string>
+    <string name="settings_seventv_logout">Log out of 7TV</string>
+    <string name="settings_seventv_logout_hint">Removes the login from this phone</string>
+    <string name="settings_seventv_login_button">Log in</string>
+    <string name="settings_seventv_logout_button">Log out</string>
     <string name="settings_post_site_youtube_hint">Shows links to YouTube videos as a card</string>
     <string name="post_site_x" translatable="false">X</string>
     <string name="post_site_bluesky" translatable="false">Bluesky</string>

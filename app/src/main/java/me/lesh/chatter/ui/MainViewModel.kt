@@ -66,6 +66,11 @@ import me.lesh.chatter.emotes.EmoteOwner
 import me.lesh.chatter.emotes.EmoteProvider
 import me.lesh.chatter.emotes.HiddenEmote
 import me.lesh.chatter.emotes.HiddenEmotes
+import me.lesh.chatter.emotes.EmoteAddOutcome
+import me.lesh.chatter.emotes.EmoteButton
+import me.lesh.chatter.auth.SevenTvLogin
+import me.lesh.chatter.net.SevenTvLoginStart
+import me.lesh.chatter.ui.chat.EmoteAdding
 import me.lesh.chatter.net.HelixBlockedUser
 import me.lesh.chatter.net.HelixChannelSearch
 import me.lesh.chatter.net.HelixFollowedChannel
@@ -99,7 +104,9 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
@@ -113,6 +120,15 @@ import me.lesh.chatter.util.shownVersion
  * up follows a language change.
  */
 data class UiMessage(val text: Int, val fill: String? = null)
+
+/**
+ * A 7TV emote to add once the 7TV login is done: to [channel]'s emotes, or to [sourceRoomId]'s for
+ * a Shared Chat message. [account] is the Twitch account it was tapped for.
+ */
+data class PendingEmote(val channel: String, val sourceRoomId: String?, val emoteId: String, val name: String, val account: String?)
+
+/** 7TV's login page, opened for the Twitch account [account]; [then] is added once it is done. */
+data class SevenTvLoginPage(val start: SevenTvLoginStart, val account: String, val then: PendingEmote?)
 
 /** A message to scroll to: [id] in [channel]'s chat. */
 data class MessageJump(val channel: String, val id: String)
@@ -250,6 +266,87 @@ class MainViewModel(private val c: AppContainer, savedState: SavedStateHandle) :
     val imageLoader get() = c.imageLoader
     val staticImageLoader get() = c.staticImageLoader
     val posts get() = c.posts
+
+    // ---- Adding 7TV emotes from their cards ---------------------------------------------------
+
+    private val _askSevenTvLogin = MutableStateFlow<PendingEmote?>(null)
+    /** The emote whose add button needs the 7TV login, while the sheet asking for it is up. */
+    val askSevenTvLogin: StateFlow<PendingEmote?> = _askSevenTvLogin
+    private val _sevenTvLogin = MutableStateFlow<SevenTvLoginPage?>(null)
+    /** 7TV's login page while it is open. */
+    val sevenTvLogin: StateFlow<SevenTvLoginPage?> = _sevenTvLogin
+    val sevenTvLoggedIn: StateFlow<Boolean> get() = c.sevenTvEditing.loggedIn
+    private var sevenTvLoginStarting: Job? = null
+    private val emoteAddRevision = MutableStateFlow(0)
+    private val activeAccountId: StateFlow<String?> = c.auth.state
+        .map { (it as? AuthState.LoggedIn)?.account?.userId }
+        .stateIn(viewModelScope, SharingStarted.Eagerly, null)
+
+    val emoteAdding: EmoteAdding = object : EmoteAdding {
+        // An add or login here, another account, or 7TV's live update of any channel's emotes.
+        override val revision: Flow<Any> = combine(emoteAddRevision, activeAccountId, c.emotes.arrived) { added, account, emotes ->
+            Triple(added, account, emotes)
+        }
+
+        override suspend fun button(channel: String, sourceRoomId: String?, emoteId: String): EmoteButton =
+            c.sevenTvEditing.button(channel, sourceRoomId, emoteId)
+
+        override suspend fun add(channel: String, sourceRoomId: String?, emoteId: String, name: String) =
+            addSevenTvEmote(PendingEmote(channel, sourceRoomId, emoteId, name, activeAccountId.value))
+    }
+
+    private suspend fun addSevenTvEmote(emote: PendingEmote) {
+        when (c.sevenTvEditing.add(emote.channel, emote.sourceRoomId, emote.emoteId, emote.name, emote.account)) {
+            EmoteAddOutcome.Added -> emoteAddRevision.update { it + 1 }
+            EmoteAddOutcome.NameTaken -> _messages.send(UiMessage(R.string.seventv_name_taken, emote.name))
+            EmoteAddOutcome.Failed -> _messages.send(UiMessage(R.string.seventv_add_failed, emote.name))
+            EmoteAddOutcome.NeedsLogin -> _askSevenTvLogin.value = emote
+        }
+    }
+
+    fun dismissSevenTvLoginQuestion() {
+        _askSevenTvLogin.value = null
+    }
+
+    /**
+     * Opens 7TV's login page for the active account; [then] is added once it is done. A second tap
+     * while one is starting or open does nothing, so the page and its verifier stay one pair.
+     */
+    fun openSevenTvLogin(then: PendingEmote? = null) {
+        _askSevenTvLogin.value = null
+        val account = activeAccountId.value ?: return
+        if (_sevenTvLogin.value != null || sevenTvLoginStarting?.isActive == true) return
+        sevenTvLoginStarting = viewModelScope.launch {
+            try {
+                val start = c.sevenTvEditing.startLogin()
+                if (activeAccountId.value == account) _sevenTvLogin.value = SevenTvLoginPage(start, account, then)
+            } catch (e: IOException) {
+                AppLog.w("SevenTv", "Could not start the 7TV login: ${e.message}")
+                _messages.send(UiMessage(R.string.seventv_login_failed))
+            }
+        }
+    }
+
+    /** Finishes the login with 7TV's callback [url] from the login page. */
+    fun finishSevenTvLogin(url: String) {
+        val page = _sevenTvLogin.value ?: return
+        _sevenTvLogin.value = null
+        val code = SevenTvLogin.code(url)
+        viewModelScope.launch {
+            if (code == null || !c.sevenTvEditing.finishLogin(page.start, code, page.account)) {
+                _messages.send(UiMessage(R.string.seventv_login_failed))
+                return@launch
+            }
+            emoteAddRevision.update { it + 1 }
+            page.then?.takeIf { it.account == page.account }?.let { addSevenTvEmote(it) }
+        }
+    }
+
+    fun closeSevenTvLogin() {
+        _sevenTvLogin.value = null
+    }
+
+    fun logoutSevenTv() = c.sevenTvEditing.logout()
 
     private val composer = Composer(
         scope = viewModelScope,
