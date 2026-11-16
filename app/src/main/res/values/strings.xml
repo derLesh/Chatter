@@ -353,6 +353,10 @@
     <string name="settings_show_deleted_hint">Keeps them struck through instead of hiding them</string>
     <string name="settings_user_card_attachments">Pictures</string>
     <string name="settings_user_card_attachments_hint">Shows pictures, GIFs and posts in the recent messages</string>
+    <string name="settings_links_in_app">Open links in Chatter</string>
+    <string name="settings_links_in_app_hint">Your browser opens over the chat, so you stay in the app</string>
+    <string name="settings_posts_in_their_app">Open posts and videos in their app</string>
+    <string name="settings_posts_in_their_app_hint">Links to X, Bluesky, YouTube and Twitch open in their app if it is installed</string>
     <string name="settings_full_links">Show links in full</string>
     <string name="settings_full_links_hint">Otherwise long links are shortened</string>
     <string name="settings_mobile_data">On mobile data</string>

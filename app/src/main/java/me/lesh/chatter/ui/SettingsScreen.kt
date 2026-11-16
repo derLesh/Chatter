@@ -325,6 +325,8 @@ private val SEARCH_INDEX: List<SearchEntry> by lazy {
         add(SearchEntry(R.string.settings_inline_images, media, R.string.settings_inline_images_hint))
         add(SearchEntry(R.string.settings_image_hosts, media))
         add(SearchEntry(R.string.settings_show_gifs, media, R.string.settings_show_gifs_hint))
+        add(SearchEntry(R.string.settings_links_in_app, media, R.string.settings_links_in_app_hint))
+        add(SearchEntry(R.string.settings_posts_in_their_app, media, R.string.settings_posts_in_their_app_hint, shownWhen = ShownWhen(R.string.settings_links_in_app) { s, _ -> s.linksInApp }))
         add(SearchEntry(R.string.settings_full_links, media, R.string.settings_full_links_hint))
         add(SearchEntry(R.string.settings_group_send_pictures, media))
         add(SearchEntry(R.string.settings_uploader, media, R.string.settings_uploader_hint, also = listOf(R.string.uploader_add, R.string.uploader_info_key)))

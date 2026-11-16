@@ -64,6 +64,17 @@ internal fun MediaPage(settings: Settings, vm: MainViewModel, open: (SettingsSub
         item(R.string.settings_show_gifs) {
             SwitchItem(R.string.settings_show_gifs, settings.showGifs, vm::setShowGifs, R.string.settings_show_gifs_hint)
         }
+        item(R.string.settings_links_in_app) {
+            SwitchItem(R.string.settings_links_in_app, settings.linksInApp, vm::setLinksInApp, R.string.settings_links_in_app_hint)
+        }
+        if (settings.linksInApp) {
+            item(R.string.settings_posts_in_their_app) {
+                SwitchItem(
+                    R.string.settings_posts_in_their_app, settings.postsInTheirApp,
+                    vm::setPostsInTheirApp, R.string.settings_posts_in_their_app_hint,
+                )
+            }
+        }
         item(R.string.settings_full_links) { SwitchItem(R.string.settings_full_links, settings.fullLinks, vm::setFullLinks, R.string.settings_full_links_hint) }
     }
     SettingsGroup(R.string.settings_group_send_pictures) { sendingPictures(settings, vm, open) }

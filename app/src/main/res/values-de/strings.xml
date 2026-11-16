@@ -349,6 +349,10 @@
     <string name="settings_show_deleted_hint">Lässt sie durchgestrichen stehen, statt sie auszublenden</string>
     <string name="settings_user_card_attachments">Bilder</string>
     <string name="settings_user_card_attachments_hint">Zeigt Bilder, GIFs und Beiträge in den letzten Nachrichten</string>
+    <string name="settings_links_in_app">Links in Chatter öffnen</string>
+    <string name="settings_links_in_app_hint">Dein Browser öffnet sich über dem Chat, du bleibst in der App</string>
+    <string name="settings_posts_in_their_app">Posts und Videos in ihrer App öffnen</string>
+    <string name="settings_posts_in_their_app_hint">Links zu X, Bluesky, YouTube und Twitch öffnen sich in deren App, wenn sie installiert ist</string>
     <string name="settings_full_links">Links vollständig anzeigen</string>
     <string name="settings_full_links_hint">Sonst werden lange Links gekürzt</string>
     <string name="settings_mobile_data">Bei mobilen Daten</string>

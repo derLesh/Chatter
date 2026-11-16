@@ -1,0 +1,2 @@
+minor: Open links over the chat in your own browser, so you stay in Chatter
+patch: Keep Chatter from closing when a link starting with Https:// is tapped

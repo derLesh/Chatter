@@ -26,12 +26,12 @@ import kotlinx.coroutines.launch
 
 /**
  * Asks before opening a link disguised as another site (see [LinkText.isUnusual]) and shows where
- * it really goes; other links open directly. Replaces [LocalUriHandler] around [content], so every
- * link in the app passes through it.
+ * it really goes; other links open directly, over the app when [inApp] (see [rememberLinkOpener]).
+ * Replaces [LocalUriHandler] around [content], so every link in the app passes through it.
  */
 @Composable
-fun LinkGuard(content: @Composable () -> Unit) {
-    val platform = LocalUriHandler.current
+fun LinkGuard(inApp: Boolean, postsInTheirApp: Boolean, content: @Composable () -> Unit) {
+    val platform = rememberLinkOpener(inApp, postsInTheirApp)
     var asking by remember { mutableStateOf<String?>(null) }
     val guard = remember(platform) {
         object : UriHandler {
