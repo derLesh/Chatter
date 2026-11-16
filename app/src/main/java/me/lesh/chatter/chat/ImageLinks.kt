@@ -1,5 +1,6 @@
 package me.lesh.chatter.chat
 
+import okhttp3.HttpUrl
 import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
 
 /**
@@ -100,4 +101,20 @@ object ImageLinks {
         .substringBefore(':')
         .removePrefix("www.")
         .lowercase()
+
+    /**
+     * The site of the page at [pageUrl] to load images from, its host without a leading "www.",
+     * or null where that site would cover much more than the page. Subdomains match too, so
+     * `www.com` must not become `com`, nor a host on a public suffix like `co.uk` or `github.io`
+     * stand for all of it; an IP address has no site at all. [siteOf] is OkHttp's lookup in the
+     * public suffix list, which tests cannot load.
+     */
+    fun imageSourceOf(pageUrl: String, siteOf: (HttpUrl) -> String? = HttpUrl::topPrivateDomain): String? {
+        val parsed = pageUrl.toHttpUrlOrNull() ?: return null
+        // Null for a public suffix itself, a single label and an IP address.
+        siteOf(parsed) ?: return null
+        val withoutWww = parsed.host.removePrefix("www.")
+        val keepsSite = withoutWww != parsed.host && "https://$withoutWww/".toHttpUrlOrNull()?.let(siteOf) != null
+        return if (keepsSite) withoutWww else parsed.host
+    }
 }

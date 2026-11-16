@@ -1,5 +1,6 @@
 package me.lesh.chatter.ui.chat
 
+import android.app.Application
 import android.app.PendingIntent
 import android.content.ActivityNotFoundException
 import android.content.ComponentName
@@ -33,6 +34,7 @@ import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.platform.LocalWindowInfo
 import androidx.compose.ui.platform.UriHandler
 import androidx.core.net.toUri
+import androidx.lifecycle.AndroidViewModel
 import me.lesh.chatter.R
 import me.lesh.chatter.chat.PostLinks
 import me.lesh.chatter.chat.PostSite
@@ -67,12 +69,16 @@ fun rememberLinkOpener(settings: Settings, tabs: LinkTabs): UriHandler {
             addImageHost = settings.inlineImages,
         ),
     )
-    DisposableEffect(tabs) { onDispose { tabs.closed() } }
+    // A rotation keeps the tab and its session; only a tap waiting for it must not reach the
+    // launcher of the screen that is gone.
+    DisposableEffect(tabs) { onDispose { tabs.dropWaiting() } }
     val inApp = settings.linksInApp
     val postsInTheirApp = settings.postsInTheirApp
     return remember(inApp, postsInTheirApp, platform, context, launcher, tabs) {
         object : UriHandler {
             override fun openUri(uri: String) {
+                // A newer tap wins, wherever its link goes.
+                tabs.dropWaiting()
                 val link = lowercaseScheme(uri)
                 if (inApp && isWebLink(link)) {
                     val target = link.toUri()
@@ -179,10 +185,11 @@ private fun openInOwnApp(context: Context, target: Uri): Boolean = try {
 /**
  * Where the open link's sheet is, so the chat can move up out of its way. The browser reports it
  * through a session, which is bound only while a tab is open: a binding outlasting it would keep
- * the browser's process around for nothing.
+ * the browser's process around for nothing. A view model of the activity, so the session and what
+ * it said outlast a rotation.
  */
 @Stable
-class LinkTabs(private val context: Context) {
+class LinkTabs(application: Application) : AndroidViewModel(application) {
     /** What the browser last said about its sheet; null while no tab shows or it covers all. */
     var sheet by mutableStateOf<TabSheet?>(null)
         private set
@@ -194,13 +201,12 @@ class LinkTabs(private val context: Context) {
     private val main = Handler(Looper.getMainLooper())
     private var connection: CustomTabsServiceConnection? = null
 
+    /** Counts taps and closes, so a session arriving for an older tap or a gone screen is dropped. */
+    private var attempt = 0
+
     private val callback = object : CustomTabsCallback() {
         override fun onActivityLayout(left: Int, top: Int, right: Int, bottom: Int, state: Int, extras: Bundle) {
-            main.post { if (showing) sheet = TabSheet.of(left, top, state) }
-        }
-
-        override fun onNavigationEvent(navigationEvent: Int, extras: Bundle?) {
-            if (navigationEvent == TAB_HIDDEN) main.post { sheet = null }
+            main.post { if (showing) sheet = TabSheet.of(left, top, right, state) }
         }
     }
 
@@ -210,10 +216,10 @@ class LinkTabs(private val context: Context) {
      */
     fun connect(browser: String, ready: (CustomTabsSession?) -> Unit) {
         closed()
-        var handedOut = false
+        val thisAttempt = attempt
         val handOut = { session: CustomTabsSession? ->
-            if (!handedOut) {
-                handedOut = true
+            if (attempt == thisAttempt) {
+                attempt++
                 ready(session)
             }
         }
@@ -227,7 +233,7 @@ class LinkTabs(private val context: Context) {
                 main.post { sheet = null }
             }
         }
-        val bound = runCatching { CustomTabsClient.bindCustomTabsService(context, browser, newConnection) }.getOrDefault(false)
+        val bound = runCatching { CustomTabsClient.bindCustomTabsService(getApplication(), browser, newConnection) }.getOrDefault(false)
         if (!bound) return handOut(null)
         connection = newConnection
         main.postDelayed({ handOut(null) }, CONNECT_TIMEOUT_MS)
@@ -237,25 +243,58 @@ class LinkTabs(private val context: Context) {
         showing = true
     }
 
+    /**
+     * Drops a tap still waiting for its session, for a newer tap or a screen that is gone, and the
+     * binding it made. An open tab keeps its binding, so its sheet is still reported after a
+     * rotation.
+     */
+    fun dropWaiting() {
+        attempt++
+        main.removeCallbacksAndMessages(null)
+        if (!showing) unbind()
+    }
+
     fun closed() {
+        attempt++
+        main.removeCallbacksAndMessages(null)
         showing = false
         sheet = null
-        connection?.let { runCatching { context.unbindService(it) } }
+        unbind()
+    }
+
+    private fun unbind() {
+        connection?.let { runCatching { getApplication<Application>().unbindService(it) } }
         connection = null
     }
+
+    override fun onCleared() = closed()
 }
 
-/** A sheet at the bottom whose top edge is at [top], or at the side starting at [left]; in px. */
-data class TabSheet(val top: Int?, val left: Int?) {
+/** The browser's sheet, at the bottom or at a [side], with its edges in px of the screen. */
+data class TabSheet(val left: Int, val top: Int, val right: Int, val side: Boolean) {
+    /**
+     * How much of a window of [width] by [height] px the sheet covers from each edge. A side sheet
+     * sits on the right, or on the left when the browser runs right to left, whatever language
+     * Chatter is in.
+     */
+    fun covered(width: Int, height: Int): SheetCover = when {
+        !side -> SheetCover(bottom = (height - top).coerceIn(0, height))
+        left <= 0 -> SheetCover(left = right.coerceIn(0, width))
+        else -> SheetCover(right = (width - left).coerceIn(0, width))
+    }
+
     companion object {
-        fun of(left: Int, top: Int, state: Int): TabSheet? = when (state) {
-            CustomTabsCallback.ACTIVITY_LAYOUT_STATE_BOTTOM_SHEET -> TabSheet(top = top, left = null)
-            CustomTabsCallback.ACTIVITY_LAYOUT_STATE_SIDE_SHEET -> TabSheet(top = null, left = left)
+        fun of(left: Int, top: Int, right: Int, state: Int): TabSheet? = when (state) {
+            CustomTabsCallback.ACTIVITY_LAYOUT_STATE_BOTTOM_SHEET -> TabSheet(left, top, right, side = false)
+            CustomTabsCallback.ACTIVITY_LAYOUT_STATE_SIDE_SHEET -> TabSheet(left, top, right, side = true)
             // Maximised or full screen, nothing of the chat would be left to show.
             else -> null
         }
     }
 }
+
+/** Px covered from the left, right and bottom edge of the window. */
+data class SheetCover(val left: Int = 0, val right: Int = 0, val bottom: Int = 0)
 
 private const val TOOLBAR_CORNER_DP = 16
 

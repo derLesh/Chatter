@@ -1,5 +1,6 @@
 package me.lesh.chatter.ui.chat
 
+import android.app.Application
 import android.content.ClipData
 import android.view.View
 import androidx.compose.animation.core.animateDpAsState
@@ -40,6 +41,10 @@ import me.lesh.chatter.settings.Settings
 import androidx.core.graphics.Insets
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.compose.LocalLifecycleOwner
+import androidx.lifecycle.compose.currentStateAsState
+import androidx.lifecycle.viewmodel.compose.viewModel
 import kotlinx.coroutines.launch
 
 /**
@@ -52,7 +57,7 @@ import kotlinx.coroutines.launch
 @Composable
 fun LinkGuard(settings: Settings, content: @Composable () -> Unit) {
     val context = LocalContext.current
-    val tabs = remember(context) { LinkTabs(context.applicationContext) }
+    val tabs = viewModel { LinkTabs(context.applicationContext as Application) }
     val platform = rememberLinkOpener(settings, tabs)
     var asking by remember { mutableStateOf<String?>(null) }
     val guard = remember(platform) {
@@ -63,13 +68,19 @@ fun LinkGuard(settings: Settings, content: @Composable () -> Unit) {
         }
     }
     val density = LocalDensity.current
-    KeepNavigationBarWhile(tabs.showing)
+    // A tab over the app pauses it; back to resumed, the tab was minimised (Chrome) or is gone,
+    // with or without a session to say so.
+    val resumed by LocalLifecycleOwner.current.lifecycle.currentStateAsState()
+    val covering = tabs.showing && !resumed.isAtLeast(Lifecycle.State.RESUMED)
+    KeepNavigationBarWhile(covering)
     val window = LocalWindowInfo.current.containerSize
-    val sheet = tabs.sheet.takeIf { settings.linksInApp && settings.chatAboveLinks && !settings.linksFullScreen }
-    val coveredBottom by animateDpAsState(with(density) { sheet?.top?.let { (window.height - it).coerceAtLeast(0) }?.toDp() ?: 0.dp })
-    val coveredEnd by animateDpAsState(with(density) { sheet?.left?.let { (window.width - it).coerceAtLeast(0) }?.toDp() ?: 0.dp })
-    val covered = PaddingValues(bottom = coveredBottom, end = coveredEnd)
-    CompositionLocalProvider(LocalUriHandler provides guard, LocalLinkTabShowing provides tabs.showing) {
+    val sheet = tabs.sheet.takeIf { covering && settings.linksInApp && settings.chatAboveLinks && !settings.linksFullScreen }
+    val cover = sheet?.covered(window.width, window.height) ?: SheetCover()
+    val coveredLeft by animateDpAsState(with(density) { cover.left.toDp() })
+    val coveredRight by animateDpAsState(with(density) { cover.right.toDp() })
+    val coveredBottom by animateDpAsState(with(density) { cover.bottom.toDp() })
+    val covered = PaddingValues.Absolute(left = coveredLeft, right = coveredRight, bottom = coveredBottom)
+    CompositionLocalProvider(LocalUriHandler provides guard, LocalLinkTabShowing provides covering) {
         // The sheet already covers the navigation bar, so what is under it counts as its insets.
         Box(Modifier.fillMaxSize().padding(covered).consumeWindowInsets(covered)) { content() }
     }

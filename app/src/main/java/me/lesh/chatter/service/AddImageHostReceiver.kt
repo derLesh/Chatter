@@ -10,7 +10,6 @@ import me.lesh.chatter.chat.ImageLinks
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
 
 /**
  * Adds the site of the page open in a link's tab to the sites linked images are loaded from; sent
@@ -18,9 +17,13 @@ import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
  */
 class AddImageHostReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent) {
-        val host = intent.dataString?.toHttpUrlOrNull()?.host?.let(ImageLinks::cleanHost)?.takeIf { it.isNotEmpty() } ?: return
-        val container = (context.applicationContext as? ChatterApp)?.container ?: return
+        val page = intent.dataString ?: return
         val app = context.applicationContext
+        val host = ImageLinks.imageSourceOf(page) ?: run {
+            Toast.makeText(app, R.string.link_menu_image_host_refused, Toast.LENGTH_SHORT).show()
+            return
+        }
+        val container = (app as? ChatterApp)?.container ?: return
         val pending = goAsync()
         container.scope.launch {
             try {

@@ -1,5 +1,6 @@
 package me.lesh.chatter.chat
 
+import okhttp3.HttpUrl
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
 import org.junit.Test
@@ -173,5 +174,38 @@ class ImageLinksTest {
     fun aWholeUrlPastedAsAHostBecomesTheHost() {
         assertEquals("imgur.com", ImageLinks.cleanHost("https://www.Imgur.com/some/path?x=1"))
         assertEquals("i.nuuls.com", ImageLinks.cleanHost("  i.nuuls.com  "))
+    }
+    @Test
+    fun anImageSourceIsThePagesSiteWithoutWww() {
+        assertEquals("example.com", ImageLinks.imageSourceOf(siteOf = ::siteIn, pageUrl = "https://www.example.com/a/b?c=d"))
+        assertEquals("i.example.com", ImageLinks.imageSourceOf(siteOf = ::siteIn, pageUrl = "https://i.example.com/cat.png"))
+        assertEquals("example.co.uk", ImageLinks.imageSourceOf(siteOf = ::siteIn, pageUrl = "https://www.example.co.uk/"))
+        assertEquals("user.github.io", ImageLinks.imageSourceOf(siteOf = ::siteIn, pageUrl = "https://user.github.io/page"))
+    }
+
+    @Test
+    fun anImageSourceNeverCoversAWholePublicSuffix() {
+        assertEquals("www.com", ImageLinks.imageSourceOf(siteOf = ::siteIn, pageUrl = "https://www.com/"))
+        assertEquals("www.co.uk", ImageLinks.imageSourceOf(siteOf = ::siteIn, pageUrl = "https://www.co.uk/"))
+        assertNull(ImageLinks.imageSourceOf(siteOf = ::siteIn, pageUrl = "https://github.io/"))
+        assertNull(ImageLinks.imageSourceOf(siteOf = ::siteIn, pageUrl = "https://co.uk/"))
+        assertNull(ImageLinks.imageSourceOf(siteOf = ::siteIn, pageUrl = "https://localhost/"))
+    }
+
+    @Test
+    fun anAddressOrNoUrlIsNoImageSource() {
+        assertNull(ImageLinks.imageSourceOf(siteOf = ::siteIn, pageUrl = "https://192.168.0.1/cat.png"))
+        assertNull(ImageLinks.imageSourceOf(siteOf = ::siteIn, pageUrl = "https://[2001:db8::1]/cat.png"))
+        assertNull(ImageLinks.imageSourceOf(siteOf = ::siteIn, pageUrl = "not a link"))
+        assertNull(ImageLinks.imageSourceOf(siteOf = ::siteIn, pageUrl = "mailto:someone@example.com"))
+    }
+
+    /** OkHttp's public suffix lookup, for the few suffixes these tests use. */
+    private fun siteIn(url: HttpUrl): String? {
+        val host = url.host
+        if (host.contains(':') || host.all { it.isDigit() || it == '.' }) return null
+        val suffix = listOf("co.uk", "github.io", "com", "uk", "io").firstOrNull { host == it || host.endsWith(".$it") } ?: return null
+        if (host == suffix) return null
+        return host.removeSuffix(".$suffix").substringAfterLast('.') + ".$suffix"
     }
 }

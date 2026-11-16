@@ -502,7 +502,8 @@ private fun ChatInput(
     onCoveredHeight: ((Int) -> Unit)? = null,
 ) {
     val settings = vm.settings.collectAsStateWithLifecycle().value
-    if (settings.readOnly) return
+    // Also the conversation's, whose sheet a link can open from.
+    if (settings.readOnly || LocalLinkTabShowing.current) return
     if (guest) {
         GuestBar(onLogIn = vm::leaveGuest, modifier = modifier.fillMaxWidth())
         return
