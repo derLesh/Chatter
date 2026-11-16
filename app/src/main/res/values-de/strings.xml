@@ -358,9 +358,9 @@
     <string name="settings_chat_above_links">Chat nach oben schieben</string>
     <string name="settings_chat_above_links_hint">Der Chat rückt über das Fenster, so bleiben neue Nachrichten zu sehen</string>
     <string name="search_also_custom_tabs">Custom Tabs, In-App-Browser</string>
-    <string name="link_menu_add_image_host">Bilder dieser Seite zeigen</string>
-    <string name="link_menu_image_host_added">Bilder von %s werden jetzt im Chat gezeigt</string>
-    <string name="link_menu_image_host_known">Bilder von %s werden schon im Chat gezeigt</string>
+    <string name="link_menu_add_image_host">Seite als Bildquelle hinzufügen</string>
+    <string name="link_menu_image_host_added">%s als Bildquelle hinzugefügt</string>
+    <string name="link_menu_image_host_known">%s ist schon eine Bildquelle</string>
     <string name="settings_posts_in_their_app">Posts und Videos in ihrer App öffnen</string>
     <string name="settings_posts_in_their_app_hint">Links zu X, Bluesky, YouTube und Twitch öffnen sich in deren App, wenn sie installiert ist</string>
     <string name="settings_full_links">Links vollständig anzeigen</string>

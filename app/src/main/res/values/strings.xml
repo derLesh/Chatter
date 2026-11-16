@@ -362,9 +362,9 @@
     <string name="settings_chat_above_links">Move the chat up</string>
     <string name="settings_chat_above_links_hint">The chat makes room above the sheet, so new messages stay in view</string>
     <string name="search_also_custom_tabs">Custom Tabs, in-app browser</string>
-    <string name="link_menu_add_image_host">Show images from this site</string>
-    <string name="link_menu_image_host_added">Images from %s now show in chat</string>
-    <string name="link_menu_image_host_known">Images from %s already show in chat</string>
+    <string name="link_menu_add_image_host">Add site as image source</string>
+    <string name="link_menu_image_host_added">Added %s as an image source</string>
+    <string name="link_menu_image_host_known">%s is already an image source</string>
     <string name="settings_posts_in_their_app">Open posts and videos in their app</string>
     <string name="settings_posts_in_their_app_hint">Links to X, Bluesky, YouTube and Twitch open in their app if it is installed</string>
     <string name="settings_full_links">Show links in full</string>

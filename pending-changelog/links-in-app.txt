@@ -1,3 +1,3 @@
 minor: Open links over the chat in your own browser, so you stay in Chatter
 patch: Keep Chatter from closing when a link starting with Https:// is tapped
-minor: Show images from a site with one tap in the menu of a link you opened
+minor: Add a site as an image source from the menu of a link you opened
