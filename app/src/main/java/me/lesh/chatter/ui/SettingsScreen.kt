@@ -114,6 +114,7 @@ import me.lesh.chatter.ui.settings.AccountSummaryCard
 import me.lesh.chatter.ui.settings.AppIconsPage
 import me.lesh.chatter.ui.settings.AppearancePage
 import me.lesh.chatter.ui.settings.BackupPage
+import me.lesh.chatter.ui.settings.BrowserPage
 import me.lesh.chatter.ui.settings.BetaPage
 import me.lesh.chatter.ui.settings.BlockedUsersPage
 import me.lesh.chatter.ui.settings.CategoryHue
@@ -187,6 +188,7 @@ private enum class SettingsPage(
     Messages(R.string.settings_messages, R.string.settings_messages_summary, SettingsSection.Chat, { drawableIcon(R.drawable.ic_chat) }, CategoryHue.Blue),
     Media(R.string.settings_media, R.string.settings_media_summary, SettingsSection.Chat, { drawableIcon(R.drawable.ic_image) }, CategoryHue.Green),
     Posts(R.string.settings_posts, R.string.settings_posts_summary, SettingsSection.Chat, { Icons.Default.Share }, CategoryHue.Sky),
+    Browser(R.string.settings_browser, R.string.settings_browser_summary, SettingsSection.Chat, { drawableIcon(R.drawable.ic_language) }, CategoryHue.Indigo),
     Typing(R.string.settings_typing, R.string.settings_typing_summary, SettingsSection.Chat, { drawableIcon(R.drawable.ic_keyboard) }, CategoryHue.Orange),
     Emotes(R.string.settings_emotes, R.string.settings_emotes_summary, SettingsSection.Chat, { Icons.Default.Face }, CategoryHue.Amber),
     Filters(R.string.settings_filters, R.string.settings_filters_summary, SettingsSection.Chat, { drawableIcon(R.drawable.ic_filter_list) }, CategoryHue.Purple),
@@ -325,8 +327,6 @@ private val SEARCH_INDEX: List<SearchEntry> by lazy {
         add(SearchEntry(R.string.settings_inline_images, media, R.string.settings_inline_images_hint))
         add(SearchEntry(R.string.settings_image_hosts, media))
         add(SearchEntry(R.string.settings_show_gifs, media, R.string.settings_show_gifs_hint))
-        add(SearchEntry(R.string.settings_links_in_app, media, R.string.settings_links_in_app_hint))
-        add(SearchEntry(R.string.settings_posts_in_their_app, media, R.string.settings_posts_in_their_app_hint, shownWhen = ShownWhen(R.string.settings_links_in_app) { s, _ -> s.linksInApp }))
         add(SearchEntry(R.string.settings_full_links, media, R.string.settings_full_links_hint))
         add(SearchEntry(R.string.settings_group_send_pictures, media))
         add(SearchEntry(R.string.settings_uploader, media, R.string.settings_uploader_hint, also = listOf(R.string.uploader_add, R.string.uploader_info_key)))
@@ -335,6 +335,11 @@ private val SEARCH_INDEX: List<SearchEntry> by lazy {
         val posts = SettingsPage.Posts
         PostSite.entries.forEach { add(SearchEntry(siteName(it), posts, also = POST_PART_TERMS)) }
         add(SearchEntry(R.string.settings_blur_nsfw_posts, posts, R.string.settings_blur_nsfw_posts_hint))
+        val browser = SettingsPage.Browser
+        add(SearchEntry(R.string.settings_links_in_app, browser, R.string.settings_links_in_app_hint, also = listOf(R.string.search_also_custom_tabs)))
+        add(SearchEntry(R.string.settings_links_full_screen, browser, R.string.settings_links_full_screen_hint, shownWhen = ShownWhen(R.string.settings_links_in_app) { s, _ -> s.linksInApp }))
+        add(SearchEntry(R.string.settings_chat_above_links, browser, R.string.settings_chat_above_links_hint, shownWhen = ShownWhen(R.string.settings_links_full_screen) { s, _ -> s.linksInApp && !s.linksFullScreen }))
+        add(SearchEntry(R.string.settings_posts_in_their_app, browser, R.string.settings_posts_in_their_app_hint, shownWhen = ShownWhen(R.string.settings_links_in_app) { s, _ -> s.linksInApp }))
         val typing = SettingsPage.Typing
         add(SearchEntry(R.string.settings_read_only, typing, R.string.settings_read_only_hint))
         add(SearchEntry(R.string.settings_emote_suggestions, typing, R.string.settings_emote_suggestions_hint, shownWhen = unlessReadOnly))
@@ -686,6 +691,7 @@ fun SettingsScreen(vm: MainViewModel, onBack: () -> Unit) {
                     SettingsPage.Messages -> MessagesPage(settings, vm) { subPage = it }
                     SettingsPage.Media -> MediaPage(settings, vm) { subPage = it }
                     SettingsPage.Posts -> PostsPage(settings, vm) { subPage = it }
+                    SettingsPage.Browser -> BrowserPage(settings, vm)
                     SettingsPage.Typing -> TypingPage(settings, vm) { subPage = it }
                     SettingsPage.Emotes -> EmotesPage(settings, vm) { subPage = it }
                     SettingsPage.Filters -> FiltersPage(settings, vm) { subPage = it }

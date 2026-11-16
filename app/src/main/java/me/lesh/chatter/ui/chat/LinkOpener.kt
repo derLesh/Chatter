@@ -1,19 +1,31 @@
 package me.lesh.chatter.ui.chat
 
+import android.app.PendingIntent
 import android.content.ActivityNotFoundException
+import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
 import android.net.Uri
+import android.os.Bundle
+import android.os.Handler
+import android.os.Looper
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.browser.customtabs.CustomTabColorSchemeParams
+import androidx.browser.customtabs.CustomTabsCallback
 import androidx.browser.customtabs.CustomTabsClient
 import androidx.browser.customtabs.CustomTabsIntent
+import androidx.browser.customtabs.CustomTabsServiceConnection
+import androidx.browser.customtabs.CustomTabsSession
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.Stable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.LocalContext
@@ -21,31 +33,44 @@ import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.platform.LocalWindowInfo
 import androidx.compose.ui.platform.UriHandler
 import androidx.core.net.toUri
-import me.lesh.chatter.ui.theme.barColor
+import me.lesh.chatter.R
 import me.lesh.chatter.chat.PostLinks
 import me.lesh.chatter.chat.PostSite
 import me.lesh.chatter.debug.AppLog
+import me.lesh.chatter.service.AddImageHostReceiver
+import me.lesh.chatter.settings.Settings
+import me.lesh.chatter.ui.theme.barColor
 
 /**
  * Opens web links over the app as a Custom Tab of the user's own browser, so they stay in Chatter.
  * The browser loads the page with the user's logins and blockers, and Chatter never sees it, which
  * an own WebView could not promise. A link an installed app handles still goes to that app; for
- * the sites that get a card (X, Bluesky, YouTube, Twitch: [PostSite]) only when [postsInTheirApp]. A
- * browser without Custom Tabs gets the link the usual way.
+ * the sites that get a card (X, Bluesky, YouTube, Twitch: [PostSite]) only when
+ * [Settings.postsInTheirApp]. A browser without Custom Tabs gets the link the usual way.
  */
 @Composable
-fun rememberLinkOpener(inApp: Boolean, postsInTheirApp: Boolean): UriHandler {
+fun rememberLinkOpener(settings: Settings, tabs: LinkTabs): UriHandler {
     val platform = LocalUriHandler.current
     val context = LocalContext.current
-    // Partial Custom Tabs only open as a sheet when started for a result: the browser checks which
-    // app is calling.
-    val launcher = rememberLauncherForActivityResult(ActivityResultContracts.StartActivityForResult()) {}
+    // Partial Custom Tabs only open as a sheet when the browser knows the calling app, through
+    // a session or a start for a result; the result also says when the tab is gone.
+    val launcher = rememberLauncherForActivityResult(ActivityResultContracts.StartActivityForResult()) { tabs.closed() }
     val colors = MaterialTheme.colorScheme
     val window = LocalWindowInfo.current.containerSize
     val look by rememberUpdatedState(
-        TabLook(colors.barColor.toArgb(), colors.background.luminance() < 0.5f, window.width, window.height),
+        TabLook(
+            toolbarColor = colors.barColor.toArgb(),
+            dark = colors.background.luminance() < 0.5f,
+            windowWidthPx = window.width,
+            windowHeightPx = window.height,
+            fullScreen = settings.linksFullScreen,
+            addImageHost = settings.inlineImages,
+        ),
     )
-    return remember(inApp, postsInTheirApp, platform, context, launcher) {
+    DisposableEffect(tabs) { onDispose { tabs.closed() } }
+    val inApp = settings.linksInApp
+    val postsInTheirApp = settings.postsInTheirApp
+    return remember(inApp, postsInTheirApp, platform, context, launcher, tabs) {
         object : UriHandler {
             override fun openUri(uri: String) {
                 val link = lowercaseScheme(uri)
@@ -53,13 +78,33 @@ fun rememberLinkOpener(inApp: Boolean, postsInTheirApp: Boolean): UriHandler {
                     val target = link.toUri()
                     val toApp = postsInTheirApp || PostLinks.find(link, PostSite.entries.toSet()) == null
                     if (toApp && openInOwnApp(context, target)) return
-                    if (openInTab(context, target, look) { launcher.launch(it) }) return
+                    // Only the default browser: another one would surprise with other logins and
+                    // another look.
+                    val browser = CustomTabsClient.getPackageName(context, emptyList())
+                    if (browser != null) {
+                        tabs.connect(browser) { session ->
+                            val intent = tabIntent(context, session, look).intent.setPackage(browser).setData(target)
+                            try {
+                                launcher.launch(intent)
+                                tabs.opened()
+                            } catch (_: ActivityNotFoundException) {
+                                AppLog.w(TAG, "No Custom Tab in $browser")
+                                tabs.closed()
+                                openElsewhere(platform, link)
+                            }
+                        }
+                        return
+                    }
                 }
-                // Throws when no app at all takes the link; a tap on it must not close Chatter.
-                runCatching { platform.openUri(link) }.onFailure { AppLog.w(TAG, "No app opens this link", it) }
+                openElsewhere(platform, link)
             }
         }
     }
+}
+
+/** Throws when no app at all takes the link; a tap on it must not close Chatter. */
+private fun openElsewhere(platform: UriHandler, link: String) {
+    runCatching { platform.openUri(link) }.onFailure { AppLog.w(TAG, "No app opens this link", it) }
 }
 
 /** True for the links a Custom Tab can show; `mailto:`, `tel:` and app links go to their apps. */
@@ -78,35 +123,45 @@ fun lowercaseScheme(uri: String): String {
     return scheme.lowercase() + uri.substring(colon)
 }
 
-private class TabLook(val toolbarColor: Int, val dark: Boolean, val windowWidthPx: Int, val windowHeightPx: Int)
+private class TabLook(
+    val toolbarColor: Int,
+    val dark: Boolean,
+    val windowWidthPx: Int,
+    val windowHeightPx: Int,
+    val fullScreen: Boolean,
+    val addImageHost: Boolean,
+)
 
-/** False when the default browser cannot show [target] as a Custom Tab. */
-private fun openInTab(context: Context, target: Uri, look: TabLook, launch: (Intent) -> Unit): Boolean {
-    // Only the default browser: another one would surprise with other logins and another look.
-    val browser = CustomTabsClient.getPackageName(context, emptyList()) ?: return false
+private fun tabIntent(context: Context, session: CustomTabsSession?, look: TabLook): CustomTabsIntent {
     val colors = CustomTabColorSchemeParams.Builder()
         .setToolbarColor(look.toolbarColor)
         .setNavigationBarColor(look.toolbarColor)
         .build()
-    val tab = CustomTabsIntent.Builder()
+    val builder = CustomTabsIntent.Builder()
         .setDefaultColorSchemeParams(colors)
         .setColorScheme(if (look.dark) CustomTabsIntent.COLOR_SCHEME_DARK else CustomTabsIntent.COLOR_SCHEME_LIGHT)
         .setShowTitle(true)
         .setShareState(CustomTabsIntent.SHARE_STATE_ON)
+        .setToolbarCornerRadiusDp(TOOLBAR_CORNER_DP)
+    session?.let(builder::setSession)
+    if (!look.fullScreen) {
         // A sheet over the lower part keeps the chat above it in view and usable; dragged up, it
         // takes the whole screen. On wide screens it opens as a side sheet instead.
-        .setInitialActivityHeightPx(look.windowHeightPx * 2 / 3, CustomTabsIntent.ACTIVITY_HEIGHT_ADJUSTABLE)
-        .setInitialActivityWidthPx(look.windowWidthPx * 45 / 100)
-        .setToolbarCornerRadiusDp(TOOLBAR_CORNER_DP)
-        .build()
-    tab.intent.setPackage(browser).setData(target)
-    return try {
-        launch(tab.intent)
-        true
-    } catch (_: ActivityNotFoundException) {
-        AppLog.w(TAG, "No Custom Tab in $browser")
-        false
+        builder.setInitialActivityHeightPx(look.windowHeightPx * 2 / 3, CustomTabsIntent.ACTIVITY_HEIGHT_ADJUSTABLE)
+        builder.setInitialActivityWidthPx(look.windowWidthPx * 45 / 100)
     }
+    if (look.addImageHost) {
+        // The browser fills in the page's address before it sends this, so it must stay mutable;
+        // it names its receiver, so nothing else can catch it.
+        val addHost = PendingIntent.getBroadcast(
+            context,
+            0,
+            Intent(context, AddImageHostReceiver::class.java),
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_MUTABLE,
+        )
+        builder.addMenuItem(context.getString(R.string.link_menu_add_image_host), addHost)
+    }
+    return builder.build()
 }
 
 /** Hands a link to an installed app that claims it, never to a browser. */
@@ -121,5 +176,89 @@ private fun openInOwnApp(context: Context, target: Uri): Boolean = try {
     false
 }
 
+/**
+ * Where the open link's sheet is, so the chat can move up out of its way. The browser reports it
+ * through a session, which is bound only while a tab is open: a binding outlasting it would keep
+ * the browser's process around for nothing.
+ */
+@Stable
+class LinkTabs(private val context: Context) {
+    /** What the browser last said about its sheet; null while no tab shows or it covers all. */
+    var sheet by mutableStateOf<TabSheet?>(null)
+        private set
+
+    /** From the tap on a link until its tab is closed. */
+    var showing by mutableStateOf(false)
+        private set
+
+    private val main = Handler(Looper.getMainLooper())
+    private var connection: CustomTabsServiceConnection? = null
+
+    private val callback = object : CustomTabsCallback() {
+        override fun onActivityLayout(left: Int, top: Int, right: Int, bottom: Int, state: Int, extras: Bundle) {
+            main.post { if (showing) sheet = TabSheet.of(left, top, state) }
+        }
+
+        override fun onNavigationEvent(navigationEvent: Int, extras: Bundle?) {
+            if (navigationEvent == TAB_HIDDEN) main.post { sheet = null }
+        }
+    }
+
+    /**
+     * Binds to [browser] and hands [ready] a session, or null when the browser offers none in
+     * time; the tab then opens without one and the chat stays where it is.
+     */
+    fun connect(browser: String, ready: (CustomTabsSession?) -> Unit) {
+        closed()
+        var handedOut = false
+        val handOut = { session: CustomTabsSession? ->
+            if (!handedOut) {
+                handedOut = true
+                ready(session)
+            }
+        }
+        val newConnection = object : CustomTabsServiceConnection() {
+            override fun onCustomTabsServiceConnected(name: ComponentName, client: CustomTabsClient) {
+                val session = runCatching { client.newSession(callback) }.getOrNull()
+                main.post { handOut(session) }
+            }
+
+            override fun onServiceDisconnected(name: ComponentName) {
+                main.post { sheet = null }
+            }
+        }
+        val bound = runCatching { CustomTabsClient.bindCustomTabsService(context, browser, newConnection) }.getOrDefault(false)
+        if (!bound) return handOut(null)
+        connection = newConnection
+        main.postDelayed({ handOut(null) }, CONNECT_TIMEOUT_MS)
+    }
+
+    fun opened() {
+        showing = true
+    }
+
+    fun closed() {
+        showing = false
+        sheet = null
+        connection?.let { runCatching { context.unbindService(it) } }
+        connection = null
+    }
+}
+
+/** A sheet at the bottom whose top edge is at [top], or at the side starting at [left]; in px. */
+data class TabSheet(val top: Int?, val left: Int?) {
+    companion object {
+        fun of(left: Int, top: Int, state: Int): TabSheet? = when (state) {
+            CustomTabsCallback.ACTIVITY_LAYOUT_STATE_BOTTOM_SHEET -> TabSheet(top = top, left = null)
+            CustomTabsCallback.ACTIVITY_LAYOUT_STATE_SIDE_SHEET -> TabSheet(top = null, left = left)
+            // Maximised or full screen, nothing of the chat would be left to show.
+            else -> null
+        }
+    }
+}
+
 private const val TOOLBAR_CORNER_DP = 16
+
+/** How long a tap waits for the browser's session before the tab opens without one. */
+private const val CONNECT_TIMEOUT_MS = 800L
 private const val TAG = "LinkOpener"

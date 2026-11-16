@@ -317,6 +317,11 @@
             android:name=".service.ScheduledSendReceiver"
             android:exported="false" />
 
+        <!-- The menu entry of a link's tab that adds its site to the sites images are shown from. -->
+        <receiver
+            android:name=".service.AddImageHostReceiver"
+            android:exported="false" />
+
         <service
             android:name=".service.ChatService"
             android:exported="false"
