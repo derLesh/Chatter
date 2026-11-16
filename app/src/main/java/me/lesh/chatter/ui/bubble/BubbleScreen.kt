@@ -9,13 +9,11 @@ import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -33,7 +31,6 @@ import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.zIndex
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalDensity
@@ -195,13 +192,7 @@ fun BubbleScreen(vm: MainViewModel, channel: String?) {
                         if (!found) scope.launch { snackbar.showSnackbar(resources.getString(R.string.jump_message_gone)) }
                     },
                     bottomInset = { if (floatingInput) with(density) { floatingInputHeight.toDp() } else 0.dp },
-                )
-                SnackbarHost(
-                    snackbar,
-                    Modifier
-                        .zIndex(2f)
-                        .align(Alignment.BottomCenter)
-                        .offset { IntOffset(0, if (floatingInput) -floatingInputHeight else 0) },
+                    snackbar = snackbar,
                 )
             }
         }
