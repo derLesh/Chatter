@@ -36,7 +36,6 @@ import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -66,6 +65,7 @@ import kotlinx.coroutines.launch
 import me.lesh.chatter.R
 import me.lesh.chatter.chat.InboxWhisper
 import me.lesh.chatter.ui.FormSheet
+import me.lesh.chatter.ui.MessagePillHost
 import java.time.Instant
 import java.time.LocalDate
 import java.time.ZoneId
@@ -99,7 +99,7 @@ internal fun WhisperChat(
     val background = chatBackground()
     Scaffold(
         containerColor = background,
-        snackbarHost = { SnackbarHost(snackbar) },
+        snackbarHost = { MessagePillHost(snackbar) },
         topBar = {
             TopAppBar(
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = background),

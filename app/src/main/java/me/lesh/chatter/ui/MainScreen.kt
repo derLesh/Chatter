@@ -22,7 +22,6 @@ import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.material3.Button
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -39,6 +38,7 @@ import androidx.compose.runtime.snapshots.Snapshot
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalHapticFeedback
@@ -284,7 +284,6 @@ fun MainScreen(vm: MainViewModel, onInbox: () -> Unit, onSettings: () -> Unit) {
     Scaffold(
         modifier = Modifier.noteTouches(activity),
         contentWindowInsets = WindowInsets(0),
-        snackbarHost = { SnackbarHost(snackbar) },
         topBar = {
             val onSelect = { ch: String ->
                 scope.launch {
@@ -363,17 +362,21 @@ fun MainScreen(vm: MainViewModel, onInbox: () -> Unit, onSettings: () -> Unit) {
             // and without channels it would cover the button to add one.
             val floatingInput = !guest && !settings.readOnly && pageKeys.isNotEmpty()
             var floatingInputHeight by remember { mutableIntStateOf(0) }
+            // With the reply card, which floats over the chat and would hide what sits above the input.
+            var floatingOverlayHeight by remember { mutableIntStateOf(0) }
             val density = LocalDensity.current
             Box(Modifier.weight(1f)) {
                 // First, so it is measured before the chat that makes room for it; drawn on top.
                 if (floatingInput) ChatInput(
                     vm, guest, connection, restriction, penalty, loader, activity, sheets, inThread = false,
                     sendChannels = activeGroup?.channels.orEmpty(), channelInfo = info,
-                    modifier = Modifier.zIndex(1f).align(Alignment.BottomCenter),
+                    modifier = Modifier.zIndex(1f).align(Alignment.BottomCenter).onSizeChanged { floatingOverlayHeight = it.height },
                     onCoveredHeight = { floatingInputHeight = it },
                 )
                 if (pageKeys.isEmpty()) {
                     EmptyState(onAdd = { sheets.showAdd = true }, modifier = Modifier.fillMaxSize())
+                    // Undoing the removal of the last channel lands here.
+                    MessagePillHost(snackbar, Modifier.align(Alignment.BottomCenter).padding(bottom = 12.dp))
                 } else {
                     HorizontalPager(
                         state = pagerState,
@@ -440,6 +443,9 @@ fun MainScreen(vm: MainViewModel, onInbox: () -> Unit, onSettings: () -> Unit) {
                                 onEmoteClick = { sheets.emoteCard = it },
                                 onBadgeHold = { sheets.badgeToHide = it },
                                 bottomInset = { if (floatingInput) with(density) { floatingInputHeight.toDp() } else 0.dp },
+                                overlayInset = { if (floatingInput) with(density) { floatingOverlayHeight.toDp() } else 0.dp },
+                                // The page, not the channel: a wrapping pager may show the channel twice.
+                                snackbar = snackbar.takeIf { page == pagerState.currentPage },
                             )
                             PinnedBar(
                                 pin = pins[channel]?.takeIf { it.item.id !in vm.hiddenPins },

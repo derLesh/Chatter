@@ -44,6 +44,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.LoadingIndicator
 import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -79,6 +80,7 @@ import me.lesh.chatter.badges.Badge
 import me.lesh.chatter.chat.ChatItem
 import me.lesh.chatter.chat.ChatStatus
 import me.lesh.chatter.ui.BetaBadge
+import me.lesh.chatter.ui.MessagePillHost
 import me.lesh.chatter.ui.channels.formatCount
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.StateFlow
@@ -114,7 +116,8 @@ const val CHAT_LIST_TAG = "chat"
  *
  * [bottomInset] is the height of an input floating over the list; the newest message and the
  * button back to it stay above it. Read while measuring, so a growing input moves the list without
- * composing it again.
+ * composing it again. [overlayInset] is all that floats over the list's bottom, which the pills and
+ * that button stay above: more than [bottomInset] while a reply card floats over the chat.
  */
 @Composable
 fun ChatList(
@@ -137,6 +140,9 @@ fun ChatList(
     jumpTo: String? = null,
     onJumped: (found: Boolean) -> Unit = {},
     bottomInset: () -> Dp = { 0.dp },
+    overlayInset: () -> Dp = bottomInset,
+    /** Shown above the status, so neither covers the input or the other. */
+    snackbar: SnackbarHostState? = null,
 ) {
     // Deleted messages are already filtered by the repository.
     val items by messages.collectAsStateWithLifecycle()
@@ -246,6 +252,7 @@ fun ChatList(
     }
     val flashColor = style.mentionBackground.copy(alpha = FLASH_ALPHA)
     val currentBottomInset by rememberUpdatedState(bottomInset)
+    val currentOverlayInset by rememberUpdatedState(overlayInset)
     val contentPadding = remember { ListPadding { currentBottomInset() } }
 
     Box(modifier) {
@@ -322,9 +329,10 @@ fun ChatList(
             modifier = Modifier
                 .align(Alignment.BottomCenter)
                 .zIndex(1f)
-                .offset { IntOffset(0, -currentBottomInset().roundToPx()) }
+                .offset { IntOffset(0, -currentOverlayInset().roundToPx()) }
                 .padding(bottom = 12.dp),
         ) {
+            snackbar?.let { MessagePillHost(it) }
             StatusPill(status, unreachable)
             NewMessagesButton(
                 visible = !follow,
