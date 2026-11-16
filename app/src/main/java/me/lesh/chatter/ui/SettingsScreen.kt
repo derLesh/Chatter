@@ -239,6 +239,7 @@ internal enum class SettingsSubPage(val title: Int) {
     PostsBluesky(R.string.post_site_bluesky),
     PostsYouTube(R.string.post_site_youtube),
     PostsTwitch(R.string.post_site_twitch),
+    PostsSevenTv(R.string.post_site_seventv),
     SpecialMessages(R.string.settings_special_messages),
     BotCommands(R.string.settings_bot_commands),
     AppIcons(R.string.settings_app_icon),
@@ -332,6 +333,7 @@ private val SEARCH_INDEX: List<SearchEntry> by lazy {
         add(SearchEntry(R.string.settings_remove_picture_info, media, R.string.settings_remove_picture_info_hint, also = listOf(R.string.search_also_exif)))
         val posts = SettingsPage.Posts
         PostSite.entries.forEach { add(SearchEntry(siteName(it), posts, also = POST_PART_TERMS)) }
+        add(SearchEntry(R.string.settings_seventv_login, posts, R.string.settings_seventv_login_hint, key = siteName(PostSite.SevenTv)))
         add(SearchEntry(R.string.settings_blur_nsfw_posts, posts, R.string.settings_blur_nsfw_posts_hint))
         val typing = SettingsPage.Typing
         add(SearchEntry(R.string.settings_read_only, typing, R.string.settings_read_only_hint))
@@ -658,6 +660,7 @@ fun SettingsScreen(vm: MainViewModel, onBack: () -> Unit) {
                 SettingsSubPage.PostsBluesky -> PostSitePage(PostSite.Bluesky, settings, vm)
                 SettingsSubPage.PostsYouTube -> PostSitePage(PostSite.YouTube, settings, vm)
                 SettingsSubPage.PostsTwitch -> PostSitePage(PostSite.Twitch, settings, vm)
+                SettingsSubPage.PostsSevenTv -> PostSitePage(PostSite.SevenTv, settings, vm)
                 SettingsSubPage.SpecialMessages -> SpecialMessagesPage(settings, vm)
                 SettingsSubPage.BotCommands -> BotCommandsPage(settings, vm)
                 SettingsSubPage.AppIcons -> AppIconsPage(settings, vm)

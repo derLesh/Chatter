@@ -21,6 +21,7 @@ import me.lesh.chatter.ui.LinkedLoginDialog
 import me.lesh.chatter.ui.MainViewModel
 import me.lesh.chatter.ui.chat.ImageViewerHost
 import me.lesh.chatter.ui.chat.LinkGuard
+import me.lesh.chatter.ui.chat.LocalEmoteAdding
 import me.lesh.chatter.ui.chat.LocalPosts
 import me.lesh.chatter.settings.EmoteSize
 import me.lesh.chatter.settings.ThemeMode
@@ -57,7 +58,7 @@ class MainActivity : ComponentActivity() {
             ChatterTheme(settings.themeMode, settings.dynamicColor, settings.pureBlack) {
                 LinkGuard {
                     ImageViewerHost(vm.imageLoader) {
-                        CompositionLocalProvider(LocalPosts provides vm.posts) { AppRoot(vm) }
+                        CompositionLocalProvider(LocalPosts provides vm.posts, LocalEmoteAdding provides vm.emoteAdding) { AppRoot(vm) }
                     }
                     LinkedLoginDialog(vm)
                 }

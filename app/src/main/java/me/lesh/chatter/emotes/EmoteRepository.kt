@@ -128,6 +128,10 @@ class EmoteRepository(
         return result.values.toList()
     }
 
+    /** Whether the 7TV emote [emoteId] is in the emote set loaded for [channelId], under any name. */
+    fun hasSevenTvEmote(channelId: String, emoteId: String): Boolean =
+        channels[channelId]?.sevenTv?.values?.any { it.id == emoteId } == true
+
     /** Every emote held in memory, counted once per channel it is loaded for. */
     fun loadedCount(): Int =
         global.byName.size + twitchUser.size +

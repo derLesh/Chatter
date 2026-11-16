@@ -46,6 +46,7 @@ import me.lesh.chatter.chat.RuleRepository
 import me.lesh.chatter.chat.ScheduledMessage
 import me.lesh.chatter.chat.ScheduledMessages
 import me.lesh.chatter.chat.SendResult
+import me.lesh.chatter.chat.SevenTvPostSource
 import me.lesh.chatter.chat.TwitchPostSource
 import me.lesh.chatter.chat.UserPictures
 import me.lesh.chatter.chat.BotCommands
@@ -68,6 +69,7 @@ import me.lesh.chatter.emotes.EmoteListFiles
 import me.lesh.chatter.emotes.EmoteRepository
 import me.lesh.chatter.emotes.HiddenEmoteRepository
 import me.lesh.chatter.badges.HiddenBadgeRepository
+import me.lesh.chatter.emotes.SevenTvEditing
 import me.lesh.chatter.emotes.SevenTvEventClient
 import me.lesh.chatter.emotes.SevenTvLiveUpdates
 import me.lesh.chatter.irc.ConnectionState
@@ -80,6 +82,7 @@ import me.lesh.chatter.net.HelixApi
 import me.lesh.chatter.net.ImageRedirects
 import me.lesh.chatter.net.ImageSizeLimit
 import me.lesh.chatter.net.ServiceTrouble
+import me.lesh.chatter.net.SevenTvApi
 import me.lesh.chatter.net.ThirdPartyApi
 import me.lesh.chatter.net.YouTubeApi
 import me.lesh.chatter.service.BackgroundHealth
@@ -110,6 +113,7 @@ import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.drop
 import kotlinx.coroutines.flow.filter
+import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
@@ -197,11 +201,12 @@ class AppContainer(
         BotApi(http), BotListFiles(context.cacheDir.resolve("bot-commands")), scope,
         botsOn = { settings.settings.value.botCommands },
     )
+    private val sevenTvApi = SevenTvApi(http)
     /** Posts for the cards that replace their links, one source per site. */
     val posts = PostRepository(
         listOf(
             XPostSource(FxTwitterApi(http)), BlueskyPostSource(BlueskyApi(http)), YouTubePostSource(YouTubeApi(http)),
-            TwitchPostSource(helix),
+            TwitchPostSource(helix), SevenTvPostSource(sevenTvApi),
         ),
         scope,
     )
@@ -231,6 +236,12 @@ class AppContainer(
         auth.state.map { (it as? AuthState.LoggedIn)?.account?.userId }.stateIn(scope, SharingStarted.Eagerly, null)
     val inbox = MentionInboxRepository(context.inboxStore, activeUserId, scope) { chat.windows.anyVisible.value }
     val whisperInbox = WhisperInboxRepository(context.inboxStore, activeUserId, auth.knownUserIds, scope)
+    val sevenTvEditing = SevenTvEditing(
+        context.authStore, sevenTvApi, activeUserId,
+        channelId = { chat.rooms.id(it) },
+        hasEmote = emotes::hasSevenTvEmote,
+        scope = scope,
+    )
     val rules = RuleRepository(context.ruleStore, scope)
     val stats = StatsRepository(context.statsStore, scope)
     val backgroundHealth = BackgroundHealth(context, context.healthStore, scope)
@@ -330,6 +341,12 @@ class AppContainer(
                 badges.enabled = it.badgeProviders
                 badges.ffzChannelBadges = it.ffzChannelBadges
             }
+        }
+        // Known only once the accounts are read; before that every 7TV login would look orphaned.
+        scope.launch {
+            combine(auth.state, auth.knownUserIds) { state, ids -> ids.takeIf { state != AuthState.Loading } }
+                .filterNotNull()
+                .collect { sevenTvEditing.keepOnly(it) }
         }
         // A provider switched on is loaded now; one switched off is no longer waited for.
         scope.launch {

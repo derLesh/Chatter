@@ -123,6 +123,7 @@ fun AppRoot(vm: MainViewModel) {
             }
             // Shows itself only right after an update to a minor or major version.
             UpdateNotesSheet(vm)
+            SevenTvLoginHost(vm)
         }
     }
 }

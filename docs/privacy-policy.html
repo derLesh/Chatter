@@ -44,7 +44,7 @@
 <p class="lang"><a href="#deutsch">Auf Deutsch lesen →</a></p>
 
 <h1>Chatter — Privacy Policy</h1>
-<p class="sub">Last updated: 13 November 2026</p>
+<p class="sub">Last updated: 16 November 2026</p>
 
 <p>Chatter is an independent Twitch chat client for Android with public source code. There is no
 account with Chatter, and no analytics, crash reporting or advertising in the app. The one exception
@@ -60,6 +60,9 @@ developer:</p>
   <li><strong>Your Twitch login.</strong> The OAuth access token Twitch issues, your Twitch username
       and user id. The token is encrypted with a key held in the Android Keystore, which never
       leaves the device.</li>
+  <li><strong>Your 7TV login</strong>, only if you log in to 7TV to add emotes: the session token 7TV
+      issues and your 7TV user id, kept per Twitch account and encrypted the same way. Logging out
+      of 7TV under Settings, or removing the Twitch account, deletes it.</li>
   <li><strong>Your channels</strong>, their custom names, and which of them are muted.</li>
   <li><strong>Your settings</strong>, including appearance, notification and highlight preferences.</li>
   <li><strong>Nicknames and notes</strong> you have given other chatters, your <strong>blocked users</strong>,
@@ -117,8 +120,11 @@ Twitch access token except Twitch itself.</p>
   </tr>
   <tr>
     <td>7TV</td>
-    <td><code>7tv.io</code>, <code>events.7tv.io</code></td>
-    <td>The Twitch id of a channel you open, to fetch and live-update its emotes.</td>
+    <td><code>7tv.io</code>, <code>events.7tv.io</code>, <code>api.7tv.app</code>, <code>cdn.7tv.app</code></td>
+    <td>The Twitch id of a channel you open, to fetch and live-update its emotes. While &ldquo;Show
+        emotes from 7TV&rdquo; is on, which it is not until you turn it on: the id of a 7TV emote
+        linked in chat, and the Twitch id of the channel it was linked in, to show it as a card. If
+        you log in to 7TV to add emotes: your 7TV session token with each emote you add.</td>
   </tr>
   <tr>
     <td>BetterTTV</td>
@@ -243,6 +249,17 @@ stay links. A post is only asked for when its message is on your screen, never
 for a chat running in the background, and not while the battery saver is on or Chatter saves
 data.</p>
 
+<p><strong>7TV emotes linked in chat.</strong> With &ldquo;Show emotes from 7TV&rdquo; on, a link
+to an emote on 7TV is shown as a card with the emote, its name and who made it, read from 7TV's
+public API by the emote's id. To decide whether to show the button that adds the emote to the
+channel, Chatter asks 7TV, without a login, for the channel's 7TV account and the Twitch accounts
+of the people allowed to edit its emotes, and compares them with your Twitch id on the phone; your
+id is not sent. The first time you tap the button, Chatter asks you to log in to 7TV. That login is
+7TV's own: you log in on Twitch's page, Twitch tells 7TV who you are, and 7TV gives Chatter a
+session token. Your Twitch login is not sent to 7TV. The token is kept encrypted on the phone and
+sent to 7TV with each emote you add. Logging out of 7TV deletes it from the phone and ends the
+session at 7TV.</p>
+
 <p><strong>Summaries on your phone (beta).</strong> With &ldquo;Sum up what you missed&rdquo; on
 (Settings &rarr; Labs), which it is not until you turn it on, Chatter can ask Gemini Nano
 what happened in a chat while you were away. Gemini Nano is a language model that Android's AICore
@@ -294,7 +311,7 @@ Twitch Interactive, Inc.</p>
 <hr>
 
 <h1 id="deutsch">Chatter — Datenschutzerklärung</h1>
-<p class="sub">Zuletzt aktualisiert: 13. November 2026</p>
+<p class="sub">Zuletzt aktualisiert: 16. November 2026</p>
 
 <p>Chatter ist ein unabhängiger Twitch-Chat-Client für Android mit öffentlichem Quellcode. Es gibt
 kein Konto bei Chatter und in der App weder Analyse- noch Absturzberichte oder Werbung. Die einzige
@@ -310,6 +327,9 @@ Erklärung beschreibt, was auf dem Telefon bleibt und was es verlässt.</p>
   <li><strong>Der Twitch-Login.</strong> Das von Twitch ausgestellte OAuth-Token, der Twitch-Benutzername
       und die Benutzer-ID. Das Token ist mit einem Schlüssel verschlüsselt, der den Android Keystore
       nie verlässt.</li>
+  <li><strong>Der 7TV-Login</strong>, nur wenn du dich bei 7TV anmeldest, um Emotes hinzuzufügen: das
+      Sitzungs-Token, das 7TV ausstellt, und deine 7TV-Benutzer-ID, je Twitch-Konto und genauso
+      verschlüsselt. Abmelden bei 7TV in den Einstellungen oder Entfernen des Twitch-Kontos löscht ihn.</li>
   <li><strong>Die Kanäle</strong>, ihre eigenen Namen und welche davon stummgeschaltet sind.</li>
   <li><strong>Die Einstellungen</strong>, einschließlich Darstellung, Benachrichtigungen und Highlights.</li>
   <li><strong>Spitznamen und Notizen</strong> zu anderen Chattern, <strong>blockierte Nutzer</strong> sowie
@@ -356,8 +376,12 @@ und außer Twitch selbst erhält kein Dritter das Twitch-Token.</p>
   </tr>
   <tr>
     <td>7TV</td>
-    <td><code>7tv.io</code>, <code>events.7tv.io</code></td>
-    <td>Die Twitch-ID eines geöffneten Kanals, um dessen Emotes zu laden und aktuell zu halten.</td>
+    <td><code>7tv.io</code>, <code>events.7tv.io</code>, <code>api.7tv.app</code>, <code>cdn.7tv.app</code></td>
+    <td>Die Twitch-ID eines geöffneten Kanals, um dessen Emotes zu laden und aktuell zu halten.
+        Solange &bdquo;Emotes von 7TV anzeigen&ldquo; an ist, was es erst ist, wenn du es einschaltest:
+        die ID eines im Chat verlinkten 7TV-Emotes und die Twitch-ID des Kanals, in dem es verlinkt
+        wurde, um es als Karte zu zeigen. Wenn du dich bei 7TV anmeldest, um Emotes hinzuzufügen: dein
+        7TV-Sitzungs-Token mit jedem Emote, das du hinzufügst.</td>
   </tr>
   <tr>
     <td>BetterTTV</td>
@@ -487,6 +511,18 @@ die API von Twitch, wie alles andere, was Chatter Twitch fragt: Die Anfrage enth
 Kanals oder die Nummer des Clips oder Videos, die Bilder kommen von den Bildservern von Twitch. Als
 Gast bleiben Twitch-Links Links. Ein Post wird erst abgefragt, wenn seine Nachricht auf dem Bildschirm ist, nie für
 einen Chat im Hintergrund, und nicht im Akkusparmodus oder während Chatter Daten spart.</p>
+
+<p><strong>Im Chat verlinkte 7TV-Emotes.</strong> Ist &bdquo;Emotes von 7TV anzeigen&ldquo; an, wird
+ein Link auf ein Emote bei 7TV als Karte mit dem Emote, seinem Namen und seinem Ersteller angezeigt,
+gelesen über die öffentliche API von 7TV anhand der ID des Emotes. Um zu entscheiden, ob der Knopf
+erscheint, der das Emote zum Kanal hinzufügt, fragt Chatter 7TV ohne Anmeldung nach dem 7TV-Konto
+des Kanals und den Twitch-Konten der Leute, die seine Emotes bearbeiten dürfen, und vergleicht sie
+auf dem Gerät mit deiner Twitch-ID; deine ID wird nicht gesendet. Beim ersten Tippen auf den Knopf
+bittet Chatter dich, dich bei 7TV anzumelden. Das ist die Anmeldung von 7TV selbst: Du meldest dich
+auf der Seite von Twitch an, Twitch sagt 7TV, wer du bist, und 7TV gibt Chatter ein Sitzungs-Token.
+Dein Twitch-Login geht nicht an 7TV. Das Token wird verschlüsselt auf dem Gerät gespeichert und mit
+jedem Emote, das du hinzufügst, an 7TV gesendet. Abmelden bei 7TV löscht es vom Gerät und beendet
+die Sitzung bei 7TV.</p>
 
 <p><strong>Zusammenfassungen auf dem Gerät (Beta).</strong> Ist &bdquo;Verpasstes
 zusammenfassen&ldquo; eingeschaltet (Einstellungen &rarr; Labs), was es nicht ist, bis du

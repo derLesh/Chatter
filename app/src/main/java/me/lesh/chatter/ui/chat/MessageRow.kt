@@ -295,7 +295,7 @@ fun MessageRow(
                 built.gifs.forEach { gif -> LinkedImage(gif.url, rowStyle, imageLoader, alone, title = gif.title) }
             }
         }
-        style.postCard?.let { card -> built.posts.forEach { PostCard(it, card, rowStyle, imageLoader) } }
+        style.postCard?.let { card -> built.posts.forEach { PostCard(it, card, rowStyle, imageLoader, item.channel, item.sourceRoomId) } }
     }
 }
 
