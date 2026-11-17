@@ -12,14 +12,15 @@ import androidx.compose.ui.graphics.toArgb
  * someone builds on the website and brings over as a [code], needs nothing else.
  *
  * Surfaces step from [background] towards [text], like the grey cards on X, instead of being
- * tinted with the accent; only buttons, links, selections and badges carry [accent]. The roles
+ * tinted with the accent; only buttons, links, selections and badges carry [accent], which may be white or grey too. The roles
  * follow Material's baseline scheme, so components look as Material intends them to.
  */
 data class ThemePalette(val background: Color, val text: Color, val accent: Color) {
 
-    val isDark: Boolean get() = background.luminance() < 0.5f
+    /** Light text on a darker background; a mid grey background could go either way. */
+    val isDark: Boolean get() = text.luminance() > background.luminance()
 
-    /** `1-<background>-<text>-<accent>` in hex, e.g. `1-111214-E7E9EA-BF94FF`. */
+    /** `1-<background>-<text>-<accent>` in hex, e.g. `1-111214-E7E9EA-FFFFFF`. */
     val code: String get() = listOf(background, text, accent).joinToString("-", prefix = "$CODE_VERSION-") { it.hex() }
 
     fun colorScheme(): ColorScheme {
@@ -31,22 +32,26 @@ data class ThemePalette(val background: Color, val text: Color, val accent: Colo
         val deep = if (dark) Color.Black else Color.White
         val far = if (dark) Color.White else Color.Black
         val secondary = mix(text, accent, 0.3f)
+        // Baseline's secondary container: tone 30 with only a hint of the accent.
+        val secondaryContainer = if (dark) secondary.withHsl(lightness = 0.31f, saturationScale = 0.3f) else secondary.withHsl(lightness = 0.92f)
         val tertiary = accent.rotateHue(TERTIARY_HUE_SHIFT)
+        val primaryContainer = container(accent)
+        val tertiaryContainer = container(tertiary)
         val base = if (dark) darkColorScheme() else lightColorScheme()
         return base.copy(
             primary = accent,
-            onPrimary = readableOn(accent),
-            primaryContainer = container(accent),
-            onPrimaryContainer = mix(accent, far, if (dark) 0.75f else 0.6f),
+            onPrimary = textOn(accent),
+            primaryContainer = primaryContainer,
+            onPrimaryContainer = textOn(primaryContainer, preferred = mix(accent, far, if (dark) 0.75f else 0.6f)),
             inversePrimary = mix(accent, deep, 0.45f),
             secondary = secondary,
-            onSecondary = readableOn(secondary),
-            secondaryContainer = mix(background, accent, if (dark) 0.2f else 0.12f),
-            onSecondaryContainer = mix(accent, far, if (dark) 0.8f else 0.7f),
+            onSecondary = textOn(secondary),
+            secondaryContainer = secondaryContainer,
+            onSecondaryContainer = textOn(secondaryContainer, preferred = mix(accent, far, if (dark) 0.8f else 0.7f)),
             tertiary = tertiary,
-            onTertiary = readableOn(tertiary),
-            tertiaryContainer = container(tertiary),
-            onTertiaryContainer = mix(tertiary, far, if (dark) 0.75f else 0.6f),
+            onTertiary = textOn(tertiary),
+            tertiaryContainer = tertiaryContainer,
+            onTertiaryContainer = textOn(tertiaryContainer, preferred = mix(tertiary, far, if (dark) 0.75f else 0.6f)),
             background = background,
             onBackground = text,
             surface = background,
@@ -58,8 +63,8 @@ data class ThemePalette(val background: Color, val text: Color, val accent: Colo
             inverseOnSurface = mix(background, text, 0.1f),
             outline = mix(text, background, 0.5f),
             outlineVariant = mix(background, text, 0.16f),
-            surfaceBright = mix(background, text, 0.17f),
-            surfaceDim = background,
+            surfaceBright = if (dark) mix(background, text, 0.17f) else background,
+            surfaceDim = if (dark) background else mix(background, text, 0.13f),
             surfaceContainerLowest = mix(background, deep, 0.4f),
             surfaceContainerLow = mix(background, text, 0.04f),
             surfaceContainer = mix(background, text, 0.065f),
@@ -69,37 +74,48 @@ data class ThemePalette(val background: Color, val text: Color, val accent: Colo
     }
 
     companion object {
-        /** Near black with neutral grey surfaces, after X's dark mode, and Twitch's purple. */
-        val Dark = ThemePalette(Color(0xFF111214), Color(0xFFE7E9EA), Color(0xFFBF94FF))
+        /** Near black with neutral grey surfaces and white buttons, after X's dark mode. */
+        val Dark = ThemePalette(Color(0xFF111214), Color(0xFFE7E9EA), Color.White)
 
         /**
-         * The palette of a [code], or null if it is not one or its text would be hard to read on its
-         * background, so a typo can never leave the app unreadable.
+         * The palette of a [code], or null if it is not one or some of its text would be hard to
+         * read, so a typo can never leave the app unreadable.
          */
         fun fromCode(code: String): ThemePalette? {
             val parts = code.trim().split('-')
             if (parts.size != 4 || parts[0] != CODE_VERSION) return null
             val colors = parts.drop(1).map { hex -> parseHex(hex) ?: return null }
-            val palette = ThemePalette(colors[0], colors[1], colors[2])
-            return palette.takeIf { contrast(it.background, it.text) >= MIN_TEXT_CONTRAST }
+            return ThemePalette(colors[0], colors[1], colors[2]).takeIf { it.isReadable() }
         }
 
         private const val CODE_VERSION = "1"
-
-        /** WCAG AA for body text. */
-        private const val MIN_TEXT_CONTRAST = 4.5f
 
         /** Material's baseline goes from a purple primary to a pink tertiary, about this far round. */
         private const val TERTIARY_HUE_SHIFT = 60f
     }
 }
 
-private fun parseHex(hex: String): Color? {
-    val digits = hex.removePrefix("#")
-    if (digits.length != 6) return null
-    val rgb = digits.toIntOrNull(16) ?: return null
-    return Color(0xFF000000.toInt() or rgb)
+/**
+ * Hints on the most raised cards, and accents drawn as text (links, the snackbar's Undo, warnings
+ * in the log) on the background, cards and secondary containers, are the faintest text the scheme
+ * draws; text on accents and containers is kept readable by [textOn].
+ */
+private fun ThemePalette.isReadable(): Boolean {
+    val scheme = colorScheme()
+    val accentBackgrounds = listOf(scheme.background, scheme.surfaceContainerHighest, scheme.secondaryContainer)
+    return contrast(scheme.onSurfaceVariant, scheme.surfaceContainerHighest) >= MIN_TEXT_CONTRAST &&
+        listOf(scheme.primary, scheme.tertiary).all { accent ->
+            accentBackgrounds.all { contrast(accent, it) >= MIN_TEXT_CONTRAST }
+        }
 }
+
+/** WCAG AA for body text. */
+private const val MIN_TEXT_CONTRAST = 4.5f
+
+private val HexColor = Regex("[0-9A-Fa-f]{6}")
+
+private fun parseHex(hex: String): Color? =
+    if (HexColor.matches(hex)) Color(0xFF000000.toInt() or hex.toInt(16)) else null
 
 private fun Color.hex(): String = "%06X".format(java.util.Locale.ROOT, toArgb() and 0xFFFFFF)
 
@@ -110,14 +126,23 @@ private fun mix(from: Color, to: Color, fraction: Float) = Color(
     blue = from.blue + (to.blue - from.blue) * fraction,
 )
 
-/** A dark or light shade of [color], whichever reads better on it. */
-private fun readableOn(color: Color): Color {
-    val dark = mix(color, Color.Black, 0.75f)
-    val light = mix(color, Color.White, 0.9f)
-    return if (contrast(color, dark) >= contrast(color, light)) dark else light
+/**
+ * Text for [fill]: [preferred], by default a dark or light shade of the fill, or black or white
+ * where that does not reach [MIN_TEXT_CONTRAST].
+ */
+private fun textOn(fill: Color, preferred: Color = shadeOn(fill)): Color = when {
+    contrast(fill, preferred) >= MIN_TEXT_CONTRAST -> preferred
+    contrast(fill, Color.Black) >= contrast(fill, Color.White) -> Color.Black
+    else -> Color.White
 }
 
-private fun contrast(a: Color, b: Color): Float {
+private fun shadeOn(fill: Color): Color {
+    val dark = mix(fill, Color.Black, 0.85f)
+    val light = mix(fill, Color.White, 0.9f)
+    return if (contrast(fill, dark) >= contrast(fill, light)) dark else light
+}
+
+internal fun contrast(a: Color, b: Color): Float {
     val la = a.luminance()
     val lb = b.luminance()
     return (maxOf(la, lb) + 0.05f) / (minOf(la, lb) + 0.05f)
