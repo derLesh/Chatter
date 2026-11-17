@@ -7,6 +7,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.compositeOver
 import androidx.compose.ui.graphics.isUnspecified
+import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.sp
@@ -160,7 +161,8 @@ fun rememberChatStyle(
             emoteFrameRate = emoteFrameRate,
             paints = settings.sevenTvPaints,
             specialMessages = settings.specialMessages,
-            highlightedBackground = colors.primary.copy(alpha = 0.28f),
+            // A near-white accent at the usual strength would wash out the timestamps on these rows.
+            highlightedBackground = colors.primary.copy(alpha = if (colors.primary.luminance() > 0.8f) 0.14f else 0.28f),
             rewardNames = rewardNames,
             lineSpacing = settings.lineSpacing.factor,
             dividerColor = if (settings.messageDividers) colors.outlineVariant else null,

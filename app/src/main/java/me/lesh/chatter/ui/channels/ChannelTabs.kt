@@ -68,6 +68,7 @@ import me.lesh.chatter.chat.ChatRole
 import me.lesh.chatter.chat.RoomState
 import me.lesh.chatter.irc.ConnectionState
 import me.lesh.chatter.ui.theme.barColor
+import me.lesh.chatter.ui.theme.isAppInDarkTheme
 
 /**
  * The bar above the chat in tab mode: every page in swipe order, the add button, inbox and settings
@@ -284,9 +285,13 @@ private fun ChannelTab(
     actions: List<List<TabAction>>,
 ) {
     var open by remember { mutableStateOf(false) }
+    // Quiet tabs step well back on a dark theme, so a tab with new messages stands out even when
+    // the accent is white and the dot has no color of its own; on a light one that grey would be
+    // too faint to read.
     val color = when {
         selected -> MaterialTheme.colorScheme.primary
         hasNew || mentions > 0 -> MaterialTheme.colorScheme.onSurface
+        isAppInDarkTheme() -> MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
         else -> MaterialTheme.colorScheme.onSurfaceVariant
     }
     Box(
