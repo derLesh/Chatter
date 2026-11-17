@@ -1602,13 +1602,23 @@ class MainViewModel(private val c: AppContainer, savedState: SavedStateHandle) :
         AppLog.d("Upload", "A picture came in")
         viewModelScope.launch {
             runCatchingCancellable { c.imageUploader.copy(uri, removeInfo = settings.value.removePictureInfo) }
-                .onSuccess { picture.open(it, pictureChannel(), defaultUploader()) }
+                .onSuccess {
+                    picture.open(it, pictureChannel(), defaultUploader())
+                    pictureOpened.value = true
+                }
                 .onFailure {
                     AppLog.w("Upload", "The picture could not be copied in", it)
                     _messages.send(UiMessage(if (it is PictureTooLargeException) R.string.picture_too_large else R.string.picture_unreadable))
                 }
         }
     }
+
+    /**
+     * Set when a picture came in, so the settings close and the send screen is seen: a picture
+     * shared while the app was left in the settings would otherwise wait underneath them. Cleared
+     * once the settings are closed.
+     */
+    internal val pictureOpened = MutableStateFlow(false)
 
     /** The channel the input writes to, else the first one; null before any is open. */
     private fun pictureChannel(): String? = sendChannel?.takeIf { it in channels.value } ?: channels.value.firstOrNull()
