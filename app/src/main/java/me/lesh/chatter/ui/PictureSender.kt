@@ -69,6 +69,8 @@ internal class PictureSender(
     var picture by mutableStateOf<Picture?>(null)
         private set
     var text by mutableStateOf(TextFieldValue(""))
+    /** Emotes, emoji and names for the word being typed in [text]. */
+    var suggestions by mutableStateOf<List<Suggestion>>(emptyList())
     var channel by mutableStateOf<String?>(null)
         private set
     /** Where the picture goes; null only while no site can take it. */
@@ -164,6 +166,7 @@ internal class PictureSender(
         picture?.let(outbox::discard)
         picture = null
         text = TextFieldValue("")
+        suggestions = emptyList()
         channel = null
         uploaded = null
         step = PictureStep.Ready
