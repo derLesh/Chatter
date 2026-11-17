@@ -204,13 +204,13 @@ fun SendPictureScreen(vm: MainViewModel) {
                     }
                     InputBar(
                         value = sender.text,
-                        onValueChange = { sender.text = it },
+                        onValueChange = vm::onPictureTextChange,
                         // Offline the picture would be uploaded for a message that cannot go out.
                         enabled = sender.channel != null && !sender.isBusy && connection == ConnectionState.Connected,
                         replyTo = null,
-                        suggestions = emptyList(),
+                        suggestions = sender.suggestions,
                         imageLoader = vm.imageLoader,
-                        onSuggestion = {},
+                        onSuggestion = vm::applyPictureSuggestion,
                         onCancelReply = null,
                         onEmotePicker = { pickingEmote = true },
                         onSend = sender::send,

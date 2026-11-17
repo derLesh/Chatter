@@ -50,6 +50,12 @@ fun AppRoot(vm: MainViewModel) {
     // The send screen's way to its uploader settings; back from there returns to the picture.
     val requestedSettings by vm.requestedSettingsPage.collectAsStateWithLifecycle()
     LaunchedEffect(requestedSettings) { if (requestedSettings != null) showSettings = true }
+    val pictureOpened by vm.pictureOpened.collectAsStateWithLifecycle()
+    LaunchedEffect(pictureOpened) {
+        if (!pictureOpened) return@LaunchedEffect
+        showSettings = false
+        vm.pictureOpened.value = false
+    }
     when (auth) {
         AuthState.Loading -> Box(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background))
         AuthState.LoggedOut -> LoginScreen(vm)

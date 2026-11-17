@@ -862,14 +862,15 @@ class MainViewModel(private val c: AppContainer, savedState: SavedStateHandle) :
         return (hint.choices + names + hint.parameters).distinctBy { it.lowercase() }.map { Suggestion.ArgumentSuggestion(it) }
     }
 
-    private suspend fun rank(channel: String, word: Autocomplete.Word): List<Suggestion> {
+    /** Without [commands] only emotes, emoji and names: a message going with a picture is never a command. */
+    private suspend fun rank(channel: String, word: Autocomplete.Word, commands: Boolean = true): List<Suggestion> {
         // A sign can also start a Twitch smiley like ">(", so without a command the emotes get it.
-        if (word.start == 0 && BotCommands.startsLikeCommand(word.text)) {
+        if (commands && word.start == 0 && BotCommands.startsLikeCommand(word.text)) {
             val commands = c.botCommands.suggest(channel, word.text)
             if (commands.isNotEmpty()) return commands.map { Suggestion.BotCommandSuggestion(it) }
         }
         val shortcode = EmojiCatalog.typedShortcode(word.text)
-        return if (word.start == 0 && word.text.startsWith("/")) {
+        return if (commands && word.start == 0 && word.text.startsWith("/")) {
             val typed = word.text.substring(1).lowercase()
             CommandParser.COMMANDS.filterKeys { it.startsWith(typed) }
                 .map { (name, usage) -> Suggestion.CommandSuggestion(name, usage) }
@@ -899,11 +900,18 @@ class MainViewModel(private val c: AppContainer, savedState: SavedStateHandle) :
     }
 
     fun applySuggestion(s: Suggestion) {
-        val cursor = input.selection.start
+        composer.input = withSuggestion(input, s) ?: return
+        // A command or an argument is followed by the hint for the next argument.
+        updateSuggestions()
+    }
+
+    /** [typed] with the word at the cursor replaced by [s]; null if there is no word to replace. */
+    private fun withSuggestion(typed: TextFieldValue, s: Suggestion): TextFieldValue? {
+        val cursor = typed.selection.start
         // An argument can be offered between two words, before anything of it is typed.
-        val word = Autocomplete.currentWord(input.text, cursor)
+        val word = Autocomplete.currentWord(typed.text, cursor)
             ?: Autocomplete.Word(cursor, cursor, "").takeIf { s is Suggestion.ArgumentSuggestion }
-            ?: return
+            ?: return null
         val value = when (s) {
             is Suggestion.EmoteSuggestion -> s.emote.name.also { rememberEmote(it) }
             // An "@" the user typed stays either way.
@@ -916,10 +924,8 @@ class MainViewModel(private val c: AppContainer, savedState: SavedStateHandle) :
         }
         // "format:" is followed by its value, not a space.
         val space = !(s is Suggestion.ArgumentSuggestion && value.endsWith(":"))
-        val (text, newCursor) = Autocomplete.replace(input.text, word, value, space)
-        composer.input = TextFieldValue(text, TextRange(newCursor))
-        // A command or an argument is followed by the hint for the next argument.
-        updateSuggestions()
+        val (text, newCursor) = Autocomplete.replace(typed.text, word, value, space)
+        return TextFieldValue(text, TextRange(newCursor))
     }
 
     fun insertEmote(emote: Emote) {
@@ -931,8 +937,30 @@ class MainViewModel(private val c: AppContainer, savedState: SavedStateHandle) :
     /** Puts an emote or emoji into the message going with a picture. */
     internal fun insertInto(sender: PictureSender, value: String) {
         val (text, cursor) = Autocomplete.insert(sender.text.text, sender.text.selection.start, value)
-        sender.text = TextFieldValue(text, TextRange(cursor))
+        onPictureTextChange(TextFieldValue(text, TextRange(cursor)))
         rememberEmote(value)
+    }
+
+    private var pictureSuggestionJob: Job? = null
+
+    /** The message going with a picture was typed in; offers emotes, emoji and names as the chat does. */
+    internal fun onPictureTextChange(value: TextFieldValue) {
+        picture.text = value
+        pictureSuggestionJob?.cancel()
+        val channel = picture.channel
+        val word = Autocomplete.currentWord(value.text, value.selection.start)
+        if (channel == null || word == null) {
+            picture.suggestions = emptyList()
+            return
+        }
+        pictureSuggestionJob = viewModelScope.launch {
+            val ranked = withContext(Dispatchers.Default) { rank(channel, word, commands = false) }
+            if (picture.text == value && picture.channel == channel) picture.suggestions = ranked
+        }
+    }
+
+    internal fun applyPictureSuggestion(s: Suggestion) {
+        onPictureTextChange(withSuggestion(picture.text, s) ?: return)
     }
 
     fun insertEmoji(emoji: Emoji) {
@@ -1602,13 +1630,23 @@ class MainViewModel(private val c: AppContainer, savedState: SavedStateHandle) :
         AppLog.d("Upload", "A picture came in")
         viewModelScope.launch {
             runCatchingCancellable { c.imageUploader.copy(uri, removeInfo = settings.value.removePictureInfo) }
-                .onSuccess { picture.open(it, pictureChannel(), defaultUploader()) }
+                .onSuccess {
+                    picture.open(it, pictureChannel(), defaultUploader())
+                    pictureOpened.value = true
+                }
                 .onFailure {
                     AppLog.w("Upload", "The picture could not be copied in", it)
                     _messages.send(UiMessage(if (it is PictureTooLargeException) R.string.picture_too_large else R.string.picture_unreadable))
                 }
         }
     }
+
+    /**
+     * Set when a picture came in, so the settings close and the send screen is seen: a picture
+     * shared while the app was left in the settings would otherwise wait underneath them. Cleared
+     * once the settings are closed.
+     */
+    internal val pictureOpened = MutableStateFlow(false)
 
     /** The channel the input writes to, else the first one; null before any is open. */
     private fun pictureChannel(): String? = sendChannel?.takeIf { it in channels.value } ?: channels.value.firstOrNull()
