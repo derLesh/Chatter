@@ -660,8 +660,10 @@
     <string name="crash_delete">Löschen</string>
     <string name="crash_report_clipboard">Zu lang fürs Formular. Der ganze Absturz ist in der Zwischenablage</string>
     <string name="crash_offer_title">Chatter ist abgestürzt</string>
+    <string name="crash_offer_title_hang">Chatter hat nicht reagiert</string>
     <string name="crash_offer_show">Anzeigen</string>
     <string name="crash_offer_text">Melde ihn auf GitHub, damit er behoben wird.</string>
+    <string name="crash_offer_text_hang">Melde es auf GitHub, damit es behoben wird.</string>
 
     <!-- Chat modes (header chips) -->
     <string name="mode_slow">Langsam %1$ds</string>

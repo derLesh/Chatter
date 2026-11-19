@@ -1322,7 +1322,10 @@ class MainViewModel(private val c: AppContainer, savedState: SavedStateHandle) :
     val crashToOffer: StateFlow<Crash?> = _crashToOffer
 
     init {
-        viewModelScope.launch(Dispatchers.IO) { _crashToOffer.value = c.crashLog.unoffered() }
+        viewModelScope.launch(Dispatchers.IO) {
+            c.earlierExitsRead.await()
+            _crashToOffer.value = c.crashLog.unoffered()
+        }
     }
 
     private val _offeredCrashShown = MutableStateFlow<Crash?>(null)

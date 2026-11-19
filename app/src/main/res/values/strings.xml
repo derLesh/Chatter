@@ -677,8 +677,10 @@
     <string name="crash_delete">Delete</string>
     <string name="crash_report_clipboard">Too long for the form. The whole crash is in the clipboard</string>
     <string name="crash_offer_title">Chatter crashed</string>
+    <string name="crash_offer_title_hang">Chatter stopped responding</string>
     <string name="crash_offer_show">Show it</string>
     <string name="crash_offer_text">Report it on GitHub so it gets fixed.</string>
+    <string name="crash_offer_text_hang">Report it on GitHub so it gets fixed.</string>
 
     <!-- Chat modes (header chips) -->
     <string name="mode_slow">Slow %1$ds</string>

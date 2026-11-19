@@ -50,11 +50,18 @@ class Crash(val at: Long, val text: String) {
     /** The trace's first line: "java.lang.IllegalStateException: broken". */
     val error: String get() = trace.lineSequence().firstOrNull { it.isNotBlank() }?.trim().orEmpty()
 
-    /** "IllegalStateException", for a list or an issue title. */
+    /** "IllegalStateException", for a list or an issue title; "ANR" for a hang. */
     val errorKind: String get() = error.substringBefore(':').substringAfterLast('.').ifBlank { "Crash" }
 
-    internal companion object {
-        const val LOG_HEADING = "\n\nLog before the crash, private:\n"
+    /** Chatter stopped responding rather than closed on an error; see [EarlierExits]. */
+    val isHang: Boolean get() = header["Kind"] == HANG
+
+    companion object {
+        internal const val LOG_HEADING = "\n\nLog before the crash, private:\n"
+
+        /** Kinds of crash Android reports instead of Chatter's own handler, in the "Kind" header line. */
+        const val HANG = "Not responding (ANR)"
+        const val NATIVE = "Native crash"
     }
 }
 
@@ -98,10 +105,23 @@ class CrashLog(private val dir: File, private val device: DeviceInfo) {
 
     /** Records a crash and keeps only the last [KEPT]. [log] is the private log's last lines. */
     fun write(thread: String, error: Throwable, at: Long = System.currentTimeMillis(), log: List<String> = emptyList()) {
+        save(at, format(at, thread, error, device, log))
+    }
+
+    /**
+     * Records an end Android reported, like a hang: [kind] is [Crash.HANG] or [Crash.NATIVE],
+     * [trace] what it said. [version] is the ended run's, which an update since may have changed.
+     */
+    fun writeExit(at: Long, kind: String, trace: String, version: String?, log: List<String>) {
+        if (File(dir, "$PREFIX$at$SUFFIX").exists()) return
+        save(at, formatExit(at, kind, trace, version, device, log))
+    }
+
+    private fun save(at: Long, text: String) {
         dir.mkdirs()
         // Renamed into place, so the list never reads half a file if the process ends while writing.
         val partial = File(dir, "$PREFIX$at$PARTIAL")
-        partial.writeText(format(at, thread, error, device, log))
+        partial.writeText(text)
         partial.renameTo(File(dir, "$PREFIX$at$SUFFIX"))
         files().dropLast(KEPT).forEach { it.delete() }
     }
@@ -242,26 +262,32 @@ class CrashLog(private val dir: File, private val device: DeviceInfo) {
             // printStackTrace includes causes and suppressed errors. Cleaned before it is cut, so a
             // cut cannot leave half a secret behind.
             val trace = clean(StringWriter().also { error.printStackTrace(PrintWriter(it)) }.toString().trimEnd())
+            // OkHttp names its threads after the link they load.
+            val head = header(at, version = null, device, "Thread" to LogPrivacy.clean(thread).take(MAX_THREAD_CHARS))
+            // Cut frame by frame, so every cause stays, the root one included.
+            return head + CrashReport.shortTrace(trace, MAX_TRACE_CHARS) { it.length }.first + logPart(log)
+        }
+
+        /** An end Android reported, laid out like a crash; see [writeExit]. Internal for tests. */
+        internal fun formatExit(at: Long, kind: String, trace: String, version: String?, device: DeviceInfo, log: List<String>): String =
+            header(at, version, device, "Kind" to kind) + clean(trace).take(MAX_TRACE_CHARS).trimEnd() + logPart(log)
+
+        /** The lines above the trace; [last] names what kind of crash it was. */
+        private fun header(at: Long, version: String?, device: DeviceInfo, last: Pair<String, String>): String {
             val time = SimpleDateFormat("yyyy-MM-dd HH:mm:ss 'UTC'", Locale.ROOT)
                 .apply { timeZone = TimeZone.getTimeZone("UTC") }
                 .format(Date(at))
             return buildString {
                 appendLine("Time: $time")
-                appendLine("Chatter: ${device.appVersion} (${device.versionCode})")
+                appendLine("Chatter: ${version ?: "${device.appVersion} (${device.versionCode})"}")
                 appendLine("Android: ${device.android} (API ${device.sdk})")
                 appendLine("Device: ${device.device}")
-                // OkHttp names its threads after the link they load.
-                appendLine("Thread: ${LogPrivacy.clean(thread).take(MAX_THREAD_CHARS)}")
+                appendLine("${last.first}: ${last.second}")
                 appendLine()
-                // Cut frame by frame, so every cause stays, the root one included.
-                append(CrashReport.shortTrace(trace, MAX_TRACE_CHARS) { it.length }.first)
-                if (log.isNotEmpty()) {
-                    append(Crash.LOG_HEADING)
-                    log.forEach { appendLine(it) }
-                } else {
-                    appendLine()
-                }
             }
         }
+
+        private fun logPart(log: List<String>): String =
+            if (log.isEmpty()) "\n" else Crash.LOG_HEADING + log.joinToString("") { it + "\n" }
     }
 }

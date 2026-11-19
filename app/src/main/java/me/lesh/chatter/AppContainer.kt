@@ -1,5 +1,6 @@
 package me.lesh.chatter
 
+import android.app.ActivityManager
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
@@ -58,6 +59,7 @@ import me.lesh.chatter.chat.WhisperSender
 import me.lesh.chatter.chat.XPostSource
 import me.lesh.chatter.chat.YouTubePostSource
 import me.lesh.chatter.crash.CrashLog
+import me.lesh.chatter.crash.EarlierExits
 import me.lesh.chatter.debug.AppLog
 import me.lesh.chatter.debug.AppWatch
 import me.lesh.chatter.debug.DebugStats
@@ -101,6 +103,7 @@ import me.lesh.chatter.upload.UploaderStore
 import me.lesh.chatter.util.AppIconSwitcher
 import me.lesh.chatter.util.ChannelIcons
 import me.lesh.chatter.util.ChannelShortcuts
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -158,6 +161,9 @@ class AppContainer(
     private val firstStart: Boolean,
 ) {
     val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
+
+    /** Done once the start has read how earlier runs ended, so a hang found there can be offered too. */
+    val earlierExitsRead = CompletableDeferred<Unit>()
 
     private val baseHttp: OkHttpClient = OkHttpClient.Builder()
         .connectTimeout(10, TimeUnit.SECONDS)
@@ -329,6 +335,14 @@ class AppContainer(
     val powerSaveMode: StateFlow<Boolean> = _powerSaveMode
 
     fun start() {
+        // After the log file is read, which its worker does first: a hang keeps the log before it.
+        scope.launch(Dispatchers.IO) {
+            try {
+                EarlierExits(context.getSystemService(ActivityManager::class.java), crashLog, context.filesDir.resolve("crashes/exits-seen")).check()
+            } finally {
+                earlierExitsRead.complete(Unit)
+            }
+        }
         notifier.createChannels()
         chat.start()
         stats.start(chat.windows.anyVisible)

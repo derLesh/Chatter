@@ -40,7 +40,8 @@ object CrashReport {
         val crashText = head + trace
         val (log, logWhole) = newestLines(logLines, maxEncodedChars - encodedLength(crashText))
         return CrashIssue(
-            title = "Crash: ${crash.errorKind}",
+            // A hang or a native crash names its kind; Chatter's own crashes name the error.
+            title = crash.header["Kind"] ?: "Crash: ${crash.errorKind}",
             crash = crashText,
             log = log,
             whole = traceWhole && logWhole,

@@ -233,8 +233,8 @@ fun CrashOfferSheet(vm: MainViewModel) {
     val offered = crash ?: return
     if (releases.isNotEmpty()) return
     FormSheet(
-        title = stringResource(R.string.crash_offer_title),
-        text = stringResource(R.string.crash_offer_text),
+        title = stringResource(if (offered.isHang) R.string.crash_offer_title_hang else R.string.crash_offer_title),
+        text = stringResource(if (offered.isHang) R.string.crash_offer_text_hang else R.string.crash_offer_text),
         confirmLabel = stringResource(R.string.crash_offer_show),
         onConfirm = { vm.showOfferedCrash(offered) },
         onDismiss = vm::crashOffered,
