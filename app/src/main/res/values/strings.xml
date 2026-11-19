@@ -322,6 +322,8 @@
     <string name="storage_emote_lists_hint">Which emotes and badges each channel has</string>
     <string name="storage_saved">Saved</string>
     <string name="storage_saved_hint">Settings, channels, inbox and stats</string>
+    <string name="storage_logs">Log and crashes</string>
+    <string name="storage_logs_hint">The last 4 days and 5 crashes, for bug reports</string>
     <string name="storage_app">App</string>
     <string name="storage_app_hint">Chatter itself</string>
     <string name="storage_clear_cache">Clear cache</string>
@@ -1221,6 +1223,9 @@
     <string name="debug_log_report">Report a bug</string>
     <string name="debug_log_copy">Copy</string>
     <string name="debug_log_save">Save</string>
+    <string name="debug_log_days">Log by day</string>
+    <string name="debug_log_days_hint">Saves one day as a file, e.g. to attach to a bug report. Private: no names, links or login.</string>
+    <string name="debug_log_days_hint_full">Saves one day as a file, e.g. to attach to a bug report. With names and links.</string>
     <string name="debug_log_clear">Clear the log</string>
     <string name="debug_log_empty">Nothing yet</string>
     <string name="debug_log_saved">Log saved</string>
@@ -1243,7 +1248,7 @@
     <string name="debug_log_level_debug">Debug</string>
     <string name="debug_log_level_verbose">Details</string>
     <string name="debug_log_clear_title">Clear the log?</string>
-    <string name="debug_log_clear_text">The saved lines go too.</string>
+    <string name="debug_log_clear_text">The saved lines and earlier days go too.</string>
     <string name="debug_log_clear_confirm">Clear</string>
     <plurals name="debug_log_count">
         <item quantity="one">%1$d line</item>

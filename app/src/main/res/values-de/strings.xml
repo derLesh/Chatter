@@ -318,6 +318,8 @@
     <string name="storage_emote_lists_hint">Welche Emotes und Badges jeder Kanal hat</string>
     <string name="storage_saved">Gespeichert</string>
     <string name="storage_saved_hint">Einstellungen, Kanäle, Postfach und Statistik</string>
+    <string name="storage_logs">Log und Abstürze</string>
+    <string name="storage_logs_hint">Die letzten 4 Tage und 5 Abstürze, für Fehlerberichte</string>
     <string name="storage_app">App</string>
     <string name="storage_app_hint">Chatter selbst</string>
     <string name="storage_clear_cache">Cache leeren</string>
@@ -1201,6 +1203,9 @@
     <string name="debug_log_report">Fehler melden</string>
     <string name="debug_log_copy">Kopieren</string>
     <string name="debug_log_save">Speichern</string>
+    <string name="debug_log_days">Log nach Tagen</string>
+    <string name="debug_log_days_hint">Speichert einen Tag als Datei, z. B. zum Anhängen an einen Fehlerbericht. Privat: ohne Namen, Links und Login.</string>
+    <string name="debug_log_days_hint_full">Speichert einen Tag als Datei, z. B. zum Anhängen an einen Fehlerbericht. Mit Namen und Links.</string>
     <string name="debug_log_clear">Log leeren</string>
     <string name="debug_log_empty">Noch nichts</string>
     <string name="debug_log_saved">Log gespeichert</string>
@@ -1223,7 +1228,7 @@
     <string name="debug_log_level_debug">Debug</string>
     <string name="debug_log_level_verbose">Details</string>
     <string name="debug_log_clear_title">Log leeren?</string>
-    <string name="debug_log_clear_text">Die gespeicherten Zeilen auch.</string>
+    <string name="debug_log_clear_text">Die gespeicherten Zeilen und früheren Tage auch.</string>
     <string name="debug_log_clear_confirm">Leeren</string>
     <plurals name="debug_log_count">
         <item quantity="one">%1$d Zeile</item>

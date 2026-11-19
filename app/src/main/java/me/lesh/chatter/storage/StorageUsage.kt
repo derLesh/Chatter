@@ -17,6 +17,8 @@ data class StorageReport(
     val emoteLists: Long,
     /** Settings, channels, inbox and stats: everything clearing the cache keeps. */
     val saved: Long?,
+    /** The log, its earlier days and the crashes; part of [saved]. */
+    val logs: Long,
     val app: Long?,
 )
 
@@ -41,6 +43,7 @@ class StorageUsage(
             images = runCatching { images().size }.getOrDefault(0L),
             emoteLists = (runCatching { emoteLists?.size() }.getOrNull() ?: 0L) + runCatching { keptEmoteLists.size() }.getOrDefault(0L),
             saved = stats?.let { it.dataBytes - it.cacheBytes },
+            logs = LOG_DIRS.sumOf { name -> context.filesDir.resolve(name).walk().filter { it.isFile }.sumOf { it.length() } },
             app = stats?.appBytes,
         )
     }
@@ -54,5 +57,8 @@ class StorageUsage(
 
     private companion object {
         const val TAG = "StorageUsage"
+
+        /** Where `ChatterApp` keeps the log and the crashes. */
+        val LOG_DIRS = listOf("log", "crashes")
     }
 }

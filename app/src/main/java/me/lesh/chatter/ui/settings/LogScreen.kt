@@ -14,6 +14,7 @@ import androidx.compose.animation.scaleIn
 import androidx.compose.animation.scaleOut
 import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -51,7 +52,10 @@ import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.IconToggleButton
+import androidx.compose.material3.ListItem
+import androidx.compose.material3.ListItemDefaults
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SmallFloatingActionButton
 import androidx.compose.material3.Surface
@@ -106,6 +110,9 @@ import me.lesh.chatter.debug.DeviceReport
 import me.lesh.chatter.debug.LogReport
 import me.lesh.chatter.ui.MainViewModel
 import java.text.SimpleDateFormat
+import java.time.LocalDate
+import java.time.format.DateTimeFormatter
+import java.time.format.FormatStyle
 import java.util.Date
 import java.util.Locale
 
@@ -132,6 +139,7 @@ internal fun LogScreen(vm: MainViewModel, onBack: () -> Unit) {
     var confirmClear by remember { mutableStateOf(false) }
     var confirmFullReport by remember { mutableStateOf(false) }
     var menuOpen by remember { mutableStateOf(false) }
+    var daysOpen by remember { mutableStateOf(false) }
     val sharing = rememberLogSharing(vm, device)
     val levels = levelNames.mapNotNull { name -> AppLog.Level.entries.firstOrNull { it.name == name } }.toSet()
 
@@ -179,6 +187,10 @@ internal fun LogScreen(vm: MainViewModel, onBack: () -> Unit) {
             },
             dismissButton = { TextButton(onClick = { confirmFullReport = false }) { Text(stringResource(R.string.cancel)) } },
         )
+    }
+
+    if (daysOpen) {
+        LogDaysSheet(full = withNames, onSave = sharing.saveDay, onDismiss = { daysOpen = false })
     }
 
     Scaffold(
@@ -243,6 +255,13 @@ internal fun LogScreen(vm: MainViewModel, onBack: () -> Unit) {
                                     onClick = {
                                         menuOpen = false
                                         sharing.save(withNames)
+                                    },
+                                )
+                                DropdownMenuItem(
+                                    text = { Text(stringResource(R.string.debug_log_days)) },
+                                    onClick = {
+                                        menuOpen = false
+                                        daysOpen = true
                                     },
                                 )
                                 DropdownMenuItem(
@@ -366,8 +385,16 @@ private fun rememberDevice(vm: MainViewModel): List<Pair<String, String>> {
     return remember(auth, channels.size, minutes) { DeviceReport.lines(context, accountKind(auth), channels.size) }
 }
 
-/** Report, copy and save, each with the private or the full log, and always all of it. */
-private class LogSharing(val report: (full: Boolean) -> Unit, val copy: (full: Boolean) -> Unit, val save: (full: Boolean) -> Unit)
+/**
+ * Report, copy and save, each with the private or the full log, and always all of it. [saveDay]
+ * saves everything one day left, from the archive.
+ */
+private class LogSharing(
+    val report: (full: Boolean) -> Unit,
+    val copy: (full: Boolean) -> Unit,
+    val save: (full: Boolean) -> Unit,
+    val saveDay: (date: LocalDate, full: Boolean) -> Unit,
+)
 
 @Composable
 private fun rememberLogSharing(vm: MainViewModel, device: List<Pair<String, String>>): LogSharing {
@@ -379,12 +406,17 @@ private fun rememberLogSharing(vm: MainViewModel, device: List<Pair<String, Stri
     val fileText = { full: Boolean -> LogReport.text(device, AppLog.entries(), full) }
     // Which log the file picker was opened for; it hands back only where to write.
     var saveFull by remember { mutableStateOf(false) }
+    var saveDate by remember { mutableStateOf<LocalDate?>(null) }
     val save = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("text/plain")) { uri ->
         if (uri == null) return@rememberLauncherForActivityResult
-        val text = fileText(saveFull)
+        val full = saveFull
+        val date = saveDate
+        // The live log as it is now; a day is read from its files, which takes a moment.
+        val now = if (date == null) fileText(full) else null
         scope.launch {
             val saved = withContext(Dispatchers.IO) {
                 runCatching {
+                    val text = now ?: LogReport.text(device, AppLog.day(date!!), full)
                     context.contentResolver.openOutputStream(uri)?.use { it.write(text.toByteArray()) } ?: error("no output stream")
                 }.isSuccess
             }
@@ -404,7 +436,13 @@ private fun rememberLogSharing(vm: MainViewModel, device: List<Pair<String, Stri
         copy = { copy(fileText(it)) },
         save = {
             saveFull = it
+            saveDate = null
             save.launch(fileName(it))
+        },
+        saveDay = { date, full ->
+            saveFull = full
+            saveDate = date
+            save.launch("chatter-log-" + (if (full) "full-" else "") + "$date.txt")
         },
     )
 }
@@ -546,3 +584,53 @@ private val DEFAULT_LEVELS = AppLog.Level.entries - AppLog.Level.Verbose
 private val CORNER = 20.dp
 
 private const val REFRESH_MS = 250L
+
+/**
+ * The days the log kept on the phone, to save one as a file, e.g. to attach to a bug report.
+ * Saves the log as the eye shows it: private, or with names.
+ */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun LogDaysSheet(full: Boolean, onSave: (LocalDate, Boolean) -> Unit, onDismiss: () -> Unit) {
+    var days by remember { mutableStateOf<List<LocalDate>?>(null) }
+    LaunchedEffect(Unit) { days = withContext(Dispatchers.IO) { AppLog.days() } }
+    ModalBottomSheet(onDismissRequest = onDismiss, containerColor = MaterialTheme.colorScheme.surfaceContainerLow) {
+        Column(Modifier.fillMaxWidth().padding(bottom = 24.dp)) {
+            Text(
+                stringResource(R.string.debug_log_days),
+                style = MaterialTheme.typography.headlineSmall,
+                fontWeight = FontWeight.Bold,
+                modifier = Modifier.padding(horizontal = 20.dp),
+            )
+            Text(
+                stringResource(if (full) R.string.debug_log_days_hint_full else R.string.debug_log_days_hint),
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(start = 20.dp, end = 20.dp, top = 8.dp, bottom = 8.dp),
+            )
+            val shown = days ?: return@Column
+            if (shown.isEmpty()) {
+                Text(
+                    stringResource(R.string.debug_log_empty),
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(horizontal = 20.dp, vertical = 12.dp),
+                )
+            }
+            val format = remember { DateTimeFormatter.ofLocalizedDate(FormatStyle.FULL) }
+            shown.forEach { date ->
+                ListItem(
+                    headlineContent = { Text(date.format(format)) },
+                    trailingContent = { Icon(ImageVector.vectorResource(R.drawable.ic_download), contentDescription = stringResource(R.string.debug_log_save)) },
+                    colors = ListItemDefaults.colors(containerColor = Color.Transparent),
+                    modifier = Modifier
+                        .clickable {
+                            onDismiss()
+                            onSave(date, full)
+                        }
+                        // Lines the day up with the title above.
+                        .padding(horizontal = 4.dp),
+                )
+            }
+        }
+    }
+}
