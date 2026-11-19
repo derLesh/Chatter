@@ -6,14 +6,16 @@ import kotlinx.coroutines.flow.StateFlow
 import me.lesh.chatter.BuildConfig
 import me.lesh.chatter.crash.CrashLog
 import java.io.File
+import java.time.LocalDate
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.atomic.AtomicInteger
 
 /**
- * What the app does, for the log under Settings → Debug, and for logcat. Each line is kept twice:
+ * What the app does, for the log under Settings → About → Log, and for logcat. Each line is kept twice:
  * private, cleaned by [LogPrivacy] and with names marked by [hidden] left out, and full, with them.
  * Login secrets are taken out of both. The last [KEPT] lines are kept on the phone by [keepIn], so
- * they outlast a restart; they leave it only when the user copies, saves or reports them.
+ * they outlast a restart, and older ones by day in a [LogArchive]; they leave it only when the
+ * user copies, saves or reports them.
  *
  * A single object rather than part of `AppContainer`, so code built before it, and tests, can log.
  */
@@ -81,7 +83,7 @@ object AppLog {
      * thing, so the start itself is in the file.
      */
     fun keepIn(file: File) {
-        val log = LogFile(file)
+        val log = LogFile(file, LogArchive(file.resolveSibling("days")))
         this.file = log
         log.open { earlier ->
             synchronized(lock) {
@@ -98,6 +100,12 @@ object AppLog {
 
     /** Oldest first. */
     fun entries(): List<Entry> = synchronized(lock) { entries.toList() }
+
+    /** The days with a log on the phone, newest first. Reads files: not on the main thread. */
+    fun days(): List<LocalDate> = file?.days().orEmpty()
+
+    /** Everything written on [date], oldest first, as far as the archive kept it. Reads files: not on the main thread. */
+    fun day(date: LocalDate): List<Entry> = file?.day(date).orEmpty()
 
     fun clear() {
         synchronized(lock) { entries.clear() }

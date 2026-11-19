@@ -125,9 +125,9 @@ after the push: get the subject right before committing.
 - **A new setting touches five places:** the `Settings` data class, a key and setter in
   `SettingsRepository`, a setter on `MainViewModel`, a row on its page in `ui/settings/`, and a line
   in `SEARCH_INDEX` in `SettingsScreen` so the search finds it.
-- **Log through `AppLog`, names only marked.** It feeds the log under Settings → Debug that users
-  put into bug reports, and the last 5,000 lines are stored on the phone. Use `AppLog.v` for what
-  happens many times a minute. A name goes in through `AppLog.channel`, `AppLog.user` or
+- **Log through `AppLog`, names only marked.** It feeds the log under Settings → About → Log that
+  users put into bug reports, and the last 5,000 lines are stored on the phone. Use `AppLog.v` for
+  what happens many times a minute. A name goes in through `AppLog.channel`, `AppLog.user` or
   `AppLog.hidden`, so only the full log shows it; messages never go in. `LogPrivacy` cleans links,
   error pages and secrets from the private log, but cannot know a name.
 - **Parsing gets a test.** Anything that reads a format — IRC tags, 7TV events, the changelog —

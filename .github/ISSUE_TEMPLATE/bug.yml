@@ -6,8 +6,8 @@ body:
     attributes:
       value: |
         Thank you for taking the time. Opened from **Settings → About → Report a problem**,
-        Chatter fills in the version, Android and the phone for you, and offers to copy its last
-        crash so it can be pasted below. Opened from **Settings → Debug → Log**, it fills in the
+        Chatter fills in the version, Android and the phone for you, and offers to add its last
+        crash. Opened from **Settings → About → Crashes** or **Log**, it fills in the crash or the
         log too.
   - type: textarea
     id: what-happened
@@ -53,8 +53,9 @@ body:
     attributes:
       label: Crash
       description: |
-        If Chatter closed on its own: paste what it copied for you. Have a look at it first — the
-        error can quote a bit of what was on screen.
+        If Chatter closed on its own: Settings → About → Crashes fills this in. If it says the
+        crash is in the clipboard, paste it here instead. Have a look at it first — the error can
+        quote a bit of what was on screen.
       render: text
     validations:
       required: false
@@ -63,8 +64,8 @@ body:
     attributes:
       label: Log
       description: |
-        What Chatter did before the bug, with the phone on top. Tap the Chatter logo under
-        Settings → About five times, then open Settings → Debug → Log and tap "Report" or "Copy".
+        What Chatter did before the bug, with the phone on top. Open Settings → About → Log and
+        tap "Report a bug" or "Copy".
         The private log holds no names, messages or login; the full one adds names and links.
       render: text
     validations:

@@ -1295,6 +1295,54 @@ class MainViewModel(private val c: AppContainer, savedState: SavedStateHandle) :
     /** The last recorded crash; null if there is none. */
     suspend fun lastCrash(): Crash? = withContext(Dispatchers.IO) { c.crashLog.latest() }
 
+    private val _crashes = MutableStateFlow<List<Crash>?>(null)
+    /** The kept crashes, newest first; null until [loadCrashes] has read them. */
+    val crashes: StateFlow<List<Crash>?> = _crashes
+
+    fun loadCrashes() {
+        viewModelScope.launch(Dispatchers.IO) { _crashes.value = c.crashLog.all() }
+    }
+
+    fun deleteCrash(at: Long) {
+        viewModelScope.launch(Dispatchers.IO) {
+            c.crashLog.delete(at)
+            _crashes.value = c.crashLog.all()
+        }
+    }
+
+    fun clearCrashes() {
+        viewModelScope.launch(Dispatchers.IO) {
+            c.crashLog.clear()
+            _crashes.value = emptyList()
+        }
+    }
+
+    private val _crashToOffer = MutableStateFlow<Crash?>(null)
+    /** A crash since the last start that has not been offered for reporting yet, while the sheet asking is up. */
+    val crashToOffer: StateFlow<Crash?> = _crashToOffer
+
+    init {
+        viewModelScope.launch(Dispatchers.IO) {
+            c.earlierExitsRead.await()
+            _crashToOffer.value = c.crashLog.unoffered()
+        }
+    }
+
+    private val _offeredCrashShown = MutableStateFlow<Crash?>(null)
+    /** The crash the start asked about, while it is open after "Show it"; here so it outlasts turning the phone. */
+    val offeredCrashShown: StateFlow<Crash?> = _offeredCrashShown
+
+    /** Asked once per crash, whatever the answer. */
+    fun crashOffered() {
+        val crash = _crashToOffer.value ?: return
+        _crashToOffer.value = null
+        viewModelScope.launch(Dispatchers.IO) { c.crashLog.markOffered(crash.at) }
+    }
+
+    fun showOfferedCrash(crash: Crash?) {
+        _offeredCrashShown.value = crash
+    }
+
     /** App and device details for bug reports. */
     val device: DeviceInfo = DeviceInfo.current(shownVersion, BuildConfig.VERSION_CODE)
 
@@ -1404,7 +1452,6 @@ class MainViewModel(private val c: AppContainer, savedState: SavedStateHandle) :
     fun setSendLater(v: Boolean) = saveSetting { setSendLater(v) }
     fun setSendLaterButton(v: SendLaterButton) = saveSetting { setSendLaterButton(v) }
     fun setSendRepeats(v: Boolean) = saveSetting { setSendRepeats(v) }
-    fun setDebugMenu(v: Boolean) = saveSetting { setDebugMenu(v) }
     fun setShowDeleted(v: Boolean) = saveSetting { setShowDeleted(v) }
     fun setEmoteSuggestions(v: Boolean) = saveSetting { setEmoteSuggestions(v) }
     fun setMentionWithAt(v: Boolean) = saveSetting { setMentionWithAt(v) }

@@ -82,15 +82,20 @@ developer:</p>
       in the app's cache until it is sent or you close the screen. None of it goes into a backup or
       to a new phone, and the log never holds a link to delete with. The same goes for the upload
       sites you set up and the keys you gave them.</li>
-  <li><strong>What went wrong when Chatter last crashed</strong>: the error and where in the code it
-      happened, the app version, the Android version and the phone model, for the last three
-      crashes. Chatter never sends it. When you report a problem under Settings → About, it offers
-      to copy it, and it leaves the phone only if you paste it into the report yourself.</li>
-  <li><strong>What Chatter did lately</strong>, for the log under Settings → Debug (shown after
-      tapping the logo under About five times): its screens, connecting, joining channels, every
+  <li><strong>What went wrong when Chatter crashed</strong>: the error and where in the code it
+      happened, the app version, the Android version, the phone model, and the last lines of the
+      private log described below, for the last five crashes. This includes the times Chatter
+      stopped responding or crashed in native code, which Chatter reads from Android on the next
+      start: then also the state of Chatter's threads and the memory it used. You find them under Settings → About
+      → Crashes, where you can delete them. Chatter never sends them. A crash leaves the phone only
+      when you choose to: &ldquo;Report on GitHub&rdquo; opens GitHub's form with the crash in the
+      link, so GitHub receives it when the form opens and shows it publicly once you submit it; or
+      you copy or share it. Like the private log, a crash keeps links only up to their host.</li>
+  <li><strong>What Chatter did lately</strong>, for the log under Settings → About → Log: its screens, connecting, joining channels, every
       request to a service and what came back, pictures it loaded, changed settings, the network,
       the screen turning on and off, battery saving, why Android ended earlier runs, and errors. Chatter keeps the last 5,000 lines on the phone, so they are still there after a
-      restart; clearing the log or uninstalling Chatter removes them, and they never go into a
+      restart, and older lines compressed by day, for today and the three days before, at most
+      about a megabyte a day; clearing the log or uninstalling Chatter removes them, and they never go into a
       backup or to a new phone. Each line is stored in two versions. The private one holds no
       usernames, channel names, messages, links or login. The full one adds channel and usernames,
       links, and what services and Twitch answered. Neither holds your login or your chat messages,

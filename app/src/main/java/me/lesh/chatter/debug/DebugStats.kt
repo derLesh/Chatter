@@ -223,13 +223,12 @@ class DebugStats(
 
     private fun crashes(): DebugSection {
         val crash = crashLog.latest()
-        // The report opens with a header and a blank line; the trace's first line names the error.
-        val error = crash?.text?.substringAfter("\n\n")?.lineSequence()?.firstOrNull { it.isNotBlank() }
+        val error = crash?.error?.ifBlank { null }
         return DebugSection(
             R.string.debug_section_crashes,
             listOfNotNull(
                 DebugRow(R.string.debug_last_crash, crash?.let { dateTime(it.at) } ?: context.getString(R.string.debug_no_crash)),
-                error?.let { DebugRow(R.string.debug_crash_error, it.trim()) },
+                error?.let { DebugRow(R.string.debug_crash_error, it) },
             ),
         )
     }

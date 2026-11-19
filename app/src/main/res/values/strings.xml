@@ -53,6 +53,7 @@
     <string name="action_reply">Reply</string>
     <string name="action_mention">Mention</string>
     <string name="action_copy">Copy</string>
+    <string name="link_cannot_open">No app can open this link</string>
     <string name="link_check_title">Open this link?</string>
     <string name="link_check_text">This link looks like another site, but it goes to:</string>
     <string name="emotes">Emotes</string>
@@ -321,6 +322,8 @@
     <string name="storage_emote_lists_hint">Which emotes and badges each channel has</string>
     <string name="storage_saved">Saved</string>
     <string name="storage_saved_hint">Settings, channels, inbox and stats</string>
+    <string name="storage_logs">Log and crashes</string>
+    <string name="storage_logs_hint">The last 4 days and 5 crashes</string>
     <string name="storage_app">App</string>
     <string name="storage_app_hint">Chatter itself</string>
     <string name="storage_clear_cache">Clear cache</string>
@@ -624,7 +627,7 @@
     <string name="account_logout_last_text">This also logs it out on Twitch. It is your last account, so you will have to log in again.</string>
     <string name="settings_version">Version %1$s</string>
     <string name="settings_credits">Credits &amp; licenses</string>
-    <string name="settings_credits_summary">Services and open source software used</string>
+    <string name="settings_credits_summary">Services and open source software</string>
     <string name="settings_credits_services">Services</string>
     <string name="settings_credits_twitch">Twitch</string>
     <string name="settings_credits_twitch_summary">Chat, emotes and badges</string>
@@ -651,14 +654,33 @@
     <string name="settings_source_code">Source code</string>
     <string name="settings_source_code_summary">github.com/derLesh/Chatter</string>
     <string name="settings_report_issue">Report a problem</string>
-    <string name="settings_report_issue_summary">Opens a bug report on GitHub, with the app and Android version filled in</string>
+    <string name="settings_report_issue_summary">On GitHub</string>
     <string name="settings_security">Report a security problem</string>
-    <string name="settings_security_summary">Tell us about a security problem privately</string>
-    <string name="crash_attach_title">Add the last crash?</string>
-    <string name="crash_attach_text">Chatter crashed on %1$s. Copy the crash details so you can paste them into the report? They only leave your phone if you paste them yourself.</string>
-    <string name="crash_attach_copy">Copy and continue</string>
-    <string name="crash_attach_skip">Without it</string>
+    <string name="settings_security_summary">Privately</string>
     <string name="crash_clip_label">Chatter crash</string>
+    <string name="crash_attach_text">App, Android and phone are filled in.</string>
+    <string name="crash_attach_switch">Add the last crash</string>
+    <string name="crash_attach_switch_summary">%1$s, %2$s</string>
+    <string name="crash_attach_open">Open GitHub</string>
+    <string name="settings_problems">Problems</string>
+    <string name="crashes_title">Crashes</string>
+    <string name="crashes_hint">Each with the log before it. Stays on your phone until you share it.</string>
+    <string name="crashes_none">No crashes so far</string>
+    <string name="crashes_clear">Delete all crashes</string>
+    <string name="crashes_clear_title">Delete all crashes?</string>
+    <string name="crashes_clear_confirm">Delete</string>
+    <string name="crash_summary">%1$s · Chatter %2$s</string>
+    <string name="crash_public_note">Issues are public. Look it over before sending.</string>
+    <string name="crash_report">Report on GitHub</string>
+    <string name="crash_copy">Copy</string>
+    <string name="crash_share">Share</string>
+    <string name="crash_delete">Delete</string>
+    <string name="crash_report_clipboard">Too long for the form. The whole crash is in the clipboard</string>
+    <string name="crash_offer_title">Chatter crashed</string>
+    <string name="crash_offer_title_hang">Chatter stopped responding</string>
+    <string name="crash_offer_show">Show it</string>
+    <string name="crash_offer_text">Report it on GitHub so it gets fixed.</string>
+    <string name="crash_offer_text_hang">Report it on GitHub so it gets fixed.</string>
 
     <!-- Chat modes (header chips) -->
     <string name="mode_slow">Slow %1$ds</string>
@@ -877,7 +899,7 @@
     <string name="settings_report_user_summary">Long-press any message to report or block whoever wrote it</string>
 
     <string name="settings_privacy">Privacy policy</string>
-    <string name="settings_privacy_summary">What Chatter stores and which data is shared with others</string>
+    <string name="settings_privacy_summary">What Chatter stores and shares</string>
     <string name="settings_twitch_disclaimer">Chatter is an independent app and is not affiliated with, endorsed by or sponsored by Twitch Interactive, Inc.</string>
 
     <!-- Blocked users -->
@@ -962,7 +984,7 @@
     <string name="settings_changelog">Changelog</string>
     <string name="settings_changelog_summary">Changes in each Chatter version</string>
     <string name="settings_update_check">Look for updates</string>
-    <string name="settings_update_check_hint">Asks GitHub once a day whether a newer version is out</string>
+    <string name="settings_update_check_hint">Asks GitHub once a day</string>
     <string name="update_available">Chatter %1$s is out</string>
     <string name="update_installed">You have %1$s</string>
     <string name="update_whats_new">What\'s new</string>
@@ -1187,18 +1209,7 @@
     <string name="debug_stats_hint">Version, memory, connection and caches</string>
     <string name="debug_copy">Copy all</string>
     <string name="debug_gc_run">Run garbage collection</string>
-    <string name="settings_debug">Debug</string>
-    <string name="settings_debug_summary">Log for bug reports</string>
-    <string name="settings_debug_hide">Hide Debug</string>
-    <string name="debug_hidden">Debug is hidden. Tap the logo under About 5 times to bring it back</string>
-    <string name="debug_turned_on">Debug is now in the settings</string>
-    <string name="debug_already_on">Debug is already in the settings</string>
-    <plurals name="debug_taps_left">
-        <item quantity="one">1 more tap</item>
-        <item quantity="other">%d more taps</item>
-    </plurals>
     <string name="debug_log">Log</string>
-    <string name="debug_log_summary">What Chatter is doing, for a bug report</string>
     <string name="debug_log_report">Report a bug</string>
     <string name="debug_log_copy">Copy</string>
     <string name="debug_log_save">Save</string>
@@ -1211,12 +1222,14 @@
     <string name="debug_log_search">Search the log</string>
     <string name="debug_log_show_names">Show names and links</string>
     <string name="debug_log_hide_names">Hide names and links</string>
-    <string name="debug_log_state_private">private</string>
-    <string name="debug_log_state_full">with names</string>
     <string name="debug_log_report_full_title">Report with names?</string>
     <string name="debug_log_report_full_text">Issues are public. Anyone can see the names and links in the log there.</string>
     <string name="debug_log_filter">Filter</string>
     <string name="debug_log_newest">To the newest</string>
+    <string name="debug_log_today">Today</string>
+    <string name="debug_log_yesterday">Yesterday</string>
+    <string name="debug_log_line_warn">Warning</string>
+    <string name="debug_log_line_error">Error</string>
     <string name="debug_log_no_match">No line matches</string>
     <string name="debug_log_level_error">Errors</string>
     <string name="debug_log_level_warn">Warnings</string>
@@ -1224,7 +1237,7 @@
     <string name="debug_log_level_debug">Debug</string>
     <string name="debug_log_level_verbose">Details</string>
     <string name="debug_log_clear_title">Clear the log?</string>
-    <string name="debug_log_clear_text">The saved lines go too.</string>
+    <string name="debug_log_clear_text">Earlier days too.</string>
     <string name="debug_log_clear_confirm">Clear</string>
     <plurals name="debug_log_count">
         <item quantity="one">%1$d line</item>
