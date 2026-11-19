@@ -53,6 +53,7 @@
     <string name="action_reply">Antworten</string>
     <string name="action_mention">Erwähnen</string>
     <string name="action_copy">Kopieren</string>
+    <string name="link_cannot_open">Keine App kann diesen Link öffnen</string>
     <string name="link_check_title">Diesen Link öffnen?</string>
     <string name="link_check_text">Der Link sieht aus wie eine andere Seite, führt aber zu:</string>
     <string name="emotes">Emotes</string>

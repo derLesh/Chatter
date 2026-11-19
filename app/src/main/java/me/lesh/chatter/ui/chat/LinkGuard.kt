@@ -1,6 +1,7 @@
 package me.lesh.chatter.ui.chat
 
 import android.content.ClipData
+import android.widget.Toast
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.material3.AlertDialog
@@ -15,6 +16,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.platform.ClipEntry
 import androidx.compose.ui.platform.LocalClipboard
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.platform.UriHandler
 import androidx.compose.ui.res.stringResource
@@ -22,6 +24,7 @@ import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.unit.dp
 import me.lesh.chatter.R
 import me.lesh.chatter.chat.LinkText
+import me.lesh.chatter.debug.AppLog
 import kotlinx.coroutines.launch
 
 /**
@@ -32,11 +35,22 @@ import kotlinx.coroutines.launch
 @Composable
 fun LinkGuard(content: @Composable () -> Unit) {
     val platform = LocalUriHandler.current
+    val context = LocalContext.current
     var asking by remember { mutableStateOf<String?>(null) }
-    val guard = remember(platform) {
+    // Android's handler throws when no app takes the link; a toast says so instead of a crash.
+    val open = remember(platform, context) {
+        { uri: String ->
+            runCatching { platform.openUri(uri) }.onFailure {
+                AppLog.w("Link", "No app opens a link", it)
+                Toast.makeText(context, R.string.link_cannot_open, Toast.LENGTH_SHORT).show()
+            }
+            Unit
+        }
+    }
+    val guard = remember(open) {
         object : UriHandler {
             override fun openUri(uri: String) {
-                if (LinkText.isUnusual(uri)) asking = uri else platform.openUri(uri)
+                if (LinkText.isUnusual(uri)) asking = uri else open(uri)
             }
         }
     }
@@ -57,7 +71,7 @@ fun LinkGuard(content: @Composable () -> Unit) {
             confirmButton = {
                 TextButton(onClick = {
                     asking = null
-                    runCatching { platform.openUri(uri) }
+                    open(uri)
                 }) { Text(stringResource(R.string.open)) }
             },
             dismissButton = {
