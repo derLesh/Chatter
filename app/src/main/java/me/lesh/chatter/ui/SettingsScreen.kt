@@ -71,6 +71,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.saveable.rememberSaveableStateHolder
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
@@ -439,6 +440,9 @@ private data class SettingsPlace(
 
     /** Decides whether a transition goes forward or back. */
     val depth: Int get() = listOf(searching, page != null, subPage != null, rule != null).count { it }
+
+    /** Names the place's saved state, such as how far it is scrolled. */
+    val key: String get() = "${page?.name}/${subPage?.name}/$searching/$rule"
 }
 
 @OptIn(ExperimentalSharedTransitionApi::class)
@@ -540,6 +544,14 @@ fun SettingsScreen(vm: MainViewModel, onBack: () -> Unit) {
         searching -> place.copy(searching = false)
         else -> null
     }
+    // A page keeps how far it is scrolled while a page opened from it is shown, and is back at the
+    // top when opened again: going back or sideways forgets the page left.
+    val pageStates = rememberSaveableStateHolder()
+    val left = remember { arrayOf(place) }
+    LaunchedEffect(place) {
+        if (place.depth <= left[0].depth && place != left[0]) pageStates.removeState(left[0].key)
+        left[0] = place
+    }
     // The home comes in group by group as the settings open; later it is simply there.
     val opening = remember { booleanArrayOf(true) }
     SideEffect { opening[0] = false }
@@ -553,7 +565,8 @@ fun SettingsScreen(vm: MainViewModel, onBack: () -> Unit) {
                 slideBetweenScreens(forward = targetState.depth > initialState.depth)
             }
         },
-    ) { (current, currentSub, currentSearching, currentRule) ->
+    ) { shownPlace ->
+        val (current, currentSub, currentSearching, currentRule) = shownPlace
         val searchBar = Modifier.sharedBounds(
             rememberSharedContentState(SEARCH_BAR),
             animatedVisibilityScope = this,
@@ -619,6 +632,7 @@ fun SettingsScreen(vm: MainViewModel, onBack: () -> Unit) {
                 {}
             }
         }
+        pageStates.SaveableStateProvider(shownPlace.key) {
         SettingsPageScaffold(
             title = title,
             onBack = goBack,
@@ -710,6 +724,7 @@ fun SettingsScreen(vm: MainViewModel, onBack: () -> Unit) {
                 }
             }
           }
+        }
         }
     }
     }
