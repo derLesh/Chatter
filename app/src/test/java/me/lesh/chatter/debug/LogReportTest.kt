@@ -4,7 +4,6 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
-import java.net.URLEncoder
 
 /** The log as it is copied, saved and put into a bug report. */
 class LogReportTest {
@@ -43,7 +42,7 @@ class LogReportTest {
         assertTrue(issue.text.startsWith("Chatter: 0.9.0 (9), release"))
         assertTrue(issue.text.endsWith("line 500 with some words to make it long"))
         assertFalse(issue.text.contains("line 1 with"))
-        assertTrue(URLEncoder.encode(issue.text, Charsets.UTF_8).length <= 2_000)
+        assertTrue(LogReport.uriEncodedLength(issue.text) <= 2_000)
     }
 
     @Test
@@ -51,5 +50,12 @@ class LogReportTest {
         val text = LogReport.text(device, listOf(entry(1, "Join channel 1", full = "Join #somebody")), full = true)
         assertTrue(text.contains("Log: full (with names and links, no login)"))
         assertTrue(text.endsWith("W Http [main]: Join #somebody"))
+    }
+
+    @Test
+    fun theLinkLengthCountsASpaceAsThree() {
+        assertEquals(5, LogReport.uriEncodedLength("a b"))
+        assertEquals(6, LogReport.uriEncodedLength("ä"))
+        assertEquals(9, LogReport.uriEncodedLength("a-b_c.~()"))
     }
 }

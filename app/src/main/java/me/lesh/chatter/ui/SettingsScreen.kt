@@ -120,6 +120,7 @@ import me.lesh.chatter.ui.settings.BlockedUsersPage
 import me.lesh.chatter.ui.settings.CategoryHue
 import me.lesh.chatter.ui.settings.CategoryIcon
 import me.lesh.chatter.ui.settings.ChannelsPage
+import me.lesh.chatter.ui.settings.CrashesPage
 import me.lesh.chatter.ui.settings.CreditsPage
 import me.lesh.chatter.ui.settings.DebugPage
 import me.lesh.chatter.ui.settings.DebugStatsPage
@@ -251,6 +252,7 @@ internal enum class SettingsSubPage(val title: Int) {
     Credits(R.string.settings_credits),
     DebugStats(R.string.debug_stats),
     Log(R.string.debug_log),
+    Crashes(R.string.crashes_title),
 }
 
 /**
@@ -404,6 +406,8 @@ private val SEARCH_INDEX: List<SearchEntry> by lazy {
         add(SearchEntry(R.string.settings_changelog, about, R.string.settings_changelog_summary))
         add(SearchEntry(R.string.settings_source_code, about, R.string.settings_source_code_summary))
         add(SearchEntry(R.string.settings_report_issue, about, R.string.settings_report_issue_summary))
+        add(SearchEntry(R.string.crashes_title, about, R.string.settings_crashes_summary))
+        add(SearchEntry(R.string.debug_log, about, R.string.debug_log_summary))
         add(SearchEntry(R.string.settings_security, about, R.string.settings_security_summary))
         add(SearchEntry(R.string.settings_privacy, about, R.string.settings_privacy_summary))
         add(SearchEntry(R.string.settings_credits, about, R.string.settings_credits_summary))
@@ -682,6 +686,7 @@ fun SettingsScreen(vm: MainViewModel, onBack: () -> Unit) {
                 SettingsSubPage.Rules -> RulesPage(vm) { rule = it?.id ?: NEW_RULE }
                 SettingsSubPage.Credits -> CreditsPage()
                 SettingsSubPage.DebugStats -> DebugStatsPage(vm)
+                SettingsSubPage.Crashes -> CrashesPage(vm)
                 // Shown above, outside this scaffold.
                 SettingsSubPage.Log -> Unit
                 SettingsSubPage.Changelog -> {

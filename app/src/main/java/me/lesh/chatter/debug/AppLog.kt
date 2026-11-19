@@ -10,7 +10,7 @@ import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.atomic.AtomicInteger
 
 /**
- * What the app does, for the log under Settings → Debug, and for logcat. Each line is kept twice:
+ * What the app does, for the log under Settings → About → Log, and for logcat. Each line is kept twice:
  * private, cleaned by [LogPrivacy] and with names marked by [hidden] left out, and full, with them.
  * Login secrets are taken out of both. The last [KEPT] lines are kept on the phone by [keepIn], so
  * they outlast a restart; they leave it only when the user copies, saves or reports them.

@@ -1,22 +1,21 @@
 package me.lesh.chatter.ui.settings
 
-import android.content.ClipData
-import android.content.ClipboardManager
 import android.content.Intent
 import android.os.SystemClock
 import android.widget.Toast
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ListItem
@@ -24,7 +23,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
+import androidx.compose.material3.Switch
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -39,6 +38,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -47,8 +47,10 @@ import androidx.core.net.toUri
 import me.lesh.chatter.BuildConfig
 import me.lesh.chatter.R
 import me.lesh.chatter.crash.Crash
+import me.lesh.chatter.crash.CrashIssue
 import me.lesh.chatter.crash.DeviceInfo
 import me.lesh.chatter.settings.Settings
+import me.lesh.chatter.ui.FormSheet
 import me.lesh.chatter.ui.MainViewModel
 import me.lesh.chatter.ui.SettingsSubPage
 import java.text.DateFormat
@@ -97,8 +99,7 @@ private fun claimUrl(twitchId: String?, login: String): String =
 
 /**
  * Opens the bug report form with version, Android and device filled in. After a crash it first
- * offers to copy the crash report for pasting: a stack trace is too long for a URL, and nothing
- * should leave the phone unless the user pastes it.
+ * asks whether to add it; see [rememberReportIssue].
  */
 @Composable
 private fun ReportIssueItem(reportIssue: () -> Unit) {
@@ -112,56 +113,74 @@ private fun ReportIssueItem(reportIssue: () -> Unit) {
 }
 
 /**
- * What a tap on "Report a problem" runs: opens the bug report, after a crash first offering to copy
- * it. Shows that dialog itself.
+ * What a tap on "Report a problem" runs: opens the bug report, after a crash first asking in a
+ * sheet whether to put it into the form. Shows that sheet itself.
  */
 @Composable
 private fun rememberReportIssue(vm: MainViewModel): () -> Unit {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
+    val reportCrash = rememberCrashReport(vm.device)
     var crash by remember { mutableStateOf<Crash?>(null) }
+    // Off, so a report about something else does not send a crash nobody looked at.
+    var withCrash by remember { mutableStateOf(false) }
     val open = { context.startActivity(Intent(Intent.ACTION_VIEW, bugReportUrl(vm.device).toUri())) }
     crash?.let { last ->
-        AlertDialog(
-            onDismissRequest = { crash = null },
-            title = { Text(stringResource(R.string.crash_attach_title)) },
-            text = {
+        FormSheet(
+            title = stringResource(R.string.settings_report_issue),
+            text = stringResource(R.string.crash_attach_text),
+            confirmLabel = stringResource(R.string.crash_attach_open),
+            onConfirm = { if (withCrash) reportCrash(last) else open() },
+            onDismiss = { crash = null },
+        ) {
+            item(key = "crash") {
                 val at = DateFormat.getDateTimeInstance(DateFormat.MEDIUM, DateFormat.SHORT).format(Date(last.at))
-                Text(stringResource(R.string.crash_attach_text, at))
-            },
-            confirmButton = {
-                val label = stringResource(R.string.crash_clip_label)
-                TextButton(onClick = {
-                    context.getSystemService(ClipboardManager::class.java)
-                        .setPrimaryClip(ClipData.newPlainText(label, last.text))
-                    crash = null
-                    open()
-                }) { Text(stringResource(R.string.crash_attach_copy)) }
-            },
-            dismissButton = {
-                TextButton(onClick = {
-                    crash = null
-                    open()
-                }) { Text(stringResource(R.string.crash_attach_skip)) }
-            },
-        )
+                // A row rather than a ListItem, so it lines up with the sheet's title and text.
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier
+                        .padding(top = 16.dp)
+                        .toggleable(value = withCrash, role = Role.Switch, onValueChange = { withCrash = it }),
+                ) {
+                    Column(Modifier.weight(1f).padding(end = 16.dp)) {
+                        Text(stringResource(R.string.crash_attach_switch), style = MaterialTheme.typography.bodyLarge)
+                        Text(
+                            stringResource(R.string.crash_attach_switch_summary, last.errorKind, at),
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                    Switch(checked = withCrash, onCheckedChange = null)
+                }
+            }
+        }
     }
     return {
         scope.launch {
             val last = vm.lastCrash()
-            if (last == null) open() else crash = last
+            if (last == null) {
+                open()
+            } else {
+                withCrash = false
+                crash = last
+            }
         }
     }
 }
 
-/** The bug report template URL with app and device fields filled in, and the log field if [logs] is given. */
-internal fun bugReportUrl(device: DeviceInfo, logs: String? = null): String =
+/**
+ * The bug report template URL with app and device fields filled in, the log field if [logs] is
+ * given, and with a [crash] its title, its own version and its log.
+ */
+internal fun bugReportUrl(device: DeviceInfo, logs: String? = null, crash: CrashIssue? = null): String =
     "$REPO_URL/issues/new".toUri().buildUpon()
         .appendQueryParameter("template", "bug.yml")
-        .appendQueryParameter("version", "${device.appVersion} (${device.versionCode})")
-        .appendQueryParameter("android", "${device.android} (API ${device.sdk})")
+        .apply { if (crash != null) appendQueryParameter("title", crash.title) }
+        .appendQueryParameter("version", crash?.version ?: "${device.appVersion} (${device.versionCode})")
+        .appendQueryParameter("android", crash?.android ?: "${device.android} (API ${device.sdk})")
         .appendQueryParameter("device", device.device)
-        .apply { if (logs != null) appendQueryParameter("logs", logs) }
+        .apply { if (crash != null) appendQueryParameter("crash", crash.crash) }
+        .apply { (logs ?: crash?.log?.ifBlank { null })?.let { appendQueryParameter("logs", it) } }
         .build()
         .toString()
 
@@ -247,8 +266,7 @@ internal fun AboutPage(settings: Settings, vm: MainViewModel, open: (SettingsSub
             )
         }
         item(R.string.settings_source_code) { LinkItem(R.string.settings_source_code, R.string.settings_source_code_summary, REPO_URL) }
-        if (!BuildConfig.NIGHTLY) item(R.string.settings_report_issue) { ReportIssueItem(reportIssue) }
-        // A security hole goes to a private report, not into a public issue like the row above.
+        // A security hole goes to a private report, not into a public issue like a bug.
         item(R.string.settings_security) { LinkItem(R.string.settings_security, R.string.settings_security_summary, SECURITY_URL) }
         item(R.string.settings_privacy) { LinkItem(R.string.settings_privacy, R.string.settings_privacy_summary, PRIVACY_URL) }
         item(R.string.settings_credits) {
@@ -258,6 +276,28 @@ internal fun AboutPage(settings: Settings, vm: MainViewModel, open: (SettingsSub
                 trailingContent = { NavChevron() },
                 colors = transparentItem(),
                 modifier = Modifier.tileClickable { open(SettingsSubPage.Credits) },
+            )
+        }
+    }
+    // Asked for a crash or the log, anyone finds them here, without the hidden Debug category.
+    SettingsGroup(R.string.settings_problems) {
+        if (!BuildConfig.NIGHTLY) item(R.string.settings_report_issue) { ReportIssueItem(reportIssue) }
+        item(R.string.crashes_title) {
+            ListItem(
+                headlineContent = { Text(stringResource(R.string.crashes_title)) },
+                supportingContent = { Text(stringResource(R.string.settings_crashes_summary)) },
+                trailingContent = { NavChevron() },
+                colors = transparentItem(),
+                modifier = Modifier.tileClickable { open(SettingsSubPage.Crashes) },
+            )
+        }
+        item(R.string.debug_log) {
+            ListItem(
+                headlineContent = { Text(stringResource(R.string.debug_log)) },
+                supportingContent = { Text(stringResource(R.string.debug_log_summary)) },
+                trailingContent = { NavChevron() },
+                colors = transparentItem(),
+                modifier = Modifier.tileClickable { open(SettingsSubPage.Log) },
             )
         }
     }

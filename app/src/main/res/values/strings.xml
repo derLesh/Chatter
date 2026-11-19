@@ -654,11 +654,29 @@
     <string name="settings_report_issue_summary">Opens a bug report on GitHub, with the app and Android version filled in</string>
     <string name="settings_security">Report a security problem</string>
     <string name="settings_security_summary">Tell us about a security problem privately</string>
-    <string name="crash_attach_title">Add the last crash?</string>
-    <string name="crash_attach_text">Chatter crashed on %1$s. Copy the crash details so you can paste them into the report? They only leave your phone if you paste them yourself.</string>
-    <string name="crash_attach_copy">Copy and continue</string>
-    <string name="crash_attach_skip">Without it</string>
     <string name="crash_clip_label">Chatter crash</string>
+    <string name="crash_attach_text">GitHub opens with the app, Android and your phone filled in.</string>
+    <string name="crash_attach_switch">Add the last crash</string>
+    <string name="crash_attach_switch_summary">%1$s on %2$s. The error and the log before it go into the form, to GitHub.</string>
+    <string name="crash_attach_open">Open GitHub</string>
+    <string name="settings_problems">Problems</string>
+    <string name="settings_crashes_summary">The last 5 times Chatter closed on its own, to report on GitHub</string>
+    <string name="crashes_title">Crashes</string>
+    <string name="crashes_hint">Each one also keeps the last lines of the private log. They only leave your phone if you report, copy or share them.</string>
+    <string name="crashes_none">No crashes so far</string>
+    <string name="crashes_clear">Delete all crashes</string>
+    <string name="crashes_clear_title">Delete all crashes?</string>
+    <string name="crashes_clear_confirm">Delete</string>
+    <string name="crash_summary">%1$s · Chatter %2$s</string>
+    <string name="crash_public_note">Report opens GitHub with this filled in. Issues are public once you submit, so have a look first: the error can quote text from the screen.</string>
+    <string name="crash_report">Report on GitHub</string>
+    <string name="crash_copy">Copy</string>
+    <string name="crash_share">Share</string>
+    <string name="crash_delete">Delete</string>
+    <string name="crash_report_clipboard">Not all of it fits into the form. The whole crash is in the clipboard to paste</string>
+    <string name="crash_offer_title">Chatter crashed</string>
+    <string name="crash_offer_show">Show it</string>
+    <string name="crash_offer_text">Have a look and report it on GitHub, so it gets fixed. It shows the error and what Chatter did just before.</string>
 
     <!-- Chat modes (header chips) -->
     <string name="mode_slow">Slow %1$ds</string>

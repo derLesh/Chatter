@@ -18,6 +18,7 @@ import me.lesh.chatter.auth.AuthState
 import me.lesh.chatter.ui.changelog.UpdateNotesSheet
 import me.lesh.chatter.ui.inbox.InboxScreen
 import me.lesh.chatter.ui.onboarding.OnboardingScreen
+import me.lesh.chatter.ui.settings.CrashOfferSheet
 
 /** The screens after login: the chat and those it opens over itself, deepest last for the slide's direction. */
 private enum class Screen { Chat, Inbox, Picture, Settings }
@@ -129,6 +130,7 @@ fun AppRoot(vm: MainViewModel) {
             }
             // Shows itself only right after an update to a minor or major version.
             UpdateNotesSheet(vm)
+            CrashOfferSheet(vm)
             SevenTvLoginHost(vm)
         }
     }

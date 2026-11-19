@@ -9,8 +9,9 @@ import me.lesh.chatter.crash.CrashLog
 internal object LogPrivacy {
     private const val HIDDEN = "[hidden]"
 
-    // Path and query go, the host stays: which service failed is the useful part.
-    private val URL = Regex("""\b((?:https?|wss?)://[A-Za-z0-9.-]+(?::\d+)?)[/?#][^\s"'<>)\]]*""")
+    // Path and query go, the host stays: which service failed is the useful part. Any case, since
+    // a link typed in chat can start with "Https://".
+    private val URL = Regex("""(?i)\b((?:https?|wss?)://[A-Za-z0-9.-]+(?::\d+)?)[/?#][^\s"'<>)\]]*""")
     private val EMAIL = Regex("""[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}""")
     // An error page can quote what was asked for, a name included; see HttpException.
     private val HTTP_BODY = Regex("""(?s)\b(HTTP \d{3}): .*""")
