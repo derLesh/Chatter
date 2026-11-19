@@ -1,3 +1,3 @@
-minor: Find the last crashes and the log under Settings → About, without unlocking Debug
+minor: Find the last crashes and the log under Settings → About; the hidden Debug category is gone
 minor: Report a crash on GitHub in one tap, with the error and what Chatter did before filled in
 minor: Ask once after a crash whether to report it

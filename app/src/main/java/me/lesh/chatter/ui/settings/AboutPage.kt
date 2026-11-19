@@ -1,10 +1,7 @@
 package me.lesh.chatter.ui.settings
 
 import android.content.Intent
-import android.os.SystemClock
-import android.widget.Toast
 import androidx.compose.foundation.Image
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -184,49 +181,9 @@ internal fun bugReportUrl(device: DeviceInfo, logs: String? = null, crash: Crash
         .build()
         .toString()
 
-/**
- * Counts taps on the logo; the fifth within a short while turns on the Debug category, like the
- * build number in Android's own settings. From the third on, a toast says how many are left.
- */
-@Composable
-private fun rememberDebugUnlock(debugMenu: Boolean, unlock: () -> Unit): () -> Unit {
-    val context = LocalContext.current
-    val resources = LocalResources.current
-    val taps = remember { IntArray(1) }
-    val lastTap = remember { LongArray(1) }
-    val toast = remember { arrayOfNulls<Toast>(1) }
-    return {
-        val now = SystemClock.uptimeMillis()
-        if (now - lastTap[0] > TAP_PAUSE_MS) taps[0] = 0
-        lastTap[0] = now
-        taps[0]++
-        val left = DEBUG_TAPS - taps[0]
-        // One toast at a time, or they queue up and keep counting after the last tap.
-        fun show(text: String) {
-            toast[0]?.cancel()
-            toast[0] = Toast.makeText(context, text, Toast.LENGTH_SHORT).also { it.show() }
-        }
-        when {
-            debugMenu && taps[0] >= DEBUG_TAPS - 2 -> show(resources.getString(R.string.debug_already_on))
-            left <= 0 -> {
-                taps[0] = 0
-                unlock()
-                show(resources.getString(R.string.debug_turned_on))
-            }
-            left <= DEBUG_TAPS - 3 -> show(resources.getQuantityString(R.plurals.debug_taps_left, left, left))
-        }
-    }
-}
-
-private const val DEBUG_TAPS = 5
-
-/** A longer pause starts the count again. */
-private const val TAP_PAUSE_MS = 1_500L
-
 @Composable
 internal fun AboutPage(settings: Settings, vm: MainViewModel, open: (SettingsSubPage) -> Unit) {
     val reportIssue = rememberReportIssue(vm)
-    val tapLogo = rememberDebugUnlock(settings.debugMenu) { vm.setDebugMenu(true) }
     // The wordmark already shows the name, so no heading below.
     EnterInOrder {
         Column(
@@ -237,10 +194,7 @@ internal fun AboutPage(settings: Settings, vm: MainViewModel, open: (SettingsSub
                 painterResource(R.drawable.ic_chatter_wordmark),
                 contentDescription = stringResource(R.string.app_name),
                 colorFilter = ColorFilter.tint(MaterialTheme.colorScheme.onSurface),
-                // No ripple: the logo should not look like a button.
-                modifier = Modifier
-                    .width(208.dp)
-                    .clickable(interactionSource = null, indication = null, onClick = tapLogo),
+                modifier = Modifier.width(208.dp),
             )
             Spacer(Modifier.height(10.dp))
             Text(
@@ -279,13 +233,12 @@ internal fun AboutPage(settings: Settings, vm: MainViewModel, open: (SettingsSub
             )
         }
     }
-    // Asked for a crash or the log, anyone finds them here, without the hidden Debug category.
+    // Asked for a crash or the log, anyone finds them here.
     SettingsGroup(R.string.settings_problems) {
         if (!BuildConfig.NIGHTLY) item(R.string.settings_report_issue) { ReportIssueItem(reportIssue) }
         item(R.string.crashes_title) {
             ListItem(
                 headlineContent = { Text(stringResource(R.string.crashes_title)) },
-                supportingContent = { Text(stringResource(R.string.settings_crashes_summary)) },
                 trailingContent = { NavChevron() },
                 colors = transparentItem(),
                 modifier = Modifier.tileClickable { open(SettingsSubPage.Crashes) },
@@ -294,7 +247,6 @@ internal fun AboutPage(settings: Settings, vm: MainViewModel, open: (SettingsSub
         item(R.string.debug_log) {
             ListItem(
                 headlineContent = { Text(stringResource(R.string.debug_log)) },
-                supportingContent = { Text(stringResource(R.string.debug_log_summary)) },
                 trailingContent = { NavChevron() },
                 colors = transparentItem(),
                 modifier = Modifier.tileClickable { open(SettingsSubPage.Log) },

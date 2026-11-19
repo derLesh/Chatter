@@ -51,8 +51,7 @@ import java.text.DateFormat
 import java.util.Date
 
 /**
- * The last crashes, each with the log before it, to post on GitHub, copy or share. Under About,
- * not in the hidden Debug category, so anyone asked for one finds it.
+ * The last crashes, each with the log before it, to post on GitHub, copy or share.
  */
 @Composable
 internal fun CrashesPage(vm: MainViewModel) {

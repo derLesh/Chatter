@@ -1449,7 +1449,6 @@ class MainViewModel(private val c: AppContainer, savedState: SavedStateHandle) :
     fun setSendLater(v: Boolean) = saveSetting { setSendLater(v) }
     fun setSendLaterButton(v: SendLaterButton) = saveSetting { setSendLaterButton(v) }
     fun setSendRepeats(v: Boolean) = saveSetting { setSendRepeats(v) }
-    fun setDebugMenu(v: Boolean) = saveSetting { setDebugMenu(v) }
     fun setShowDeleted(v: Boolean) = saveSetting { setShowDeleted(v) }
     fun setEmoteSuggestions(v: Boolean) = saveSetting { setEmoteSuggestions(v) }
     fun setMentionWithAt(v: Boolean) = saveSetting { setMentionWithAt(v) }

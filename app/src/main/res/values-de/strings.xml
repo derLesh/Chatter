@@ -319,7 +319,7 @@
     <string name="storage_saved">Gespeichert</string>
     <string name="storage_saved_hint">Einstellungen, Kanäle, Postfach und Statistik</string>
     <string name="storage_logs">Log und Abstürze</string>
-    <string name="storage_logs_hint">Die letzten 4 Tage und 5 Abstürze, für Fehlerberichte</string>
+    <string name="storage_logs_hint">Die letzten 4 Tage und 5 Abstürze</string>
     <string name="storage_app">App</string>
     <string name="storage_app_hint">Chatter selbst</string>
     <string name="storage_clear_cache">Cache leeren</string>
@@ -610,7 +610,7 @@
     <string name="account_logout_last_text">Das Konto wird auch bei Twitch abgemeldet. Es ist dein letztes Konto, danach musst du dich neu anmelden.</string>
     <string name="settings_version">Version %1$s</string>
     <string name="settings_credits">Credits &amp; Lizenzen</string>
-    <string name="settings_credits_summary">Verwendete Dienste und Open-Source-Software</string>
+    <string name="settings_credits_summary">Dienste und Open-Source-Software</string>
     <string name="settings_credits_services">Dienste</string>
     <string name="settings_credits_twitch">Twitch</string>
     <string name="settings_credits_twitch_summary">Chat, Emotes und Badges</string>
@@ -637,32 +637,31 @@
     <string name="settings_source_code">Quellcode</string>
     <string name="settings_source_code_summary">github.com/derLesh/Chatter</string>
     <string name="settings_report_issue">Problem melden</string>
-    <string name="settings_report_issue_summary">Öffnet einen Fehlerbericht auf GitHub, App- und Android-Version schon eingetragen</string>
+    <string name="settings_report_issue_summary">Auf GitHub</string>
     <string name="settings_security">Sicherheitslücke melden</string>
-    <string name="settings_security_summary">Eine Sicherheitslücke vertraulich melden</string>
+    <string name="settings_security_summary">Vertraulich</string>
     <string name="crash_clip_label">Chatter-Absturz</string>
-    <string name="crash_attach_text">GitHub öffnet sich mit App, Android und deinem Handy schon eingetragen.</string>
+    <string name="crash_attach_text">App, Android und Handy sind schon eingetragen.</string>
     <string name="crash_attach_switch">Letzten Absturz anhängen</string>
-    <string name="crash_attach_switch_summary">%1$s am %2$s. Fehler und Log davor kommen ins Formular, also zu GitHub.</string>
+    <string name="crash_attach_switch_summary">%1$s, %2$s</string>
     <string name="crash_attach_open">GitHub öffnen</string>
     <string name="settings_problems">Probleme</string>
-    <string name="settings_crashes_summary">Die letzten 5 Male, die Chatter sich von selbst geschlossen hat, zum Melden auf GitHub</string>
     <string name="crashes_title">Abstürze</string>
-    <string name="crashes_hint">Jeder enthält auch die letzten Zeilen des privaten Logs. Sie verlassen dein Handy nur, wenn du sie meldest, kopierst oder teilst.</string>
+    <string name="crashes_hint">Jeder mit dem Log davor. Bleibt auf dem Handy, bis du ihn teilst.</string>
     <string name="crashes_none">Bisher keine Abstürze</string>
     <string name="crashes_clear">Alle Abstürze löschen</string>
     <string name="crashes_clear_title">Alle Abstürze löschen?</string>
     <string name="crashes_clear_confirm">Löschen</string>
     <string name="crash_summary">%1$s · Chatter %2$s</string>
-    <string name="crash_public_note">Melden öffnet GitHub mit diesem Text. Nach dem Absenden ist das Issue öffentlich, schau also vorher drüber: Der Fehler kann Text vom Bildschirm enthalten.</string>
+    <string name="crash_public_note">Issues sind öffentlich. Schau vor dem Absenden drüber.</string>
     <string name="crash_report">Auf GitHub melden</string>
     <string name="crash_copy">Kopieren</string>
     <string name="crash_share">Teilen</string>
     <string name="crash_delete">Löschen</string>
-    <string name="crash_report_clipboard">Nicht alles passt ins Formular. Der ganze Absturz ist in der Zwischenablage zum Einfügen</string>
+    <string name="crash_report_clipboard">Zu lang fürs Formular. Der ganze Absturz ist in der Zwischenablage</string>
     <string name="crash_offer_title">Chatter ist abgestürzt</string>
     <string name="crash_offer_show">Anzeigen</string>
-    <string name="crash_offer_text">Schau ihn dir an und melde ihn auf GitHub, damit er behoben wird. Er zeigt den Fehler und was Chatter kurz davor gemacht hat.</string>
+    <string name="crash_offer_text">Melde ihn auf GitHub, damit er behoben wird.</string>
 
     <!-- Chat modes (header chips) -->
     <string name="mode_slow">Langsam %1$ds</string>
@@ -882,7 +881,7 @@
     <string name="settings_report_user_summary">Lange auf eine Nachricht tippen, um sie zu melden oder zu blockieren</string>
 
     <string name="settings_privacy">Datenschutzerklärung</string>
-    <string name="settings_privacy_summary">Was Chatter speichert und welche Daten mit anderen geteilt werden</string>
+    <string name="settings_privacy_summary">Was Chatter speichert und teilt</string>
     <string name="settings_twitch_disclaimer">Chatter ist eine unabhängige App und steht in keiner Verbindung zu Twitch Interactive, Inc.</string>
 
     <string name="action_block">Blockieren</string>
@@ -966,7 +965,7 @@
     <string name="settings_changelog">Changelog</string>
     <string name="settings_changelog_summary">Was sich in jeder Version geändert hat</string>
     <string name="settings_update_check">Nach Updates suchen</string>
-    <string name="settings_update_check_hint">Fragt einmal am Tag bei GitHub nach einer neuen Version</string>
+    <string name="settings_update_check_hint">Fragt einmal am Tag bei GitHub</string>
     <string name="update_available">Chatter %1$s ist da</string>
     <string name="update_installed">Du hast %1$s</string>
     <string name="update_whats_new">Was ist neu</string>
@@ -1188,24 +1187,10 @@
     <string name="debug_stats_hint">Version, Speicher, Verbindung und Caches</string>
     <string name="debug_copy">Alles kopieren</string>
     <string name="debug_gc_run">Garbage Collection starten</string>
-    <string name="settings_debug">Debug</string>
-    <string name="settings_debug_summary">Log für Fehlerberichte</string>
-    <string name="settings_debug_hide">Debug ausblenden</string>
-    <string name="debug_hidden">Debug ist ausgeblendet. 5-mal aufs Logo unter Über tippen holt es zurück</string>
-    <string name="debug_turned_on">Debug ist jetzt in den Einstellungen</string>
-    <string name="debug_already_on">Debug ist schon in den Einstellungen</string>
-    <plurals name="debug_taps_left">
-        <item quantity="one">Noch 1-mal tippen</item>
-        <item quantity="other">Noch %d-mal tippen</item>
-    </plurals>
     <string name="debug_log">Log</string>
-    <string name="debug_log_summary">Was Chatter tut, für einen Fehlerbericht</string>
     <string name="debug_log_report">Fehler melden</string>
     <string name="debug_log_copy">Kopieren</string>
     <string name="debug_log_save">Speichern</string>
-    <string name="debug_log_days">Log nach Tagen</string>
-    <string name="debug_log_days_hint">Speichert einen Tag als Datei, z. B. zum Anhängen an einen Fehlerbericht. Privat: ohne Namen, Links und Login.</string>
-    <string name="debug_log_days_hint_full">Speichert einen Tag als Datei, z. B. zum Anhängen an einen Fehlerbericht. Mit Namen und Links.</string>
     <string name="debug_log_clear">Log leeren</string>
     <string name="debug_log_empty">Noch nichts</string>
     <string name="debug_log_saved">Log gespeichert</string>
@@ -1215,12 +1200,14 @@
     <string name="debug_log_search">Log durchsuchen</string>
     <string name="debug_log_show_names">Namen und Links zeigen</string>
     <string name="debug_log_hide_names">Namen und Links verstecken</string>
-    <string name="debug_log_state_private">privat</string>
-    <string name="debug_log_state_full">mit Namen</string>
     <string name="debug_log_report_full_title">Mit Namen melden?</string>
     <string name="debug_log_report_full_text">Issues sind öffentlich. Namen und Links im Log kann dort jeder sehen.</string>
     <string name="debug_log_filter">Filtern</string>
     <string name="debug_log_newest">Zum Neuesten</string>
+    <string name="debug_log_today">Heute</string>
+    <string name="debug_log_yesterday">Gestern</string>
+    <string name="debug_log_line_warn">Warnung</string>
+    <string name="debug_log_line_error">Fehler</string>
     <string name="debug_log_no_match">Keine Zeile passt</string>
     <string name="debug_log_level_error">Fehler</string>
     <string name="debug_log_level_warn">Warnungen</string>
@@ -1228,7 +1215,7 @@
     <string name="debug_log_level_debug">Debug</string>
     <string name="debug_log_level_verbose">Details</string>
     <string name="debug_log_clear_title">Log leeren?</string>
-    <string name="debug_log_clear_text">Die gespeicherten Zeilen und früheren Tage auch.</string>
+    <string name="debug_log_clear_text">Auch die früheren Tage.</string>
     <string name="debug_log_clear_confirm">Leeren</string>
     <plurals name="debug_log_count">
         <item quantity="one">%1$d Zeile</item>

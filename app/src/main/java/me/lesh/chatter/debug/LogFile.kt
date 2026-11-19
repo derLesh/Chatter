@@ -61,7 +61,10 @@ internal class LogFile(private val file: File, private val archive: LogArchive? 
             val inFile = runCatching { file.readLines() }.getOrDefault(emptyList())
                 .mapIndexedNotNull { i, line -> decode(line, number = i.toLong()) }
             val archive = archive ?: return@submit inFile
-            archive.read(date) + inFile.filter { archive.dateOf(it.at) == date }
+            // Numbered anew, as the archive and the file each count from zero.
+            (archive.read(date) + inFile.filter { archive.dateOf(it.at) == date }).mapIndexed { i, e ->
+                AppLog.Entry(i.toLong(), e.at, e.level, e.tag, e.thread, e.private, e.full)
+            }
         }.get()
     }.getOrDefault(emptyList())
 
