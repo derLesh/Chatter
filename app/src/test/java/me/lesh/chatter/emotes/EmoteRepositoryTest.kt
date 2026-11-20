@@ -147,6 +147,53 @@ class EmoteRepositoryTest {
     }
 
     @Test
+    fun aSevenTvRefreshAsksOnlySevenTvHoweverRecentTheLoad() = runTest {
+        providers.bttv = listOf("susge")
+        emotes.loadChannel(channel, userId = null)
+        emotes.refreshChannel(channel)
+        val calls = providers.calls
+
+        providers.sevenTv = listOf("peepoHappy")
+        emotes.refreshSevenTv(channel)
+
+        assertEquals(calls + 1, providers.calls)
+        assertEquals(EmoteProvider.SevenTv, emotes.lookup(channel, "peepoHappy")?.provider)
+        assertEquals(EmoteProvider.Bttv, emotes.lookup(channel, "susge")?.provider)
+    }
+
+    @Test
+    fun aSevenTvRefreshDoesNotMakeTheOtherProvidersCurrent() = runTest {
+        emotes.loadChannel(channel, userId = null)
+        clock = 14 * 60_000L
+        emotes.refreshSevenTv(channel)
+        clock = 16 * 60_000L
+        val calls = providers.calls
+
+        providers.bttv = listOf("susge")
+        emotes.refreshChannel(channel)
+
+        assertEquals("all three asked again", calls + 3, providers.calls)
+        assertEquals(EmoteProvider.Bttv, emotes.lookup(channel, "susge")?.provider)
+    }
+
+    @Test
+    fun sevenTvComingBackDoesNotMakeTheOtherProvidersCurrent() = runTest {
+        emotes.loadChannel(channel, userId = null)
+        clock = 14 * 60_000L
+        providers.sevenTv = null
+        emotes.refreshSevenTv(channel)
+        clock = 15 * 60_000L
+        providers.sevenTv = emptyList()
+        assertTrue(emotes.retryMissing())
+        clock = 16 * 60_000L
+        val calls = providers.calls
+
+        emotes.refreshChannel(channel)
+
+        assertEquals("all three asked again", calls + 3, providers.calls)
+    }
+
+    @Test
     fun aChannelEmoteBeatsAGlobalOne() = runTest {
         providers.sevenTv = listOf("catJAM")
         emotes.loadGlobal()
@@ -302,7 +349,7 @@ class EmoteRepositoryTest {
         assertFalse("the channel's emotes are still on their way", emotes.complete(channel))
 
         emotes.loadChannel(channel, userId = null)
-        assertTrue(emotes.complete(channel))
+        assertFalse("no provider is owed", emotes.waitingForProvider.value)
     }
 
     @Test
@@ -315,7 +362,7 @@ class EmoteRepositoryTest {
         providers.ffz = emptyList()
         emotes.retryMissing()
         emotes.loadGlobal()
-        assertTrue(emotes.complete(channel))
+        assertFalse("no provider is owed", emotes.waitingForProvider.value)
     }
 
     // ---- when it is worth asking again --------------------------------------------------------
@@ -497,7 +544,7 @@ class EmoteRepositoryTest {
         emotes.loadGlobal()
         emotes.loadChannel(channel, userId = null)
         assertEquals("7TV's global and channel list only", 2, providers.calls)
-        assertTrue(emotes.complete(channel))
+        assertFalse("no provider is owed", emotes.waitingForProvider.value)
         assertFalse(emotes.waitingForProvider.value)
     }
 
@@ -565,6 +612,46 @@ class EmoteRepositoryTest {
 
         assertEquals(EmoteProvider.Bttv, emotes.lookup(channel, "susge")?.provider)
         assertEquals(EmoteProvider.SevenTv, emotes.lookup(channel, "peepoHappy")?.provider)
+    }
+
+    @Test
+    fun anOlderLoadDoesNotBringBackASetSwitchedAwayFrom() = runTest {
+        providers.sevenTv = listOf("old")
+        providers.bttvGate = CompletableDeferred()
+        val full = launch { emotes.loadChannel(channel, userId = null) }
+        runCurrent()
+
+        providers.sharedSevenTvSet = true
+        providers.sevenTv = listOf("new")
+        emotes.refreshSevenTv(channel)
+        providers.bttv = listOf("susge")
+        providers.bttvGate!!.complete(Unit)
+        full.join()
+
+        assertNull(emotes.lookup(channel, "old"))
+        assertEquals(EmoteProvider.SevenTv, emotes.lookup(channel, "new")?.provider)
+        assertEquals("the older load's BTTV answer still counts", EmoteProvider.Bttv, emotes.lookup(channel, "susge")?.provider)
+        assertTrue(SevenTvSubscription.ofObject("emote_set.update", "shared-set") in emotes.sevenTvSubscriptions())
+        assertFalse("no provider is owed", emotes.waitingForProvider.value)
+    }
+
+    @Test
+    fun aPushForASetSwitchedAwayFromIsIgnored() = runTest {
+        emotes.loadChannel(channel, userId = null)
+
+        val added = emotes.applySevenTvUpdate(
+            channel,
+            SevenTvEvent.EmoteSetUpdate(
+                setId = "set-before",
+                actor = "someone",
+                added = listOf(sevenTvEmote("peepoHappy")),
+                removed = emptyList(),
+                renamed = emptyList(),
+            ),
+        )
+
+        assertTrue(added.isEmpty())
+        assertNull(emotes.lookup(channel, "peepoHappy"))
     }
 
     @Test
@@ -660,10 +747,29 @@ class EmoteRepositoryTest {
         assertTrue(emotes.lookup(channel, "new") != null)
         emotes.removeChannel(channel)
         val calls = providers.calls
-        emotes.refreshChannel(channel, force = true)
+        emotes.refreshChannel(channel)
+        emotes.refreshSevenTv(channel)
         emotes.retryMissing()
         assertEquals(calls, providers.calls)
         assertTrue(emotes.sevenTvSubscriptions().isEmpty())
+    }
+
+    @Test
+    fun aCancelledLoadKeepsTheEmotesAndSevenTvSetItHad() = runTest {
+        providers.sevenTv = listOf("old")
+        emotes.loadChannel(channel, userId = null)
+        providers.sharedSevenTvSet = true
+        providers.sevenTv = listOf("new")
+        providers.bttvGate = CompletableDeferred()
+
+        val pending = launch { emotes.loadChannel(channel, userId = null) }
+        runCurrent()
+        pending.cancel()
+        pending.join()
+
+        assertTrue(emotes.lookup(channel, "old") != null)
+        assertNull(emotes.lookup(channel, "new"))
+        assertTrue(SevenTvSubscription.ofObject("emote_set.update", "set-$channel") in emotes.sevenTvSubscriptions())
     }
 
     @Test
