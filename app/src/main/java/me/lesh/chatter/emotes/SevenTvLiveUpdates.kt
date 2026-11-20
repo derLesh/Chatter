@@ -100,8 +100,11 @@ class SevenTvLiveUpdates(
         val actor = event.actor ?: context.getString(R.string.seventv_someone)
         when (event) {
             is SevenTvEvent.EmoteSetUpdate -> {
+                emotes.noteSevenTvPush(event)
                 emotes.channelsForSevenTvSet(event.setId).forEach { channelId ->
-                    val added = emotes.applySevenTvUpdate(channelId, event)
+                    val update = emotes.applySevenTvUpdate(channelId, event)
+                    if (update.needsReload) refreshSevenTv(channelId)
+                    val added = update.added
                     val channel = chat.rooms.channelOf(channelId)?.takeIf { settings.value.sevenTvEvents } ?: return@forEach
                     if (added.isNotEmpty()) {
                         chat.postNotice(

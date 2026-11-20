@@ -54,6 +54,9 @@ class EmoteRepositoryTest {
         /** While set, BTTV's channel answer waits for it. */
         var bttvGate: CompletableDeferred<Unit>? = null
 
+        /** While set, 7TV's channel answer waits for it, with the emotes it had when asked. */
+        var sevenTvGate: CompletableDeferred<Unit>? = null
+
         private fun <T> answer(names: List<String>?, build: (List<String>) -> T): T {
             calls++
             return build(names ?: throw IOException("provider is down"))
@@ -72,7 +75,13 @@ class EmoteRepositoryTest {
 
         override suspend fun sevenTvGlobal() = answer(sevenTv) { SevenTvEmoteSet("global", it.toSevenTv()) }
 
-        override suspend fun sevenTvChannel(channelId: String) = answer(sevenTv) {
+        override suspend fun sevenTvChannel(channelId: String): SevenTvUser {
+            val names = sevenTv
+            sevenTvGate?.await()
+            return sevenTvUser(channelId, names)
+        }
+
+        private fun sevenTvUser(channelId: String, names: List<String>?) = answer(names) {
             SevenTvUser(SevenTvEmoteSet(if (sharedSevenTvSet) "shared-set" else "set-$channelId", it.toSevenTv()), SevenTvUserRef("user-$channelId"))
         }
 
@@ -81,11 +90,16 @@ class EmoteRepositoryTest {
             FfzEmote(id = i.toLong(), name = name, urls = mapOf("2" to "https://cdn.frankerfacez.com/emote/$i/2"))
         }
 
+        /** "name" or "name@id", for an emote renamed away from its first name; a trailing "~" makes it zero-width. */
         private fun List<String>.toSevenTv() = map {
+            val entry = it.removeSuffix("~")
+            val name = entry.substringBefore('@')
+            val id = "stv-${entry.substringAfter('@', name)}"
             SevenTvActiveEmote(
-                id = "stv-$it",
-                name = it,
-                data = SevenTvEmoteData(host = SevenTvHost("//cdn.7tv.app/emote/stv-$it")),
+                id = id,
+                name = name,
+                flags = if (it.endsWith("~")) 1 else 0,
+                data = SevenTvEmoteData(host = SevenTvHost("//cdn.7tv.app/emote/$id")),
             )
         }
     }
@@ -648,11 +662,162 @@ class EmoteRepositoryTest {
                 removed = emptyList(),
                 renamed = emptyList(),
             ),
-        )
+        ).added
 
         assertTrue(added.isEmpty())
         assertNull(emotes.lookup(channel, "peepoHappy"))
     }
+
+    @Test
+    fun aPushWhileSevenTvIsAskedIsKeptOverItsOlderAnswer() = runTest {
+        providers.sevenTv = listOf("catJAM")
+        emotes.loadChannel(channel, userId = null)
+        providers.sevenTvGate = CompletableDeferred()
+        val refresh = launch { emotes.refreshSevenTv(channel) }
+        runCurrent()
+
+        val push = pushTo("set-$channel", added = listOf("peepoHappy"), removed = listOf("catJAM"))
+        emotes.noteSevenTvPush(push)
+        emotes.applySevenTvUpdate(channel, push)
+        providers.sevenTvGate!!.complete(Unit)
+        refresh.join()
+
+        assertEquals(EmoteProvider.SevenTv, emotes.lookup(channel, "peepoHappy")?.provider)
+        assertNull(emotes.lookup(channel, "catJAM"))
+    }
+
+    @Test
+    fun aPushForTheSetSwitchedAwayFromIsNotAppliedToTheNewOne() = runTest {
+        emotes.loadChannel(channel, userId = null)
+        providers.sharedSevenTvSet = true
+        providers.sevenTv = listOf("catJAM")
+        providers.sevenTvGate = CompletableDeferred()
+        val refresh = launch { emotes.refreshSevenTv(channel) }
+        runCurrent()
+
+        val push = pushTo("set-$channel", added = listOf("peepoHappy"))
+        emotes.noteSevenTvPush(push)
+        emotes.applySevenTvUpdate(channel, push)
+        providers.sevenTvGate!!.complete(Unit)
+        refresh.join()
+
+        assertEquals(EmoteProvider.SevenTv, emotes.lookup(channel, "catJAM")?.provider)
+        assertNull(emotes.lookup(channel, "peepoHappy"))
+    }
+
+    @Test
+    fun aRenameAppliedAgainDoesNotTakeTheEmoteNowUnderTheOldName() = runTest {
+        providers.sevenTv = listOf("A@x")
+        emotes.loadChannel(channel, userId = null)
+        // 7TV's answer already has both changes below.
+        providers.sevenTv = listOf("B@x", "A@y")
+        providers.sevenTvGate = CompletableDeferred()
+        val refresh = launch { emotes.refreshSevenTv(channel) }
+        runCurrent()
+
+        // A rename without the picture, as the EventAPI may send it.
+        val rename = pushTo("set-$channel").copy(renamed = listOf(sevenTvEmote("A").copy(id = "stv-x") to SevenTvActiveEmote(id = "stv-x", name = "B")))
+        val add = pushTo("set-$channel").copy(added = listOf(sevenTvEmote("A").copy(id = "stv-y")))
+        listOf(rename, add).forEach {
+            emotes.noteSevenTvPush(it)
+            emotes.applySevenTvUpdate(channel, it)
+        }
+        providers.sevenTvGate!!.complete(Unit)
+        refresh.join()
+
+        assertEquals("stv-x", emotes.lookup(channel, "B")?.id)
+        assertEquals("stv-y", emotes.lookup(channel, "A")?.id)
+    }
+
+    @Test
+    fun aRenameAppliedAgainFindsItsEmoteAfterAnotherTookTheNameForAWhile() = runTest {
+        providers.sevenTv = listOf("B@y")
+        emotes.loadChannel(channel, userId = null)
+        // 7TV's answer already has the changes below: x came and went, y moved to A.
+        providers.sevenTv = listOf("A@y")
+        providers.sevenTvGate = CompletableDeferred()
+        val refresh = launch { emotes.refreshSevenTv(channel) }
+        runCurrent()
+
+        val x = sevenTvEmote("A").copy(id = "stv-x")
+        listOf(
+            pushTo("set-$channel").copy(added = listOf(x)),
+            pushTo("set-$channel").copy(removed = listOf(x)),
+            pushTo("set-$channel").copy(renamed = listOf(sevenTvEmote("B").copy(id = "stv-y") to SevenTvActiveEmote(id = "stv-y", name = "A"))),
+        ).forEach {
+            emotes.noteSevenTvPush(it)
+            emotes.applySevenTvUpdate(channel, it)
+        }
+        providers.sevenTvGate!!.complete(Unit)
+        refresh.join()
+
+        assertEquals("stv-y", emotes.lookup(channel, "A")?.id)
+        assertNull(emotes.lookup(channel, "B"))
+    }
+
+    @Test
+    fun aRenameAppliedAgainKeepsWhatTheNewerAnswerSaysAboutTheEmote() = runTest {
+        providers.sevenTv = listOf("A@x~", "Z@x")
+        emotes.loadChannel(channel, userId = null)
+        providers.sevenTv = listOf("B@x~", "Z@x")
+        providers.sevenTvGate = CompletableDeferred()
+        val refresh = launch { emotes.refreshSevenTv(channel) }
+        runCurrent()
+
+        val rename = pushTo("set-$channel").copy(renamed = listOf(sevenTvEmote("A").copy(id = "stv-x") to SevenTvActiveEmote(id = "stv-x", name = "B")))
+        emotes.noteSevenTvPush(rename)
+        emotes.applySevenTvUpdate(channel, rename)
+        providers.sevenTvGate!!.complete(Unit)
+        refresh.join()
+
+        assertEquals(true, emotes.lookup(channel, "B")?.zeroWidth)
+        assertEquals(false, emotes.lookup(channel, "Z")?.zeroWidth)
+    }
+
+    @Test
+    fun aRenameWithoutPictureThatFindsNothingAsksForTheSetAgain() = runTest {
+        // As after a replay that left A empty: y is under neither name.
+        providers.sevenTv = emptyList()
+        emotes.loadChannel(channel, userId = null)
+
+        val rename = pushTo("set-$channel").copy(renamed = listOf(sevenTvEmote("B").copy(id = "stv-y") to SevenTvActiveEmote(id = "stv-y", name = "A")))
+
+        assertTrue(emotes.applySevenTvUpdate(channel, rename).needsReload)
+        assertNull(emotes.lookup(channel, "A"))
+    }
+
+    @Test
+    fun aPushForTheSetBeingSwitchedToIsKeptWhenAnotherChannelHasIt() = runTest {
+        val other = "71092938"
+        providers.sharedSevenTvSet = true
+        emotes.loadChannel(other, userId = null)
+        providers.sharedSevenTvSet = false
+        emotes.loadChannel(channel, userId = null)
+        providers.sharedSevenTvSet = true
+        providers.sevenTv = listOf("catJAM")
+        providers.sevenTvGate = CompletableDeferred()
+        val refresh = launch { emotes.refreshSevenTv(channel) }
+        runCurrent()
+
+        // As SevenTvLiveUpdates routes it: kept for the loads, then given to the channels on that set.
+        val push = pushTo("shared-set", added = listOf("peepoHappy"))
+        emotes.noteSevenTvPush(push)
+        emotes.channelsForSevenTvSet("shared-set").forEach { emotes.applySevenTvUpdate(it, push) }
+        providers.sevenTvGate!!.complete(Unit)
+        refresh.join()
+
+        assertEquals(EmoteProvider.SevenTv, emotes.lookup(channel, "peepoHappy")?.provider)
+        assertEquals(EmoteProvider.SevenTv, emotes.lookup(channel, "catJAM")?.provider)
+    }
+
+    private fun pushTo(setId: String, added: List<String> = emptyList(), removed: List<String> = emptyList()) =
+        SevenTvEvent.EmoteSetUpdate(
+            setId = setId,
+            actor = "someone",
+            added = added.map { sevenTvEmote(it) },
+            removed = removed.map { sevenTvEmote(it) },
+            renamed = emptyList(),
+        )
 
     @Test
     fun aSevenTvChangeWhileAnotherProviderIsAskedAgainIsKept() = runTest {
