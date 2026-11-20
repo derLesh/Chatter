@@ -83,7 +83,18 @@ internal fun AnnotatedString.Builder.appendChannel(channel: ChannelMark) {
     append(' ')
 }
 
-internal fun buildLine(item: ChatItem, style: ChatStyle, onName: LinkInteractionListener?, channel: ChannelMark?): BuiltLine {
+/**
+ * [selectable]: the line sits in a SelectionContainer. Its links are then only styled and carry
+ * their URL under [URL_TAG], since a Compose link takes the whole touch and a hold would open it
+ * instead of selecting.
+ */
+internal fun buildLine(
+    item: ChatItem,
+    style: ChatStyle,
+    onName: LinkInteractionListener?,
+    channel: ChannelMark?,
+    selectable: Boolean = false,
+): BuiltLine {
     val inline = HashMap<String, InlineData>()
     // Subs and raids have the channel in front of their header instead.
     val lineChannel = channel.takeIf { item.kind != MessageKind.UserNotice }
@@ -98,7 +109,7 @@ internal fun buildLine(item: ChatItem, style: ChatStyle, onName: LinkInteraction
                 append(item.systemText ?: item.text)
                 if (segments.isNotEmpty()) {
                     append(' ')
-                    appendSegments(segments, inline, style, item.channel)
+                    appendSegments(segments, inline, style, item.channel, selectable = selectable)
                 }
             }
         }
@@ -142,7 +153,7 @@ internal fun buildLine(item: ChatItem, style: ChatStyle, onName: LinkInteraction
             textDecoration = if (item.deleted) TextDecoration.LineThrough else null,
         )
         val giantAt = if (item.powerUp == PowerUp.GiantEmote && SpecialMessage.GiantEmote in style.specialMessages) segments.indexOfLast { it is Segment.EmoteSeg } else -1
-        withStyle(body) { appendSegments(segments, inline, style, item.channel, giantAt) }
+        withStyle(body) { appendSegments(segments, inline, style, item.channel, giantAt, selectable) }
     }
     return BuiltLine(text, inline, pulled.images, pulled.posts, pulled.gifs, (nameStart until nameEnd).takeIf { !it.isEmpty() })
 }
@@ -187,25 +198,36 @@ private fun AnnotatedString.Builder.appendSegments(
     style: ChatStyle,
     channel: String,
     giantAt: Int = -1,
+    selectable: Boolean = false,
 ) {
     segments.forEachIndexed { i, seg ->
         when (seg) {
             is Segment.Text -> append(seg.text)
             is Segment.EmoteSeg -> appendEmote(seg, "e$i", inline, style, channel, giant = i == giantAt)
-            is Segment.Link -> withLink(
-                LinkAnnotation.Url(seg.url, TextLinkStyles(SpanStyle(color = style.linkColor, textDecoration = TextDecoration.Underline))),
-            ) { append(LinkText.display(seg.text, style.shortLinks)) }
+            is Segment.Link -> appendLink(seg.url, LinkText.display(seg.text, style.shortLinks), style, selectable)
             is Segment.Mention -> {
                 val color = seg.login?.let { readableNameColor(seg.color, it, style.dark, style.nameColors, style.textBackground) } ?: Color.Unspecified
                 withStyle(SpanStyle(color = color, fontWeight = FontWeight.Bold)) { append(seg.name) }
             }
             is Segment.Cheer -> appendCheer(seg, "e$i", inline, style)
             // A GIF left in the line, while GIFs are off or a saver is on, is its title as a link.
-            is Segment.Gif -> withLink(
-                LinkAnnotation.Url(seg.url, TextLinkStyles(SpanStyle(color = style.linkColor, textDecoration = TextDecoration.Underline))),
-            ) { append(seg.title) }
+            is Segment.Gif -> appendLink(seg.url, seg.title, style, selectable)
         }
     }
+}
+
+/** Annotation tag of a link's URL in a line built to be selected; see [buildLine]. */
+internal const val URL_TAG = "url"
+
+private fun AnnotatedString.Builder.appendLink(url: String, text: String, style: ChatStyle, selectable: Boolean) {
+    val linkStyle = SpanStyle(color = style.linkColor, textDecoration = TextDecoration.Underline)
+    if (!selectable) {
+        withLink(LinkAnnotation.Url(url, TextLinkStyles(linkStyle))) { append(text) }
+        return
+    }
+    pushStringAnnotation(URL_TAG, url)
+    withStyle(linkStyle) { append(text) }
+    pop()
 }
 
 /**
