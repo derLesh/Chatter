@@ -1,5 +1,7 @@
 package me.lesh.chatter.net
 
+import me.lesh.chatter.debug.AppLog
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.serialization.ExperimentalSerializationApi
 import kotlinx.serialization.json.Json
@@ -16,6 +18,9 @@ import okhttp3.RequestBody.Companion.toRequestBody
 import okhttp3.Response
 import java.io.IOException
 import java.io.InputStream
+import java.security.cert.CertificateException
+import javax.net.ssl.SSLPeerUnverifiedException
+import kotlin.random.Random
 import kotlin.coroutines.resume
 import kotlin.coroutines.resumeWithException
 
@@ -75,6 +80,42 @@ private const val ERROR_PEEK_BYTES = 4096L
 suspend inline fun <reified T> OkHttpClient.getJson(url: String, headers: Map<String, String> = emptyMap()): T {
     val request = Request.Builder().url(url).apply { headers.forEach { (k, v) -> header(k, v) } }.build()
     return fetchDecoding(request) { AppJson.decodeFromStream<T>(it) }
+}
+
+/**
+ * Runs [block] up to [attempts] times while it fails in a way that may pass, waiting a little longer
+ * each time. Emote and badge providers often miss one request and answer the next, and one timeout
+ * should not put an outage note on screen.
+ */
+suspend fun <T> retryTransient(
+    what: String,
+    attempts: Int = 3,
+    firstDelayMs: Long = 1_000,
+    block: suspend () -> T,
+): T {
+    var wait = firstDelayMs
+    repeat(attempts - 1) { attempt ->
+        try {
+            return block()
+        } catch (e: IOException) {
+            if (!e.isTransientFailure()) throw e
+            AppLog.i("Http", "$what failed, trying again (${attempt + 2}/$attempts): ${e.message}")
+        }
+        // Some jitter, so many phones that lost a provider at once do not return in step.
+        delay(wait + Random.nextLong(wait / 2))
+        wait *= 2
+    }
+    return block()
+}
+
+/**
+ * Timeouts, dropped connections and server errors. Not 429: a provider that asks to slow down gets
+ * the longer wait of the app's own retries. Not 408 either, which OkHttp already repeats once.
+ */
+private fun IOException.isTransientFailure(): Boolean = when (this) {
+    is HttpException -> code in 500..599
+    is SSLPeerUnverifiedException -> false
+    else -> generateSequence<Throwable>(this) { it.cause }.none { it is CertificateException }
 }
 
 /** Like [getJson], but null for a 404, e.g. a channel without a BTTV or 7TV account. */
