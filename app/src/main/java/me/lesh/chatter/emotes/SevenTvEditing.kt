@@ -46,6 +46,12 @@ data class EmoteAccess(val activeSetId: String, val name: String?)
 /** One of a channel's 7TV emote sets, for the emote card: whether it is the [active] one and has the emote. */
 data class EmoteSetChoice(val id: String, val name: String, val active: Boolean, val hasEmote: Boolean)
 
+/** One of the emote sets a channel switches between, for the channel settings: whether it is the [active] one. */
+data class ChannelEmoteSet(val id: String, val name: String, val active: Boolean)
+
+/** The emote sets of a channel's 7TV account [sevenTvUserId], the active one first. */
+data class ChannelEmoteSets(val sevenTvUserId: String, val sets: List<ChannelEmoteSet>)
+
 /**
  * A 7TV login, stored per Twitch account. [token] is encrypted with [TokenCipher].
  * [sevenTvUserId] is the 7TV account it logs in, which need not be the one linked to the Twitch account.
@@ -72,10 +78,11 @@ private const val ACCEPTED = "ACCEPTED"
 private const val TWITCH = "TWITCH"
 
 /**
- * Changing a channel's 7TV emotes: adding linked emotes to its active set, and renaming, removing
- * and adding emotes from the emote card. This only shows for the streamer and the channel's
- * editors, which 7TV tells anyone, so nothing about the user is sent to find out. Changing needs a
- * login with 7TV, done once per Twitch account and kept on the phone.
+ * Changing a channel's 7TV emotes: adding linked emotes to its active set, renaming, removing and
+ * adding emotes from the emote card, and switching the active set from the channel settings. This
+ * only shows for the streamer and the channel's editors, which 7TV tells anyone, so nothing about
+ * the user is sent to find out. Changing needs a login with 7TV, done once per Twitch account and
+ * kept on the phone.
  *
  * What 7TV says about a channel is kept for a few minutes in memory, so cards of the same channel
  * ask once.
@@ -184,6 +191,41 @@ class SevenTvEditing(
         }
     }
 
+    /** Whether the user may switch [channel]'s active emote set, as its streamer or a 7TV editor. */
+    suspend fun maySwitchSets(channel: String): Boolean = channelId(channel)?.let { editableSet(it) } != null
+
+    /**
+     * The emote sets [channel] switches between, the active one first; null if the user may not
+     * switch them or 7TV could not be asked. Asks 7TV again, since the channel may have switched
+     * since the menu checked.
+     */
+    suspend fun channelSets(channel: String): ChannelEmoteSets? {
+        val roomId = channelId(channel) ?: return null
+        return try {
+            val active = editableSet(roomId, fresh = true) ?: return null
+            val owner = channels[roomId]?.value ?: return null
+            val sets = api.setNames(roomId).orEmpty()
+                .filter { it.kind == NORMAL }
+                .map { ChannelEmoteSet(it.id, it.name, it.id == active) }
+                .sortedByDescending { it.active }
+            ChannelEmoteSets(owner.id, sets)
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            AppLog.w(TAG, "Could not load the 7TV emote sets: ${e.message}")
+            null
+        }
+    }
+
+    /**
+     * Makes [setId] the active emote set of [channel]. [account]: the Twitch account it was chosen
+     * for, as for [add].
+     */
+    suspend fun activateSet(channel: String, setId: String, account: String?): EmoteEditOutcome =
+        edit(channel, null, setId, mustBeActive = false, account, "switch the emote set") { token, _, owner, set, active ->
+            if (active) SevenTvEditResult.Done else api.activateSet(token, owner.id, set)
+        }
+
     /**
      * Adds the emote [emoteId] under [name] to the set [setId] of [channel], or to its active set for
      * null, or to the active set of [sourceRoomId] for a Shared Chat message. [wasActive]: [setId]
@@ -199,7 +241,7 @@ class SevenTvEditing(
         name: String,
         account: String?,
     ): EmoteEditOutcome =
-        edit(channel, sourceRoomId, setId, mustBeActive = wasActive, account, "add") { token, roomId, set, active ->
+        edit(channel, sourceRoomId, setId, mustBeActive = wasActive, account, "add an emote") { token, roomId, _, set, active ->
             api.addEmote(token, set, emoteId, name).also {
                 if (it == SevenTvEditResult.Done && active) noteChange(roomId, emoteId, currentNames(roomId, emoteId) + name)
             }
@@ -210,7 +252,7 @@ class SevenTvEditing(
      * the card asked; if the channel switched sets since, nothing is renamed. The same goes for [remove].
      */
     suspend fun rename(channel: String, setId: String, emoteId: String, name: String, newName: String, account: String?): EmoteEditOutcome =
-        edit(channel, null, setId, mustBeActive = true, account, "rename") { token, roomId, set, _ ->
+        edit(channel, null, setId, mustBeActive = true, account, "rename an emote") { token, roomId, _, set, _ ->
             api.renameEmote(token, set, emoteId, name, newName).also {
                 if (it == SevenTvEditResult.Done) noteChange(roomId, emoteId, currentNames(roomId, emoteId) - name + newName)
             }
@@ -218,7 +260,7 @@ class SevenTvEditing(
 
     /** Takes the emote [emoteId], called [name] there, out of [setId], the channel's active set when the card asked. */
     suspend fun remove(channel: String, setId: String, emoteId: String, name: String, account: String?): EmoteEditOutcome =
-        edit(channel, null, setId, mustBeActive = true, account, "remove") { token, roomId, set, _ ->
+        edit(channel, null, setId, mustBeActive = true, account, "remove an emote") { token, roomId, _, set, _ ->
             api.removeEmote(token, set, emoteId, name).also {
                 if (it == SevenTvEditResult.Done) noteChange(roomId, emoteId, currentNames(roomId, emoteId) - name)
             }
@@ -227,7 +269,8 @@ class SevenTvEditing(
     /**
      * Runs [change] with the login's token on the set [setId] of the channel, or on its active set
      * for null. [mustBeActive]: [setId] was the active set when the user chose, and must still be.
-     * [change] gets the channel's id, the set and whether that set is the active one.
+     * [change] gets the channel's Twitch id, its 7TV account, the set and whether that set is the
+     * active one. [what] names the change for the log, like "add an emote".
      */
     private suspend fun edit(
         channel: String,
@@ -236,7 +279,7 @@ class SevenTvEditing(
         mustBeActive: Boolean,
         account: String?,
         what: String,
-        change: suspend (token: String, roomId: String, setId: String, active: Boolean) -> SevenTvEditResult,
+        change: suspend (token: String, roomId: String, owner: SevenTvChannel, setId: String, active: Boolean) -> SevenTvEditResult,
     ): EmoteEditOutcome {
         val twitchUserId = activeUserId.value?.takeIf { account == null || it == account } ?: return EmoteEditOutcome.Failed
         val login = logins.value.firstOrNull { it.twitchUserId == twitchUserId } ?: return EmoteEditOutcome.NeedsLogin
@@ -252,12 +295,13 @@ class SevenTvEditing(
                 }
             }
             // Asked again rather than taken from the cache: the streamer may have switched sets since.
-            val active = refreshChannel(roomId)?.style?.activeEmoteSetId?.takeIf { it.isNotEmpty() }
+            val owner = refreshChannel(roomId) ?: return EmoteEditOutcome.Failed
+            val active = owner.style?.activeEmoteSetId?.takeIf { it.isNotEmpty() }
             val set = setId ?: active ?: return EmoteEditOutcome.Failed
             if (mustBeActive && set != active) return EmoteEditOutcome.SetSwitched
-            when (val result = change(token, roomId, set, set == active)) {
+            when (val result = change(token, roomId, owner, set, set == active)) {
                 SevenTvEditResult.Done -> {
-                    AppLog.i(TAG, "7TV emote $what done in ${AppLog.channel(channel)}")
+                    AppLog.i(TAG, "Asked 7TV to $what in ${AppLog.channel(channel)}: done")
                     EmoteEditOutcome.Done
                 }
                 SevenTvEditResult.NameTaken -> EmoteEditOutcome.NameTaken
@@ -267,14 +311,14 @@ class SevenTvEditing(
                     EmoteEditOutcome.NeedsLogin
                 }
                 is SevenTvEditResult.Refused -> {
-                    AppLog.w(TAG, "7TV refused to $what an emote: ${result.message}")
+                    AppLog.w(TAG, "7TV refused to $what: ${result.message}")
                     EmoteEditOutcome.Failed
                 }
             }
         } catch (e: CancellationException) {
             throw e
         } catch (e: Exception) {
-            AppLog.w(TAG, "Could not $what a 7TV emote: ${e.message}")
+            AppLog.w(TAG, "Could not $what on 7TV: ${e.message}")
             EmoteEditOutcome.Failed
         }
     }

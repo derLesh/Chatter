@@ -31,6 +31,7 @@ import me.lesh.chatter.badges.BadgeRepository
 import me.lesh.chatter.changelog.ChangelogRepository
 import me.lesh.chatter.channels.BlockedUsersRepository
 import me.lesh.chatter.channels.ChannelRepository
+import me.lesh.chatter.channels.ChannelSettings
 import me.lesh.chatter.chat.AppChatNotices
 import me.lesh.chatter.chat.BlueskyPostSource
 import me.lesh.chatter.chat.ChatRepository
@@ -248,6 +249,7 @@ class AppContainer(
         loadedNames = emotes::sevenTvNames,
         scope = scope,
     )
+    val channelSettings = ChannelSettings(helix, { auth.account }, sevenTvEditing)
     val rules = RuleRepository(context.ruleStore, scope)
     val stats = StatsRepository(context.statsStore, scope)
     val backgroundHealth = BackgroundHealth(context, context.healthStore, scope)

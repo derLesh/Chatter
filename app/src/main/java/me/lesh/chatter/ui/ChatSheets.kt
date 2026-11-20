@@ -15,6 +15,7 @@ import coil3.ImageLoader
 import me.lesh.chatter.badges.Badge
 import me.lesh.chatter.chat.ChatItem
 import me.lesh.chatter.ui.channels.AddChannelSheet
+import me.lesh.chatter.ui.channels.ChannelSettingsSheet
 import me.lesh.chatter.ui.channels.CombineChannelsSheet
 import me.lesh.chatter.ui.channels.RenameChannelDialog
 import me.lesh.chatter.ui.chat.CatchUpSheet
@@ -44,6 +45,9 @@ class ChatSheetState {
     var showAdd by mutableStateOf(false)
     var renameTarget by mutableStateOf<String?>(null)
 
+    /** The channel whose title, category or 7TV emote set is being changed. */
+    var channelSettingsTarget by mutableStateOf<String?>(null)
+
     /** Null while no dialog is open; the key of the combined chat being edited, or "" for a new one. */
     var combineTarget by mutableStateOf<String?>(null)
 
@@ -69,7 +73,7 @@ class ChatSheetState {
 
 /**
  * The sheets and dialogs of the chat screen: user card, conversation, whisper, nickname, note, hiding a badge, emote card
- * and picker, catch-up summary, and adding, combining and renaming channels. [threadInput] is the input inside the
+ * and picker, catch-up summary, adding, combining and renaming channels, and the channel settings. [threadInput] is the input inside the
  * conversation sheet.
  */
 @Composable
@@ -231,6 +235,18 @@ fun ChatSheets(
             twitchName = vm.twitchName(login),
             onRename = { vm.renameChannel(login, it) },
             onDismiss = { sheets.renameTarget = null },
+        )
+    }
+    sheets.channelSettingsTarget?.let { channel ->
+        val sevenTvLoggedIn by vm.sevenTvLoggedIn.collectAsStateWithLifecycle()
+        ChannelSettingsSheet(
+            channelName = vm.twitchName(channel),
+            load = { vm.loadChannelSettings(channel) },
+            searchCategories = vm::searchCategories,
+            sevenTvLoggedIn = sevenTvLoggedIn,
+            imageLoader = vm.imageLoader,
+            onSave = { vm.saveChannelSettings(channel, it) },
+            onDismiss = { sheets.channelSettingsTarget = null },
         )
     }
 }

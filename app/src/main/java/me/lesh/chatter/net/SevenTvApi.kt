@@ -99,7 +99,7 @@ class SevenTvLoginStart(val authorizeUrl: String, val verifier: String) {
     override fun toString() = "SevenTvLoginStart(‹redacted›)"
 }
 
-/** How adding, renaming or removing an emote in a set went. */
+/** How adding, renaming or removing an emote in a set, or switching sets, went. */
 sealed interface SevenTvEditResult {
     data object Done : SevenTvEditResult
 
@@ -176,6 +176,22 @@ class SevenTvApi(private val http: OkHttpClient) {
         return SevenTvAnswers.ownedSets(gql(null, OWNED_SETS, variables))
     }
 
+    /**
+     * The emote sets the 7TV account of the Twitch channel [channelId] owns, without their emotes.
+     * Public like [channel]; null if the channel has no 7TV account.
+     */
+    suspend fun setNames(channelId: String): List<SevenTvOwnedSet>? =
+        SevenTvAnswers.ownedSets(gql(null, SET_NAMES, buildJsonObject { put("id", channelId) }))
+
+    /** Makes [setId] the active emote set of the 7TV user [userId]. */
+    suspend fun activateSet(token: String, userId: String, setId: String): SevenTvEditResult {
+        val variables = buildJsonObject {
+            put("userId", userId)
+            put("setId", setId)
+        }
+        return SevenTvAnswers.editResult(gql(token, ACTIVATE_SET, variables))
+    }
+
     /** Takes the emote [emoteId], named [alias] there, out of the set [setId]. */
     suspend fun removeEmote(token: String, setId: String, emoteId: String, alias: String): SevenTvEditResult =
         SevenTvAnswers.editResult(gql(token, REMOVE_EMOTE, setEmote(setId, emoteId, alias)))
@@ -245,6 +261,18 @@ class SevenTvApi(private val http: OkHttpClient) {
                   ownedEmoteSets { id name kind emotes(query: ${'$'}search, page: 1, perPage: 1000) { items { id alias } } }
                 }
               }
+            }
+        """.trimIndent()
+
+        val SET_NAMES = """
+            query SetNames(${'$'}id: String!) {
+              users { userByConnection(platform: TWITCH, platformId: ${'$'}id) { ownedEmoteSets { id name kind } } }
+            }
+        """.trimIndent()
+
+        val ACTIVATE_SET = """
+            mutation ActivateSet(${'$'}userId: Id!, ${'$'}setId: Id!) {
+              users { user(id: ${'$'}userId) { activeEmoteSet(emoteSetId: ${'$'}setId) { id } } }
             }
         """.trimIndent()
 
