@@ -97,6 +97,7 @@ import me.lesh.chatter.BuildConfig
 import me.lesh.chatter.ui.chat.BuildStripe
 import me.lesh.chatter.ui.chat.botName
 import me.lesh.chatter.ui.chat.siteName
+import me.lesh.chatter.ui.pill.MessagePillHost
 import me.lesh.chatter.R
 import me.lesh.chatter.auth.AuthState
 import me.lesh.chatter.chat.Bot

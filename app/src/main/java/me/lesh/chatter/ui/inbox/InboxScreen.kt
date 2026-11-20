@@ -94,7 +94,7 @@ import me.lesh.chatter.chat.InboxMention
 import me.lesh.chatter.chat.InboxWhisper
 import me.lesh.chatter.chat.chatterName
 import me.lesh.chatter.ui.MainViewModel
-import me.lesh.chatter.ui.MessagePillHost
+import me.lesh.chatter.ui.pill.MessagePillHost
 import me.lesh.chatter.ui.channels.ChannelAvatar
 import me.lesh.chatter.ui.rememberPredictiveTransition
 import me.lesh.chatter.ui.slideBetweenScreens

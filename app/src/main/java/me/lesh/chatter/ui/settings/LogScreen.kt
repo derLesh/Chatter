@@ -59,6 +59,7 @@ import androidx.compose.material3.IconToggleButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SmallFloatingActionButton
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -85,6 +86,7 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.ClipEntry
 import androidx.compose.ui.platform.LocalClipboard
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.res.vectorResource
@@ -112,6 +114,9 @@ import me.lesh.chatter.debug.AppLog
 import me.lesh.chatter.debug.DeviceReport
 import me.lesh.chatter.debug.LogReport
 import me.lesh.chatter.ui.MainViewModel
+import me.lesh.chatter.ui.pill.MessagePillHost
+import me.lesh.chatter.ui.pill.PillTone
+import me.lesh.chatter.ui.pill.showPill
 import java.text.SimpleDateFormat
 import java.time.LocalDate
 import java.time.ZoneId
@@ -153,7 +158,8 @@ internal fun LogScreen(vm: MainViewModel, onBack: () -> Unit) {
     var confirmClear by remember { mutableStateOf(false) }
     var confirmFullReport by remember { mutableStateOf(false) }
     var menuOpen by remember { mutableStateOf(false) }
-    val sharing = rememberLogSharing(vm, device)
+    val snackbar = remember { SnackbarHostState() }
+    val sharing = rememberLogSharing(vm, device, snackbar)
     val levels = levelNames.mapNotNull { name -> AppLog.Level.entries.firstOrNull { it.name == name } }.toSet()
     // Oldest first, as a report and a file read.
     val dayLog = { entries.asReversed() }
@@ -210,6 +216,7 @@ internal fun LogScreen(vm: MainViewModel, onBack: () -> Unit) {
     Scaffold(
         containerColor = MaterialTheme.colorScheme.surface,
         contentWindowInsets = WindowInsets.safeDrawing,
+        snackbarHost = { MessagePillHost(snackbar) },
         topBar = {
             if (searching) {
                 SearchBar(query, onQuery = { query = it }, onClose = {
@@ -470,8 +477,9 @@ private class LogSharing(
 )
 
 @Composable
-private fun rememberLogSharing(vm: MainViewModel, device: List<Pair<String, String>>): LogSharing {
+private fun rememberLogSharing(vm: MainViewModel, device: List<Pair<String, String>>, snackbar: SnackbarHostState): LogSharing {
     val context = LocalContext.current
+    val resources = LocalResources.current
     val clipboard = LocalClipboard.current
     val scope = rememberCoroutineScope()
     val clipLabel = stringResource(R.string.debug_log_clip_label)
@@ -488,7 +496,8 @@ private fun rememberLogSharing(vm: MainViewModel, device: List<Pair<String, Stri
                     context.contentResolver.openOutputStream(uri)?.use { it.write(text.toByteArray()) } ?: error("no output stream")
                 }.isSuccess
             }
-            toast(context, if (saved) R.string.debug_log_saved else R.string.debug_log_save_failed)
+            if (saved) snackbar.showPill(resources.getString(R.string.debug_log_saved), PillTone.Success)
+            else snackbar.showPill(resources.getString(R.string.debug_log_save_failed), PillTone.Error)
         }
     }
     return LogSharing(

@@ -1,15 +1,6 @@
 package me.lesh.chatter.ui
 
 import androidx.activity.compose.BackHandler
-import androidx.compose.animation.AnimatedContent
-import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.Crossfade
-import androidx.compose.animation.SizeTransform
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
-import androidx.compose.animation.slideInVertically
-import androidx.compose.animation.slideOutVertically
-import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -35,14 +26,12 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowDropDown
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Settings
-import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.LoadingIndicator
 import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
@@ -67,6 +56,7 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -83,6 +73,10 @@ import me.lesh.chatter.ui.channels.AddChannelSheet
 import me.lesh.chatter.ui.channels.ChannelAvatar
 import me.lesh.chatter.ui.chat.EmotePickerSheet
 import me.lesh.chatter.ui.chat.InputBar
+import me.lesh.chatter.ui.pill.PillContent
+import me.lesh.chatter.ui.pill.PillSurface
+import me.lesh.chatter.ui.pill.PillTone
+import me.lesh.chatter.ui.pill.StatusPill
 import me.lesh.chatter.upload.UploadTarget
 
 /** Room the message keeps for a link not uploaded yet; kappa.lol's are about 25 characters. */
@@ -174,7 +168,7 @@ fun SendPictureScreen(vm: MainViewModel) {
                 auth == AuthState.Guest -> Gate(R.string.picture_log_in, R.string.guest_log_in, vm::leaveGuest)
                 channelsLoaded && channels.isEmpty() -> Gate(R.string.picture_no_channel, R.string.picture_open_channel) { addingChannel = true }
                 else -> {
-                    UploadPill(sender.step, sender.uploader?.name.orEmpty())
+                    StatusPill(uploadPill(sender.step, sender.uploader?.name.orEmpty()))
                     if (sender.step == PictureStep.Ready) {
                         Text(
                             stringResource(R.string.picture_public),
@@ -315,69 +309,26 @@ private fun Gate(text: Int, action: Int, onAction: () -> Unit) {
     }
 }
 
-/**
- * The upload's progress or trouble, in the pill the chat uses for its connection: the loading
- * indicator while busy, a red warning sign once something went wrong.
- */
-@OptIn(ExperimentalMaterial3ExpressiveApi::class)
+/** What the upload is doing, for the pill over the picture; nothing while it waits for a tap. */
 @Composable
-private fun UploadPill(step: PictureStep, site: String) {
-    val colors = MaterialTheme.colorScheme
-    val motion = MaterialTheme.motionScheme
-    AnimatedVisibility(
-        visible = step != PictureStep.Ready,
-        enter = fadeIn() + slideInVertically { it },
-        exit = fadeOut() + slideOutVertically { it },
-    ) {
-        // Kept while the pill slides away, so it leaves with the text it had.
-        val last = remember { arrayOf(step) }
-        if (step != PictureStep.Ready) last[0] = step
-        val shown = last[0]
-        val warning = shown is PictureStep.UploadFailed || shown == PictureStep.NotSent
-        Surface(
-            shape = CircleShape,
-            color = colors.secondaryContainer,
-            contentColor = colors.onSecondaryContainer,
-            shadowElevation = 3.dp,
-        ) {
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                modifier = Modifier.padding(start = 8.dp, end = 16.dp, top = 4.dp, bottom = 4.dp),
-            ) {
-                Crossfade(warning, animationSpec = motion.defaultEffectsSpec(), label = "upload pill icon") { warns ->
-                    if (warns) {
-                        Icon(Icons.Filled.Warning, contentDescription = null, tint = colors.error, modifier = Modifier.padding(4.dp).size(20.dp))
-                    } else {
-                        LoadingIndicator(Modifier.size(28.dp), color = LocalContentColor.current)
-                    }
-                }
-                Spacer(Modifier.width(4.dp))
-                AnimatedContent(
-                    pillText(shown, site),
-                    transitionSpec = {
-                        (slideInVertically(motion.defaultSpatialSpec()) { it } + fadeIn(motion.defaultEffectsSpec()))
-                            .togetherWith(slideOutVertically(motion.defaultSpatialSpec()) { -it } + fadeOut(motion.fastEffectsSpec()))
-                            .using(SizeTransform { _, _ -> motion.defaultSpatialSpec() })
-                    },
-                    contentAlignment = Alignment.CenterStart,
-                    label = "upload status",
-                ) { text -> Text(text, style = MaterialTheme.typography.labelLarge, maxLines = 1) }
-            }
-        }
-    }
-}
-
-@Composable
-private fun pillText(step: PictureStep, site: String): String = when (step) {
-    PictureStep.Ready -> ""
+private fun uploadPill(step: PictureStep, site: String): PillContent? = when (step) {
+    PictureStep.Ready -> null
     // In steps of five, so the text does not slide in anew for every percent.
-    is PictureStep.Uploading -> stringResource(R.string.picture_uploading, (step.progress * 20).toInt() * 5)
-    PictureStep.Sending -> stringResource(R.string.picture_sending)
-    PictureStep.NotSent -> stringResource(R.string.picture_not_sent)
+    is PictureStep.Uploading -> PillContent(
+        stringResource(R.string.picture_uploading, (step.progress * 20).toInt() * 5),
+        PillTone.Busy,
+        spoken = stringResource(R.string.picture_uploading_spoken),
+    )
+    PictureStep.Sending -> PillContent(stringResource(R.string.picture_sending), PillTone.Busy)
+    PictureStep.NotSent -> PillContent(stringResource(R.string.picture_not_sent), PillTone.Error)
     is PictureStep.UploadFailed -> when (step.reason) {
-        UploadFailure.NoConnection -> stringResource(R.string.picture_failed_connection, site)
-        UploadFailure.SiteError -> stringResource(R.string.picture_failed_site, site)
-        UploadFailure.TooLarge -> stringResource(R.string.picture_failed_too_large)
+        UploadFailure.NoConnection -> LocalResources.current.let { resources ->
+            PillContent.filled(site, PillTone.Offline) { resources.getString(R.string.picture_failed_connection, it) }
+        }
+        UploadFailure.SiteError -> LocalResources.current.let { resources ->
+            PillContent.filled(site, PillTone.Error) { resources.getString(R.string.picture_failed_site, it) }
+        }
+        UploadFailure.TooLarge -> PillContent(stringResource(R.string.picture_failed_too_large), PillTone.Error)
     }
 }
 
@@ -390,14 +341,15 @@ private fun ChoicePill(
     text: String,
     modifier: Modifier = Modifier,
 ) {
-    Surface(
+    PillSurface(
+        modifier = modifier,
         onClick = onClick,
         enabled = enabled,
-        shape = CircleShape,
         color = MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.9f),
         // Spelled out: with the see-through color Material cannot find the matching text color.
         contentColor = MaterialTheme.colorScheme.onSurface,
-        modifier = modifier,
+        // Flat on the picture, as it was: a shadow would show through the see-through fill.
+        shadowElevation = 0.dp,
     ) {
         Row(
             verticalAlignment = Alignment.CenterVertically,

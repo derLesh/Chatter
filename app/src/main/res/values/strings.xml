@@ -413,6 +413,7 @@
     <string name="picture_uploader_once">Only for this picture.</string>
     <string name="picture_uploader_settings">Uploader settings</string>
     <string name="picture_uploading">Uploading … %1$d %%</string>
+    <string name="picture_uploading_spoken">Uploading …</string>
     <string name="picture_sending">Sending …</string>
     <string name="picture_failed_connection">No connection to %1$s</string>
     <string name="picture_failed_site">%1$s did not take the picture</string>

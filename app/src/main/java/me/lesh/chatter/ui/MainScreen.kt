@@ -86,6 +86,10 @@ import me.lesh.chatter.ui.chat.noteTouches
 import me.lesh.chatter.ui.chat.rememberChatStyle
 import me.lesh.chatter.ui.chat.rememberEmoteFrameRate
 import me.lesh.chatter.ui.chat.screenOnWhileChatMoves
+import me.lesh.chatter.ui.pill.MessagePillHost
+import me.lesh.chatter.ui.pill.PillContent
+import me.lesh.chatter.ui.pill.PillTone
+import me.lesh.chatter.ui.pill.showPill
 import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.launch
@@ -220,11 +224,12 @@ fun MainScreen(vm: MainViewModel, onInbox: () -> Unit, onSettings: () -> Unit) {
     val focusManager = LocalFocusManager.current
     LaunchedEffect(resources, settings.haptics) {
         vm.messages.collect { message ->
-            if (settings.haptics && message.failure) haptics.performHapticFeedback(HapticFeedbackType.Reject)
-            val text = message.fill
-                ?.let { resources.getString(message.text, it) }
-                ?: resources.getString(message.text)
-            snackbar.showSnackbar(PillMessage(text, failure = message.failure))
+            if (settings.haptics && message.tone.isProblem) haptics.performHapticFeedback(HapticFeedbackType.Reject)
+            snackbar.showPill(
+                message.fill
+                    ?.let { fill -> PillContent.filled(fill, message.tone) { resources.getString(message.text, it) } }
+                    ?: PillContent(resources.getString(message.text), message.tone),
+            )
         }
     }
 
@@ -414,7 +419,7 @@ fun MainScreen(vm: MainViewModel, onInbox: () -> Unit, onSettings: () -> Unit) {
                                 jumpTo = jump?.takeIf { it.channel == channel && channel == active }?.id,
                                 onJumped = { found ->
                                     vm.requestedMessage.value = null
-                                    if (!found) scope.launch { snackbar.showSnackbar(resources.getString(R.string.jump_message_gone)) }
+                                    if (!found) scope.launch { snackbar.showPill(resources.getString(R.string.jump_message_gone), PillTone.Info) }
                                 },
                                 style = style,
                                 imageLoader = loader,
