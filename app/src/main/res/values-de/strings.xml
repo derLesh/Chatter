@@ -409,6 +409,7 @@
     <string name="picture_uploader_once">Gilt nur für dieses Bild.</string>
     <string name="picture_uploader_settings">Uploader-Einstellungen</string>
     <string name="picture_uploading">Wird hochgeladen … %1$d %%</string>
+    <string name="picture_uploading_spoken">Wird hochgeladen …</string>
     <string name="picture_sending">Wird gesendet …</string>
     <string name="picture_failed_connection">Keine Verbindung zu %1$s</string>
     <string name="picture_failed_site">%1$s hat das Bild nicht angenommen</string>

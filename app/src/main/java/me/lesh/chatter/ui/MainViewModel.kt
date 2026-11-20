@@ -121,12 +121,13 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.util.Locale
 import me.lesh.chatter.util.shownVersion
+import me.lesh.chatter.ui.pill.PillTone
 
 /**
- * A snackbar message: a string resource and its argument. Resolved on screen, so a message that is
- * up follows a language change. [failure]: buzzes like an error; a change that worked does not.
+ * A message for the pill: a string resource and its argument, [fill], which stands out in it.
+ * Resolved on screen, so a message that is up follows a language change.
  */
-data class UiMessage(val text: Int, val fill: String? = null, val failure: Boolean = true)
+data class UiMessage(val text: Int, val fill: String? = null, val tone: PillTone = PillTone.Error)
 
 /**
  * A change to a channel's 7TV emotes, made again once the 7TV login is done if it needed one.
@@ -381,12 +382,12 @@ class MainViewModel(private val c: AppContainer, savedState: SavedStateHandle) :
                 val done = when (edit) {
                     is PendingEmoteEdit.Add -> when {
                         edit.quiet -> null
-                        edit.set != null && !edit.set.active -> UiMessage(R.string.seventv_added_to_set, edit.set.name, failure = false)
-                        else -> UiMessage(R.string.seventv_added_to_channel, edit.name, failure = false)
+                        edit.set != null && !edit.set.active -> UiMessage(R.string.seventv_added_to_set, edit.set.name, tone = PillTone.Success)
+                        else -> UiMessage(R.string.seventv_added_to_channel, edit.name, tone = PillTone.Success)
                     }
-                    is PendingEmoteEdit.Rename -> UiMessage(R.string.seventv_renamed_to, edit.newName, failure = false)
-                    is PendingEmoteEdit.Remove -> UiMessage(R.string.seventv_removed_from_channel, edit.name, failure = false)
-                    is PendingEmoteEdit.SwitchSet -> UiMessage(R.string.seventv_set_activated, edit.set.name, failure = false)
+                    is PendingEmoteEdit.Rename -> UiMessage(R.string.seventv_renamed_to, edit.newName, tone = PillTone.Success)
+                    is PendingEmoteEdit.Remove -> UiMessage(R.string.seventv_removed_from_channel, edit.name, tone = PillTone.Success)
+                    is PendingEmoteEdit.SwitchSet -> UiMessage(R.string.seventv_set_activated, edit.set.name, tone = PillTone.Success)
                 }
                 done?.let { _messages.send(it) }
             }
@@ -408,7 +409,7 @@ class MainViewModel(private val c: AppContainer, savedState: SavedStateHandle) :
                     is PendingEmoteEdit.SwitchSet -> UiMessage(R.string.seventv_switch_failed, edit.set.name)
                 },
             )
-            EmoteEditOutcome.SetSwitched -> _messages.send(UiMessage(R.string.seventv_set_switched))
+            EmoteEditOutcome.SetSwitched -> _messages.send(UiMessage(R.string.seventv_set_switched, tone = PillTone.Warning))
             // The channel settings say beforehand that saving logs in; asking again would only be another tap.
             EmoteEditOutcome.NeedsLogin -> if (edit is PendingEmoteEdit.SwitchSet) openSevenTvLogin(edit) else _askSevenTvLogin.value = edit
         }
@@ -494,7 +495,7 @@ class MainViewModel(private val c: AppContainer, savedState: SavedStateHandle) :
             if (change.title != null || change.category != null) {
                 val saved = c.channelSettings.saveStream(channel, change.title, change.category, account)
                 _messages.send(
-                    if (saved) UiMessage(R.string.channel_settings_saved, failure = false) else UiMessage(R.string.channel_settings_save_failed),
+                    if (saved) UiMessage(R.string.channel_settings_saved, tone = PillTone.Success) else UiMessage(R.string.channel_settings_save_failed),
                 )
             }
             change.emoteSet?.let { editSevenTvEmote(PendingEmoteEdit.SwitchSet(channel, it, account)) }
@@ -517,7 +518,7 @@ class MainViewModel(private val c: AppContainer, savedState: SavedStateHandle) :
     private suspend fun reportSendResult(result: SendResult) {
         when (result) {
             SendResult.NotConnected -> _messages.send(UiMessage(R.string.error_not_connected))
-            SendResult.RateLimited -> _messages.send(UiMessage(R.string.error_rate_limited))
+            SendResult.RateLimited -> _messages.send(UiMessage(R.string.error_rate_limited, tone = PillTone.Warning))
             // A command error is shown in the chat.
             SendResult.Ok, SendResult.Empty, SendResult.CommandError -> Unit
         }
