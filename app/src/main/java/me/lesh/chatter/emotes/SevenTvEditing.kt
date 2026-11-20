@@ -282,7 +282,10 @@ class SevenTvEditing(
         change: suspend (token: String, roomId: String, owner: SevenTvChannel, setId: String, active: Boolean) -> SevenTvEditResult,
     ): EmoteEditOutcome {
         val twitchUserId = activeUserId.value?.takeIf { account == null || it == account } ?: return EmoteEditOutcome.Failed
-        val login = logins.value.firstOrNull { it.twitchUserId == twitchUserId } ?: return EmoteEditOutcome.NeedsLogin
+        val login = logins.value.firstOrNull { it.twitchUserId == twitchUserId } ?: run {
+            AppLog.i(TAG, "No 7TV login for the active account (${logins.value.size} stored)")
+            return EmoteEditOutcome.NeedsLogin
+        }
         val roomId = sourceRoomId ?: channelId(channel) ?: return EmoteEditOutcome.Failed
         return try {
             val token = when (val opened = withContext(Dispatchers.IO) { TokenCipher.open(login.token) }) {

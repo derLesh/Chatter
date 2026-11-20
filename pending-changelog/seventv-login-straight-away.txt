@@ -1,0 +1,1 @@
+patch: Open the 7TV login right away when saving an emote set, without asking first

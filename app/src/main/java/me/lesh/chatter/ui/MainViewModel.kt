@@ -409,7 +409,8 @@ class MainViewModel(private val c: AppContainer, savedState: SavedStateHandle) :
                 },
             )
             EmoteEditOutcome.SetSwitched -> _messages.send(UiMessage(R.string.seventv_set_switched))
-            EmoteEditOutcome.NeedsLogin -> _askSevenTvLogin.value = edit
+            // The channel settings say beforehand that saving logs in; asking again would only be another tap.
+            EmoteEditOutcome.NeedsLogin -> if (edit is PendingEmoteEdit.SwitchSet) openSevenTvLogin(edit) else _askSevenTvLogin.value = edit
         }
     }
 
