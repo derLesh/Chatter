@@ -298,6 +298,7 @@ class BadgeRepository(
                         badge.users.forEach { byUser.getOrPut(it) { ArrayList(1) } += image }
                     }
                     chatterinoBadges = byUser
+                    trouble.reachable(ServiceTrouble.CHATTERINO)
                     changed = true
                 }
                 .onFailure {

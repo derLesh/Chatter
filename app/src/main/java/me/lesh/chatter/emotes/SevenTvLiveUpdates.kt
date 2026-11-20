@@ -8,6 +8,7 @@ import me.lesh.chatter.chat.ChatRepository
 import me.lesh.chatter.chat.Segment
 import me.lesh.chatter.settings.Settings
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.combine
@@ -31,6 +32,8 @@ class SevenTvLiveUpdates(
     private val settings: StateFlow<Settings>,
     private val scope: CoroutineScope,
 ) {
+    private val sevenTvRefreshes = HashMap<String, Job>()
+
     fun start() {
         // Subscribe to the sets and users of the loaded channels, as far as 7TV is switched on.
         val badgesOn = settings.map { BadgeProvider.SevenTv in it.badgeProviders }.distinctUntilChanged()
@@ -54,9 +57,10 @@ class SevenTvLiveUpdates(
         scope.launch {
             client.events.collect { handle(it) }
         }
-        // A connection lost while the app was open missed the changes in between.
+        // A connection lost while the app was open missed the changes in between, however
+        // recently the sets were loaded.
         scope.launch {
-            client.reconnected.collect { reloadAll() }
+            client.reconnected.collect { chat.rooms.knownIds().forEach(::refreshSevenTv) }
         }
     }
 
@@ -81,12 +85,26 @@ class SevenTvLiveUpdates(
         chat.rooms.knownIds().forEach { id -> emotes.refreshChannel(id) }
     }
 
-    private suspend fun handle(event: SevenTvEvent) {
+    /**
+     * Not awaited, so events arriving meanwhile do not fill the buffer and get dropped. A newer
+     * refresh of the same channel cancels the older one, so a set switched away from cannot land last.
+     */
+    private fun refreshSevenTv(channelId: String) = synchronized(sevenTvRefreshes) {
+        sevenTvRefreshes.remove(channelId)?.cancel()
+        val job = scope.launch { emotes.refreshSevenTv(channelId) }
+        sevenTvRefreshes[channelId] = job
+        job.invokeOnCompletion { synchronized(sevenTvRefreshes) { sevenTvRefreshes.remove(channelId, job) } }
+    }
+
+    private fun handle(event: SevenTvEvent) {
         val actor = event.actor ?: context.getString(R.string.seventv_someone)
         when (event) {
             is SevenTvEvent.EmoteSetUpdate -> {
+                emotes.noteSevenTvPush(event)
                 emotes.channelsForSevenTvSet(event.setId).forEach { channelId ->
-                    val added = emotes.applySevenTvUpdate(channelId, event)
+                    val update = emotes.applySevenTvUpdate(channelId, event)
+                    if (update.needsReload) refreshSevenTv(channelId)
+                    val added = update.added
                     val channel = chat.rooms.channelOf(channelId)?.takeIf { settings.value.sevenTvEvents } ?: return@forEach
                     if (added.isNotEmpty()) {
                         chat.postNotice(
@@ -112,7 +130,7 @@ class SevenTvLiveUpdates(
             }
             is SevenTvEvent.ActiveSetChanged -> {
                 emotes.channelsForSevenTvUser(event.userId).forEach { channelId ->
-                    emotes.refreshChannel(channelId, force = true)
+                    refreshSevenTv(channelId)
                     val channel = chat.rooms.channelOf(channelId)?.takeIf { settings.value.sevenTvEvents } ?: return@forEach
                     chat.postNotice(channel, context.getString(R.string.seventv_set_changed, actor))
                 }

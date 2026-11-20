@@ -18,6 +18,7 @@ import me.lesh.chatter.net.ThirdPartyApi
 import me.lesh.chatter.settings.Settings
 import me.lesh.chatter.settings.SpecialMessage
 import me.lesh.chatter.util.RateLimiter
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -614,6 +615,7 @@ class ChatRepository(
         val lines = try {
             thirdParty.recentMessages(channel, 100).messages
         } catch (e: Exception) {
+            if (e is CancellationException) throw e
             AppLog.w(TAG, "History for ${AppLog.channel(channel)} failed: ${e.message}")
             if (announce && channel in joinedChannels) {
                 historyMissing.add(channel)
