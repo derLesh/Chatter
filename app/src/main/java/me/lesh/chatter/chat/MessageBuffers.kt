@@ -13,6 +13,7 @@ import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.util.concurrent.ConcurrentHashMap
+import kotlin.math.abs
 
 /**
  * The messages of every joined channel on their way to the screen.
@@ -170,6 +171,28 @@ class MessageBuffers(
         trim(channel, buffer)
         reshape(channel)
         return fresh
+    }
+
+    /**
+     * Drops the user's unconfirmed local copies of [own] messages fetched from history: Twitch took
+     * them after all, and only the answer naming their id was lost with the connection.
+     */
+    fun dropEchoesOf(channel: String, own: List<ChatItem>) {
+        if (own.isEmpty()) return
+        val buffer = buffers[channel] ?: return
+        val known = ids[channel]
+        val removed = buffer.removeAll { echo ->
+            echo.isOwn && echo.id.startsWith("local-") &&
+                own.any { sameWords(it.text, echo.text) && abs(it.timestamp - echo.timestamp) < ECHO_MATCH_MS }
+                    .also { if (it) known?.remove(echo.id) }
+        }
+        if (removed) reshape(channel)
+    }
+
+    /** Equal but for spacing: a repeated line went out with an extra space; see [RepeatedMessages]. */
+    private fun sameWords(a: String, b: String): Boolean {
+        fun String.words() = filterNot { it.isWhitespace() || it == RepeatedMessages.SUFFIX.last() }
+        return a.words() == b.words()
     }
 
     /** Removes one message by the id it was added under. */
@@ -591,5 +614,8 @@ class MessageBuffers(
          * second. Ten times a second still looks continuous.
          */
         const val PUBLISH_INTERVAL_MS = 100L
+
+        /** How far apart an echo and Twitch's copy of it may be timed, both on Twitch's clock. */
+        const val ECHO_MATCH_MS = 30_000L
     }
 }

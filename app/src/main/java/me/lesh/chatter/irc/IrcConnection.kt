@@ -55,6 +55,7 @@ class IrcConnection(
     private var watchdogJob: Job? = null
     private var handshakeJob: Job? = null
     private var joinJob: Job? = null
+    private var probeJob: Job? = null
     private val joins = JoinQueue(System::currentTimeMillis, joinRank)
     @Volatile private var lastActivity = 0L
     private val traffic = Traffic()
@@ -181,6 +182,26 @@ class IrcConnection(
         return sent
     }
 
+    /**
+     * Sends a PING and reconnects when nothing at all comes back in time. Any line counts as an
+     * answer, so a busy chat proves itself before the PONG arrives.
+     */
+    override fun checkAlive(): Unit = synchronized(lock) {
+        val ws = socket ?: return
+        if (_state.value != ConnectionState.Connected || probeJob?.isActive == true) return
+        val askedAt = System.currentTimeMillis()
+        if (!ws.send("PING :$PROBE_TOKEN")) return
+        AppLog.d(TAG, "A sent message is unconfirmed, checking the connection")
+        probeJob = scope.launch {
+            delay(PROBE_TIMEOUT_MS)
+            val dead = synchronized(lock) { socket === ws && lastActivity < askedAt }
+            if (dead) {
+                lost("no answer to a PING within ${PROBE_TIMEOUT_MS / 1000} s after a sent message went unconfirmed")
+                scheduleReconnect(immediate = true)
+            }
+        }
+    }
+
     private fun openSocket() {
         val (login, token) = credentials ?: return
         _state.value = ConnectionState.Connecting
@@ -234,6 +255,7 @@ class IrcConnection(
     private fun closeSocket() {
         handshakeJob?.cancel()
         joinJob?.cancel()
+        probeJob?.cancel()
         socket?.cancel()
         socket = null
     }
@@ -478,6 +500,11 @@ class IrcConnection(
 
         /** Silence after which a connected socket counts as dead. */
         private const val SILENCE_LIMIT_MS = 6 * 60_000L
+
+        /** How long a PING from [checkAlive] may go unanswered. */
+        private const val PROBE_TIMEOUT_MS = 5_000L
+
+        private const val PROBE_TOKEN = "chatter"
 
         private fun isAuthFailure(text: String?) = text != null &&
             (text.contains("authentication failed", ignoreCase = true) ||

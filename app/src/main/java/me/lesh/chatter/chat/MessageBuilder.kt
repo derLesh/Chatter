@@ -102,6 +102,8 @@ class MessageBuilder(
         reply: ReplyInfo?,
         /** The segments of the answered message, already built; null builds them from [reply]. */
         quote: List<Segment>? = null,
+        /** On Twitch's clock, like every other message; see [IncomingMessages.ownTimestamp]. */
+        timestamp: Long = System.currentTimeMillis(),
     ): ChatItem {
         val isAction = isAction(text)
         val body = if (isAction) actionText(text) else text
@@ -109,7 +111,7 @@ class MessageBuilder(
             id = "local-" + UUID.randomUUID(),
             channel = channel,
             kind = if (isAction) MessageKind.Action else MessageKind.Chat,
-            timestamp = System.currentTimeMillis(),
+            timestamp = timestamp,
             login = selfLogin,
             displayName = userState["display-name"]?.ifEmpty { null } ?: selfLogin,
             color = parseColor(userState["color"]),

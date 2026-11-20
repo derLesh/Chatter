@@ -27,6 +27,7 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.joinAll
 import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharedFlow
@@ -411,15 +412,29 @@ class ChatRepository(
             ReplyInfo(it.id, it.login.orEmpty(), it.displayName.orEmpty(), it.text, threadId = it.reply?.threadId ?: it.id, parentColor = it.color)
         }
         // Shown as typed: the extra space is only for Twitch.
-        incoming.sent(
+        val echo = builder.buildOwn(
+            channel, wire(text), state, auth.account?.login.orEmpty(), auth.account?.userId, rooms.id(channel), reply,
             // An answered message restored with its draft has no segments; the quote is built from its text.
-            builder.buildOwn(
-                channel, wire(text), state, auth.account?.login.orEmpty(), auth.account?.userId, rooms.id(channel), reply,
-                replyParent?.segments?.ifEmpty { null },
-            ),
+            replyParent?.segments?.ifEmpty { null },
+            timestamp = incoming.ownTimestamp(channel),
         )
+        incoming.sent(echo)
+        awaitConfirmation(echo)
         stats.countSent(channel)
         SendResult.Ok
+    }
+
+    /**
+     * Twitch answers a sent message within a second. Without an answer the connection may have died
+     * unnoticed, which the socket only reports once it tries to read, so it is asked; a little later
+     * the message is given up on.
+     */
+    private fun awaitConfirmation(echo: ChatItem) = scope.launch(worker) {
+        delay(PROBE_AFTER_MS)
+        if (!incoming.isUnconfirmed(echo.channel, echo.id)) return@launch
+        irc.checkAlive()
+        delay(GIVE_UP_AFTER_MS - PROBE_AFTER_MS)
+        incoming.expire(echo.channel, echo.id)
     }
 
     private fun wire(text: String): String =
@@ -637,6 +652,7 @@ class ChatRepository(
                     ?.let { rules.apply(it) }
                     ?.also { incoming.rememberChatter(channel, it) }
             }
+            buffers.dropEchoesOf(channel, items.filter { it.isOwn })
             val fresh = buffers.merge(channel, items)
             AppLog.d(TAG, "Loaded ${items.size} recent message(s) for ${AppLog.channel(channel)}")
             items.firstNotNullOfOrNull { it.rewardId }?.let { rewards.seen(it, rooms.id(channel)) }
@@ -760,6 +776,15 @@ class ChatRepository(
 
         /** How long the history waits for the channel's emotes. */
         const val EMOTES_BEFORE_HISTORY_MS = 3_000L
+
+        /** How long a sent message waits for Twitch before the connection is checked. */
+        const val PROBE_AFTER_MS = 3_000L
+
+        /**
+         * How long a sent message waits for Twitch before it counts as lost. Inside the 10 seconds
+         * in which the input and the planned messages still take a refused message back.
+         */
+        const val GIVE_UP_AFTER_MS = 8_000L
 
         const val CTCP_ACTION = "\u0001ACTION "
         const val CTCP_END = "\u0001"

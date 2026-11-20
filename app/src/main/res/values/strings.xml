@@ -25,6 +25,7 @@
     <string name="reconnect_waiting_network">Waiting for a network…</string>
     <string name="reconnect_loading_history">Loading missed messages…</string>
     <string name="chat_cleared">Chat has been cleared by a moderator.</string>
+    <string name="chat_not_confirmed">Twitch did not confirm your message. It may not have arrived.</string>
     <plurals name="chat_timeout">
         <item quantity="one">%1$s has been timed out for %2$d second.</item>
         <item quantity="other">%1$s has been timed out for %2$d seconds.</item>

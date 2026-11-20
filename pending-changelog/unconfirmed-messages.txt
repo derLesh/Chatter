@@ -1,0 +1,2 @@
+patch: Say when Twitch never confirmed a sent message, put it back in the input and reconnect sooner
+patch: Show a message sent just before a reconnect once, not twice

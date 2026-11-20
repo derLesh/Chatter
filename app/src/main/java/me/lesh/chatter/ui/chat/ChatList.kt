@@ -45,6 +45,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -153,11 +154,18 @@ fun ChatList(
     LaunchedEffect(listState) {
         listState.interactionSource.interactions.collect { if (it is DragInteraction.Start) userScrolling = true }
     }
-    // The newest message when the user left the bottom; the button counts what came after it.
-    var leftAt by remember { mutableStateOf<String?>(null) }
-    LaunchedEffect(follow) { leftAt = if (follow) null else items.lastOrNull()?.id }
-    val newSinceLeft = remember(items, leftAt) {
-        leftAt?.let { id -> items.indexOfLast { it.id == id }.takeIf { it >= 0 }?.let { items.lastIndex - it } } ?: 0
+    // What came since the user left the bottom, for the button. Counted as it arrives and by time:
+    // in a busy chat the message they left at is trimmed while they read.
+    var newSinceLeft by remember { mutableIntStateOf(0) }
+    var countedUntil by remember { mutableStateOf<Long?>(null) }
+    LaunchedEffect(follow) {
+        newSinceLeft = 0
+        countedUntil = if (follow) null else items.lastOrNull()?.timestamp
+    }
+    LaunchedEffect(items) {
+        val since = countedUntil ?: return@LaunchedEffect
+        newSinceLeft += items.lastIndex - items.indexOfLast { it.timestamp <= since }
+        countedUntil = maxOf(since, items.lastOrNull()?.timestamp ?: since)
     }
     val unseen = remember(items, readMark) { readMark?.unseenIn(items) }
     // The chip helps find the line; once the line was on screen or the user scrolled to the bottom,
@@ -173,15 +181,21 @@ fun ChatList(
         snapshotFlow { listState.isScrollInProgress }.collect { scrolling ->
             if (!scrolling && userScrolling) {
                 userScrolling = false
-                follow = listState.firstVisibleItemIndex == 0
+                // Partway into a tall newest message is not the bottom yet.
+                follow = listState.firstVisibleItemIndex == 0 && listState.firstVisibleItemScrollOffset == 0
                 if (follow) chipDone = true
             }
         }
     }
     val currentOnSeen by rememberUpdatedState(onSeen)
     if (onSeen != null) LaunchedEffect(listState) {
-        // reverseLayout: the first visible row is the newest on screen.
-        snapshotFlow { items.getOrNull(items.size - 1 - listState.firstVisibleItemIndex) }
+        // reverseLayout: the first visible row is the newest on screen. Checked by key, like the
+        // mentions below: until the layout catches up, the old index points at a newer message.
+        snapshotFlow {
+            val index = listState.firstVisibleItemIndex
+            val row = listState.layoutInfo.visibleItemsInfo.firstOrNull { it.index == index }
+            items.getOrNull(items.size - 1 - index)?.takeIf { it.id == row?.key }
+        }
             .filterNotNull()
             .distinctUntilChanged { a, b -> a.id == b.id }
             .collect { currentOnSeen?.invoke(ReadMark(it.id, it.timestamp)) }
