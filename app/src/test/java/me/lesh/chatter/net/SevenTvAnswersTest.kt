@@ -54,6 +54,15 @@ class SevenTvAnswersTest {
     }
 
     @Test
+    fun setNamesAreReadWithoutEmotes() {
+        val answer = """{"data":{"users":{"userByConnection":{"ownedEmoteSets":[{"id":"A","name":"Main","kind":"NORMAL"},{"id":"P","name":"Personal","kind":"PERSONAL"}]}}}}"""
+        val sets = SevenTvAnswers.ownedSets(SevenTvAnswers.gql(answer))!!
+        assertEquals(listOf("A" to "NORMAL", "P" to "PERSONAL"), sets.map { it.id to it.kind })
+        assertEquals("Main", sets.first().name)
+        assertEquals(emptyList<SevenTvSetEmote>(), sets.first().emotes.items)
+    }
+
+    @Test
     fun ownedSetsOfAChannelWithout7tvAreNullAndAFailureThrows() {
         assertNull(SevenTvAnswers.ownedSets(SevenTvAnswers.gql("""{"data":{"users":{"userByConnection":null}}}""")))
         assertThrows(HttpException::class.java) { SevenTvAnswers.ownedSets(SevenTvAnswers.gql(error(500, "INTERNAL"))) }

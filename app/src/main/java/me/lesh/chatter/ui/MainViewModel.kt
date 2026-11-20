@@ -32,7 +32,10 @@ import me.lesh.chatter.auth.TokenOwner
 import me.lesh.chatter.badges.Badge
 import me.lesh.chatter.badges.BadgeProvider
 import me.lesh.chatter.channels.ChannelGroup
+import me.lesh.chatter.channels.ChannelSettingsChange
+import me.lesh.chatter.channels.ChannelSettingsForm
 import me.lesh.chatter.channels.RemovedPage
+import me.lesh.chatter.channels.StreamCategory
 import me.lesh.chatter.channels.displayName
 import me.lesh.chatter.chat.ChatCommand
 import me.lesh.chatter.chat.Bot
@@ -59,6 +62,7 @@ import me.lesh.chatter.chat.SendResult
 import me.lesh.chatter.chat.WhisperResult
 import me.lesh.chatter.crash.Crash
 import me.lesh.chatter.crash.DeviceInfo
+import me.lesh.chatter.emotes.ChannelEmoteSet
 import me.lesh.chatter.emotes.Emoji
 import me.lesh.chatter.emotes.EmojiCatalog
 import me.lesh.chatter.emotes.Emote
@@ -126,12 +130,10 @@ data class UiMessage(val text: Int, val fill: String? = null, val failure: Boole
 
 /**
  * A change to a channel's 7TV emotes, made again once the 7TV login is done if it needed one.
- * [account] is the Twitch account it was tapped for; [name] is the emote's name in the channel.
+ * [account] is the Twitch account it was tapped for; an emote's name is the one it has in the channel.
  */
 sealed interface PendingEmoteEdit {
     val channel: String
-    val emoteId: String
-    val name: String
     val account: String?
 
     /**
@@ -142,8 +144,8 @@ sealed interface PendingEmoteEdit {
         override val channel: String,
         val sourceRoomId: String?,
         val set: EmoteSetChoice?,
-        override val emoteId: String,
-        override val name: String,
+        val emoteId: String,
+        val name: String,
         override val account: String?,
         val quiet: Boolean,
     ) : PendingEmoteEdit
@@ -152,8 +154,8 @@ sealed interface PendingEmoteEdit {
     data class Rename(
         override val channel: String,
         val setId: String,
-        override val emoteId: String,
-        override val name: String,
+        val emoteId: String,
+        val name: String,
         val newName: String,
         override val account: String?,
     ) : PendingEmoteEdit
@@ -162,10 +164,13 @@ sealed interface PendingEmoteEdit {
     data class Remove(
         override val channel: String,
         val setId: String,
-        override val emoteId: String,
-        override val name: String,
+        val emoteId: String,
+        val name: String,
         override val account: String?,
     ) : PendingEmoteEdit
+
+    /** Makes [set] the channel's active set, from the channel settings. */
+    data class SwitchSet(override val channel: String, val set: ChannelEmoteSet, override val account: String?) : PendingEmoteEdit
 }
 
 /** 7TV's login page, opened for the Twitch account [account]; [then] is made once it is done. */
@@ -368,6 +373,7 @@ class MainViewModel(private val c: AppContainer, savedState: SavedStateHandle) :
                 editing.add(edit.channel, edit.sourceRoomId, edit.set?.id, edit.set?.active == true, edit.emoteId, edit.name, edit.account)
             is PendingEmoteEdit.Rename -> editing.rename(edit.channel, edit.setId, edit.emoteId, edit.name, edit.newName, edit.account)
             is PendingEmoteEdit.Remove -> editing.remove(edit.channel, edit.setId, edit.emoteId, edit.name, edit.account)
+            is PendingEmoteEdit.SwitchSet -> editing.activateSet(edit.channel, edit.set.id, edit.account)
         }
         when (outcome) {
             EmoteEditOutcome.Done -> {
@@ -380,6 +386,7 @@ class MainViewModel(private val c: AppContainer, savedState: SavedStateHandle) :
                     }
                     is PendingEmoteEdit.Rename -> UiMessage(R.string.seventv_renamed_to, edit.newName, failure = false)
                     is PendingEmoteEdit.Remove -> UiMessage(R.string.seventv_removed_from_channel, edit.name, failure = false)
+                    is PendingEmoteEdit.SwitchSet -> UiMessage(R.string.seventv_set_activated, edit.set.name, failure = false)
                 }
                 done?.let { _messages.send(it) }
             }
@@ -387,7 +394,10 @@ class MainViewModel(private val c: AppContainer, savedState: SavedStateHandle) :
                 when (edit) {
                     is PendingEmoteEdit.Rename -> UiMessage(R.string.seventv_name_taken, edit.newName)
                     is PendingEmoteEdit.Add if edit.set != null && !edit.set.active -> UiMessage(R.string.seventv_name_taken_in_set, edit.set.name)
-                    else -> UiMessage(R.string.seventv_name_taken, edit.name)
+                    is PendingEmoteEdit.Add -> UiMessage(R.string.seventv_name_taken, edit.name)
+                    is PendingEmoteEdit.Remove -> UiMessage(R.string.seventv_name_taken, edit.name)
+                    // Switching adds no name, so 7TV has no reason to say this.
+                    is PendingEmoteEdit.SwitchSet -> UiMessage(R.string.seventv_switch_failed, edit.set.name)
                 },
             )
             EmoteEditOutcome.Failed -> _messages.send(
@@ -395,10 +405,12 @@ class MainViewModel(private val c: AppContainer, savedState: SavedStateHandle) :
                     is PendingEmoteEdit.Add -> UiMessage(R.string.seventv_add_failed, edit.name)
                     is PendingEmoteEdit.Rename -> UiMessage(R.string.seventv_rename_failed, edit.name)
                     is PendingEmoteEdit.Remove -> UiMessage(R.string.seventv_remove_failed, edit.name)
+                    is PendingEmoteEdit.SwitchSet -> UiMessage(R.string.seventv_switch_failed, edit.set.name)
                 },
             )
             EmoteEditOutcome.SetSwitched -> _messages.send(UiMessage(R.string.seventv_set_switched))
-            EmoteEditOutcome.NeedsLogin -> _askSevenTvLogin.value = edit
+            // The channel settings say beforehand that saving logs in; asking again would only be another tap.
+            EmoteEditOutcome.NeedsLogin -> if (edit is PendingEmoteEdit.SwitchSet) openSevenTvLogin(edit) else _askSevenTvLogin.value = edit
         }
     }
 
@@ -445,6 +457,49 @@ class MainViewModel(private val c: AppContainer, savedState: SavedStateHandle) :
     }
 
     fun logoutSevenTv() = c.sevenTvEditing.logout()
+
+    // ---- Channel settings: title, category and 7TV emote set -----------------------------------
+
+    /** The channels the menu found the user may change, and the account it asked for. */
+    private val checkedChannels = MutableStateFlow<Pair<String?, Set<String>>>(null to emptySet())
+
+    /** Channels whose menu offers the channel settings, as far as a menu opened since checked. */
+    val changeableChannels: StateFlow<Set<String>> = combine(checkedChannels, activeAccountId) { (account, channels), active ->
+        if (account == active) channels else emptySet()
+    }.stateIn(viewModelScope, SharingStarted.Eagerly, emptySet())
+
+    /**
+     * Finds out, as [channel]'s menu opens, whether it offers the channel settings. Asking 7TV only
+     * then keeps it off the network for channels whose menu nobody opens; 7TV's answer is kept for a
+     * few minutes, so the entry shows at once the next time.
+     */
+    fun checkChannelSettings(channel: String) {
+        val account = activeAccountId.value ?: return
+        viewModelScope.launch {
+            val may = c.channelSettings.mayChange(channel)
+            checkedChannels.update { (checkedFor, channels) ->
+                val kept = if (checkedFor == account) channels else emptySet()
+                account to if (may) kept + channel else kept - channel
+            }
+        }
+    }
+
+    suspend fun loadChannelSettings(channel: String): ChannelSettingsForm = c.channelSettings.load(channel)
+
+    suspend fun searchCategories(query: String): List<StreamCategory> = c.channelSettings.searchCategories(query)
+
+    fun saveChannelSettings(channel: String, change: ChannelSettingsChange) {
+        val account = activeAccountId.value
+        viewModelScope.launch {
+            if (change.title != null || change.category != null) {
+                val saved = c.channelSettings.saveStream(channel, change.title, change.category, account)
+                _messages.send(
+                    if (saved) UiMessage(R.string.channel_settings_saved, failure = false) else UiMessage(R.string.channel_settings_save_failed),
+                )
+            }
+            change.emoteSet?.let { editSevenTvEmote(PendingEmoteEdit.SwitchSet(channel, it, account)) }
+        }
+    }
 
     private val composer = Composer(
         scope = viewModelScope,

@@ -132,7 +132,9 @@ class SevenTvLiveUpdates(
                 emotes.channelsForSevenTvUser(event.userId).forEach { channelId ->
                     refreshSevenTv(channelId)
                     val channel = chat.rooms.channelOf(channelId)?.takeIf { settings.value.sevenTvEvents } ?: return@forEach
-                    chat.postNotice(channel, context.getString(R.string.seventv_set_changed, actor))
+                    val notice = event.newSetName?.let { context.getString(R.string.seventv_set_changed_to, actor, it) }
+                        ?: context.getString(R.string.seventv_set_changed, actor)
+                    chat.postNotice(channel, notice)
                 }
             }
         }

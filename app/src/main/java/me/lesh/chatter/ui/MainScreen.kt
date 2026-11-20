@@ -108,6 +108,7 @@ fun MainScreen(vm: MainViewModel, onInbox: () -> Unit, onSettings: () -> Unit) {
     // The channel the title bar's chat modes and role describe; a combined chat has several.
     val activeChannel = active?.takeIf { activeGroup == null }
     val hiddenUnread by vm.hiddenUnread.collectAsStateWithLifecycle()
+    val changeable by vm.changeableChannels.collectAsStateWithLifecycle()
     val roomStates by vm.roomStates.collectAsStateWithLifecycle()
     val roles by vm.roles.collectAsStateWithLifecycle()
     val subscribed by vm.subscribedChannels.collectAsStateWithLifecycle()
@@ -223,7 +224,7 @@ fun MainScreen(vm: MainViewModel, onInbox: () -> Unit, onSettings: () -> Unit) {
             val text = message.fill
                 ?.let { resources.getString(message.text, it) }
                 ?: resources.getString(message.text)
-            snackbar.showSnackbar(text)
+            snackbar.showSnackbar(PillMessage(text, failure = message.failure))
         }
     }
 
@@ -315,6 +316,9 @@ fun MainScreen(vm: MainViewModel, onInbox: () -> Unit, onSettings: () -> Unit) {
                 onRemove = vm::removeChannel,
                 onRename = { sheets.renameTarget = it },
                 onMove = vm::moveChannel,
+                changeable = changeable,
+                onMenuOpen = vm::checkChannelSettings,
+                onChannelSettings = { sheets.channelSettingsTarget = it },
                 onInbox = onInbox.takeUnless { guest },
                 inboxUnread = inboxUnread,
                 onSettings = onSettings,
@@ -342,6 +346,9 @@ fun MainScreen(vm: MainViewModel, onInbox: () -> Unit, onSettings: () -> Unit) {
                 onRemove = vm::removeChannel,
                 onRename = { sheets.renameTarget = it },
                 onMove = vm::moveChannel,
+                changeable = changeable,
+                onMenuOpen = vm::checkChannelSettings,
+                onChannelSettings = { sheets.channelSettingsTarget = it },
                 onInbox = onInbox.takeUnless { guest },
                 inboxUnread = inboxUnread,
                 onSettings = onSettings,

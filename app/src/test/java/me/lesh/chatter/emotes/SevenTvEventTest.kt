@@ -40,6 +40,18 @@ class SevenTvEventTest {
     }
 
     @Test
+    fun activeSetSwitchNamesTheNewSet() {
+        val event = parse(
+            """
+            {"type":"user.update","body":{"id":"USER1","actor":{"display_name":"Mod"},
+              "updated":[{"key":"connections","index":0,"value":[
+                {"key":"emote_set","old_value":{"id":"OLD","name":"Main"},"value":{"id":"NEW","name":"Spooky"}}]}]}}
+            """
+        )
+        assertEquals(SevenTvEvent.ActiveSetChanged("USER1", "Mod", "NEW", "Spooky"), event)
+    }
+
+    @Test
     fun badgeIsDescribedByACosmetic() {
         val event = parse(
             """

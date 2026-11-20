@@ -45,8 +45,13 @@ sealed interface SevenTvEvent {
         val renamed: List<Pair<SevenTvActiveEmote, SevenTvActiveEmote>>,
     ) : SevenTvEvent
 
-    /** The channel switched to another emote set. */
-    data class ActiveSetChanged(val userId: String, override val actor: String?, val newSetId: String?) : SevenTvEvent
+    /** The channel switched to another emote set; [newSetName] is null where 7TV did not say it. */
+    data class ActiveSetChanged(
+        val userId: String,
+        override val actor: String?,
+        val newSetId: String?,
+        val newSetName: String? = null,
+    ) : SevenTvEvent
 
     /**
      * A badge 7TV described for someone in a joined channel. [EntitlementChanged] says who wears
@@ -377,8 +382,12 @@ class SevenTvEventClient(
                         .map { it.jsonObject }
                         .firstOrNull { it["key"]?.jsonPrimitive?.contentOrNull == "emote_set" }
                         ?: return null
-                    val newSet = setChange["value"]?.let { it as? JsonObject }?.get("id")?.jsonPrimitive?.contentOrNull
-                    SevenTvEvent.ActiveSetChanged(id, actor, newSet)
+                    val newSet = setChange["value"]?.let { it as? JsonObject }
+                    SevenTvEvent.ActiveSetChanged(
+                        id, actor,
+                        newSetId = newSet?.get("id")?.jsonPrimitive?.contentOrNull,
+                        newSetName = newSet?.get("name")?.jsonPrimitive?.contentOrNull?.takeIf { it.isNotBlank() },
+                    )
                 }
                 else -> null
             }

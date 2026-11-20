@@ -132,6 +132,21 @@
     <string name="undo">Rückgängig</string>
     <string name="rename_channel">Umbenennen</string>
     <string name="rename_channel_hint">Gib dem Kanal einen Spitznamen</string>
+    <string name="channel_settings">Kanaleinstellungen</string>
+    <string name="channel_settings_stream">Stream</string>
+    <string name="channel_settings_title">Titel</string>
+    <string name="channel_settings_category">Kategorie</string>
+    <string name="channel_settings_no_category">Keine Kategorie</string>
+    <string name="channel_settings_category_pick">Wähle eine aus der Liste</string>
+    <string name="channel_settings_category_clear">Kategorie entfernen</string>
+    <string name="channel_settings_emote_set">7TV-Emote-Set</string>
+    <string name="channel_settings_seventv_login">Beim Speichern meldest du dich einmal bei 7TV an.</string>
+    <string name="channel_settings_stream_login">Um Titel und Kategorie zu ändern, melde dich unter Einstellungen → Konto neu an.</string>
+    <string name="channel_settings_stream_failed">Titel und Kategorie konnten nicht geladen werden</string>
+    <string name="channel_settings_nothing">Hier gibt es nichts, was du ändern kannst.</string>
+    <string name="channel_settings_saved">Titel und Kategorie gespeichert</string>
+    <string name="channel_settings_save_failed">Twitch hat Titel und Kategorie nicht gespeichert</string>
+    <string name="channel_settings_open_seventv">Auf 7TV öffnen</string>
     <string name="add_channel">Kanal hinzufügen</string>
     <string name="channel_name">Kanalname</string>
     <string name="add_channel_none_found">Nichts gefunden. Hinzufügen nimmt den Namen trotzdem.</string>
@@ -478,6 +493,8 @@
     <string name="seventv_rename_failed">7TV hat %1$s nicht umbenannt</string>
     <string name="seventv_remove_failed">7TV hat %1$s nicht entfernt</string>
     <string name="seventv_set_switched">Der Kanal hat inzwischen das Emote-Set gewechselt. Es wurde nichts geändert.</string>
+    <string name="seventv_set_activated">%1$s ist jetzt das aktive Emote-Set</string>
+    <string name="seventv_switch_failed">7TV hat nicht zu %1$s gewechselt</string>
     <string name="seventv_login_failed">Die Anmeldung bei 7TV hat nicht geklappt</string>
     <string name="seventv_login_title">Bei 7TV anmelden</string>
     <string name="seventv_login_text">Um die Emotes eines Kanals zu ändern, meldest du dich einmal mit deinem Twitch-Konto bei 7TV an. Die Anmeldung bleibt auf diesem Handy.</string>
@@ -752,6 +769,7 @@
     <string name="seventv_removed">7TV: %1$s hat %2$s entfernt</string>
     <string name="seventv_renamed">7TV: %1$s hat %2$s umbenannt in</string>
     <string name="seventv_set_changed">7TV: %1$s hat das aktive Emote-Set gewechselt</string>
+    <string name="seventv_set_changed_to">7TV: %1$s hat das aktive Emote-Set zu %2$s gewechselt</string>
     <string name="seventv_someone">Jemand</string>
 
     <!-- App icon -->

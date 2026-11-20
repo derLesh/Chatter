@@ -1,0 +1,1 @@
+patch: Show a check instead of a warning when a 7TV emote change worked
