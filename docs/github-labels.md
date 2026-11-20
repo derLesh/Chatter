@@ -2,33 +2,66 @@
 
 Edit names, colors and descriptions in [labels.yml](../.github/labels.yml).
 The Sync labels workflow applies changes after they reach `master`, or when run manually there.
-It creates missing labels and updates existing ones, leaving labels outside the file in place.
+It creates missing labels and updates existing ones, leaving labels outside the file in place, so
+a label taken out of the file is deleted by hand.
 
-## Automatic labels
+## What an open issue carries
 
-PRs get `area: ...` labels from the files they change. Tests in an app area get both its area
-label and `tests`. A PR can touch more than one area. `documentation`, `translations`, `build`,
-`github_actions` and `maintenance` also follow changed files.
-Edit these rules in [labeler.yml](../.github/labeler.yml).
+| Group | How many | Example |
+| --- | --- | --- |
+| Type | one | `bug`, `enhancement` |
+| Status | one | `status: ready` |
+| Priority | at most one, once triaged | `priority: medium` |
+| Effort | at most one, once it is clear what to do | `effort: small` |
+| Topic | any that apply | `moderation`, `battery`, `security` |
 
-The PR labeler removes these file-based labels when they no longer match. Use its area labels
-manually on issues; on PRs they belong to the file rules.
+There are no labels for parts of the app: the title says which part an issue is about, and a
+label on nearly everything helps nobody filter.
 
-Bug and feature forms set `bug` or `enhancement`, plus `status: needs triage`.
-Blank issues stay available; add their labels when reviewing them.
-Dependabot sets `dependencies` for its library and Action updates.
+## Status
 
-## Labels chosen during review
+An open issue has one status at a time. Swap it as the issue moves on:
 
-- Remove `status: needs triage` once a report or idea has been reviewed.
-- Use `status: needs info` while waiting for details, or `status: blocked` for an external blocker.
-  Remove the status once it no longer applies.
-- Use at most one `priority: ...` label. Priority is a maintainer decision.
+1. `status: needs triage` — new. The bug and feature forms set it.
+2. `status: needs info` — waiting for details from the person who opened it.
+3. `status: needs decision` — wanted, but what it should do or how it should look is open.
+4. `status: ready` — clear what to do; anybody can start.
+5. `status: in progress` — somebody works on it. Set it when starting, so two people (or two
+   agents) do not take the same issue.
+
+`status: blocked` replaces any of these while the issue waits for another change or an outside
+service. Say in a comment what it waits for. A closed issue needs no status.
+
+## Effort
+
+A rough guess, not a promise. It helps pick something that fits the time at hand.
+
+- `effort: small` — one sitting, a few files: a fix, a new option, a wording change.
+- `effort: medium` — about a day: a new setting with its page, a new Twitch API call, a test.
+- `effort: large` — several days: a new screen or service, new scopes, measuring on a phone.
+  Worth splitting into smaller issues first.
+
+Set it once the issue is `status: ready` or close to it; before that the guess is too rough.
+
+## Priority
+
+Use at most one `priority: ...` label. Priority is a maintainer decision.
+
+## Other labels
+
 - Add `regression` when a report describes something that worked in an earlier version.
   It can be combined with `bug`.
 - Use `performance` for speed or memory work, and `battery` for power use.
 - Use `accessibility`, `moderation` and `security` when those topics apply.
-- Use `good first issue` for a small task with a clear starting point, and `help wanted` to invite help.
+- Use `good first issue` for a small task with a clear starting point, and `help wanted` to invite
+  help. A good first issue is usually also `effort: small`.
 
-Change types are not guessed from filenames: a chat change can be a feature, a fix or a refactor.
-PR title validation checks the commit convention separately.
+## Automatic labels
+
+PRs get `build`, `github_actions`, `documentation` and `maintenance` from the files they change,
+and the PR labeler removes them when they no longer match. Edit these rules in
+[labeler.yml](../.github/labeler.yml). App code gets no file-based label: nearly every PR touches
+the UI and its strings, and the PR title already says what kind of change it is.
+
+Dependabot sets `dependencies` for its library and Action updates.
+Blank issues stay available; add their labels when reviewing them.

@@ -156,3 +156,5 @@ no other chatters, no messages, no channel names. The pull request text names no
   [docs/ci-and-release.md](docs/ci-and-release.md); a new dependency fails the build until its
   checksum is written.
 - **measuring battery** — [docs/power.md](docs/power.md).
+- **opening, labelling or starting an issue** — [docs/github-labels.md](docs/github-labels.md).
+  Set `status: in progress` on an issue when starting it, so nobody else takes it too.

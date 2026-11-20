@@ -12,6 +12,8 @@ updates:
     commit-message:
       prefix: ci
       include: scope
+    # Without this, Dependabot adds a label named after the ecosystem, like "java".
+    labels: [dependencies]
     schedule:
       interval: weekly
     groups:
@@ -23,6 +25,7 @@ updates:
     commit-message:
       prefix: build
       include: scope
+    labels: [dependencies]
     schedule:
       interval: weekly
     # A dependency goes into the first group it matches.
