@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -38,19 +39,23 @@ fun MessagePillHost(state: SnackbarHostState, modifier: Modifier = Modifier) {
     SnackbarHost(state, modifier) { MessagePill(it) }
 }
 
-/** A message for [MessagePillHost] whose [highlight], the name of what it is about, stands out. */
+/**
+ * A message for [MessagePillHost] whose [highlight], the name of what it is about, stands out.
+ * [failure]: something did not work; a message that says it did gets a check instead of the warning.
+ */
 class PillMessage(
     override val message: String,
     val highlight: String? = null,
     override val actionLabel: String? = null,
     override val duration: SnackbarDuration = SnackbarDuration.Short,
+    val failure: Boolean = true,
 ) : SnackbarVisuals {
     override val withDismissAction: Boolean = false
 }
 
 /**
- * Without an action the message tells of a failure and gets the warning icon; with one (undo) it
- * does not.
+ * Without an action the message gets an icon: the warning for a failure, which a plain text
+ * message counts as, and a check for a change that worked. One with an action (undo) has none.
  */
 @Composable
 private fun MessagePill(data: SnackbarData) {
@@ -72,8 +77,12 @@ private fun MessagePill(data: SnackbarData) {
                 .padding(start = if (action == null) 12.dp else 20.dp, end = if (action == null) 20.dp else 8.dp),
         ) {
             if (action == null) {
-                // Only the icon in red, like the status pill: it sits where the user writes.
-                Icon(Icons.Filled.Warning, contentDescription = null, tint = colors.error, modifier = Modifier.size(24.dp))
+                if ((visuals as? PillMessage)?.failure == false) {
+                    Icon(Icons.Filled.CheckCircle, contentDescription = null, tint = colors.primary, modifier = Modifier.size(24.dp))
+                } else {
+                    // Only the icon in red, like the status pill: it sits where the user writes.
+                    Icon(Icons.Filled.Warning, contentDescription = null, tint = colors.error, modifier = Modifier.size(24.dp))
+                }
                 Spacer(Modifier.width(10.dp))
             }
             Text(

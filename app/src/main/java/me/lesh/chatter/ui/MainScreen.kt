@@ -224,7 +224,7 @@ fun MainScreen(vm: MainViewModel, onInbox: () -> Unit, onSettings: () -> Unit) {
             val text = message.fill
                 ?.let { resources.getString(message.text, it) }
                 ?: resources.getString(message.text)
-            snackbar.showSnackbar(text)
+            snackbar.showSnackbar(PillMessage(text, failure = message.failure))
         }
     }
 
