@@ -1,0 +1,1 @@
+minor: Select and copy part of a message in the user card
