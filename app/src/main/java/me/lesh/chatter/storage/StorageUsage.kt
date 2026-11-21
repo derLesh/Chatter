@@ -4,6 +4,7 @@ import android.app.usage.StorageStatsManager
 import android.content.Context
 import android.os.Process
 import android.os.storage.StorageManager
+import me.lesh.chatter.chat.BotCommands
 import me.lesh.chatter.debug.AppLog
 import me.lesh.chatter.emotes.EmoteListFiles
 import coil3.disk.DiskCache
@@ -15,6 +16,7 @@ import okhttp3.Cache
 data class StorageReport(
     val images: Long,
     val emoteLists: Long,
+    val botCommands: Long,
     /** Settings, channels, inbox and stats: everything clearing the cache keeps. */
     val saved: Long?,
     /** The log, its earlier days and the crashes; part of [saved]. */
@@ -31,7 +33,7 @@ class StorageUsage(
     private val images: () -> DiskCache,
     private val emoteLists: Cache?,
     private val keptEmoteLists: EmoteListFiles,
-    private val forgetBotCommands: suspend () -> Unit,
+    private val botCommands: BotCommands,
 ) {
     suspend fun measure(): StorageReport = withContext(Dispatchers.IO) {
         // An app may ask about itself without a permission.
@@ -42,6 +44,7 @@ class StorageUsage(
         StorageReport(
             images = runCatching { images().size }.getOrDefault(0L),
             emoteLists = (runCatching { emoteLists?.size() }.getOrNull() ?: 0L) + runCatching { keptEmoteLists.size() }.getOrDefault(0L),
+            botCommands = runCatching { botCommands.size() }.getOrDefault(0L),
             saved = stats?.let { it.dataBytes - it.cacheBytes },
             logs = LOG_DIRS.sumOf { name -> context.filesDir.resolve(name).walk().filter { it.isFile }.sumOf { it.length() } },
             app = stats?.appBytes,
@@ -52,7 +55,7 @@ class StorageUsage(
         runCatching { images().clear() }.onFailure { AppLog.w(TAG, "Could not clear the image cache", it) }
         runCatching { emoteLists?.evictAll() }.onFailure { AppLog.w(TAG, "Could not clear the list cache", it) }
         keptEmoteLists.clear()
-        forgetBotCommands()
+        botCommands.forget()
     }
 
     private companion object {

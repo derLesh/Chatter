@@ -286,7 +286,7 @@ class AppContainer(
             .build()
     }
 
-    val storage = StorageUsage(context, { diskCache }, http.cache, emoteListFiles, botCommands::forget)
+    val storage = StorageUsage(context, { diskCache }, http.cache, emoteListFiles, botCommands)
 
     private fun emoteOptions() = settings.settings.value.let {
         EmoteOptions(
@@ -403,6 +403,16 @@ class AppContainer(
         liveAlerts.start()
         // One notification channel per Twitch channel, so each can have its own sound.
         scope.launch { channels.identities.collect { notifier.syncChannels(it) } }
+        // A removed channel takes its bots' command lists along. Only removals count, so the empty
+        // list before the channels are read cannot delete anything.
+        scope.launch {
+            var before = emptySet<String>()
+            channels.channels.collect { list ->
+                val now = list.toSet()
+                (before - now).forEach { botCommands.forgetChannel(it) }
+                before = now
+            }
+        }
         // Every mention goes into the inbox of the account it was matched for, which may no longer
         // be the active one. Guests have no inbox.
         scope.launch {
