@@ -2,6 +2,7 @@ package me.lesh.chatter.upload
 
 import android.content.ContentResolver
 import android.graphics.Bitmap
+import android.graphics.BitmapFactory
 import android.graphics.ImageDecoder
 import android.net.Uri
 import android.webkit.MimeTypeMap
@@ -23,6 +24,7 @@ import java.io.File
 import java.io.IOException
 import java.nio.ByteBuffer
 import java.util.UUID
+import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.TimeUnit
 
 class PictureTooLargeException : IOException("The picture is larger than ${ImageUploader.MAX_BYTES} bytes")
@@ -39,14 +41,25 @@ class ImageUploader(http: OkHttpClient, private val resolver: ContentResolver, p
     private val http = http.newBuilder().writeTimeout(60, TimeUnit.SECONDS).readTimeout(60, TimeUnit.SECONDS).build()
 
     /**
+     * The copies a window still has open, in any window of the app: a chat bubble has a view model
+     * of its own and must not delete the picture the main window is about to send.
+     */
+    private val inUse = ConcurrentHashMap.newKeySet<File>()
+
+    /**
      * Copies [uri] into the app. The permission to read a shared picture ends with the activity
      * that got it, and the picture has to survive a login or the app being closed in between.
      * With [removeInfo] it is copied without what tells where, when and with what it was taken;
      * a picture that cannot be cleaned is refused rather than sent with it.
      */
     suspend fun copy(uri: Uri, removeInfo: Boolean): Picture = withContext(Dispatchers.IO) {
+        // Any app can share into Chatter, and a file:// link or one of Chatter's own would be read
+        // with Chatter's rights. A content:// link is read with the rights the sharing app granted.
+        if (uri.scheme != ContentResolver.SCHEME_CONTENT) throw UnreadablePictureException("Not a shared content link")
         val original = read(uri)
-        val given = resolver.getType(uri)?.takeIf { it.startsWith("image/") } ?: "image/png"
+        // What the sharing app calls it counts for nothing; it has to be a picture.
+        if (!isPicture(original)) throw UnreadablePictureException("Not a picture")
+        val given = PictureCleaner.typeOf(original) ?: resolver.getType(uri)?.takeIf { it.startsWith("image/") } ?: "image/png"
         val (bytes, type) = if (removeInfo) withoutInfo(original) else original to given
         if (bytes.size > MAX_BYTES) throw PictureTooLargeException()
         dir.mkdirs()
@@ -57,7 +70,15 @@ class ImageUploader(http: OkHttpClient, private val resolver: ContentResolver, p
             file.delete()
             throw e
         }
+        inUse += file
         Picture(file, type)
+    }
+
+    /** Whether [bytes] are a picture Android can read, judged by its size alone. */
+    private fun isPicture(bytes: ByteArray): Boolean {
+        val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
+        BitmapFactory.decodeByteArray(bytes, 0, bytes.size, bounds)
+        return bounds.outWidth > 0 && bounds.outHeight > 0
     }
 
     private fun read(uri: Uri): ByteArray {
@@ -95,12 +116,17 @@ class ImageUploader(http: OkHttpClient, private val resolver: ContentResolver, p
 
     /** Forgets [picture] once it is sent or the screen is closed. */
     fun discard(picture: Picture) {
+        inUse -= picture.file
         picture.file.delete()
     }
 
-    /** Deletes the copies an app ended mid-send left behind, all but the one still open. */
-    suspend fun discardAllBut(open: Picture?) = withContext(Dispatchers.IO) {
-        dir.listFiles()?.filter { it != open?.file }?.forEach { it.delete() }
+    /**
+     * Deletes the copies an app ended mid-send left behind. [restored] is the picture a window
+     * brought back with its saved state; it stays, like every copy another window has open.
+     */
+    suspend fun discardUnused(restored: Picture?) = withContext(Dispatchers.IO) {
+        restored?.let { inUse += it.file }
+        dir.listFiles()?.filter { it !in inUse }?.forEach { it.delete() }
     }
 
     /** Uploads [picture] to [target]; [onProgress] gets the share sent so far, 0 to 1. */
