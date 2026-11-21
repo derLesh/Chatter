@@ -71,7 +71,7 @@ fun LinkGuard(settings: Settings, content: @Composable () -> Unit) {
     // A tab over the app pauses it; back to resumed, the tab was minimised (Chrome) or is gone,
     // with or without a session to say so.
     val resumed by LocalLifecycleOwner.current.lifecycle.currentStateAsState()
-    val covering = tabs.showing && !resumed.isAtLeast(Lifecycle.State.RESUMED)
+    val covering = tabs.showing && !tabs.minimized && !resumed.isAtLeast(Lifecycle.State.RESUMED)
     KeepNavigationBarWhile(covering)
     val window = LocalWindowInfo.current.containerSize
     val sheet = tabs.sheet.takeIf { covering && settings.linksInApp && settings.chatAboveLinks && !settings.linksFullScreen }

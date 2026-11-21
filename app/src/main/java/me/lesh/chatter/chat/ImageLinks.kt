@@ -104,17 +104,25 @@ object ImageLinks {
 
     /**
      * The site of the page at [pageUrl] to load images from, its host without a leading "www.",
-     * or null where that site would cover much more than the page. Subdomains match too, so
-     * `www.com` must not become `com`, nor a host on a public suffix like `co.uk` or `github.io`
-     * stand for all of it; an IP address has no site at all. [siteOf] is OkHttp's lookup in the
-     * public suffix list, which tests cannot load.
+     * or null where that site would cover much more than the page. Subdomains match too, so a
+     * public suffix like `co.uk` or `github.io` must never be one, and an IP address has no site
+     * at all. [siteOf] is OkHttp's lookup in the public suffix list, which tests cannot load.
      */
     fun imageSourceOf(pageUrl: String, siteOf: (HttpUrl) -> String? = HttpUrl::topPrivateDomain): String? {
-        val parsed = pageUrl.toHttpUrlOrNull() ?: return null
-        // Null for a public suffix itself, a single label and an IP address.
-        siteOf(parsed) ?: return null
-        val withoutWww = parsed.host.removePrefix("www.")
-        val keepsSite = withoutWww != parsed.host && "https://$withoutWww/".toHttpUrlOrNull()?.let(siteOf) != null
-        return if (keepsSite) withoutWww else parsed.host
+        val host = pageUrl.toHttpUrlOrNull()?.host?.removeSuffix(".")?.removePrefix("www.") ?: return null
+        // What is saved must come back the same from an edit or a backup, which take off one
+        // "www." again (cleanHost): `www.co.uk` would come back as `co.uk`.
+        if (host.startsWith("www.") || !isPlainHost(host)) return null
+        val site = "https://$host/".toHttpUrlOrNull() ?: return null
+        // Null for a public suffix itself and an IP address.
+        return host.takeIf { siteOf(site) != null }
     }
+
+    /**
+     * A host of at least two DNS labels in lower case and punycode. OkHttp takes some characters
+     * DNS does not, such as a comma, which would split into two hosts in the stored list.
+     */
+    fun isPlainHost(host: String): Boolean = '.' in host && host.split('.').all { HOST_LABEL.matches(it) }
+
+    private val HOST_LABEL = Regex("^[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?$")
 }

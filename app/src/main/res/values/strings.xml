@@ -385,6 +385,7 @@
     <string name="link_menu_image_host_added">Added %s as an image source</string>
     <string name="link_menu_image_host_known">%s is already an image source</string>
     <string name="link_menu_image_host_refused">This page\'s address can\'t be an image source</string>
+    <string name="link_menu_image_host_failed">Couldn\'t save the image source</string>
     <string name="settings_posts_in_their_app">Open posts and videos in their app</string>
     <string name="settings_posts_in_their_app_hint">Links to X, Bluesky, YouTube and Twitch open in their app if it is installed</string>
     <string name="settings_full_links">Show links in full</string>

@@ -13,13 +13,9 @@
     <!-- Not required: without a camera the token is pasted instead. -->
     <uses-feature android:name="android.hardware.camera" android:required="false" />
 
-    <!-- To find the default browser and whether it can open a link as a Custom Tab over the app. -->
+    <!-- To find the default browser and whether it can open a link as a Custom Tab over the app.
+         Browsers without Custom Tabs stay unseen: their links go out through Android. -->
     <queries>
-        <intent>
-            <action android:name="android.intent.action.VIEW" />
-            <category android:name="android.intent.category.BROWSABLE" />
-            <data android:scheme="https" />
-        </intent>
         <intent>
             <action android:name="android.support.customtabs.action.CustomTabsService" />
         </intent>

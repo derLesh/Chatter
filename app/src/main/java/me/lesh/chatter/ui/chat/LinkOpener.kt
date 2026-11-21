@@ -10,6 +10,7 @@ import android.net.Uri
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
+import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.browser.customtabs.CustomTabColorSchemeParams
@@ -35,6 +36,9 @@ import androidx.compose.ui.platform.LocalWindowInfo
 import androidx.compose.ui.platform.UriHandler
 import androidx.core.net.toUri
 import androidx.lifecycle.AndroidViewModel
+import androidx.lifecycle.viewModelScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 import me.lesh.chatter.R
 import me.lesh.chatter.chat.PostLinks
 import me.lesh.chatter.chat.PostSite
@@ -66,6 +70,7 @@ fun rememberLinkOpener(settings: Settings, tabs: LinkTabs): UriHandler {
             windowWidthPx = window.width,
             windowHeightPx = window.height,
             fullScreen = settings.linksFullScreen,
+            reportsLayout = !settings.linksFullScreen && settings.chatAboveLinks,
             addImageHost = settings.inlineImages,
         ),
     )
@@ -88,7 +93,7 @@ fun rememberLinkOpener(settings: Settings, tabs: LinkTabs): UriHandler {
                     // another look.
                     val browser = CustomTabsClient.getPackageName(context, emptyList())
                     if (browser != null) {
-                        tabs.connect(browser) { session ->
+                        val open = { session: CustomTabsSession? ->
                             val intent = tabIntent(context, session, look).intent.setPackage(browser).setData(target)
                             try {
                                 launcher.launch(intent)
@@ -96,21 +101,34 @@ fun rememberLinkOpener(settings: Settings, tabs: LinkTabs): UriHandler {
                             } catch (_: ActivityNotFoundException) {
                                 AppLog.w(TAG, "No Custom Tab in $browser")
                                 tabs.closed()
-                                openElsewhere(platform, link)
+                                openElsewhere(platform, context, link)
                             }
+                        }
+                        // Only the sheet's place needs a session; the launcher alone gets a sheet.
+                        if (look.reportsLayout) {
+                            tabs.connect(browser, open)
+                        } else {
+                            tabs.closed()
+                            open(null)
                         }
                         return
                     }
                 }
-                openElsewhere(platform, link)
+                openElsewhere(platform, context, link)
             }
         }
     }
 }
 
-/** Throws when no app at all takes the link; a tap on it must not close Chatter. */
-private fun openElsewhere(platform: UriHandler, link: String) {
-    runCatching { platform.openUri(link) }.onFailure { AppLog.w(TAG, "No app opens this link", it) }
+/**
+ * Android's handler throws when no app at all takes the link; a tap on it must not close Chatter.
+ * The error names the link, so only its kind is logged.
+ */
+private fun openElsewhere(platform: UriHandler, context: Context, link: String) {
+    runCatching { platform.openUri(link) }.onFailure {
+        AppLog.w(TAG, "No app opens this link (${it.javaClass.simpleName})")
+        Toast.makeText(context, R.string.link_cannot_open, Toast.LENGTH_SHORT).show()
+    }
 }
 
 /** True for the links a Custom Tab can show; `mailto:`, `tel:` and app links go to their apps. */
@@ -135,6 +153,8 @@ private class TabLook(
     val windowWidthPx: Int,
     val windowHeightPx: Int,
     val fullScreen: Boolean,
+    /** Whether the chat moves out of the sheet's way, which needs the browser to say where it is. */
+    val reportsLayout: Boolean,
     val addImageHost: Boolean,
 )
 
@@ -198,6 +218,13 @@ class LinkTabs(application: Application) : AndroidViewModel(application) {
     var showing by mutableStateOf(false)
         private set
 
+    /**
+     * While the browser has shrunk the tab to a small window (Chrome), so a later pause of the app,
+     * such as a permission prompt, is not taken for the tab covering it.
+     */
+    var minimized by mutableStateOf(false)
+        private set
+
     private val main = Handler(Looper.getMainLooper())
     private var connection: CustomTabsServiceConnection? = null
 
@@ -207,6 +234,14 @@ class LinkTabs(application: Application) : AndroidViewModel(application) {
     private val callback = object : CustomTabsCallback() {
         override fun onActivityLayout(left: Int, top: Int, right: Int, bottom: Int, state: Int, extras: Bundle) {
             main.post { if (showing) sheet = TabSheet.of(left, top, right, state) }
+        }
+
+        override fun onMinimized(extras: Bundle) {
+            main.post { if (showing) minimized = true }
+        }
+
+        override fun onUnminimized(extras: Bundle) {
+            main.post { minimized = false }
         }
     }
 
@@ -225,17 +260,25 @@ class LinkTabs(application: Application) : AndroidViewModel(application) {
         }
         val newConnection = object : CustomTabsServiceConnection() {
             override fun onCustomTabsServiceConnected(name: ComponentName, client: CustomTabsClient) {
-                val session = runCatching { client.newSession(callback) }.getOrNull()
-                main.post { handOut(session) }
+                // A call into the browser that waits for its answer, which the main thread and the
+                // timeout must not wait for.
+                viewModelScope.launch(Dispatchers.IO) {
+                    val session = runCatching { client.newSession(callback) }.getOrNull()
+                    main.post { handOut(session) }
+                }
             }
 
             override fun onServiceDisconnected(name: ComponentName) {
                 main.post { sheet = null }
             }
         }
-        val bound = runCatching { CustomTabsClient.bindCustomTabsService(getApplication(), browser, newConnection) }.getOrDefault(false)
-        if (!bound) return handOut(null)
+        // Kept before binding: a binding that fails must be released too.
         connection = newConnection
+        val bound = runCatching { CustomTabsClient.bindCustomTabsService(getApplication(), browser, newConnection) }.getOrDefault(false)
+        if (!bound) {
+            unbind()
+            return handOut(null)
+        }
         main.postDelayed({ handOut(null) }, CONNECT_TIMEOUT_MS)
     }
 
@@ -258,6 +301,7 @@ class LinkTabs(application: Application) : AndroidViewModel(application) {
         attempt++
         main.removeCallbacksAndMessages(null)
         showing = false
+        minimized = false
         sheet = null
         unbind()
     }

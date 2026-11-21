@@ -1,5 +1,6 @@
 package me.lesh.chatter.chat
 
+import me.lesh.chatter.settings.BackupCheck
 import okhttp3.HttpUrl
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
@@ -185,8 +186,9 @@ class ImageLinksTest {
 
     @Test
     fun anImageSourceNeverCoversAWholePublicSuffix() {
-        assertEquals("www.com", ImageLinks.imageSourceOf(siteOf = ::siteIn, pageUrl = "https://www.com/"))
-        assertEquals("www.co.uk", ImageLinks.imageSourceOf(siteOf = ::siteIn, pageUrl = "https://www.co.uk/"))
+        assertNull(ImageLinks.imageSourceOf(siteOf = ::siteIn, pageUrl = "https://www.com/"))
+        assertNull(ImageLinks.imageSourceOf(siteOf = ::siteIn, pageUrl = "https://www.co.uk/"))
+        assertNull(ImageLinks.imageSourceOf(siteOf = ::siteIn, pageUrl = "https://www.www.com/"))
         assertNull(ImageLinks.imageSourceOf(siteOf = ::siteIn, pageUrl = "https://github.io/"))
         assertNull(ImageLinks.imageSourceOf(siteOf = ::siteIn, pageUrl = "https://co.uk/"))
         assertNull(ImageLinks.imageSourceOf(siteOf = ::siteIn, pageUrl = "https://localhost/"))
@@ -200,11 +202,24 @@ class ImageLinksTest {
         assertNull(ImageLinks.imageSourceOf(siteOf = ::siteIn, pageUrl = "mailto:someone@example.com"))
     }
 
+    @Test
+    fun anImageSourceIsOneHostTheListKeepsAsItIs() {
+        // OkHttp takes a comma in a host; stored comma-separated, it would become "com" and more.
+        assertNull(ImageLinks.imageSourceOf(siteOf = ::siteIn, pageUrl = "https://com,cats.example.com/"))
+        assertEquals("example.org", ImageLinks.imageSourceOf(siteOf = ::siteIn, pageUrl = "https://www.EXAMPLE.org./"))
+        val pages = listOf("https://www.example.com/", "https://i.example.co.uk/", "https://user.github.io/", "https://bücher.example.com/")
+        for (page in pages) {
+            val source = ImageLinks.imageSourceOf(siteOf = ::siteIn, pageUrl = page)!!
+            assertEquals(page, source, ImageLinks.cleanHost(source))
+            assertEquals(page, listOf(source), BackupCheck.hosts(listOf(source)))
+        }
+    }
+
     /** OkHttp's public suffix lookup, for the few suffixes these tests use. */
     private fun siteIn(url: HttpUrl): String? {
         val host = url.host
         if (host.contains(':') || host.all { it.isDigit() || it == '.' }) return null
-        val suffix = listOf("co.uk", "github.io", "com", "uk", "io").firstOrNull { host == it || host.endsWith(".$it") } ?: return null
+        val suffix = listOf("co.uk", "github.io", "com", "org", "uk", "io").firstOrNull { host == it || host.endsWith(".$it") } ?: return null
         if (host == suffix) return null
         return host.removeSuffix(".$suffix").substringAfterLast('.') + ".$suffix"
     }
