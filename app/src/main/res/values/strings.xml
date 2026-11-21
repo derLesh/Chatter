@@ -639,7 +639,6 @@
     <string name="account_copy_id">Copy Twitch ID</string>
     <string name="account_active">Chatting with this account</string>
     <string name="account_switch_to">Chat as %1$s</string>
-    <string name="account_add">Add account</string>
     <string name="account_add_short">Add</string>
     <string name="account_logout_title">Log %1$s out?</string>
     <string name="account_logout_text">This also logs it out on Twitch. Chatter carries on with your other account.</string>

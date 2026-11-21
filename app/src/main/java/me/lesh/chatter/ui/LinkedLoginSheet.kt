@@ -2,11 +2,11 @@ package me.lesh.chatter.ui
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
@@ -30,48 +30,48 @@ sealed interface LinkedLogin {
 /**
  * Asks before a token from the website logs in. Any page can open a `chatter://login` link, so
  * without the question a stranger's link could log the user into the stranger's account.
+ *
+ * The sheet is gone while the login is saved; a failure brings it back with the reason.
  */
 @Composable
-fun LinkedLoginDialog(vm: MainViewModel) {
+fun LinkedLoginSheet(vm: MainViewModel) {
     val linked by vm.linkedLogin.collectAsStateWithLifecycle()
     val state = linked ?: return
+    if (state is LinkedLogin.Saving) return
     val context = LocalContext.current
-    val busy = state is LinkedLogin.Checking || state is LinkedLogin.Saving
 
-    AlertDialog(
-        onDismissRequest = { if (!busy) vm.dismissLinkedLogin() },
-        title = {
-            Text(
-                when (state) {
-                    is LinkedLogin.Ready -> stringResource(R.string.login_link_ask, state.login)
-                    is LinkedLogin.Saving -> stringResource(R.string.login_link_ask, state.login)
-                    else -> stringResource(R.string.login_link_title)
-                },
-            )
+    FormSheet(
+        title = when (state) {
+            is LinkedLogin.Ready -> stringResource(R.string.login_link_ask, state.login)
+            else -> stringResource(R.string.login_link_title)
         },
-        text = {
-            when (state) {
-                is LinkedLogin.Checking -> Row(
+        text = when (state) {
+            is LinkedLogin.Ready -> stringResource(R.string.login_link_hint)
+            is LinkedLogin.Failed -> tokenLoginError(context, state.error)
+            else -> null
+        },
+        confirmLabel = stringResource(if (state is LinkedLogin.Failed) R.string.ok else R.string.login_token_confirm),
+        confirmEnabled = state !is LinkedLogin.Checking,
+        onConfirm = { if (state is LinkedLogin.Failed) vm.dismissLinkedLogin() else vm.acceptLinkedLogin() },
+        // Not in onDismiss, which also runs before onConfirm: dismissing revokes the token.
+        onDismiss = {},
+        onCancel = vm::dismissLinkedLogin,
+    ) {
+        if (state is LinkedLogin.Checking) {
+            item(key = "checking") {
+                Row(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(12.dp),
+                    modifier = Modifier.padding(top = 8.dp),
                 ) {
                     CircularProgressIndicator(Modifier.size(20.dp), strokeWidth = 2.dp)
-                    Text(stringResource(R.string.login_link_checking))
-                }
-                is LinkedLogin.Ready, is LinkedLogin.Saving -> Text(stringResource(R.string.login_link_hint))
-                is LinkedLogin.Failed -> Text(tokenLoginError(context, state.error))
-            }
-        },
-        confirmButton = {
-            when (state) {
-                is LinkedLogin.Failed -> TextButton(onClick = vm::dismissLinkedLogin) { Text(stringResource(R.string.ok)) }
-                else -> TextButton(onClick = vm::acceptLinkedLogin, enabled = state is LinkedLogin.Ready) {
-                    Text(stringResource(R.string.login_token_confirm))
+                    Text(
+                        stringResource(R.string.login_link_checking),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
                 }
             }
-        },
-        dismissButton = if (state is LinkedLogin.Failed) null else {
-            { TextButton(onClick = vm::dismissLinkedLogin, enabled = state !is LinkedLogin.Saving) { Text(stringResource(R.string.cancel)) } }
-        },
-    )
+        }
+    }
 }

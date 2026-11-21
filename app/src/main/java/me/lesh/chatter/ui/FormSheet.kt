@@ -52,6 +52,8 @@ import me.lesh.chatter.R
  * [focusOnOpen] takes the focus and the keyboard once the sheet is open. [content] gets `finish`,
  * which slides the sheet away and then runs its action, like the confirm button does.
  * [titleAction] sits right of the title, such as a button that deletes what the sheet edits.
+ * [onCancel] runs, after [onDismiss], when the sheet closes without an action: Cancel, back, or a
+ * tap or swipe outside it.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -64,6 +66,7 @@ fun FormSheet(
     destructive: Boolean = false,
     text: String? = null,
     focusOnOpen: FocusRequester? = null,
+    onCancel: () -> Unit = {},
     titleAction: (@Composable (finish: (() -> Unit) -> Unit) -> Unit)? = null,
     content: LazyListScope.(finish: (() -> Unit) -> Unit) -> Unit = {},
 ) {
@@ -75,10 +78,10 @@ fun FormSheet(
     // Back, a tap outside or on the handle can take over the slide and end it through
     // onDismissRequest, so the action runs on whichever dismissal comes, and only once.
     val dismissed: () -> Unit = {
-        val action = pendingAction
+        val action = pendingAction ?: onCancel
         pendingAction = null
         onDismiss()
-        action?.invoke()
+        action()
     }
 
     ModalBottomSheet(
@@ -137,16 +140,7 @@ fun FormSheet(
                         titleAction?.invoke(close)
                     }
                 }
-                text?.let {
-                    item(key = OwnRow.Text) {
-                        Text(
-                            it,
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            modifier = Modifier.padding(top = 8.dp),
-                        )
-                    }
-                }
+                text?.let { item(key = OwnRow.Text) { SheetText(it) } }
                 content(close)
             }
             Row(
@@ -154,7 +148,7 @@ fun FormSheet(
                 modifier = Modifier.fillMaxWidth().padding(start = 20.dp, end = 20.dp, top = 24.dp),
             ) {
                 OutlinedButton(
-                    onClick = { close {} },
+                    onClick = { close(onCancel) },
                     // The default outline nearly vanishes on the sheet's surface.
                     border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline),
                     modifier = Modifier.weight(1f).heightIn(min = 48.dp),
@@ -174,6 +168,17 @@ fun FormSheet(
             }
         }
     }
+}
+
+/** A paragraph in a [FormSheet] below its title, such as what a confirmation is about. */
+@Composable
+fun SheetText(text: String) {
+    Text(
+        text,
+        style = MaterialTheme.typography.bodyMedium,
+        color = MaterialTheme.colorScheme.onSurfaceVariant,
+        modifier = Modifier.padding(top = 8.dp),
+    )
 }
 
 /**

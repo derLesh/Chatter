@@ -17,16 +17,16 @@ import me.lesh.chatter.chat.ChatItem
 import me.lesh.chatter.ui.channels.AddChannelSheet
 import me.lesh.chatter.ui.channels.ChannelSettingsSheet
 import me.lesh.chatter.ui.channels.CombineChannelsSheet
-import me.lesh.chatter.ui.channels.RenameChannelDialog
+import me.lesh.chatter.ui.channels.RenameChannelSheet
 import me.lesh.chatter.ui.chat.CatchUpSheet
 import me.lesh.chatter.ui.chat.ChannelMark
 import me.lesh.chatter.ui.chat.ChatStyle
 import me.lesh.chatter.ui.chat.EmoteCardSheet
-import me.lesh.chatter.ui.chat.EmoteTap
 import me.lesh.chatter.ui.chat.EmotePickerSheet
-import me.lesh.chatter.ui.chat.HideBadgeDialog
-import me.lesh.chatter.ui.chat.NicknameDialog
-import me.lesh.chatter.ui.chat.NoteDialog
+import me.lesh.chatter.ui.chat.EmoteTap
+import me.lesh.chatter.ui.chat.HideBadgeSheet
+import me.lesh.chatter.ui.chat.NicknameSheet
+import me.lesh.chatter.ui.chat.NoteSheet
 import me.lesh.chatter.ui.chat.ThreadSheet
 import me.lesh.chatter.ui.chat.UserCardSheet
 import me.lesh.chatter.ui.chat.withoutAttachments
@@ -151,7 +151,7 @@ fun ChatSheets(
     sheets.nicknameTarget?.let { target ->
         val login = target.login
         if (login == null) sheets.nicknameTarget = null else {
-            NicknameDialog(
+            NicknameSheet(
                 login = login,
                 currentNickname = nicknames[login.lowercase()].orEmpty(),
                 twitchName = target.displayName ?: login,
@@ -161,7 +161,7 @@ fun ChatSheets(
         }
     }
     sheets.noteTarget?.let { login ->
-        NoteDialog(
+        NoteSheet(
             login = login,
             currentNote = notes[login.lowercase()].orEmpty(),
             onSave = { vm.setNote(login, it) },
@@ -169,7 +169,7 @@ fun ChatSheets(
         )
     }
     sheets.badgeToHide?.let { badge ->
-        HideBadgeDialog(
+        HideBadgeSheet(
             badge = badge,
             imageLoader = loader,
             onHide = { vm.hideBadge(badge) },
@@ -229,7 +229,7 @@ fun ChatSheets(
     }
     sheets.renameTarget?.let { login ->
         val customNames by vm.customNames.collectAsStateWithLifecycle()
-        RenameChannelDialog(
+        RenameChannelSheet(
             login = login,
             currentName = customNames[login].orEmpty(),
             twitchName = vm.twitchName(login),

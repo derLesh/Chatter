@@ -622,7 +622,6 @@
     <string name="account_copy_id">Twitch-ID kopieren</string>
     <string name="account_active">Chatte mit diesem Konto</string>
     <string name="account_switch_to">Als %1$s chatten</string>
-    <string name="account_add">Konto hinzufügen</string>
     <string name="account_add_short">Hinzufügen</string>
     <string name="account_logout_title">%1$s abmelden?</string>
     <string name="account_logout_text">Das Konto wird auch bei Twitch abgemeldet. Chatter macht mit deinem anderen Konto weiter.</string>

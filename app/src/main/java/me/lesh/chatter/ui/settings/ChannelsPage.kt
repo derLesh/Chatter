@@ -17,7 +17,7 @@ import me.lesh.chatter.ui.MainViewModel
 import me.lesh.chatter.ui.channels.AddChannelSheet
 import me.lesh.chatter.ui.channels.CombineChannelsSheet
 import me.lesh.chatter.ui.channels.ManageChannelsPage
-import me.lesh.chatter.ui.channels.RenameChannelDialog
+import me.lesh.chatter.ui.channels.RenameChannelSheet
 
 @Composable
 internal fun ChannelsPage(vm: MainViewModel, settings: Settings) {
@@ -82,7 +82,7 @@ internal fun ChannelsPage(vm: MainViewModel, settings: Settings) {
         }
     }
     renameTarget?.let { login ->
-        RenameChannelDialog(
+        RenameChannelSheet(
             login = login,
             currentName = customNames[login].orEmpty(),
             twitchName = vm.twitchName(login),

@@ -5,9 +5,9 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.AlertDialog
+import androidx.compose.foundation.layout.padding
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.ReadOnlyComposable
 import androidx.compose.ui.Alignment
@@ -20,6 +20,7 @@ import coil3.compose.AsyncImage
 import me.lesh.chatter.R
 import me.lesh.chatter.badges.Badge
 import me.lesh.chatter.badges.BadgeProvider
+import me.lesh.chatter.ui.FormSheet
 import me.lesh.chatter.ui.theme.isAppInDarkTheme
 
 /**
@@ -48,25 +49,34 @@ fun isWellKnownBadge(provider: BadgeProvider, set: String) = provider == BadgePr
 
 /** Asks before leaving every badge of [badge]'s kind out of the chat. */
 @Composable
-fun HideBadgeDialog(badge: Badge, imageLoader: ImageLoader, onHide: () -> Unit, onDismiss: () -> Unit) {
+fun HideBadgeSheet(badge: Badge, imageLoader: ImageLoader, onHide: () -> Unit, onDismiss: () -> Unit) {
     val name = badgeKindName(badge.provider, badge.set, badge.title)
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text(stringResource(R.string.badge_hide_title)) },
-        text = {
-            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+    FormSheet(
+        title = stringResource(R.string.badge_hide_title),
+        confirmLabel = stringResource(R.string.badge_hide_confirm),
+        onConfirm = onHide,
+        onDismiss = onDismiss,
+    ) {
+        item(key = "badge") {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
+                modifier = Modifier.padding(top = 8.dp),
+            ) {
                 AsyncImage(
                     model = badgePicture(badge.url, badge.urlOnLight),
                     contentDescription = null,
                     imageLoader = imageLoader,
                     modifier = Modifier.size(32.dp).badgeBackground(badge.background),
                 )
-                Text(stringResource(R.string.badge_hide_text, name))
+                Text(
+                    stringResource(R.string.badge_hide_text, name),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
             }
-        },
-        confirmButton = { TextButton(onClick = { onHide(); onDismiss() }) { Text(stringResource(R.string.badge_hide_confirm)) } },
-        dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.cancel)) } },
-    )
+        }
+    }
 }
 
 /** Twitch's set ids for the badges people know by name. */
