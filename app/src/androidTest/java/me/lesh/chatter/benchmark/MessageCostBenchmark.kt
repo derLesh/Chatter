@@ -231,6 +231,7 @@ private object Notices : ChatNotices {
     override fun chatCleared() = "Chat cleared."
     override fun timeout(name: String, seconds: Int) = "$name timed out for $seconds seconds."
     override fun ban(name: String) = "$name banned."
+    override fun notConfirmed() = "Not confirmed."
 }
 
 /** The real stats only add to counters in memory; not measured here. */
