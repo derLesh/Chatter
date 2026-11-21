@@ -4,12 +4,10 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.size
 import androidx.compose.material.icons.Icons
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ListItem
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -22,6 +20,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import me.lesh.chatter.R
 import me.lesh.chatter.stats.Stats
+import me.lesh.chatter.ui.FormSheet
 import me.lesh.chatter.ui.MainViewModel
 import java.text.DateFormat
 import java.text.NumberFormat
@@ -137,18 +136,13 @@ internal fun StatsPage(vm: MainViewModel, onChannels: () -> Unit) {
     }
 
     if (confirmReset) {
-        AlertDialog(
-            onDismissRequest = { confirmReset = false },
-            title = { Text(stringResource(R.string.settings_stats_reset)) },
-            text = { Text(stringResource(R.string.settings_stats_reset_confirm)) },
-            confirmButton = {
-                TextButton(onClick = { confirmReset = false; vm.resetStats() }) {
-                    Text(stringResource(R.string.settings_stats_reset_action))
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = { confirmReset = false }) { Text(stringResource(R.string.cancel)) }
-            },
+        FormSheet(
+            title = stringResource(R.string.settings_stats_reset),
+            text = stringResource(R.string.settings_stats_reset_confirm),
+            confirmLabel = stringResource(R.string.settings_stats_reset_action),
+            destructive = true,
+            onConfirm = vm::resetStats,
+            onDismiss = { confirmReset = false },
         )
     }
 }

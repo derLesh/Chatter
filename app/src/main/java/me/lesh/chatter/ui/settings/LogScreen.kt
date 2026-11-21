@@ -46,7 +46,6 @@ import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Search
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExtendedFloatingActionButton
@@ -62,7 +61,6 @@ import androidx.compose.material3.SmallFloatingActionButton
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.material3.TextField
 import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.material3.TopAppBar
@@ -113,6 +111,7 @@ import me.lesh.chatter.auth.AuthState
 import me.lesh.chatter.debug.AppLog
 import me.lesh.chatter.debug.DeviceReport
 import me.lesh.chatter.debug.LogReport
+import me.lesh.chatter.ui.FormSheet
 import me.lesh.chatter.ui.MainViewModel
 import me.lesh.chatter.ui.pill.MessagePillHost
 import me.lesh.chatter.ui.pill.PillTone
@@ -182,34 +181,27 @@ internal fun LogScreen(vm: MainViewModel, onBack: () -> Unit) {
     LaunchedEffect(day) { list.scrollToItem(0) }
 
     if (confirmClear) {
-        AlertDialog(
-            onDismissRequest = { confirmClear = false },
-            title = { Text(stringResource(R.string.debug_log_clear_title)) },
-            text = { Text(stringResource(R.string.debug_log_clear_text)) },
-            confirmButton = {
-                TextButton(onClick = {
-                    AppLog.clear()
-                    days = emptyList()
-                    pickedDay = null
-                    confirmClear = false
-                }) { Text(stringResource(R.string.debug_log_clear_confirm)) }
+        FormSheet(
+            title = stringResource(R.string.debug_log_clear_title),
+            text = stringResource(R.string.debug_log_clear_text),
+            confirmLabel = stringResource(R.string.debug_log_clear_confirm),
+            destructive = true,
+            onConfirm = {
+                AppLog.clear()
+                days = emptyList()
+                pickedDay = null
             },
-            dismissButton = { TextButton(onClick = { confirmClear = false }) { Text(stringResource(R.string.cancel)) } },
+            onDismiss = { confirmClear = false },
         )
     }
     // An issue is public; names and links should not land there by accident.
     if (confirmFullReport) {
-        AlertDialog(
-            onDismissRequest = { confirmFullReport = false },
-            title = { Text(stringResource(R.string.debug_log_report_full_title)) },
-            text = { Text(stringResource(R.string.debug_log_report_full_text)) },
-            confirmButton = {
-                TextButton(onClick = {
-                    confirmFullReport = false
-                    sharing.report(dayLog(), true)
-                }) { Text(stringResource(R.string.debug_log_report)) }
-            },
-            dismissButton = { TextButton(onClick = { confirmFullReport = false }) { Text(stringResource(R.string.cancel)) } },
+        FormSheet(
+            title = stringResource(R.string.debug_log_report_full_title),
+            text = stringResource(R.string.debug_log_report_full_text),
+            confirmLabel = stringResource(R.string.debug_log_report),
+            onConfirm = { sharing.report(dayLog(), true) },
+            onDismiss = { confirmFullReport = false },
         )
     }
 

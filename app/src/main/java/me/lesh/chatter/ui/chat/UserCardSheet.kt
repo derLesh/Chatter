@@ -388,7 +388,7 @@ fun UserCardSheet(
 
     if (reporting) {
         val login = item.login.orEmpty()
-        ReportDialog(
+        ReportSheet(
             displayName = item.displayName ?: login,
             login = login,
             message = item.text.ifEmpty { item.systemText.orEmpty() },
