@@ -91,7 +91,9 @@ It is five jobs:
 - **`sign`** is the only job with the signing secrets, and it runs no Gradle: `apksigner` and
   `jarsigner` from the runner's SDK sign what `build` made, so no plugin or library can ever reach
   the key.
-- **`publish`** pushes and creates the GitHub release.
+- **`publish`** pushes and creates the GitHub release. When creating the release fails after the
+  push, re-run that job alone: it finds the tag on top of the build's commit, skips the push and
+  publishes, and a release an earlier attempt already created only gets its files again.
 - **`play`** uploads the bundle to the track the `play_track` input names, after the release is
   out; `none`, the default, uploads nowhere. When Play refuses it, re-run that job alone instead
   of releasing again.

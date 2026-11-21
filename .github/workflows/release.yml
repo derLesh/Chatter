@@ -450,26 +450,45 @@ jobs:
             chatter-${{ needs.build.outputs.version }}.apk
             chatter-${{ needs.build.outputs.version }}.aab
 
-      # Atomic, so the branch never gets the release commit without its tag or vice versa.
+      # Atomic, so the branch never gets the release commit without its tag or vice versa. Re-running
+      # this job after the push went through and publishing failed would make a second release
+      # commit that cannot be pushed, so a tag already on top of this build's commit counts as
+      # pushed. A tag on any other commit stops the job.
       - name: Push the release commit and tag
         env:
           BRANCH: ${{ github.ref_name }}
         run: |
+          if git ls-remote --exit-code --tags origin "refs/tags/v$VERSION" > /dev/null; then
+            git fetch -q --no-tags origin "refs/tags/v$VERSION:refs/tags/v$VERSION"
+            parent=$(git rev-parse "v$VERSION^{commit}^")
+            if [ "$parent" != "$GITHUB_SHA" ]; then
+              echo "::error::v$VERSION is already tagged, on a commit that does not follow $GITHUB_SHA"
+              exit 1
+            fi
+            echo "v$VERSION was pushed by an earlier attempt of this run; going on to publish it"
+            exit 0
+          fi
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
           git am -q build-out/release.patch
           git tag -a "v$VERSION" -m "Chatter $VERSION"
           git push --atomic origin "HEAD:refs/heads/$BRANCH" "refs/tags/v$VERSION"
 
+      # A release an earlier attempt created gets its files again instead of a second release.
       - name: Publish the GitHub release
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          gh release create "v$VERSION" \
-            --verify-tag \
-            --title "Chatter $VERSION" \
-            --notes-file build-out/github-notes.md \
-            "chatter-$VERSION.apk" "chatter-$VERSION.apk.sha256" "build-out/chatter-$VERSION-mapping.txt"
+          files=("chatter-$VERSION.apk" "chatter-$VERSION.apk.sha256" "build-out/chatter-$VERSION-mapping.txt")
+          if gh release view "v$VERSION" > /dev/null 2>&1; then
+            gh release upload "v$VERSION" --clobber "${files[@]}"
+          else
+            gh release create "v$VERSION" \
+              --verify-tag \
+              --title "Chatter $VERSION" \
+              --notes-file build-out/github-notes.md \
+              "${files[@]}"
+          fi
 
   # After publish, so Play never gets a version without its tag. Re-running this job alone retries
   # the upload with the same signed bundle.
