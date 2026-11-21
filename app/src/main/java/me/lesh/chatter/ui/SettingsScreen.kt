@@ -1,6 +1,5 @@
 package me.lesh.chatter.ui
 
-import android.widget.Toast
 import androidx.compose.animation.ExperimentalSharedTransitionApi
 import androidx.compose.animation.SharedTransitionLayout
 import androidx.compose.animation.SharedTransitionScope
@@ -71,6 +70,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.saveable.rememberSaveableStateHolder
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
@@ -78,7 +78,6 @@ import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.nestedscroll.nestedScroll
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.res.vectorResource
@@ -98,6 +97,7 @@ import me.lesh.chatter.BuildConfig
 import me.lesh.chatter.ui.chat.BuildStripe
 import me.lesh.chatter.ui.chat.botName
 import me.lesh.chatter.ui.chat.siteName
+import me.lesh.chatter.ui.pill.MessagePillHost
 import me.lesh.chatter.R
 import me.lesh.chatter.auth.AuthState
 import me.lesh.chatter.chat.Bot
@@ -120,8 +120,8 @@ import me.lesh.chatter.ui.settings.BlockedUsersPage
 import me.lesh.chatter.ui.settings.CategoryHue
 import me.lesh.chatter.ui.settings.CategoryIcon
 import me.lesh.chatter.ui.settings.ChannelsPage
+import me.lesh.chatter.ui.settings.CrashesPage
 import me.lesh.chatter.ui.settings.CreditsPage
-import me.lesh.chatter.ui.settings.DebugPage
 import me.lesh.chatter.ui.settings.DebugStatsPage
 import me.lesh.chatter.ui.settings.DeveloperPage
 import me.lesh.chatter.ui.settings.EmotesPage
@@ -202,8 +202,6 @@ private enum class SettingsPage(
     Beta(R.string.settings_beta, R.string.settings_beta_summary, SettingsSection.App, { drawableIcon(R.drawable.ic_science) }, CategoryHue.Lime),
     Support(R.string.settings_support, R.string.settings_support_summary, SettingsSection.App, { Icons.Default.Favorite }, CategoryHue.Pink),
     About(R.string.settings_about, R.string.settings_about_summary, SettingsSection.App, { Icons.Default.Info }, CategoryHue.Gray),
-    /** Hidden until the logo under About is tapped five times; see [Settings.debugMenu]. */
-    Debug(R.string.settings_debug, R.string.settings_debug_summary, SettingsSection.App, { drawableIcon(R.drawable.ic_bug_report) }, CategoryHue.Red),
     /** Only in debug builds. */
     Developer(R.string.settings_developer, R.string.settings_developer_summary, SettingsSection.App, { Icons.Default.Build }, CategoryHue.Gray),
     /** Opened from the profile card above the sections. */
@@ -216,7 +214,7 @@ private enum class SettingsPage(
         else -> true
     }
 
-    fun shown(settings: Settings): Boolean = inThisBuild && (this != Debug || settings.debugMenu)
+    fun shown(settings: Settings): Boolean = inThisBuild
 }
 
 @Composable
@@ -241,6 +239,7 @@ internal enum class SettingsSubPage(val title: Int) {
     PostsBluesky(R.string.post_site_bluesky),
     PostsYouTube(R.string.post_site_youtube),
     PostsTwitch(R.string.post_site_twitch),
+    PostsSevenTv(R.string.post_site_seventv),
     SpecialMessages(R.string.settings_special_messages),
     BotCommands(R.string.settings_bot_commands),
     AppIcons(R.string.settings_app_icon),
@@ -251,6 +250,7 @@ internal enum class SettingsSubPage(val title: Int) {
     Credits(R.string.settings_credits),
     DebugStats(R.string.debug_stats),
     Log(R.string.debug_log),
+    Crashes(R.string.crashes_title),
 }
 
 /**
@@ -289,8 +289,7 @@ private val SEARCH_INDEX: List<SearchEntry> by lazy {
     buildList {
         // The channel list has no tiles to open at, so its actions find the page.
         val channelActions = listOf(R.string.add_channel, R.string.rename_channel, R.string.combine_channels)
-        // Debug is hidden on purpose, from the search too.
-        SettingsPage.entries.filter { it.inThisBuild && it != SettingsPage.Debug }.forEach { page ->
+        SettingsPage.entries.filter { it.inThisBuild }.forEach { page ->
             val also = if (page == SettingsPage.Channels) channelActions else emptyList()
             add(SearchEntry(page.title, page, page.summary, also, key = null))
         }
@@ -334,6 +333,7 @@ private val SEARCH_INDEX: List<SearchEntry> by lazy {
         add(SearchEntry(R.string.settings_remove_picture_info, media, R.string.settings_remove_picture_info_hint, also = listOf(R.string.search_also_exif)))
         val posts = SettingsPage.Posts
         PostSite.entries.forEach { add(SearchEntry(siteName(it), posts, also = POST_PART_TERMS)) }
+        add(SearchEntry(R.string.settings_seventv_login, posts, R.string.settings_seventv_login_hint, key = siteName(PostSite.SevenTv)))
         add(SearchEntry(R.string.settings_blur_nsfw_posts, posts, R.string.settings_blur_nsfw_posts_hint))
         val browser = SettingsPage.Browser
         add(SearchEntry(R.string.settings_links_in_app, browser, R.string.settings_links_in_app_hint, also = listOf(R.string.search_also_custom_tabs)))
@@ -408,6 +408,8 @@ private val SEARCH_INDEX: List<SearchEntry> by lazy {
         add(SearchEntry(R.string.settings_changelog, about, R.string.settings_changelog_summary))
         add(SearchEntry(R.string.settings_source_code, about, R.string.settings_source_code_summary))
         add(SearchEntry(R.string.settings_report_issue, about, R.string.settings_report_issue_summary))
+        add(SearchEntry(R.string.crashes_title, about))
+        add(SearchEntry(R.string.debug_log, about))
         add(SearchEntry(R.string.settings_security, about, R.string.settings_security_summary))
         add(SearchEntry(R.string.settings_privacy, about, R.string.settings_privacy_summary))
         add(SearchEntry(R.string.settings_credits, about, R.string.settings_credits_summary))
@@ -444,6 +446,9 @@ private data class SettingsPlace(
 
     /** Decides whether a transition goes forward or back. */
     val depth: Int get() = listOf(searching, page != null, subPage != null, rule != null).count { it }
+
+    /** Names the place's saved state, such as how far it is scrolled. */
+    val key: String get() = "${page?.name}/${subPage?.name}/$searching/$rule"
 }
 
 @OptIn(ExperimentalSharedTransitionApi::class)
@@ -496,7 +501,6 @@ fun SettingsScreen(vm: MainViewModel, onBack: () -> Unit) {
     val auth by vm.authState.collectAsStateWithLifecycle()
     val update by vm.availableUpdate.collectAsStateWithLifecycle()
     val scope = rememberCoroutineScope()
-    val context = LocalContext.current
     // The card on top shows what is stored right away; this only updates it now and then.
     LaunchedEffect(Unit) { vm.refreshAccounts() }
     // The channel page can remove channels and offers undo like the chat does.
@@ -545,6 +549,14 @@ fun SettingsScreen(vm: MainViewModel, onBack: () -> Unit) {
         searching -> place.copy(searching = false)
         else -> null
     }
+    // A page keeps how far it is scrolled while a page opened from it is shown, and is back at the
+    // top when opened again: going back or sideways forgets the page left.
+    val pageStates = rememberSaveableStateHolder()
+    val left = remember { arrayOf(place) }
+    LaunchedEffect(place) {
+        if (place.depth <= left[0].depth && place != left[0]) pageStates.removeState(left[0].key)
+        left[0] = place
+    }
     // The home comes in group by group as the settings open; later it is simply there.
     val opening = remember { booleanArrayOf(true) }
     SideEffect { opening[0] = false }
@@ -558,7 +570,8 @@ fun SettingsScreen(vm: MainViewModel, onBack: () -> Unit) {
                 slideBetweenScreens(forward = targetState.depth > initialState.depth)
             }
         },
-    ) { (current, currentSub, currentSearching, currentRule) ->
+    ) { shownPlace ->
+        val (current, currentSub, currentSearching, currentRule) = shownPlace
         val searchBar = Modifier.sharedBounds(
             rememberSharedContentState(SEARCH_BAR),
             animatedVisibilityScope = this,
@@ -610,25 +623,11 @@ fun SettingsScreen(vm: MainViewModel, onBack: () -> Unit) {
         }
         // The search field scrolls away with the home; the collapsed bar then offers it as an icon.
         val onSearch = if (current == null && currentSub == null) ({ searching = true }) else null
-        val actions: @Composable () -> Unit = when {
-            current == SettingsPage.Debug && currentSub == null -> {
-                {
-                    IconButton(onClick = {
-                        vm.setDebugMenu(false)
-                        page = null
-                        Toast.makeText(context, R.string.debug_hidden, Toast.LENGTH_LONG).show()
-                    }) { Icon(Icons.Default.Close, stringResource(R.string.settings_debug_hide)) }
-                }
-            }
-            else -> {
-                {}
-            }
-        }
+        pageStates.SaveableStateProvider(shownPlace.key) {
         SettingsPageScaffold(
             title = title,
             onBack = goBack,
             onSearch = onSearch,
-            actions = actions,
             snackbar = snackbar,
             enterInOrder = opening[0] && current == null && currentSub == null,
         ) {
@@ -665,6 +664,7 @@ fun SettingsScreen(vm: MainViewModel, onBack: () -> Unit) {
                 SettingsSubPage.PostsBluesky -> PostSitePage(PostSite.Bluesky, settings, vm)
                 SettingsSubPage.PostsYouTube -> PostSitePage(PostSite.YouTube, settings, vm)
                 SettingsSubPage.PostsTwitch -> PostSitePage(PostSite.Twitch, settings, vm)
+                SettingsSubPage.PostsSevenTv -> PostSitePage(PostSite.SevenTv, settings, vm)
                 SettingsSubPage.SpecialMessages -> SpecialMessagesPage(settings, vm)
                 SettingsSubPage.BotCommands -> BotCommandsPage(settings, vm)
                 SettingsSubPage.AppIcons -> AppIconsPage(settings, vm)
@@ -672,6 +672,7 @@ fun SettingsScreen(vm: MainViewModel, onBack: () -> Unit) {
                 SettingsSubPage.Rules -> RulesPage(vm) { rule = it?.id ?: NEW_RULE }
                 SettingsSubPage.Credits -> CreditsPage()
                 SettingsSubPage.DebugStats -> DebugStatsPage(vm)
+                SettingsSubPage.Crashes -> CrashesPage(vm)
                 // Shown above, outside this scaffold.
                 SettingsSubPage.Log -> Unit
                 SettingsSubPage.Changelog -> {
@@ -710,11 +711,11 @@ fun SettingsScreen(vm: MainViewModel, onBack: () -> Unit) {
                     SettingsPage.Beta -> BetaPage(settings, vm)
                     SettingsPage.Support -> SupportPage(vm)
                     SettingsPage.About -> AboutPage(settings, vm) { subPage = it }
-                    SettingsPage.Debug -> DebugPage { subPage = it }
                     SettingsPage.Developer -> DeveloperPage(vm) { subPage = it }
                 }
             }
           }
+        }
         }
     }
     }

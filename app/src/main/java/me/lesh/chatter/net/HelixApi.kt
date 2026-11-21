@@ -106,6 +106,27 @@ class HelixApi(
     suspend fun searchChannels(query: String): List<HelixChannelSearch> =
         http.getJson<HelixList<HelixChannelSearch>>(url("search/channels", "query" to query, "first" to "10"), headers()).data
 
+    /** Up to [first] categories whose name, or another name of theirs, starts with [query]; in no useful order. */
+    suspend fun searchCategories(query: String, first: Int): List<HelixCategory> =
+        http.getJson<HelixList<HelixCategory>>(url("search/categories", "query" to query, "first" to first.toString()), headers()).data
+
+    /** The title and category [broadcasterId] set, live or not; null if there is no such channel. */
+    suspend fun channelInfo(broadcasterId: String): HelixChannelInfo? =
+        http.getJson<HelixList<HelixChannelInfo>>(url("channels", "broadcaster_id" to broadcasterId), headers()).data.firstOrNull()
+
+    /**
+     * Sets the title and category of the user's own channel; Twitch refuses everybody else, mods
+     * too. Null leaves a field as it is; a [categoryId] of "0" takes the category away. Needs
+     * channel:manage:broadcast.
+     */
+    suspend fun updateChannel(broadcasterId: String, title: String?, categoryId: String?) {
+        val body = buildJsonObject {
+            title?.let { put("title", it) }
+            categoryId?.let { put("game_id", it) }
+        }
+        http.send("PATCH", url("channels", "broadcaster_id" to broadcasterId), headers(), body.toString())
+    }
+
     override suspend fun globalBadges(): List<HelixBadgeSet> =
         http.getJson<HelixList<HelixBadgeSet>>(url("chat/badges/global"), headers()).data
 
@@ -371,6 +392,22 @@ data class HelixChannelSearch(
     @SerialName("display_name") val displayName: String,
     @SerialName("is_live") val isLive: Boolean = false,
     @SerialName("thumbnail_url") val thumbnailUrl: String = "",
+)
+
+@Serializable
+data class HelixCategory(
+    val id: String,
+    val name: String,
+    /** The cover, 52 by 72 pixels. */
+    @SerialName("box_art_url") val boxArtUrl: String = "",
+)
+
+@Serializable
+data class HelixChannelInfo(
+    val title: String = "",
+    /** Empty without a category. */
+    @SerialName("game_id") val categoryId: String = "",
+    @SerialName("game_name") val categoryName: String = "",
 )
 
 @Serializable

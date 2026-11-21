@@ -102,6 +102,8 @@ class MessageBuilder(
         reply: ReplyInfo?,
         /** The segments of the answered message, already built; null builds them from [reply]. */
         quote: List<Segment>? = null,
+        /** On Twitch's clock, like every other message; see [IncomingMessages.ownTimestamp]. */
+        timestamp: Long = System.currentTimeMillis(),
     ): ChatItem {
         val isAction = isAction(text)
         val body = if (isAction) actionText(text) else text
@@ -109,7 +111,7 @@ class MessageBuilder(
             id = "local-" + UUID.randomUUID(),
             channel = channel,
             kind = if (isAction) MessageKind.Action else MessageKind.Chat,
-            timestamp = System.currentTimeMillis(),
+            timestamp = timestamp,
             login = selfLogin,
             displayName = userState["display-name"]?.ifEmpty { null } ?: selfLogin,
             color = parseColor(userState["color"]),
@@ -472,7 +474,7 @@ class MessageBuilder(
                 emote != null -> addEmote(emote)
                 isLink(word) -> {
                     flush()
-                    out += Segment.Link(word, if (word.startsWith("http", ignoreCase = true)) word else "https://$word")
+                    out += Segment.Link(word, linkTarget(word))
                 }
                 word.length > 1 && word[0] == '@' -> {
                     flush()
@@ -542,6 +544,17 @@ class MessageBuilder(
         fun isLink(word: String): Boolean =
             word.startsWith("https://", ignoreCase = true) || word.startsWith("http://", ignoreCase = true) ||
                 (word.contains('.') && DOMAIN.matches(word))
+
+        /**
+         * Where a link word leads: "example.com" gets "https://", and "Https://" becomes
+         * "https://". Android matches a link's scheme to apps case-sensitively, so no app would
+         * open "Https://…", and the post and image checks would not know the site.
+         */
+        fun linkTarget(word: String): String {
+            val scheme = listOf("https", "http").firstOrNull { word.startsWith("$it://", ignoreCase = true) }
+                ?: return "https://$word"
+            return scheme + word.substring(scheme.length)
+        }
 
         /** Whether [text] is a /me line: "\u0001ACTION waves\u0001". */
         fun isAction(text: String): Boolean =

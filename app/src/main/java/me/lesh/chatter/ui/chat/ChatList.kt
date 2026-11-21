@@ -2,7 +2,6 @@ package me.lesh.chatter.ui.chat
 
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.Crossfade
 import androidx.compose.animation.SizeTransform
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.Spring
@@ -32,25 +31,21 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.rememberLazyListState
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.KeyboardArrowUp
-import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.ExtendedFloatingActionButton
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
-import androidx.compose.material3.LoadingIndicator
-import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.SnackbarHostState
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -80,9 +75,12 @@ import me.lesh.chatter.badges.Badge
 import me.lesh.chatter.chat.ChatItem
 import me.lesh.chatter.chat.ChatStatus
 import me.lesh.chatter.ui.BetaBadge
-import me.lesh.chatter.ui.MessagePillHost
+import me.lesh.chatter.ui.pill.MessagePillHost
+import me.lesh.chatter.ui.pill.PillContent
+import me.lesh.chatter.ui.pill.PillSurface
+import me.lesh.chatter.ui.pill.PillTone
+import me.lesh.chatter.ui.pill.StatusPill
 import me.lesh.chatter.ui.channels.formatCount
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.filter
@@ -156,11 +154,18 @@ fun ChatList(
     LaunchedEffect(listState) {
         listState.interactionSource.interactions.collect { if (it is DragInteraction.Start) userScrolling = true }
     }
-    // The newest message when the user left the bottom; the button counts what came after it.
-    var leftAt by remember { mutableStateOf<String?>(null) }
-    LaunchedEffect(follow) { leftAt = if (follow) null else items.lastOrNull()?.id }
-    val newSinceLeft = remember(items, leftAt) {
-        leftAt?.let { id -> items.indexOfLast { it.id == id }.takeIf { it >= 0 }?.let { items.lastIndex - it } } ?: 0
+    // What came since the user left the bottom, for the button. Counted as it arrives and by time:
+    // in a busy chat the message they left at is trimmed while they read.
+    var newSinceLeft by remember { mutableIntStateOf(0) }
+    var countedUntil by remember { mutableStateOf<Long?>(null) }
+    LaunchedEffect(follow) {
+        newSinceLeft = 0
+        countedUntil = if (follow) null else items.lastOrNull()?.timestamp
+    }
+    LaunchedEffect(items) {
+        val since = countedUntil ?: return@LaunchedEffect
+        newSinceLeft += items.lastIndex - items.indexOfLast { it.timestamp <= since }
+        countedUntil = maxOf(since, items.lastOrNull()?.timestamp ?: since)
     }
     val unseen = remember(items, readMark) { readMark?.unseenIn(items) }
     // The chip helps find the line; once the line was on screen or the user scrolled to the bottom,
@@ -176,15 +181,21 @@ fun ChatList(
         snapshotFlow { listState.isScrollInProgress }.collect { scrolling ->
             if (!scrolling && userScrolling) {
                 userScrolling = false
-                follow = listState.firstVisibleItemIndex == 0
+                // Partway into a tall newest message is not the bottom yet.
+                follow = listState.firstVisibleItemIndex == 0 && listState.firstVisibleItemScrollOffset == 0
                 if (follow) chipDone = true
             }
         }
     }
     val currentOnSeen by rememberUpdatedState(onSeen)
     if (onSeen != null) LaunchedEffect(listState) {
-        // reverseLayout: the first visible row is the newest on screen.
-        snapshotFlow { items.getOrNull(items.size - 1 - listState.firstVisibleItemIndex) }
+        // reverseLayout: the first visible row is the newest on screen. Checked by key, like the
+        // mentions below: until the layout catches up, the old index points at a newer message.
+        snapshotFlow {
+            val index = listState.firstVisibleItemIndex
+            val row = listState.layoutInfo.visibleItemsInfo.firstOrNull { it.index == index }
+            items.getOrNull(items.size - 1 - index)?.takeIf { it.id == row?.key }
+        }
             .filterNotNull()
             .distinctUntilChanged { a, b -> a.id == b.id }
             .collect { currentOnSeen?.invoke(ReadMark(it.id, it.timestamp)) }
@@ -333,7 +344,7 @@ fun ChatList(
                 .padding(bottom = 12.dp),
         ) {
             snackbar?.let { MessagePillHost(it) }
-            StatusPill(status, unreachable)
+            StatusPill(chatStatusPill(status, unreachable), settleDelayMs = STATUS_PILL_DELAY_MS)
             NewMessagesButton(
                 visible = !follow,
                 count = newSinceLeft,
@@ -426,111 +437,40 @@ private fun UnseenLine() {
     }
 }
 
-private sealed interface PillText {
-    data class Status(val status: ChatStatus) : PillText
-    /** Display names of outside services that did not answer. */
-    data class Unreachable(val services: List<String>) : PillText
-}
-
-/** A warning shows at once and with a warning icon; being busy waits a moment, see [StatusPill]. */
-private val PillText.isWarning: Boolean
-    get() = this is PillText.Unreachable || this == PillText.Status(ChatStatus.HistoryFailed)
-
 /**
- * What the chat is busy with, or what went wrong. Being busy waits a moment before showing, so what
- * is over at once does not flicker.
+ * What the pill over the chat says: the chat's own status first, since while the connection is
+ * gone every outside service fails with it, then the services that did not answer.
  */
-@OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
-private fun StatusPill(status: ChatStatus?, unreachable: List<String>) {
-    // The chat's own status goes first: while the connection is gone, every service fails with it.
-    val wanted = status?.let(PillText::Status) ?: unreachable.takeIf { it.isNotEmpty() }?.let(PillText::Unreachable)
-    var shown by remember { mutableStateOf<PillText?>(null) }
-    // Kept while the pill fades out, so its text does not vanish first.
-    var lastShown by remember { mutableStateOf<PillText>(PillText.Status(ChatStatus.Connecting)) }
-    LaunchedEffect(wanted) {
-        if (wanted != null && !wanted.isWarning && shown == null) delay(STATUS_PILL_DELAY_MS)
-        if (wanted != null) lastShown = wanted
-        shown = wanted
-    }
-    val warning = lastShown.isWarning
-    val colors = MaterialTheme.colorScheme
-    val motion = MaterialTheme.motionScheme
-    AnimatedVisibility(
-        visible = shown != null,
-        enter = fadeIn() + slideInVertically { it },
-        exit = fadeOut() + slideOutVertically { it },
-    ) {
-        Surface(
-            shape = CircleShape,
-            color = colors.secondaryContainer,
-            contentColor = colors.onSecondaryContainer,
-            shadowElevation = 3.dp,
-        ) {
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                modifier = Modifier.padding(start = 8.dp, end = 16.dp, top = 4.dp, bottom = 4.dp),
-            ) {
-                Crossfade(warning, animationSpec = motion.defaultEffectsSpec(), label = "pill icon") { warns ->
-                    if (warns) {
-                        // Only the icon in red: the pill sits where the user writes and should not alarm.
-                        Icon(
-                            Icons.Filled.Warning,
-                            contentDescription = null,
-                            tint = colors.error,
-                            modifier = Modifier.padding(4.dp).size(20.dp),
-                        )
-                    } else {
-                        LoadingIndicator(Modifier.size(28.dp), color = LocalContentColor.current)
-                    }
-                }
-                Spacer(Modifier.width(4.dp))
-                // The new text rises in as the old one leaves upwards, while the pill takes its width.
-                AnimatedContent(
-                    lastShown,
-                    transitionSpec = {
-                        (slideInVertically(motion.defaultSpatialSpec()) { it } + fadeIn(motion.defaultEffectsSpec()))
-                            .togetherWith(slideOutVertically(motion.defaultSpatialSpec()) { -it } + fadeOut(motion.fastEffectsSpec()))
-                            .using(SizeTransform { _, _ -> motion.defaultSpatialSpec() })
-                    },
-                    contentAlignment = Alignment.CenterStart,
-                    label = "chat status",
-                ) { text ->
-                    Text(
-                        when (text) {
-                            is PillText.Status -> stringResource(
-                                when (text.status) {
-                                    ChatStatus.Connecting -> R.string.chat_connecting
-                                    ChatStatus.Reconnecting -> R.string.reconnect_connecting
-                                    ChatStatus.WaitingForNetwork -> R.string.reconnect_waiting_network
-                                    ChatStatus.LoadingMissed -> R.string.reconnect_loading_history
-                                    ChatStatus.LoadingHistory -> R.string.chat_history_loading
-                                    ChatStatus.HistoryFailed -> R.string.chat_history_failed
-                                },
-                            )
-                            is PillText.Unreachable -> pluralStringResource(
-                                R.plurals.service_unreachable, text.services.size, text.services.joinToString(", "),
-                            )
-                        },
-                        style = MaterialTheme.typography.labelLarge,
-                    )
-                }
-            }
-        }
-    }
+private fun chatStatusPill(status: ChatStatus?, unreachable: List<String>): PillContent? = when {
+    status != null -> PillContent(
+        stringResource(
+            when (status) {
+                ChatStatus.Connecting -> R.string.chat_connecting
+                ChatStatus.Reconnecting -> R.string.reconnect_connecting
+                ChatStatus.WaitingForNetwork -> R.string.reconnect_waiting_network
+                ChatStatus.LoadingMissed -> R.string.reconnect_loading_history
+                ChatStatus.LoadingHistory -> R.string.chat_history_loading
+                ChatStatus.HistoryFailed -> R.string.chat_history_failed
+            },
+        ),
+        when (status) {
+            ChatStatus.WaitingForNetwork -> PillTone.Offline
+            ChatStatus.HistoryFailed -> PillTone.Warning
+            else -> PillTone.Busy
+        },
+    )
+    unreachable.isNotEmpty() -> PillContent(
+        pluralStringResource(R.plurals.service_unreachable, unreachable.size, unreachable.joinToString(", ")),
+        PillTone.Warning,
+    )
+    else -> null
 }
 
 /** How much arrived while away; tapping jumps to the start of it. */
 @Composable
 private fun UnseenChip(unseen: Unseen, onClick: () -> Unit, modifier: Modifier = Modifier) {
-    Surface(
-        onClick = onClick,
-        shape = CircleShape,
-        color = MaterialTheme.colorScheme.secondaryContainer,
-        contentColor = MaterialTheme.colorScheme.onSecondaryContainer,
-        shadowElevation = 3.dp,
-        modifier = modifier,
-    ) {
+    PillSurface(modifier, onClick) {
         Row(
             verticalAlignment = Alignment.CenterVertically,
             modifier = Modifier.padding(start = 12.dp, end = 16.dp, top = 6.dp, bottom = 6.dp),
@@ -549,13 +489,7 @@ private fun UnseenChip(unseen: Unseen, onClick: () -> Unit, modifier: Modifier =
 /** Asks for a summary of what arrived while away; see [CatchUp]. */
 @Composable
 private fun CatchUpChip(onClick: () -> Unit) {
-    Surface(
-        onClick = onClick,
-        shape = CircleShape,
-        color = MaterialTheme.colorScheme.tertiaryContainer,
-        contentColor = MaterialTheme.colorScheme.onTertiaryContainer,
-        shadowElevation = 3.dp,
-    ) {
+    PillSurface(onClick = onClick, color = MaterialTheme.colorScheme.tertiaryContainer) {
         Row(
             verticalAlignment = Alignment.CenterVertically,
             modifier = Modifier.padding(start = 12.dp, end = 10.dp, top = 6.dp, bottom = 6.dp),

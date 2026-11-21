@@ -60,6 +60,9 @@ developer:</p>
   <li><strong>Your Twitch login.</strong> The OAuth access token Twitch issues, your Twitch username
       and user id. The token is encrypted with a key held in the Android Keystore, which never
       leaves the device.</li>
+  <li><strong>Your 7TV login</strong>, only if you log in to 7TV to change emotes: the session token 7TV
+      issues and your 7TV user id, kept per Twitch account and encrypted the same way. Logging out
+      of 7TV under Settings, or removing the Twitch account, deletes it.</li>
   <li><strong>Your channels</strong>, their custom names, and which of them are muted.</li>
   <li><strong>Your settings</strong>, including appearance, notification and highlight preferences.</li>
   <li><strong>Nicknames and notes</strong> you have given other chatters, your <strong>blocked users</strong>,
@@ -79,15 +82,20 @@ developer:</p>
       in the app's cache until it is sent or you close the screen. None of it goes into a backup or
       to a new phone, and the log never holds a link to delete with. The same goes for the upload
       sites you set up and the keys you gave them.</li>
-  <li><strong>What went wrong when Chatter last crashed</strong>: the error and where in the code it
-      happened, the app version, the Android version and the phone model, for the last three
-      crashes. Chatter never sends it. When you report a problem under Settings → About, it offers
-      to copy it, and it leaves the phone only if you paste it into the report yourself.</li>
-  <li><strong>What Chatter did lately</strong>, for the log under Settings → Debug (shown after
-      tapping the logo under About five times): its screens, connecting, joining channels, every
+  <li><strong>What went wrong when Chatter crashed</strong>: the error and where in the code it
+      happened, the app version, the Android version, the phone model, and the last lines of the
+      private log described below, for the last five crashes. This includes the times Chatter
+      stopped responding or crashed in native code, which Chatter reads from Android on the next
+      start: then also the state of Chatter's threads and the memory it used. You find them under Settings → About
+      → Crashes, where you can delete them. Chatter never sends them. A crash leaves the phone only
+      when you choose to: &ldquo;Report on GitHub&rdquo; opens GitHub's form with the crash in the
+      link, so GitHub receives it when the form opens and shows it publicly once you submit it; or
+      you copy or share it. Like the private log, a crash keeps links only up to their host.</li>
+  <li><strong>What Chatter did lately</strong>, for the log under Settings → About → Log: its screens, connecting, joining channels, every
       request to a service and what came back, pictures it loaded, changed settings, the network,
       the screen turning on and off, battery saving, why Android ended earlier runs, and errors. Chatter keeps the last 5,000 lines on the phone, so they are still there after a
-      restart; clearing the log or uninstalling Chatter removes them, and they never go into a
+      restart, and older lines compressed by day, for today and the three days before, at most
+      about a megabyte a day; clearing the log or uninstalling Chatter removes them, and they never go into a
       backup or to a new phone. Each line is stored in two versions. The private one holds no
       usernames, channel names, messages, links or login. The full one adds channel and usernames,
       links, and what services and Twitch answered. Neither holds your login or your chat messages,
@@ -117,8 +125,15 @@ Twitch access token except Twitch itself.</p>
   </tr>
   <tr>
     <td>7TV</td>
-    <td><code>7tv.io</code>, <code>events.7tv.io</code></td>
-    <td>The Twitch id of a channel you open, to fetch and live-update its emotes.</td>
+    <td><code>7tv.io</code>, <code>events.7tv.io</code>, <code>api.7tv.app</code>, <code>cdn.7tv.app</code></td>
+    <td>The Twitch id of a channel you open, to fetch and live-update its emotes. While &ldquo;Show
+        emotes from 7TV&rdquo; is on, which it is not until you turn it on: the id of a 7TV emote
+        linked in chat, and the Twitch id of the channel it was linked in, to show it as a card.
+        While you are logged in to Twitch and open the card of a 7TV emote in chat: the Twitch id of
+        the channel, and from &ldquo;Add to set&rdquo; also the emote's name. Opening a channel's
+        menu, and its channel settings: the Twitch id of the channel. If you log in to 7TV to change
+        emotes: your 7TV session token with each emote you add, rename or remove, and with each
+        switch of a channel's emote set.</td>
   </tr>
   <tr>
     <td>BetterTTV</td>
@@ -251,6 +266,32 @@ stay links. A post is only asked for when its message is on your screen, never
 for a chat running in the background, and not while the battery saver is on or Chatter saves
 data.</p>
 
+<p><strong>7TV emotes linked in chat.</strong> With &ldquo;Show emotes from 7TV&rdquo; on, a link
+to an emote on 7TV is shown as a card with the emote, its name and who made it, read from 7TV's
+public API by the emote's id. To decide whether to show the button that adds the emote to the
+channel, Chatter asks 7TV, without a login, for the channel's 7TV account and the Twitch accounts
+of the people allowed to edit its emotes, and compares them with your Twitch id on the phone; your
+id is not sent. The first time you tap the button, Chatter asks you to log in to 7TV. That login is
+7TV's own: you log in on Twitch's page, Twitch tells 7TV who you are, and 7TV gives Chatter a
+session token. Your Twitch login is not sent to 7TV. The token is kept encrypted on the phone and
+sent to 7TV with each emote you add. Logging out of 7TV deletes it from the phone and ends the
+session at 7TV.</p>
+
+<p><strong>The card of a 7TV emote.</strong> While you are logged in to Twitch, tapping a 7TV emote
+in chat asks 7TV the same way, without a login, whether you may edit the channel's emotes, so the
+card can offer to rename, remove or add it. &ldquo;Add to set&rdquo; asks 7TV, again without a login,
+for the channel's emote sets and which of them have an emote of that name. Renaming, removing and
+adding use the 7TV login above, and send its token with each change.</p>
+
+<p><strong>Channel settings.</strong> When you open a channel's menu while logged in to Twitch,
+Chatter asks 7TV the same way, without a login, whether you may edit the channel's emotes, so the
+menu can offer the channel settings. There you can switch the channel's active 7TV emote set, which
+asks 7TV, again without a login, for the channel's emote sets, and sends the 7TV login's token with
+the switch. In your own channel you can also change the stream's title and category: Chatter reads
+them from Twitch, sends what you type into the category field to Twitch to find matching
+categories, and sends the new title and category to Twitch when you save. Nothing of it is kept on
+the phone.</p>
+
 <p><strong>Summaries on your phone (beta).</strong> With &ldquo;Sum up what you missed&rdquo; on
 (Settings &rarr; Labs), which it is not until you turn it on, Chatter can ask Gemini Nano
 what happened in a chat while you were away. Gemini Nano is a language model that Android's AICore
@@ -318,6 +359,9 @@ Erklärung beschreibt, was auf dem Telefon bleibt und was es verlässt.</p>
   <li><strong>Der Twitch-Login.</strong> Das von Twitch ausgestellte OAuth-Token, der Twitch-Benutzername
       und die Benutzer-ID. Das Token ist mit einem Schlüssel verschlüsselt, der den Android Keystore
       nie verlässt.</li>
+  <li><strong>Der 7TV-Login</strong>, nur wenn du dich bei 7TV anmeldest, um Emotes zu ändern: das
+      Sitzungs-Token, das 7TV ausstellt, und deine 7TV-Benutzer-ID, je Twitch-Konto und genauso
+      verschlüsselt. Abmelden bei 7TV in den Einstellungen oder Entfernen des Twitch-Kontos löscht ihn.</li>
   <li><strong>Die Kanäle</strong>, ihre eigenen Namen und welche davon stummgeschaltet sind.</li>
   <li><strong>Die Einstellungen</strong>, einschließlich Darstellung, Benachrichtigungen und Highlights.</li>
   <li><strong>Spitznamen und Notizen</strong> zu anderen Chattern, <strong>blockierte Nutzer</strong> sowie
@@ -364,8 +408,16 @@ und außer Twitch selbst erhält kein Dritter das Twitch-Token.</p>
   </tr>
   <tr>
     <td>7TV</td>
-    <td><code>7tv.io</code>, <code>events.7tv.io</code></td>
-    <td>Die Twitch-ID eines geöffneten Kanals, um dessen Emotes zu laden und aktuell zu halten.</td>
+    <td><code>7tv.io</code>, <code>events.7tv.io</code>, <code>api.7tv.app</code>, <code>cdn.7tv.app</code></td>
+    <td>Die Twitch-ID eines geöffneten Kanals, um dessen Emotes zu laden und aktuell zu halten.
+        Solange &bdquo;Emotes von 7TV anzeigen&ldquo; an ist, was es erst ist, wenn du es einschaltest:
+        die ID eines im Chat verlinkten 7TV-Emotes und die Twitch-ID des Kanals, in dem es verlinkt
+        wurde, um es als Karte zu zeigen. Solange du bei Twitch angemeldet bist und die Karte eines
+        7TV-Emotes im Chat öffnest: die Twitch-ID des Kanals, und bei &bdquo;Zu Set hinzufügen&ldquo;
+        auch den Namen des Emotes. Beim Öffnen des Menüs eines Kanals und seiner Kanaleinstellungen:
+        die Twitch-ID des Kanals. Wenn du dich bei 7TV anmeldest, um Emotes zu ändern: dein
+        7TV-Sitzungs-Token mit jedem Emote, das du hinzufügst, umbenennst oder entfernst, und mit
+        jedem Wechsel des Emote-Sets eines Kanals.</td>
   </tr>
   <tr>
     <td>BetterTTV</td>
@@ -504,6 +556,34 @@ die API von Twitch, wie alles andere, was Chatter Twitch fragt: Die Anfrage enth
 Kanals oder die Nummer des Clips oder Videos, die Bilder kommen von den Bildservern von Twitch. Als
 Gast bleiben Twitch-Links Links. Ein Post wird erst abgefragt, wenn seine Nachricht auf dem Bildschirm ist, nie für
 einen Chat im Hintergrund, und nicht im Akkusparmodus oder während Chatter Daten spart.</p>
+
+<p><strong>Im Chat verlinkte 7TV-Emotes.</strong> Ist &bdquo;Emotes von 7TV anzeigen&ldquo; an, wird
+ein Link auf ein Emote bei 7TV als Karte mit dem Emote, seinem Namen und seinem Ersteller angezeigt,
+gelesen über die öffentliche API von 7TV anhand der ID des Emotes. Um zu entscheiden, ob der Knopf
+erscheint, der das Emote zum Kanal hinzufügt, fragt Chatter 7TV ohne Anmeldung nach dem 7TV-Konto
+des Kanals und den Twitch-Konten der Leute, die seine Emotes bearbeiten dürfen, und vergleicht sie
+auf dem Gerät mit deiner Twitch-ID; deine ID wird nicht gesendet. Beim ersten Tippen auf den Knopf
+bittet Chatter dich, dich bei 7TV anzumelden. Das ist die Anmeldung von 7TV selbst: Du meldest dich
+auf der Seite von Twitch an, Twitch sagt 7TV, wer du bist, und 7TV gibt Chatter ein Sitzungs-Token.
+Dein Twitch-Login geht nicht an 7TV. Das Token wird verschlüsselt auf dem Gerät gespeichert und mit
+jedem Emote, das du hinzufügst, an 7TV gesendet. Abmelden bei 7TV löscht es vom Gerät und beendet
+die Sitzung bei 7TV.</p>
+
+<p><strong>Die Karte eines 7TV-Emotes.</strong> Solange du bei Twitch angemeldet bist, fragt Chatter
+beim Antippen eines 7TV-Emotes im Chat 7TV genauso ohne Anmeldung, ob du die Emotes des Kanals
+bearbeiten darfst, damit die Karte Umbenennen, Entfernen oder Hinzufügen anbieten kann. &bdquo;Zu Set
+hinzufügen&ldquo; fragt 7TV, ebenfalls ohne Anmeldung, nach den Emote-Sets des Kanals und welche davon
+ein Emote dieses Namens haben. Umbenennen, Entfernen und Hinzufügen nutzen den 7TV-Login von oben und
+senden sein Token mit jeder Änderung.</p>
+
+<p><strong>Kanaleinstellungen.</strong> Öffnest du das Menü eines Kanals, während du bei Twitch
+angemeldet bist, fragt Chatter 7TV genauso ohne Anmeldung, ob du die Emotes des Kanals bearbeiten
+darfst, damit das Menü die Kanaleinstellungen anbieten kann. Dort kannst du das aktive 7TV-Emote-Set
+des Kanals wechseln: Chatter fragt 7TV, ebenfalls ohne Anmeldung, nach den Emote-Sets des Kanals und
+sendet das Token des 7TV-Logins mit dem Wechsel. In deinem eigenen Kanal kannst du außerdem Titel und
+Kategorie des Streams ändern: Chatter liest sie von Twitch, sendet, was du ins Kategoriefeld tippst,
+an Twitch, um passende Kategorien zu finden, und beim Speichern den neuen Titel und die Kategorie.
+Nichts davon bleibt auf dem Handy.</p>
 
 <p><strong>Zusammenfassungen auf dem Gerät (Beta).</strong> Ist &bdquo;Verpasstes
 zusammenfassen&ldquo; eingeschaltet (Einstellungen &rarr; Labs), was es nicht ist, bis du

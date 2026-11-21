@@ -1,5 +1,6 @@
 package me.lesh.chatter
 
+import android.app.ActivityManager
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
@@ -30,6 +31,7 @@ import me.lesh.chatter.badges.BadgeRepository
 import me.lesh.chatter.changelog.ChangelogRepository
 import me.lesh.chatter.channels.BlockedUsersRepository
 import me.lesh.chatter.channels.ChannelRepository
+import me.lesh.chatter.channels.ChannelSettings
 import me.lesh.chatter.chat.AppChatNotices
 import me.lesh.chatter.chat.BlueskyPostSource
 import me.lesh.chatter.chat.ChatRepository
@@ -46,6 +48,7 @@ import me.lesh.chatter.chat.RuleRepository
 import me.lesh.chatter.chat.ScheduledMessage
 import me.lesh.chatter.chat.ScheduledMessages
 import me.lesh.chatter.chat.SendResult
+import me.lesh.chatter.chat.SevenTvPostSource
 import me.lesh.chatter.chat.TwitchPostSource
 import me.lesh.chatter.chat.UserPictures
 import me.lesh.chatter.chat.BotCommands
@@ -57,6 +60,7 @@ import me.lesh.chatter.chat.WhisperSender
 import me.lesh.chatter.chat.XPostSource
 import me.lesh.chatter.chat.YouTubePostSource
 import me.lesh.chatter.crash.CrashLog
+import me.lesh.chatter.crash.EarlierExits
 import me.lesh.chatter.debug.AppLog
 import me.lesh.chatter.debug.AppWatch
 import me.lesh.chatter.debug.DebugStats
@@ -68,6 +72,7 @@ import me.lesh.chatter.emotes.EmoteListFiles
 import me.lesh.chatter.emotes.EmoteRepository
 import me.lesh.chatter.emotes.HiddenEmoteRepository
 import me.lesh.chatter.badges.HiddenBadgeRepository
+import me.lesh.chatter.emotes.SevenTvEditing
 import me.lesh.chatter.emotes.SevenTvEventClient
 import me.lesh.chatter.emotes.SevenTvLiveUpdates
 import me.lesh.chatter.irc.ConnectionState
@@ -80,6 +85,7 @@ import me.lesh.chatter.net.HelixApi
 import me.lesh.chatter.net.ImageRedirects
 import me.lesh.chatter.net.ImageSizeLimit
 import me.lesh.chatter.net.ServiceTrouble
+import me.lesh.chatter.net.SevenTvApi
 import me.lesh.chatter.net.ThirdPartyApi
 import me.lesh.chatter.net.YouTubeApi
 import me.lesh.chatter.service.BackgroundHealth
@@ -98,6 +104,7 @@ import me.lesh.chatter.upload.UploaderStore
 import me.lesh.chatter.util.AppIconSwitcher
 import me.lesh.chatter.util.ChannelIcons
 import me.lesh.chatter.util.ChannelShortcuts
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -110,6 +117,7 @@ import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.drop
 import kotlinx.coroutines.flow.filter
+import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
@@ -155,6 +163,9 @@ class AppContainer(
 ) {
     val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
 
+    /** Done once the start has read how earlier runs ended, so a hang found there can be offered too. */
+    val earlierExitsRead = CompletableDeferred<Unit>()
+
     private val baseHttp: OkHttpClient = OkHttpClient.Builder()
         .connectTimeout(10, TimeUnit.SECONDS)
         .readTimeout(20, TimeUnit.SECONDS)
@@ -197,11 +208,12 @@ class AppContainer(
         BotApi(http), BotListFiles(context.cacheDir.resolve("bot-commands")), scope,
         botsOn = { settings.settings.value.botCommands },
     )
+    private val sevenTvApi = SevenTvApi(http)
     /** Posts for the cards that replace their links, one source per site. */
     val posts = PostRepository(
         listOf(
             XPostSource(FxTwitterApi(http)), BlueskyPostSource(BlueskyApi(http)), YouTubePostSource(YouTubeApi(http)),
-            TwitchPostSource(helix),
+            TwitchPostSource(helix), SevenTvPostSource(sevenTvApi),
         ),
         scope,
     )
@@ -231,6 +243,13 @@ class AppContainer(
         auth.state.map { (it as? AuthState.LoggedIn)?.account?.userId }.stateIn(scope, SharingStarted.Eagerly, null)
     val inbox = MentionInboxRepository(context.inboxStore, activeUserId, scope) { chat.windows.anyVisible.value }
     val whisperInbox = WhisperInboxRepository(context.inboxStore, activeUserId, auth.knownUserIds, scope)
+    val sevenTvEditing = SevenTvEditing(
+        context.authStore, sevenTvApi, activeUserId,
+        channelId = { chat.rooms.id(it) },
+        loadedNames = emotes::sevenTvNames,
+        scope = scope,
+    )
+    val channelSettings = ChannelSettings(helix, { auth.account }, sevenTvEditing)
     val rules = RuleRepository(context.ruleStore, scope)
     val stats = StatsRepository(context.statsStore, scope)
     val backgroundHealth = BackgroundHealth(context, context.healthStore, scope)
@@ -318,6 +337,14 @@ class AppContainer(
     val powerSaveMode: StateFlow<Boolean> = _powerSaveMode
 
     fun start() {
+        // After the log file is read, which its worker does first: a hang keeps the log before it.
+        scope.launch(Dispatchers.IO) {
+            try {
+                EarlierExits(context.getSystemService(ActivityManager::class.java), crashLog, context.filesDir.resolve("crashes/exits-seen")).check()
+            } finally {
+                earlierExitsRead.complete(Unit)
+            }
+        }
         notifier.createChannels()
         chat.start()
         stats.start(chat.windows.anyVisible)
@@ -330,6 +357,12 @@ class AppContainer(
                 badges.enabled = it.badgeProviders
                 badges.ffzChannelBadges = it.ffzChannelBadges
             }
+        }
+        // Known only once the accounts are read; before that every 7TV login would look orphaned.
+        scope.launch {
+            combine(auth.state, auth.knownUserIds) { state, ids -> ids.takeIf { state != AuthState.Loading } }
+                .filterNotNull()
+                .collect { sevenTvEditing.keepOnly(it) }
         }
         // A provider switched on is loaded now; one switched off is no longer waited for.
         scope.launch {

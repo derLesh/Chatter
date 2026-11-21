@@ -22,6 +22,9 @@ enum class PostSite {
         override fun key(url: HttpUrl) = TwitchPosts.key(url)
         override val videos get() = true
     },
+    SevenTv {
+        override fun key(url: HttpUrl) = SevenTvEmotes.key(url)
+    },
     ;
 
     /** What [PostSource.fetch] needs to find the post [url] links to, or null if it is none. */
@@ -61,7 +64,12 @@ data class Post(
     /** Marked NSFW by the site or its author; its picture is blurred if the user wants that. */
     val nsfw: Boolean,
     val media: PostMedia?,
+    /** An emote rather than a post: [name] is its name, and its card shows only this beside it. */
+    val emote: PostEmote? = null,
 )
+
+/** A 7TV emote as its card shows it. [creator] is who uploaded it, empty where 7TV does not say. */
+data class PostEmote(val id: String, val pictureUrl: String, val creator: String, val aspectRatio: Float)
 
 /**
  * The first picture of a post, or a still of its video. [more]: how many other attachments it has.

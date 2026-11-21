@@ -30,6 +30,7 @@ import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Send
 import androidx.compose.material.icons.filled.Check
@@ -148,7 +149,8 @@ private val NEW_ACCOUNT = Duration.ofDays(7)
  * a lookup. A [guest] gets no actions that write; without [onReply] and [onMention] those two are
  * left out. [note] is the user's private note on the author, empty if there is none. Tapping a
  * badge offers to hide its kind, or to show it again; [onBadgeHidden] receives the choice. A
- * message tapped in the history goes to [onOpenMessage], which opens the card on it.
+ * message tapped in the history goes to [onOpenMessage], which opens the card on it. The tapped
+ * message's text can be selected and copied in part.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -217,8 +219,17 @@ fun UserCardSheet(
     @Composable
     fun MessagePage(modifier: Modifier) {
         Column(modifier) {
+            // Holding the text selects part of it to copy, where the Copy button takes all of it.
             val tapped = @Composable {
-                MessageRow(item.copy(historical = false), style.over(MaterialTheme.colorScheme.surfaceContainerLow), imageLoader, onGesture = null)
+                SelectionContainer {
+                    MessageRow(
+                        item.copy(historical = false),
+                        style.over(MaterialTheme.colorScheme.surfaceContainerLow),
+                        imageLoader,
+                        onGesture = null,
+                        selectable = true,
+                    )
+                }
             }
             if (!buttonsFirst) tapped()
             val reply = ButtonAction(R.string.action_reply, Icons.AutoMirrored.Filled.Send) { onReply?.invoke(); onDismiss() }

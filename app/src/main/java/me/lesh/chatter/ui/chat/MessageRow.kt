@@ -7,6 +7,9 @@ import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
+import androidx.compose.foundation.gestures.awaitEachGesture
+import androidx.compose.foundation.gestures.awaitFirstDown
+import androidx.compose.foundation.gestures.waitForUpOrCancellation
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -43,6 +46,7 @@ import androidx.compose.ui.graphics.asComposeRenderEffect
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.layout.onPlaced
 import androidx.compose.ui.platform.LocalDensity
@@ -57,6 +61,7 @@ import androidx.compose.ui.text.LinkInteractionListener
 import androidx.compose.ui.text.Placeholder
 import androidx.compose.ui.text.PlaceholderVerticalAlign
 import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.TextLayoutResult
 import androidx.compose.ui.text.TextLinkStyles
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
@@ -121,6 +126,8 @@ enum class MessageGesture { Tap, NameTap, Hold, Thread }
  * One message. [onGesture] receives taps, holds and name taps; without it the row is display only,
  * as in the user card. [channel] shows the channel's picture in front, for mixed lists.
  * [onBadgeHold] receives a held badge; a tap on one still counts as a tap on the message.
+ * [selectable]: the row sits in a SelectionContainer, so a hold on a link selects text instead of
+ * opening it; a tap still opens it.
  */
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
@@ -132,6 +139,7 @@ fun MessageRow(
     onEmoteClick: ((EmoteTap) -> Unit)? = null,
     channel: ChannelMark? = null,
     onBadgeHold: ((Badge) -> Unit)? = null,
+    selectable: Boolean = false,
 ) {
     val currentItem by rememberUpdatedState(item)
     val currentGesture by rememberUpdatedState(onGesture)
@@ -140,7 +148,9 @@ fun MessageRow(
     val nameTap = remember { LinkInteractionListener { currentGesture?.invoke(currentItem, MessageGesture.NameTap) } }
     val nameClickable = onGesture != null && item.login != null
     val rowStyle = remember(item, style) { style.forRow(item) }
-    val built = remember(item, rowStyle, nameClickable, channel) { buildLine(item, rowStyle, nameTap.takeIf { nameClickable }, channel) }
+    val built = remember(item, rowStyle, nameClickable, channel, selectable) {
+        buildLine(item, rowStyle, nameTap.takeIf { nameClickable }, channel, selectable)
+    }
     // Stable wrapper, so a new callback instance does not rebuild the inline content.
     val currentEmoteClick by rememberUpdatedState(onEmoteClick)
     val emoteClick = remember { { seg: Segment.EmoteSeg -> currentEmoteClick?.invoke(EmoteTap(seg, currentItem.channel)); Unit } }
@@ -272,15 +282,20 @@ fun MessageRow(
         }
         if (built.text.isNotEmpty()) {
             val paint = item.paint?.takeIf { style.paints && built.nameRange != null }
+            val uriHandler = LocalUriHandler.current
+            val textLayout = remember { TextLayoutHolder() }
+            val linkTaps = if (!selectable) Modifier else Modifier.openLinksOnTap(built.text, textLayout, uriHandler::openUri)
             if (paint == null) {
                 Text(
                     text = built.text,
                     inlineContent = inlineContent,
                     fontSize = style.fontSize.sp,
                     lineHeight = lineHeight,
+                    onTextLayout = { textLayout.result = it },
+                    modifier = linkTaps,
                 )
             } else {
-                PaintedLine(built, paint, inlineContent, rowStyle, lineHeight, imageLoader)
+                PaintedLine(built, paint, inlineContent, rowStyle, lineHeight, imageLoader, linkTaps, onTextLayout = { textLayout.result = it })
             }
         }
         if (built.images.isNotEmpty() || built.gifs.isNotEmpty()) {
@@ -295,7 +310,7 @@ fun MessageRow(
                 built.gifs.forEach { gif -> LinkedImage(gif.url, rowStyle, imageLoader, alone, title = gif.title) }
             }
         }
-        style.postCard?.let { card -> built.posts.forEach { PostCard(it, card, rowStyle, imageLoader) } }
+        style.postCard?.let { card -> built.posts.forEach { PostCard(it, card, rowStyle, imageLoader, item.channel, item.sourceRoomId) } }
     }
 }
 
@@ -344,6 +359,8 @@ private fun PaintedLine(
     style: ChatStyle,
     lineHeight: TextUnit,
     imageLoader: ImageLoader,
+    modifier: Modifier,
+    onTextLayout: (TextLayoutResult) -> Unit,
 ) {
     val range = built.nameRange ?: return
     val image = paint.imageUrl?.let { rememberPaintImage(it, imageLoader) }
@@ -361,9 +378,36 @@ private fun PaintedLine(
         inlineContent = inlineContent,
         fontSize = style.fontSize.sp,
         lineHeight = lineHeight,
-        onTextLayout = { layout -> brush?.place(layout.boundsOf(range)) },
+        onTextLayout = { layout ->
+            brush?.place(layout.boundsOf(range))
+            onTextLayout(layout)
+        },
+        modifier = modifier,
     )
 }
+
+/** The last layout of a line, read only when it is touched, so keeping it recomposes nothing. */
+private class TextLayoutHolder(var result: TextLayoutResult? = null)
+
+/**
+ * Opens the link under a short tap on a line built to be selected, whose links are only styled
+ * text with their URL under [URL_TAG]. The touch is never consumed, so a hold still reaches the
+ * SelectionContainer and selects.
+ */
+private fun Modifier.openLinksOnTap(text: AnnotatedString, layout: TextLayoutHolder, open: (String) -> Unit) =
+    pointerInput(text) {
+        awaitEachGesture {
+            awaitFirstDown(requireUnconsumed = false)
+            val up = withTimeoutOrNull(viewConfiguration.longPressTimeoutMillis) { waitForUpOrCancellation() }
+                ?: return@awaitEachGesture
+            val result = layout.result ?: return@awaitEachGesture
+            // The offset is the nearest gap between characters; the one tapped is on either side.
+            val offset = result.getOffsetForPosition(up.position)
+            val tapped = listOf(offset, offset - 1).firstOrNull { it in text.indices && up.position in result.getBoundingBox(it) }
+                ?: return@awaitEachGesture
+            text.getStringAnnotations(URL_TAG, tapped, tapped + 1).firstOrNull()?.let { open(it.item) }
+        }
+    }
 
 /**
  * A linked image or GIF shown in place of its URL. Tapping shows it full screen in [LocalImageViewer],

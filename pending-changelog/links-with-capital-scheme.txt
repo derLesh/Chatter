@@ -1,0 +1,1 @@
+patch: Open links written as Https:// instead of closing Chatter

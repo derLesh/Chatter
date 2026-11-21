@@ -10,6 +10,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.isActive
+import kotlinx.coroutines.job
 import kotlinx.coroutines.launch
 import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonElement
@@ -44,8 +45,13 @@ sealed interface SevenTvEvent {
         val renamed: List<Pair<SevenTvActiveEmote, SevenTvActiveEmote>>,
     ) : SevenTvEvent
 
-    /** The channel switched to another emote set. */
-    data class ActiveSetChanged(val userId: String, override val actor: String?, val newSetId: String?) : SevenTvEvent
+    /** The channel switched to another emote set; [newSetName] is null where 7TV did not say it. */
+    data class ActiveSetChanged(
+        val userId: String,
+        override val actor: String?,
+        val newSetId: String?,
+        val newSetName: String? = null,
+    ) : SevenTvEvent
 
     /**
      * A badge 7TV described for someone in a joined channel. [EntitlementChanged] says who wears
@@ -188,7 +194,8 @@ class SevenTvEventClient(
         } else if (ws != null && ready) {
             (old - new).forEach { ws.send(subscriptionMessage(36, it)) }
             (new - old).forEach { ws.send(subscriptionMessage(35, it)) }
-        } else if (wanted && networkUp && socket == null) {
+        } else if (wanted && networkUp && socket == null && reconnectJob?.isActive != true) {
+            // During a reconnect's wait the job opens it; doing it here would skip the backoff.
             open()
         }
     }
@@ -235,7 +242,13 @@ class SevenTvEventClient(
         AppLog.i(TAG, "Trying again in ${delayMs / 1000} s (attempt $attempt)")
         reconnectJob = scope.launch {
             delay(delayMs)
-            synchronized(lock) { if (wanted && networkUp && socket == null && subscriptions.isNotEmpty()) open() }
+            synchronized(lock) {
+                // A timer cancelled after its wait must not clear or skip the backoff of its successor.
+                if (reconnectJob !== coroutineContext.job) return@launch
+                // Cleared first: a socket that fails at once must be able to schedule the next try.
+                reconnectJob = null
+                if (wanted && networkUp && socket == null && subscriptions.isNotEmpty()) open()
+            }
         }
     }
 
@@ -369,8 +382,12 @@ class SevenTvEventClient(
                         .map { it.jsonObject }
                         .firstOrNull { it["key"]?.jsonPrimitive?.contentOrNull == "emote_set" }
                         ?: return null
-                    val newSet = setChange["value"]?.let { it as? JsonObject }?.get("id")?.jsonPrimitive?.contentOrNull
-                    SevenTvEvent.ActiveSetChanged(id, actor, newSet)
+                    val newSet = setChange["value"]?.let { it as? JsonObject }
+                    SevenTvEvent.ActiveSetChanged(
+                        id, actor,
+                        newSetId = newSet?.get("id")?.jsonPrimitive?.contentOrNull,
+                        newSetName = newSet?.get("name")?.jsonPrimitive?.contentOrNull?.takeIf { it.isNotBlank() },
+                    )
                 }
                 else -> null
             }

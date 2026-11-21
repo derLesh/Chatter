@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
@@ -18,17 +19,24 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.FavoriteBorder
 import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.Immutable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.Alignment
@@ -55,16 +63,20 @@ import coil3.ImageLoader
 import coil3.compose.AsyncImage
 import me.lesh.chatter.R
 import me.lesh.chatter.chat.Post
+import me.lesh.chatter.chat.PostEmote
 import me.lesh.chatter.chat.PostLabel
 import me.lesh.chatter.chat.PostLink
 import me.lesh.chatter.chat.PostMedia
 import me.lesh.chatter.chat.PostRepository
 import me.lesh.chatter.chat.PostSite
+import me.lesh.chatter.emotes.EmoteButton
 import me.lesh.chatter.settings.PostCardSettings
 import me.lesh.chatter.settings.PostPictureSize
 import me.lesh.chatter.settings.PostTextLines
 import me.lesh.chatter.settings.Settings
 import me.lesh.chatter.settings.postCard
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.launch
 import java.text.DateFormat
 import java.util.Date
 import java.util.Locale
@@ -72,6 +84,21 @@ import kotlin.math.roundToInt
 
 /** Where post cards get their posts. Without one, as in the settings preview, links stay links. */
 val LocalPosts = staticCompositionLocalOf<PostRepository?> { null }
+
+/** Adds a 7TV emote from its card to the emotes of the channel it was linked in. */
+interface EmoteAdding {
+    /** Changes whenever what the buttons show may have changed, so the buttons on screen ask again. */
+    val revision: Flow<Any>
+
+    /** [sourceRoomId]: the Shared Chat partner the link was written in; its emotes are meant then. */
+    suspend fun button(channel: String, sourceRoomId: String?, emoteId: String): EmoteButton
+
+    /** Adds it, or asks for the 7TV login first. Returns once 7TV has answered. */
+    suspend fun add(channel: String, sourceRoomId: String?, emoteId: String, name: String)
+}
+
+/** Without one, as in a bubble or the settings preview, emote cards have no add button. */
+val LocalEmoteAdding = staticCompositionLocalOf<EmoteAdding?> { null }
 
 /** Which links become post cards, and how each site's cards look, from the settings. */
 @Immutable
@@ -134,6 +161,7 @@ fun siteName(site: PostSite): Int = when (site) {
     PostSite.Bluesky -> R.string.post_site_bluesky
     PostSite.YouTube -> R.string.post_site_youtube
     PostSite.Twitch -> R.string.post_site_twitch
+    PostSite.SevenTv -> R.string.post_site_seventv
 }
 
 /** The site's logo, drawn on its cards. */
@@ -142,11 +170,12 @@ fun siteIcon(site: PostSite): Int = when (site) {
     PostSite.Bluesky -> R.drawable.ic_site_bluesky
     PostSite.YouTube -> R.drawable.ic_site_youtube
     PostSite.Twitch -> R.drawable.ic_site_twitch
+    PostSite.SevenTv -> R.drawable.ic_provider_seventv
 }
 
-/** Bluesky's butterfly, YouTube's button and Twitch's glitch are known by their color; X's logo is plain, so it takes [plain]. */
+/** Bluesky's butterfly, YouTube's button and Twitch's glitch are known by their color; X's and 7TV's logos are plain, so they take [plain]. */
 fun siteTint(site: PostSite, plain: Color): Color = when (site) {
-    PostSite.X -> plain
+    PostSite.X, PostSite.SevenTv -> plain
     PostSite.Bluesky -> BLUESKY_BLUE
     PostSite.YouTube -> YOUTUBE_RED
     PostSite.Twitch -> TWITCH_PURPLE
@@ -164,6 +193,11 @@ typealias PostPicture = @Composable (url: String, description: String?, modifier
 private val AVATAR_SIZE = 20.dp
 private val COMPACT_AVATAR_SIZE = 16.dp
 private val PROFILE_PICTURE_SIZE = 56.dp
+/** How tall an emote's card draws it: big enough to make out, like a channel's picture. */
+private val EMOTE_HEIGHT = 48.dp
+/** Wide emotes keep their shape up to this; wider ones are cut at the sides. */
+private const val EMOTE_MAX_ASPECT = 3f
+private val ACTION_SIZE = 40.dp
 private val LIVE_RING = 2.dp
 /** As many as YouTube shows in its own lists; the card stays about as tall as its picture. */
 private const val COMPACT_TEXT_LINES = 2
@@ -184,7 +218,7 @@ private const val LIVE = "LIVE"
  * good if it cannot be read.
  */
 @Composable
-internal fun PostCard(link: PostLink, card: PostCardStyle, style: ChatStyle, loader: ImageLoader) {
+internal fun PostCard(link: PostLink, card: PostCardStyle, style: ChatStyle, loader: ImageLoader, channel: String, sourceRoomId: String?) {
     val repository = LocalPosts.current
     // Starts from the cache, so a card scrolled back into view does not shrink to a link for a frame.
     // One due to be asked again stays on screen until the answer comes, and if none does.
@@ -201,15 +235,34 @@ internal fun PostCard(link: PostLink, card: PostCardStyle, style: ChatStyle, loa
         return
     }
     val uriHandler = LocalUriHandler.current
-    PostCardContent(post, link.site, card, style, open = { uriHandler.openUri(link.url) }) { url, description, modifier ->
+    val adding = LocalEmoteAdding.current
+    val emote = post.emote
+    val action: (@Composable () -> Unit)? = if (emote != null && adding != null && channel.isNotEmpty()) {
+        { EmoteAddButton(channel, sourceRoomId, emote, post.name, adding, style) }
+    } else {
+        null
+    }
+    PostCardContent(post, link.site, card, style, open = { uriHandler.openUri(link.url) }, action = action) { url, description, modifier ->
         AsyncImage(url, description, loader, modifier, contentScale = ContentScale.Crop)
     }
 }
 
-/** The card for [post] from [site], with the parts [card] asks for. */
+/** The card for [post] from [site], with the parts [card] asks for. [action] is a button at the end of an emote's card. */
 @Composable
-internal fun PostCardContent(post: Post, site: PostSite, cards: PostCardStyle, style: ChatStyle, open: () -> Unit, picture: PostPicture) {
+internal fun PostCardContent(
+    post: Post,
+    site: PostSite,
+    cards: PostCardStyle,
+    style: ChatStyle,
+    open: () -> Unit,
+    action: (@Composable () -> Unit)? = null,
+    picture: PostPicture,
+) {
     val card = cards.look(site)
+    post.emote?.let { emote ->
+        EmoteCardContent(post.name, emote, site, style, open, action, picture)
+        return
+    }
     if (post.profile) {
         ProfileCardContent(post, site, card, style, open, picture)
         return
@@ -332,6 +385,91 @@ private fun ProfileCardContent(post: Post, site: PostSite, card: PostCardLook, s
         }
         // In the bottom corner like on every other card, not centred with the text.
         SiteLogo(site, style, Modifier.align(Alignment.Bottom))
+    }
+}
+
+/**
+ * An emote: always this small, with the emote large on the left, its name and creator beside it,
+ * and [action] at the end.
+ */
+@Composable
+private fun EmoteCardContent(
+    name: String,
+    emote: PostEmote,
+    site: PostSite,
+    style: ChatStyle,
+    open: () -> Unit,
+    action: (@Composable () -> Unit)?,
+    picture: PostPicture,
+) {
+    val secondarySize = (style.fontSize - 2).sp
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(10.dp),
+        modifier = Modifier.cardFrame(MaterialTheme.colorScheme.outlineVariant, open).padding(8.dp),
+    ) {
+        val aspect = emote.aspectRatio.coerceIn(1f, EMOTE_MAX_ASPECT)
+        picture(emote.pictureUrl, name, Modifier.height(EMOTE_HEIGHT).width(EMOTE_HEIGHT * aspect))
+        Column(verticalArrangement = Arrangement.spacedBy(2.dp), modifier = Modifier.weight(1f)) {
+            Text(
+                text = name,
+                fontSize = style.fontSize.sp,
+                lineHeight = (style.fontSize * COMPACT_LINE_HEIGHT).sp,
+                fontWeight = FontWeight.Bold,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                SiteLogo(site, style, size = (style.fontSize - 2).dp)
+                Text(
+                    text = if (emote.creator.isEmpty()) stringResource(R.string.post_emote) else stringResource(R.string.post_emote_by, emote.creator),
+                    color = style.secondaryText,
+                    fontSize = secondarySize,
+                    lineHeight = ((style.fontSize - 2) * COMPACT_LINE_HEIGHT).sp,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+            }
+        }
+        action?.invoke()
+    }
+}
+
+/**
+ * Adds the emote to [channel]'s active 7TV emote set. Only there for the channel's owner and its
+ * editors; a check once the channel has the emote.
+ */
+@Composable
+private fun EmoteAddButton(channel: String, sourceRoomId: String?, emote: PostEmote, name: String, adding: EmoteAdding, style: ChatStyle) {
+    val revision by adding.revision.collectAsState(Unit)
+    // Kept while asked again, so the button does not blink away after every add.
+    var button by remember(channel, emote.id) { mutableStateOf(EmoteButton.Hidden) }
+    LaunchedEffect(channel, sourceRoomId, emote.id, revision) { button = adding.button(channel, sourceRoomId, emote.id) }
+    var busy by remember(channel, emote.id) { mutableStateOf(false) }
+    val scope = rememberCoroutineScope()
+    when {
+        button == EmoteButton.Hidden -> Unit
+        busy -> Box(Modifier.size(ACTION_SIZE), contentAlignment = Alignment.Center) {
+            CircularProgressIndicator(Modifier.size(20.dp), strokeWidth = 2.dp)
+        }
+        button == EmoteButton.Added -> Box(Modifier.size(ACTION_SIZE), contentAlignment = Alignment.Center) {
+            Icon(Icons.Default.Check, stringResource(R.string.post_emote_added), tint = style.secondaryText)
+        }
+        else -> IconButton(
+            onClick = {
+                busy = true
+                scope.launch {
+                    try {
+                        adding.add(channel, sourceRoomId, emote.id, name)
+                    } finally {
+                        busy = false
+                    }
+                }
+            },
+            modifier = Modifier.size(ACTION_SIZE),
+        ) {
+            Icon(Icons.Default.Add, stringResource(R.string.post_emote_add, name))
+        }
     }
 }
 
@@ -469,12 +607,12 @@ private fun Modifier.cardFrame(outline: Color, open: () -> Unit): Modifier {
 
 /** Always shown: with the link taken out of the line, nothing else says where the post is. */
 @Composable
-private fun SiteLogo(site: PostSite, style: ChatStyle, modifier: Modifier = Modifier) {
+private fun SiteLogo(site: PostSite, style: ChatStyle, modifier: Modifier = Modifier, size: Dp = style.fontSize.dp) {
     Icon(
         painterResource(siteIcon(site)),
         contentDescription = stringResource(siteName(site)),
         tint = siteTint(site, style.secondaryText),
-        modifier = modifier.size(style.fontSize.dp),
+        modifier = modifier.size(size),
     )
 }
 

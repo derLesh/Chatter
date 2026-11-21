@@ -65,7 +65,9 @@ import kotlinx.coroutines.launch
 import me.lesh.chatter.R
 import me.lesh.chatter.chat.InboxWhisper
 import me.lesh.chatter.ui.FormSheet
-import me.lesh.chatter.ui.MessagePillHost
+import me.lesh.chatter.ui.pill.MessagePillHost
+import me.lesh.chatter.ui.pill.PillTone
+import me.lesh.chatter.ui.pill.showPill
 import java.time.Instant
 import java.time.LocalDate
 import java.time.ZoneId
@@ -266,7 +268,7 @@ private fun WhisperInput(name: String, background: Color, onSend: suspend (Strin
             scope.launch {
                 val refused = onSend(text.trim())
                 sending = false
-                if (refused == null) text = "" else snackbar.showSnackbar(refused)
+                if (refused == null) text = "" else snackbar.showPill(refused, PillTone.Error)
             }
         }
     }

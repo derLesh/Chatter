@@ -13,6 +13,7 @@ class LogPrivacyTest {
             LogPrivacy.clean("History failed: https://recent-messages.robotty.de/api/v2/recent-messages/somechannel?limit=100 timed out"),
         )
         assertEquals("wss://irc-ws.chat.twitch.tv:443/…", LogPrivacy.clean("wss://irc-ws.chat.twitch.tv:443/?x=1"))
+        assertEquals("Can't open Https://www.twitch.tv/…", LogPrivacy.clean("Can't open Https://www.twitch.tv/somebody"))
     }
 
     @Test

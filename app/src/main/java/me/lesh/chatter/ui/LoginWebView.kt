@@ -22,15 +22,22 @@ import me.lesh.chatter.auth.LoginUrls
 import me.lesh.chatter.auth.WebSession
 
 /**
- * Twitch's login page. Passes the `http://localhost#access_token=...` redirect to [onRedirect] and
- * lets the page navigate only within Twitch (see [LoginUrls]).
+ * Twitch's login page. Passes the redirect [isRedirect] recognizes, by default
+ * `http://localhost#access_token=...`, to [onRedirect] and lets the page navigate only within
+ * Twitch (see [LoginUrls]).
  *
  * [signedOut] clears Twitch's WebView session first, for adding another account; otherwise Twitch
  * offers the last logged-in account again.
  */
 @SuppressLint("SetJavaScriptEnabled")
 @Composable
-fun LoginWebView(url: String, modifier: Modifier, signedOut: Boolean = false, onRedirect: (String) -> Unit) {
+fun LoginWebView(
+    url: String,
+    modifier: Modifier,
+    signedOut: Boolean = false,
+    isRedirect: (String) -> Boolean = LoginUrls::isRedirect,
+    onRedirect: (String) -> Unit,
+) {
     var loading by remember { mutableStateOf(true) }
     Box(modifier) {
         AndroidView(
@@ -49,7 +56,7 @@ fun LoginWebView(url: String, modifier: Modifier, signedOut: Boolean = false, on
                     webViewClient = object : WebViewClient() {
                         override fun shouldOverrideUrlLoading(view: WebView, request: WebResourceRequest): Boolean {
                             val target = request.url.toString()
-                            if (LoginUrls.isRedirect(target)) {
+                            if (isRedirect(target)) {
                                 onRedirect(target)
                                 return true
                             }

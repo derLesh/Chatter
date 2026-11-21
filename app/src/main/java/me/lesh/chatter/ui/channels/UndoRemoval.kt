@@ -1,6 +1,5 @@
 package me.lesh.chatter.ui.channels
 
-import androidx.compose.material3.SnackbarDuration
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.SnackbarResult
 import androidx.compose.runtime.Composable
@@ -8,7 +7,9 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.platform.LocalResources
 import me.lesh.chatter.R
 import me.lesh.chatter.ui.MainViewModel
-import me.lesh.chatter.ui.PillMessage
+import me.lesh.chatter.ui.pill.PillContent
+import me.lesh.chatter.ui.pill.PillTone
+import me.lesh.chatter.ui.pill.showPill
 import kotlinx.coroutines.flow.collectLatest
 
 /**
@@ -23,13 +24,9 @@ fun OfferUndoRemoval(vm: MainViewModel, snackbar: SnackbarHostState) {
     val resources = LocalResources.current
     LaunchedEffect(vm, resources) {
         vm.removals.collectLatest { removal ->
-            val result = snackbar.showSnackbar(
-                PillMessage(
-                    message = resources.getString(R.string.page_removed, removal.name),
-                    highlight = removal.name,
-                    actionLabel = resources.getString(R.string.undo),
-                    duration = SnackbarDuration.Long,
-                ),
+            val result = snackbar.showPill(
+                PillContent.filled(removal.name, PillTone.Plain) { resources.getString(R.string.page_removed, it) },
+                actionLabel = resources.getString(R.string.undo),
             )
             if (result == SnackbarResult.ActionPerformed) vm.undoRemoval(removal)
         }

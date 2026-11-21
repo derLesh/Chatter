@@ -1,0 +1,1 @@
+patch: Retry temporary emote and badge errors before showing a warning

@@ -28,6 +28,8 @@ object TwitchScopes {
         "channel:manage:moderators", "channel:manage:vips", "channel:manage:raids",
         // The names of rewards redeemed with a message in the user's own channel.
         "channel:read:redemptions",
+        // Title and category of the user's own channel, from the channel settings.
+        "channel:manage:broadcast",
 
         // Not used yet. Chat and whispers over EventSub, the channels the user moderates, their
         // subs, and /clip.
@@ -39,9 +41,9 @@ object TwitchScopes {
         "moderator:manage:blocked_terms", "moderator:manage:shield_mode", "moderator:manage:unban_requests",
         "moderator:manage:suspicious_users", "moderator:read:moderators", "moderator:read:vips",
         "moderator:read:followers",
-        // Not used yet. The user's own channel: who moderated what, title and category, ads, polls,
-        // predictions, rewards, subs, bits, hype trains, goals and charity.
-        "channel:moderate", "channel:manage:broadcast", "channel:edit:commercial", "channel:manage:ads",
+        // Not used yet. The user's own channel: who moderated what, ads, polls, predictions,
+        // rewards, subs, bits, hype trains, goals and charity.
+        "channel:moderate", "channel:edit:commercial", "channel:manage:ads",
         "channel:manage:polls", "channel:manage:predictions", "channel:manage:redemptions",
         "channel:read:subscriptions", "bits:read", "channel:read:hype_train", "channel:read:goals",
         "channel:read:charity",

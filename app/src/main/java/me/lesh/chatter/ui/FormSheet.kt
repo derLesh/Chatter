@@ -126,7 +126,7 @@ fun FormSheet(
                 contentPadding = PaddingValues(horizontal = 20.dp),
                 modifier = Modifier.weight(1f, fill = false),
             ) {
-                item(key = "title") {
+                item(key = OwnRow.Title) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Text(
                             title,
@@ -138,7 +138,7 @@ fun FormSheet(
                     }
                 }
                 text?.let {
-                    item(key = "text") {
+                    item(key = OwnRow.Text) {
                         Text(
                             it,
                             style = MaterialTheme.typography.bodyMedium,
@@ -175,3 +175,10 @@ fun FormSheet(
         }
     }
 }
+
+/**
+ * Keys of the sheet's own rows. A string key such as "title" would crash the sheet as soon as
+ * [FormSheet]'s content picks the same one; no content can make an item of this private type.
+ * An enum, because a lazy list key has to fit into a Bundle.
+ */
+private enum class OwnRow { Title, Text }

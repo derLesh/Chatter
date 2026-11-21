@@ -3,10 +3,12 @@ package me.lesh.chatter.ui.settings
 import android.content.ClipData
 import android.content.Context
 import android.content.Intent
+import android.text.format.DateFormat
 import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -14,6 +16,7 @@ import androidx.compose.animation.scaleIn
 import androidx.compose.animation.scaleOut
 import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -39,6 +42,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Search
@@ -48,12 +52,14 @@ import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExtendedFloatingActionButton
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.IconToggleButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SmallFloatingActionButton
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -72,6 +78,7 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
@@ -79,6 +86,7 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.ClipEntry
 import androidx.compose.ui.platform.LocalClipboard
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.res.vectorResource
@@ -88,6 +96,7 @@ import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import androidx.core.net.toUri
@@ -105,22 +114,38 @@ import me.lesh.chatter.debug.AppLog
 import me.lesh.chatter.debug.DeviceReport
 import me.lesh.chatter.debug.LogReport
 import me.lesh.chatter.ui.MainViewModel
+import me.lesh.chatter.ui.pill.MessagePillHost
+import me.lesh.chatter.ui.pill.PillTone
+import me.lesh.chatter.ui.pill.showPill
 import java.text.SimpleDateFormat
+import java.time.LocalDate
+import java.time.ZoneId
+import java.time.format.DateTimeFormatter
 import java.util.Date
 import java.util.Locale
 
 /**
- * The log over the whole screen: live, newest on top, the phone above it. It can be searched and
- * filtered by level and source. The eye switches between the private log and the full one, and
- * reporting, copying and saving take the whole log as the eye shows it.
+ * The log over the whole screen, newest on top: today live, an earlier day picked from the row on
+ * top. It can be searched and filtered by level and source. The eye switches between the private
+ * log and the full one, and reporting, copying and saving take the shown day as the eye shows it.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 internal fun LogScreen(vm: MainViewModel, onBack: () -> Unit) {
-    val context = LocalContext.current
     val scope = rememberCoroutineScope()
-    val entries = rememberLiveLog()
+    val live = rememberLiveLog()
     val device = rememberDevice(vm)
+
+    val today = remember { LocalDate.now() }
+    val startOfToday = remember(today) { today.atStartOfDay(ZoneId.systemDefault()).toInstant().toEpochMilli() }
+    var days by remember { mutableStateOf(emptyList<LocalDate>()) }
+    LaunchedEffect(Unit) { days = withContext(Dispatchers.IO) { AppLog.days() } }
+    // Saved as the day's number, so it outlives turning the phone; null is today.
+    var pickedDay by rememberSaveable { mutableStateOf<Long?>(null) }
+    val day = pickedDay?.let(LocalDate::ofEpochDay)
+    var earlier by remember(day) { mutableStateOf<List<AppLog.Entry>?>(null) }
+    if (day != null) LaunchedEffect(day) { earlier = withContext(Dispatchers.IO) { AppLog.day(day).asReversed() } }
+    val entries = if (day == null) remember(live, startOfToday) { live.filter { it.at >= startOfToday } } else earlier.orEmpty()
 
     var searching by rememberSaveable { mutableStateOf(false) }
     var query by rememberSaveable { mutableStateOf("") }
@@ -129,11 +154,15 @@ internal fun LogScreen(vm: MainViewModel, onBack: () -> Unit) {
     var levelNames by rememberSaveable { mutableStateOf(DEFAULT_LEVELS.map { it.name }) }
     var tags by rememberSaveable { mutableStateOf(emptyList<String>()) }
     var withNames by rememberSaveable { mutableStateOf(false) }
+    var deviceOpen by rememberSaveable { mutableStateOf(false) }
     var confirmClear by remember { mutableStateOf(false) }
     var confirmFullReport by remember { mutableStateOf(false) }
     var menuOpen by remember { mutableStateOf(false) }
-    val sharing = rememberLogSharing(vm, device)
+    val snackbar = remember { SnackbarHostState() }
+    val sharing = rememberLogSharing(vm, device, snackbar)
     val levels = levelNames.mapNotNull { name -> AppLog.Level.entries.firstOrNull { it.name == name } }.toSet()
+    // Oldest first, as a report and a file read.
+    val dayLog = { entries.asReversed() }
 
     if (searching) {
         NavigationBackHandler(
@@ -150,6 +179,7 @@ internal fun LogScreen(vm: MainViewModel, onBack: () -> Unit) {
     val filtered = shown.size != entries.size
     val list = rememberLazyListState()
     val awayFromNewest by remember { derivedStateOf { list.firstVisibleItemIndex > 1 } }
+    LaunchedEffect(day) { list.scrollToItem(0) }
 
     if (confirmClear) {
         AlertDialog(
@@ -159,6 +189,8 @@ internal fun LogScreen(vm: MainViewModel, onBack: () -> Unit) {
             confirmButton = {
                 TextButton(onClick = {
                     AppLog.clear()
+                    days = emptyList()
+                    pickedDay = null
                     confirmClear = false
                 }) { Text(stringResource(R.string.debug_log_clear_confirm)) }
             },
@@ -174,7 +206,7 @@ internal fun LogScreen(vm: MainViewModel, onBack: () -> Unit) {
             confirmButton = {
                 TextButton(onClick = {
                     confirmFullReport = false
-                    sharing.report(true)
+                    sharing.report(dayLog(), true)
                 }) { Text(stringResource(R.string.debug_log_report)) }
             },
             dismissButton = { TextButton(onClick = { confirmFullReport = false }) { Text(stringResource(R.string.cancel)) } },
@@ -184,6 +216,7 @@ internal fun LogScreen(vm: MainViewModel, onBack: () -> Unit) {
     Scaffold(
         containerColor = MaterialTheme.colorScheme.surface,
         contentWindowInsets = WindowInsets.safeDrawing,
+        snackbarHost = { MessagePillHost(snackbar) },
         topBar = {
             if (searching) {
                 SearchBar(query, onQuery = { query = it }, onClose = {
@@ -200,9 +233,8 @@ internal fun LogScreen(vm: MainViewModel, onBack: () -> Unit) {
                             } else {
                                 pluralStringResource(R.plurals.debug_log_count, entries.size, entries.size)
                             }
-                            val kind = stringResource(if (withNames) R.string.debug_log_state_full else R.string.debug_log_state_private)
                             Text(
-                                "$count · $kind",
+                                count,
                                 style = MaterialTheme.typography.labelMedium,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                             )
@@ -235,14 +267,14 @@ internal fun LogScreen(vm: MainViewModel, onBack: () -> Unit) {
                                     text = { Text(stringResource(R.string.debug_log_copy)) },
                                     onClick = {
                                         menuOpen = false
-                                        sharing.copy(withNames)
+                                        sharing.copy(dayLog(), withNames)
                                     },
                                 )
                                 DropdownMenuItem(
                                     text = { Text(stringResource(R.string.debug_log_save)) },
                                     onClick = {
                                         menuOpen = false
-                                        sharing.save(withNames)
+                                        sharing.save(dayLog(), withNames, fileName(day, withNames))
                                     },
                                 )
                                 DropdownMenuItem(
@@ -265,9 +297,9 @@ internal fun LogScreen(vm: MainViewModel, onBack: () -> Unit) {
                         Icon(Icons.Default.KeyboardArrowUp, stringResource(R.string.debug_log_newest))
                     }
                 }
-                // Takes the log as the eye shows it.
+                // Takes the day as the eye shows it.
                 ExtendedFloatingActionButton(
-                    onClick = { if (withNames) confirmFullReport = true else sharing.report(false) },
+                    onClick = { if (withNames) confirmFullReport = true else sharing.report(dayLog(), false) },
                     icon = { Icon(ImageVector.vectorResource(R.drawable.ic_bug_report), contentDescription = null) },
                     text = { Text(stringResource(R.string.debug_log_report)) },
                 )
@@ -275,6 +307,9 @@ internal fun LogScreen(vm: MainViewModel, onBack: () -> Unit) {
         },
     ) { padding ->
         Column(Modifier.fillMaxSize().padding(padding)) {
+            if (days.size > 1) {
+                DayPicker(days, today, picked = day ?: today, onPick = { pickedDay = if (it == today) null else it.toEpochDay() })
+            }
             AnimatedVisibility(filtersOpen || searching && filtered, enter = expandVertically() + fadeIn(), exit = shrinkVertically() + fadeOut()) {
                 Filters(
                     entries = entries,
@@ -293,21 +328,9 @@ internal fun LogScreen(vm: MainViewModel, onBack: () -> Unit) {
             ) {
                 // First, so the list holds on to it while new lines arrive above the rest.
                 item(key = "device") {
-                    SelectionContainer {
-                        Text(
-                            LogReport.deviceText(device).trimEnd(),
-                            style = MaterialTheme.typography.bodySmall,
-                            fontFamily = FontFamily.Monospace,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            modifier = Modifier
-                                .padding(bottom = 12.dp)
-                                .fillMaxWidth()
-                                .background(card, RoundedCornerShape(CORNER))
-                                .padding(horizontal = 14.dp, vertical = 10.dp),
-                        )
-                    }
+                    DeviceCard(device, open = deviceOpen, onToggle = { deviceOpen = !deviceOpen })
                 }
-                if (shown.isEmpty()) {
+                if (shown.isEmpty() && (day == null || earlier != null)) {
                     item(key = "empty") {
                         Text(
                             stringResource(if (entries.isEmpty()) R.string.debug_log_empty else R.string.debug_log_no_match),
@@ -323,16 +346,96 @@ internal fun LogScreen(vm: MainViewModel, onBack: () -> Unit) {
                         entry,
                         withNames = withNames,
                         query = query,
+                        divider = !first,
                         modifier = Modifier
                             .animateItem()
                             .fillMaxWidth()
                             .background(card, lineShape(first, last))
                             .padding(horizontal = 14.dp)
-                            .padding(top = if (first) 10.dp else 2.dp, bottom = if (last) 10.dp else 2.dp),
+                            .padding(top = if (first) 4.dp else 0.dp, bottom = if (last) 4.dp else 0.dp),
                     )
                 }
             }
         }
+    }
+}
+
+/** Today and the earlier days kept on the phone, newest first. */
+@Composable
+private fun DayPicker(days: List<LocalDate>, today: LocalDate, picked: LocalDate, onPick: (LocalDate) -> Unit) {
+    val format = remember {
+        DateTimeFormatter.ofPattern(DateFormat.getBestDateTimePattern(Locale.getDefault(), "EEEdMMM"))
+    }
+    LazyRow(
+        contentPadding = PaddingValues(horizontal = 12.dp),
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+        modifier = Modifier.padding(bottom = 4.dp),
+    ) {
+        items(days, key = { it.toEpochDay() }) { date ->
+            FilterChip(
+                selected = date == picked,
+                onClick = { onPick(date) },
+                label = {
+                    Text(
+                        when (date) {
+                            today -> stringResource(R.string.debug_log_today)
+                            today.minusDays(1) -> stringResource(R.string.debug_log_yesterday)
+                            else -> date.format(format)
+                        },
+                    )
+                },
+            )
+        }
+    }
+}
+
+/** The phone in one line, e.g. "Chatter 0.14.0 · Android 17 · Google Pixel 9"; a tap shows all of it. */
+@Composable
+private fun DeviceCard(device: List<Pair<String, String>>, open: Boolean, onToggle: () -> Unit) {
+    val short = remember(device) {
+        val values = device.toMap()
+        listOfNotNull(
+            values["Chatter"]?.let { "Chatter " + it.substringBefore(" (") },
+            values["Android"]?.let { "Android " + it.substringBefore(" (") },
+            values["Phone"],
+        ).joinToString(" · ")
+    }
+    Row(
+        verticalAlignment = Alignment.Top,
+        modifier = Modifier
+            .padding(bottom = 12.dp)
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(CORNER))
+            .background(MaterialTheme.colorScheme.surfaceContainer)
+            .clickable(onClick = onToggle)
+            // Grows and shrinks, so the lines below slide along instead of jumping.
+            .animateContentSize()
+            .padding(start = 14.dp, end = 8.dp, top = 10.dp, bottom = 10.dp),
+    ) {
+        if (open) {
+            SelectionContainer(Modifier.weight(1f)) {
+                Text(
+                    LogReport.deviceText(device).trimEnd(),
+                    style = MaterialTheme.typography.bodySmall,
+                    fontFamily = FontFamily.Monospace,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+        } else {
+            Text(
+                short,
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.weight(1f),
+            )
+        }
+        Icon(
+            if (open) Icons.Default.KeyboardArrowUp else Icons.Default.KeyboardArrowDown,
+            contentDescription = null,
+            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
     }
 }
 
@@ -366,45 +469,51 @@ private fun rememberDevice(vm: MainViewModel): List<Pair<String, String>> {
     return remember(auth, channels.size, minutes) { DeviceReport.lines(context, accountKind(auth), channels.size) }
 }
 
-/** Report, copy and save, each with the private or the full log, and always all of it. */
-private class LogSharing(val report: (full: Boolean) -> Unit, val copy: (full: Boolean) -> Unit, val save: (full: Boolean) -> Unit)
+/** Report, copy and save the lines given, oldest first, with the private or the full log. */
+private class LogSharing(
+    val report: (entries: List<AppLog.Entry>, full: Boolean) -> Unit,
+    val copy: (entries: List<AppLog.Entry>, full: Boolean) -> Unit,
+    val save: (entries: List<AppLog.Entry>, full: Boolean, fileName: String) -> Unit,
+)
 
 @Composable
-private fun rememberLogSharing(vm: MainViewModel, device: List<Pair<String, String>>): LogSharing {
+private fun rememberLogSharing(vm: MainViewModel, device: List<Pair<String, String>>, snackbar: SnackbarHostState): LogSharing {
     val context = LocalContext.current
+    val resources = LocalResources.current
     val clipboard = LocalClipboard.current
     val scope = rememberCoroutineScope()
     val clipLabel = stringResource(R.string.debug_log_clip_label)
     val copy = { text: String -> scope.launch { clipboard.setClipEntry(ClipEntry(ClipData.newPlainText(clipLabel, text))) } }
-    val fileText = { full: Boolean -> LogReport.text(device, AppLog.entries(), full) }
-    // Which log the file picker was opened for; it hands back only where to write.
-    var saveFull by remember { mutableStateOf(false) }
+    // What the file picker was opened for; it hands back only where to write.
+    var saving by remember { mutableStateOf<String?>(null) }
     val save = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("text/plain")) { uri ->
+        val text = saving ?: return@rememberLauncherForActivityResult
+        saving = null
         if (uri == null) return@rememberLauncherForActivityResult
-        val text = fileText(saveFull)
         scope.launch {
             val saved = withContext(Dispatchers.IO) {
                 runCatching {
                     context.contentResolver.openOutputStream(uri)?.use { it.write(text.toByteArray()) } ?: error("no output stream")
                 }.isSuccess
             }
-            toast(context, if (saved) R.string.debug_log_saved else R.string.debug_log_save_failed)
+            if (saved) snackbar.showPill(resources.getString(R.string.debug_log_saved), PillTone.Success)
+            else snackbar.showPill(resources.getString(R.string.debug_log_save_failed), PillTone.Error)
         }
     }
     return LogSharing(
-        report = { full ->
-            val logs = LogReport.forIssue(device, AppLog.entries(), full)
+        report = { entries, full ->
+            val logs = LogReport.forIssue(device, entries, full)
             // A link holds only so much; the rest goes into the clipboard for pasting.
             if (!logs.whole) {
-                copy(fileText(full))
+                copy(LogReport.text(device, entries, full))
                 toast(context, R.string.debug_log_report_clipboard)
             }
             context.startActivity(Intent(Intent.ACTION_VIEW, bugReportUrl(vm.device, logs.text).toUri()))
         },
-        copy = { copy(fileText(it)) },
-        save = {
-            saveFull = it
-            save.launch(fileName(it))
+        copy = { entries, full -> copy(LogReport.text(device, entries, full)) },
+        save = { entries, full, fileName ->
+            saving = LogReport.text(device, entries, full)
+            save.launch(fileName)
         },
     )
 }
@@ -476,28 +585,43 @@ private fun Filters(
     }
 }
 
+/** Time and source above, the message below; warnings and errors also name their level. */
 @Composable
-private fun LogLine(entry: AppLog.Entry, withNames: Boolean, query: String, modifier: Modifier) {
+private fun LogLine(entry: AppLog.Entry, withNames: Boolean, query: String, divider: Boolean, modifier: Modifier) {
     val muted = MaterialTheme.colorScheme.onSurfaceVariant
     val levelColor = when (entry.level) {
         AppLog.Level.Error -> MaterialTheme.colorScheme.error
         AppLog.Level.Warn -> MaterialTheme.colorScheme.tertiary
-        AppLog.Level.Info -> MaterialTheme.colorScheme.primary
-        AppLog.Level.Debug -> MaterialTheme.colorScheme.onSurface
-        AppLog.Level.Verbose -> muted
+        // Only warnings and errors stand out; everything else is what usually happens.
+        AppLog.Level.Info -> MaterialTheme.colorScheme.onSurface
+        AppLog.Level.Debug, AppLog.Level.Verbose -> muted
     }
+    val levelName = if (entry.level >= AppLog.Level.Warn) stringResource(levelLabel(entry.level)) else null
     val match = SpanStyle(background = MaterialTheme.colorScheme.primaryContainer, color = MaterialTheme.colorScheme.onPrimaryContainer, fontWeight = FontWeight.Bold)
-    val text = remember(entry, withNames, query, muted, levelColor) {
+    val head = remember(entry, levelName, muted, levelColor) {
         buildAnnotatedString {
-            withStyle(SpanStyle(color = muted)) { append("${shortTime(entry.at)} ") }
-            withStyle(SpanStyle(color = levelColor, fontWeight = FontWeight.Medium)) { append("${entry.level.letter} ${entry.tag} ") }
-            val message = entry.message(withNames)
-            withStyle(SpanStyle(color = if (entry.level == AppLog.Level.Verbose) muted else Color.Unspecified)) {
-                append(highlighted(message, query, match))
+            withStyle(SpanStyle(color = muted, fontFeatureSettings = "tnum")) { append(shortTime(entry.at)) }
+            append("  ")
+            withStyle(SpanStyle(color = levelColor, fontWeight = FontWeight.Medium)) {
+                append(entry.tag)
+                if (levelName != null) append(" · $levelName")
             }
         }
     }
-    SelectionContainer(modifier) { Text(text, style = MaterialTheme.typography.bodySmall, fontFamily = FontFamily.Monospace) }
+    val message = remember(entry, withNames, query) { highlighted(entry.message(withNames), query, match) }
+    Column(modifier) {
+        if (divider) HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f))
+        SelectionContainer(Modifier.padding(vertical = 8.dp)) {
+            Column {
+                Text(head, style = MaterialTheme.typography.labelMedium)
+                Text(
+                    message,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = if (entry.level == AppLog.Level.Verbose) muted else Color.Unspecified,
+                )
+            }
+        }
+    }
 }
 
 private fun highlighted(text: String, query: String, style: SpanStyle): AnnotatedString = buildAnnotatedString {
@@ -516,6 +640,9 @@ private fun lineShape(first: Boolean, last: Boolean): RoundedCornerShape {
     return RoundedCornerShape(topStart = top, topEnd = top, bottomStart = bottom, bottomEnd = bottom)
 }
 
+private fun levelLabel(level: AppLog.Level) =
+    if (level == AppLog.Level.Error) R.string.debug_log_line_error else R.string.debug_log_line_warn
+
 private fun levelName(level: AppLog.Level) = when (level) {
     AppLog.Level.Error -> R.string.debug_log_level_error
     AppLog.Level.Warn -> R.string.debug_log_level_warn
@@ -532,11 +659,12 @@ private fun accountKind(auth: AuthState): String = when (auth) {
     AuthState.Loading -> "loading"
 }
 
-/** The phone's local time; the copied text says UTC instead, so reports from anywhere line up. */
-private fun shortTime(at: Long): String = SimpleDateFormat("HH:mm:ss.SSS", Locale.getDefault()).format(Date(at))
+/** The phone's local time, to the second; the copied text says UTC to the millisecond, so reports from anywhere line up. */
+private fun shortTime(at: Long): String = SimpleDateFormat("HH:mm:ss", Locale.getDefault()).format(Date(at))
 
-private fun fileName(full: Boolean): String =
-    "chatter-log-" + (if (full) "full-" else "") + SimpleDateFormat("yyyy-MM-dd-HHmm", Locale.ROOT).format(Date()) + ".txt"
+/** Today's file is named by the minute it was saved, an earlier day's by its date. */
+private fun fileName(day: LocalDate?, full: Boolean): String =
+    "chatter-log-" + (if (full) "full-" else "") + (day?.toString() ?: SimpleDateFormat("yyyy-MM-dd-HHmm", Locale.ROOT).format(Date())) + ".txt"
 
 private fun toast(context: Context, text: Int) = Toast.makeText(context, text, Toast.LENGTH_LONG).show()
 

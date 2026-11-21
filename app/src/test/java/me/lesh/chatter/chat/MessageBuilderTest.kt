@@ -305,6 +305,15 @@ class MessageBuilderTest {
     }
 
     @Test
+    fun aLinkLeadsToALowerCaseScheme() {
+        assertEquals("https://www.twitch.tv/x", MessageBuilder.linkTarget("Https://www.twitch.tv/x"))
+        assertEquals("http://Example.com/A", MessageBuilder.linkTarget("HTTP://Example.com/A"))
+        assertEquals("https://example.com", MessageBuilder.linkTarget("example.com"))
+        assertEquals("https://example.com/a", MessageBuilder.linkTarget("https://example.com/a"))
+        assertEquals("https://Example.com/?r=http://x", MessageBuilder.linkTarget("Example.com/?r=http://x"))
+    }
+
+    @Test
     fun parseColor() {
         assertEquals(0xFFFF0000.toInt(), MessageBuilder.parseColor("#FF0000"))
         assertEquals(null, MessageBuilder.parseColor(""))

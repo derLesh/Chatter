@@ -100,7 +100,7 @@ fun LinkGuard(settings: Settings, content: @Composable () -> Unit) {
             confirmButton = {
                 TextButton(onClick = {
                     asking = null
-                    runCatching { platform.openUri(uri) }
+                    platform.openUri(uri)
                 }) { Text(stringResource(R.string.open)) }
             },
             dismissButton = {

@@ -11,4 +11,6 @@ class AppChatNotices(private val context: Context) : ChatNotices {
         context.resources.getQuantityString(R.plurals.chat_timeout, seconds, name, seconds)
 
     override fun ban(name: String): String = context.getString(R.string.chat_ban, name)
+
+    override fun notConfirmed(): String = context.getString(R.string.chat_not_confirmed)
 }

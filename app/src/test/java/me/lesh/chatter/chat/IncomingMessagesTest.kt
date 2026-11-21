@@ -40,6 +40,7 @@ class IncomingMessagesTest {
         override fun chatCleared() = "Chat cleared."
         override fun timeout(name: String, seconds: Int) = "$name timed out for $seconds seconds."
         override fun ban(name: String) = "$name banned."
+        override fun notConfirmed() = "Not confirmed."
     }
 
     private class CountedStats : ChatStats {
@@ -225,11 +226,61 @@ class IncomingMessagesTest {
         buffers.open("forsen")
         val watcher = launch { buffers.messages("forsen").collect {} }
         incoming.sent(own("local-1", sentAt = System.currentTimeMillis() - 60_000))
+        clock += 60_000
         incoming.sent(own("local-2"))
         incoming.handle(line("@badges=;id=real-2 :tmi.twitch.tv USERSTATE #forsen"))
         advanceUntilIdle()
         assertEquals(listOf("local-1", "real-2"), ids())
         watcher.cancel()
+    }
+
+    @Test
+    fun aMessageTwitchNeverAnsweredIsStruckOutSaidAndHandedBack() = runTest(dispatcher) {
+        buffers.open("forsen")
+        val watcher = launch { buffers.messages("forsen").collect {} }
+        incoming.sent(own("local-1"))
+        incoming.expire("forsen", "local-1")
+        advanceUntilIdle()
+        assertEquals(listOf("forsen"), refused)
+        val shown = buffers.messages("forsen").value
+        assertTrue(shown.first { it.id == "local-1" }.deleted)
+        assertEquals("Not confirmed.", shown.last().systemText)
+        assertFalse(incoming.isUnconfirmed("forsen", "local-1"))
+        watcher.cancel()
+    }
+
+    @Test
+    fun aConfirmedMessageIsNotGivenUpOn() = runTest(dispatcher) {
+        buffers.open("forsen")
+        val watcher = launch { buffers.messages("forsen").collect {} }
+        incoming.sent(own("local-1"))
+        incoming.handle(line("@badges=;id=real-1 :tmi.twitch.tv USERSTATE #forsen"))
+        incoming.expire("forsen", "local-1")
+        advanceUntilIdle()
+        assertTrue(refused.isEmpty())
+        assertEquals(listOf("real-1"), ids())
+        watcher.cancel()
+    }
+
+    @Test
+    fun ownMessagesAreTimedOnTwitchsClock() = runTest(dispatcher) {
+        buffers.open("forsen")
+        // Twitch's clock is 5 s ahead of the phone's; the line took 100 ms to arrive.
+        incoming.handle(line("@id=a;tmi-sent-ts=${clock + 4_900} :someone!someone@someone.tmi.twitch.tv PRIVMSG #forsen :hi"))
+        assertEquals(clock + 4_900, incoming.ownTimestamp("forsen"))
+
+        // Held back for a while: it looks older, which barely moves the estimate.
+        incoming.handle(line("@id=b;tmi-sent-ts=${clock + 1_900} :someone!someone@someone.tmi.twitch.tv PRIVMSG #forsen :hi"))
+        clock += 10
+        assertTrue(incoming.ownTimestamp("forsen") >= clock + 4_800)
+    }
+
+    @Test
+    fun anOwnMessageIsNeverTimedBeforeTheNewestOneShown() = runTest(dispatcher) {
+        buffers.open("forsen")
+        incoming.handle(line("@id=a;tmi-sent-ts=${clock + 60_000} :someone!someone@someone.tmi.twitch.tv PRIVMSG #forsen :hi"))
+        incoming.handle(line("@id=b;tmi-sent-ts=${clock - 60_000} :someone!someone@someone.tmi.twitch.tv PRIVMSG #other :hi"))
+        assertTrue(incoming.ownTimestamp("forsen") >= clock + 60_000)
     }
 
     // ---- mentions -------------------------------------------------------------------------------

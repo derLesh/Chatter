@@ -52,6 +52,30 @@ class MessageBuffersTest {
         }
 
     @Test
+    fun anUnconfirmedOwnMessageGivesWayToTwitchsCopyFromHistory() = watching("forsen") { shown ->
+        val echo = message("forsen", "local-1", text = "hello  there", login = "lukas")
+            .copy(isOwn = true, timestamp = 10_000, deleted = true)
+        val other = message("forsen", "local-2", text = "something else", login = "lukas").copy(isOwn = true, timestamp = 11_000)
+        buffers.add(echo)
+        buffers.add(other)
+        // Sent again right away, so it went out with an extra mark; and on a slightly different clock.
+        val copy = message("forsen", "real-1", text = "hello there" + RepeatedMessages.SUFFIX, login = "lukas")
+            .copy(isOwn = true, timestamp = 10_400)
+        buffers.dropEchoesOf("forsen", listOf(copy))
+        buffers.merge("forsen", listOf(copy))
+        advanceUntilIdle()
+        assertEquals(listOf("real-1", "local-2"), shown("forsen").map { it.id })
+    }
+
+    @Test
+    fun anOwnMessageMuchLaterIsNotTakenForTheEcho() = watching("forsen") { shown ->
+        buffers.add(message("forsen", "local-1", text = "gg", login = "lukas").copy(isOwn = true, timestamp = 10_000))
+        buffers.dropEchoesOf("forsen", listOf(message("forsen", "real-9", text = "gg", login = "lukas").copy(isOwn = true, timestamp = 120_000)))
+        advanceUntilIdle()
+        assertEquals(listOf("local-1"), shown("forsen").map { it.id })
+    }
+
+    @Test
     fun emotesThatArriveLateAreDrawnIntoTheMessagesAlreadyOnScreen() = watching("forsen") { shown ->
         // Stands in for the emote tables: empty until the provider answers.
         var known = emptySet<String>()

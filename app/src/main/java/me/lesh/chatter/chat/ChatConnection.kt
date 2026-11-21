@@ -18,6 +18,12 @@ interface ChatConnection {
 
     /** False if the message could not be handed to the connection. */
     fun sendMessage(channel: String, text: String, replyParentId: String? = null): Boolean
+
+    /**
+     * Makes sure the connection still answers, for when Twitch has not confirmed a sent message: a
+     * connection that died unnoticed would otherwise only be found by the silence watchdog.
+     */
+    fun checkAlive() {}
 }
 
 /** Lines the chat writes itself, in the user's language. */
@@ -25,6 +31,9 @@ interface ChatNotices {
     fun chatCleared(): String
     fun timeout(name: String, seconds: Int): String
     fun ban(name: String): String
+
+    /** Twitch never answered a message the user sent. */
+    fun notConfirmed(): String
 }
 
 /** Counting while messages arrive; implemented by [me.lesh.chatter.stats.StatsRepository]. */

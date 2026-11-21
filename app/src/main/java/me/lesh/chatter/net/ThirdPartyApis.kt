@@ -3,6 +3,7 @@ package me.lesh.chatter.net
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.JsonElement
 import okhttp3.OkHttpClient
+import java.util.concurrent.TimeUnit
 
 // ---- BetterTTV ---------------------------------------------------------------
 
@@ -156,24 +157,38 @@ interface ThirdPartyBadgeApi {
 }
 
 class ThirdPartyApi(private val http: OkHttpClient) : ThirdPartyEmoteApi, ThirdPartyBadgeApi {
-    override suspend fun bttvGlobal(): List<BttvEmote> = http.getJson("https://api.betterttv.net/3/cached/emotes/global")
+    /**
+     * A shorter read timeout than the app's: a provider that stops answering is asked again by
+     * [retryTransient] sooner, and a slow but steady download still never waits that long between bytes.
+     */
+    private val lists = http.newBuilder().readTimeout(LIST_READ_TIMEOUT_S, TimeUnit.SECONDS).build()
+
+    override suspend fun bttvGlobal(): List<BttvEmote> =
+        retryTransient("BTTV global emotes") { lists.getJson("https://api.betterttv.net/3/cached/emotes/global") }
     override suspend fun bttvChannel(channelId: String): BttvChannel? =
-        http.getJsonOrNull("https://api.betterttv.net/3/cached/users/twitch/$channelId")
+        retryTransient("BTTV channel emotes") { lists.getJsonOrNull("https://api.betterttv.net/3/cached/users/twitch/$channelId") }
 
-    override suspend fun ffzGlobal(): FfzGlobal = http.getJson("https://api.frankerfacez.com/v1/set/global")
+    override suspend fun ffzGlobal(): FfzGlobal =
+        retryTransient("FFZ global emotes") { lists.getJson("https://api.frankerfacez.com/v1/set/global") }
     override suspend fun ffzChannel(channelId: String): FfzRoom? =
-        http.getJsonOrNull("https://api.frankerfacez.com/v1/room/id/$channelId")
+        retryTransient("FFZ room") { lists.getJsonOrNull("https://api.frankerfacez.com/v1/room/id/$channelId") }
 
-    override suspend fun sevenTvGlobal(): SevenTvEmoteSet = http.getJson("https://7tv.io/v3/emote-sets/global")
+    override suspend fun sevenTvGlobal(): SevenTvEmoteSet =
+        retryTransient("7TV global emotes") { lists.getJson("https://7tv.io/v3/emote-sets/global") }
     override suspend fun sevenTvChannel(channelId: String): SevenTvUser? =
-        http.getJsonOrNull("https://7tv.io/v3/users/twitch/$channelId")
+        retryTransient("7TV channel emotes") { lists.getJsonOrNull("https://7tv.io/v3/users/twitch/$channelId") }
 
     override suspend fun chatterinoBadges(): ChatterinoBadges =
-        http.getJson("https://api.chatterino.com/badges")
+        retryTransient("Chatterino badges") { lists.getJson("https://api.chatterino.com/badges") }
 
-    override suspend fun ffzBadges(): FfzBadges = http.getJson("https://api.frankerfacez.com/v1/badges/ids")
+    override suspend fun ffzBadges(): FfzBadges =
+        retryTransient("FFZ badges") { lists.getJson("https://api.frankerfacez.com/v1/badges/ids") }
     override suspend fun ffzRoom(channelId: String): FfzRoom? = ffzChannel(channelId)
 
     suspend fun recentMessages(channel: String, limit: Int): RecentMessages =
         http.getJson("https://recent-messages.robotty.de/api/v2/recent-messages/$channel?limit=$limit")
+
+    private companion object {
+        const val LIST_READ_TIMEOUT_S = 10L
+    }
 }

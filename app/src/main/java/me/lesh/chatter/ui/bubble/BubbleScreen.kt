@@ -52,6 +52,8 @@ import me.lesh.chatter.ui.chat.EmoteTap
 import me.lesh.chatter.ui.chat.EmotePickerSheet
 import me.lesh.chatter.ui.chat.InputBar
 import me.lesh.chatter.ui.chat.rememberChatStyle
+import me.lesh.chatter.ui.pill.PillTone
+import me.lesh.chatter.ui.pill.showPill
 import kotlinx.coroutines.launch
 
 /**
@@ -190,7 +192,7 @@ fun BubbleScreen(vm: MainViewModel, channel: String?) {
                     jumpTo = jump?.takeIf { it.channel == channel }?.id,
                     onJumped = { found ->
                         vm.requestedMessage.value = null
-                        if (!found) scope.launch { snackbar.showSnackbar(resources.getString(R.string.jump_message_gone)) }
+                        if (!found) scope.launch { snackbar.showPill(resources.getString(R.string.jump_message_gone), PillTone.Info) }
                     },
                     bottomInset = { if (floatingInput) with(density) { floatingInputHeight.toDp() } else 0.dp },
                     snackbar = snackbar,

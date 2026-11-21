@@ -1,6 +1,5 @@
 package me.lesh.chatter.debug
 
-import java.net.URLEncoder
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -61,7 +60,20 @@ object LogReport {
     /** Leaves room in the link for the template, the version and the phone. */
     private const val ISSUE_LOG_CHARS = 6_500
 
-    private fun encodedLength(text: String) = URLEncoder.encode(text, Charsets.UTF_8).length
+    private fun encodedLength(text: String) = uriEncodedLength(text)
+
+    /**
+     * How long [text] gets as a query parameter of `Uri.Builder`, which keeps only letters, digits
+     * and `_-!.~'()*` and writes a space as `%20`, unlike `URLEncoder`'s `+`.
+     */
+    fun uriEncodedLength(text: String): Int {
+        var length = 0
+        for (byte in text.toByteArray(Charsets.UTF_8)) {
+            val c = byte.toInt().toChar()
+            length += if (byte >= 0 && (c.isLetterOrDigit() || c in "_-!.~'()*")) 1 else 3
+        }
+        return length
+    }
 
     private fun time(at: Long): String = format.get()!!.format(Date(at))
 

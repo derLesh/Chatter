@@ -32,7 +32,10 @@ import me.lesh.chatter.auth.TokenOwner
 import me.lesh.chatter.badges.Badge
 import me.lesh.chatter.badges.BadgeProvider
 import me.lesh.chatter.channels.ChannelGroup
+import me.lesh.chatter.channels.ChannelSettingsChange
+import me.lesh.chatter.channels.ChannelSettingsForm
 import me.lesh.chatter.channels.RemovedPage
+import me.lesh.chatter.channels.StreamCategory
 import me.lesh.chatter.channels.displayName
 import me.lesh.chatter.chat.ChatCommand
 import me.lesh.chatter.chat.Bot
@@ -59,6 +62,7 @@ import me.lesh.chatter.chat.SendResult
 import me.lesh.chatter.chat.WhisperResult
 import me.lesh.chatter.crash.Crash
 import me.lesh.chatter.crash.DeviceInfo
+import me.lesh.chatter.emotes.ChannelEmoteSet
 import me.lesh.chatter.emotes.Emoji
 import me.lesh.chatter.emotes.EmojiCatalog
 import me.lesh.chatter.emotes.Emote
@@ -66,6 +70,14 @@ import me.lesh.chatter.emotes.EmoteOwner
 import me.lesh.chatter.emotes.EmoteProvider
 import me.lesh.chatter.emotes.HiddenEmote
 import me.lesh.chatter.emotes.HiddenEmotes
+import me.lesh.chatter.emotes.EmoteAccess
+import me.lesh.chatter.emotes.EmoteEditOutcome
+import me.lesh.chatter.emotes.EmoteSetChoice
+import me.lesh.chatter.ui.chat.EmoteEditing
+import me.lesh.chatter.emotes.EmoteButton
+import me.lesh.chatter.auth.SevenTvLogin
+import me.lesh.chatter.net.SevenTvLoginStart
+import me.lesh.chatter.ui.chat.EmoteAdding
 import me.lesh.chatter.net.HelixBlockedUser
 import me.lesh.chatter.net.HelixChannelSearch
 import me.lesh.chatter.net.HelixFollowedChannel
@@ -99,7 +111,9 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
@@ -107,12 +121,61 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.util.Locale
 import me.lesh.chatter.util.shownVersion
+import me.lesh.chatter.ui.pill.PillTone
 
 /**
- * A snackbar message: a string resource and its argument. Resolved on screen, so a message that is
- * up follows a language change.
+ * A message for the pill: a string resource and its argument, [fill], which stands out in it.
+ * Resolved on screen, so a message that is up follows a language change.
  */
-data class UiMessage(val text: Int, val fill: String? = null)
+data class UiMessage(val text: Int, val fill: String? = null, val tone: PillTone = PillTone.Error)
+
+/**
+ * A change to a channel's 7TV emotes, made again once the 7TV login is done if it needed one.
+ * [account] is the Twitch account it was tapped for; an emote's name is the one it has in the channel.
+ */
+sealed interface PendingEmoteEdit {
+    val channel: String
+    val account: String?
+
+    /**
+     * To [set], or to the channel's active set for null: [channel]'s, or [sourceRoomId]'s for a
+     * Shared Chat message. [quiet]: from a linked emote's card, whose button shows it got added.
+     */
+    data class Add(
+        override val channel: String,
+        val sourceRoomId: String?,
+        val set: EmoteSetChoice?,
+        val emoteId: String,
+        val name: String,
+        override val account: String?,
+        val quiet: Boolean,
+    ) : PendingEmoteEdit
+
+    /** In [setId], the channel's active set when the card asked. */
+    data class Rename(
+        override val channel: String,
+        val setId: String,
+        val emoteId: String,
+        val name: String,
+        val newName: String,
+        override val account: String?,
+    ) : PendingEmoteEdit
+
+    /** Out of [setId], the channel's active set when the card asked. */
+    data class Remove(
+        override val channel: String,
+        val setId: String,
+        val emoteId: String,
+        val name: String,
+        override val account: String?,
+    ) : PendingEmoteEdit
+
+    /** Makes [set] the channel's active set, from the channel settings. */
+    data class SwitchSet(override val channel: String, val set: ChannelEmoteSet, override val account: String?) : PendingEmoteEdit
+}
+
+/** 7TV's login page, opened for the Twitch account [account]; [then] is made once it is done. */
+data class SevenTvLoginPage(val start: SevenTvLoginStart, val account: String, val then: PendingEmoteEdit?)
 
 /** A message to scroll to: [id] in [channel]'s chat. */
 data class MessageJump(val channel: String, val id: String)
@@ -251,6 +314,194 @@ class MainViewModel(private val c: AppContainer, savedState: SavedStateHandle) :
     val staticImageLoader get() = c.staticImageLoader
     val posts get() = c.posts
 
+    // ---- Changing 7TV emotes from their cards --------------------------------------------------
+
+    private val _askSevenTvLogin = MutableStateFlow<PendingEmoteEdit?>(null)
+    /** The change that needs the 7TV login, while the sheet asking for it is up. */
+    val askSevenTvLogin: StateFlow<PendingEmoteEdit?> = _askSevenTvLogin
+    private val _sevenTvLogin = MutableStateFlow<SevenTvLoginPage?>(null)
+    /** 7TV's login page while it is open. */
+    val sevenTvLogin: StateFlow<SevenTvLoginPage?> = _sevenTvLogin
+    val sevenTvLoggedIn: StateFlow<Boolean> get() = c.sevenTvEditing.loggedIn
+    private var sevenTvLoginStarting: Job? = null
+    private val emoteChanges = MutableStateFlow(0)
+    private val activeAccountId: StateFlow<String?> = c.auth.state
+        .map { (it as? AuthState.LoggedIn)?.account?.userId }
+        .stateIn(viewModelScope, SharingStarted.Eagerly, null)
+
+    // A change or login here, another account, or 7TV's live update of any channel's emotes.
+    private val emoteEditRevision: Flow<Any> = combine(emoteChanges, activeAccountId, c.emotes.version) { added, account, emotes ->
+        Triple(added, account, emotes)
+    }
+
+    val emoteAdding: EmoteAdding = object : EmoteAdding {
+        override val revision: Flow<Any> = emoteEditRevision
+
+        override suspend fun button(channel: String, sourceRoomId: String?, emoteId: String): EmoteButton =
+            c.sevenTvEditing.button(channel, sourceRoomId, emoteId)
+
+        override suspend fun add(channel: String, sourceRoomId: String?, emoteId: String, name: String) =
+            editSevenTvEmote(PendingEmoteEdit.Add(channel, sourceRoomId, null, emoteId, name, activeAccountId.value, quiet = true))
+    }
+
+    /** The emote card's changes run here rather than on the card, which closes as they start. */
+    val emoteEditing: EmoteEditing = object : EmoteEditing {
+        override val revision: Flow<Any> = emoteEditRevision
+
+        override suspend fun access(channel: String, emoteId: String, shownName: String, fresh: Boolean): EmoteAccess? =
+            c.sevenTvEditing.access(channel, emoteId, shownName, fresh)
+
+        override suspend fun sets(channel: String, emoteId: String, name: String): List<EmoteSetChoice>? =
+            c.sevenTvEditing.sets(channel, emoteId, name)
+
+        override fun add(channel: String, set: EmoteSetChoice?, emoteId: String, name: String) {
+            viewModelScope.launch { editSevenTvEmote(PendingEmoteEdit.Add(channel, null, set, emoteId, name, activeAccountId.value, quiet = false)) }
+        }
+
+        override fun rename(channel: String, setId: String, emoteId: String, name: String, newName: String) {
+            viewModelScope.launch { editSevenTvEmote(PendingEmoteEdit.Rename(channel, setId, emoteId, name, newName, activeAccountId.value)) }
+        }
+
+        override fun remove(channel: String, setId: String, emoteId: String, name: String) {
+            viewModelScope.launch { editSevenTvEmote(PendingEmoteEdit.Remove(channel, setId, emoteId, name, activeAccountId.value)) }
+        }
+    }
+
+    private suspend fun editSevenTvEmote(edit: PendingEmoteEdit) {
+        val editing = c.sevenTvEditing
+        val outcome = when (edit) {
+            is PendingEmoteEdit.Add ->
+                editing.add(edit.channel, edit.sourceRoomId, edit.set?.id, edit.set?.active == true, edit.emoteId, edit.name, edit.account)
+            is PendingEmoteEdit.Rename -> editing.rename(edit.channel, edit.setId, edit.emoteId, edit.name, edit.newName, edit.account)
+            is PendingEmoteEdit.Remove -> editing.remove(edit.channel, edit.setId, edit.emoteId, edit.name, edit.account)
+            is PendingEmoteEdit.SwitchSet -> editing.activateSet(edit.channel, edit.set.id, edit.account)
+        }
+        when (outcome) {
+            EmoteEditOutcome.Done -> {
+                emoteChanges.update { it + 1 }
+                val done = when (edit) {
+                    is PendingEmoteEdit.Add -> when {
+                        edit.quiet -> null
+                        edit.set != null && !edit.set.active -> UiMessage(R.string.seventv_added_to_set, edit.set.name, tone = PillTone.Success)
+                        else -> UiMessage(R.string.seventv_added_to_channel, edit.name, tone = PillTone.Success)
+                    }
+                    is PendingEmoteEdit.Rename -> UiMessage(R.string.seventv_renamed_to, edit.newName, tone = PillTone.Success)
+                    is PendingEmoteEdit.Remove -> UiMessage(R.string.seventv_removed_from_channel, edit.name, tone = PillTone.Success)
+                    is PendingEmoteEdit.SwitchSet -> UiMessage(R.string.seventv_set_activated, edit.set.name, tone = PillTone.Success)
+                }
+                done?.let { _messages.send(it) }
+            }
+            EmoteEditOutcome.NameTaken -> _messages.send(
+                when (edit) {
+                    is PendingEmoteEdit.Rename -> UiMessage(R.string.seventv_name_taken, edit.newName)
+                    is PendingEmoteEdit.Add if edit.set != null && !edit.set.active -> UiMessage(R.string.seventv_name_taken_in_set, edit.set.name)
+                    is PendingEmoteEdit.Add -> UiMessage(R.string.seventv_name_taken, edit.name)
+                    is PendingEmoteEdit.Remove -> UiMessage(R.string.seventv_name_taken, edit.name)
+                    // Switching adds no name, so 7TV has no reason to say this.
+                    is PendingEmoteEdit.SwitchSet -> UiMessage(R.string.seventv_switch_failed, edit.set.name)
+                },
+            )
+            EmoteEditOutcome.Failed -> _messages.send(
+                when (edit) {
+                    is PendingEmoteEdit.Add -> UiMessage(R.string.seventv_add_failed, edit.name)
+                    is PendingEmoteEdit.Rename -> UiMessage(R.string.seventv_rename_failed, edit.name)
+                    is PendingEmoteEdit.Remove -> UiMessage(R.string.seventv_remove_failed, edit.name)
+                    is PendingEmoteEdit.SwitchSet -> UiMessage(R.string.seventv_switch_failed, edit.set.name)
+                },
+            )
+            EmoteEditOutcome.SetSwitched -> _messages.send(UiMessage(R.string.seventv_set_switched, tone = PillTone.Warning))
+            // The channel settings say beforehand that saving logs in; asking again would only be another tap.
+            EmoteEditOutcome.NeedsLogin -> if (edit is PendingEmoteEdit.SwitchSet) openSevenTvLogin(edit) else _askSevenTvLogin.value = edit
+        }
+    }
+
+    fun dismissSevenTvLoginQuestion() {
+        _askSevenTvLogin.value = null
+    }
+
+    /**
+     * Opens 7TV's login page for the active account; [then] is made once it is done. A second tap
+     * while one is starting or open does nothing, so the page and its verifier stay one pair.
+     */
+    fun openSevenTvLogin(then: PendingEmoteEdit? = null) {
+        _askSevenTvLogin.value = null
+        val account = activeAccountId.value ?: return
+        if (_sevenTvLogin.value != null || sevenTvLoginStarting?.isActive == true) return
+        sevenTvLoginStarting = viewModelScope.launch {
+            try {
+                val start = c.sevenTvEditing.startLogin()
+                if (activeAccountId.value == account) _sevenTvLogin.value = SevenTvLoginPage(start, account, then)
+            } catch (e: IOException) {
+                AppLog.w("SevenTv", "Could not start the 7TV login: ${e.message}")
+                _messages.send(UiMessage(R.string.seventv_login_failed))
+            }
+        }
+    }
+
+    /** Finishes the login with 7TV's callback [url] from the login page. */
+    fun finishSevenTvLogin(url: String) {
+        val page = _sevenTvLogin.value ?: return
+        _sevenTvLogin.value = null
+        val code = SevenTvLogin.code(url)
+        viewModelScope.launch {
+            if (code == null || !c.sevenTvEditing.finishLogin(page.start, code, page.account)) {
+                _messages.send(UiMessage(R.string.seventv_login_failed))
+                return@launch
+            }
+            emoteChanges.update { it + 1 }
+            page.then?.takeIf { it.account == page.account }?.let { editSevenTvEmote(it) }
+        }
+    }
+
+    fun closeSevenTvLogin() {
+        _sevenTvLogin.value = null
+    }
+
+    fun logoutSevenTv() = c.sevenTvEditing.logout()
+
+    // ---- Channel settings: title, category and 7TV emote set -----------------------------------
+
+    /** The channels the menu found the user may change, and the account it asked for. */
+    private val checkedChannels = MutableStateFlow<Pair<String?, Set<String>>>(null to emptySet())
+
+    /** Channels whose menu offers the channel settings, as far as a menu opened since checked. */
+    val changeableChannels: StateFlow<Set<String>> = combine(checkedChannels, activeAccountId) { (account, channels), active ->
+        if (account == active) channels else emptySet()
+    }.stateIn(viewModelScope, SharingStarted.Eagerly, emptySet())
+
+    /**
+     * Finds out, as [channel]'s menu opens, whether it offers the channel settings. Asking 7TV only
+     * then keeps it off the network for channels whose menu nobody opens; 7TV's answer is kept for a
+     * few minutes, so the entry shows at once the next time.
+     */
+    fun checkChannelSettings(channel: String) {
+        val account = activeAccountId.value ?: return
+        viewModelScope.launch {
+            val may = c.channelSettings.mayChange(channel)
+            checkedChannels.update { (checkedFor, channels) ->
+                val kept = if (checkedFor == account) channels else emptySet()
+                account to if (may) kept + channel else kept - channel
+            }
+        }
+    }
+
+    suspend fun loadChannelSettings(channel: String): ChannelSettingsForm = c.channelSettings.load(channel)
+
+    suspend fun searchCategories(query: String): List<StreamCategory> = c.channelSettings.searchCategories(query)
+
+    fun saveChannelSettings(channel: String, change: ChannelSettingsChange) {
+        val account = activeAccountId.value
+        viewModelScope.launch {
+            if (change.title != null || change.category != null) {
+                val saved = c.channelSettings.saveStream(channel, change.title, change.category, account)
+                _messages.send(
+                    if (saved) UiMessage(R.string.channel_settings_saved, tone = PillTone.Success) else UiMessage(R.string.channel_settings_save_failed),
+                )
+            }
+            change.emoteSet?.let { editSevenTvEmote(PendingEmoteEdit.SwitchSet(channel, it, account)) }
+        }
+    }
+
     private val composer = Composer(
         scope = viewModelScope,
         outbox = object : Outbox {
@@ -267,7 +518,7 @@ class MainViewModel(private val c: AppContainer, savedState: SavedStateHandle) :
     private suspend fun reportSendResult(result: SendResult) {
         when (result) {
             SendResult.NotConnected -> _messages.send(UiMessage(R.string.error_not_connected))
-            SendResult.RateLimited -> _messages.send(UiMessage(R.string.error_rate_limited))
+            SendResult.RateLimited -> _messages.send(UiMessage(R.string.error_rate_limited, tone = PillTone.Warning))
             // A command error is shown in the chat.
             SendResult.Ok, SendResult.Empty, SendResult.CommandError -> Unit
         }
@@ -667,14 +918,15 @@ class MainViewModel(private val c: AppContainer, savedState: SavedStateHandle) :
         return (hint.choices + names + hint.parameters).distinctBy { it.lowercase() }.map { Suggestion.ArgumentSuggestion(it) }
     }
 
-    private suspend fun rank(channel: String, word: Autocomplete.Word): List<Suggestion> {
+    /** Without [commands] only emotes, emoji and names: a message going with a picture is never a command. */
+    private suspend fun rank(channel: String, word: Autocomplete.Word, commands: Boolean = true): List<Suggestion> {
         // A sign can also start a Twitch smiley like ">(", so without a command the emotes get it.
-        if (word.start == 0 && BotCommands.startsLikeCommand(word.text)) {
+        if (commands && word.start == 0 && BotCommands.startsLikeCommand(word.text)) {
             val commands = c.botCommands.suggest(channel, word.text)
             if (commands.isNotEmpty()) return commands.map { Suggestion.BotCommandSuggestion(it) }
         }
         val shortcode = EmojiCatalog.typedShortcode(word.text)
-        return if (word.start == 0 && word.text.startsWith("/")) {
+        return if (commands && word.start == 0 && word.text.startsWith("/")) {
             val typed = word.text.substring(1).lowercase()
             CommandParser.COMMANDS.filterKeys { it.startsWith(typed) }
                 .map { (name, usage) -> Suggestion.CommandSuggestion(name, usage) }
@@ -704,11 +956,18 @@ class MainViewModel(private val c: AppContainer, savedState: SavedStateHandle) :
     }
 
     fun applySuggestion(s: Suggestion) {
-        val cursor = input.selection.start
+        composer.input = withSuggestion(input, s) ?: return
+        // A command or an argument is followed by the hint for the next argument.
+        updateSuggestions()
+    }
+
+    /** [typed] with the word at the cursor replaced by [s]; null if there is no word to replace. */
+    private fun withSuggestion(typed: TextFieldValue, s: Suggestion): TextFieldValue? {
+        val cursor = typed.selection.start
         // An argument can be offered between two words, before anything of it is typed.
-        val word = Autocomplete.currentWord(input.text, cursor)
+        val word = Autocomplete.currentWord(typed.text, cursor)
             ?: Autocomplete.Word(cursor, cursor, "").takeIf { s is Suggestion.ArgumentSuggestion }
-            ?: return
+            ?: return null
         val value = when (s) {
             is Suggestion.EmoteSuggestion -> s.emote.name.also { rememberEmote(it) }
             // An "@" the user typed stays either way.
@@ -721,10 +980,8 @@ class MainViewModel(private val c: AppContainer, savedState: SavedStateHandle) :
         }
         // "format:" is followed by its value, not a space.
         val space = !(s is Suggestion.ArgumentSuggestion && value.endsWith(":"))
-        val (text, newCursor) = Autocomplete.replace(input.text, word, value, space)
-        composer.input = TextFieldValue(text, TextRange(newCursor))
-        // A command or an argument is followed by the hint for the next argument.
-        updateSuggestions()
+        val (text, newCursor) = Autocomplete.replace(typed.text, word, value, space)
+        return TextFieldValue(text, TextRange(newCursor))
     }
 
     fun insertEmote(emote: Emote) {
@@ -736,8 +993,30 @@ class MainViewModel(private val c: AppContainer, savedState: SavedStateHandle) :
     /** Puts an emote or emoji into the message going with a picture. */
     internal fun insertInto(sender: PictureSender, value: String) {
         val (text, cursor) = Autocomplete.insert(sender.text.text, sender.text.selection.start, value)
-        sender.text = TextFieldValue(text, TextRange(cursor))
+        onPictureTextChange(TextFieldValue(text, TextRange(cursor)))
         rememberEmote(value)
+    }
+
+    private var pictureSuggestionJob: Job? = null
+
+    /** The message going with a picture was typed in; offers emotes, emoji and names as the chat does. */
+    internal fun onPictureTextChange(value: TextFieldValue) {
+        picture.text = value
+        pictureSuggestionJob?.cancel()
+        val channel = picture.channel
+        val word = Autocomplete.currentWord(value.text, value.selection.start)
+        if (channel == null || word == null) {
+            picture.suggestions = emptyList()
+            return
+        }
+        pictureSuggestionJob = viewModelScope.launch {
+            val ranked = withContext(Dispatchers.Default) { rank(channel, word, commands = false) }
+            if (picture.text == value && picture.channel == channel) picture.suggestions = ranked
+        }
+    }
+
+    internal fun applyPictureSuggestion(s: Suggestion) {
+        onPictureTextChange(withSuggestion(picture.text, s) ?: return)
     }
 
     fun insertEmoji(emoji: Emoji) {
@@ -1072,6 +1351,54 @@ class MainViewModel(private val c: AppContainer, savedState: SavedStateHandle) :
     /** The last recorded crash; null if there is none. */
     suspend fun lastCrash(): Crash? = withContext(Dispatchers.IO) { c.crashLog.latest() }
 
+    private val _crashes = MutableStateFlow<List<Crash>?>(null)
+    /** The kept crashes, newest first; null until [loadCrashes] has read them. */
+    val crashes: StateFlow<List<Crash>?> = _crashes
+
+    fun loadCrashes() {
+        viewModelScope.launch(Dispatchers.IO) { _crashes.value = c.crashLog.all() }
+    }
+
+    fun deleteCrash(at: Long) {
+        viewModelScope.launch(Dispatchers.IO) {
+            c.crashLog.delete(at)
+            _crashes.value = c.crashLog.all()
+        }
+    }
+
+    fun clearCrashes() {
+        viewModelScope.launch(Dispatchers.IO) {
+            c.crashLog.clear()
+            _crashes.value = emptyList()
+        }
+    }
+
+    private val _crashToOffer = MutableStateFlow<Crash?>(null)
+    /** A crash since the last start that has not been offered for reporting yet, while the sheet asking is up. */
+    val crashToOffer: StateFlow<Crash?> = _crashToOffer
+
+    init {
+        viewModelScope.launch(Dispatchers.IO) {
+            c.earlierExitsRead.await()
+            _crashToOffer.value = c.crashLog.unoffered()
+        }
+    }
+
+    private val _offeredCrashShown = MutableStateFlow<Crash?>(null)
+    /** The crash the start asked about, while it is open after "Show it"; here so it outlasts turning the phone. */
+    val offeredCrashShown: StateFlow<Crash?> = _offeredCrashShown
+
+    /** Asked once per crash, whatever the answer. */
+    fun crashOffered() {
+        val crash = _crashToOffer.value ?: return
+        _crashToOffer.value = null
+        viewModelScope.launch(Dispatchers.IO) { c.crashLog.markOffered(crash.at) }
+    }
+
+    fun showOfferedCrash(crash: Crash?) {
+        _offeredCrashShown.value = crash
+    }
+
     /** App and device details for bug reports. */
     val device: DeviceInfo = DeviceInfo.current(shownVersion, BuildConfig.VERSION_CODE)
 
@@ -1181,7 +1508,6 @@ class MainViewModel(private val c: AppContainer, savedState: SavedStateHandle) :
     fun setSendLater(v: Boolean) = saveSetting { setSendLater(v) }
     fun setSendLaterButton(v: SendLaterButton) = saveSetting { setSendLaterButton(v) }
     fun setSendRepeats(v: Boolean) = saveSetting { setSendRepeats(v) }
-    fun setDebugMenu(v: Boolean) = saveSetting { setDebugMenu(v) }
     fun setShowDeleted(v: Boolean) = saveSetting { setShowDeleted(v) }
     fun setEmoteSuggestions(v: Boolean) = saveSetting { setEmoteSuggestions(v) }
     fun setMentionWithAt(v: Boolean) = saveSetting { setMentionWithAt(v) }
@@ -1411,13 +1737,23 @@ class MainViewModel(private val c: AppContainer, savedState: SavedStateHandle) :
         AppLog.d("Upload", "A picture came in")
         viewModelScope.launch {
             runCatchingCancellable { c.imageUploader.copy(uri, removeInfo = settings.value.removePictureInfo) }
-                .onSuccess { picture.open(it, pictureChannel(), defaultUploader()) }
+                .onSuccess {
+                    picture.open(it, pictureChannel(), defaultUploader())
+                    pictureOpened.value = true
+                }
                 .onFailure {
                     AppLog.w("Upload", "The picture could not be copied in", it)
                     _messages.send(UiMessage(if (it is PictureTooLargeException) R.string.picture_too_large else R.string.picture_unreadable))
                 }
         }
     }
+
+    /**
+     * Set when a picture came in, so the settings close and the send screen is seen: a picture
+     * shared while the app was left in the settings would otherwise wait underneath them. Cleared
+     * once the settings are closed.
+     */
+    internal val pictureOpened = MutableStateFlow(false)
 
     /** The channel the input writes to, else the first one; null before any is open. */
     private fun pictureChannel(): String? = sendChannel?.takeIf { it in channels.value } ?: channels.value.firstOrNull()

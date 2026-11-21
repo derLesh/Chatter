@@ -68,6 +68,7 @@ import me.lesh.chatter.chat.ChatRole
 import me.lesh.chatter.chat.RoomState
 import me.lesh.chatter.irc.ConnectionState
 import me.lesh.chatter.ui.theme.barColor
+import me.lesh.chatter.ui.theme.isAppInDarkTheme
 
 /**
  * The bar above the chat in tab mode: every page in swipe order, the add button, inbox and settings
@@ -101,6 +102,11 @@ fun ChannelTabBar(
     onRemove: (String) -> Unit,
     onRename: (String) -> Unit,
     onMove: (String, Int) -> Unit,
+    /** Channels whose menu offers the channel settings. */
+    changeable: Set<String>,
+    /** A channel's menu opened; the place to find out whether it offers the channel settings. */
+    onMenuOpen: (String) -> Unit,
+    onChannelSettings: (String) -> Unit,
     /** Null for a guest, who has no inbox. */
     onInbox: (() -> Unit)?,
     inboxUnread: Int,
@@ -132,6 +138,9 @@ fun ChannelTabBar(
                     onRemove = onRemove,
                     onRename = onRename,
                     onMove = onMove,
+                    changeable = changeable,
+                    onMenuOpen = onMenuOpen,
+                    onChannelSettings = onChannelSettings,
                     modifier = Modifier.weight(1f),
                 )
                 if (onInbox != null) {
@@ -179,6 +188,9 @@ private fun ChannelTabs(
     onRemove: (String) -> Unit,
     onRename: (String) -> Unit,
     onMove: (String, Int) -> Unit,
+    changeable: Set<String>,
+    onMenuOpen: (String) -> Unit,
+    onChannelSettings: (String) -> Unit,
     modifier: Modifier,
 ) {
     // A combined chat's channels are unknown for a moment after start; its tab would have neither
@@ -228,6 +240,7 @@ private fun ChannelTabs(
                 hasNew = hasNew,
                 hasDraft = page in drafts,
                 onClick = { onSelect(page) },
+                onMenuOpen = { onMenuOpen(page) },
                 // Grouped by effect: position, identity, removal.
                 actions = listOf(
                     listOfNotNull(
@@ -246,6 +259,9 @@ private fun ChannelTabs(
                             onCombine(page)
                         }.takeIf { channelCount >= 2 },
                         TabAction(stringResource(R.string.rename_channel), { Icon(Icons.Default.Edit, null) }) { onRename(page) },
+                        TabAction(stringResource(R.string.channel_settings), { Icon(painterResource(R.drawable.ic_tune), null) }) {
+                            onChannelSettings(page)
+                        }.takeIf { page in changeable },
                     ),
                     listOf(
                         TabAction(stringResource(R.string.remove_channel), { Icon(Icons.Default.Delete, null) }) { onRemove(page) },
@@ -281,12 +297,17 @@ private fun ChannelTab(
     hasNew: Boolean,
     hasDraft: Boolean,
     onClick: () -> Unit,
+    onMenuOpen: () -> Unit,
     actions: List<List<TabAction>>,
 ) {
     var open by remember { mutableStateOf(false) }
+    // Quiet tabs step well back on a dark theme, so a tab with new messages stands out even when
+    // the accent is white and the dot has no color of its own; on a light one that grey would be
+    // too faint to read.
     val color = when {
         selected -> MaterialTheme.colorScheme.primary
         hasNew || mentions > 0 -> MaterialTheme.colorScheme.onSurface
+        isAppInDarkTheme() -> MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
         else -> MaterialTheme.colorScheme.onSurfaceVariant
     }
     Box(
@@ -300,7 +321,10 @@ private fun ChannelTab(
             }
             .combinedClickable(
                 onLongClickLabel = stringResource(R.string.channel_options),
-                onLongClick = { open = true },
+                onLongClick = {
+                    open = true
+                    onMenuOpen()
+                },
                 onClick = onClick,
             )
             .padding(horizontal = 12.dp),

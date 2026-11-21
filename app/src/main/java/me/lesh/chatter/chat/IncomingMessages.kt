@@ -70,17 +70,60 @@ class IncomingMessages(
     fun lastLive(channel: String): Long = lastLive[channel]?.at ?: 0L
 
     /**
+     * How far Twitch's clock is ahead of the phone's, from the newest live messages. Delivery and
+     * holding back only ever make a message look older, so a larger reading is taken at once and a
+     * smaller one only slowly.
+     */
+    private var twitchAhead = 0L
+    private var twitchAheadKnown = false
+
+    /**
+     * The time for a message the user sends now, on Twitch's clock like every other message, so a
+     * phone whose clock is off does not put it out of order when history is merged in. Never before
+     * the newest message of the channel, which is already on screen above it.
+     */
+    fun ownTimestamp(channel: String): Long = maxOf(now() + twitchAhead, lastLive(channel))
+
+    private fun measureClock(twitchTime: Long) {
+        val reading = twitchTime - now()
+        twitchAhead = when {
+            !twitchAheadKnown || reading > twitchAhead -> reading
+            else -> twitchAhead + (reading - twitchAhead) / CLOCK_SMOOTHING
+        }
+        twitchAheadKnown = true
+    }
+
+    /** A sent message and when it went out, on the phone's clock. */
+    private class Pending(val item: ChatItem, val sentAt: Long)
+
+    /**
      * The user's sent messages not yet confirmed by Twitch, oldest first, per channel. Twitch never
      * echoes them; their real id only comes with the USERSTATE answering each accepted PRIVMSG, or
      * a NOTICE for a refused one. Both come in send order, so the oldest is the one being answered.
      */
-    private val unconfirmed = HashMap<String, ArrayDeque<ChatItem>>()
+    private val unconfirmed = HashMap<String, ArrayDeque<Pending>>()
 
     /** A message the user just sent, shown under a temporary id until Twitch confirms it. */
     fun sent(item: ChatItem) {
         item.reply?.let { threads.wroteIn(it.threadId) }
         buffers.add(item)
-        unconfirmed.getOrPut(item.channel) { ArrayDeque() }.addLast(item)
+        unconfirmed.getOrPut(item.channel) { ArrayDeque() }.addLast(Pending(item, now()))
+    }
+
+    /** Whether the sent message [id] still waits for Twitch's answer. */
+    fun isUnconfirmed(channel: String, id: String): Boolean = unconfirmed[channel]?.any { it.item.id == id } == true
+
+    /**
+     * Gives up on the sent message [id] if Twitch still has not answered: it is struck out, the chat
+     * says so, and it goes back into the input like a refused one. Should Twitch have taken it after
+     * all, the history after the reconnect brings it back; see [MessageBuffers.dropEchoesOf].
+     */
+    fun expire(channel: String, id: String) {
+        val waiting = unconfirmed[channel] ?: return
+        if (!waiting.removeAll { it.item.id == id }) return
+        buffers.markDeleted(channel) { it.id == id }
+        system(channel, notices.notConfirmed())
+        onRefused(channel)
     }
 
     /**
@@ -89,16 +132,18 @@ class IncomingMessages(
      */
     private fun answered(channel: String): ChatItem? {
         val waiting = unconfirmed[channel] ?: return null
-        val now = System.currentTimeMillis()
+        val at = now()
         while (waiting.isNotEmpty()) {
             val oldest = waiting.removeFirst()
-            if (now - oldest.timestamp <= ECHO_TIMEOUT_MS) return oldest
+            if (at - oldest.sentAt <= ECHO_TIMEOUT_MS) return oldest.item
         }
         return null
     }
 
     fun clear() {
         lastLive.clear()
+        twitchAhead = 0L
+        twitchAheadKnown = false
         // Answers from the previous connection will not come any more.
         unconfirmed.clear()
         mentionedShared.clear()
@@ -146,6 +191,7 @@ class IncomingMessages(
         val built = builder.build(msg, selfLogin(), rooms.id(channel), mentions) ?: return
         // Muted and hidden messages count as seen too, so a reconnect does not fetch them again.
         lastLive.getOrPut(channel) { Newest(0L) }.at = built.timestamp
+        msg.tagLong("tmi-sent-ts")?.let(::measureClock)
         // Before the mute list: muted messages also show whether a session is running.
         if (sharedChats.onLiveMessage(channel, msg.tag("room-id") ?: rooms.id(channel), msg.tag("source-room-id"))) {
             onSharedChatStarted(channel)
@@ -245,6 +291,9 @@ class IncomingMessages(
     private companion object {
         /** How long a sent message waits for Twitch's confirmation. */
         const val ECHO_TIMEOUT_MS = 10_000L
+
+        /** A smaller clock reading moves the estimate this many times less than its difference. */
+        const val CLOCK_SMOOTHING = 64
 
         /** The copies of a message arrive within moments; a few are enough. */
         const val MENTIONS_REMEMBERED = 64

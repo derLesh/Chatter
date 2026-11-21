@@ -1,0 +1,1 @@
+minor: List it under Crashes when Chatter stopped responding or crashed in native code, to report it the same way

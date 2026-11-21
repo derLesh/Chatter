@@ -1,0 +1,1 @@
+minor: Rename, remove or add 7TV emotes from the emote card in channels whose emotes you edit

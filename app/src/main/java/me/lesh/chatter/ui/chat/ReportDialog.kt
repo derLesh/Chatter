@@ -1,6 +1,5 @@
 package me.lesh.chatter.ui.chat
 
-import android.content.Intent
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -22,12 +21,11 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalClipboardManager
-import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.dp
-import androidx.core.net.toUri
 import me.lesh.chatter.R
 
 /** Twitch's help on reporting. */
@@ -47,7 +45,8 @@ fun ReportDialog(
     onBlock: () -> Unit,
     onDismiss: () -> Unit,
 ) {
-    val context = LocalContext.current
+    // Through LinkGuard, which says so instead of crashing when no app opens a link.
+    val uriHandler = LocalUriHandler.current
     @Suppress("DEPRECATION")
     val clipboard = LocalClipboardManager.current
     var alsoBlock by remember { mutableStateOf(!alreadyBlocked) }
@@ -78,9 +77,7 @@ fun ReportDialog(
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.primary,
                     textDecoration = TextDecoration.Underline,
-                    modifier = Modifier.clickable {
-                        context.startActivity(Intent(Intent.ACTION_VIEW, REPORT_HELP_URL.toUri()))
-                    },
+                    modifier = Modifier.clickable { uriHandler.openUri(REPORT_HELP_URL) },
                 )
             }
         },
@@ -88,7 +85,7 @@ fun ReportDialog(
             TextButton(onClick = {
                 if (alsoBlock && !alreadyBlocked) onBlock()
                 if (message.isNotBlank()) clipboard.setText(AnnotatedString(message))
-                context.startActivity(Intent(Intent.ACTION_VIEW, "https://www.twitch.tv/$login".toUri()))
+                uriHandler.openUri("https://www.twitch.tv/$login")
                 onDismiss()
             }) {
                 Text(stringResource(R.string.report_open_twitch))

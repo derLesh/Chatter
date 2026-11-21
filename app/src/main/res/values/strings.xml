@@ -25,6 +25,7 @@
     <string name="reconnect_waiting_network">Waiting for a network…</string>
     <string name="reconnect_loading_history">Loading missed messages…</string>
     <string name="chat_cleared">Chat has been cleared by a moderator.</string>
+    <string name="chat_not_confirmed">Twitch did not confirm your message. It may not have arrived.</string>
     <plurals name="chat_timeout">
         <item quantity="one">%1$s has been timed out for %2$d second.</item>
         <item quantity="other">%1$s has been timed out for %2$d seconds.</item>
@@ -53,6 +54,7 @@
     <string name="action_reply">Reply</string>
     <string name="action_mention">Mention</string>
     <string name="action_copy">Copy</string>
+    <string name="link_cannot_open">No app can open this link</string>
     <string name="link_check_title">Open this link?</string>
     <string name="link_check_text">This link looks like another site, but it goes to:</string>
     <string name="emotes">Emotes</string>
@@ -135,6 +137,21 @@
     <string name="undo">Undo</string>
     <string name="rename_channel">Rename</string>
     <string name="rename_channel_hint">Give the channel a nickname</string>
+    <string name="channel_settings">Channel settings</string>
+    <string name="channel_settings_stream">Stream</string>
+    <string name="channel_settings_title">Title</string>
+    <string name="channel_settings_category">Category</string>
+    <string name="channel_settings_no_category">No category</string>
+    <string name="channel_settings_category_pick">Pick one from the list</string>
+    <string name="channel_settings_category_clear">Remove the category</string>
+    <string name="channel_settings_emote_set">7TV emote set</string>
+    <string name="channel_settings_seventv_login">Saving asks you to log in to 7TV once.</string>
+    <string name="channel_settings_stream_login">To change the title and category, log in again under Settings → Account.</string>
+    <string name="channel_settings_stream_failed">Could not load the title and category</string>
+    <string name="channel_settings_nothing">There is nothing here you can change.</string>
+    <string name="channel_settings_saved">Title and category saved</string>
+    <string name="channel_settings_save_failed">Twitch did not save the title and category</string>
+    <string name="channel_settings_open_seventv">Open on 7TV</string>
     <string name="add_channel">Add channel</string>
     <string name="channel_name">Channel name</string>
     <string name="add_channel_none_found">Nothing found. Add takes the name anyway.</string>
@@ -321,6 +338,8 @@
     <string name="storage_emote_lists_hint">Which emotes and badges each channel has</string>
     <string name="storage_saved">Saved</string>
     <string name="storage_saved_hint">Settings, channels, inbox and stats</string>
+    <string name="storage_logs">Log and crashes</string>
+    <string name="storage_logs_hint">The last 4 days and 5 crashes</string>
     <string name="storage_app">App</string>
     <string name="storage_app_hint">Chatter itself</string>
     <string name="storage_clear_cache">Clear cache</string>
@@ -410,6 +429,7 @@
     <string name="picture_uploader_once">Only for this picture.</string>
     <string name="picture_uploader_settings">Uploader settings</string>
     <string name="picture_uploading">Uploading … %1$d %%</string>
+    <string name="picture_uploading_spoken">Uploading …</string>
     <string name="picture_sending">Sending …</string>
     <string name="picture_failed_connection">No connection to %1$s</string>
     <string name="picture_failed_site">%1$s did not take the picture</string>
@@ -470,7 +490,7 @@
     <string name="settings_post_site">Show posts from %1$s</string>
     <string name="settings_post_site_x_hint">Shows links to X posts as a card</string>
     <string name="settings_posts">Social media posts</string>
-    <string name="settings_posts_summary">X, Bluesky, YouTube, Twitch</string>
+    <string name="settings_posts_summary">X, Bluesky, YouTube, Twitch, 7TV</string>
     <string name="settings_post_site_on">On</string>
     <string name="settings_post_site_on_compact">On · compact</string>
     <string name="settings_group_post_all">For every site</string>
@@ -478,6 +498,41 @@
     <string name="settings_post_site_youtube">Show videos from YouTube</string>
     <string name="settings_post_site_twitch">Show channels and clips from Twitch</string>
     <string name="settings_post_site_twitch_hint">Shows links to Twitch channels, clips and videos as a card. Only while you are logged in.</string>
+    <string name="settings_post_site_seventv">Show emotes from 7TV</string>
+    <string name="settings_post_site_seventv_hint">Shows links to 7TV emotes as a card. If you edit a channel\'s emotes, you can add one there with a tap.</string>
+    <string name="post_site_seventv" translatable="false">7TV</string>
+    <string name="post_emote">7TV emote</string>
+    <string name="post_emote_by">by %1$s</string>
+    <string name="post_emote_add">Add %1$s to this channel</string>
+    <string name="post_emote_added">Already in this channel</string>
+    <string name="seventv_name_taken">This channel already has an emote called %1$s</string>
+    <string name="seventv_add_failed">7TV did not add %1$s</string>
+    <string name="seventv_added_to_set">Added to %1$s</string>
+    <string name="seventv_added_to_channel">%1$s added to the channel</string>
+    <string name="seventv_renamed_to">Renamed to %1$s</string>
+    <string name="seventv_removed_from_channel">%1$s removed from the channel</string>
+    <string name="seventv_name_taken_in_set">%1$s already has an emote with that name</string>
+    <string name="seventv_rename_failed">7TV did not rename %1$s</string>
+    <string name="seventv_remove_failed">7TV did not remove %1$s</string>
+    <string name="seventv_set_switched">The channel has switched its emote set since. Nothing was changed.</string>
+    <string name="seventv_set_activated">%1$s is now the active emote set</string>
+    <string name="seventv_switch_failed">7TV did not switch to %1$s</string>
+    <string name="seventv_login_failed">The 7TV login did not work</string>
+    <string name="seventv_login_title">Log in to 7TV</string>
+    <string name="seventv_login_text">To change a channel\'s emotes, log in to 7TV once with your Twitch account. The login stays on this phone.</string>
+    <string name="seventv_login_confirm">Log in</string>
+    <string name="seventv_login_close">Close</string>
+    <string name="settings_group_seventv_status">Status</string>
+    <string name="settings_seventv_logged_in">Logged in to 7TV</string>
+    <string name="settings_seventv_logged_in_hint">You can add emotes in channels whose emotes you edit</string>
+    <string name="settings_seventv_logged_out">Not logged in to 7TV</string>
+    <string name="settings_seventv_logged_out_hint">Adding emotes works once you log in</string>
+    <string name="settings_seventv_login">Log in to 7TV</string>
+    <string name="settings_seventv_login_hint">With your Twitch account</string>
+    <string name="settings_seventv_logout">Log out of 7TV</string>
+    <string name="settings_seventv_logout_hint">Removes the login from this phone</string>
+    <string name="settings_seventv_login_button">Log in</string>
+    <string name="settings_seventv_logout_button">Log out</string>
     <string name="settings_post_site_youtube_hint">Shows links to YouTube videos as a card</string>
     <string name="post_site_x" translatable="false">X</string>
     <string name="post_site_bluesky" translatable="false">Bluesky</string>
@@ -606,7 +661,7 @@
     <string name="account_logout_last_text">This also logs it out on Twitch. It is your last account, so you will have to log in again.</string>
     <string name="settings_version">Version %1$s</string>
     <string name="settings_credits">Credits &amp; licenses</string>
-    <string name="settings_credits_summary">Services and open source software used</string>
+    <string name="settings_credits_summary">Services and open source software</string>
     <string name="settings_credits_services">Services</string>
     <string name="settings_credits_twitch">Twitch</string>
     <string name="settings_credits_twitch_summary">Chat, emotes and badges</string>
@@ -633,14 +688,33 @@
     <string name="settings_source_code">Source code</string>
     <string name="settings_source_code_summary">github.com/derLesh/Chatter</string>
     <string name="settings_report_issue">Report a problem</string>
-    <string name="settings_report_issue_summary">Opens a bug report on GitHub, with the app and Android version filled in</string>
+    <string name="settings_report_issue_summary">On GitHub</string>
     <string name="settings_security">Report a security problem</string>
-    <string name="settings_security_summary">Tell us about a security problem privately</string>
-    <string name="crash_attach_title">Add the last crash?</string>
-    <string name="crash_attach_text">Chatter crashed on %1$s. Copy the crash details so you can paste them into the report? They only leave your phone if you paste them yourself.</string>
-    <string name="crash_attach_copy">Copy and continue</string>
-    <string name="crash_attach_skip">Without it</string>
+    <string name="settings_security_summary">Privately</string>
     <string name="crash_clip_label">Chatter crash</string>
+    <string name="crash_attach_text">App, Android and phone are filled in.</string>
+    <string name="crash_attach_switch">Add the last crash</string>
+    <string name="crash_attach_switch_summary">%1$s, %2$s</string>
+    <string name="crash_attach_open">Open GitHub</string>
+    <string name="settings_problems">Problems</string>
+    <string name="crashes_title">Crashes</string>
+    <string name="crashes_hint">Each with the log before it. Stays on your phone until you share it.</string>
+    <string name="crashes_none">No crashes so far</string>
+    <string name="crashes_clear">Delete all crashes</string>
+    <string name="crashes_clear_title">Delete all crashes?</string>
+    <string name="crashes_clear_confirm">Delete</string>
+    <string name="crash_summary">%1$s · Chatter %2$s</string>
+    <string name="crash_public_note">Issues are public. Look it over before sending.</string>
+    <string name="crash_report">Report on GitHub</string>
+    <string name="crash_copy">Copy</string>
+    <string name="crash_share">Share</string>
+    <string name="crash_delete">Delete</string>
+    <string name="crash_report_clipboard">Too long for the form. The whole crash is in the clipboard</string>
+    <string name="crash_offer_title">Chatter crashed</string>
+    <string name="crash_offer_title_hang">Chatter stopped responding</string>
+    <string name="crash_offer_show">Show it</string>
+    <string name="crash_offer_text">Report it on GitHub so it gets fixed.</string>
+    <string name="crash_offer_text_hang">Report it on GitHub so it gets fixed.</string>
 
     <!-- Chat modes (header chips) -->
     <string name="mode_slow">Slow %1$ds</string>
@@ -692,6 +766,22 @@
     <string name="emote_hide">Hide</string>
     <string name="emote_hide_everywhere">Everywhere</string>
     <string name="emote_hide_in_channel">Only in %1$s</string>
+    <string name="emote_seventv_editor">7TV editor</string>
+    <string name="emote_rename">Rename</string>
+    <string name="emote_remove">Remove</string>
+    <string name="emote_add_to_channel">Add to channel</string>
+    <string name="emote_add_to_set">Add to set</string>
+    <string name="emote_rename_title">Rename emote</string>
+    <string name="emote_rename_text">Everyone in %1$s then writes it with the new name.</string>
+    <string name="emote_rename_label">New name</string>
+    <string name="emote_remove_title">Remove %1$s?</string>
+    <string name="emote_remove_text">It is taken out of the active emote set of %1$s, for everyone.</string>
+    <string name="emote_add_to_set_title">Add to emote set</string>
+    <string name="emote_add_to_set_text">Which of the channel\'s sets should get %1$s?</string>
+    <string name="emote_set_active">Active</string>
+    <string name="emote_set_has_it">Has it already</string>
+    <string name="emote_sets_failed">Could not load the emote sets</string>
+    <string name="emote_sets_none">This channel has no emote sets</string>
     <string name="settings_hidden_emotes">Hidden emotes</string>
     <string name="settings_hidden_emotes_none">None hidden</string>
     <string name="settings_hidden_emotes_hint">Tap an emote in chat to hide it. It then shows as its name.</string>
@@ -713,6 +803,7 @@
     <string name="seventv_removed">7TV: %1$s removed %2$s</string>
     <string name="seventv_renamed">7TV: %1$s renamed %2$s to</string>
     <string name="seventv_set_changed">7TV: %1$s switched the active emote set</string>
+    <string name="seventv_set_changed_to">7TV: %1$s switched the active emote set to %2$s</string>
     <string name="seventv_someone">someone</string>
 
     <!-- App icon -->
@@ -843,7 +934,7 @@
     <string name="settings_report_user_summary">Long-press any message to report or block whoever wrote it</string>
 
     <string name="settings_privacy">Privacy policy</string>
-    <string name="settings_privacy_summary">What Chatter stores and which data is shared with others</string>
+    <string name="settings_privacy_summary">What Chatter stores and shares</string>
     <string name="settings_twitch_disclaimer">Chatter is an independent app and is not affiliated with, endorsed by or sponsored by Twitch Interactive, Inc.</string>
 
     <!-- Blocked users -->
@@ -928,7 +1019,7 @@
     <string name="settings_changelog">Changelog</string>
     <string name="settings_changelog_summary">Changes in each Chatter version</string>
     <string name="settings_update_check">Look for updates</string>
-    <string name="settings_update_check_hint">Asks GitHub once a day whether a newer version is out</string>
+    <string name="settings_update_check_hint">Asks GitHub once a day</string>
     <string name="update_available">Chatter %1$s is out</string>
     <string name="update_installed">You have %1$s</string>
     <string name="update_whats_new">What\'s new</string>
@@ -1153,18 +1244,7 @@
     <string name="debug_stats_hint">Version, memory, connection and caches</string>
     <string name="debug_copy">Copy all</string>
     <string name="debug_gc_run">Run garbage collection</string>
-    <string name="settings_debug">Debug</string>
-    <string name="settings_debug_summary">Log for bug reports</string>
-    <string name="settings_debug_hide">Hide Debug</string>
-    <string name="debug_hidden">Debug is hidden. Tap the logo under About 5 times to bring it back</string>
-    <string name="debug_turned_on">Debug is now in the settings</string>
-    <string name="debug_already_on">Debug is already in the settings</string>
-    <plurals name="debug_taps_left">
-        <item quantity="one">1 more tap</item>
-        <item quantity="other">%d more taps</item>
-    </plurals>
     <string name="debug_log">Log</string>
-    <string name="debug_log_summary">What Chatter is doing, for a bug report</string>
     <string name="debug_log_report">Report a bug</string>
     <string name="debug_log_copy">Copy</string>
     <string name="debug_log_save">Save</string>
@@ -1177,12 +1257,14 @@
     <string name="debug_log_search">Search the log</string>
     <string name="debug_log_show_names">Show names and links</string>
     <string name="debug_log_hide_names">Hide names and links</string>
-    <string name="debug_log_state_private">private</string>
-    <string name="debug_log_state_full">with names</string>
     <string name="debug_log_report_full_title">Report with names?</string>
     <string name="debug_log_report_full_text">Issues are public. Anyone can see the names and links in the log there.</string>
     <string name="debug_log_filter">Filter</string>
     <string name="debug_log_newest">To the newest</string>
+    <string name="debug_log_today">Today</string>
+    <string name="debug_log_yesterday">Yesterday</string>
+    <string name="debug_log_line_warn">Warning</string>
+    <string name="debug_log_line_error">Error</string>
     <string name="debug_log_no_match">No line matches</string>
     <string name="debug_log_level_error">Errors</string>
     <string name="debug_log_level_warn">Warnings</string>
@@ -1190,7 +1272,7 @@
     <string name="debug_log_level_debug">Debug</string>
     <string name="debug_log_level_verbose">Details</string>
     <string name="debug_log_clear_title">Clear the log?</string>
-    <string name="debug_log_clear_text">The saved lines go too.</string>
+    <string name="debug_log_clear_text">Earlier days too.</string>
     <string name="debug_log_clear_confirm">Clear</string>
     <plurals name="debug_log_count">
         <item quantity="one">%1$d line</item>
