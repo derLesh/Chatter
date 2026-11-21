@@ -406,7 +406,7 @@ class AppContainer(
         // Every mention goes into the inbox of the account it was matched for, which may no longer
         // be the active one. Guests have no inbox.
         scope.launch {
-            chat.allMentions.collect { m ->
+            chat.inboxMentions.collect { m ->
                 AppLog.d("Chat", "Mention in ${AppLog.channel(m.item.channel)}${if (m.seen) ", seen on screen" else ""}")
                 m.owner?.let { inbox.add(m.item, read = m.seen, account = it) }
             }
