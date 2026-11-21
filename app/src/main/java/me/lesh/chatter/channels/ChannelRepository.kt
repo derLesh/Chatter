@@ -62,9 +62,21 @@ class ChannelRepository(
      * these names go into IRC commands.
      */
     val channels: StateFlow<List<String>> = store.data
-        .map { p -> split(p[CHANNELS]).filterNot(ChannelGroup::isKey).filter { VALID.matches(it) } }
+        .map(::channelsIn)
         .distinctUntilChanged()
         .stateIn(scope, SharingStarted.Eagerly, emptyList())
+
+    /**
+     * [channels], but null until the store has been read. For a decision an empty list must not
+     * trigger before then, such as the background service stopping after Android restarted it.
+     */
+    val savedChannels: StateFlow<List<String>?> = store.data
+        .map(::channelsIn)
+        .distinctUntilChanged()
+        .stateIn(scope, SharingStarted.Eagerly, null)
+
+    private fun channelsIn(p: Preferences): List<String> =
+        split(p[CHANNELS]).filterNot(ChannelGroup::isKey).filter { VALID.matches(it) }
 
     /** Whether [channels] has been read; before that its empty list says nothing. */
     val loaded: StateFlow<Boolean> = store.data

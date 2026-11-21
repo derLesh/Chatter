@@ -23,6 +23,7 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.launch
 
 /**
@@ -82,8 +83,10 @@ class ChatService : Service() {
         // channels, so the login is watched as well. A guest gets no mentions or whispers and needs
         // no service, except in the profiling builds, which measure a night in the background as one.
         scope.launch {
+            // Not before the channels are read: after Android restarted the service, the list is
+            // empty for a moment, which would read as the user leaving the last channel.
             combine(
-                container.channels.channels,
+                container.channels.savedChannels.filterNotNull(),
                 container.irc.state,
                 container.auth.state,
             ) { ch, st, auth -> Triple(ch.size, st, auth) }
