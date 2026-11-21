@@ -65,9 +65,10 @@ class ChatService : Service() {
         val appInFront = container.chat.windows.anyVisible
         scope.launch {
             container.chat.mentionEvents.inBursts(MENTION_BURST_MS).collect { burst ->
-                burst.groupBy { it.channel }.forEach { (channel, items) ->
+                burst.groupBy { it.item.channel to it.owner }.forEach { (key, mentions) ->
+                    val (channel, owner) = key
                     if (appInFront.value) container.notifier.buzz(ChatNotifier.mentionChannelId(channel))
-                    else container.notifier.notify(items)
+                    else if (owner != null) container.notifier.notify(mentions.map { it.item }, owner)
                 }
             }
         }

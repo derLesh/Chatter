@@ -56,6 +56,8 @@ class IncomingMessagesTest {
     private var filters = ChatFilters(mentions = MentionMatcher("lukas", emptyList()))
 
     private val mentioned = mutableListOf<Pair<ChatItem, Boolean>>()
+    private val mentionOwners = mutableListOf<String?>()
+    private var self = "lukas"
     private val whispered = mutableListOf<Pair<InboxWhisper, Boolean>>()
     private val roomsFound = mutableListOf<String>()
     private val refused = mutableListOf<String>()
@@ -71,9 +73,12 @@ class IncomingMessagesTest {
         notices = notices,
         stats = stats,
         filters = { filters },
-        selfLogin = { "lukas" },
+        selfLogin = { self },
         accountOf = { login -> mapOf("lukas" to "1", "second" to "2")[login.lowercase()] },
-        onMention = { item, watched -> mentioned += item to watched },
+        onMention = { item, watched, owner ->
+            mentioned += item to watched
+            mentionOwners += owner
+        },
         onWhisper = { whisper, watched -> whispered += whisper to watched },
         onRoomFound = { roomsFound += it },
         onRefused = { refused += it },
@@ -304,6 +309,18 @@ class IncomingMessagesTest {
 
         assertFalse(mentioned.single().second)
         assertEquals(mapOf("forsen" to 1), unreadAfterPublish())
+    }
+
+    @Test
+    fun aMentionBelongsToTheAccountItWasMatchedFor() = runTest(dispatcher) {
+        buffers.open("forsen")
+        incoming.handle(privmsg("someone", "hey lukas", id = "a"))
+        self = "second"
+        filters = filters.copy(mentions = MentionMatcher("second", emptyList()))
+        incoming.handle(privmsg("someone", "hey second", id = "b"))
+
+        assertEquals(listOf("a", "b"), mentioned.map { it.first.id })
+        assertEquals(listOf("1", "2"), mentionOwners)
     }
 
     @Test

@@ -124,7 +124,7 @@ class MessageCostBenchmark {
             filters = { filters },
             selfLogin = { BusyChannel.SELF },
             accountOf = { null },
-            onMention = { _, _ -> },
+            onMention = { _, _, _ -> },
             onWhisper = { _, _ -> },
             onRoomFound = {},
         )
