@@ -68,6 +68,19 @@ class PictureCleanerTest {
         assertArrayEquals(bytes(0xFF, 0xD8, quantization, scan), clean)
     }
 
+    /** A progressive JPEG: comments and APPn segments may sit between its scans. */
+    @Test
+    fun metadataBetweenScansGoesToo() {
+        val firstScan = bytes(0xFF, 0xDA, 0, 8, 1, 1, 0, 0, 0, 0, "COARSE", 0xFF, 0x00, 0xFF, 0xD0, "DATA")
+        val huffman = jpegSegment(0xC4, bytes(0x10, ByteArray(16)))
+        val photo = bytes(
+            0xFF, 0xD8, quantization, firstScan, jpegSegment(0xFE, bytes("SECRET comment")), huffman,
+            jpegSegment(0xE1, bytes("http://ns.adobe.com/xap/1.0/", 0, "SECRET xmp")), scan,
+        )
+        val clean = PictureCleaner.clean(photo, "image/jpeg")!!
+        assertArrayEquals(bytes(0xFF, 0xD8, quantization, firstScan, huffman, scan), clean)
+    }
+
     @Test
     fun anUprightJpegKeepsNoExifAtAll() {
         val upright = bytes("Exif", 0, 0, "II", 42, 0, 8, 0, 0, 0, 1, 0, 0x12, 0x01, 3, 0, 1, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, "SECRET")

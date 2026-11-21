@@ -41,6 +41,8 @@ object PictureCleaner {
     private const val APP14_ADOBE = 0xEE
     private const val COMMENT = 0xFE
     private const val START_OF_SCAN = 0xDA
+    private const val END_OF_IMAGE = 0xD9
+    private val RESTART_MARKERS = 0xD0..0xD7
     private val ICC_PROFILE = "ICC_PROFILE\u0000".toByteArray(Charsets.ISO_8859_1)
     private val EXIF = "Exif\u0000\u0000".toByteArray(Charsets.ISO_8859_1)
 
@@ -52,7 +54,7 @@ object PictureCleaner {
         var orientation = 1
         var pos = 2
         var reachedImage = false
-        while (pos + 4 <= bytes.size) {
+        while (pos + 2 <= bytes.size) {
             if (u8(bytes, pos) != 0xFF) throw UnreadablePictureException("Broken JPEG segment")
             val marker = u8(bytes, pos + 1)
             // Fill bytes between segments.
@@ -60,17 +62,25 @@ object PictureCleaner {
                 pos++
                 continue
             }
-            if (marker == START_OF_SCAN) {
-                // Up to the end marker: an Ultra HDR photo carries a second picture with its own
-                // metadata after it, and some apps append more. Image data never holds FF D9.
-                val end = endOfImage(bytes, pos + 2) ?: bytes.size
-                kept.write(bytes, pos, end - pos)
-                reachedImage = true
+            if (marker == END_OF_IMAGE) {
+                // Nothing after it is kept: an Ultra HDR photo carries a second picture with its own
+                // metadata there, and some apps append more.
+                kept.write(bytes, pos, 2)
                 break
             }
+            if (pos + 4 > bytes.size) throw UnreadablePictureException("Broken JPEG segment")
             val length = u16be(bytes, pos + 2)
             val end = pos + 2 + length
             if (length < 2 || end > bytes.size) throw UnreadablePictureException("Broken JPEG segment")
+            if (marker == START_OF_SCAN) {
+                // A progressive JPEG has several scans, and comments or APPn segments may sit between
+                // them, so the walk goes on after the scan's data instead of keeping the rest whole.
+                val dataEnd = endOfScanData(bytes, end)
+                kept.write(bytes, pos, dataEnd - pos)
+                reachedImage = true
+                pos = dataEnd
+                continue
+            }
             val keep = when (marker) {
                 APP1 -> {
                     if (startsWith(bytes, pos + 4, EXIF)) orientation = exifOrientation(bytes, pos + 4 + EXIF.size, end) ?: orientation
@@ -98,12 +108,20 @@ object PictureCleaner {
         return out.toByteArray()
     }
 
-    /** The position after the first end-of-image marker from [start] on; null when the file has none. */
-    private fun endOfImage(bytes: ByteArray, start: Int): Int? {
-        for (i in start until bytes.size - 1) {
-            if (u8(bytes, i) == 0xFF && u8(bytes, i + 1) == 0xD9) return i + 2
+    /**
+     * Where the coded image data from [start] on ends: at the next marker that is neither a stuffed
+     * FF 00 nor a restart marker, or at the end of the file when none follows.
+     */
+    private fun endOfScanData(bytes: ByteArray, start: Int): Int {
+        var i = start
+        while (i < bytes.size - 1) {
+            if (u8(bytes, i) == 0xFF) {
+                val next = u8(bytes, i + 1)
+                if (next != 0x00 && next != 0xFF && next !in RESTART_MARKERS) return i
+            }
+            i++
         }
-        return null
+        return bytes.size
     }
 
     /** The Orientation tag of the TIFF block from [start] to [end]; null when it has none. */
