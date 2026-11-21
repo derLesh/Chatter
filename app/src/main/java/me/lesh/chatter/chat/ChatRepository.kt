@@ -27,7 +27,9 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.joinAll
 import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharedFlow
@@ -37,6 +39,7 @@ import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.drop
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -169,15 +172,22 @@ class ChatRepository(
     val mentionEvents: SharedFlow<MentionEvent> = _mentionEvents
 
     private val _allMentions = MutableSharedFlow<MentionEvent>(extraBufferCapacity = 32)
-    /** Every live mention, including those in the open channel. For the inbox. */
+    /** Every live mention, including those in the open channel, for feedback on screen. */
     val allMentions: SharedFlow<MentionEvent> = _allMentions
 
-    private val _whispers = MutableSharedFlow<InboxWhisper>(extraBufferCapacity = 16)
+    // The inbox is stored one write at a time, and a burst must wait for it instead of being dropped
+    // like a full SharedFlow drops. Mentions and whispers are rare enough for an unbounded queue.
+    private val _inboxMentions = Channel<MentionEvent>(Channel.UNLIMITED)
+    /** Every live mention, for the inbox. Each one is delivered once, so it has one collector. */
+    val inboxMentions: Flow<MentionEvent> = _inboxMentions.receiveAsFlow()
+
+    private val _whispers = Channel<InboxWhisper>(Channel.UNLIMITED)
     /**
-     * Whispers, each with the account it was sent to as [InboxWhisper.owner]. Twitch only delivers
-     * them to tokens with `whispers:read`, which older logins lack.
+     * Whispers, each with the account it was sent to as [InboxWhisper.owner], for the inbox, which
+     * is their one collector. Twitch only delivers them to tokens with `whispers:read`, which older
+     * logins lack.
      */
-    val whispers: SharedFlow<InboxWhisper> = _whispers
+    val whispers: Flow<InboxWhisper> = _whispers.receiveAsFlow()
 
     private val _whisperEvents = MutableSharedFlow<InboxWhisper>(extraBufferCapacity = 16)
     /** Whispers that arrived while the whisper tab was not open, for the notification. */
@@ -760,7 +770,10 @@ class ChatRepository(
     /** A built mention: inbox, unread count and notification. */
     private fun onMention(item: ChatItem, watched: Boolean, owner: String?) {
         // The inbox gets every mention; one seen arriving is already read.
-        _allMentions.tryEmit(MentionEvent(item, seen = watched, owner = owner))
+        MentionEvent(item, seen = watched, owner = owner).let {
+            _inboxMentions.trySend(it)
+            _allMentions.tryEmit(it)
+        }
         if (watched) return
         // One matched for the previous account goes to its inbox only, like a late whisper: the
         // unread counts and the notifications are the active account's.
@@ -776,7 +789,7 @@ class ChatRepository(
         // the whisper tab and the notifications are the active account's.
         val active = whisper.owner == auth.account?.userId
         // Read already if the whisper tab was open, and then no notification.
-        _whispers.tryEmit(whisper.copy(read = watched && active))
+        _whispers.trySend(whisper.copy(read = watched && active))
         if (!watched && active) _whisperEvents.tryEmit(whisper)
     }
 
