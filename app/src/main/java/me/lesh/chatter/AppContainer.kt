@@ -403,12 +403,12 @@ class AppContainer(
         liveAlerts.start()
         // One notification channel per Twitch channel, so each can have its own sound.
         scope.launch { channels.identities.collect { notifier.syncChannels(it) } }
-        // Every mention goes into the inbox of the account it was addressed to. Guests have no
-        // inbox.
+        // Every mention goes into the inbox of the account it was matched for, which may no longer
+        // be the active one. Guests have no inbox.
         scope.launch {
             chat.allMentions.collect { m ->
                 AppLog.d("Chat", "Mention in ${AppLog.channel(m.item.channel)}${if (m.seen) ", seen on screen" else ""}")
-                activeUserId.value?.let { inbox.add(m.item, read = m.seen, account = it) }
+                m.owner?.let { inbox.add(m.item, read = m.seen, account = it) }
             }
         }
         // A whisper already names its account; the active one may have changed since it arrived.

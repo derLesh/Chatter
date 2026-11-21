@@ -186,7 +186,7 @@ class ChatNotifier(
     fun clearNotListening() = manager.cancel(NOT_LISTENING_ID)
 
     /** Loads the pictures and posts [items], mentions in one channel, as one update. */
-    suspend fun notify(items: List<ChatItem>) {
+    suspend fun notify(items: List<ChatItem>, owner: String) {
         if (items.isEmpty()) return
         if (!manager.areNotificationsEnabled()) {
             AppLog.d(TAG, "${items.size} mention(s) not shown: notifications are blocked")
@@ -196,7 +196,12 @@ class ChatNotifier(
         val icon = icons.channel(items.first().channel)
         // Fills the cache for these chatters; older lines use what is cached.
         loadSenderIcons(items.mapNotNull { it.login })
-        post(items, icon, newestMention = items.last().id)
+        // The pictures take a moment, and a switch in the meantime would answer as the other account.
+        if (activeAccount() != owner) {
+            AppLog.d(TAG, "${items.size} mention(s) not shown: the account changed")
+            return
+        }
+        post(items, icon, newestMention = items.last().id, account = owner)
     }
 
     /**
@@ -256,9 +261,12 @@ class ChatNotifier(
         )
     }
 
-    /** [items] are lines of one channel. [newestMention] is null for the user's own lines. */
+    /**
+     * [items] are lines of one channel. [newestMention] is null for the user's own lines. A reply
+     * goes out as [account].
+     */
     @Synchronized
-    private fun post(items: List<ChatItem>, icon: IconCompat, newestMention: String? = null) {
+    private fun post(items: List<ChatItem>, icon: IconCompat, newestMention: String? = null, account: String? = activeAccount()) {
         val item = items.last()
         newestMention?.let { jumpTargets[item.channel] = it }
         val jumpTo = jumpTargets[item.channel]
@@ -291,7 +299,7 @@ class ChatNotifier(
             .setShortcutId(shortcutId)
             .setLocusId(LocusIdCompat(shortcutId))
             .setContentIntent(openChannelIntent(context, item.channel, jumpTo))
-            .addAction(replyAction(item.channel))
+            .addAction(replyAction(item.channel, account))
             .apply { if (settings.value.bubbles) setBubbleMetadata(bubbleMetadata(item.channel, icon, jumpTo)) }
             .build()
         try {
@@ -481,11 +489,11 @@ class ChatNotifier(
      * Reply without opening the app. The intent must be mutable: Android writes the typed text into
      * it before handing it to [ReplyReceiver].
      */
-    private fun replyAction(channel: String): NotificationCompat.Action {
+    private fun replyAction(channel: String, account: String?): NotificationCompat.Action {
         val intent = Intent(context, ReplyReceiver::class.java)
             .setData(replyUri(REPLY_CHANNEL, channel))
             .putExtra(EXTRA_CHANNEL, channel)
-            .putExtra(EXTRA_ACCOUNT, activeAccount())
+            .putExtra(EXTRA_ACCOUNT, account)
         val pending = PendingIntent.getBroadcast(
             context, 0, intent,
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_MUTABLE,

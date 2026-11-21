@@ -1,0 +1,3 @@
+patch: Keep a login renewed during an account switch from logging out or bringing back the wrong account
+patch: Put a mention into the inbox of the account it was for, even when switching accounts right then
+patch: Keep the previous account's block list and timeouts from carrying over after switching accounts

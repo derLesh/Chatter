@@ -52,8 +52,11 @@ private data class FilterWords(
     val blocked: Set<String>,
 )
 
-/** A mention that just arrived, and whether its channel was open. */
-data class MentionEvent(val item: ChatItem, val seen: Boolean)
+/**
+ * A mention that just arrived, whether its channel was open, and the user id of the account it was
+ * addressed to. Null [owner]: that account is gone, and nobody's inbox takes the mention.
+ */
+data class MentionEvent(val item: ChatItem, val seen: Boolean, val owner: String?)
 
 enum class SendResult {
     Ok, Empty, NotConnected, RateLimited,
@@ -159,9 +162,9 @@ class ChatRepository(
     val refused: SharedFlow<String> = _refused
 
     // Room for a raid's worth; the notifications combine them (see ChatService).
-    private val _mentionEvents = MutableSharedFlow<ChatItem>(extraBufferCapacity = 256)
+    private val _mentionEvents = MutableSharedFlow<MentionEvent>(extraBufferCapacity = 256)
     /** Live mentions in channels the user is not looking at. */
-    val mentionEvents: SharedFlow<ChatItem> = _mentionEvents
+    val mentionEvents: SharedFlow<MentionEvent> = _mentionEvents
 
     private val _allMentions = MutableSharedFlow<MentionEvent>(extraBufferCapacity = 32)
     /** Every live mention, including those in the open channel. For the inbox. */
@@ -467,8 +470,12 @@ class ChatRepository(
         _unreadMentions.value = emptyMap()
     }
 
-    /** Joins all channels again. Called after login. */
+    /**
+     * Joins all channels again. Called after login and on every account switch, so what Twitch said
+     * about the previous account (a timeout, a mod badge, which channels answered) goes first.
+     */
     fun resync() = scope.launch(worker) {
+        rooms.clear()
         joinedChannels = emptyList()
         syncChannels(channelRepo.channels.value)
     }
@@ -725,14 +732,17 @@ class ChatRepository(
     }
 
     /** A built mention: inbox, unread count and notification. */
-    private fun onMention(item: ChatItem, watched: Boolean) {
+    private fun onMention(item: ChatItem, watched: Boolean, owner: String?) {
         // The inbox gets every mention; one seen arriving is already read.
-        _allMentions.tryEmit(MentionEvent(item, seen = watched))
+        _allMentions.tryEmit(MentionEvent(item, seen = watched, owner = owner))
         if (watched) return
+        // One matched for the previous account goes to its inbox only, like a late whisper: the
+        // unread counts and the notifications are the active account's.
+        if (owner == null || owner != auth.account?.userId) return
         _unreadMentions.update { it + (item.channel to (it[item.channel] ?: 0) + 1) }
         // Muted channels still count mentions, without notifying.
         if (item.channel in channelRepo.mutedChannels.value) return
-        _mentionEvents.tryEmit(item)
+        _mentionEvents.tryEmit(MentionEvent(item, seen = false, owner = owner))
     }
 
     private fun onWhisper(whisper: InboxWhisper, watched: Boolean) {
