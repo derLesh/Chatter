@@ -64,10 +64,22 @@ class RateLimiterTest {
     @Test
     fun slidingWindow() {
         val limiter = RateLimiter(30_000)
-        repeat(20) { assertTrue(limiter.tryAcquire(1_000L + it, 20)) }
-        assertFalse(limiter.tryAcquire(2_000, 20))
-        assertTrue("oldest expired", limiter.tryAcquire(31_000, 20))
-        assertFalse(limiter.tryAcquire(31_000, 20))
+        repeat(20) {
+            assertTrue(limiter.hasRoom(1_000L + it, 20))
+            limiter.record(1_000L + it)
+        }
+        assertFalse(limiter.hasRoom(2_000, 20))
+        assertTrue("oldest expired", limiter.hasRoom(31_000, 20))
+        limiter.record(31_000)
+        assertFalse(limiter.hasRoom(31_000, 20))
+    }
+
+    @Test
+    fun onlyWhatIsRecordedCounts() {
+        val limiter = RateLimiter(30_000)
+        repeat(5) { assertTrue(limiter.hasRoom(1_000, 1)) }
+        limiter.record(1_000)
+        assertFalse(limiter.hasRoom(1_000, 1))
     }
 }
 

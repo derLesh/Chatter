@@ -113,6 +113,8 @@ class ChatRepository(
     /** Per channel, the last line as it went out and when; see [RepeatedMessages]. */
     private val lastSent = HashMap<String, Pair<String, Long>>()
     private val rateLimiter = RateLimiter(30_000)
+    /** Per channel, when the next message of a viewer may go out; see [send]. */
+    private val nextSendAt = HashMap<String, Long>()
     private val loadedChannels = HashSet<String>()
     private var joinedChannels: List<String> = emptyList()
 
@@ -391,6 +393,15 @@ class ChatRepository(
             return@withContext if (invalid) SendResult.CommandError else SendResult.Ok
         }
 
+        // Twitch ignores a viewer's second message within a second in one channel, e.g. two planned
+        // messages due at once, so each send waits for the next free second there. The worker is one
+        // thread, so no other send takes the same second while this one waits.
+        if (!rooms.isPrivileged(channel)) {
+            val slot = maxOf(System.currentTimeMillis(), nextSendAt[channel] ?: 0L)
+            nextSendAt[channel] = slot + CHANNEL_SEND_INTERVAL_MS
+            delay(slot - System.currentTimeMillis())
+        }
+
         val now = System.currentTimeMillis()
         val (previous, previousAt) = lastSent[channel] ?: (null to 0L)
         // Mods, VIPs and the broadcaster may repeat themselves anyway.
@@ -399,12 +410,14 @@ class ChatRepository(
         val outgoing = if (varied) RepeatedMessages.vary(text) else text
 
         val state = rooms.userState(channel)
-        if (!rateLimiter.tryAcquire(now, if (rooms.isPrivileged(channel)) 100 else 20)) {
+        if (!rateLimiter.hasRoom(now, if (rooms.isPrivileged(channel)) 100 else 20)) {
             return@withContext SendResult.RateLimited
         }
 
         val replyParent = replyTo?.takeIf { it.canReply && !it.id.startsWith("local-") }
         if (!irc.sendMessage(channel, wire(outgoing), replyParent?.id)) return@withContext SendResult.NotConnected
+        // Only what went out counts towards Twitch's limit.
+        rateLimiter.record(now)
 
         lastSent[channel] = outgoing to now
         val reply = replyParent?.let {
@@ -761,6 +774,9 @@ class ChatRepository(
 
     private companion object {
         const val TAG = "ChatRepository"
+
+        /** Twitch's least time between two messages of a viewer in one channel. */
+        const val CHANNEL_SEND_INTERVAL_MS = 1_000L
 
         /** How long channels of one [priority] load before the next ones start. */
         const val HEAD_START_MS = 5_000L
