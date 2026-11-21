@@ -42,8 +42,9 @@ class IrcConnection(
     private val _state = MutableStateFlow(ConnectionState.Disconnected)
     override val state: StateFlow<ConnectionState> = _state
 
-    // Unlimited so the socket thread never blocks; ChatRepository is the only consumer.
-    private val incoming = Channel<IrcMessage>(Channel.UNLIMITED)
+    // Never waited on, so the socket thread never blocks; ChatRepository is the only consumer.
+    // Bounded, so a chat worker that cannot keep up costs a reconnect instead of all the memory.
+    private val incoming = Channel<IrcMessage>(MAX_QUEUED)
     override val messages: Flow<IrcMessage> = incoming.receiveAsFlow()
 
     private var socket: WebSocket? = null
@@ -378,7 +379,13 @@ class IrcConnection(
                         }
                     }
                 }
-                incoming.trySend(msg)
+                if (incoming.trySend(msg).isFailure) {
+                    // Not reconnected at once: the queue has to empty first. The history after the
+                    // reconnect brings what was dropped here.
+                    lost("the chat fell $MAX_QUEUED messages behind")
+                    scheduleReconnect()
+                    return
+                }
             }
         }
 
@@ -440,6 +447,12 @@ class IrcConnection(
     internal companion object {
         private const val TAG = "IrcConnection"
         private const val SUMMARY_MS = 60_000L
+
+        /**
+         * Messages waiting for the chat worker. A busy channel sends about 50 a second, so this is
+         * over a minute of it; each is a few hundred bytes, a few megabytes in all.
+         */
+        private const val MAX_QUEUED = 5_000
 
         private fun duration(millis: Long): String {
             val seconds = millis / 1000
