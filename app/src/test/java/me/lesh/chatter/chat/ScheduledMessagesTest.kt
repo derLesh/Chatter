@@ -25,12 +25,17 @@ class ScheduledMessagesTest {
 
     private val store = FakeStore()
     private val delivered = mutableListOf<String>()
+    private val deliveredIds = mutableListOf<String>()
     private var answer = SendResult.Ok
     private val alarms = mutableListOf<Long?>()
 
     private fun TestScope.scheduler() = ScheduledMessages(
         store, backgroundScope,
-        deliver = { delivered += it.text; answer },
+        deliver = {
+            delivered += it.text
+            deliveredIds += it.id
+            answer
+        },
         alarm = { alarms += it },
         now = { testScheduler.currentTime },
     ).also { it.start() }
@@ -87,9 +92,38 @@ class ScheduledMessagesTest {
         scheduled.add("me", "forsen", "hello", replyTo = null, sendAt = 1_000)
         advanceTimeBy(1_500)
         runCurrent()
-        scheduled.onRefused("forsen")
+        scheduled.onRefused(Refusal("forsen", deliveredIds.single()))
         runCurrent()
         assertEquals(listOf("hello"), store.state.value.filter { it.failed }.map { it.text })
+    }
+
+    /** The user wrote something by hand right after, and Twitch refused that one. */
+    @Test
+    fun aRefusalOfAnotherMessageLeavesItSent() = runTest {
+        val scheduled = scheduler()
+        scheduled.add("me", "forsen", "hello", replyTo = null, sendAt = 1_000)
+        advanceTimeBy(1_500)
+        runCurrent()
+        scheduled.onRefused(Refusal("forsen", "typed-by-hand"))
+        runCurrent()
+        assertEquals(emptyList<ScheduledMessage>(), store.state.value)
+    }
+
+    /** The process ended while it went out: whether Twitch got it is unknown, so it is not sent again. */
+    @Test
+    fun oneCaughtMidSendComesBackFailedAndUnsent() = runTest {
+        store.state.value = listOf(ScheduledMessage("id", "me", "forsen", "hello", sendAt = 0, sending = true))
+        scheduler()
+        runCurrent()
+        assertEquals(emptyList<String>(), delivered)
+        assertEquals(listOf(true to false), store.state.value.map { it.failed to it.sending })
+    }
+
+    @Test
+    fun oneGoingOutCannotBeTaken() = runTest {
+        store.state.value = listOf(ScheduledMessage("id", "me", "forsen", "hello", sendAt = 0, sending = true))
+        assertNull(ScheduledMessages(store, backgroundScope, deliver = { answer }, alarm = {}).take("id"))
+        assertEquals(1, store.state.value.size)
     }
 
     @Test
@@ -99,7 +133,7 @@ class ScheduledMessagesTest {
         advanceTimeBy(1_500)
         runCurrent()
         advanceTimeBy(30_000)
-        scheduled.onRefused("forsen")
+        scheduled.onRefused(Refusal("forsen", deliveredIds.single()))
         runCurrent()
         assertEquals(emptyList<ScheduledMessage>(), store.state.value)
     }

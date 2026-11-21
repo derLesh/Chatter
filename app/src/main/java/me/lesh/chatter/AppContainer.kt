@@ -579,7 +579,7 @@ class AppContainer(
     private suspend fun sendScheduled(message: ScheduledMessage): SendResult {
         val replyTo = message.reply?.toItem()
         if (auth.account?.userId == message.account && message.channel in chat.rooms.ready.value) {
-            return chat.send(message.channel, message.text, replyTo)
+            return chat.send(message.channel, message.text, replyTo, sendId = message.id)
         }
         val ready = withTimeoutOrNull(NOTIFICATION_SEND_TIMEOUT_MS) {
             auth.state.first { it is AuthState.LoggedIn }
@@ -589,7 +589,7 @@ class AppContainer(
             true
         } == true
         if (!ready || auth.account?.userId != message.account) return SendResult.NotConnected
-        return chat.send(message.channel, message.text, replyTo)
+        return chat.send(message.channel, message.text, replyTo, sendId = message.id)
     }
 
     /**

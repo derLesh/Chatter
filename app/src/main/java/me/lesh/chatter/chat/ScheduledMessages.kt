@@ -40,6 +40,11 @@ data class ScheduledMessage(
     val reply: SavedReply? = null,
     /** It did not go out, and waits for the user to take it back or drop it. */
     val failed: Boolean = false,
+    /**
+     * It is going out right now. Found so at the start, the process ended mid-send, and whether
+     * Twitch got it is unknown: it becomes [failed] for the user to look at, never sent again.
+     */
+    val sending: Boolean = false,
 )
 
 /** Where [ScheduledMessages] keeps its list, so it outlives the process. */
@@ -74,8 +79,9 @@ class PreferencesScheduledStore(private val store: DataStore<Preferences>) : Sch
  * only while the phone is awake, as it is with Chatter open. For the background [alarm] is asked
  * to wake the phone ([wakeAt] says when), and its wake-up calls [wakeUp] and [sendDue].
  *
- * A message is taken off the list before it goes out, so it is never sent twice. One that cannot
- * go out comes back marked as failed, and so does one Twitch refuses right after ([onRefused]).
+ * A message is marked as sending before it goes out and taken off the list once it went, so it is
+ * never sent twice and never lost to the process ending in between. One that cannot go out is
+ * marked as failed, and one Twitch refuses right after ([onRefused]) comes back as failed.
  */
 class ScheduledMessages(
     private val store: ScheduledStore,
@@ -91,17 +97,18 @@ class ScheduledMessages(
     val failures: SharedFlow<ScheduledMessage> = _failures
 
     private val nextDue: Flow<Long?> = messages
-        .map { all -> all.filterNot { it.failed }.minOfOrNull { it.sendAt } }
+        .map { all -> all.filter { !it.failed && !it.sending }.minOfOrNull { it.sendAt } }
         .distinctUntilChanged()
 
     private val wakeUps = MutableStateFlow(0)
     private val sending = Mutex()
 
-    /** The last message sent per channel and when, in case Twitch refuses it. */
+    /** Messages sent in the last moments by their id, and when, in case Twitch refuses one. */
     private val justSent = HashMap<String, Pair<ScheduledMessage, Long>>()
 
     fun start() {
         scope.launch {
+            recoverInterrupted()
             combine(nextDue, wakeUps) { next, _ -> next }.collectLatest { next ->
                 alarm(next?.let { wakeAt(it, now()) })
                 if (next == null) return@collectLatest
@@ -124,12 +131,15 @@ class ScheduledMessages(
         store.update { it + message }
     }
 
-    /** Takes [id] off the list; null if it is gone already, e.g. sent a moment ago. */
+    /**
+     * Takes [id] off the list; null if it is gone already, e.g. sent a moment ago, or going out
+     * right now.
+     */
     suspend fun take(id: String): ScheduledMessage? {
         var taken: ScheduledMessage? = null
         store.update { all ->
-            taken = all.firstOrNull { it.id == id }
-            all.filterNot { it.id == id }
+            taken = all.firstOrNull { it.id == id && !it.sending }
+            if (taken == null) all else all.filterNot { it.id == id }
         }
         return taken
     }
@@ -139,29 +149,54 @@ class ScheduledMessages(
         val at = now()
         var due = emptyList<ScheduledMessage>()
         store.update { all ->
-            due = all.filter { !it.failed && it.sendAt <= at }
-            all - due.toSet()
+            due = all.filter { !it.failed && !it.sending && it.sendAt <= at }
+            val dueIds = due.mapTo(HashSet()) { it.id }
+            all.map { if (it.id in dueIds) it.copy(sending = true) else it }
         }
         due.sortedBy { it.sendAt }.forEach { message ->
             // Hours late, e.g. after the phone was off, it would no longer fit the chat.
             val result = if (at - message.sendAt > MISSED_AFTER_MS) null else deliver(message)
             if (result == SendResult.Ok) {
-                synchronized(justSent) { justSent[message.channel] = message to now() }
+                store.update { all -> all.filterNot { it.id == message.id } }
+                synchronized(justSent) {
+                    val sentAt = now()
+                    justSent.values.removeAll { (_, at) -> sentAt - at > REFUSAL_WINDOW_MS }
+                    justSent[message.id] = message to sentAt
+                }
             } else {
                 fail(message)
             }
         }
     }
 
-    /** Twitch refused the last message sent in [channel]; if it was a planned one, it comes back. */
-    fun onRefused(channel: String) {
-        val (message, sentAt) = synchronized(justSent) { justSent.remove(channel) } ?: return
+    /** Twitch refused a message; if it was a planned one sent just now, it comes back as failed. */
+    fun onRefused(refusal: Refusal) {
+        val (message, sentAt) = synchronized(justSent) { justSent.remove(refusal.sendId) } ?: return
         if (now() - sentAt > REFUSAL_WINDOW_MS) return
         scope.launch { fail(message) }
     }
 
+    /** Marks the messages a process ended in the middle of sending as failed; see [ScheduledMessage.sending]. */
+    private suspend fun recoverInterrupted() = sending.withLock {
+        var interrupted = emptyList<ScheduledMessage>()
+        store.update { all ->
+            interrupted = all.filter { it.sending }
+            if (interrupted.isEmpty()) all else all.map { if (it.sending) it.copy(sending = false, failed = true) else it }
+        }
+        interrupted.forEach { _failures.tryEmit(it) }
+    }
+
+    /**
+     * Marks [message] as failed where it is still on the list (it could not go out), or puts it
+     * back as failed after it left the list as sent (Twitch refused it).
+     */
     private suspend fun fail(message: ScheduledMessage) {
-        store.update { it + message.copy(failed = true) }
+        store.update { all ->
+            when {
+                all.any { it.id == message.id } -> all.map { if (it.id == message.id) it.copy(sending = false, failed = true) else it }
+                else -> all + message.copy(sending = false, failed = true)
+            }
+        }
         _failures.tryEmit(message)
     }
 

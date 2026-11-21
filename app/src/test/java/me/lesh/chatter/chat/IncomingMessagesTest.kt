@@ -81,7 +81,7 @@ class IncomingMessagesTest {
         },
         onWhisper = { whisper, watched -> whispered += whisper to watched },
         onRoomFound = { roomsFound += it },
-        onRefused = { refused += it },
+        onRefused = { channel, echoId -> refused += "$channel/$echoId" },
         threads = threads,
         now = { clock },
     )
@@ -215,7 +215,7 @@ class IncomingMessagesTest {
         incoming.sent(own("local-1"))
         incoming.handle(line("@msg-id=msg_slowmode :tmi.twitch.tv NOTICE #forsen :This room is in slow mode."))
         advanceUntilIdle()
-        assertEquals(listOf("forsen"), refused)
+        assertEquals(listOf("forsen/local-1"), refused)
         assertTrue(buffers.messages("forsen").value.first { it.id == "local-1" }.deleted)
         watcher.cancel()
     }
@@ -246,7 +246,7 @@ class IncomingMessagesTest {
         incoming.sent(own("local-1"))
         incoming.expire("forsen", "local-1")
         advanceUntilIdle()
-        assertEquals(listOf("forsen"), refused)
+        assertEquals(listOf("forsen/local-1"), refused)
         val shown = buffers.messages("forsen").value
         assertTrue(shown.first { it.id == "local-1" }.deleted)
         assertEquals("Not confirmed.", shown.last().systemText)

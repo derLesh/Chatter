@@ -9,16 +9,19 @@ import androidx.compose.ui.text.TextRange
 import androidx.compose.ui.text.input.TextFieldValue
 import me.lesh.chatter.chat.ChatItem
 import me.lesh.chatter.chat.CommandParser
+import me.lesh.chatter.chat.Refusal
 import me.lesh.chatter.chat.SavedReply
 import me.lesh.chatter.chat.SendResult
 import me.lesh.chatter.net.AppJson
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
 import kotlinx.serialization.Serializable
+import java.util.UUID
 
 /** What a [Composer] needs from the chat to send. */
 internal interface Outbox {
-    suspend fun send(channel: String, text: String, replyTo: ChatItem?): SendResult
+    /** [sendId] comes back in a [Refusal] of this message; see [ChatRepository.send]. */
+    suspend fun send(channel: String, text: String, replyTo: ChatItem?, sendId: String): SendResult
 
     /** How many seconds slow mode makes the user wait in [channel] after writing there. */
     fun slowSeconds(channel: String): Int
@@ -86,8 +89,11 @@ internal class Composer(
     /** The drafts of the other accounts on the phone, by user id, until one of them is active again. */
     private val otherAccounts = HashMap<String, Map<String, Draft>>()
 
-    /** A message this window sent: page, answered message and time, in case Twitch refuses it. */
-    private class Sent(val text: String, val page: String, val replyTo: ChatItem?, val at: Long)
+    /**
+     * A message this window sent: page, answered message, time and the id it went out under, in
+     * case Twitch refuses it.
+     */
+    private class Sent(val text: String, val page: String, val replyTo: ChatItem?, val at: Long, val sendId: String)
 
     /** The last message this window sent per channel. */
     private val sent = HashMap<String, Sent>()
@@ -158,14 +164,15 @@ internal class Composer(
         if (!sendingPages.add(page)) return
         val submitted = Draft(input, replyTo)
         val text = submitted.input.text.trim()
+        val sendId = UUID.randomUUID().toString()
         scope.launch {
             try {
-                when (val result = outbox.send(channel, text, submitted.replyTo)) {
+                when (val result = outbox.send(channel, text, submitted.replyTo, sendId)) {
                     SendResult.Ok -> {
                         // A command is not a message: no slow mode, nothing to restore.
                         if (CommandParser.parse(text) == null) {
                             val at = now()
-                            sent[channel] = Sent(text, page, submitted.replyTo, at)
+                            sent[channel] = Sent(text, page, submitted.replyTo, at, sendId)
                             val slow = outbox.slowSeconds(channel)
                             if (slow > 0) slowUntil[channel] = at + slow * 1000L
                         }
@@ -194,10 +201,13 @@ internal class Composer(
     }
 
     /**
-     * Twitch refused the last message sent in [channel]. It goes back into the input of its page so
-     * nothing has to be retyped, unless something new is being written there.
+     * Twitch refused a message. If it is the last one this window sent in its channel, it goes back
+     * into the input of its page so nothing has to be retyped, unless something new is being
+     * written there. A planned message or one from another window is not this window's to restore.
      */
-    fun onRefused(channel: String) {
+    fun onRefused(refusal: Refusal) {
+        val channel = refusal.channel
+        if (sent[channel]?.sendId != refusal.sendId) return
         val refused = sent.remove(channel) ?: return
         if (now() - refused.at > REFUSAL_WINDOW_MS) return
         // A refused message started no slow mode.

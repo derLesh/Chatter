@@ -47,7 +47,7 @@ class ComposerFlowTest {
         val sending = ArrayDeque<Sending>()
         val reported = mutableListOf<SendResult>()
 
-        override suspend fun send(channel: String, text: String, replyTo: ChatItem?): SendResult =
+        override suspend fun send(channel: String, text: String, replyTo: ChatItem?, sendId: String): SendResult =
             Sending(channel, text, replyTo).also(sending::addLast).result.await()
 
         override fun slowSeconds(channel: String) = 0

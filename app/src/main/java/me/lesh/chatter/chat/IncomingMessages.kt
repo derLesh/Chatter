@@ -50,8 +50,8 @@ class IncomingMessages(
     private val onSharedChatStarted: (channel: String) -> Unit = {},
     /** Shared Chat partners whose messages arrived before they were known. */
     private val onPartnersFound: (ids: List<String>) -> Unit = {},
-    /** Twitch refused a message the user sent in this channel. */
-    private val onRefused: (channel: String) -> Unit = {},
+    /** Twitch refused the message the user sent in [channel] under the temporary id [echoId]. */
+    private val onRefused: (channel: String, echoId: String) -> Unit = { _, _ -> },
     /** A message entered for a channel point reward arrived; see [RewardNames.seen]. */
     private val onReward: (rewardId: String, channelId: String?) -> Unit = { _, _ -> },
     private val threads: FollowedThreads = FollowedThreads(),
@@ -126,7 +126,7 @@ class IncomingMessages(
         if (!waiting.removeAll { it.item.id == id }) return
         buffers.markDeleted(channel) { it.id == id }
         system(channel, notices.notConfirmed())
-        onRefused(channel)
+        onRefused(channel, id)
     }
 
     /**
@@ -162,7 +162,7 @@ class IncomingMessages(
                 // delivered, so it is struck out and the notice says why.
                 if (msg.tag("msg-id")?.startsWith("msg_") == true) answered(channel)?.let { refused ->
                     buffers.markDeleted(channel) { it.id == refused.id }
-                    onRefused(channel)
+                    onRefused(channel, refused.id)
                 }
                 penaltyOf(msg)?.let { rooms.penalize(channel, it) }
                 builder.build(msg, "", null, filters().mentions)?.let(buffers::add)

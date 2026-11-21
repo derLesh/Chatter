@@ -505,7 +505,7 @@ class MainViewModel(private val c: AppContainer, savedState: SavedStateHandle) :
     private val composer = Composer(
         scope = viewModelScope,
         outbox = object : Outbox {
-            override suspend fun send(channel: String, text: String, replyTo: ChatItem?) = c.chat.send(channel, text, replyTo)
+            override suspend fun send(channel: String, text: String, replyTo: ChatItem?, sendId: String) = c.chat.send(channel, text, replyTo, sendId)
 
             override fun slowSeconds(channel: String) =
                 SendLimits.slowSeconds(roomStates.value[channel], roles.value[channel])
