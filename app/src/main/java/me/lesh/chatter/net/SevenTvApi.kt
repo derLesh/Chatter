@@ -1,5 +1,6 @@
 package me.lesh.chatter.net
 
+import me.lesh.chatter.auth.SevenTvLogin
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.Serializable
@@ -347,9 +348,12 @@ internal object SevenTvAnswers {
         }
     }
 
-    /** The redirect to Twitch and the verifier cookie from the answer to [url], or null without both. */
+    /**
+     * The redirect to Twitch and the verifier cookie from the answer to [url], or null without both,
+     * or when the redirect leads anywhere but Twitch's authorization page.
+     */
     fun loginStart(url: HttpUrl, headers: Headers): SevenTvLoginStart? {
-        val location = headers["Location"] ?: return null
+        val location = headers["Location"]?.takeIf(SevenTvLogin::isTwitchAuthorize) ?: return null
         val verifier = Cookie.parseAll(url, headers).firstOrNull { it.name == VERIFIER_COOKIE }?.value ?: return null
         return SevenTvLoginStart(location, verifier)
     }
