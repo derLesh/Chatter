@@ -60,7 +60,7 @@ data class MentionEvent(val item: ChatItem, val seen: Boolean, val owner: String
 
 enum class SendResult {
     Ok, Empty, NotConnected, RateLimited,
-    /** A command was not executed (unknown or wrong usage); the hint is shown in the chat. */
+    /** A command did not work (unknown, wrong usage or refused); the chat says why. */
     CommandError,
 }
 
@@ -401,9 +401,9 @@ class ChatRepository(
         // A guest connection is read-only, and every command needs a login.
         if (auth.account == null) return@withContext SendResult.NotConnected
         CommandParser.parse(text)?.let { command ->
-            system(channel, commands.execute(command, rooms.id(channel)))
-            val invalid = command is ChatCommand.Usage || command is ChatCommand.Unknown
-            return@withContext if (invalid) SendResult.CommandError else SendResult.Ok
+            val outcome = commands.execute(command, rooms.id(channel))
+            system(channel, outcome.text)
+            return@withContext if (outcome.worked) SendResult.Ok else SendResult.CommandError
         }
 
         val now = System.currentTimeMillis()
@@ -459,7 +459,7 @@ class ChatRepository(
      * Runs a moderation command (e.g. from the message actions) and reports the result in the chat.
      */
     fun runCommand(channel: String, command: ChatCommand) = scope.launch(worker) {
-        system(channel, commands.execute(command, rooms.id(channel)))
+        system(channel, commands.execute(command, rooms.id(channel)).text)
         // Twitch announces no pin, so the bar would wait for the next check.
         if (command is ChatCommand.Pin || command is ChatCommand.Unpin) scope.launch { pins.refresh(channel) }
     }

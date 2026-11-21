@@ -294,6 +294,7 @@
     <string name="cmd_error_permission">Nicht erlaubt: %1$s</string>
     <string name="cmd_error_generic">Befehl fehlgeschlagen: %1$s</string>
     <string name="cmd_error_no_user">Nutzer %1$s nicht gefunden</string>
+    <string name="cmd_error_no_channel">Der Kanal ist noch nicht bereit. Versuch es gleich noch mal.</string>
 
     <!-- User card -->
     <string name="user_no_messages">Noch keine Nachrichten</string>

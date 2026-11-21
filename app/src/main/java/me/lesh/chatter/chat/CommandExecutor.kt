@@ -8,6 +8,9 @@ import me.lesh.chatter.net.HelixApi
 import me.lesh.chatter.net.HttpException
 import kotlinx.coroutines.CancellationException
 
+/** What running a command gave: the line to show in the chat, and whether it [worked]. */
+data class CommandOutcome(val text: String, val worked: Boolean)
+
 /** Runs [ChatCommand]s through Helix and returns a line to show in the chat. */
 class CommandExecutor(
     private val context: Context,
@@ -15,94 +18,95 @@ class CommandExecutor(
     private val auth: AuthRepository,
     private val whispers: WhisperSender,
 ) {
-    suspend fun execute(command: ChatCommand, channelId: String?): String {
-        val me = auth.account?.userId ?: return str(R.string.error_not_connected)
-        // A whisper needs no channel; every other command does.
-        if (channelId == null && command !is ChatCommand.Whisper) return str(R.string.cmd_error_generic, "unknown channel")
+    suspend fun execute(command: ChatCommand, channelId: String?): CommandOutcome {
+        val me = auth.account?.userId ?: return failed(R.string.error_not_connected)
+        // A whisper needs no channel; every other command does. Twitch tells the channel's id
+        // right after joining it.
+        if (channelId == null && command !is ChatCommand.Whisper) return failed(R.string.cmd_error_no_channel)
         // Without the scope Twitch would only answer 401; telling the user how to grant it helps
         // more.
         requiredScope(command)?.let { scope ->
-            if (!TwitchScopes.allows(auth.account?.scopes, scope)) return str(R.string.cmd_error_scope)
+            if (!TwitchScopes.allows(auth.account?.scopes, scope)) return failed(R.string.cmd_error_scope)
         }
         return try {
             run(command, channelId.orEmpty(), me)
         } catch (e: HttpException) {
             when {
-                e.code == 401 && e.apiMessage?.contains("scope", ignoreCase = true) == true -> str(R.string.cmd_error_scope)
-                e.code == 401 || e.code == 403 -> str(R.string.cmd_error_permission, e.apiMessage ?: "")
-                else -> str(R.string.cmd_error_generic, e.apiMessage ?: "HTTP ${e.code}")
+                e.code == 401 && e.apiMessage?.contains("scope", ignoreCase = true) == true -> failed(R.string.cmd_error_scope)
+                e.code == 401 || e.code == 403 -> failed(R.string.cmd_error_permission, e.apiMessage ?: "")
+                else -> failed(R.string.cmd_error_generic, e.apiMessage ?: "HTTP ${e.code}")
             }
         } catch (e: CancellationException) {
             throw e
         } catch (e: Exception) {
-            str(R.string.cmd_error_generic, e.message ?: e.toString())
+            failed(R.string.cmd_error_generic, e.message ?: e.toString())
         }
     }
 
-    private suspend fun run(command: ChatCommand, channel: String, me: String): String = when (command) {
+    private suspend fun run(command: ChatCommand, channel: String, me: String): CommandOutcome = when (command) {
         is ChatCommand.Ban -> {
             helix.ban(channel, me, userId(command.user), null, command.reason)
-            str(R.string.cmd_banned, command.user)
+            done(R.string.cmd_banned, command.user)
         }
         is ChatCommand.Timeout -> {
             helix.ban(channel, me, userId(command.user), command.seconds, command.reason)
-            str(R.string.cmd_timed_out, command.user, formatDuration(command.seconds))
+            done(R.string.cmd_timed_out, command.user, formatDuration(command.seconds))
         }
         is ChatCommand.Unban -> {
             helix.unban(channel, me, userId(command.user))
-            str(R.string.cmd_unbanned, command.user)
+            done(R.string.cmd_unbanned, command.user)
         }
         is ChatCommand.Delete -> {
             helix.deleteMessages(channel, me, command.messageId)
-            str(R.string.cmd_deleted)
+            done(R.string.cmd_deleted)
         }
         is ChatCommand.Pin -> {
             helix.pinMessage(channel, me, command.messageId, command.seconds)
-            str(R.string.cmd_pinned)
+            done(R.string.cmd_pinned)
         }
         is ChatCommand.Unpin -> {
             helix.unpinMessage(channel, me, command.messageId)
-            str(R.string.cmd_unpinned)
+            done(R.string.cmd_unpinned)
         }
         ChatCommand.Clear -> {
             helix.deleteMessages(channel, me, null)
-            str(R.string.cmd_cleared)
+            done(R.string.cmd_cleared)
         }
         is ChatCommand.Settings -> {
             helix.updateChatSettings(channel, me, command.settings)
-            str(R.string.cmd_settings_updated)
+            done(R.string.cmd_settings_updated)
         }
         is ChatCommand.Mod -> {
             helix.setModerator(channel, userId(command.user), command.add)
-            str(if (command.add) R.string.cmd_modded else R.string.cmd_unmodded, command.user)
+            done(if (command.add) R.string.cmd_modded else R.string.cmd_unmodded, command.user)
         }
         is ChatCommand.Vip -> {
             helix.setVip(channel, userId(command.user), command.add)
-            str(if (command.add) R.string.cmd_vipped else R.string.cmd_unvipped, command.user)
+            done(if (command.add) R.string.cmd_vipped else R.string.cmd_unvipped, command.user)
         }
         is ChatCommand.Announce -> {
             helix.announce(channel, me, command.message)
-            str(R.string.cmd_announced)
+            done(R.string.cmd_announced)
         }
         is ChatCommand.Shoutout -> {
             helix.shoutout(channel, me, userId(command.user))
-            str(R.string.cmd_shoutout, command.user)
+            done(R.string.cmd_shoutout, command.user)
         }
         is ChatCommand.Raid -> {
             helix.startRaid(channel, userId(command.user))
-            str(R.string.cmd_raid, command.user)
+            done(R.string.cmd_raid, command.user)
         }
         ChatCommand.Unraid -> {
             helix.cancelRaid(channel)
-            str(R.string.cmd_unraid)
+            done(R.string.cmd_unraid)
         }
-        is ChatCommand.Whisper -> whispers.send(command.user, userId = null, message = command.message).message
         is ChatCommand.Color -> {
             helix.setChatColor(me, command.color)
-            str(R.string.cmd_color, command.color)
+            done(R.string.cmd_color, command.color)
         }
-        is ChatCommand.Usage -> str(R.string.cmd_usage, command.usage)
-        is ChatCommand.Unknown -> str(R.string.error_unsupported_command, command.name)
+        is ChatCommand.Whisper -> whispers.send(command.user, userId = null, message = command.message).let { CommandOutcome(it.message, it.sent) }
+        is ChatCommand.Usage -> failed(R.string.cmd_usage, command.usage)
+        is ChatCommand.Unknown -> failed(R.string.error_unsupported_command, command.name)
     }
 
     /** The moderation scope [command] needs, or null if any account may run it. */
@@ -127,6 +131,10 @@ class CommandExecutor(
         seconds % 60 == 0 -> "${seconds / 60}m"
         else -> "${seconds}s"
     }
+
+    private fun done(res: Int, vararg args: Any) = CommandOutcome(str(res, *args), worked = true)
+
+    private fun failed(res: Int, vararg args: Any) = CommandOutcome(str(res, *args), worked = false)
 
     private fun str(res: Int, vararg args: Any) = context.getString(res, *args)
 }
