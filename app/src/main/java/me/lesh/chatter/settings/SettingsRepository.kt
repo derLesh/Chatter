@@ -188,6 +188,14 @@ data class Settings(
     val postCards: Map<PostSite, PostCardSettings> = PostCardSettings.DEFAULTS,
     /** Write links in full instead of shortening them. */
     val fullLinks: Boolean = false,
+    /** Open web links over the app as a Custom Tab instead of switching to the browser. */
+    val linksInApp: Boolean = true,
+    /** With [linksInApp], links to the sites with cards still open in their app when it is installed. */
+    val postsInTheirApp: Boolean = true,
+    /** With [linksInApp], the tab takes the whole screen instead of a sheet over the chat. */
+    val linksFullScreen: Boolean = false,
+    /** With [linksInApp], the chat shrinks to the space above the sheet, so its newest lines stay in view. */
+    val chatAboveLinks: Boolean = true,
     /** Pictures, GIFs and post cards in the messages of the user card; off leaves them links. */
     val userCardAttachments: Boolean = true,
     /** Leave out linked images, animation and sharp emotes on metered networks. */
@@ -323,6 +331,10 @@ class SettingsRepository(
             blurNsfwPosts = p[BLUR_NSFW_POSTS] ?: true,
             postCards = PostSite.entries.associateWith { PostCardStore.read(p, it) },
             fullLinks = p[FULL_LINKS] ?: false,
+            linksInApp = p[LINKS_IN_APP] ?: true,
+            postsInTheirApp = p[POSTS_IN_THEIR_APP] ?: true,
+            linksFullScreen = p[LINKS_FULL_SCREEN] ?: false,
+            chatAboveLinks = p[CHAT_ABOVE_LINKS] ?: true,
             userCardAttachments = p[USER_CARD_ATTACHMENTS] ?: true,
             mobileData = p[MOBILE_DATA]?.let { v -> MobileData.entries.firstOrNull { it.name == v } } ?: MobileData.Normal,
             carouselChannels = p[CAROUSEL_CHANNELS] ?: false,
@@ -436,6 +448,10 @@ class SettingsRepository(
     suspend fun updatePostCard(site: PostSite, change: (PostCardSettings) -> PostCardSettings) =
         store.edit { p -> PostCardStore.write(p, site, change(PostCardStore.read(p, site))) }
     suspend fun setFullLinks(v: Boolean) = store.edit { it[FULL_LINKS] = v }
+    suspend fun setLinksInApp(v: Boolean) = store.edit { it[LINKS_IN_APP] = v }
+    suspend fun setPostsInTheirApp(v: Boolean) = store.edit { it[POSTS_IN_THEIR_APP] = v }
+    suspend fun setLinksFullScreen(v: Boolean) = store.edit { it[LINKS_FULL_SCREEN] = v }
+    suspend fun setChatAboveLinks(v: Boolean) = store.edit { it[CHAT_ABOVE_LINKS] = v }
     suspend fun setUserCardAttachments(v: Boolean) = store.edit { it[USER_CARD_ATTACHMENTS] = v }
     suspend fun setMobileData(v: MobileData) = store.edit { it[MOBILE_DATA] = v.name }
     suspend fun setCarouselChannels(v: Boolean) = store.edit { it[CAROUSEL_CHANNELS] = v }
@@ -558,6 +574,10 @@ class SettingsRepository(
         p[BLUR_NSFW_POSTS] = s.blurNsfwPosts
         PostSite.entries.forEach { PostCardStore.write(p, it, s.postCard(it)) }
         p[FULL_LINKS] = s.fullLinks
+        p[LINKS_IN_APP] = s.linksInApp
+        p[POSTS_IN_THEIR_APP] = s.postsInTheirApp
+        p[LINKS_FULL_SCREEN] = s.linksFullScreen
+        p[CHAT_ABOVE_LINKS] = s.chatAboveLinks
         p[USER_CARD_ATTACHMENTS] = s.userCardAttachments
         p[MOBILE_DATA] = s.mobileData.name
         p[CAROUSEL_CHANNELS] = s.carouselChannels
@@ -689,6 +709,10 @@ class SettingsRepository(
         val POST_SITES = stringPreferencesKey("post_sites")
         val BLUR_NSFW_POSTS = booleanPreferencesKey("blur_nsfw_posts")
         val FULL_LINKS = booleanPreferencesKey("full_links")
+        val LINKS_IN_APP = booleanPreferencesKey("links_in_app")
+        val POSTS_IN_THEIR_APP = booleanPreferencesKey("posts_in_their_app")
+        val LINKS_FULL_SCREEN = booleanPreferencesKey("links_full_screen")
+        val CHAT_ABOVE_LINKS = booleanPreferencesKey("chat_above_links")
         val USER_CARD_ATTACHMENTS = booleanPreferencesKey("user_card_attachments")
         val MOBILE_DATA = stringPreferencesKey("mobile_data")
         val IMAGE_HOSTS = stringPreferencesKey("image_hosts")

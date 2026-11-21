@@ -32,6 +32,8 @@ mlkitGenaiPrompt = "1.0.0-beta5"
 # phone and without Google Play services.
 camerax = "1.6.2"
 zxing = "3.5.4"
+# Custom Tabs: links open in the user's own browser over the app.
+browser = "1.10.0"
 
 [libraries]
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
@@ -68,6 +70,7 @@ mlkit-genai-prompt = { group = "com.google.mlkit", name = "genai-prompt", versio
 androidx-camera-camera2 = { group = "androidx.camera", name = "camera-camera2", version.ref = "camerax" }
 androidx-camera-lifecycle = { group = "androidx.camera", name = "camera-lifecycle", version.ref = "camerax" }
 androidx-camera-view = { group = "androidx.camera", name = "camera-view", version.ref = "camerax" }
+androidx-browser = { group = "androidx.browser", name = "browser", version.ref = "browser" }
 zxing-core = { group = "com.google.zxing", name = "core", version.ref = "zxing" }
 androidx-test-uiautomator = { group = "androidx.test.uiautomator", name = "uiautomator", version.ref = "uiautomator" }
 

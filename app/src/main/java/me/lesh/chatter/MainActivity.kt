@@ -56,7 +56,7 @@ class MainActivity : ComponentActivity() {
         setContent {
             val settings by vm.settings.collectAsStateWithLifecycle()
             ChatterTheme(settings.themeMode, settings.dynamicColor, settings.pureBlack) {
-                LinkGuard {
+                LinkGuard(settings) {
                     ImageViewerHost(vm.imageLoader) {
                         CompositionLocalProvider(LocalPosts provides vm.posts, LocalEmoteAdding provides vm.emoteAdding) { AppRoot(vm) }
                     }

@@ -75,6 +75,7 @@ import me.lesh.chatter.ui.channels.OfferUndoRemoval
 import me.lesh.chatter.ui.chat.ChannelMark
 import me.lesh.chatter.ui.chat.ChatActivity
 import me.lesh.chatter.ui.chat.ChatList
+import me.lesh.chatter.ui.chat.LocalLinkTabShowing
 import me.lesh.chatter.ui.chat.EmoteFrameRate
 import me.lesh.chatter.ui.chat.GuestBar
 import me.lesh.chatter.ui.chat.InputBar
@@ -371,7 +372,8 @@ fun MainScreen(vm: MainViewModel, onInbox: () -> Unit, onSettings: () -> Unit) {
         ) {
             // The input floats over the chat; a guest's prompt has no field and keeps its strip,
             // and without channels it would cover the button to add one.
-            val floatingInput = !guest && !settings.readOnly && pageKeys.isNotEmpty()
+            val linkTabShowing = LocalLinkTabShowing.current
+            val floatingInput = !guest && !settings.readOnly && pageKeys.isNotEmpty() && !linkTabShowing
             var floatingInputHeight by remember { mutableIntStateOf(0) }
             // With the reply card, which floats over the chat and would hide what sits above the input.
             var floatingOverlayHeight by remember { mutableIntStateOf(0) }
@@ -470,7 +472,7 @@ fun MainScreen(vm: MainViewModel, onInbox: () -> Unit, onSettings: () -> Unit) {
                     }
                 }
             }
-            if (!floatingInput) ChatInput(
+            if (!floatingInput && !linkTabShowing) ChatInput(
                 vm, guest, connection, restriction, penalty, loader, activity, sheets, inThread = false,
                 sendChannels = activeGroup?.channels.orEmpty(), channelInfo = info,
             )
@@ -511,7 +513,8 @@ private fun ChatInput(
     onCoveredHeight: ((Int) -> Unit)? = null,
 ) {
     val settings = vm.settings.collectAsStateWithLifecycle().value
-    if (settings.readOnly) return
+    // Also the conversation's, whose sheet a link can open from.
+    if (settings.readOnly || LocalLinkTabShowing.current) return
     if (guest) {
         GuestBar(onLogIn = vm::leaveGuest, modifier = modifier.fillMaxWidth())
         return
