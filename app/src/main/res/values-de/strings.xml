@@ -333,6 +333,8 @@
     <string name="storage_images_hint">Emotes, Badges und Bilder aus dem Chat</string>
     <string name="storage_emote_lists">Emote-Listen</string>
     <string name="storage_emote_lists_hint">Welche Emotes und Badges jeder Kanal hat</string>
+    <string name="storage_bot_commands">Bot-Befehle</string>
+    <string name="storage_bot_commands_hint">Die Befehle der Chat-Bots, für die Eingabe</string>
     <string name="storage_saved">Gespeichert</string>
     <string name="storage_saved_hint">Einstellungen, Kanäle, Postfach und Statistik</string>
     <string name="storage_logs">Log und Abstürze</string>
@@ -340,7 +342,7 @@
     <string name="storage_app">App</string>
     <string name="storage_app_hint">Chatter selbst</string>
     <string name="storage_clear_cache">Cache leeren</string>
-    <string name="storage_clear_cache_hint">Bilder und Emote-Listen laden bei Bedarf neu. Deine Einstellungen bleiben.</string>
+    <string name="storage_clear_cache_hint">Bilder, Emote-Listen und Bot-Befehle laden bei Bedarf neu. Deine Einstellungen bleiben.</string>
     <string name="storage_clear">Leeren</string>
     <string name="settings_section_channels">Kanäle &amp; Benachrichtigungen</string>
     <string name="settings_section_data">Deine Daten</string>

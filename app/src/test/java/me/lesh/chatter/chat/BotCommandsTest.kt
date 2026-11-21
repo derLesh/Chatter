@@ -386,6 +386,10 @@ class BotCommandsTest {
         override fun write(key: String, json: String) {
             lists[key] = json
         }
+        override fun deleteChannel(login: String) {
+            lists.keys.removeAll { it.endsWith("/$login") }
+        }
+        override fun size() = lists.values.sumOf { it.length.toLong() }
         override fun clear() = lists.clear()
     }
 
