@@ -1,0 +1,1 @@
+patch: Open the 7TV login only when it leads to Twitch's own login page

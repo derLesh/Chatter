@@ -100,6 +100,22 @@ class SevenTvAnswersTest {
         assertNull(SevenTvAnswers.loginStart(LOGIN_URL, headersOf("Location", AUTHORIZE, "Set-Cookie", "seventv-verifier=X; Domain=evil.example")))
     }
 
+    /** The login WebView loads the redirect without asking its own check, so only Twitch's page passes. */
+    @Test
+    fun aLoginStartThatLeadsAnywhereButTwitchIsNone() {
+        for (location in listOf(
+            "https://evil.example/oauth2/authorize?client_id=abc",
+            "https://id.twitch.tv.evil.example/oauth2/authorize?client_id=abc",
+            "http://id.twitch.tv/oauth2/authorize?client_id=abc",
+            "https://user@id.twitch.tv/oauth2/authorize?client_id=abc",
+            "https://id.twitch.tv/oauth2/token?client_id=abc",
+            "https://www.twitch.tv/oauth2/authorize?client_id=abc",
+        )) {
+            val headers = headersOf("Location", location, "Set-Cookie", "seventv-verifier=VERIFIER; Path=/")
+            assertNull(location, SevenTvAnswers.loginStart(LOGIN_URL, headers))
+        }
+    }
+
     @Test
     fun theTokenIsReadFromTheFinish() {
         assertEquals("TOKEN", SevenTvAnswers.token("""{"token":"TOKEN"}"""))
