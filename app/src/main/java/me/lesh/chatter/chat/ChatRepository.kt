@@ -52,6 +52,9 @@ private data class FilterWords(
     val blocked: Set<String>,
 )
 
+/** Twitch refused the message sent in [channel] as [ChatRepository.send]'s `sendId`. */
+data class Refusal(val channel: String, val sendId: String)
+
 /**
  * A mention that just arrived, whether its channel was open, and the user id of the account it was
  * addressed to. Null [owner]: that account is gone, and nobody's inbox takes the mention.
@@ -154,14 +157,14 @@ class ChatRepository(
         sharedChats = sharedChats,
         onSharedChatStarted = { channel -> scope.launch { loadSharedChat(channel) } },
         onPartnersFound = { ids -> scope.launch { describePartners(ids) } },
-        onRefused = { _refused.tryEmit(it) },
+        onRefused = { channel, echoId -> _refused.tryEmit(Refusal(channel, echoId.removePrefix(MessageBuilder.OWN_ID_PREFIX))) },
         onReward = rewards::seen,
         threads = threads,
     )
 
-    private val _refused = MutableSharedFlow<String>(extraBufferCapacity = 8)
-    /** Channels where Twitch just refused one of the user's messages, one event per refusal. */
-    val refused: SharedFlow<String> = _refused
+    private val _refused = MutableSharedFlow<Refusal>(extraBufferCapacity = 8)
+    /** Messages of the user's that Twitch just refused, one event per refusal. */
+    val refused: SharedFlow<Refusal> = _refused
 
     // Room for a raid's worth; the notifications combine them (see ChatService).
     private val _mentionEvents = MutableSharedFlow<MentionEvent>(extraBufferCapacity = 256)
@@ -397,7 +400,11 @@ class ChatRepository(
         chatterRegistry.names(channel)
     }
 
-    suspend fun send(channel: String, input: String, replyTo: ChatItem?): SendResult = withContext(worker) {
+    /**
+     * [sendId] names this send in a [Refusal], so whoever sent it can tell a refusal of theirs from
+     * one of another message in the same channel.
+     */
+    suspend fun send(channel: String, input: String, replyTo: ChatItem?, sendId: String = UUID.randomUUID().toString()): SendResult = withContext(worker) {
         val text = input.trim()
         if (text.isEmpty()) return@withContext SendResult.Empty
         // A guest connection is read-only, and every command needs a login.
@@ -445,6 +452,7 @@ class ChatRepository(
             // An answered message restored with its draft has no segments; the quote is built from its text.
             replyParent?.segments?.ifEmpty { null },
             timestamp = incoming.ownTimestamp(channel),
+            id = MessageBuilder.OWN_ID_PREFIX + sendId,
         )
         incoming.sent(echo)
         awaitConfirmation(echo)

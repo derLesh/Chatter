@@ -104,11 +104,13 @@ class MessageBuilder(
         quote: List<Segment>? = null,
         /** On Twitch's clock, like every other message; see [IncomingMessages.ownTimestamp]. */
         timestamp: Long = System.currentTimeMillis(),
+        /** Until Twitch's answer brings the real one; starts with [OWN_ID_PREFIX]. */
+        id: String = OWN_ID_PREFIX + UUID.randomUUID(),
     ): ChatItem {
         val isAction = isAction(text)
         val body = if (isAction) actionText(text) else text
         return ChatItem(
-            id = "local-" + UUID.randomUUID(),
+            id = id,
             channel = channel,
             kind = if (isAction) MessageKind.Action else MessageKind.Chat,
             timestamp = timestamp,
@@ -539,6 +541,9 @@ class MessageBuilder(
             ?: System.currentTimeMillis()
 
     companion object {
+        /** What the temporary id of the user's own message starts with; see [buildOwn]. */
+        const val OWN_ID_PREFIX = "local-"
+
         private val DOMAIN = Regex("^[\\w-]+(\\.[\\w-]+)*\\.[a-zA-Z]{2,24}(/\\S*)?$")
 
         fun isLink(word: String): Boolean =
