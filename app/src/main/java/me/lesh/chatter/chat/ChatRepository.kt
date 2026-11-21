@@ -284,8 +284,15 @@ class ChatRepository(
         scope.launch(worker) {
             var wasConnected = false
             var gapFill: Job? = null
+            // The newest live message per channel when the connection dropped. Read later, the first
+            // message after the reconnect would already have moved it past the gap.
+            var gapSince: Map<String, Long>? = null
             irc.state.collect { state ->
-                if (state != ConnectionState.Connected) gapFill?.cancel()
+                if (state != ConnectionState.Connected) {
+                    gapFill?.cancel()
+                    // A drop during a gap fill keeps the older snapshot: that gap is not filled yet.
+                    if (wasConnected && gapSince == null) gapSince = buffers.channels().associateWith(incoming::lastLive)
+                }
                 when (state) {
                     ConnectionState.Connected -> {
                         // Offline at the start, or the service was down: the network is back now.
@@ -294,7 +301,12 @@ class ChatRepository(
                         if (wasConnected) {
                             // The channel on screen first.
                             val channels = buffers.channels().filterNot(missing::contains).sortedBy(::priority)
-                            gapFill = scope.launch { fillGaps(channels) }
+                            val since = channels.associateWith { gapSince?.get(it) ?: incoming.lastLive(it) }
+                            gapSince = since
+                            gapFill = scope.launch {
+                                fillGaps(since)
+                                withContext(worker) { if (gapSince === since) gapSince = null }
+                            }
                         } else {
                             wasConnected = true
                             _connectionStatus.value = null
@@ -666,15 +678,16 @@ class ChatRepository(
     }
 
     /**
-     * Fetches what was said while the connection was down. Channels where something was missed are
-     * reported to [gapsFilled]; where nothing was, the reconnect leaves no trace.
+     * Fetches what was said while the connection was down: per channel, what came after the newest
+     * live message before the drop ([since], in the order to load). Channels where something was
+     * missed are reported to [gapsFilled]; where nothing was, the reconnect leaves no trace.
      */
-    private suspend fun fillGaps(channels: List<String>) {
+    private suspend fun fillGaps(since: Map<String, Long>) {
         _connectionStatus.value = ChatStatus.LoadingMissed
         if (settings.value.loadHistory) coroutineScope {
-            channels.forEach { channel ->
+            since.forEach { (channel, newestBefore) ->
                 launch {
-                    val fresh = loadHistory(channel, since = incoming.lastLive(channel))
+                    val fresh = loadHistory(channel, since = newestBefore)
                     fresh.minOfOrNull { it.timestamp }?.let { _gapsFilled.tryEmit(GapFilled(channel, it)) }
                 }
             }
