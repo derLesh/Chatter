@@ -84,22 +84,59 @@ interface BotLists {
 interface BotListStore {
     fun read(key: String): String?
     fun write(key: String, json: String)
+
+    /** Deletes what every bot has kept for the channel [login]. */
+    fun deleteChannel(login: String)
+
+    /** Bytes kept, for Settings → Storage. */
+    fun size(): Long
+
     fun clear()
 }
 
-/** One small file per list. They can be downloaded again, so they live in the cache folder. */
-class BotListFiles(private val folder: File) : BotListStore {
+/**
+ * One small file per list. They can be downloaded again, so they live in the cache folder, and the
+ * oldest go once all of them pass [maxBytes].
+ */
+class BotListFiles(private val folder: File, private val maxBytes: Long = MAX_BYTES) : BotListStore {
     override fun read(key: String): String? = runCatching { file(key).takeIf { it.isFile }?.readText() }.getOrNull()
 
     override fun write(key: String, json: String) {
-        runCatching { file(key).also { it.parentFile?.mkdirs() }.writeText(json) }
+        runCatching {
+            file(key).also { it.parentFile?.mkdirs() }.writeText(json)
+            trim()
+        }
     }
+
+    override fun deleteChannel(login: String) {
+        folder.listFiles()?.filter { it.isDirectory }?.forEach { File(it, "$login.json").delete() }
+    }
+
+    override fun size(): Long = files().sumOf { it.length() }
 
     override fun clear() {
         folder.deleteRecursively()
     }
 
+    private fun trim() {
+        val all = files()
+        var total = all.sumOf { it.length() }
+        if (total <= maxBytes) return
+        for (file in all.sortedBy { it.lastModified() }) {
+            if (total <= maxBytes) break
+            total -= file.length()
+            file.delete()
+        }
+    }
+
+    private fun files() = folder.walk().filter { it.isFile }.toList()
+
     private fun file(key: String) = File(folder, "$key.json")
+
+    private companion object {
+        /** PotatBot's own list alone is half a megabyte; a channel's lists are a few kilobytes. */
+        const val MAX_BYTES = 4L * 1024 * 1024
+    }
 }
 
 /**
@@ -214,6 +251,15 @@ class BotCommands(
             )
         }
     }
+
+    /** Drops what is kept for the channel [login], which the user removed. */
+    suspend fun forgetChannel(login: String) {
+        synchronized(this) { channelLists.keys.removeAll { it.endsWith("/$login") } }
+        withContext(io) { store.deleteChannel(login) }
+    }
+
+    /** Bytes kept on the phone. */
+    suspend fun size(): Long = withContext(io) { store.size() }
 
     /** Drops every kept list, so that each is downloaded again when it is next needed. */
     suspend fun forget() {

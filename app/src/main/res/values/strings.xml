@@ -298,6 +298,7 @@
     <string name="cmd_error_permission">Not allowed: %1$s</string>
     <string name="cmd_error_generic">Command failed: %1$s</string>
     <string name="cmd_error_no_user">User %1$s not found</string>
+    <string name="cmd_error_no_channel">The channel is not ready yet. Try again in a moment.</string>
 
     <!-- User card -->
     <string name="user_no_messages">No messages yet</string>
@@ -336,6 +337,8 @@
     <string name="storage_images_hint">Emotes, badges and pictures from the chat</string>
     <string name="storage_emote_lists">Emote lists</string>
     <string name="storage_emote_lists_hint">Which emotes and badges each channel has</string>
+    <string name="storage_bot_commands">Bot commands</string>
+    <string name="storage_bot_commands_hint">The commands of the chat bots, for the input</string>
     <string name="storage_saved">Saved</string>
     <string name="storage_saved_hint">Settings, channels, inbox and stats</string>
     <string name="storage_logs">Log and crashes</string>
@@ -343,7 +346,7 @@
     <string name="storage_app">App</string>
     <string name="storage_app_hint">Chatter itself</string>
     <string name="storage_clear_cache">Clear cache</string>
-    <string name="storage_clear_cache_hint">Images and emote lists load again when needed. Your settings stay.</string>
+    <string name="storage_clear_cache_hint">Images, emote lists and bot commands load again when needed. Your settings stay.</string>
     <string name="storage_clear">Clear</string>
     <string name="settings_section_channels">Channels &amp; notifications</string>
     <string name="settings_section_data">Your data</string>
@@ -655,7 +658,6 @@
     <string name="account_copy_id">Copy Twitch ID</string>
     <string name="account_active">Chatting with this account</string>
     <string name="account_switch_to">Chat as %1$s</string>
-    <string name="account_add">Add account</string>
     <string name="account_add_short">Add</string>
     <string name="account_logout_title">Log %1$s out?</string>
     <string name="account_logout_text">This also logs it out on Twitch. Chatter carries on with your other account.</string>

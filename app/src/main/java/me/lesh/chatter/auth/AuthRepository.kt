@@ -308,7 +308,6 @@ class AuthRepository(
             val expiresAt = if (v.expiresIn > 0) System.currentTimeMillis() + v.expiresIn * 1000L else Long.MAX_VALUE
             saveAccount(
                 Account(v.login, v.userId, token, refreshToken = null, expiresAt = expiresAt, scopes = v.scopes.toSet()),
-                revokeReplaced = true,
             )
         }
         // Afterwards, so a failed picture download cannot fail the login.
@@ -494,9 +493,11 @@ class AuthRepository(
         val acc = account ?: return false
         // Another caller refreshed while we waited for the lock.
         if (expected != null && acc.token != expected.token) return true
+        // The user may switch accounts while Twitch answers, so every outcome names this account
+        // rather than whichever is active by then.
         val refreshToken = acc.refreshToken ?: run {
             AppLog.w(TAG, "No refresh token, the session ends")
-            logout(expired = true)
+            forget(acc.userId, expired = true)
             return false
         }
         AppLog.d(TAG, "Renewing the login, ${(acc.expiresAt - System.currentTimeMillis()) / 60_000} min left on it")
@@ -509,21 +510,25 @@ class AuthRepository(
                     "refresh_token" to refreshToken,
                 ),
             )
-            saveAccount(
-                acc.copy(
-                    token = t.accessToken,
-                    refreshToken = t.refreshToken ?: acc.refreshToken,
-                    expiresAt = System.currentTimeMillis() + t.expiresIn * 1000L,
-                ),
-                // The renewed account may not be the active one any more.
-                makeActive = false,
+            val renewed = acc.copy(
+                token = t.accessToken,
+                refreshToken = t.refreshToken ?: acc.refreshToken,
+                expiresAt = System.currentTimeMillis() + t.expiresIn * 1000L,
             )
-            AppLog.i(TAG, "Login renewed, valid for ${t.expiresIn / 60} min")
+            if (replaceRenewed(acc, renewed)) {
+                AppLog.i(TAG, "Login renewed, valid for ${t.expiresIn / 60} min")
+            } else {
+                AppLog.i(TAG, "Login renewed for an account removed in the meantime, revoking it")
+                queueRevoke(listOfNotNull(renewed.token, renewed.refreshToken))
+                revokePending()
+            }
             true
         } catch (e: HttpException) {
             AppLog.w(TAG, "Renewing the login failed: HTTP ${e.code}")
             if (e.code == 400 || e.code == 401) {
-                logout(expired = true)
+                // Only while the account still holds the token that was refused: logged in anew
+                // since, it has a working one.
+                if (_accounts.value.any { it.userId == acc.userId && it.token == acc.token }) forget(acc.userId, expired = true)
                 false
             } else true
         } catch (e: kotlinx.coroutines.CancellationException) {
@@ -535,10 +540,23 @@ class AuthRepository(
     }
 
     /**
-     * [revokeReplaced] for logging into an account that is already here: its old tokens are
-     * revoked. A refresh leaves them alone, Twitch retires them itself.
+     * Puts [renewed] in place of [before], unless that account was removed or got other tokens
+     * while the refresh ran. False when nothing was replaced. Twitch retires the old tokens itself.
      */
-    private suspend fun saveAccount(account: Account, makeActive: Boolean = true, revokeReplaced: Boolean = false) {
+    private suspend fun replaceRenewed(before: Account, renewed: Account): Boolean = writeLock.withLock {
+        val at = _accounts.value.indexOfFirst { it.userId == before.userId && it.token == before.token }
+        if (at < 0) return@withLock false
+        _accounts.value = _accounts.value.toMutableList().also { it[at] = renewed }
+        persist()
+        publish()
+        true
+    }
+
+    /**
+     * Adds [account] and makes it the active one. Logged into again, an account that is already
+     * here has its old tokens revoked.
+     */
+    private suspend fun saveAccount(account: Account) {
         val replaced = writeLock.withLock {
             // Replaced in place: the list order is the switcher's order.
             val at = _accounts.value.indexOfFirst { it.userId == account.userId }
@@ -546,14 +564,14 @@ class AuthRepository(
             _accounts.value =
                 if (at < 0) _accounts.value + account
                 else _accounts.value.toMutableList().also { it[at] = account }
-            if (makeActive) activeId = account.userId
+            activeId = account.userId
             guest = false
             _sessionExpired.value = false
             persist()
             publish()
             before
         }
-        if (revokeReplaced && replaced != null && replaced.token != account.token) {
+        if (replaced != null && replaced.token != account.token) {
             queueRevoke(listOfNotNull(replaced.token, replaced.refreshToken))
             revokePending()
         }

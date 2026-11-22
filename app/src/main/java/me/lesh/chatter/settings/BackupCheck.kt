@@ -98,11 +98,16 @@ object BackupCheck {
         return e.copy(id = id, name = name, url = e.url?.let(TrustedImages::url), channel = channel)
     }
 
-    /** Like [hiddenEmote]: the picture is shown in the settings. */
+    /** Like [hiddenEmote]: the picture, either one of the two, is shown in the settings. */
     private fun hiddenBadge(b: HiddenBadge): HiddenBadge? {
         val set = b.set.trim()
         if (set.isEmpty() || set.length > MAX_EMOTE_TEXT) return null
-        return b.copy(set = set, title = b.title.trim().take(MAX_EMOTE_TEXT), url = b.url?.let(TrustedImages::url))
+        return b.copy(
+            set = set,
+            title = b.title.trim().take(MAX_EMOTE_TEXT),
+            url = b.url?.let(TrustedImages::url),
+            urlOnLight = b.urlOnLight?.let(TrustedImages::url),
+        )
     }
 
     /** Texts keyed by real logins, trimmed and cut to [maxLength]; empty ones are dropped. */

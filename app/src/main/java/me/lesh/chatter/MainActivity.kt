@@ -17,7 +17,7 @@ import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
 import me.lesh.chatter.auth.LinkedToken
 import me.lesh.chatter.ui.AppRoot
-import me.lesh.chatter.ui.LinkedLoginDialog
+import me.lesh.chatter.ui.LinkedLoginSheet
 import me.lesh.chatter.ui.MainViewModel
 import me.lesh.chatter.ui.chat.ImageViewerHost
 import me.lesh.chatter.ui.chat.LinkGuard
@@ -60,7 +60,7 @@ class MainActivity : ComponentActivity() {
                     ImageViewerHost(vm.imageLoader) {
                         CompositionLocalProvider(LocalPosts provides vm.posts, LocalEmoteAdding provides vm.emoteAdding) { AppRoot(vm) }
                     }
-                    LinkedLoginDialog(vm)
+                    LinkedLoginSheet(vm)
                 }
             }
         }

@@ -17,7 +17,7 @@ class SavedDraftsTest {
     private val scope = TestScope()
 
     private val outbox = object : Outbox {
-        override suspend fun send(channel: String, text: String, replyTo: ChatItem?) = SendResult.Ok
+        override suspend fun send(channel: String, text: String, replyTo: ChatItem?, sendId: String) = SendResult.Ok
         override fun slowSeconds(channel: String) = 0
         override suspend fun report(result: SendResult) = Unit
     }

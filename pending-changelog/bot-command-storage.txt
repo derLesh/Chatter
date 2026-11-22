@@ -1,0 +1,1 @@
+patch: Delete a removed channel's bot commands, keep them all under 4 MB and show their size under Storage

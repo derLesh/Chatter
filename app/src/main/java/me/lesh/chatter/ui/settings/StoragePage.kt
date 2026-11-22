@@ -64,6 +64,7 @@ internal fun StoragePage(settings: Settings, vm: MainViewModel) {
     SettingsGroup(R.string.storage_group) {
         item { SizeRow(R.string.storage_images, R.string.storage_images_hint, report?.images?.let(size)) }
         item { SizeRow(R.string.storage_emote_lists, R.string.storage_emote_lists_hint, report?.emoteLists?.let(size)) }
+        item { SizeRow(R.string.storage_bot_commands, R.string.storage_bot_commands_hint, report?.botCommands?.let(size)) }
         item { SizeRow(R.string.storage_saved, R.string.storage_saved_hint, report?.saved?.let(size)) }
         item { SizeRow(R.string.storage_logs, R.string.storage_logs_hint, report?.logs?.let(size)) }
         item { SizeRow(R.string.storage_app, R.string.storage_app_hint, report?.app?.let(size)) }

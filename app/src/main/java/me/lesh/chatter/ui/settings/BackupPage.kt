@@ -2,15 +2,10 @@ package me.lesh.chatter.ui.settings
 
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.size
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ListItem
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -19,11 +14,12 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.unit.dp
 import me.lesh.chatter.R
 import me.lesh.chatter.settings.BackupCheck
 import me.lesh.chatter.settings.SettingsBackup
+import me.lesh.chatter.ui.FormSheet
 import me.lesh.chatter.ui.MainViewModel
+import me.lesh.chatter.ui.SheetText
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -74,42 +70,40 @@ internal fun BackupPage(vm: MainViewModel) {
 
     pending?.let { backup ->
         val hosts = backup.settings?.imageHosts
-        AlertDialog(
-            onDismissRequest = { pending = null },
-            title = { Text(stringResource(R.string.backup_confirm_title)) },
-            text = {
-                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Text(stringResource(R.string.backup_confirm_text))
-                    Text(
-                        stringResource(
-                            R.string.backup_confirm_counts,
-                            backup.rules?.size ?: 0,
-                            backup.nicknames?.size ?: 0,
-                            backup.notes?.size ?: 0,
-                            backup.channels?.logins?.size ?: 0,
-                        ),
-                    )
-                    // The image hosts are the one backup setting that reaches outside the phone, so
-                    // they are listed.
-                    if (hosts != null) {
-                        Text(
-                            if (hosts.isEmpty()) stringResource(R.string.backup_confirm_no_hosts)
-                            else stringResource(R.string.backup_confirm_hosts, hosts.joinToString(", ")),
-                        )
-                    }
+        FormSheet(
+            title = stringResource(R.string.backup_confirm_title),
+            text = stringResource(R.string.backup_confirm_text),
+            confirmLabel = stringResource(R.string.backup_restore),
+            onConfirm = {
+                scope.launch {
+                    vm.applyBackup(backup)
+                    status = R.string.backup_imported
                 }
             },
-            confirmButton = {
-                TextButton(onClick = {
-                    pending = null
-                    scope.launch {
-                        vm.applyBackup(backup)
-                        status = R.string.backup_imported
-                    }
-                }) { Text(stringResource(R.string.backup_restore)) }
-            },
-            dismissButton = { TextButton(onClick = { pending = null }) { Text(stringResource(R.string.cancel)) } },
-        )
+            onDismiss = { pending = null },
+        ) {
+            item(key = "counts") {
+                SheetText(
+                    stringResource(
+                        R.string.backup_confirm_counts,
+                        backup.rules?.size ?: 0,
+                        backup.nicknames?.size ?: 0,
+                        backup.notes?.size ?: 0,
+                        backup.channels?.logins?.size ?: 0,
+                    ),
+                )
+            }
+            // The image hosts are the one backup setting that reaches outside the phone, so they
+            // are listed.
+            if (hosts != null) {
+                item(key = "hosts") {
+                    SheetText(
+                        if (hosts.isEmpty()) stringResource(R.string.backup_confirm_no_hosts)
+                        else stringResource(R.string.backup_confirm_hosts, hosts.joinToString(", ")),
+                    )
+                }
+            }
+        }
     }
 
     SettingsGroup {

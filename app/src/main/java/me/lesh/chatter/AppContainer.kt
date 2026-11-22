@@ -286,7 +286,7 @@ class AppContainer(
             .build()
     }
 
-    val storage = StorageUsage(context, { diskCache }, http.cache, emoteListFiles, botCommands::forget)
+    val storage = StorageUsage(context, { diskCache }, http.cache, emoteListFiles, botCommands)
 
     private fun emoteOptions() = settings.settings.value.let {
         EmoteOptions(
@@ -403,12 +403,22 @@ class AppContainer(
         liveAlerts.start()
         // One notification channel per Twitch channel, so each can have its own sound.
         scope.launch { channels.identities.collect { notifier.syncChannels(it) } }
-        // Every mention goes into the inbox of the account it was addressed to. Guests have no
-        // inbox.
+        // A removed channel takes its bots' command lists along. Only removals count, so the empty
+        // list before the channels are read cannot delete anything.
         scope.launch {
-            chat.allMentions.collect { m ->
+            var before = emptySet<String>()
+            channels.channels.collect { list ->
+                val now = list.toSet()
+                (before - now).forEach { botCommands.forgetChannel(it) }
+                before = now
+            }
+        }
+        // Every mention goes into the inbox of the account it was matched for, which may no longer
+        // be the active one. Guests have no inbox.
+        scope.launch {
+            chat.inboxMentions.collect { m ->
                 AppLog.d("Chat", "Mention in ${AppLog.channel(m.item.channel)}${if (m.seen) ", seen on screen" else ""}")
-                activeUserId.value?.let { inbox.add(m.item, read = m.seen, account = it) }
+                m.owner?.let { inbox.add(m.item, read = m.seen, account = it) }
             }
         }
         // A whisper already names its account; the active one may have changed since it arrived.
@@ -569,7 +579,7 @@ class AppContainer(
     private suspend fun sendScheduled(message: ScheduledMessage): SendResult {
         val replyTo = message.reply?.toItem()
         if (auth.account?.userId == message.account && message.channel in chat.rooms.ready.value) {
-            return chat.send(message.channel, message.text, replyTo)
+            return chat.send(message.channel, message.text, replyTo, sendId = message.id)
         }
         val ready = withTimeoutOrNull(NOTIFICATION_SEND_TIMEOUT_MS) {
             auth.state.first { it is AuthState.LoggedIn }
@@ -579,7 +589,7 @@ class AppContainer(
             true
         } == true
         if (!ready || auth.account?.userId != message.account) return SendResult.NotConnected
-        return chat.send(message.channel, message.text, replyTo)
+        return chat.send(message.channel, message.text, replyTo, sendId = message.id)
     }
 
     /**

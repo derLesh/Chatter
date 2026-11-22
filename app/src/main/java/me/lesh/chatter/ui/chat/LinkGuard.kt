@@ -4,14 +4,12 @@ import android.app.Application
 import android.content.ClipData
 import android.view.View
 import androidx.compose.animation.core.animateDpAsState
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.consumeWindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
-import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -38,6 +36,7 @@ import androidx.compose.ui.unit.dp
 import me.lesh.chatter.R
 import me.lesh.chatter.chat.LinkText
 import me.lesh.chatter.settings.Settings
+import me.lesh.chatter.ui.FormSheet
 import androidx.core.graphics.Insets
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
@@ -85,32 +84,36 @@ fun LinkGuard(settings: Settings, content: @Composable () -> Unit) {
         Box(Modifier.fillMaxSize().padding(covered).consumeWindowInsets(covered)) { content() }
     }
 
+    // Out here: the copy runs once the sheet is gone, and a scope inside it would be gone too.
+    val clipboard = LocalClipboard.current
+    val scope = rememberCoroutineScope()
     asking?.let { uri ->
-        val clipboard = LocalClipboard.current
-        val scope = rememberCoroutineScope()
-        AlertDialog(
-            onDismissRequest = { asking = null },
-            title = { Text(stringResource(R.string.link_check_title)) },
-            text = {
-                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Text(stringResource(R.string.link_check_text))
-                    Text(LinkText.honest(uri), fontFamily = FontFamily.Monospace)
-                }
-            },
-            confirmButton = {
-                TextButton(onClick = {
-                    asking = null
-                    platform.openUri(uri)
-                }) { Text(stringResource(R.string.open)) }
-            },
-            dismissButton = {
-                TextButton(onClick = {
-                    asking = null
-                    val text = LinkText.honest(uri)
-                    scope.launch { clipboard.setClipEntry(ClipEntry(ClipData.newPlainText(text, text))) }
-                }) { Text(stringResource(R.string.action_copy)) }
-            },
-        )
+        val honest = LinkText.honest(uri)
+        FormSheet(
+            title = stringResource(R.string.link_check_title),
+            text = stringResource(R.string.link_check_text),
+            confirmLabel = stringResource(R.string.open),
+            onConfirm = { platform.openUri(uri) },
+            onDismiss = { asking = null },
+        ) { finish ->
+            item(key = "link") {
+                Text(
+                    honest,
+                    fontFamily = FontFamily.Monospace,
+                    style = MaterialTheme.typography.bodyMedium,
+                    modifier = Modifier.padding(top = 12.dp),
+                )
+            }
+            // Where it really goes, to look at in peace or send to someone who knows.
+            item(key = "copy") {
+                TextButton(
+                    onClick = {
+                        finish { scope.launch { clipboard.setClipEntry(ClipEntry(ClipData.newPlainText(honest, honest))) } }
+                    },
+                    modifier = Modifier.padding(top = 4.dp),
+                ) { Text(stringResource(R.string.action_copy)) }
+            }
+        }
     }
 }
 

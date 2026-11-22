@@ -47,9 +47,17 @@ class PinnedMessages(
     suspend fun follow(channel: String) {
         while (true) {
             refresh(channel)
+            // Also when asking failed: a pin left past its end would be asked for again at once,
+            // as fast as a failing Twitch answers.
+            dropEnded(channel)
             val endsIn = _pins.value[channel]?.endsAt?.let { it - System.currentTimeMillis() }
-            delay(endsIn?.coerceIn(0, REFRESH_MS) ?: REFRESH_MS)
+            delay(endsIn?.coerceIn(MIN_REFRESH_MS, REFRESH_MS) ?: REFRESH_MS)
         }
+    }
+
+    private fun dropEnded(channel: String) {
+        val now = System.currentTimeMillis()
+        _pins.update { pins -> if ((pins[channel]?.endsAt ?: Long.MAX_VALUE) <= now) pins - channel else pins }
     }
 
     suspend fun refresh(channel: String) {
@@ -119,6 +127,9 @@ class PinnedMessages(
     private companion object {
         const val TAG = "PinnedMessages"
         const val REFRESH_MS = 60_000L
+
+        /** The least wait between two checks, however soon a pin ends. */
+        const val MIN_REFRESH_MS = 1_000L
 
         /** Moderators who can manage pins may read them too. */
         const val SCOPE = "moderator:manage:chat_messages"

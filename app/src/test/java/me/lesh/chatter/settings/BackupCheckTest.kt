@@ -105,11 +105,16 @@ class BackupCheckTest {
             HiddenBadge(BadgeProvider.Twitch, "predictions", "again", null),
             HiddenBadge(BadgeProvider.Twitch, " ", "no kind", null),
             HiddenBadge(BadgeProvider.SevenTv, "abc", "7TV", "https://example.com/spy.png"),
+            // The light theme's picture is shown as well.
+            HiddenBadge(BadgeProvider.Ffz, "def", "FFZ", "https://cdn.frankerfacez.com/badge/2/4", urlOnLight = "https://example.com/spy-light.png"),
+            HiddenBadge(BadgeProvider.Ffz, "ghi", "FFZ light", null, urlOnLight = "https://cdn.frankerfacez.com/badge/3/4"),
         )
         assertEquals(
             listOf(
                 HiddenBadge(BadgeProvider.Twitch, "predictions", "Predicted Blue (1)", "https://static-cdn.jtvnw.net/badges/v1/x/2"),
                 HiddenBadge(BadgeProvider.SevenTv, "abc", "7TV", null),
+                HiddenBadge(BadgeProvider.Ffz, "def", "FFZ", "https://cdn.frankerfacez.com/badge/2/4", urlOnLight = null),
+                HiddenBadge(BadgeProvider.Ffz, "ghi", "FFZ light", null, urlOnLight = "https://cdn.frankerfacez.com/badge/3/4"),
             ),
             BackupCheck.clean(SettingsBackup(hiddenBadges = hidden)).hiddenBadges,
         )

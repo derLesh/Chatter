@@ -51,7 +51,10 @@ class PostRepository(sources: List<PostSource>, private val scope: CoroutineScop
     } catch (e: CancellationException) {
         throw e
     } catch (e: HttpException) {
-        null.also { remember(source, key, null) }
+        // A site that is down or busy says nothing about the post: asked again soon. Any other
+        // error means the post is gone or private.
+        val passing = e.code == 429 || e.code in 500..599
+        null.also { remember(source, key, null, freshFor = if (passing) RETRY_AFTER_MS else source.freshFor(key.key)) }
     } catch (e: IOException) {
         // Offline for a moment; the next time the card is shown it asks again.
         null
@@ -62,13 +65,15 @@ class PostRepository(sources: List<PostSource>, private val scope: CoroutineScop
         synchronized(loading) { loading.remove(key) }
     }
 
-    private fun remember(source: PostSource, key: PostLink, post: Post?) {
-        val freshFor = source.freshFor(key.key)
+    private fun remember(source: PostSource, key: PostLink, post: Post?, freshFor: Long = source.freshFor(key.key)) {
         val until = if (freshFor == Long.MAX_VALUE) Long.MAX_VALUE else SystemClock.elapsedRealtime() + freshFor
         known.put(key, Known(post, until))
     }
 
     private companion object {
         const val CACHE_SIZE = 200
+
+        /** How long a site's failure holds before the post is asked for again. */
+        const val RETRY_AFTER_MS = 60_000L
     }
 }

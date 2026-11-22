@@ -25,18 +25,26 @@ class BlockedUsersRepository(private val helix: HelixApi, scope: CoroutineScope)
         .map { list -> list.mapTo(HashSet()) { it.userLogin.lowercase() } }
         .stateIn(scope, SharingStarted.Eagerly, emptySet())
 
+    /**
+     * The user id [blocked] belongs to. An answer that arrives after an account switch is for the
+     * previous account and must not replace the new one's list.
+     */
+    @Volatile private var owner: String? = null
+
     suspend fun load(userId: String) {
+        owner = userId
         runCatchingCancellable { helix.blockedUsers(userId) }
-            .onSuccess { list -> _blocked.value = list.sortedBy { it.userLogin } }
+            .onSuccess { list -> if (owner == userId) _blocked.value = list.sortedBy { it.userLogin } }
             .onFailure { AppLog.w(TAG, "Block list failed: ${it.message}") }
     }
 
     /** Blocks or unblocks on Twitch; the local list follows once Twitch confirmed. */
     suspend fun setBlocked(user: HelixBlockedUser, blocked: Boolean): Boolean {
+        val asOwner = owner
         val ok = runCatchingCancellable { helix.setBlocked(user.userId, blocked) }
             .onFailure { AppLog.w(TAG, "Blocking ${AppLog.user(user.userLogin)} failed: ${it.message}") }
             .isSuccess
-        if (ok) {
+        if (ok && owner == asOwner) {
             _blocked.update { list ->
                 if (blocked) (list + user).distinctBy { it.userId }.sortedBy { it.userLogin }
                 else list.filterNot { it.userId == user.userId }
@@ -48,6 +56,7 @@ class BlockedUsersRepository(private val helix: HelixApi, scope: CoroutineScope)
     fun isBlocked(login: String): Boolean = login.lowercase() in logins.value
 
     fun clear() {
+        owner = null
         _blocked.value = emptyList()
     }
 

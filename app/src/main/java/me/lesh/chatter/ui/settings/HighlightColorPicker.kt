@@ -11,15 +11,12 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Edit
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Icon
 import androidx.compose.material3.ListItem
 import androidx.compose.material3.MaterialTheme
@@ -27,7 +24,6 @@ import androidx.compose.material3.Slider
 import androidx.compose.material3.SliderDefaults
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
@@ -53,6 +49,7 @@ import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import me.lesh.chatter.R
 import me.lesh.chatter.settings.Settings
+import me.lesh.chatter.ui.FormSheet
 import me.lesh.chatter.ui.theme.highlightBackground
 import me.lesh.chatter.ui.theme.highlightColor
 import kotlin.math.roundToInt
@@ -112,10 +109,10 @@ internal fun HighlightColorPicker(selected: Int, onSelect: (Int) -> Unit) {
         colors = transparentItem(),
     )
     if (customOpen) {
-        CustomHighlightDialog(
+        CustomHighlightSheet(
             initialColor = highlightColor(selected, scheme),
             onDismiss = { customOpen = false },
-            onSave = { onSelect(it); customOpen = false },
+            onSave = onSelect,
         )
     }
 }
@@ -140,9 +137,9 @@ private fun Swatch(color: Color, selected: Boolean, label: String, onClick: () -
 
 private fun contentColorOn(color: Color) = if (color.luminance() > 0.179f) Color.Black else Color.White
 
-/** Keep the draft separate so dismissing the dialog leaves the saved color untouched. */
+/** Keep the draft separate so dismissing the sheet leaves the saved color untouched. */
 @Composable
-private fun CustomHighlightDialog(initialColor: Color, onDismiss: () -> Unit, onSave: (Int) -> Unit) {
+private fun CustomHighlightSheet(initialColor: Color, onDismiss: () -> Unit, onSave: (Int) -> Unit) {
     val initialHsv = remember(initialColor) {
         FloatArray(3).also { android.graphics.Color.colorToHSV(initialColor.toArgb(), it) }
     }
@@ -150,14 +147,14 @@ private fun CustomHighlightDialog(initialColor: Color, onDismiss: () -> Unit, on
     var saturation by rememberSaveable { mutableFloatStateOf(initialHsv[1]) }
     var brightness by rememberSaveable { mutableFloatStateOf(initialHsv[2]) }
     val color = Color.hsv(hue, saturation, brightness)
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text(stringResource(R.string.highlight_custom)) },
-        text = {
-            Column(
-                verticalArrangement = Arrangement.spacedBy(8.dp),
-                modifier = Modifier.verticalScroll(rememberScrollState()),
-            ) {
+    FormSheet(
+        title = stringResource(R.string.highlight_custom),
+        confirmLabel = stringResource(R.string.save),
+        onConfirm = { onSave(color.toArgb()) },
+        onDismiss = onDismiss,
+    ) {
+        item(key = "color") {
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.padding(top = 16.dp)) {
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                     Box(Modifier.size(40.dp).clip(CircleShape).background(color)
                         .border(1.dp, MaterialTheme.colorScheme.outline, CircleShape))
@@ -177,10 +174,8 @@ private fun CustomHighlightDialog(initialColor: Color, onDismiss: () -> Unit, on
                     listOf(Color.Black, Color.hsv(hue, saturation, 1f)),
                 )
             }
-        },
-        confirmButton = { TextButton(onClick = { onSave(color.toArgb()) }) { Text(stringResource(R.string.save)) } },
-        dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.cancel)) } },
-    )
+        }
+    }
 }
 
 /** Native sliders keep touch, keyboard and TalkBack controls over the color gradients. */

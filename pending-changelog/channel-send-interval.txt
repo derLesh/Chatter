@@ -1,0 +1,1 @@
+patch: Space out messages in a channel by a second, so Twitch does not drop one sent right after another

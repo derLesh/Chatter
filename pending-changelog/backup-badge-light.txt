@@ -1,0 +1,1 @@
+patch: Load the light theme's picture of a hidden badge from a restored backup only from the badge sites

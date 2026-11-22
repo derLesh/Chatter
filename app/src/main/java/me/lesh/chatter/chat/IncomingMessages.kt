@@ -31,8 +31,11 @@ class IncomingMessages(
     private val selfLogin: () -> String,
     /** The user id of the account on the phone with this login; null for one that is gone. */
     private val accountOf: (login: String) -> String?,
-    /** A mention, and whether its channel was on screen. */
-    private val onMention: (item: ChatItem, watched: Boolean) -> Unit,
+    /**
+     * A mention, whether its channel was on screen, and the user id of the account it was matched
+     * for (null when that account is gone).
+     */
+    private val onMention: (item: ChatItem, watched: Boolean, owner: String?) -> Unit,
     /**
      * A whisper with its [InboxWhisper.owner] set, and whether the whisper tab was in front.
      */
@@ -47,8 +50,8 @@ class IncomingMessages(
     private val onSharedChatStarted: (channel: String) -> Unit = {},
     /** Shared Chat partners whose messages arrived before they were known. */
     private val onPartnersFound: (ids: List<String>) -> Unit = {},
-    /** Twitch refused a message the user sent in this channel. */
-    private val onRefused: (channel: String) -> Unit = {},
+    /** Twitch refused the message the user sent in [channel] under the temporary id [echoId]. */
+    private val onRefused: (channel: String, echoId: String) -> Unit = { _, _ -> },
     /** A message entered for a channel point reward arrived; see [RewardNames.seen]. */
     private val onReward: (rewardId: String, channelId: String?) -> Unit = { _, _ -> },
     private val threads: FollowedThreads = FollowedThreads(),
@@ -123,7 +126,7 @@ class IncomingMessages(
         if (!waiting.removeAll { it.item.id == id }) return
         buffers.markDeleted(channel) { it.id == id }
         system(channel, notices.notConfirmed())
-        onRefused(channel)
+        onRefused(channel, id)
     }
 
     /**
@@ -159,7 +162,7 @@ class IncomingMessages(
                 // delivered, so it is struck out and the notice says why.
                 if (msg.tag("msg-id")?.startsWith("msg_") == true) answered(channel)?.let { refused ->
                     buffers.markDeleted(channel) { it.id == refused.id }
-                    onRefused(channel)
+                    onRefused(channel, refused.id)
                 }
                 penaltyOf(msg)?.let { rooms.penalize(channel, it) }
                 builder.build(msg, "", null, filters().mentions)?.let(buffers::add)
@@ -188,7 +191,10 @@ class IncomingMessages(
     private fun onChatMessage(channel: String, msg: IrcMessage) {
         val current = filters()
         val (mentions, _, rules) = current
-        val built = builder.build(msg, selfLogin(), rooms.id(channel), mentions) ?: return
+        // Read once: the account may change while this runs, and the mention belongs to the one
+        // it was matched for.
+        val self = selfLogin()
+        val built = builder.build(msg, self, rooms.id(channel), mentions) ?: return
         // Muted and hidden messages count as seen too, so a reconnect does not fetch them again.
         lastLive.getOrPut(channel) { Newest(0L) }.at = built.timestamp
         msg.tagLong("tmi-sent-ts")?.let(::measureClock)
@@ -210,7 +216,7 @@ class IncomingMessages(
         if (!item.isOwn && !watched) buffers.countUnread(channel)
         if (item.isMention && firstSighting(item)) {
             stats.countMention()
-            onMention(item, watched)
+            onMention(item, watched, accountOf(self))
         }
     }
 

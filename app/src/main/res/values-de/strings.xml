@@ -294,6 +294,7 @@
     <string name="cmd_error_permission">Nicht erlaubt: %1$s</string>
     <string name="cmd_error_generic">Befehl fehlgeschlagen: %1$s</string>
     <string name="cmd_error_no_user">Nutzer %1$s nicht gefunden</string>
+    <string name="cmd_error_no_channel">Der Kanal ist noch nicht bereit. Versuch es gleich noch mal.</string>
 
     <!-- User card -->
     <string name="user_no_messages">Noch keine Nachrichten</string>
@@ -332,6 +333,8 @@
     <string name="storage_images_hint">Emotes, Badges und Bilder aus dem Chat</string>
     <string name="storage_emote_lists">Emote-Listen</string>
     <string name="storage_emote_lists_hint">Welche Emotes und Badges jeder Kanal hat</string>
+    <string name="storage_bot_commands">Bot-Befehle</string>
+    <string name="storage_bot_commands_hint">Die Befehle der Chat-Bots, für die Eingabe</string>
     <string name="storage_saved">Gespeichert</string>
     <string name="storage_saved_hint">Einstellungen, Kanäle, Postfach und Statistik</string>
     <string name="storage_logs">Log und Abstürze</string>
@@ -339,7 +342,7 @@
     <string name="storage_app">App</string>
     <string name="storage_app_hint">Chatter selbst</string>
     <string name="storage_clear_cache">Cache leeren</string>
-    <string name="storage_clear_cache_hint">Bilder und Emote-Listen laden bei Bedarf neu. Deine Einstellungen bleiben.</string>
+    <string name="storage_clear_cache_hint">Bilder, Emote-Listen und Bot-Befehle laden bei Bedarf neu. Deine Einstellungen bleiben.</string>
     <string name="storage_clear">Leeren</string>
     <string name="settings_section_channels">Kanäle &amp; Benachrichtigungen</string>
     <string name="settings_section_data">Deine Daten</string>
@@ -638,7 +641,6 @@
     <string name="account_copy_id">Twitch-ID kopieren</string>
     <string name="account_active">Chatte mit diesem Konto</string>
     <string name="account_switch_to">Als %1$s chatten</string>
-    <string name="account_add">Konto hinzufügen</string>
     <string name="account_add_short">Hinzufügen</string>
     <string name="account_logout_title">%1$s abmelden?</string>
     <string name="account_logout_text">Das Konto wird auch bei Twitch abgemeldet. Chatter macht mit deinem anderen Konto weiter.</string>

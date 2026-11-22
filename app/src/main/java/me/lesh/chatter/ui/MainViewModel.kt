@@ -505,7 +505,7 @@ class MainViewModel(private val c: AppContainer, savedState: SavedStateHandle) :
     private val composer = Composer(
         scope = viewModelScope,
         outbox = object : Outbox {
-            override suspend fun send(channel: String, text: String, replyTo: ChatItem?) = c.chat.send(channel, text, replyTo)
+            override suspend fun send(channel: String, text: String, replyTo: ChatItem?, sendId: String) = c.chat.send(channel, text, replyTo, sendId)
 
             override fun slowSeconds(channel: String) =
                 SendLimits.slowSeconds(roomStates.value[channel], roles.value[channel])
@@ -657,7 +657,7 @@ class MainViewModel(private val c: AppContainer, savedState: SavedStateHandle) :
         savedState.setSavedStateProvider(DRAFTS_KEY) { Bundle().apply { putString(DRAFTS_KEY, composer.save()) } }
         savedState.get<Bundle>(PICTURE_KEY)?.getString(PICTURE_KEY)?.let { picture.restore(it, c.uploaders.setup.value::target) }
         savedState.setSavedStateProvider(PICTURE_KEY) { Bundle().apply { putString(PICTURE_KEY, picture.save()) } }
-        viewModelScope.launch { c.imageUploader.discardAllBut(picture.picture) }
+        viewModelScope.launch { c.imageUploader.discardUnused(restored = picture.picture) }
         viewModelScope.launch {
             combine(c.auth.state, c.auth.accounts, ::Pair).collect { (state, accounts) ->
                 if (state == AuthState.Loading) return@collect

@@ -1,0 +1,2 @@
+patch: Accept shared pictures only when they really are pictures another app handed over
+patch: Keep a picture ready to send when a chat bubble opens

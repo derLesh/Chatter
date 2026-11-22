@@ -41,6 +41,22 @@ class LogPrivacyTest {
     }
 
     @Test
+    fun shortenedIpv6AddressesAreHiddenToo() {
+        for (address in listOf("2001:db8::1", "fe80::1c2b:3aff:fe4d:5e6f%wlan0", "::1", "::ffff:192.0.2.10", "2001:db8:0:0:1::")) {
+            val cleaned = LogPrivacy.clean("Failed to connect to /$address (port 443)")
+            assertEquals("$address in: $cleaned", "Failed to connect to /[hidden] (port 443)", cleaned)
+        }
+        assertEquals("Failed to connect to [[hidden]]:443", LogPrivacy.clean("Failed to connect to [2001:db8::42]:443"))
+    }
+
+    @Test
+    fun codeAndTimesThatLookCloseStay() {
+        for (text in listOf("Chat::onMessage", "at 12:30", "ratio 16:9:4")) {
+            assertEquals(text, LogPrivacy.clean(text))
+        }
+    }
+
+    @Test
     fun timesAndVersionsStay() {
         assertEquals("Trying again at 12:30:05 with 0.9.0", LogPrivacy.clean("Trying again at 12:30:05 with 0.9.0"))
     }

@@ -27,7 +27,9 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.joinAll
 import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharedFlow
@@ -37,6 +39,7 @@ import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.drop
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -52,12 +55,18 @@ private data class FilterWords(
     val blocked: Set<String>,
 )
 
-/** A mention that just arrived, and whether its channel was open. */
-data class MentionEvent(val item: ChatItem, val seen: Boolean)
+/** Twitch refused the message sent in [channel] as [ChatRepository.send]'s `sendId`. */
+data class Refusal(val channel: String, val sendId: String)
+
+/**
+ * A mention that just arrived, whether its channel was open, and the user id of the account it was
+ * addressed to. Null [owner]: that account is gone, and nobody's inbox takes the mention.
+ */
+data class MentionEvent(val item: ChatItem, val seen: Boolean, val owner: String?)
 
 enum class SendResult {
     Ok, Empty, NotConnected, RateLimited,
-    /** A command was not executed (unknown or wrong usage); the hint is shown in the chat. */
+    /** A command did not work (unknown, wrong usage or refused); the chat says why. */
     CommandError,
 }
 
@@ -113,6 +122,8 @@ class ChatRepository(
     /** Per channel, the last line as it went out and when; see [RepeatedMessages]. */
     private val lastSent = HashMap<String, Pair<String, Long>>()
     private val rateLimiter = RateLimiter(30_000)
+    /** Per channel, when the next message of a viewer may go out; see [send]. */
+    private val nextSendAt = HashMap<String, Long>()
     private val loadedChannels = HashSet<String>()
     private var joinedChannels: List<String> = emptyList()
 
@@ -149,30 +160,37 @@ class ChatRepository(
         sharedChats = sharedChats,
         onSharedChatStarted = { channel -> scope.launch { loadSharedChat(channel) } },
         onPartnersFound = { ids -> scope.launch { describePartners(ids) } },
-        onRefused = { _refused.tryEmit(it) },
+        onRefused = { channel, echoId -> _refused.tryEmit(Refusal(channel, echoId.removePrefix(MessageBuilder.OWN_ID_PREFIX))) },
         onReward = rewards::seen,
         threads = threads,
     )
 
-    private val _refused = MutableSharedFlow<String>(extraBufferCapacity = 8)
-    /** Channels where Twitch just refused one of the user's messages, one event per refusal. */
-    val refused: SharedFlow<String> = _refused
+    private val _refused = MutableSharedFlow<Refusal>(extraBufferCapacity = 8)
+    /** Messages of the user's that Twitch just refused, one event per refusal. */
+    val refused: SharedFlow<Refusal> = _refused
 
     // Room for a raid's worth; the notifications combine them (see ChatService).
-    private val _mentionEvents = MutableSharedFlow<ChatItem>(extraBufferCapacity = 256)
+    private val _mentionEvents = MutableSharedFlow<MentionEvent>(extraBufferCapacity = 256)
     /** Live mentions in channels the user is not looking at. */
-    val mentionEvents: SharedFlow<ChatItem> = _mentionEvents
+    val mentionEvents: SharedFlow<MentionEvent> = _mentionEvents
 
     private val _allMentions = MutableSharedFlow<MentionEvent>(extraBufferCapacity = 32)
-    /** Every live mention, including those in the open channel. For the inbox. */
+    /** Every live mention, including those in the open channel, for feedback on screen. */
     val allMentions: SharedFlow<MentionEvent> = _allMentions
 
-    private val _whispers = MutableSharedFlow<InboxWhisper>(extraBufferCapacity = 16)
+    // The inbox is stored one write at a time, and a burst must wait for it instead of being dropped
+    // like a full SharedFlow drops. Mentions and whispers are rare enough for an unbounded queue.
+    private val _inboxMentions = Channel<MentionEvent>(Channel.UNLIMITED)
+    /** Every live mention, for the inbox. Each one is delivered once, so it has one collector. */
+    val inboxMentions: Flow<MentionEvent> = _inboxMentions.receiveAsFlow()
+
+    private val _whispers = Channel<InboxWhisper>(Channel.UNLIMITED)
     /**
-     * Whispers, each with the account it was sent to as [InboxWhisper.owner]. Twitch only delivers
-     * them to tokens with `whispers:read`, which older logins lack.
+     * Whispers, each with the account it was sent to as [InboxWhisper.owner], for the inbox, which
+     * is their one collector. Twitch only delivers them to tokens with `whispers:read`, which older
+     * logins lack.
      */
-    val whispers: SharedFlow<InboxWhisper> = _whispers
+    val whispers: Flow<InboxWhisper> = _whispers.receiveAsFlow()
 
     private val _whisperEvents = MutableSharedFlow<InboxWhisper>(extraBufferCapacity = 16)
     /** Whispers that arrived while the whisper tab was not open, for the notification. */
@@ -284,8 +302,15 @@ class ChatRepository(
         scope.launch(worker) {
             var wasConnected = false
             var gapFill: Job? = null
+            // The newest live message per channel when the connection dropped. Read later, the first
+            // message after the reconnect would already have moved it past the gap.
+            var gapSince: Map<String, Long>? = null
             irc.state.collect { state ->
-                if (state != ConnectionState.Connected) gapFill?.cancel()
+                if (state != ConnectionState.Connected) {
+                    gapFill?.cancel()
+                    // A drop during a gap fill keeps the older snapshot: that gap is not filled yet.
+                    if (wasConnected && gapSince == null) gapSince = buffers.channels().associateWith(incoming::lastLive)
+                }
                 when (state) {
                     ConnectionState.Connected -> {
                         // Offline at the start, or the service was down: the network is back now.
@@ -294,7 +319,12 @@ class ChatRepository(
                         if (wasConnected) {
                             // The channel on screen first.
                             val channels = buffers.channels().filterNot(missing::contains).sortedBy(::priority)
-                            gapFill = scope.launch { fillGaps(channels) }
+                            val since = channels.associateWith { gapSince?.get(it) ?: incoming.lastLive(it) }
+                            gapSince = since
+                            gapFill = scope.launch {
+                                fillGaps(since)
+                                withContext(worker) { if (gapSince === since) gapSince = null }
+                            }
                         } else {
                             wasConnected = true
                             _connectionStatus.value = null
@@ -380,15 +410,28 @@ class ChatRepository(
         chatterRegistry.names(channel)
     }
 
-    suspend fun send(channel: String, input: String, replyTo: ChatItem?): SendResult = withContext(worker) {
+    /**
+     * [sendId] names this send in a [Refusal], so whoever sent it can tell a refusal of theirs from
+     * one of another message in the same channel.
+     */
+    suspend fun send(channel: String, input: String, replyTo: ChatItem?, sendId: String = UUID.randomUUID().toString()): SendResult = withContext(worker) {
         val text = input.trim()
         if (text.isEmpty()) return@withContext SendResult.Empty
         // A guest connection is read-only, and every command needs a login.
         if (auth.account == null) return@withContext SendResult.NotConnected
         CommandParser.parse(text)?.let { command ->
-            system(channel, commands.execute(command, rooms.id(channel)))
-            val invalid = command is ChatCommand.Usage || command is ChatCommand.Unknown
-            return@withContext if (invalid) SendResult.CommandError else SendResult.Ok
+            val outcome = commands.execute(command, rooms.id(channel))
+            system(channel, outcome.text)
+            return@withContext if (outcome.worked) SendResult.Ok else SendResult.CommandError
+        }
+
+        // Twitch ignores a viewer's second message within a second in one channel, e.g. two planned
+        // messages due at once, so each send waits for the next free second there. The worker is one
+        // thread, so no other send takes the same second while this one waits.
+        if (!rooms.isPrivileged(channel)) {
+            val slot = maxOf(System.currentTimeMillis(), nextSendAt[channel] ?: 0L)
+            nextSendAt[channel] = slot + CHANNEL_SEND_INTERVAL_MS
+            delay(slot - System.currentTimeMillis())
         }
 
         val now = System.currentTimeMillis()
@@ -399,12 +442,14 @@ class ChatRepository(
         val outgoing = if (varied) RepeatedMessages.vary(text) else text
 
         val state = rooms.userState(channel)
-        if (!rateLimiter.tryAcquire(now, if (rooms.isPrivileged(channel)) 100 else 20)) {
+        if (!rateLimiter.hasRoom(now, if (rooms.isPrivileged(channel)) 100 else 20)) {
             return@withContext SendResult.RateLimited
         }
 
         val replyParent = replyTo?.takeIf { it.canReply && !it.id.startsWith("local-") }
         if (!irc.sendMessage(channel, wire(outgoing), replyParent?.id)) return@withContext SendResult.NotConnected
+        // Only what went out counts towards Twitch's limit.
+        rateLimiter.record(now)
 
         lastSent[channel] = outgoing to now
         val reply = replyParent?.let {
@@ -417,6 +462,7 @@ class ChatRepository(
             // An answered message restored with its draft has no segments; the quote is built from its text.
             replyParent?.segments?.ifEmpty { null },
             timestamp = incoming.ownTimestamp(channel),
+            id = MessageBuilder.OWN_ID_PREFIX + sendId,
         )
         incoming.sent(echo)
         awaitConfirmation(echo)
@@ -444,7 +490,7 @@ class ChatRepository(
      * Runs a moderation command (e.g. from the message actions) and reports the result in the chat.
      */
     fun runCommand(channel: String, command: ChatCommand) = scope.launch(worker) {
-        system(channel, commands.execute(command, rooms.id(channel)))
+        system(channel, commands.execute(command, rooms.id(channel)).text)
         // Twitch announces no pin, so the bar would wait for the next check.
         if (command is ChatCommand.Pin || command is ChatCommand.Unpin) scope.launch { pins.refresh(channel) }
     }
@@ -467,8 +513,12 @@ class ChatRepository(
         _unreadMentions.value = emptyMap()
     }
 
-    /** Joins all channels again. Called after login. */
+    /**
+     * Joins all channels again. Called after login and on every account switch, so what Twitch said
+     * about the previous account (a timeout, a mod badge, which channels answered) goes first.
+     */
     fun resync() = scope.launch(worker) {
+        rooms.clear()
         joinedChannels = emptyList()
         syncChannels(channelRepo.channels.value)
     }
@@ -666,15 +716,16 @@ class ChatRepository(
     }
 
     /**
-     * Fetches what was said while the connection was down. Channels where something was missed are
-     * reported to [gapsFilled]; where nothing was, the reconnect leaves no trace.
+     * Fetches what was said while the connection was down: per channel, what came after the newest
+     * live message before the drop ([since], in the order to load). Channels where something was
+     * missed are reported to [gapsFilled]; where nothing was, the reconnect leaves no trace.
      */
-    private suspend fun fillGaps(channels: List<String>) {
+    private suspend fun fillGaps(since: Map<String, Long>) {
         _connectionStatus.value = ChatStatus.LoadingMissed
         if (settings.value.loadHistory) coroutineScope {
-            channels.forEach { channel ->
+            since.forEach { (channel, newestBefore) ->
                 launch {
-                    val fresh = loadHistory(channel, since = incoming.lastLive(channel))
+                    val fresh = loadHistory(channel, since = newestBefore)
                     fresh.minOfOrNull { it.timestamp }?.let { _gapsFilled.tryEmit(GapFilled(channel, it)) }
                 }
             }
@@ -725,14 +776,20 @@ class ChatRepository(
     }
 
     /** A built mention: inbox, unread count and notification. */
-    private fun onMention(item: ChatItem, watched: Boolean) {
+    private fun onMention(item: ChatItem, watched: Boolean, owner: String?) {
         // The inbox gets every mention; one seen arriving is already read.
-        _allMentions.tryEmit(MentionEvent(item, seen = watched))
+        MentionEvent(item, seen = watched, owner = owner).let {
+            _inboxMentions.trySend(it)
+            _allMentions.tryEmit(it)
+        }
         if (watched) return
+        // One matched for the previous account goes to its inbox only, like a late whisper: the
+        // unread counts and the notifications are the active account's.
+        if (owner == null || owner != auth.account?.userId) return
         _unreadMentions.update { it + (item.channel to (it[item.channel] ?: 0) + 1) }
         // Muted channels still count mentions, without notifying.
         if (item.channel in channelRepo.mutedChannels.value) return
-        _mentionEvents.tryEmit(item)
+        _mentionEvents.tryEmit(MentionEvent(item, seen = false, owner = owner))
     }
 
     private fun onWhisper(whisper: InboxWhisper, watched: Boolean) {
@@ -740,7 +797,7 @@ class ChatRepository(
         // the whisper tab and the notifications are the active account's.
         val active = whisper.owner == auth.account?.userId
         // Read already if the whisper tab was open, and then no notification.
-        _whispers.tryEmit(whisper.copy(read = watched && active))
+        _whispers.trySend(whisper.copy(read = watched && active))
         if (!watched && active) _whisperEvents.tryEmit(whisper)
     }
 
@@ -761,6 +818,9 @@ class ChatRepository(
 
     private companion object {
         const val TAG = "ChatRepository"
+
+        /** Twitch's least time between two messages of a viewer in one channel. */
+        const val CHANNEL_SEND_INTERVAL_MS = 1_000L
 
         /** How long channels of one [priority] load before the next ones start. */
         const val HEAD_START_MS = 5_000L
