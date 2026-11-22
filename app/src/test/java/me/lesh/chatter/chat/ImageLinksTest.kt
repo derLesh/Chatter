@@ -1,5 +1,7 @@
 package me.lesh.chatter.chat
 
+import me.lesh.chatter.settings.BackupCheck
+import okhttp3.HttpUrl
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
 import org.junit.Test
@@ -173,5 +175,52 @@ class ImageLinksTest {
     fun aWholeUrlPastedAsAHostBecomesTheHost() {
         assertEquals("imgur.com", ImageLinks.cleanHost("https://www.Imgur.com/some/path?x=1"))
         assertEquals("i.nuuls.com", ImageLinks.cleanHost("  i.nuuls.com  "))
+    }
+    @Test
+    fun anImageSourceIsThePagesSiteWithoutWww() {
+        assertEquals("example.com", ImageLinks.imageSourceOf(siteOf = ::siteIn, pageUrl = "https://www.example.com/a/b?c=d"))
+        assertEquals("i.example.com", ImageLinks.imageSourceOf(siteOf = ::siteIn, pageUrl = "https://i.example.com/cat.png"))
+        assertEquals("example.co.uk", ImageLinks.imageSourceOf(siteOf = ::siteIn, pageUrl = "https://www.example.co.uk/"))
+        assertEquals("user.github.io", ImageLinks.imageSourceOf(siteOf = ::siteIn, pageUrl = "https://user.github.io/page"))
+    }
+
+    @Test
+    fun anImageSourceNeverCoversAWholePublicSuffix() {
+        assertNull(ImageLinks.imageSourceOf(siteOf = ::siteIn, pageUrl = "https://www.com/"))
+        assertNull(ImageLinks.imageSourceOf(siteOf = ::siteIn, pageUrl = "https://www.co.uk/"))
+        assertNull(ImageLinks.imageSourceOf(siteOf = ::siteIn, pageUrl = "https://www.www.com/"))
+        assertNull(ImageLinks.imageSourceOf(siteOf = ::siteIn, pageUrl = "https://github.io/"))
+        assertNull(ImageLinks.imageSourceOf(siteOf = ::siteIn, pageUrl = "https://co.uk/"))
+        assertNull(ImageLinks.imageSourceOf(siteOf = ::siteIn, pageUrl = "https://localhost/"))
+    }
+
+    @Test
+    fun anAddressOrNoUrlIsNoImageSource() {
+        assertNull(ImageLinks.imageSourceOf(siteOf = ::siteIn, pageUrl = "https://192.168.0.1/cat.png"))
+        assertNull(ImageLinks.imageSourceOf(siteOf = ::siteIn, pageUrl = "https://[2001:db8::1]/cat.png"))
+        assertNull(ImageLinks.imageSourceOf(siteOf = ::siteIn, pageUrl = "not a link"))
+        assertNull(ImageLinks.imageSourceOf(siteOf = ::siteIn, pageUrl = "mailto:someone@example.com"))
+    }
+
+    @Test
+    fun anImageSourceIsOneHostTheListKeepsAsItIs() {
+        // OkHttp takes a comma in a host; stored comma-separated, it would become "com" and more.
+        assertNull(ImageLinks.imageSourceOf(siteOf = ::siteIn, pageUrl = "https://com,cats.example.com/"))
+        assertEquals("example.org", ImageLinks.imageSourceOf(siteOf = ::siteIn, pageUrl = "https://www.EXAMPLE.org./"))
+        val pages = listOf("https://www.example.com/", "https://i.example.co.uk/", "https://user.github.io/", "https://bücher.example.com/")
+        for (page in pages) {
+            val source = ImageLinks.imageSourceOf(siteOf = ::siteIn, pageUrl = page)!!
+            assertEquals(page, source, ImageLinks.cleanHost(source))
+            assertEquals(page, listOf(source), BackupCheck.hosts(listOf(source)))
+        }
+    }
+
+    /** OkHttp's public suffix lookup, for the few suffixes these tests use. */
+    private fun siteIn(url: HttpUrl): String? {
+        val host = url.host
+        if (host.contains(':') || host.all { it.isDigit() || it == '.' }) return null
+        val suffix = listOf("co.uk", "github.io", "com", "org", "uk", "io").firstOrNull { host == it || host.endsWith(".$it") } ?: return null
+        if (host == suffix) return null
+        return host.removeSuffix(".$suffix").substringAfterLast('.') + ".$suffix"
     }
 }

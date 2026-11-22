@@ -1696,6 +1696,10 @@ class MainViewModel(private val c: AppContainer, savedState: SavedStateHandle) :
     fun setHighlightColor(v: Int) = saveSetting { setHighlightColor(v) }
     fun setSmoothScrolling(v: Boolean) = saveSetting { setSmoothScrolling(v) }
     fun setInlineImages(v: Boolean) = saveSetting { setInlineImages(v) }
+    fun setLinksInApp(v: Boolean) = saveSetting { setLinksInApp(v) }
+    fun setPostsInTheirApp(v: Boolean) = saveSetting { setPostsInTheirApp(v) }
+    fun setLinksFullScreen(v: Boolean) = saveSetting { setLinksFullScreen(v) }
+    fun setChatAboveLinks(v: Boolean) = saveSetting { setChatAboveLinks(v) }
     fun setUploader(v: UploadTarget) = saveSetting { setUploader(v.id) }
     fun setPictureButton(v: Boolean) = saveSetting { setPictureButton(v) }
     fun setRemovePictureInfo(v: Boolean) = saveSetting { setRemovePictureInfo(v) }

@@ -51,7 +51,6 @@ object BackupCheck {
     }
 
     private val LOGIN = Regex("^[a-z0-9_]{1,25}$")
-    private val HOST_LABEL = Regex("^[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?$")
 
     /** [backup] with everything out of bounds dropped or clamped. */
     fun clean(backup: SettingsBackup): SettingsBackup = backup.copy(
@@ -131,7 +130,7 @@ object BackupCheck {
      */
     fun hosts(list: List<String>): List<String> = list
         .map(ImageLinks::cleanHost)
-        .filter { host -> '.' in host && host.split('.').all { HOST_LABEL.matches(it) } }
+        .filter(ImageLinks::isPlainHost)
         .distinct()
         .take(MAX_HOSTS)
 }

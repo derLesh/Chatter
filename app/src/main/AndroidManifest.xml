@@ -13,6 +13,14 @@
     <!-- Not required: without a camera the token is pasted instead. -->
     <uses-feature android:name="android.hardware.camera" android:required="false" />
 
+    <!-- To find the default browser and whether it can open a link as a Custom Tab over the app.
+         Browsers without Custom Tabs stay unseen: their links go out through Android. -->
+    <queries>
+        <intent>
+            <action android:name="android.support.customtabs.action.CustomTabsService" />
+        </intent>
+    </queries>
+
     <application
         android:name=".ChatterApp"
         android:allowBackup="false"
@@ -303,6 +311,11 @@
         <!-- Rings when a message planned for later is due while Chatter is in the background. -->
         <receiver
             android:name=".service.ScheduledSendReceiver"
+            android:exported="false" />
+
+        <!-- The menu entry of a link's tab that adds its site to the sites images are shown from. -->
+        <receiver
+            android:name=".service.AddImageHostReceiver"
             android:exported="false" />
 
         <service
