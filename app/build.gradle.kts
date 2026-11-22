@@ -14,18 +14,42 @@ plugins {
     alias(libs.plugins.ksp)
 }
 
-// The Twitch Client ID is in local.properties (not committed): twitch.clientId=...
-val localProps = Properties().apply {
-    val file = rootProject.file("local.properties")
-    if (file.exists()) file.inputStream().use { load(it) }
+fun clientIdIn(file: File?): String? = file?.takeIf { it.isFile }
+    ?.let { f -> Properties().apply { f.inputStream().use { load(it) } } }
+    ?.getProperty("twitch.clientId")?.takeIf { it.isNotBlank() }
+
+/**
+ * The local.properties of the main checkout, when this is a `git worktree` of it. The file is not
+ * committed, so a new worktree has none of its own.
+ */
+fun mainCheckoutLocalProperties(): File? {
+    // In a worktree, .git is a file pointing at .git/worktrees/<name> of the main checkout, and
+    // the commondir there leads back to that .git.
+    val dotGit = rootProject.file(".git").takeIf { it.isFile } ?: return null
+    val gitDir = rootProject.file(dotGit.readText().trim().removePrefix("gitdir:").trim())
+    val commonDir = gitDir.resolve("commondir").takeIf { it.isFile }?.readText()?.trim() ?: return null
+    return gitDir.resolve(commonDir).canonicalFile.parentFile.resolve("local.properties")
 }
 
 /** An environment variable; empty counts as unset, since CI sets empty ones. */
 fun env(name: String): String? = providers.environmentVariable(name).orNull?.takeIf { it.isNotBlank() }
 
-// CI has no local.properties and passes the ID from a secret.
-val twitchClientId: String = localProps.getProperty("twitch.clientId").orEmpty()
-    .ifBlank { env("TWITCH_CLIENT_ID").orEmpty() }
+// The Twitch Client ID is in local.properties (not committed): twitch.clientId=... CI has no
+// local.properties and passes the ID from a secret.
+val twitchClientId: String = clientIdIn(rootProject.file("local.properties"))
+    ?: clientIdIn(mainCheckoutLocalProperties())
+    ?: env("TWITCH_CLIENT_ID").orEmpty()
+
+// Without the ID the app still joins chats, but Twitch's API refuses it every request, so Twitch
+// emotes and badges stay away and the chat says Twitch cannot be reached. CI builds without it
+// for checks, so only putting such a build on a phone stops.
+if (twitchClientId.isEmpty()) {
+    val installs = gradle.startParameter.taskNames.any { it.substringAfterLast(':').startsWith("install") }
+    val message = "No Twitch Client ID: put twitch.clientId=... into local.properties or set TWITCH_CLIENT_ID. " +
+        "Without it Twitch's API refuses the app, and Twitch emotes and badges do not load."
+    if (installs) throw GradleException(message)
+    logger.warn("w: $message")
+}
 
 /**
  * `-Punsigned`: the release and nightly workflows build without a key and sign in a job of their
