@@ -1,5 +1,6 @@
 package me.lesh.chatter.service
 
+import android.app.ActivityManager
 import android.app.Notification
 import android.app.PendingIntent
 import android.app.Service
@@ -108,6 +109,7 @@ class ChatService : Service() {
         if (intent?.action == ACTION_DISCONNECT) {
             AppLog.i(TAG, "Disconnect tapped in the notification")
             container.disconnect()
+            closeWindows()
             stopSelf()
             return START_NOT_STICKY
         }
@@ -125,6 +127,14 @@ class ChatService : Service() {
             stopSelf()
         }
         super.onTaskRemoved(rootIntent)
+    }
+
+    /**
+     * Disconnecting quits Chatter: an open chat would only show "Not connected", and opening the
+     * app again connects anew. Bubbles are tasks of their own and close as well.
+     */
+    private fun closeWindows() {
+        getSystemService(ActivityManager::class.java).appTasks.forEach { it.finishAndRemoveTask() }
     }
 
     override fun onDestroy() {
