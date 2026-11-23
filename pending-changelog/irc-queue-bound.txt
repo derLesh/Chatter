@@ -1,1 +1,0 @@
-patch: Reconnect instead of running out of memory when messages arrive faster than Chatter can handle them

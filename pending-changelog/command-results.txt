@@ -1,2 +1,0 @@
-patch: Keep a whisper or command that did not work in the input, and mark a planned one as failed
-patch: Say in German, too, when a command comes before the channel is ready

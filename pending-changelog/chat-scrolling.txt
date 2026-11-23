@@ -1,3 +1,0 @@
-patch: Stop pulling the chat down after scrolling up only a little within a long message
-patch: Keep counting new messages on the button while scrolled up in a busy chat
-patch: Put the unread line where you stopped reading, not a few messages further down

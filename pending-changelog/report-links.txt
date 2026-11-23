@@ -1,1 +1,0 @@
-patch: Show a hint instead of closing when no app can open the report links

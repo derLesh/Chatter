@@ -1,1 +1,0 @@
-minor: Show links to 7TV emotes as a card, with a button to add them to a channel whose emotes you edit

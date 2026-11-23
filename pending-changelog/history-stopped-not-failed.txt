@@ -1,1 +1,0 @@
-patch: Keep cancelled chat history loads from showing an error

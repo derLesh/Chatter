@@ -1,1 +1,0 @@
-patch: Hide shortened IPv6 addresses in the log too, like 2001:db8::1

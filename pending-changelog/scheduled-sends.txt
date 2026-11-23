@@ -1,2 +1,0 @@
-patch: Keep a planned message that was going out when Android closed Chatter, marked as failed
-patch: Keep a sent planned message from coming back as failed when Twitch refuses another message

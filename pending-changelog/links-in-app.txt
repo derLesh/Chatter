@@ -1,2 +1,0 @@
-minor: Open links in your own browser over the chat, so you stay in Chatter
-minor: Add the site of a link you opened as an image source, from its menu

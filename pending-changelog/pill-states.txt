@@ -1,1 +1,0 @@
-patch: Show notices in smaller, easier text, with their own icon for errors, info and a missing network

@@ -1,1 +1,0 @@
-patch: Remove picture info also from photos that keep some of it deeper inside the file

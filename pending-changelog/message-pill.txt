@@ -1,1 +1,0 @@
-patch: Show short notices in a pill above the input, so they no longer cover it

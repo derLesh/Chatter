@@ -3,6 +3,66 @@
 Every release of Chatter, newest first. Written from the entries in `pending-changelog/` by
 `./gradlew releaseVersion`, and shown in the app under Settings → About → Changelog.
 
+## 0.15.0 — 2026-11-23
+- minor: Add the site of a link you opened as an image source, from its menu
+- minor: Ask once after a crash whether to report it
+- minor: Change your stream title and category, or switch a channel's 7TV emote set, from the channel menu
+- minor: Find the last crashes and the log under Settings → About; the hidden Debug category is gone
+- minor: List it under Crashes when Chatter stopped responding or crashed in native code, to report it the same way
+- minor: Look through the log of the last 4 days, one day at a time, kept small on the phone
+- minor: Open links in your own browser over the chat, so you stay in Chatter
+- minor: Rename, remove or add 7TV emotes from the emote card in channels whose emotes you edit
+- minor: Report a crash on GitHub in one tap, with the error and what Chatter did before filled in
+- minor: Say in the chat which 7TV emote set a channel switched to
+- minor: Select and copy part of a message in the user card
+- minor: Show links to 7TV emotes as a card, with a button to add them to a channel whose emotes you edit
+- minor: Show links to Twitch channels, clips and videos as a card, and whether a channel is live
+- patch: Accept shared pictures only when they really are pictures another app handed over
+- patch: Ask on a sheet at the bottom instead of a box in the middle, e.g. before restoring a backup
+- patch: Catch up on missed emote changes when 7TV reconnects during chat
+- patch: Close Chatter when you tap Disconnect in its notification
+- patch: Delete a removed channel's bot commands, keep them all under 4 MB and show their size under Storage
+- patch: Fetch all messages missed during a reconnect, even when a new one arrives before they are loaded
+- patch: Give the dark theme neutral grey surfaces and white buttons instead of purple, when Material You is off
+- patch: Go back in the settings to where you were on the page, not to its top
+- patch: Hide shortened IPv6 addresses in the log too, like 2001:db8::1
+- patch: Keep 7TV emote changes that arrive while the emote set is loading
+- patch: Keep a login renewed during an account switch from logging out or bringing back the wrong account
+- patch: Keep a picture ready to send when a chat bubble opens
+- patch: Keep a planned message that was going out when Android closed Chatter, marked as failed
+- patch: Keep a sent planned message from coming back as failed when Twitch refuses another message
+- patch: Keep a whisper or command that did not work in the input, and mark a planned one as failed
+- patch: Keep cancelled chat history loads from showing an error
+- patch: Keep counting new messages on the button while scrolled up in a busy chat
+- patch: Keep every whisper and mention in the inbox when many arrive at once
+- patch: Keep listening in the background when Android restarts Chatter and reading the channel list takes a moment
+- patch: Keep the previous account's block list and timeouts from carrying over after switching accounts
+- patch: Keep your own messages in the right order when the phone clock is off
+- patch: Load the light theme's picture of a hidden badge from a restored backup only from the badge sites
+- patch: Make tabs with new messages easier to spot in dark mode
+- patch: Open links written as Https:// instead of closing Chatter
+- patch: Open the 7TV login only when it leads to Twitch's own login page
+- patch: Open the 7TV login right away when saving an emote set, without asking first
+- patch: Put a mention into the inbox of the account it was for, even when switching accounts right then
+- patch: Put the unread line where you stopped reading, not a few messages further down
+- patch: Reconnect instead of running out of memory when messages arrive faster than Chatter can handle them
+- patch: Remove picture info also from photos that keep some of it deeper inside the file
+- patch: Retry temporary emote and badge errors before showing a warning
+- patch: Say in German, too, when a command comes before the channel is ready
+- patch: Say when Twitch never confirmed a sent message, put it back in the input and reconnect sooner
+- patch: Show a check instead of a warning when a 7TV emote change worked
+- patch: Show a hint instead of closing when no app can open the report links
+- patch: Show a message sent just before a reconnect once, not twice
+- patch: Show a post's card again once its site works again, instead of a plain link until restart
+- patch: Show a shared picture right away when Chatter was left in the settings
+- patch: Show notices in smaller, easier text, with their own icon for errors, info and a missing network
+- patch: Show short notices in a pill above the input, so they no longer cover it
+- patch: Show the link and a spinner while a picture in the chat takes long to load
+- patch: Space out messages in a channel by a second, so Twitch does not drop one sent right after another
+- patch: Stop asking for a moderator's pin over and over after it ended while Twitch did not answer
+- patch: Stop pulling the chat down after scrolling up only a little within a long message
+- patch: Suggest emotes, emoji and names while writing the message that goes with a picture
+
 ## 0.14.0 — 2026-11-15
 - minor: Draw the FrankerFaceZ effects ffzX, ffzY, ffzW and ffzCursed on the emote before them
 - minor: See your last 10 uploaded pictures under Links & images, copy their link or delete them

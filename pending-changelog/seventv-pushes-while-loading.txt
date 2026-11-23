@@ -1,1 +1,0 @@
-patch: Keep 7TV emote changes that arrive while the emote set is loading

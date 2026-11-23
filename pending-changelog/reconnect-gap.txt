@@ -1,1 +1,0 @@
-patch: Fetch all messages missed during a reconnect, even when a new one arrives before they are loaded

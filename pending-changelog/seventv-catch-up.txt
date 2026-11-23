@@ -1,1 +1,0 @@
-patch: Catch up on missed emote changes when 7TV reconnects during chat

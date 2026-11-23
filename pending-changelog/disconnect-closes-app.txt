@@ -1,1 +1,0 @@
-patch: Close Chatter when you tap Disconnect in its notification

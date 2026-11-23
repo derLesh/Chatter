@@ -1,1 +1,0 @@
-patch: Show the link and a spinner while a picture in the chat takes long to load

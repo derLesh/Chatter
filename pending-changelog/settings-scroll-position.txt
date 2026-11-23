@@ -1,1 +1,0 @@
-patch: Go back in the settings to where you were on the page, not to its top

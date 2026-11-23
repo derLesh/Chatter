@@ -1,1 +1,0 @@
-patch: Show a shared picture right away when Chatter was left in the settings

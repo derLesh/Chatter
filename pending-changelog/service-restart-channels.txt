@@ -1,1 +1,0 @@
-patch: Keep listening in the background when Android restarts Chatter and reading the channel list takes a moment

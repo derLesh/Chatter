@@ -1,1 +1,0 @@
-patch: Suggest emotes, emoji and names while writing the message that goes with a picture

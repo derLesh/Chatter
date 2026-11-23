@@ -1,2 +1,0 @@
-patch: Show a post's card again once its site works again, instead of a plain link until restart
-patch: Stop asking for a moderator's pin over and over after it ended while Twitch did not answer

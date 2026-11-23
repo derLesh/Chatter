@@ -1,1 +1,0 @@
-patch: Ask on a sheet at the bottom instead of a box in the middle, e.g. before restoring a backup
