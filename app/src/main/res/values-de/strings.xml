@@ -1054,12 +1054,9 @@
     <string name="search_also_mute_keywords">Stummschalten, ignorieren</string>
     <string name="search_also_rules">Regex</string>
     <string name="settings_theme">Design</string>
-    <string name="settings_stats_group_messages">Nachrichten</string>
     <string name="settings_stats_sent">Gesendet</string>
     <string name="settings_stats_received">Empfangen</string>
     <string name="settings_stats_mentions">Erwähnungen</string>
-    <string name="settings_stats_group_days">Tage</string>
-    <string name="settings_stats_active_days">Tage mit einer Nachricht</string>
     <string name="settings_stats_streak">Aktuelle Serie</string>
     <string name="settings_stats_since">Gezählt seit</string>
     <string name="settings_stats_group_channels">Deine Aktivität in Chats</string>
@@ -1079,6 +1076,110 @@
         <item quantity="one">%d Tag</item>
         <item quantity="other">%d Tage</item>
     </plurals>
+    <string name="settings_stats_active_days_short">Aktive Tage</string>
+    <string name="settings_stats_group_activity">Aktivität</string>
+    <string name="settings_stats_activity_hint">Deine gesendeten Nachrichten pro Tag, die letzten 20 Wochen</string>
+    <string name="settings_stats_less">Weniger</string>
+    <string name="settings_stats_more">Mehr</string>
+    <string name="settings_stats_longest_streak">Längste dieses Jahr</string>
+    <string name="settings_stats_group_hours">Tageszeit</string>
+    <string name="settings_stats_hours_hint">Wann du dieses Jahr geschrieben hast</string>
+    <string name="settings_stats_group_emotes">Deine Emotes</string>
+    <string name="settings_stats_emotes_hint">Dieses Jahr am meisten genutzt, einmal pro Nachricht gezählt</string>
+    <string name="settings_stats_no_emotes">Emotes, die du sendest, erscheinen hier</string>
+    <string name="settings_stats_recap_hint">Dein Jahr, Seite für Seite</string>
+    <string name="settings_show_recap">Jahresrückblick zeigen</string>
+    <string name="settings_show_recap_hint">Öffnet den Rückblick auf dieses Jahr, auch vor Dezember</string>
+
+    <!-- Jahresrückblick -->
+    <string name="recap_title">Dein %1$d in Chatter</string>
+    <string name="recap_ready">Dein Jahr in Chatter ist da</string>
+    <string name="recap_card_open">Zurückblicken</string>
+    <string name="recap_hide">Ausblenden. Du findest ihn unter Einstellungen → Statistik</string>
+    <string name="recap_close">Schließen</string>
+    <string name="recap_previous">Vorherige Seite</string>
+    <string name="recap_next">Nächste Seite</string>
+    <string name="recap_intro_kicker">Dein Jahr in Chatter</string>
+    <string name="recap_intro_hint">Tippe, um weiterzugehen</string>
+    <string name="recap_messages_kicker">Dieses Jahr hast du</string>
+    <plurals name="recap_messages_unit">
+        <item quantity="one">Nachricht gesendet</item>
+        <item quantity="other">Nachrichten gesendet</item>
+    </plurals>
+    <plurals name="recap_messages_days">
+        <item quantity="one">an %1$s Tag</item>
+        <item quantity="other">an %1$s Tagen</item>
+    </plurals>
+    <string name="recap_messages_per_day">Etwa %1$s an jedem davon</string>
+    <string name="recap_messages_received">Dabei liefen %1$s Nachrichten durch deine Chats</string>
+    <string name="recap_channels_kicker">Hier hast du am meisten geschrieben</string>
+    <plurals name="recap_count_messages">
+        <item quantity="one">%1$s Nachricht</item>
+        <item quantity="other">%1$s Nachrichten</item>
+    </plurals>
+    <plurals name="recap_channels_total">
+        <item quantity="one">Du hast in %1$s Kanal geschrieben</item>
+        <item quantity="other">Du hast in %1$s Kanälen geschrieben</item>
+    </plurals>
+    <string name="recap_people_hint">Gezählt aus Erwähnungen und Antworten. Nur du siehst die Namen: Im Bild stehen sie nie.</string>
+    <string name="settings_stats_group_people">Mit wem du schreibst</string>
+    <string name="settings_stats_people_hint">Dieses Jahr, aus @-Erwähnungen und Antworten</string>
+    <string name="settings_stats_no_people">Chatter, die du erwähnst oder denen du antwortest, erscheinen hier</string>
+    <string name="settings_stats_group_mentioned_by">Wer dich erwähnt</string>
+    <string name="settings_stats_mentioned_by_hint">Dieses Jahr, aus ihren Erwähnungen von dir</string>
+    <string name="settings_stats_no_mentioned_by">Chatter, die dich erwähnen, erscheinen hier</string>
+    <string name="recap_emotes_kicker">Dein Emote des Jahres</string>
+    <plurals name="recap_emote_uses">
+        <item quantity="one">in %1$s Nachricht</item>
+        <item quantity="other">in %1$s Nachrichten</item>
+    </plurals>
+    <string name="recap_emotes_more">Außerdem oft dabei</string>
+    <string name="recap_rhythm_kicker">Wann du geschrieben hast</string>
+    <string name="recap_rhythm_hours">Über den Tag</string>
+    <string name="recap_rhythm_peak">Am meisten um %1$s</string>
+    <string name="recap_rhythm_months">Pro Monat</string>
+    <string name="recap_rhythm_busiest_day">Dein stärkster Tag</string>
+    <string name="recap_rhythm_weekday">Dein Wochentag</string>
+    <string name="recap_streak_kicker">Deine längste Serie</string>
+    <plurals name="recap_streak_unit">
+        <item quantity="one">Tag am Stück</item>
+        <item quantity="other">Tage am Stück</item>
+    </plurals>
+    <string name="recap_streak_range">Vom %1$s bis %2$s</string>
+    <string name="recap_streak_active">Aktiv an %1$s von %2$s Tagen</string>
+    <string name="recap_mentions_kicker">Der Chat rief nach dir</string>
+    <plurals name="recap_mentions_unit">
+        <item quantity="one">Erwähnung</item>
+        <item quantity="other">Erwähnungen</item>
+    </plurals>
+    <string name="recap_mentions_per_week">Etwa %1$s pro Woche</string>
+    <string name="recap_mentions_by">Dich erwähnen am meisten</string>
+    <string name="recap_mentions_to">Du erwähnst am meisten</string>
+    <string name="recap_type_kicker">Dein Chat-Typ</string>
+    <string name="recap_type_night_owl">Nachteule</string>
+    <string name="recap_type_night_owl_hint">Die meisten deiner Nachrichten gingen spät in der Nacht raus.</string>
+    <string name="recap_type_early_bird">Frühaufsteher</string>
+    <string name="recap_type_early_bird_hint">Du warst im Chat, bevor die meisten wach waren.</string>
+    <string name="recap_type_emote_artist">Emote-Künstler</string>
+    <string name="recap_type_emote_artist_hint">In den meisten deiner Nachrichten steckte ein Emote.</string>
+    <string name="recap_type_regular">Stammgast</string>
+    <string name="recap_type_regular_hint">Die meisten deiner Nachrichten gingen an einen Kanal.</string>
+    <string name="recap_type_explorer">Entdecker</string>
+    <string name="recap_type_explorer_hint">Du kamst herum: viele Kanäle, viele Chats.</string>
+    <string name="recap_type_all_rounder">Allrounder</string>
+    <string name="recap_type_all_rounder_hint">Von allem etwas, zu jeder Tageszeit.</string>
+    <string name="recap_summary_title">Mein %1$d in Chatter</string>
+    <string name="recap_summary_messages">Nachrichten</string>
+    <string name="recap_summary_days">Tage</string>
+    <string name="recap_summary_streak">Längste Serie</string>
+    <string name="recap_summary_mentions">Erwähnungen</string>
+    <string name="recap_summary_emotes">Top-Emotes</string>
+    <string name="recap_summary_channels">Top-Kanäle</string>
+    <string name="recap_summary_days_grid">Dein Jahr, Tag für Tag</string>
+    <string name="recap_share">Teilen</string>
+    <string name="recap_share_channels">Kanäle im Bild zeigen</string>
+    <string name="recap_replay">Nochmal ansehen</string>
+    <string name="recap_share_failed">Das Bild konnte nicht erstellt werden</string>
 
     <string name="whisper_sent">Flüsternachricht an %1$s gesendet</string>
     <string name="whisper_reply_title">Flüstern an %1$s</string>

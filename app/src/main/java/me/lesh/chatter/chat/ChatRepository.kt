@@ -1,5 +1,6 @@
 package me.lesh.chatter.chat
 
+import me.lesh.chatter.stats.UsedEmote
 import android.content.Context
 import me.lesh.chatter.debug.AppLog
 import me.lesh.chatter.R
@@ -466,7 +467,12 @@ class ChatRepository(
         )
         incoming.sent(echo)
         awaitConfirmation(echo)
-        stats.countSent(channel)
+        // The echo's segments are built by now, on this worker, for the chat to draw.
+        val emotes = echo.segments.filterIsInstance<Segment.EmoteSeg>()
+            .flatMap { listOf(it.emote) + it.overlays }
+            .distinctBy { it.name }
+            .map { UsedEmote(it.name, it.url) }
+        stats.countSent(channel, emotes, Addressees.of(echo, auth.account?.login.orEmpty()))
         SendResult.Ok
     }
 

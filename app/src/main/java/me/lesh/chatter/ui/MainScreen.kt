@@ -124,6 +124,7 @@ fun MainScreen(vm: MainViewModel, onInbox: () -> Unit, onSettings: () -> Unit) {
     val rewardNames by vm.rewardNames.collectAsStateWithLifecycle()
     val inboxUnread by vm.inboxUnread.collectAsStateWithLifecycle()
     val update by vm.availableUpdate.collectAsStateWithLifecycle()
+    val recap by vm.featuredRecap.collectAsStateWithLifecycle()
     val sharedChats by vm.sharedChats.collectAsStateWithLifecycle()
     val chatPartners by vm.chatPartners.collectAsStateWithLifecycle()
     val pins by vm.pins.collectAsStateWithLifecycle()
@@ -329,6 +330,7 @@ fun MainScreen(vm: MainViewModel, onInbox: () -> Unit, onSettings: () -> Unit) {
                 inboxUnread = inboxUnread,
                 onSettings = onSettings,
                 settingsBadge = update != null,
+                celebrate = recap?.let { !it.opened && !it.hidden } == true,
                 drafts = vm.draftPages,
             ) else ChannelTopBar(
                 pages = pageKeys,
@@ -359,6 +361,7 @@ fun MainScreen(vm: MainViewModel, onInbox: () -> Unit, onSettings: () -> Unit) {
                 inboxUnread = inboxUnread,
                 onSettings = onSettings,
                 settingsBadge = update != null,
+                celebrate = recap?.let { !it.opened && !it.hidden } == true,
                 drafts = vm.draftPages,
             )
         },

@@ -98,6 +98,8 @@ class MainActivity : ComponentActivity() {
         }
         val channel = intent.getStringExtra(EXTRA_CHANNEL)
         val message = intent.getStringExtra(EXTRA_MESSAGE)
+        // A chat asked for from a notification would open behind the look back at the year.
+        if (channel != null || intent.hasExtra(EXTRA_LIVE_CHANNEL) || intent.hasExtra(EXTRA_WHISPER_LOGIN)) vm.closeRecap()
         when {
             channel != null && message != null -> vm.openMessage(channel, message)
             channel != null -> vm.requestedChannel.value = channel

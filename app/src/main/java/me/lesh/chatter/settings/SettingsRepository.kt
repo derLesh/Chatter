@@ -488,6 +488,16 @@ class SettingsRepository(
 
     suspend fun setNotificationIntroSeen() = store.edit { it[NOTIFICATION_INTRO_SEEN] = true }
 
+    /** The last year whose look back was opened, which takes the confetti off the gear; 0 if none. */
+    val recapOpenedYear: Flow<Int> = store.data.map { it[RECAP_OPENED_YEAR] ?: 0 }
+
+    suspend fun setRecapOpenedYear(year: Int) = store.edit { it[RECAP_OPENED_YEAR] = year }
+
+    /** The last year whose card atop the settings was hidden; it stays under Stats. 0 if none. */
+    val recapHiddenYear: Flow<Int> = store.data.map { it[RECAP_HIDDEN_YEAR] ?: 0 }
+
+    suspend fun setRecapHiddenYear(year: Int) = store.edit { it[RECAP_HIDDEN_YEAR] = year }
+
     /** Whether the onboarding was gone through. Null until [decideOnboarding] has run once. */
     val onboardingSeen: Flow<Boolean?> = store.data.map { it[ONBOARDING_SEEN] }
 
@@ -754,6 +764,8 @@ class SettingsRepository(
         val SEEN_VERSION = stringPreferencesKey("seen_changelog_version")
         val NOTIFICATION_INTRO_SEEN = booleanPreferencesKey("notification_intro_seen")
         val ONBOARDING_SEEN = booleanPreferencesKey("onboarding_seen")
+        val RECAP_OPENED_YEAR = intPreferencesKey("recap_opened_year")
+        val RECAP_HIDDEN_YEAR = intPreferencesKey("recap_hidden_year")
         val AVAILABLE_UPDATE = stringPreferencesKey("available_update")
         val OWN_APP_ICON = stringPreferencesKey("own_app_icon")
         val LAST_AUTO_APP_ICON = stringPreferencesKey("last_auto_app_icon")

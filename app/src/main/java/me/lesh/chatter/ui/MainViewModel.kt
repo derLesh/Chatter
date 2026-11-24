@@ -96,6 +96,7 @@ import me.lesh.chatter.settings.ThemeMode
 import me.lesh.chatter.settings.NameStyle
 import me.lesh.chatter.settings.TimestampFormat
 import me.lesh.chatter.stats.Stats
+import me.lesh.chatter.stats.YearStats
 import me.lesh.chatter.ui.chat.ReadMark
 import me.lesh.chatter.ui.inbox.WhisperTarget
 import me.lesh.chatter.ui.theme.NameColorPalette
@@ -299,6 +300,34 @@ class MainViewModel(private val c: AppContainer, savedState: SavedStateHandle) :
     val stats: StateFlow<Stats> = c.stats.live()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), c.stats.stats.value)
     val releases = c.changelog.releases
+
+    /** The year whose look back is open over everything else; null while none is. */
+    val openRecap = MutableStateFlow<Int?>(null)
+
+    fun openRecap(year: Int) {
+        openRecap.value = year
+        // Only the year being shown off: an older one from the stats page would bring the
+        // confetti back for the current one.
+        if (year == c.stats.stats.value.featuredRecap()) saveSetting { setRecapOpenedYear(year) }
+    }
+
+    fun closeRecap() {
+        openRecap.value = null
+    }
+
+    /** What was counted in [year] so far, straight from the counter rather than [stats]. */
+    fun yearStats(year: Int): YearStats = c.stats.stats.value.year(year)
+
+    /**
+     * The look back shown off from December 1 to January 10, with whether it was opened and whether
+     * its card was hidden. Checked against the stored stats, which are at most minutes behind.
+     */
+    val featuredRecap: StateFlow<FeaturedRecap?> =
+        combine(c.stats.stats, c.settings.recapOpenedYear, c.settings.recapHiddenYear) { stats, opened, hidden ->
+            stats.featuredRecap()?.let { FeaturedRecap(it, opened = it == opened, hidden = it == hidden) }
+        }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
+
+    fun hideRecapCard(year: Int) = saveSetting { setRecapHiddenYear(year) }
     /** Every mention as it arrives, for feedback while the chat screen is open. */
     val mentions = c.chat.allMentions
     /** Releases not read yet, shown once after an update. */
@@ -1888,3 +1917,6 @@ class MainViewModel(private val c: AppContainer, savedState: SavedStateHandle) :
         const val RULE_TRY_MESSAGES = 300
     }
 }
+
+/** The year in [MainViewModel.featuredRecap]: confetti on the gear until [opened] or [hidden], a card atop the settings until [hidden]. */
+data class FeaturedRecap(val year: Int, val opened: Boolean, val hidden: Boolean)

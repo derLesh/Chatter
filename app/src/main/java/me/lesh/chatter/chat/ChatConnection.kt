@@ -1,7 +1,9 @@
 package me.lesh.chatter.chat
 
+import me.lesh.chatter.stats.TalkedTo
 import me.lesh.chatter.irc.ConnectionState
 import me.lesh.chatter.irc.IrcMessage
+import me.lesh.chatter.stats.UsedEmote
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.StateFlow
 
@@ -39,6 +41,8 @@ interface ChatNotices {
 /** Counting while messages arrive; implemented by [me.lesh.chatter.stats.StatsRepository]. */
 interface ChatStats {
     fun countReceived(channel: String)
-    fun countMention()
-    fun countSent(channel: String)
+    /** [by] is the chatter who wrote the mention, null when unknown. */
+    fun countMention(by: TalkedTo?)
+    /** [emotes] are the ones in the message and [people] the chatters it speaks to, each once. */
+    fun countSent(channel: String, emotes: Collection<UsedEmote>, people: Collection<TalkedTo>)
 }

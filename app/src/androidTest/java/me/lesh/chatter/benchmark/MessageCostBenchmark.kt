@@ -1,5 +1,7 @@
 package me.lesh.chatter.benchmark
 
+import me.lesh.chatter.stats.TalkedTo
+import me.lesh.chatter.stats.UsedEmote
 import androidx.benchmark.junit4.BenchmarkRule
 import androidx.benchmark.junit4.measureRepeated
 import androidx.test.ext.junit.runners.AndroidJUnit4
@@ -237,6 +239,6 @@ private object Notices : ChatNotices {
 /** The real stats only add to counters in memory; not measured here. */
 private object NoStats : ChatStats {
     override fun countReceived(channel: String) = Unit
-    override fun countMention() = Unit
-    override fun countSent(channel: String) = Unit
+    override fun countMention(by: TalkedTo?) = Unit
+    override fun countSent(channel: String, emotes: Collection<UsedEmote>, people: Collection<TalkedTo>) = Unit
 }

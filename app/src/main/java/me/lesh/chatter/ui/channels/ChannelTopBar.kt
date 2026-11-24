@@ -1,5 +1,6 @@
 package me.lesh.chatter.ui.channels
 
+import me.lesh.chatter.ui.recap.SettingsGear
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -112,6 +113,8 @@ fun ChannelTopBar(
     inboxUnread: Int,
     onSettings: () -> Unit,
     settingsBadge: Boolean = false,
+    /** Confetti on the gear: a look back at the year is ready. */
+    celebrate: Boolean = false,
     /** Pages with an unsent draft. */
     drafts: Set<String> = emptySet(),
 ) {
@@ -206,9 +209,7 @@ fun ChannelTopBar(
             }
             IconButton(onClick = onSettings) {
                 // The dot is the only hint out here that an update is waiting.
-                BadgedBox(badge = { if (settingsBadge) Badge() }) {
-                    Icon(Icons.Default.Settings, contentDescription = stringResource(R.string.settings))
-                }
+                SettingsGear(updateDot = settingsBadge, celebrate = celebrate)
             }
         },
     )
