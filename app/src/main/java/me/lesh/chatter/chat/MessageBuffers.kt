@@ -316,6 +316,16 @@ class MessageBuffers(
         buffers[channel]?.lastOrNull { it.id == id }?.also { it.body.prepare() }
     }
 
+    /**
+     * The messages of [page] as its chat shows them, oldest first and built for drawing, for the
+     * channel page to find links in. A combined chat gives the rows it last showed, so every item
+     * found there is one its chat can jump to: trimmed and with each Shared Chat message once.
+     */
+    suspend fun shownIn(page: String): List<ChatItem> = withContext(worker) {
+        val shown = groupStates[page]?.published ?: if (page in groups) snapshot(page) else buffers[page]?.toList().orEmpty()
+        shown.onEach { if (!it.deleted) it.body.prepare() }
+    }
+
     suspend fun totalMessages(): Int = withContext(worker) { buffers.values.sumOf { it.size } }
 
     /** The newest [limit] messages of all channels together, oldest first. Not built for drawing. */
