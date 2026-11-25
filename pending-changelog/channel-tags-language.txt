@@ -1,1 +1,1 @@
-minor: Change the tags and stream language of your channel on its page
+minor: Change your channel's tags and stream language on its page

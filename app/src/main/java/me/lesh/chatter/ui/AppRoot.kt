@@ -45,6 +45,9 @@ fun AppRoot(vm: MainViewModel) {
         showSettings = false
         showInbox = true
     }
+    // A notification asking for a channel goes to its chat, which only switches while it is shown.
+    val requestedChannel by vm.requestedChannel.collectAsStateWithLifecycle()
+    LaunchedEffect(requestedChannel) { if (requestedChannel != null) channelPage = null }
     // After the last logout the settings would stay underneath the login screen, and the next login
     // would land there instead of in the chat.
     LaunchedEffect(auth) {

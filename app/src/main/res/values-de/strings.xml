@@ -173,6 +173,7 @@
     <string name="channel_links_none">Noch keine Links im Chat</string>
     <string name="channel_shared_source">Aus den Nachrichten, die Chatter für diesen Chat noch hat</string>
     <string name="channel_shared_hint">Tippen öffnet. Halten springt zur Nachricht.</string>
+    <string name="channel_go_to_message">Zur Nachricht springen</string>
     <string name="channel_video">Video</string>
     <string name="channel_category_change">Ändern</string>
     <string name="channel_category_search">Kategorie suchen</string>

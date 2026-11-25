@@ -393,8 +393,8 @@ class ChatRepository(
     suspend fun messagesFrom(channel: String, login: String, limit: Int = 30): List<ChatItem> =
         buffers.from(channel, login, limit)
 
-    /** Every message of [channels] in memory, built for drawing; see [MessageBuffers.allOf]. */
-    suspend fun messagesIn(channels: List<String>): List<ChatItem> = buffers.allOf(channels)
+    /** The messages of [page] as its chat shows them; see [MessageBuffers.shownIn]. */
+    suspend fun shownIn(page: String): List<ChatItem> = buffers.shownIn(page)
 
     /** What the logged-in user last wrote in [channel], newest first, ready to go into the input. */
     suspend fun recentlySent(channel: String, limit: Int): List<String> {

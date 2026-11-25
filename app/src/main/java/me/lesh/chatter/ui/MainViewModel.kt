@@ -469,17 +469,23 @@ class MainViewModel(private val c: AppContainer, savedState: SavedStateHandle) :
 
     suspend fun searchCategories(query: String): List<StreamCategory> = c.channelSettings.searchCategories(query)
 
-    /** Saves [change]; the job ends once Twitch and 7TV answered, for the page to load anew. */
-    fun saveChannelSettings(channel: String, change: ChannelSettingsChange): Job {
+    /**
+     * Saves [change]. True once Twitch took the title, category, tags and language, or there were
+     * none to save; the 7TV set is switched on its own, with its own message.
+     */
+    fun saveChannelSettings(channel: String, change: ChannelSettingsChange): Deferred<Boolean> {
         val account = activeAccountId.value
-        return viewModelScope.launch {
+        return viewModelScope.async {
+            val saved = !change.changesStream || c.channelSettings.saveStream(channel, change, account)
             if (change.changesStream) {
-                val saved = c.channelSettings.saveStream(channel, change, account)
                 _messages.send(
                     if (saved) UiMessage(R.string.channel_settings_saved, tone = PillTone.Success) else UiMessage(R.string.channel_settings_save_failed),
                 )
             }
             change.emoteSet?.let { editSevenTvEmote(PendingEmoteEdit.SwitchSet(channel, it, account)) }
+            // The page then asks Twitch again, also when it was closed before the answer came.
+            if (saved) pageLoads.keys.removeAll { it.first == channel }
+            saved
         }
     }
 
@@ -487,59 +493,61 @@ class MainViewModel(private val c: AppContainer, savedState: SavedStateHandle) :
 
     /**
      * What a channel page asks Twitch and 7TV, started as soon as the page may be opened and kept
-     * a few minutes, so the page shows complete at once. [settings] is null where the user may
-     * change nothing. Touched on the main thread only.
+     * a few minutes, so the page shows complete at once. [settings] holds null where the user may
+     * change nothing, and fails where that could not be found out. Touched on the main thread only.
      */
-    private class PageLoad(val at: Long, val about: Deferred<ChannelAbout?>, val settings: Deferred<ChannelSettingsForm?>)
+    private class PageLoad(val at: Long, val about: Deferred<ChannelAbout?>, val settings: Deferred<Result<ChannelSettingsForm?>>)
 
-    /** By page and the account it was loaded for; holds only pages opened in the last minutes. */
-    private val pageLoads = HashMap<Pair<String, String?>, PageLoad>()
+    /** By page and the account it was loaded for; holds only the last pages held or opened. */
+    private val pageLoads = LinkedHashMap<Pair<String, String?>, PageLoad>()
 
     /** Starts loading [page]'s channel page, as its menu opens; opening it then waits less or not at all. */
     fun prepareChannelPage(page: String) {
-        if (!ChannelGroup.isKey(page)) pageLoad(page, fresh = false)
+        if (!ChannelGroup.isKey(page)) pageLoad(page)
     }
 
-    private fun pageLoad(page: String, fresh: Boolean): PageLoad {
+    private fun pageLoad(page: String): PageLoad {
         val now = SystemClock.elapsedRealtime()
         pageLoads.entries.removeAll { now - it.value.at > PAGE_FRESH_MS }
         val key = page to activeAccountId.value
-        if (!fresh) pageLoads[key]?.let { return it }
+        pageLoads[key]?.let { return it }
+        while (pageLoads.size >= PAGES_KEPT) pageLoads.remove(pageLoads.keys.first())
         return PageLoad(
             at = now,
             about = viewModelScope.async { runCatchingCancellable { c.channelAbout.load(page) }.getOrNull() },
             settings = viewModelScope.async {
-                runCatchingCancellable { if (c.channelSettings.mayChange(page)) c.channelSettings.load(page) else null }.getOrNull()
+                runCatchingCancellable { if (c.channelSettings.mayChange(page)) c.channelSettings.load(page) else null }
             },
         ).also { pageLoads[key] = it }
     }
 
     /**
-     * What Twitch says about [page] and, where the user may change it, its settings. [fresh] asks
-     * again, as after saving. What failed is not kept, so the next visit tries again.
+     * What Twitch says about [page] and, where the user may change it, its settings. What failed
+     * is not kept, so the next visit tries again.
      */
-    suspend fun channelPage(page: String, fresh: Boolean): Pair<ChannelAbout?, ChannelSettingsForm?> {
-        val load = pageLoad(page, fresh)
+    suspend fun channelPage(page: String): Pair<ChannelAbout?, ChannelSettingsForm?> {
+        val load = pageLoad(page)
         val about = load.about.await()
-        if (about == null) pageLoads.values.remove(load)
-        return about to load.settings.await()
+        val settings = load.settings.await()
+        if (about == null || settings.isFailure) pageLoads.values.remove(load)
+        return about to settings.getOrNull()
     }
 
     /**
-     * The media and links in the messages of [page], a channel or a combined chat, as far as they
-     * are still in memory. What counts as media follows the chat's settings for pictures, GIFs and
-     * video cards.
+     * The media and links in the messages of [page], a channel or a combined chat, as its chat
+     * shows them. What counts as media is what the chat shows as a picture, GIF or video card right
+     * now; with Battery Saver or data saving on, that is nothing, so nothing is fetched for it.
      */
     suspend fun sharedIn(page: String): SharedItems {
-        val channels = c.channels.groups.value[page]?.channels ?: listOf(page)
-        val messages = c.chat.messagesIn(channels)
+        val messages = c.chat.shownIn(page)
         val s = settings.value
+        val previews = !powerSaveMode.value && !saveData.value
         return withContext(Dispatchers.Default) {
             SharedItemsFinder.find(
                 messages,
-                imageHosts = if (s.inlineImages) s.imageHosts else emptyList(),
-                postSites = s.postSites,
-                gifs = s.showGifs,
+                imageHosts = if (s.inlineImages && previews) s.imageHosts else emptyList(),
+                postSites = if (previews) s.postSites else emptySet(),
+                gifs = s.showGifs && previews,
             )
         }
     }
@@ -1931,5 +1939,8 @@ class MainViewModel(private val c: AppContainer, savedState: SavedStateHandle) :
 
         /** How long a channel page's answers from Twitch and 7TV are shown again without asking. */
         const val PAGE_FRESH_MS = 5 * 60_000L
+
+        /** Channel pages whose answers are kept at once; a handful is all one sitting opens. */
+        const val PAGES_KEPT = 16
     }
 }

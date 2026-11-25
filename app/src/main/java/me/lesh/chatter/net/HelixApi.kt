@@ -132,13 +132,7 @@ class HelixApi(
         tags: List<String>? = null,
         language: String? = null,
     ) {
-        val body = buildJsonObject {
-            title?.let { put("title", it) }
-            categoryId?.let { put("game_id", it) }
-            tags?.let { put("tags", JsonArray(it.map(::JsonPrimitive))) }
-            language?.let { put("broadcaster_language", it) }
-        }
-        http.send("PATCH", url("channels", "broadcaster_id" to broadcasterId), headers(), body.toString())
+        http.send("PATCH", url("channels", "broadcaster_id" to broadcasterId), headers(), channelUpdate(title, categoryId, tags, language).toString())
     }
 
     override suspend fun globalBadges(): List<HelixBadgeSet> =
@@ -307,6 +301,17 @@ class HelixApi(
     /** [color] is a named Twitch color (e.g. "blue_violet") or "#RRGGBB" (Turbo/Prime only). */
     suspend fun setChatColor(userId: String, color: String) {
         http.send("PUT", url("chat/color", "user_id" to userId, "color" to color), headers())
+    }
+
+    companion object {
+        /** The body of [updateChannel]: only what is not null, and empty [tags] as an empty list. */
+        internal fun channelUpdate(title: String?, categoryId: String?, tags: List<String>?, language: String?): JsonObject =
+            buildJsonObject {
+                title?.let { put("title", it) }
+                categoryId?.let { put("game_id", it) }
+                tags?.let { put("tags", JsonArray(it.map(::JsonPrimitive))) }
+                language?.let { put("broadcaster_language", it) }
+            }
     }
 }
 

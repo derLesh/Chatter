@@ -33,6 +33,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
@@ -48,6 +49,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.pluralStringResource
@@ -66,13 +68,18 @@ import me.lesh.chatter.channels.ChannelGroup
 import me.lesh.chatter.channels.ChannelInfo
 import me.lesh.chatter.channels.ChannelSettingsForm
 import me.lesh.chatter.channels.displayName
+import me.lesh.chatter.chat.PostSite
 import me.lesh.chatter.chat.PostedIn
 import me.lesh.chatter.chat.SharedItems
+import me.lesh.chatter.settings.postCard
 import me.lesh.chatter.ui.IconTab
 import me.lesh.chatter.ui.IconTabs
 import me.lesh.chatter.ui.MainViewModel
 import me.lesh.chatter.ui.rememberPredictiveTransition
 import me.lesh.chatter.ui.slideBetweenScreens
+import me.lesh.chatter.ui.pill.MessagePillHost
+import me.lesh.chatter.ui.pill.PillContent
+import me.lesh.chatter.ui.pill.showPill
 import me.lesh.chatter.ui.theme.LiveRed
 import java.text.NumberFormat
 import java.time.ZoneId
@@ -107,18 +114,23 @@ fun ChannelScreen(
     val info by vm.channelInfo.collectAsStateWithLifecycle()
     val groups by vm.groups.collectAsStateWithLifecycle()
     val sevenTvLoggedIn by vm.sevenTvLoggedIn.collectAsStateWithLifecycle()
+    val auth by vm.authState.collectAsStateWithLifecycle()
+    val appSettings by vm.settings.collectAsStateWithLifecycle()
     val group = groups[page]
+    val tileLook = TileLook(
+        stills = PostSite.entries.filterTo(HashSet()) { appSettings.postCard(it).media },
+        blurNsfw = appSettings.blurNsfwPosts,
+    )
 
-    // Counts saves, so the page loads anew from what Twitch now says.
-    var loads by remember(page) { mutableIntStateOf(0) }
     var about by remember(page) { mutableStateOf<ChannelAbout?>(null) }
     var shared by remember(page) { mutableStateOf<SharedItems?>(null) }
     var settings by remember(page) { mutableStateOf<ChannelSettingsState?>(null) }
     // Parts arriving one by one would make the page jump, so it shows once all are there. A slow
     // answer still comes in later; the hold menu started the requests, so most are there already.
     var waited by remember(page) { mutableStateOf(false) }
-    LaunchedEffect(page, loads) {
-        val twitch = async { if (ChannelGroup.isKey(page)) null to null else vm.channelPage(page, fresh = loads > 0) }
+    // Another account may change other things; the page asks again for it.
+    LaunchedEffect(page, auth) {
+        val twitch = async { if (ChannelGroup.isKey(page)) null to null else vm.channelPage(page) }
         val found = async { vm.sharedIn(page) }
         fun take(answer: Pair<ChannelAbout?, ChannelSettingsForm?>) {
             about = answer.first
@@ -138,6 +150,18 @@ fun ChannelScreen(
     var allOpen by rememberSaveable(page) { mutableStateOf(false) }
     var startOnLinks by rememberSaveable(page) { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
+    val snackbar = remember { SnackbarHostState() }
+    val resources = LocalResources.current
+    // The chat shows these while it is on screen; here the page does, as for a save.
+    LaunchedEffect(resources) {
+        vm.messages.collect { message ->
+            snackbar.showPill(
+                message.fill
+                    ?.let { fill -> PillContent.filled(fill, message.tone) { resources.getString(message.text, it) } }
+                    ?: PillContent(resources.getString(message.text), message.tone),
+            )
+        }
+    }
     val channelOf: (PostedIn) -> ChannelInfo? = if (group != null) ({ info[it.channel] ?: ChannelInfo(it.channel) }) else ({ null })
 
     rememberPredictiveTransition(
@@ -157,6 +181,7 @@ fun ChannelScreen(
                 startOnLinks = startOnLinks,
                 channelOf = channelOf,
                 imageLoader = vm.staticImageLoader,
+                look = tileLook,
                 onHold = onJump,
                 onBack = { allOpen = false },
             )
@@ -166,6 +191,7 @@ fun ChannelScreen(
         val settingsShown = owner && tab == 1
         Scaffold(
             containerColor = MaterialTheme.colorScheme.surface,
+            snackbarHost = { MessagePillHost(snackbar) },
             topBar = { PageBar(onBack, onTwitch = if (group == null) ({ uriHandler.openUri("https://www.twitch.tv/$page") }) else null) },
             bottomBar = {
                 val form = settings
@@ -182,11 +208,15 @@ fun ChannelScreen(
                         Button(
                             onClick = {
                                 saving = true
-                                val job = vm.saveChannelSettings(page, form.change)
+                                val change = form.change
+                                val result = vm.saveChannelSettings(page, change)
                                 scope.launch {
-                                    job.join()
+                                    // A failed save keeps everything as typed, to try again.
+                                    if (result.await()) {
+                                        settings = form.saved(change)
+                                        about = vm.channelPage(page).first ?: about
+                                    }
                                     saving = false
-                                    loads++
                                 }
                             },
                             enabled = form.canSave && !form.searching && !saving,
@@ -226,6 +256,7 @@ fun ChannelScreen(
                         shared = shared,
                         channelOf = channelOf,
                         imageLoader = vm.staticImageLoader,
+                        look = tileLook,
                         onHold = onJump,
                         onAll = { links ->
                             startOnLinks = links
@@ -254,9 +285,11 @@ private fun ChannelHeader(login: String, info: ChannelInfo?, about: ChannelAbout
         },
         about?.followers?.let { pluralStringResource(R.plurals.channel_followers, it.coerceAtMost(Int.MAX_VALUE.toLong()).toInt(), formatViewers(it.toInt())) },
     ).joinToString(" · ")
-    val title = info?.title?.takeIf { info.isLive && it.isNotEmpty() } ?: about?.title.orEmpty()
+    // Title and category from the same answer, which is newer than the live poll after a save;
+    // the poll's only until it is there.
+    val title = about?.title?.takeIf { it.isNotEmpty() } ?: info?.title?.takeIf { info.isLive }.orEmpty()
     val category = about?.category
-    val categoryName = category?.name ?: info?.game?.takeIf { info.isLive }.orEmpty()
+    val categoryName = category?.name ?: info?.game?.takeIf { about == null && info.isLive }.orEmpty()
     Column(Modifier.padding(horizontal = 16.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(14.dp)) {
             ChannelAvatar(info, imageLoader, HEADER_AVATAR)
@@ -410,6 +443,7 @@ private fun LazyListScope.sharedItems(
     shared: SharedItems?,
     channelOf: (PostedIn) -> ChannelInfo?,
     imageLoader: ImageLoader,
+    look: TileLook,
     onHold: (PostedIn) -> Unit,
     onAll: (links: Boolean) -> Unit,
 ) {
@@ -429,7 +463,7 @@ private fun LazyListScope.sharedItems(
         } else {
             Row(horizontalArrangement = Arrangement.spacedBy(4.dp), modifier = Modifier.padding(horizontal = 16.dp)) {
                 val shown = shared.media.take(MEDIA_PREVIEW)
-                shown.forEach { MediaTile(it, channelOf(it.postedIn), imageLoader, onHold, Modifier.weight(1f)) }
+                shown.forEach { MediaTile(it, channelOf(it.postedIn), imageLoader, look, onHold, Modifier.weight(1f)) }
                 // Fewer than a row keep their size instead of stretching.
                 repeat(MEDIA_PREVIEW - shown.size) { Spacer(Modifier.weight(1f)) }
             }

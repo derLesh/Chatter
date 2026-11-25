@@ -46,6 +46,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.blur
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
@@ -78,6 +79,15 @@ import me.lesh.chatter.ui.chat.LocalPosts
 private val TwitchPurple = Color(0xFF9146FF)
 private val YouTubeRed = Color(0xFFCC0000)
 
+/** As strong as the chat's cards blur an NSFW picture. */
+private val NSFW_BLUR = 24.dp
+
+/**
+ * How video tiles follow the chat's card settings: a still only for sites in [stills], and
+ * blurred when the post is marked NSFW and [blurNsfw] is on.
+ */
+data class TileLook(val stills: Set<PostSite>, val blurNsfw: Boolean)
+
 /**
  * One picture, GIF or video as a square. Tapping opens it as the chat does: pictures and GIFs in
  * the image viewer, videos in the browser or their app. Holding goes to its message ([onHold]).
@@ -89,6 +99,7 @@ internal fun MediaTile(
     media: SharedMedia,
     channel: ChannelInfo?,
     imageLoader: ImageLoader,
+    look: TileLook,
     onHold: (PostedIn) -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -106,6 +117,7 @@ internal fun MediaTile(
             .background(MaterialTheme.colorScheme.surfaceContainerHighest)
             .combinedClickable(
                 onClickLabel = description,
+                onLongClickLabel = stringResource(R.string.channel_go_to_message),
                 onLongClick = {
                     haptics.performHapticFeedback(HapticFeedbackType.LongPress)
                     onHold(media.postedIn)
@@ -130,7 +142,7 @@ internal fun MediaTile(
                     .onPlaced { origin.coordinates = it }
                     .graphicsLayer { alpha = if (viewer?.covers(origin) == true) 0f else 1f },
             )
-            is SharedMedia.Video -> VideoStill(media, imageLoader)
+            is SharedMedia.Video -> VideoStill(media, imageLoader, look)
         }
         if (media is SharedMedia.Gif) Tag(Modifier.align(Alignment.BottomStart)) { Text("GIF") }
         channel?.let {
@@ -141,15 +153,22 @@ internal fun MediaTile(
 
 /** A video's still and length, from the post the chat's card loads too; a play sign until it arrives. */
 @Composable
-private fun VideoStill(video: SharedMedia.Video, imageLoader: ImageLoader) {
+private fun VideoStill(video: SharedMedia.Video, imageLoader: ImageLoader, look: TileLook) {
     val repository = LocalPosts.current
     val post by produceState(repository?.known(video.link), video.link, repository) {
         if (repository != null && !repository.isFresh(video.link)) value = repository.post(video.link) ?: value
     }
-    val still = post?.media?.pictureUrl
+    val still = post?.media?.pictureUrl?.takeIf { video.link.site in look.stills }
     Box(Modifier.fillMaxSize()) {
         if (still != null) {
-            AsyncImage(still, post?.text, imageLoader, Modifier.fillMaxSize(), contentScale = ContentScale.Crop)
+            val blurred = look.blurNsfw && post?.nsfw == true
+            AsyncImage(
+                still,
+                post?.text,
+                imageLoader,
+                Modifier.fillMaxSize().then(if (blurred) Modifier.blur(NSFW_BLUR) else Modifier),
+                contentScale = ContentScale.Crop,
+            )
         }
         val color = if (video.link.site == PostSite.YouTube) YouTubeRed else TwitchPurple
         Tag(Modifier.align(Alignment.BottomStart), color) {
@@ -195,6 +214,7 @@ internal fun LinkRow(link: SharedLink, channel: ChannelInfo?, imageLoader: Image
         modifier = Modifier
             .fillMaxWidth()
             .combinedClickable(
+                onLongClickLabel = stringResource(R.string.channel_go_to_message),
                 onLongClick = {
                     haptics.performHapticFeedback(HapticFeedbackType.LongPress)
                     onHold(link.postedIn)
@@ -250,6 +270,7 @@ internal fun MediaAndLinksScreen(
     startOnLinks: Boolean,
     channelOf: (PostedIn) -> ChannelInfo?,
     imageLoader: ImageLoader,
+    look: TileLook,
     onHold: (PostedIn) -> Unit,
     onBack: () -> Unit,
 ) {
@@ -292,7 +313,7 @@ internal fun MediaAndLinksScreen(
                             PageNote(stringResource(if (shared.media.isEmpty()) R.string.channel_media_none else R.string.channel_shared_hint))
                         }
                         items(shared.media, key = { "m:" + it.url }) { media ->
-                            MediaTile(media, channelOf(media.postedIn), imageLoader, onHold)
+                            MediaTile(media, channelOf(media.postedIn), imageLoader, look, onHold)
                         }
                     }
                 } else {

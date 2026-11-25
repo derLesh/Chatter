@@ -177,6 +177,7 @@
     <string name="channel_links_none">No links in the chat yet</string>
     <string name="channel_shared_source">From the messages Chatter still holds for this chat</string>
     <string name="channel_shared_hint">Tap to open. Hold to go to its message.</string>
+    <string name="channel_go_to_message">Go to message</string>
     <string name="channel_video">Video</string>
     <string name="channel_category_change">Change</string>
     <string name="channel_category_search">Find a category</string>

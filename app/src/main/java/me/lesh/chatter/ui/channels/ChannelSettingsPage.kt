@@ -63,6 +63,7 @@ import me.lesh.chatter.channels.ChannelSettingsChange
 import me.lesh.chatter.channels.ChannelSettingsForm
 import me.lesh.chatter.channels.SettingsPart
 import me.lesh.chatter.channels.StreamCategory
+import me.lesh.chatter.channels.StreamDetails
 import me.lesh.chatter.channels.StreamLanguages
 import me.lesh.chatter.channels.StreamTags
 import me.lesh.chatter.channels.settingsChange
@@ -102,6 +103,41 @@ class ChannelSettingsState(val form: ChannelSettingsForm) {
 
     /** Twitch takes no empty title. */
     val canSave: Boolean get() = change != ChannelSettingsChange() && (stream == null || title.isNotBlank())
+
+    /**
+     * This state after [saved] reached Twitch and 7TV: what was saved becomes the starting point,
+     * and whatever was typed meanwhile stays.
+     */
+    fun saved(saved: ChannelSettingsChange): ChannelSettingsState {
+        val now = this
+        val stream = (form.stream as? SettingsPart.Ready)?.value?.let { old ->
+            SettingsPart.Ready(
+                StreamDetails(
+                    title = saved.title ?: old.title,
+                    category = when (saved.category) {
+                        null -> old.category
+                        StreamCategory.NONE -> null
+                        else -> saved.category
+                    },
+                    tags = saved.tags ?: old.tags,
+                    language = saved.language ?: old.language,
+                ),
+            )
+        } ?: form.stream
+        val sets = (form.emoteSets as? SettingsPart.Ready)?.value?.let { old ->
+            val switched = saved.emoteSet ?: return@let null
+            SettingsPart.Ready(old.copy(sets = old.sets.map { it.copy(active = it.id == switched.id) }))
+        } ?: form.emoteSets
+        return ChannelSettingsState(ChannelSettingsForm(stream, sets)).apply {
+            title = now.title
+            category = now.category
+            tags = now.tags
+            tagInput = now.tagInput
+            language = now.language
+            chosenSet = sets.let { it as? SettingsPart.Ready }?.value?.sets?.firstOrNull { it.id == now.chosenSet?.id }
+            setsOpen = now.setsOpen
+        }
+    }
 
     fun addTag(): Boolean {
         val added = StreamTags.add(tags, tagInput) ?: return false
