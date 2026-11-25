@@ -105,8 +105,9 @@ class ChannelSettingsState(val form: ChannelSettingsForm) {
     val canSave: Boolean get() = change != ChannelSettingsChange() && (stream == null || title.isNotBlank())
 
     /**
-     * This state after [saved] reached Twitch and 7TV: what was saved becomes the starting point,
-     * and whatever was typed meanwhile stays.
+     * This state after Twitch took [saved]: what was saved becomes the starting point, and whatever
+     * was typed or opened meanwhile stays. The 7TV set stays as loaded: its switch may still wait
+     * for a 7TV login, and reports for itself.
      */
     fun saved(saved: ChannelSettingsChange): ChannelSettingsState {
         val now = this
@@ -124,17 +125,16 @@ class ChannelSettingsState(val form: ChannelSettingsForm) {
                 ),
             )
         } ?: form.stream
-        val sets = (form.emoteSets as? SettingsPart.Ready)?.value?.let { old ->
-            val switched = saved.emoteSet ?: return@let null
-            SettingsPart.Ready(old.copy(sets = old.sets.map { it.copy(active = it.id == switched.id) }))
-        } ?: form.emoteSets
-        return ChannelSettingsState(ChannelSettingsForm(stream, sets)).apply {
+        return ChannelSettingsState(ChannelSettingsForm(stream, form.emoteSets)).apply {
             title = now.title
             category = now.category
+            searching = now.searching
+            query = now.query
             tags = now.tags
             tagInput = now.tagInput
             language = now.language
-            chosenSet = sets.let { it as? SettingsPart.Ready }?.value?.sets?.firstOrNull { it.id == now.chosenSet?.id }
+            choosingLanguage = now.choosingLanguage
+            chosenSet = now.chosenSet
             setsOpen = now.setsOpen
         }
     }

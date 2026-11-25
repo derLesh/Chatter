@@ -59,14 +59,13 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil3.ImageLoader
-import kotlinx.coroutines.async
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withTimeoutOrNull
 import me.lesh.chatter.R
 import me.lesh.chatter.channels.ChannelAbout
 import me.lesh.chatter.channels.ChannelGroup
 import me.lesh.chatter.channels.ChannelInfo
-import me.lesh.chatter.channels.ChannelSettingsForm
 import me.lesh.chatter.channels.displayName
 import me.lesh.chatter.chat.PostSite
 import me.lesh.chatter.chat.PostedIn
@@ -90,8 +89,11 @@ import java.util.Locale
 private const val MEDIA_PREVIEW = 4
 private const val LINKS_PREVIEW = 3
 
-/** How long the page waits for Twitch before it shows what it has, as the user card waits. */
+/** How long the page waits for Twitch before it shows a spinner, as long as the user card waits. */
 private const val PAGE_WAIT_MS = 800L
+
+/** How long it waits at most; after that it shows what it has. */
+private const val PAGE_GIVE_UP_MS = 5_000L
 private val HEADER_AVATAR = 60.dp
 
 /**
@@ -114,7 +116,9 @@ fun ChannelScreen(
     val info by vm.channelInfo.collectAsStateWithLifecycle()
     val groups by vm.groups.collectAsStateWithLifecycle()
     val sevenTvLoggedIn by vm.sevenTvLoggedIn.collectAsStateWithLifecycle()
-    val auth by vm.authState.collectAsStateWithLifecycle()
+    val account by vm.activeAccountId.collectAsStateWithLifecycle()
+    val powerSave by vm.powerSaveMode.collectAsStateWithLifecycle()
+    val saveData by vm.saveData.collectAsStateWithLifecycle()
     val appSettings by vm.settings.collectAsStateWithLifecycle()
     val group = groups[page]
     val tileLook = TileLook(
@@ -125,25 +129,25 @@ fun ChannelScreen(
     var about by remember(page) { mutableStateOf<ChannelAbout?>(null) }
     var shared by remember(page) { mutableStateOf<SharedItems?>(null) }
     var settings by remember(page) { mutableStateOf<ChannelSettingsState?>(null) }
-    // Parts arriving one by one would make the page jump, so it shows once all are there. A slow
-    // answer still comes in later; the hold menu started the requests, so most are there already.
+    // Parts arriving one by one would make the page jump, so it shows once all are there, in one
+    // step. The hold menu started the requests, so most are there already; a slow answer gets a
+    // spinner, and one that never comes is given up on.
     var waited by remember(page) { mutableStateOf(false) }
+    var slow by remember(page) { mutableStateOf(false) }
     // Another account may change other things; the page asks again for it.
-    LaunchedEffect(page, auth) {
-        val twitch = async { if (ChannelGroup.isKey(page)) null to null else vm.channelPage(page) }
-        val found = async { vm.sharedIn(page) }
-        fun take(answer: Pair<ChannelAbout?, ChannelSettingsForm?>) {
-            about = answer.first
-            settings = answer.second?.let(::ChannelSettingsState)
+    LaunchedEffect(page, account) {
+        val spinner = launch {
+            delay(PAGE_WAIT_MS)
+            slow = true
         }
-        withTimeoutOrNull(PAGE_WAIT_MS) {
-            take(twitch.await())
-            shared = found.await()
-        }
+        val answer = withTimeoutOrNull(PAGE_GIVE_UP_MS) { if (ChannelGroup.isKey(page)) null to null else vm.channelPage(page) }
+        about = answer?.first
+        settings = answer?.second?.let(::ChannelSettingsState)
+        spinner.cancel()
         waited = true
-        take(twitch.await())
-        shared = found.await()
     }
+    // Asked again when Battery Saver or data saving changes, which decide what is a preview.
+    LaunchedEffect(page, powerSave, saveData) { shared = vm.sharedIn(page) }
     val owner = settings != null
     var tab by rememberSaveable(page) { mutableIntStateOf(0) }
     var saving by remember(page) { mutableStateOf(false) }
@@ -170,9 +174,16 @@ fun ChannelScreen(
         onBack = { allOpen = false },
         label = "channel page",
     ).AnimatedContent(transitionSpec = { slideBetweenScreens(forward = targetState) }) { all ->
-        if (!waited) {
-            // Only the bar, so back works while the page waits.
-            PageBar(onBack, onTwitch = null)
+        if (!waited || shared == null) {
+            // The bar with the name, so back works while the page waits.
+            Column(Modifier.fillMaxSize()) {
+                PageBar(onBack, onTwitch = null, title = group?.displayName(info) ?: info[page]?.displayName ?: page)
+                if (slow) {
+                    Box(Modifier.fillMaxWidth().padding(vertical = 48.dp), contentAlignment = Alignment.Center) {
+                        CircularProgressIndicator(Modifier.size(32.dp))
+                    }
+                }
+            }
             return@AnimatedContent
         }
         if (all) {
@@ -285,11 +296,13 @@ private fun ChannelHeader(login: String, info: ChannelInfo?, about: ChannelAbout
         },
         about?.followers?.let { pluralStringResource(R.plurals.channel_followers, it.coerceAtMost(Int.MAX_VALUE.toLong()).toInt(), formatViewers(it.toInt())) },
     ).joinToString(" · ")
-    // Title and category from the same answer, which is newer than the live poll after a save;
-    // the poll's only until it is there.
-    val title = about?.title?.takeIf { it.isNotEmpty() } ?: info?.title?.takeIf { info.isLive }.orEmpty()
-    val category = about?.category
-    val categoryName = category?.name ?: info?.game?.takeIf { about == null && info.isLive }.orEmpty()
+    // Title and category from the same answer: the channel's, which is newer than the live poll
+    // after a save, or else the poll's.
+    val fromAbout = about?.title?.isNotEmpty() == true
+    val live = info?.isLive == true
+    val title = if (fromAbout) about?.title.orEmpty() else info?.title?.takeIf { live }.orEmpty()
+    val category = about?.category?.takeIf { fromAbout }
+    val categoryName = if (fromAbout) category?.name.orEmpty() else info?.game?.takeIf { live }.orEmpty()
     Column(Modifier.padding(horizontal = 16.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(14.dp)) {
             ChannelAvatar(info, imageLoader, HEADER_AVATAR)
@@ -307,9 +320,9 @@ private fun ChannelHeader(login: String, info: ChannelInfo?, about: ChannelAbout
 /** Back, and the channel on Twitch where [onTwitch] is set. */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun PageBar(onBack: () -> Unit, onTwitch: (() -> Unit)?) {
+private fun PageBar(onBack: () -> Unit, onTwitch: (() -> Unit)?, title: String = "") {
     TopAppBar(
-        title = {},
+        title = { Text(title, maxLines = 1, overflow = TextOverflow.Ellipsis) },
         navigationIcon = {
             IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Filled.ArrowBack, stringResource(R.string.back)) }
         },

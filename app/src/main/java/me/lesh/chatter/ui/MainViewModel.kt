@@ -37,6 +37,7 @@ import me.lesh.chatter.channels.ChannelAbout
 import me.lesh.chatter.channels.ChannelSettingsChange
 import me.lesh.chatter.channels.ChannelSettingsForm
 import me.lesh.chatter.channels.RemovedPage
+import me.lesh.chatter.channels.SettingsPart
 import me.lesh.chatter.channels.StreamCategory
 import me.lesh.chatter.channels.displayName
 import me.lesh.chatter.chat.ChatCommand
@@ -331,7 +332,7 @@ class MainViewModel(private val c: AppContainer, savedState: SavedStateHandle) :
     val sevenTvLoggedIn: StateFlow<Boolean> get() = c.sevenTvEditing.loggedIn
     private var sevenTvLoginStarting: Job? = null
     private val emoteChanges = MutableStateFlow(0)
-    private val activeAccountId: StateFlow<String?> = c.auth.state
+    val activeAccountId: StateFlow<String?> = c.auth.state
         .map { (it as? AuthState.LoggedIn)?.account?.userId }
         .stateIn(viewModelScope, SharingStarted.Eagerly, null)
 
@@ -529,7 +530,9 @@ class MainViewModel(private val c: AppContainer, savedState: SavedStateHandle) :
         val load = pageLoad(page)
         val about = load.about.await()
         val settings = load.settings.await()
-        if (about == null || settings.isFailure) pageLoads.values.remove(load)
+        val form = settings.getOrNull()
+        val partFailed = form != null && (form.stream == SettingsPart.Failed || form.emoteSets == SettingsPart.Failed)
+        if (about == null || settings.isFailure || partFailed) pageLoads.values.remove(load)
         return about to settings.getOrNull()
     }
 
