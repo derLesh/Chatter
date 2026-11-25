@@ -148,7 +148,6 @@
     <string name="channel_settings_save_failed">Twitch hat die Änderungen nicht gespeichert</string>
     <string name="channel_settings_open_seventv">Auf 7TV öffnen</string>
     <string name="channel_open">Kanal öffnen</string>
-    <string name="channel_open_hint">Medien, Links und Infos</string>
     <string name="channel_tab_channel">Kanal</string>
     <string name="channel_tab_settings">Einstellungen</string>
     <string name="channel_partner">Partner</string>

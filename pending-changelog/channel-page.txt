@@ -1,1 +1,1 @@
-minor: Hold a channel tab to open its page, with what Twitch says about it and the pictures and links from its chat
+minor: Hold a channel tab to open its page, with what Twitch says about it and the pictures and links in its chat

@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -17,6 +18,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowLeft
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
@@ -30,6 +32,7 @@ import androidx.compose.material3.BadgedBox
 import androidx.compose.material3.DropdownMenuGroup
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.DropdownMenuPopup
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LocalContentColor
@@ -49,7 +52,9 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.role
@@ -69,6 +74,7 @@ import me.lesh.chatter.channels.displayName
 import me.lesh.chatter.chat.ChatRole
 import me.lesh.chatter.chat.RoomState
 import me.lesh.chatter.irc.ConnectionState
+import me.lesh.chatter.ui.theme.LiveRed
 import me.lesh.chatter.ui.theme.barColor
 import me.lesh.chatter.ui.theme.isAppInDarkTheme
 
@@ -240,29 +246,19 @@ private fun ChannelTabs(
                 onClick = { onSelect(page) },
                 onMenuOpen = { onMenuOpen(page) },
                 onOpenChannel = { onOpenChannel(page) },
-                // Grouped by effect: position, identity, removal.
-                actions = listOf(
-                    listOfNotNull(
-                        TabAction(stringResource(R.string.move_left), { Icon(Icons.AutoMirrored.Filled.KeyboardArrowLeft, null) }) {
-                            onMove(page, -1)
-                        }.takeIf { position > 0 },
-                        TabAction(stringResource(R.string.move_right), { Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, null) }) {
-                            onMove(page, 1)
-                        }.takeIf { position < pages.lastIndex },
-                    ),
-                    if (group != null) listOf(
-                        TabAction(stringResource(R.string.edit), { Icon(Icons.Default.Edit, null) }) { onEditGroup(page) },
-                    ) else listOfNotNull(
-                        // Combining needs at least two channels.
-                        TabAction(stringResource(R.string.combine_channels), { Icon(painterResource(R.drawable.ic_combine_chats), null) }) {
-                            onCombine(page)
-                        }.takeIf { channelCount >= 2 },
-                        TabAction(stringResource(R.string.rename_channel), { Icon(Icons.Default.Edit, null) }) { onRename(page) },
-                    ),
-                    listOf(
-                        TabAction(stringResource(R.string.remove_channel), { Icon(Icons.Default.Delete, null) }) { onRemove(page) },
-                    ),
-                ).filter { it.isNotEmpty() },
+                status = pageStatus(group, info[page], info),
+                onMoveLeft = { onMove(page, -1) }.takeIf { position > 0 },
+                onMoveRight = { onMove(page, 1) }.takeIf { position < pages.lastIndex },
+                actions = if (group != null) listOf(
+                    TabAction(stringResource(R.string.edit), { Icon(Icons.Default.Edit, null) }) { onEditGroup(page) },
+                ) else listOfNotNull(
+                    // Combining needs at least two channels.
+                    TabAction(stringResource(R.string.combine_channels), { Icon(painterResource(R.drawable.ic_combine_chats), null) }) {
+                        onCombine(page)
+                    }.takeIf { channelCount >= 2 },
+                    TabAction(stringResource(R.string.rename_channel), { Icon(Icons.Default.Edit, null) }) { onRename(page) },
+                ),
+                onRemove = { onRemove(page) },
             )
         }
         // At the end, where the new channel will appear.
@@ -279,8 +275,23 @@ private class SelectedTab(var index: Int = 0)
 private class TabAction(val label: String, val icon: @Composable () -> Unit, val onClick: () -> Unit)
 
 /**
- * One page as a tab. Not Material's Tab, which cannot be held; holding opens the page's options
- * ([actions]), one menu group per list.
+ * A page's live line under its name in the menu: a channel's viewers and category, or how many
+ * of a combined chat's channels are live; null while nothing is.
+ */
+@Composable
+private fun pageStatus(group: ChannelGroup?, channel: ChannelInfo?, info: Map<String, ChannelInfo>): String? {
+    if (group != null) {
+        val live = group.channels.count { info[it]?.isLive == true }
+        return if (live > 0) pluralStringResource(R.plurals.combined_chat_live, live, live) else null
+    }
+    if (channel?.isLive != true) return null
+    return listOf(stringResource(R.string.status_live, formatViewers(channel.viewers)), channel.game).filter { it.isNotEmpty() }.joinToString(" · ")
+}
+
+/**
+ * One page as a tab. Not Material's Tab, which cannot be held. Holding opens the page's menu: the
+ * page itself as its header, which opens its channel page, then moving it, [actions] and removing.
+ * [onMoveLeft] and [onMoveRight] are null at either end.
  */
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
@@ -295,7 +306,11 @@ private fun ChannelTab(
     onClick: () -> Unit,
     onMenuOpen: () -> Unit,
     onOpenChannel: () -> Unit,
-    actions: List<List<TabAction>>,
+    status: String?,
+    onMoveLeft: (() -> Unit)?,
+    onMoveRight: (() -> Unit)?,
+    actions: List<TabAction>,
+    onRemove: () -> Unit,
 ) {
     var open by remember { mutableStateOf(false) }
     // Quiet tabs step well back on a dark theme, so a tab with new messages stands out even when
@@ -358,53 +373,79 @@ private fun ChannelTab(
             }
         }
         DropdownMenuPopup(expanded = open, onDismissRequest = { open = false }) {
-            // The page of the channel first and larger than the rest: the one way into it.
-            DropdownMenuGroup(shapes = MenuDefaults.groupShape(0, actions.size + 1)) {
-                OpenChannelEntry(avatar) { open = false; onOpenChannel() }
-            }
-            actions.forEachIndexed { g, group ->
-                Spacer(Modifier.height(MenuDefaults.GroupSpacing))
-                DropdownMenuGroup(shapes = MenuDefaults.groupShape(g + 1, actions.size + 1)) {
-                    group.forEachIndexed { i, action ->
+            DropdownMenuGroup(shapes = MenuDefaults.groupShape(0, 1)) {
+                Column(Modifier.width(MENU_WIDTH)) {
+                    MenuHeader(name, status, avatar) { open = false; onOpenChannel() }
+                    if (onMoveLeft != null || onMoveRight != null) {
+                        Row(horizontalArrangement = Arrangement.spacedBy(6.dp), modifier = Modifier.padding(horizontal = 10.dp).padding(bottom = 10.dp)) {
+                            // Both stay, one greyed out at an end, so the arrows keep their places.
+                            MoveButton(stringResource(R.string.move_left), Icons.AutoMirrored.Filled.KeyboardArrowLeft, onMoveLeft, Modifier.weight(1f))
+                            MoveButton(stringResource(R.string.move_right), Icons.AutoMirrored.Filled.KeyboardArrowRight, onMoveRight, Modifier.weight(1f))
+                        }
+                    }
+                    HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
+                    actions.forEach { action ->
                         DropdownMenuItem(
                             text = { Text(action.label) },
                             leadingIcon = action.icon,
-                            shape = MenuDefaults.itemShape(i, group.size).shape,
                             onClick = { open = false; action.onClick() },
                         )
                     }
+                    DropdownMenuItem(
+                        text = { Text(stringResource(R.string.remove_channel)) },
+                        leadingIcon = { Icon(Icons.Default.Delete, null) },
+                        colors = MenuDefaults.itemColors(
+                            textColor = MaterialTheme.colorScheme.error,
+                            leadingIconColor = MaterialTheme.colorScheme.error,
+                        ),
+                        onClick = { open = false; onRemove() },
+                    )
                 }
             }
         }
     }
 }
 
-/** "Open channel" with the channel's picture, on the accent's container, at the top of a tab's menu. */
+/** The page at the top of its menu: picture, name and live line, and an arrow to its channel page. */
 @Composable
-private fun OpenChannelEntry(avatar: @Composable (Dp) -> Unit, onClick: () -> Unit) {
+private fun MenuHeader(name: String, status: String?, avatar: @Composable (Dp) -> Unit, onOpen: () -> Unit) {
     Row(
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(12.dp),
         modifier = Modifier
-            .padding(horizontal = 4.dp)
-            .widthIn(min = 200.dp)
-            .clip(MaterialTheme.shapes.medium)
-            .background(MaterialTheme.colorScheme.primaryContainer)
-            .clickable(onClick = onClick)
-            .padding(horizontal = 12.dp, vertical = 10.dp),
+            .fillMaxWidth()
+            .clickable(onClickLabel = stringResource(R.string.channel_open), onClick = onOpen)
+            .padding(14.dp),
     ) {
-        avatar(40.dp)
-        Column {
-            Text(
-                stringResource(R.string.channel_open),
-                style = MaterialTheme.typography.titleSmall,
-                color = MaterialTheme.colorScheme.onPrimaryContainer,
-            )
-            Text(
-                stringResource(R.string.channel_open_hint),
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.8f),
-            )
+        avatar(44.dp)
+        Column(Modifier.weight(1f)) {
+            Text(name, style = MaterialTheme.typography.titleMedium, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            if (status != null) {
+                Text(status, style = MaterialTheme.typography.labelMedium, color = LiveRed, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            }
         }
+        Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
     }
 }
+
+/** One of the two arrows that move a tab, greyed out without [onClick]. */
+@Composable
+private fun MoveButton(label: String, icon: ImageVector, onClick: (() -> Unit)?, modifier: Modifier) {
+    Box(
+        contentAlignment = Alignment.Center,
+        modifier = modifier
+            .height(40.dp)
+            .clip(RoundedCornerShape(12.dp))
+            .background(MaterialTheme.colorScheme.surfaceContainerHighest)
+            .clickable(enabled = onClick != null, onClickLabel = label) { onClick?.invoke() },
+    ) {
+        Icon(
+            icon,
+            contentDescription = label,
+            tint = MaterialTheme.colorScheme.onSurface.copy(alpha = if (onClick != null) 1f else 0.38f),
+        )
+    }
+}
+
+/** Wide enough for the name and live line of a channel, like a menu with a header. */
+private val MENU_WIDTH = 260.dp
