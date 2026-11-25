@@ -488,8 +488,9 @@ class MainViewModel(private val c: AppContainer, savedState: SavedStateHandle) :
             }
             val switched = change.emoteSet?.takeIf { editSevenTvEmote(PendingEmoteEdit.SwitchSet(channel, it, account)) == EmoteEditOutcome.Done }
             val applied = (if (streamSaved) change else ChannelSettingsChange()).copy(emoteSet = switched)
-            // The page then asks again, also when it was closed before the answers came.
-            if (applied != ChannelSettingsChange()) pageLoads.keys.removeAll { it.first == channel }
+            // The page then asks again, also when it was closed before the answers came; after a
+            // refusal too, which may mean what it showed is gone.
+            pageLoads.keys.removeAll { it.first == channel }
             applied
         }
     }
