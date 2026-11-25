@@ -347,8 +347,9 @@ class MainViewModel(private val c: AppContainer, savedState: SavedStateHandle) :
         override suspend fun button(channel: String, sourceRoomId: String?, emoteId: String): EmoteButton =
             c.sevenTvEditing.button(channel, sourceRoomId, emoteId)
 
-        override suspend fun add(channel: String, sourceRoomId: String?, emoteId: String, name: String) =
+        override suspend fun add(channel: String, sourceRoomId: String?, emoteId: String, name: String) {
             editSevenTvEmote(PendingEmoteEdit.Add(channel, sourceRoomId, null, emoteId, name, activeAccountId.value, quiet = true))
+        }
     }
 
     /** The emote card's changes run here rather than on the card, which closes as they start. */
@@ -374,7 +375,7 @@ class MainViewModel(private val c: AppContainer, savedState: SavedStateHandle) :
         }
     }
 
-    private suspend fun editSevenTvEmote(edit: PendingEmoteEdit) {
+    private suspend fun editSevenTvEmote(edit: PendingEmoteEdit): EmoteEditOutcome {
         val editing = c.sevenTvEditing
         val outcome = when (edit) {
             is PendingEmoteEdit.Add ->
@@ -420,6 +421,7 @@ class MainViewModel(private val c: AppContainer, savedState: SavedStateHandle) :
             // The channel settings say beforehand that saving logs in; asking again would only be another tap.
             EmoteEditOutcome.NeedsLogin -> if (edit is PendingEmoteEdit.SwitchSet) openSevenTvLogin(edit) else _askSevenTvLogin.value = edit
         }
+        return outcome
     }
 
     fun dismissSevenTvLoginQuestion() {
@@ -471,22 +473,24 @@ class MainViewModel(private val c: AppContainer, savedState: SavedStateHandle) :
     suspend fun searchCategories(query: String): List<StreamCategory> = c.channelSettings.searchCategories(query)
 
     /**
-     * Saves [change]. True once Twitch took the title, category, tags and language, or there were
-     * none to save; the 7TV set is switched on its own, with its own message.
+     * Saves [change] and returns the part of it that went through: the title, category, tags and
+     * language if Twitch took them, the 7TV set if it is switched. A switch that first needs a 7TV
+     * login is not, yet. Each part brings its own message.
      */
-    fun saveChannelSettings(channel: String, change: ChannelSettingsChange): Deferred<Boolean> {
+    fun saveChannelSettings(channel: String, change: ChannelSettingsChange): Deferred<ChannelSettingsChange> {
         val account = activeAccountId.value
         return viewModelScope.async {
-            val saved = !change.changesStream || c.channelSettings.saveStream(channel, change, account)
+            val streamSaved = change.changesStream && c.channelSettings.saveStream(channel, change, account)
             if (change.changesStream) {
                 _messages.send(
-                    if (saved) UiMessage(R.string.channel_settings_saved, tone = PillTone.Success) else UiMessage(R.string.channel_settings_save_failed),
+                    if (streamSaved) UiMessage(R.string.channel_settings_saved, tone = PillTone.Success) else UiMessage(R.string.channel_settings_save_failed),
                 )
             }
-            change.emoteSet?.let { editSevenTvEmote(PendingEmoteEdit.SwitchSet(channel, it, account)) }
-            // The page then asks Twitch again, also when it was closed before the answer came.
-            if (saved) pageLoads.keys.removeAll { it.first == channel }
-            saved
+            val switched = change.emoteSet?.takeIf { editSevenTvEmote(PendingEmoteEdit.SwitchSet(channel, it, account)) == EmoteEditOutcome.Done }
+            val applied = (if (streamSaved) change else ChannelSettingsChange()).copy(emoteSet = switched)
+            // The page then asks again, also when it was closed before the answers came.
+            if (applied != ChannelSettingsChange()) pageLoads.keys.removeAll { it.first == channel }
+            applied
         }
     }
 

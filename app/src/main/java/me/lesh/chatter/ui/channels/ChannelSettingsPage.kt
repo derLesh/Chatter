@@ -105,9 +105,8 @@ class ChannelSettingsState(val form: ChannelSettingsForm) {
     val canSave: Boolean get() = change != ChannelSettingsChange() && (stream == null || title.isNotBlank())
 
     /**
-     * This state after Twitch took [saved]: what was saved becomes the starting point, and whatever
-     * was typed or opened meanwhile stays. The 7TV set stays as loaded: its switch may still wait
-     * for a 7TV login, and reports for itself.
+     * This state after [saved] went through: what was saved becomes the starting point, and whatever
+     * was typed or opened meanwhile stays.
      */
     fun saved(saved: ChannelSettingsChange): ChannelSettingsState {
         val now = this
@@ -125,7 +124,11 @@ class ChannelSettingsState(val form: ChannelSettingsForm) {
                 ),
             )
         } ?: form.stream
-        return ChannelSettingsState(ChannelSettingsForm(stream, form.emoteSets)).apply {
+        val sets = (form.emoteSets as? SettingsPart.Ready)?.value?.let { old ->
+            val switched = saved.emoteSet ?: return@let null
+            SettingsPart.Ready(old.copy(sets = old.sets.map { it.copy(active = it.id == switched.id) }))
+        } ?: form.emoteSets
+        return ChannelSettingsState(ChannelSettingsForm(stream, sets)).apply {
             title = now.title
             category = now.category
             searching = now.searching
@@ -134,7 +137,7 @@ class ChannelSettingsState(val form: ChannelSettingsForm) {
             tagInput = now.tagInput
             language = now.language
             choosingLanguage = now.choosingLanguage
-            chosenSet = now.chosenSet
+            chosenSet = (sets as? SettingsPart.Ready)?.value?.sets?.firstOrNull { it.id == now.chosenSet?.id }
             setsOpen = now.setsOpen
         }
     }
@@ -251,17 +254,20 @@ fun LazyListScope.channelSettingsItems(
     }
 }
 
-/** The stream language picker, for the page to show over itself while [ChannelSettingsState.choosingLanguage]. */
+/**
+ * The stream language picker, starting from [current]. [onPick] and [onDismiss] go to the page,
+ * whose settings may have been replaced by a save while the sheet was open.
+ */
 @Composable
-fun LanguageSheet(state: ChannelSettingsState) {
-    var picked by remember { mutableStateOf(state.language) }
+fun LanguageSheet(current: String, onPick: (String) -> Unit, onDismiss: () -> Unit) {
+    var picked by remember { mutableStateOf(current) }
     // A language Twitch knows and the list does not stays offered, so opening the sheet changes nothing.
-    val codes = remember { StreamLanguages.CODES + listOf(state.language).filter { it.isNotEmpty() && it !in StreamLanguages.CODES } }
+    val codes = remember { StreamLanguages.CODES + listOf(current).filter { it.isNotEmpty() && it !in StreamLanguages.CODES } }
     FormSheet(
         title = stringResource(R.string.channel_language),
         confirmLabel = stringResource(R.string.save),
-        onConfirm = { state.language = picked },
-        onDismiss = { state.choosingLanguage = false },
+        onConfirm = { onPick(picked) },
+        onDismiss = onDismiss,
     ) {
         items(codes, key = { "language:$it" }) { code ->
             Row(

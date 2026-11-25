@@ -59,6 +59,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil3.ImageLoader
+import kotlinx.coroutines.async
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withTimeoutOrNull
@@ -66,6 +67,7 @@ import me.lesh.chatter.R
 import me.lesh.chatter.channels.ChannelAbout
 import me.lesh.chatter.channels.ChannelGroup
 import me.lesh.chatter.channels.ChannelInfo
+import me.lesh.chatter.channels.ChannelSettingsChange
 import me.lesh.chatter.channels.displayName
 import me.lesh.chatter.chat.PostSite
 import me.lesh.chatter.chat.PostedIn
@@ -140,11 +142,14 @@ fun ChannelScreen(
             delay(PAGE_WAIT_MS)
             slow = true
         }
-        val answer = withTimeoutOrNull(PAGE_GIVE_UP_MS) { if (ChannelGroup.isKey(page)) null to null else vm.channelPage(page) }
-        about = answer?.first
-        settings = answer?.second?.let(::ChannelSettingsState)
+        val load = async { if (ChannelGroup.isKey(page)) null to null else vm.channelPage(page) }
+        val answer = withTimeoutOrNull(PAGE_GIVE_UP_MS) { load.await() }
         spinner.cancel()
         waited = true
+        // Only after giving up does a late answer fill in.
+        val (found, form) = answer ?: load.await()
+        about = found
+        settings = form?.let(::ChannelSettingsState)
     }
     // Asked again when Battery Saver or data saving changes, which decide what is a preview.
     LaunchedEffect(page, powerSave, saveData) { shared = vm.sharedIn(page) }
@@ -222,9 +227,10 @@ fun ChannelScreen(
                                 val change = form.change
                                 val result = vm.saveChannelSettings(page, change)
                                 scope.launch {
-                                    // A failed save keeps everything as typed, to try again.
-                                    if (result.await()) {
-                                        settings = form.saved(change)
+                                    // What did not go through stays as typed, to try again.
+                                    val applied = result.await()
+                                    if (applied != ChannelSettingsChange()) {
+                                        settings = settings?.saved(applied)
                                         about = vm.channelPage(page).first ?: about
                                     }
                                     saving = false
@@ -277,7 +283,13 @@ fun ChannelScreen(
                 }
             }
         }
-        settings?.takeIf { it.choosingLanguage }?.let { LanguageSheet(it) }
+        settings?.takeIf { it.choosingLanguage }?.let { open ->
+            LanguageSheet(
+                current = open.language,
+                onPick = { code -> settings?.language = code },
+                onDismiss = { settings?.choosingLanguage = false },
+            )
+        }
     }
 }
 
