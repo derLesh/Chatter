@@ -40,7 +40,6 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -58,11 +57,14 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil3.ImageLoader
+import kotlinx.coroutines.async
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withTimeoutOrNull
 import me.lesh.chatter.R
 import me.lesh.chatter.channels.ChannelAbout
 import me.lesh.chatter.channels.ChannelGroup
 import me.lesh.chatter.channels.ChannelInfo
+import me.lesh.chatter.channels.ChannelSettingsForm
 import me.lesh.chatter.channels.displayName
 import me.lesh.chatter.chat.PostedIn
 import me.lesh.chatter.chat.SharedItems
@@ -80,6 +82,10 @@ import java.util.Locale
 /** Media tiles beside each other on the channel page; the rest are a tap away. */
 private const val MEDIA_PREVIEW = 4
 private const val LINKS_PREVIEW = 3
+
+/** How long the page waits for Twitch before it shows what it has, as the user card waits. */
+private const val PAGE_WAIT_MS = 800L
+private val HEADER_AVATAR = 60.dp
 
 /**
  * A channel's page, like a group's in a messenger: what Twitch says about the channel on top, then
@@ -100,19 +106,33 @@ fun ChannelScreen(
 ) {
     val info by vm.channelInfo.collectAsStateWithLifecycle()
     val groups by vm.groups.collectAsStateWithLifecycle()
-    val changeable by vm.changeableChannels.collectAsStateWithLifecycle()
     val sevenTvLoggedIn by vm.sevenTvLoggedIn.collectAsStateWithLifecycle()
     val group = groups[page]
-    val owner = group == null && page in changeable
-    LaunchedEffect(page) { if (group == null) vm.checkChannelSettings(page) }
 
     // Counts saves, so the page loads anew from what Twitch now says.
     var loads by remember(page) { mutableIntStateOf(0) }
-    val about by produceState<ChannelAbout?>(null, page, loads) { if (!ChannelGroup.isKey(page)) value = vm.channelAbout(page) }
-    val shared by produceState<SharedItems?>(null, page) { value = vm.sharedIn(page) }
-    val settings by produceState<ChannelSettingsState?>(null, page, loads, owner) {
-        value = if (owner) ChannelSettingsState(vm.loadChannelSettings(page)) else null
+    var about by remember(page) { mutableStateOf<ChannelAbout?>(null) }
+    var shared by remember(page) { mutableStateOf<SharedItems?>(null) }
+    var settings by remember(page) { mutableStateOf<ChannelSettingsState?>(null) }
+    // Parts arriving one by one would make the page jump, so it shows once all are there. A slow
+    // answer still comes in later; the hold menu started the requests, so most are there already.
+    var waited by remember(page) { mutableStateOf(false) }
+    LaunchedEffect(page, loads) {
+        val twitch = async { if (ChannelGroup.isKey(page)) null to null else vm.channelPage(page, fresh = loads > 0) }
+        val found = async { vm.sharedIn(page) }
+        fun take(answer: Pair<ChannelAbout?, ChannelSettingsForm?>) {
+            about = answer.first
+            settings = answer.second?.let(::ChannelSettingsState)
+        }
+        withTimeoutOrNull(PAGE_WAIT_MS) {
+            take(twitch.await())
+            shared = found.await()
+        }
+        waited = true
+        take(twitch.await())
+        shared = found.await()
     }
+    val owner = settings != null
     var tab by rememberSaveable(page) { mutableIntStateOf(0) }
     var saving by remember(page) { mutableStateOf(false) }
     var allOpen by rememberSaveable(page) { mutableStateOf(false) }
@@ -126,6 +146,11 @@ fun ChannelScreen(
         onBack = { allOpen = false },
         label = "channel page",
     ).AnimatedContent(transitionSpec = { slideBetweenScreens(forward = targetState) }) { all ->
+        if (!waited) {
+            // Only the bar, so back works while the page waits.
+            PageBar(onBack, onTwitch = null)
+            return@AnimatedContent
+        }
         if (all) {
             MediaAndLinksScreen(
                 shared = shared ?: SharedItems.EMPTY,
@@ -141,19 +166,7 @@ fun ChannelScreen(
         val settingsShown = owner && tab == 1
         Scaffold(
             containerColor = MaterialTheme.colorScheme.surface,
-            topBar = {
-                TopAppBar(
-                    title = {},
-                    navigationIcon = {
-                        IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Filled.ArrowBack, stringResource(R.string.back)) }
-                    },
-                    actions = {
-                        if (group == null) IconButton(onClick = { uriHandler.openUri("https://www.twitch.tv/$page") }) {
-                            Icon(painterResource(R.drawable.ic_open_in_new), stringResource(R.string.action_open_on_twitch))
-                        }
-                    },
-                )
-            },
+            topBar = { PageBar(onBack, onTwitch = if (group == null) ({ uriHandler.openUri("https://www.twitch.tv/$page") }) else null) },
             bottomBar = {
                 val form = settings
                 if (settingsShown && form != null) {
@@ -190,9 +203,9 @@ fun ChannelScreen(
                         item(key = "members-heading") { SectionHeading(stringResource(R.string.channel_members)) }
                         items(group.channels, key = { "member:$it" }) { member -> MemberRow(info[member] ?: ChannelInfo(member), vm.imageLoader) { onOpenPage(member) } }
                     }
-                    owner -> {
-                        item(key = "header") { ChannelHeader(page, info[page], about, vm.imageLoader, compact = true) }
-                        item(key = "tabs") {
+                    else -> {
+                        item(key = "header") { ChannelHeader(page, info[page], about, vm.imageLoader) }
+                        if (owner) item(key = "tabs") {
                             IconTabs(
                                 listOf(
                                     IconTab(stringResource(R.string.channel_tab_channel), R.drawable.ic_chat),
@@ -204,7 +217,6 @@ fun ChannelScreen(
                             )
                         }
                     }
-                    else -> item(key = "header") { ChannelHeader(page, info[page], about, vm.imageLoader, compact = false) }
                 }
                 if (settingsShown) {
                     channelSettingsItems(settings, sevenTvLoggedIn, vm.imageLoader, vm::searchCategories)
@@ -228,11 +240,11 @@ fun ChannelScreen(
 }
 
 /**
- * The channel's picture, name and what kind of streamer they are, then whether it is live, its
- * title and category. [compact] puts the picture beside the name, above the owner's tabs.
+ * The channel's picture beside its name, what kind of streamer they are and whether it is live,
+ * then its title and category. The same for every channel, with or without the owner's tabs below.
  */
 @Composable
-private fun ChannelHeader(login: String, info: ChannelInfo?, about: ChannelAbout?, imageLoader: ImageLoader, compact: Boolean) {
+private fun ChannelHeader(login: String, info: ChannelInfo?, about: ChannelAbout?, imageLoader: ImageLoader) {
     val name = info?.displayName ?: login
     val facts = listOfNotNull(
         when (about?.broadcasterType) {
@@ -245,37 +257,35 @@ private fun ChannelHeader(login: String, info: ChannelInfo?, about: ChannelAbout
     val title = info?.title?.takeIf { info.isLive && it.isNotEmpty() } ?: about?.title.orEmpty()
     val category = about?.category
     val categoryName = category?.name ?: info?.game?.takeIf { info.isLive }.orEmpty()
-
-    if (compact) {
-        Column(Modifier.padding(horizontal = 16.dp)) {
-            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(14.dp)) {
-                ChannelAvatar(info, imageLoader, 60.dp)
-                Column(Modifier.weight(1f)) {
-                    Text(name, style = MaterialTheme.typography.titleLarge, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                    if (facts.isNotEmpty()) Text(facts, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                    if (info?.isLive == true) LiveLine(info.viewers, Modifier.padding(top = 4.dp))
-                }
+    Column(Modifier.padding(horizontal = 16.dp)) {
+        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(14.dp)) {
+            ChannelAvatar(info, imageLoader, HEADER_AVATAR)
+            Column(Modifier.weight(1f)) {
+                Text(name, style = MaterialTheme.typography.titleLarge, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                if (facts.isNotEmpty()) Text(facts, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                if (info?.isLive == true) LiveLine(info.viewers, Modifier.padding(top = 4.dp))
             }
-            if (title.isNotEmpty()) Text(title, style = MaterialTheme.typography.bodyLarge, modifier = Modifier.padding(top = 12.dp))
-            if (categoryName.isNotEmpty()) CategoryChip(categoryName, category?.boxArtUrl, imageLoader, Modifier.padding(top = 8.dp))
         }
-        return
+        if (title.isNotEmpty()) Text(title, style = MaterialTheme.typography.bodyLarge, modifier = Modifier.padding(top = 12.dp))
+        if (categoryName.isNotEmpty()) CategoryChip(categoryName, category?.boxArtUrl, imageLoader, Modifier.padding(top = 8.dp))
     }
-    Column(
-        horizontalAlignment = Alignment.CenterHorizontally,
-        modifier = Modifier.fillMaxWidth().padding(horizontal = 24.dp),
-    ) {
-        ChannelAvatar(info, imageLoader, 96.dp)
-        Text(name, style = MaterialTheme.typography.headlineSmall, textAlign = TextAlign.Center, modifier = Modifier.padding(top = 14.dp))
-        if (facts.isNotEmpty()) {
-            Text(facts, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(top = 2.dp))
-        }
-        if (info?.isLive == true) LiveLine(info.viewers, Modifier.padding(top = 12.dp))
-        if (title.isNotEmpty()) {
-            Text(title, style = MaterialTheme.typography.bodyLarge, textAlign = TextAlign.Center, maxLines = 3, overflow = TextOverflow.Ellipsis, modifier = Modifier.padding(top = 10.dp))
-        }
-        if (categoryName.isNotEmpty()) CategoryChip(categoryName, category?.boxArtUrl, imageLoader, Modifier.padding(top = 10.dp))
-    }
+}
+
+/** Back, and the channel on Twitch where [onTwitch] is set. */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun PageBar(onBack: () -> Unit, onTwitch: (() -> Unit)?) {
+    TopAppBar(
+        title = {},
+        navigationIcon = {
+            IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Filled.ArrowBack, stringResource(R.string.back)) }
+        },
+        actions = {
+            if (onTwitch != null) IconButton(onClick = onTwitch) {
+                Icon(painterResource(R.drawable.ic_open_in_new), stringResource(R.string.action_open_on_twitch))
+            }
+        },
+    )
 }
 
 /** "Live · 12,431 watching" on Twitch's red. */
@@ -307,12 +317,16 @@ private fun CategoryChip(name: String, cover: String?, imageLoader: ImageLoader,
     }
 }
 
-/** A combined chat's pictures overlapping, and its name. */
+/** A combined chat's pictures overlapping beside its name, like a channel's header. */
 @Composable
 private fun GroupHeader(group: ChannelGroup, info: Map<String, ChannelInfo>, imageLoader: ImageLoader) {
-    Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.fillMaxWidth().padding(horizontal = 24.dp)) {
-        GroupAvatar(group.channels, info, imageLoader, 96.dp)
-        Text(group.displayName(info), style = MaterialTheme.typography.headlineSmall, textAlign = TextAlign.Center, modifier = Modifier.padding(top = 14.dp))
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(14.dp),
+        modifier = Modifier.padding(horizontal = 16.dp),
+    ) {
+        GroupAvatar(group.channels, info, imageLoader, HEADER_AVATAR)
+        Text(group.displayName(info), style = MaterialTheme.typography.titleLarge, maxLines = 2, overflow = TextOverflow.Ellipsis)
     }
 }
 

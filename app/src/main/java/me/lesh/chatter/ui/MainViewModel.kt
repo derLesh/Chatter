@@ -2,6 +2,7 @@ package me.lesh.chatter.ui
 
 import android.net.Uri
 import android.os.Bundle
+import android.os.SystemClock
 import java.io.IOException
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateMapOf
@@ -106,8 +107,10 @@ import me.lesh.chatter.util.AppIcon
 import me.lesh.chatter.util.Autocomplete
 import me.lesh.chatter.util.INBOX_TAB_WHISPERS
 import me.lesh.chatter.util.runCatchingCancellable
+import kotlinx.coroutines.Deferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.async
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -464,32 +467,6 @@ class MainViewModel(private val c: AppContainer, savedState: SavedStateHandle) :
 
     // ---- Channel settings: title, category and 7TV emote set -----------------------------------
 
-    /** The channels the menu found the user may change, and the account it asked for. */
-    private val checkedChannels = MutableStateFlow<Pair<String?, Set<String>>>(null to emptySet())
-
-    /** Channels whose menu offers the channel settings, as far as a menu opened since checked. */
-    val changeableChannels: StateFlow<Set<String>> = combine(checkedChannels, activeAccountId) { (account, channels), active ->
-        if (account == active) channels else emptySet()
-    }.stateIn(viewModelScope, SharingStarted.Eagerly, emptySet())
-
-    /**
-     * Finds out, as [channel]'s menu opens, whether it offers the channel settings. Asking 7TV only
-     * then keeps it off the network for channels whose menu nobody opens; 7TV's answer is kept for a
-     * few minutes, so the entry shows at once the next time.
-     */
-    fun checkChannelSettings(channel: String) {
-        val account = activeAccountId.value ?: return
-        viewModelScope.launch {
-            val may = c.channelSettings.mayChange(channel)
-            checkedChannels.update { (checkedFor, channels) ->
-                val kept = if (checkedFor == account) channels else emptySet()
-                account to if (may) kept + channel else kept - channel
-            }
-        }
-    }
-
-    suspend fun loadChannelSettings(channel: String): ChannelSettingsForm = c.channelSettings.load(channel)
-
     suspend fun searchCategories(query: String): List<StreamCategory> = c.channelSettings.searchCategories(query)
 
     /** Saves [change]; the job ends once Twitch and 7TV answered, for the page to load anew. */
@@ -508,7 +485,45 @@ class MainViewModel(private val c: AppContainer, savedState: SavedStateHandle) :
 
     // ---- Channel page: what Twitch says about a channel, and what its chat shared --------------
 
-    suspend fun channelAbout(login: String): ChannelAbout? = c.channelAbout.load(login)
+    /**
+     * What a channel page asks Twitch and 7TV, started as soon as the page may be opened and kept
+     * a few minutes, so the page shows complete at once. [settings] is null where the user may
+     * change nothing. Touched on the main thread only.
+     */
+    private class PageLoad(val at: Long, val about: Deferred<ChannelAbout?>, val settings: Deferred<ChannelSettingsForm?>)
+
+    /** By page and the account it was loaded for; holds only pages opened in the last minutes. */
+    private val pageLoads = HashMap<Pair<String, String?>, PageLoad>()
+
+    /** Starts loading [page]'s channel page, as its menu opens; opening it then waits less or not at all. */
+    fun prepareChannelPage(page: String) {
+        if (!ChannelGroup.isKey(page)) pageLoad(page, fresh = false)
+    }
+
+    private fun pageLoad(page: String, fresh: Boolean): PageLoad {
+        val now = SystemClock.elapsedRealtime()
+        pageLoads.entries.removeAll { now - it.value.at > PAGE_FRESH_MS }
+        val key = page to activeAccountId.value
+        if (!fresh) pageLoads[key]?.let { return it }
+        return PageLoad(
+            at = now,
+            about = viewModelScope.async { runCatchingCancellable { c.channelAbout.load(page) }.getOrNull() },
+            settings = viewModelScope.async {
+                runCatchingCancellable { if (c.channelSettings.mayChange(page)) c.channelSettings.load(page) else null }.getOrNull()
+            },
+        ).also { pageLoads[key] = it }
+    }
+
+    /**
+     * What Twitch says about [page] and, where the user may change it, its settings. [fresh] asks
+     * again, as after saving. What failed is not kept, so the next visit tries again.
+     */
+    suspend fun channelPage(page: String, fresh: Boolean): Pair<ChannelAbout?, ChannelSettingsForm?> {
+        val load = pageLoad(page, fresh)
+        val about = load.about.await()
+        if (about == null) pageLoads.values.remove(load)
+        return about to load.settings.await()
+    }
 
     /**
      * The media and links in the messages of [page], a channel or a combined chat, as far as they
@@ -1913,5 +1928,8 @@ class MainViewModel(private val c: AppContainer, savedState: SavedStateHandle) :
 
         /** Enough to show what a rule finds in a busy chat, few enough to try on every keystroke. */
         const val RULE_TRY_MESSAGES = 300
+
+        /** How long a channel page's answers from Twitch and 7TV are shown again without asking. */
+        const val PAGE_FRESH_MS = 5 * 60_000L
     }
 }
