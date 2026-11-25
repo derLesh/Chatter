@@ -1,5 +1,7 @@
 package me.lesh.chatter.ui.channels
 
+import androidx.compose.animation.ExperimentalSharedTransitionApi
+import androidx.compose.animation.animateBounds
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -46,6 +48,7 @@ import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -53,6 +56,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.layout.LookaheadScope
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
@@ -173,6 +177,7 @@ fun ChannelTabBar(
     }
 }
 
+@OptIn(ExperimentalSharedTransitionApi::class)
 @Composable
 private fun ChannelTabs(
     pages: List<String>,
@@ -206,64 +211,72 @@ private fun ChannelTabs(
     val lastSelected = remember { SelectedTab() }
     if (selected >= 0) lastSelected.index = selected
     val channelCount = pages.count { !ChannelGroup.isKey(it) }
-    PrimaryScrollableTabRow(
-        // The row cannot show "no tab selected" (briefly after start, after a removal, or with no
-        // channels); it draws no indicator then.
-        selectedTabIndex = lastSelected.index.coerceIn(0, shown.lastIndex.coerceAtLeast(0)),
-        containerColor = MaterialTheme.colorScheme.barColor,
-        edgePadding = 4.dp,
-        minTabWidth = 0.dp,
-        indicator = {
-            if (selected >= 0) TabRowDefaults.PrimaryIndicator(
-                Modifier.tabIndicatorOffset(selected, matchContentSize = false).padding(horizontal = 12.dp),
-                width = Dp.Unspecified,
-                color = role?.color ?: MaterialTheme.colorScheme.primary,
-            )
-        },
-        divider = {},
-        modifier = modifier,
-    ) {
-        shown.forEachIndexed { index, page ->
-            val group = groups[page]
-            val members = (group?.channels ?: listOf(page)).filter { it !in hiddenUnread }
-            val isSelected = index == selected
-            // The page being read has nothing new, whatever the count says before it is cleared.
-            val mentions = if (showUnread && !isSelected) members.sumOf { unread[it] ?: 0 } else 0
-            val hasNew = showUnread && !isSelected && members.any { it in withNews }
-            val position = pages.indexOf(page)
-            ChannelTab(
-                name = group?.displayName(info) ?: info[page]?.displayName ?: page,
-                avatar = { size ->
-                    if (group != null) GroupAvatar(group.channels, info, imageLoader, size)
-                    else ChannelAvatar(info[page], imageLoader, size)
-                },
-                selected = isSelected,
-                // Said aloud for the tab whose underline shows it.
-                roleName = role?.label?.takeIf { isSelected }?.let { stringResource(it) },
-                mentions = mentions,
-                hasNew = hasNew,
-                hasDraft = page in drafts,
-                onClick = { onSelect(page) },
-                onMenuOpen = { onMenuOpen(page) },
-                onOpenChannel = { onOpenChannel(page) },
-                status = pageStatus(group, info[page], info),
-                onMoveLeft = { onMove(page, -1) }.takeIf { position > 0 },
-                onMoveRight = { onMove(page, 1) }.takeIf { position < pages.lastIndex },
-                actions = if (group != null) listOf(
-                    TabAction(stringResource(R.string.edit), { Icon(Icons.Default.Edit, null) }) { onEditGroup(page) },
-                ) else listOfNotNull(
-                    // Combining needs at least two channels.
-                    TabAction(stringResource(R.string.combine_channels), { Icon(painterResource(R.drawable.ic_combine_chats), null) }) {
-                        onCombine(page)
-                    }.takeIf { channelCount >= 2 },
-                    TabAction(stringResource(R.string.rename_channel), { Icon(Icons.Default.Edit, null) }) { onRename(page) },
-                ),
-                onRemove = { onRemove(page) },
-            )
-        }
-        // At the end, where the new channel will appear.
-        IconButton(onClick = onAdd) {
-            Icon(Icons.Default.Add, contentDescription = stringResource(R.string.add_channel))
+    // Moving a tab slides it and its neighbour into their new places instead of jumping there.
+    LookaheadScope {
+        val lookahead = this
+        PrimaryScrollableTabRow(
+            // The row cannot show "no tab selected" (briefly after start, after a removal, or with no
+            // channels); it draws no indicator then.
+            selectedTabIndex = lastSelected.index.coerceIn(0, shown.lastIndex.coerceAtLeast(0)),
+            containerColor = MaterialTheme.colorScheme.barColor,
+            edgePadding = 4.dp,
+            minTabWidth = 0.dp,
+            indicator = {
+                if (selected >= 0) TabRowDefaults.PrimaryIndicator(
+                    Modifier.tabIndicatorOffset(selected, matchContentSize = false).padding(horizontal = 12.dp),
+                    width = Dp.Unspecified,
+                    color = role?.color ?: MaterialTheme.colorScheme.primary,
+                )
+            },
+            divider = {},
+            modifier = modifier,
+        ) {
+            shown.forEachIndexed { index, page ->
+                // Keyed by the page, so a tab's open menu and its slide stay with it when it moves.
+                key(page) {
+                    val group = groups[page]
+                    val members = (group?.channels ?: listOf(page)).filter { it !in hiddenUnread }
+                    val isSelected = index == selected
+                    // The page being read has nothing new, whatever the count says before it is cleared.
+                    val mentions = if (showUnread && !isSelected) members.sumOf { unread[it] ?: 0 } else 0
+                    val hasNew = showUnread && !isSelected && members.any { it in withNews }
+                    val position = pages.indexOf(page)
+                    ChannelTab(
+                        name = group?.displayName(info) ?: info[page]?.displayName ?: page,
+                        avatar = { size ->
+                            if (group != null) GroupAvatar(group.channels, info, imageLoader, size)
+                            else ChannelAvatar(info[page], imageLoader, size)
+                        },
+                        selected = isSelected,
+                        // Said aloud for the tab whose underline shows it.
+                        roleName = role?.label?.takeIf { isSelected }?.let { stringResource(it) },
+                        mentions = mentions,
+                        hasNew = hasNew,
+                        hasDraft = page in drafts,
+                        onClick = { onSelect(page) },
+                        onMenuOpen = { onMenuOpen(page) },
+                        onOpenChannel = { onOpenChannel(page) },
+                        status = pageStatus(group, info[page], info),
+                        onMoveLeft = { onMove(page, -1) }.takeIf { position > 0 },
+                        onMoveRight = { onMove(page, 1) }.takeIf { position < pages.lastIndex },
+                        actions = if (group != null) listOf(
+                            TabAction(stringResource(R.string.edit), { Icon(Icons.Default.Edit, null) }) { onEditGroup(page) },
+                        ) else listOfNotNull(
+                            // Combining needs at least two channels.
+                            TabAction(stringResource(R.string.combine_channels), { Icon(painterResource(R.drawable.ic_combine_chats), null) }) {
+                                onCombine(page)
+                            }.takeIf { channelCount >= 2 },
+                            TabAction(stringResource(R.string.rename_channel), { Icon(Icons.Default.Edit, null) }) { onRename(page) },
+                        ),
+                        onRemove = { onRemove(page) },
+                        modifier = Modifier.animateBounds(lookahead),
+                    )
+                }
+            }
+            // At the end, where the new channel will appear.
+            IconButton(onClick = onAdd) {
+                Icon(Icons.Default.Add, contentDescription = stringResource(R.string.add_channel))
+            }
         }
     }
 }
@@ -311,6 +324,7 @@ private fun ChannelTab(
     onMoveRight: (() -> Unit)?,
     actions: List<TabAction>,
     onRemove: () -> Unit,
+    modifier: Modifier = Modifier,
 ) {
     var open by remember { mutableStateOf(false) }
     // Quiet tabs step well back on a dark theme, so a tab with new messages stands out even when
@@ -324,7 +338,7 @@ private fun ChannelTab(
     }
     Box(
         contentAlignment = Alignment.Center,
-        modifier = Modifier
+        modifier = modifier
             .height(56.dp)
             .semantics {
                 role = Role.Tab
