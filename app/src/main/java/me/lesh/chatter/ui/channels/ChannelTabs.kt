@@ -2,7 +2,9 @@ package me.lesh.chatter.ui.channels
 
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -102,11 +104,9 @@ fun ChannelTabBar(
     onRemove: (String) -> Unit,
     onRename: (String) -> Unit,
     onMove: (String, Int) -> Unit,
-    /** Channels whose menu offers the channel settings. */
-    changeable: Set<String>,
-    /** A channel's menu opened; the place to find out whether it offers the channel settings. */
+    /** A tab's menu opened; the place to find out early whether its page will have a Settings tab. */
     onMenuOpen: (String) -> Unit,
-    onChannelSettings: (String) -> Unit,
+    onOpenChannel: (String) -> Unit,
     /** Null for a guest, who has no inbox. */
     onInbox: (() -> Unit)?,
     inboxUnread: Int,
@@ -138,9 +138,8 @@ fun ChannelTabBar(
                     onRemove = onRemove,
                     onRename = onRename,
                     onMove = onMove,
-                    changeable = changeable,
                     onMenuOpen = onMenuOpen,
-                    onChannelSettings = onChannelSettings,
+                    onOpenChannel = onOpenChannel,
                     modifier = Modifier.weight(1f),
                 )
                 if (onInbox != null) {
@@ -188,9 +187,8 @@ private fun ChannelTabs(
     onRemove: (String) -> Unit,
     onRename: (String) -> Unit,
     onMove: (String, Int) -> Unit,
-    changeable: Set<String>,
     onMenuOpen: (String) -> Unit,
-    onChannelSettings: (String) -> Unit,
+    onOpenChannel: (String) -> Unit,
     modifier: Modifier,
 ) {
     // A combined chat's channels are unknown for a moment after start; its tab would have neither
@@ -229,9 +227,9 @@ private fun ChannelTabs(
             val position = pages.indexOf(page)
             ChannelTab(
                 name = group?.displayName(info) ?: info[page]?.displayName ?: page,
-                avatar = {
-                    if (group != null) GroupAvatar(group.channels, info, imageLoader, 24.dp)
-                    else ChannelAvatar(info[page], imageLoader, 24.dp)
+                avatar = { size ->
+                    if (group != null) GroupAvatar(group.channels, info, imageLoader, size)
+                    else ChannelAvatar(info[page], imageLoader, size)
                 },
                 selected = isSelected,
                 // Said aloud for the tab whose underline shows it.
@@ -241,6 +239,7 @@ private fun ChannelTabs(
                 hasDraft = page in drafts,
                 onClick = { onSelect(page) },
                 onMenuOpen = { onMenuOpen(page) },
+                onOpenChannel = { onOpenChannel(page) },
                 // Grouped by effect: position, identity, removal.
                 actions = listOf(
                     listOfNotNull(
@@ -259,9 +258,6 @@ private fun ChannelTabs(
                             onCombine(page)
                         }.takeIf { channelCount >= 2 },
                         TabAction(stringResource(R.string.rename_channel), { Icon(Icons.Default.Edit, null) }) { onRename(page) },
-                        TabAction(stringResource(R.string.channel_settings), { Icon(painterResource(R.drawable.ic_tune), null) }) {
-                            onChannelSettings(page)
-                        }.takeIf { page in changeable },
                     ),
                     listOf(
                         TabAction(stringResource(R.string.remove_channel), { Icon(Icons.Default.Delete, null) }) { onRemove(page) },
@@ -290,7 +286,7 @@ private class TabAction(val label: String, val icon: @Composable () -> Unit, val
 @Composable
 private fun ChannelTab(
     name: String,
-    avatar: @Composable () -> Unit,
+    avatar: @Composable (Dp) -> Unit,
     selected: Boolean,
     roleName: String?,
     mentions: Int,
@@ -298,6 +294,7 @@ private fun ChannelTab(
     hasDraft: Boolean,
     onClick: () -> Unit,
     onMenuOpen: () -> Unit,
+    onOpenChannel: () -> Unit,
     actions: List<List<TabAction>>,
 ) {
     var open by remember { mutableStateOf(false) }
@@ -331,7 +328,7 @@ private fun ChannelTab(
     ) {
         CompositionLocalProvider(LocalContentColor provides color) {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                avatar()
+                avatar(24.dp)
                 Spacer(Modifier.width(8.dp))
                 Text(
                     text = name,
@@ -361,9 +358,13 @@ private fun ChannelTab(
             }
         }
         DropdownMenuPopup(expanded = open, onDismissRequest = { open = false }) {
+            // The page of the channel first and larger than the rest: the one way into it.
+            DropdownMenuGroup(shapes = MenuDefaults.groupShape(0, actions.size + 1)) {
+                OpenChannelEntry(avatar) { open = false; onOpenChannel() }
+            }
             actions.forEachIndexed { g, group ->
-                if (g > 0) Spacer(Modifier.height(MenuDefaults.GroupSpacing))
-                DropdownMenuGroup(shapes = MenuDefaults.groupShape(g, actions.size)) {
+                Spacer(Modifier.height(MenuDefaults.GroupSpacing))
+                DropdownMenuGroup(shapes = MenuDefaults.groupShape(g + 1, actions.size + 1)) {
                     group.forEachIndexed { i, action ->
                         DropdownMenuItem(
                             text = { Text(action.label) },
@@ -374,6 +375,36 @@ private fun ChannelTab(
                     }
                 }
             }
+        }
+    }
+}
+
+/** "Open channel" with the channel's picture, on the accent's container, at the top of a tab's menu. */
+@Composable
+private fun OpenChannelEntry(avatar: @Composable (Dp) -> Unit, onClick: () -> Unit) {
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
+        modifier = Modifier
+            .padding(horizontal = 4.dp)
+            .widthIn(min = 200.dp)
+            .clip(MaterialTheme.shapes.medium)
+            .background(MaterialTheme.colorScheme.primaryContainer)
+            .clickable(onClick = onClick)
+            .padding(horizontal = 12.dp, vertical = 10.dp),
+    ) {
+        avatar(40.dp)
+        Column {
+            Text(
+                stringResource(R.string.channel_open),
+                style = MaterialTheme.typography.titleSmall,
+                color = MaterialTheme.colorScheme.onPrimaryContainer,
+            )
+            Text(
+                stringResource(R.string.channel_open_hint),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.8f),
+            )
         }
     }
 }

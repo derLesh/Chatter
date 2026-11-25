@@ -16,12 +16,13 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import me.lesh.chatter.auth.AuthState
 import me.lesh.chatter.ui.changelog.UpdateNotesSheet
+import me.lesh.chatter.ui.channels.ChannelScreen
 import me.lesh.chatter.ui.inbox.InboxScreen
 import me.lesh.chatter.ui.onboarding.OnboardingScreen
 import me.lesh.chatter.ui.settings.CrashOfferSheet
 
 /** The screens after login: the chat and those it opens over itself, deepest last for the slide's direction. */
-private enum class Screen { Chat, Inbox, Picture, Settings }
+private enum class Screen { Chat, Channel, Inbox, Picture, Settings }
 
 @Composable
 fun AppRoot(vm: MainViewModel) {
@@ -29,6 +30,8 @@ fun AppRoot(vm: MainViewModel) {
     // Saved, so turning the phone does not drop the user back into the chat.
     var showSettings by rememberSaveable { mutableStateOf(false) }
     var showInbox by rememberSaveable { mutableStateOf(false) }
+    // The channel or combined chat whose page is open over the chat.
+    var channelPage by rememberSaveable { mutableStateOf<String?>(null) }
 
     // Requested from outside (shortcut, whisper notification). The inbox clears it after scrolling
     // to the tab. A guest has no mentions or whispers, so no inbox either.
@@ -45,7 +48,10 @@ fun AppRoot(vm: MainViewModel) {
     // After the last logout the settings would stay underneath the login screen, and the next login
     // would land there instead of in the chat.
     LaunchedEffect(auth) {
-        if (auth is AuthState.LoggedOut) showSettings = false
+        if (auth is AuthState.LoggedOut) {
+            showSettings = false
+            channelPage = null
+        }
         if (auth !is AuthState.LoggedIn) showInbox = false
     }
     // The send screen's way to its uploader settings; back from there returns to the picture.
@@ -86,11 +92,13 @@ fun AppRoot(vm: MainViewModel) {
                 showSettings -> Screen.Settings
                 picture -> Screen.Picture
                 showInbox -> Screen.Inbox
+                channelPage != null -> Screen.Channel
                 else -> Screen.Chat
             }
             val toChat = {
                 showSettings = false
                 showInbox = false
+                channelPage = null
                 vm.closeWhisper()
             }
             val back: () -> Unit = when (screen) {
@@ -125,7 +133,24 @@ fun AppRoot(vm: MainViewModel) {
                         },
                         onBack = toChat,
                     )
-                    Screen.Chat -> MainScreen(vm, onInbox = { showInbox = true }, onSettings = { showSettings = true })
+                    Screen.Channel -> channelPage?.let { page ->
+                        ChannelScreen(
+                            vm,
+                            page = page,
+                            onOpenPage = { channelPage = it },
+                            onJump = { posted ->
+                                vm.openMessage(page, posted.messageId)
+                                channelPage = null
+                            },
+                            onBack = { channelPage = null },
+                        )
+                    }
+                    Screen.Chat -> MainScreen(
+                        vm,
+                        onInbox = { showInbox = true },
+                        onSettings = { showSettings = true },
+                        onOpenChannel = { channelPage = it },
+                    )
                 }
             }
             // Shows itself only right after an update to a minor or major version.

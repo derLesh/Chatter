@@ -4,7 +4,9 @@ import me.lesh.chatter.BuildConfig
 import me.lesh.chatter.emotes.TwitchCheermoteApi
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
+import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
 import kotlinx.serialization.json.putJsonObject
@@ -114,15 +116,27 @@ class HelixApi(
     suspend fun channelInfo(broadcasterId: String): HelixChannelInfo? =
         http.getJson<HelixList<HelixChannelInfo>>(url("channels", "broadcaster_id" to broadcasterId), headers()).data.firstOrNull()
 
+    /** The category [id], with its cover; null if Twitch has none by that id. */
+    suspend fun category(id: String): HelixCategory? =
+        http.getJson<HelixList<HelixCategory>>(url("games", "id" to id), headers()).data.firstOrNull()
+
     /**
-     * Sets the title and category of the user's own channel; Twitch refuses everybody else, mods
-     * too. Null leaves a field as it is; a [categoryId] of "0" takes the category away. Needs
-     * channel:manage:broadcast.
+     * Sets the title, category, tags and language of the user's own channel; Twitch refuses
+     * everybody else, mods too. Null leaves a field as it is; a [categoryId] of "0" takes the
+     * category away, and [tags] replace all tags. Needs channel:manage:broadcast.
      */
-    suspend fun updateChannel(broadcasterId: String, title: String?, categoryId: String?) {
+    suspend fun updateChannel(
+        broadcasterId: String,
+        title: String?,
+        categoryId: String?,
+        tags: List<String>? = null,
+        language: String? = null,
+    ) {
         val body = buildJsonObject {
             title?.let { put("title", it) }
             categoryId?.let { put("game_id", it) }
+            tags?.let { put("tags", JsonArray(it.map(::JsonPrimitive))) }
+            language?.let { put("broadcaster_language", it) }
         }
         http.send("PATCH", url("channels", "broadcaster_id" to broadcasterId), headers(), body.toString())
     }
@@ -398,9 +412,16 @@ data class HelixChannelSearch(
 data class HelixCategory(
     val id: String,
     val name: String,
-    /** The cover, 52 by 72 pixels. */
+    /**
+     * The cover: 52 by 72 pixels from a search, a template with `{width}` and `{height}` from
+     * [HelixApi.category]; see [boxArt].
+     */
     @SerialName("box_art_url") val boxArtUrl: String = "",
 )
+
+/** [HelixCategory.boxArtUrl] at [width] by [height] pixels, whichever form Twitch sent it in. */
+fun boxArt(url: String, width: Int, height: Int): String =
+    url.replace("{width}", width.toString()).replace("{height}", height.toString())
 
 @Serializable
 data class HelixChannelInfo(
@@ -408,6 +429,9 @@ data class HelixChannelInfo(
     /** Empty without a category. */
     @SerialName("game_id") val categoryId: String = "",
     @SerialName("game_name") val categoryName: String = "",
+    val tags: List<String> = emptyList(),
+    /** An ISO 639-1 code like "de", a few with a region like "zh-hk", or "other". */
+    @SerialName("broadcaster_language") val language: String = "",
 )
 
 @Serializable

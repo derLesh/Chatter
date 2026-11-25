@@ -10,6 +10,8 @@ import me.lesh.chatter.emotes.ChannelEmoteSet
 import me.lesh.chatter.emotes.ChannelEmoteSets
 import me.lesh.chatter.emotes.SevenTvEditing
 import me.lesh.chatter.net.HelixApi
+import me.lesh.chatter.net.HelixChannelInfo
+import me.lesh.chatter.net.boxArt
 
 /** A Twitch category, like Just Chatting. [boxArtUrl] is its cover, empty where unknown. */
 data class StreamCategory(val id: String, val name: String, val boxArtUrl: String = "") {
@@ -19,8 +21,16 @@ data class StreamCategory(val id: String, val name: String, val boxArtUrl: Strin
     }
 }
 
-/** The title and category of the user's own channel. [category] is null without one. */
-data class StreamDetails(val title: String, val category: StreamCategory?)
+/**
+ * The title, category, tags and language of the user's own channel. [category] is null without
+ * one; [language] is one of [StreamLanguages.CODES] or a code Twitch knows and this list does not.
+ */
+data class StreamDetails(
+    val title: String,
+    val category: StreamCategory?,
+    val tags: List<String> = emptyList(),
+    val language: String = "",
+)
 
 /** One part of the channel settings as loaded. */
 sealed interface SettingsPart<out T> {
@@ -45,13 +55,18 @@ data class ChannelSettingsChange(
     /** [StreamCategory.NONE] takes the category away. */
     val category: StreamCategory? = null,
     val emoteSet: ChannelEmoteSet? = null,
-)
+    /** All tags, replacing the ones there were; empty takes them all away. */
+    val tags: List<String>? = null,
+    val language: String? = null,
+) {
+    val changesStream: Boolean get() = title != null || category != null || tags != null || language != null
+}
 
 /**
  * What the user changed from [stream], the title and category as loaded, and from the active set:
  * [title] as typed, the [category] last picked, the category field's [query] (blank takes the
- * category away) and the [chosenSet]. A [query] that is not the picked category's name is still
- * being typed and changes nothing.
+ * category away), the [chosenSet], the [tags] and the [language]. A [query] that is not the picked
+ * category's name is still being typed and changes nothing.
  */
 fun settingsChange(
     stream: StreamDetails?,
@@ -59,6 +74,8 @@ fun settingsChange(
     category: StreamCategory?,
     query: String,
     chosenSet: ChannelEmoteSet?,
+    tags: List<String> = stream?.tags.orEmpty(),
+    language: String = stream?.language.orEmpty(),
 ): ChannelSettingsChange = ChannelSettingsChange(
     title = title.trim().takeIf { stream != null && it.isNotEmpty() && it != stream.title },
     category = when {
@@ -69,7 +86,39 @@ fun settingsChange(
         else -> null
     },
     emoteSet = chosenSet?.takeIf { !it.active },
+    tags = tags.takeIf { stream != null && it != stream.tags },
+    language = language.takeIf { stream != null && it.isNotEmpty() && it != stream.language },
 )
+
+/** Twitch's rules for a channel's tags. */
+object StreamTags {
+    const val MAX_TAGS = 10
+    const val MAX_LENGTH = 25
+
+    /**
+     * [tags] with [typed] added, or null if Twitch would refuse it: more than [MAX_TAGS], longer
+     * than [MAX_LENGTH], or anything but letters and digits. Twitch takes letters of any script, so
+     * "Deutsch" and "日本語" pass; spaces, dashes and emoji do not. One already there, in any case,
+     * leaves the list as it is.
+     */
+    fun add(tags: List<String>, typed: String): List<String>? {
+        val tag = typed.trim()
+        if (tag.isEmpty() || tag.length > MAX_LENGTH || !tag.all(Char::isLetterOrDigit)) return null
+        if (tags.any { it.equals(tag, ignoreCase = true) }) return tags
+        if (tags.size >= MAX_TAGS) return null
+        return tags + tag
+    }
+}
+
+/** The languages Twitch offers for a stream, as its codes. */
+object StreamLanguages {
+    const val OTHER = "other"
+
+    val CODES = listOf(
+        "ar", "bg", "ca", "cs", "da", "de", "el", "en", "es", "fi", "fr", "hi", "hu", "id", "it", "ja", "ko",
+        "ms", "nl", "no", "pl", "pt", "ro", "ru", "sk", "sv", "th", "tl", "tr", "uk", "vi", "zh", "zh-hk", OTHER,
+    )
+}
 
 /**
  * [found] in the order the user most likely means for [query]: the exact name, then names that
@@ -120,9 +169,7 @@ class ChannelSettings(
         if (!TwitchScopes.allows(me.scopes, SCOPE)) return SettingsPart.NeedsLogin
         return try {
             val info = helix.channelInfo(me.userId) ?: return SettingsPart.Failed
-            val category = info.categoryId.takeIf { it.isNotEmpty() && it != StreamCategory.NONE.id }
-                ?.let { StreamCategory(it, info.categoryName) }
-            SettingsPart.Ready(StreamDetails(info.title, category))
+            SettingsPart.Ready(StreamDetails(info.title, categoryOf(helix, info), info.tags, info.language))
         } catch (e: CancellationException) {
             throw e
         } catch (e: Exception) {
@@ -146,20 +193,20 @@ class ChannelSettings(
     }
 
     /**
-     * Sets the title and category of [channel], which must be the user's own; null keeps either.
-     * [account] is the Twitch account they were changed for; if another one is active by now,
-     * nothing is changed. False if it did not work.
+     * Sets the title, category, tags and language of [channel], which must be the user's own, as
+     * [change] says; null keeps a part. [account] is the Twitch account they were changed for; if
+     * another one is active by now, nothing is changed. False if it did not work.
      */
-    suspend fun saveStream(channel: String, title: String?, category: StreamCategory?, account: String?): Boolean {
+    suspend fun saveStream(channel: String, change: ChannelSettingsChange, account: String?): Boolean {
         val me = activeAccount()?.takeIf { isOwn(channel) && it.userId == account } ?: return false
         return try {
-            helix.updateChannel(me.userId, title, category?.id)
-            AppLog.i(TAG, "Changed the title or category of the own channel")
+            helix.updateChannel(me.userId, change.title, change.category?.id, change.tags, change.language)
+            AppLog.i(TAG, "Changed the title, category, tags or language of the own channel")
             true
         } catch (e: CancellationException) {
             throw e
         } catch (e: Exception) {
-            AppLog.w(TAG, "Could not change the title or category: ${e.message}")
+            AppLog.w(TAG, "Could not change the title, category, tags or language: ${e.message}")
             false
         }
     }
@@ -173,3 +220,23 @@ class ChannelSettings(
         const val SHOWN_CATEGORIES = 10
     }
 }
+
+/**
+ * The category [info] names, with its cover; null without one. The cover is a request of its own;
+ * if it fails, the category comes without.
+ */
+internal suspend fun categoryOf(helix: HelixApi, info: HelixChannelInfo): StreamCategory? {
+    val id = info.categoryId.takeIf { it.isNotEmpty() && it != StreamCategory.NONE.id } ?: return null
+    val cover = try {
+        helix.category(id)?.boxArtUrl?.let { boxArt(it, COVER_WIDTH, COVER_HEIGHT) }.orEmpty()
+    } catch (e: CancellationException) {
+        throw e
+    } catch (e: Exception) {
+        ""
+    }
+    return StreamCategory(id, info.categoryName, cover)
+}
+
+/** Twice the 52 by 72 dp the page draws it at, sharp on most screens. */
+private const val COVER_WIDTH = 104
+private const val COVER_HEIGHT = 144

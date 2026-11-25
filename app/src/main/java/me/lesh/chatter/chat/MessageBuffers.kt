@@ -316,6 +316,16 @@ class MessageBuffers(
         buffers[channel]?.lastOrNull { it.id == id }?.also { it.body.prepare() }
     }
 
+    /**
+     * Every message of [channels] still in memory, oldest first within each channel and built for
+     * drawing, for the channel page to find links in. Merged by time where there are several.
+     */
+    suspend fun allOf(channels: List<String>): List<ChatItem> = withContext(worker) {
+        val lists = channels.mapNotNull { buffers[it]?.toList() }
+        val all = if (lists.size == 1) lists[0] else lists.flatten().sortedBy { it.timestamp }
+        all.onEach { if (!it.deleted) it.body.prepare() }
+    }
+
     suspend fun totalMessages(): Int = withContext(worker) { buffers.values.sumOf { it.size } }
 
     /** The newest [limit] messages of all channels together, oldest first. Not built for drawing. */

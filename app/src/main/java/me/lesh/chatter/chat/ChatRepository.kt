@@ -393,6 +393,9 @@ class ChatRepository(
     suspend fun messagesFrom(channel: String, login: String, limit: Int = 30): List<ChatItem> =
         buffers.from(channel, login, limit)
 
+    /** Every message of [channels] in memory, built for drawing; see [MessageBuffers.allOf]. */
+    suspend fun messagesIn(channels: List<String>): List<ChatItem> = buffers.allOf(channels)
+
     /** What the logged-in user last wrote in [channel], newest first, ready to go into the input. */
     suspend fun recentlySent(channel: String, limit: Int): List<String> {
         val login = auth.account?.login ?: return emptyList()

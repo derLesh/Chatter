@@ -1,11 +1,5 @@
 package me.lesh.chatter.ui.chat
 
-import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.animation.expandHorizontally
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
-import androidx.compose.animation.shrinkHorizontally
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -13,12 +7,10 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
-import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -51,7 +43,6 @@ import androidx.compose.material3.DropdownMenuPopup
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.FilledTonalButton
-import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.IconButtonDefaults
@@ -66,7 +57,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
-import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
@@ -80,23 +70,19 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.ui.layout.onPlaced
 import androidx.compose.ui.layout.onSizeChanged
-import androidx.compose.ui.layout.positionInParent
 import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.res.vectorResource
-import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.text.withStyle
-import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import coil3.ImageLoader
@@ -114,6 +100,8 @@ import me.lesh.chatter.R
 import me.lesh.chatter.badges.Badge
 import me.lesh.chatter.chat.ChatItem
 import me.lesh.chatter.net.HelixUser
+import me.lesh.chatter.ui.IconTab
+import me.lesh.chatter.ui.IconTabs
 import me.lesh.chatter.ui.theme.readableNameColor
 import me.lesh.chatter.util.AvatarColors
 import java.time.Duration
@@ -121,7 +109,6 @@ import java.time.Instant
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 import java.time.format.FormatStyle
-import kotlin.math.roundToInt
 
 private val BANNER_HEIGHT = 80.dp
 private val AVATAR_SIZE = 64.dp
@@ -322,7 +309,12 @@ fun UserCardSheet(
             val scope = rememberCoroutineScope()
             // A message opened from the history is shown on its own tab.
             LaunchedEffect(item.id) { if (pager.currentPage != 0) pager.animateScrollToPage(0) }
-            Tabs(tabs, pager.currentPage, recent?.size, onPick = { scope.launch { pager.animateScrollToPage(it) } })
+            IconTabs(
+                tabs.map { IconTab(stringResource(it.label), it.icon, recent?.size?.takeIf { _ -> it == CardTab.History }) },
+                pager.currentPage,
+                onPick = { scope.launch { pager.animateScrollToPage(it) } },
+                modifier = Modifier.padding(top = 12.dp),
+            )
             val pageHeight = maxOf(MIN_TAB_PAGE_HEIGHT, with(LocalDensity.current) { messageHeight.toDp() })
             HorizontalPager(pager, Modifier.fillMaxWidth().height(pageHeight), verticalAlignment = Alignment.Top) { page ->
                 when (tabs[page]) {
@@ -463,79 +455,6 @@ private fun SheetHandle(color: Color, modifier: Modifier = Modifier) {
             .clip(CircleShape)
             .background(color.copy(alpha = 0.6f)),
     )
-}
-
-/**
- * The card's tabs, the way X draws a profile's: the chosen one grows and shows its name, the
- * others keep only their icon, and the line below slides along. History carries the number of
- * recent messages once they are loaded.
- */
-@Composable
-private fun Tabs(tabs: List<CardTab>, selected: Int, historyCount: Int?, onPick: (Int) -> Unit) {
-    // Left edge and width of each tab in px, as last laid out; the line follows the chosen one.
-    val bounds = remember(tabs) { mutableStateMapOf<Int, Pair<Float, Float>>() }
-    Box(Modifier.fillMaxWidth().padding(top = 12.dp)) {
-        Row(Modifier.fillMaxWidth().height(48.dp)) {
-            tabs.forEachIndexed { i, tab ->
-                val chosen = i == selected
-                val weight by animateFloatAsState(if (chosen) 2.2f else 1f, label = "tab weight")
-                val color = if (chosen) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurfaceVariant
-                Row(
-                    horizontalArrangement = Arrangement.Center,
-                    verticalAlignment = Alignment.CenterVertically,
-                    modifier = Modifier
-                        .weight(weight)
-                        .fillMaxHeight()
-                        .onPlaced { bounds[i] = it.positionInParent().x to it.size.width.toFloat() }
-                        .selectable(selected = chosen, role = Role.Tab, onClick = { onPick(i) }),
-                ) {
-                    Icon(
-                        ImageVector.vectorResource(tab.icon),
-                        contentDescription = if (chosen) null else stringResource(tab.label),
-                        tint = color,
-                        modifier = Modifier.size(20.dp),
-                    )
-                    AnimatedVisibility(
-                        visible = chosen,
-                        enter = fadeIn() + expandHorizontally(),
-                        exit = fadeOut() + shrinkHorizontally(),
-                    ) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Spacer(Modifier.width(8.dp))
-                            Text(stringResource(tab.label), style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold, color = color, maxLines = 1)
-                            if (tab == CardTab.History && historyCount != null) {
-                                Spacer(Modifier.width(6.dp))
-                                Text(
-                                    historyCount.toString(),
-                                    style = MaterialTheme.typography.labelSmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                    modifier = Modifier
-                                        .clip(CircleShape)
-                                        .background(MaterialTheme.colorScheme.surfaceContainerHighest)
-                                        .padding(horizontal = 6.dp, vertical = 1.dp),
-                                )
-                            }
-                        }
-                    }
-                }
-            }
-        }
-        HorizontalDivider(Modifier.align(Alignment.BottomStart), color = MaterialTheme.colorScheme.surfaceContainerHighest)
-        bounds[selected]?.let { (left, width) ->
-            val x by animateFloatAsState(left, label = "tab line x")
-            val w by animateFloatAsState(width, label = "tab line width")
-            val density = LocalDensity.current
-            Box(
-                Modifier
-                    .align(Alignment.BottomStart)
-                    .offset { IntOffset(x.roundToInt(), 0) }
-                    .width(with(density) { w.toDp() })
-                    .height(3.dp)
-                    .clip(RoundedCornerShape(topStart = 3.dp, topEnd = 3.dp))
-                    .background(MaterialTheme.colorScheme.primary),
-            )
-        }
-    }
 }
 
 /**

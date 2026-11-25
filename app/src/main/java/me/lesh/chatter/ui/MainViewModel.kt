@@ -32,6 +32,7 @@ import me.lesh.chatter.auth.TokenOwner
 import me.lesh.chatter.badges.Badge
 import me.lesh.chatter.badges.BadgeProvider
 import me.lesh.chatter.channels.ChannelGroup
+import me.lesh.chatter.channels.ChannelAbout
 import me.lesh.chatter.channels.ChannelSettingsChange
 import me.lesh.chatter.channels.ChannelSettingsForm
 import me.lesh.chatter.channels.RemovedPage
@@ -59,6 +60,8 @@ import me.lesh.chatter.chat.InboxWhisper
 import me.lesh.chatter.chat.SendLimits
 import me.lesh.chatter.chat.ScheduledMessage
 import me.lesh.chatter.chat.SendResult
+import me.lesh.chatter.chat.SharedItems
+import me.lesh.chatter.chat.SharedItemsFinder
 import me.lesh.chatter.chat.WhisperResult
 import me.lesh.chatter.crash.Crash
 import me.lesh.chatter.crash.DeviceInfo
@@ -489,16 +492,40 @@ class MainViewModel(private val c: AppContainer, savedState: SavedStateHandle) :
 
     suspend fun searchCategories(query: String): List<StreamCategory> = c.channelSettings.searchCategories(query)
 
-    fun saveChannelSettings(channel: String, change: ChannelSettingsChange) {
+    /** Saves [change]; the job ends once Twitch and 7TV answered, for the page to load anew. */
+    fun saveChannelSettings(channel: String, change: ChannelSettingsChange): Job {
         val account = activeAccountId.value
-        viewModelScope.launch {
-            if (change.title != null || change.category != null) {
-                val saved = c.channelSettings.saveStream(channel, change.title, change.category, account)
+        return viewModelScope.launch {
+            if (change.changesStream) {
+                val saved = c.channelSettings.saveStream(channel, change, account)
                 _messages.send(
                     if (saved) UiMessage(R.string.channel_settings_saved, tone = PillTone.Success) else UiMessage(R.string.channel_settings_save_failed),
                 )
             }
             change.emoteSet?.let { editSevenTvEmote(PendingEmoteEdit.SwitchSet(channel, it, account)) }
+        }
+    }
+
+    // ---- Channel page: what Twitch says about a channel, and what its chat shared --------------
+
+    suspend fun channelAbout(login: String): ChannelAbout? = c.channelAbout.load(login)
+
+    /**
+     * The media and links in the messages of [page], a channel or a combined chat, as far as they
+     * are still in memory. What counts as media follows the chat's settings for pictures, GIFs and
+     * video cards.
+     */
+    suspend fun sharedIn(page: String): SharedItems {
+        val channels = c.channels.groups.value[page]?.channels ?: listOf(page)
+        val messages = c.chat.messagesIn(channels)
+        val s = settings.value
+        return withContext(Dispatchers.Default) {
+            SharedItemsFinder.find(
+                messages,
+                imageHosts = if (s.inlineImages) s.imageHosts else emptyList(),
+                postSites = s.postSites,
+                gifs = s.showGifs,
+            )
         }
     }
 
