@@ -58,4 +58,38 @@ class ChannelSettingsTest {
         val found = listOf("Artifact", "Pixel Art Games", "Art", "Smart Bomb").mapIndexed { i, name -> StreamCategory("$i", name) }
         assertEquals(listOf("Art", "Artifact", "Pixel Art Games", "Smart Bomb"), rankCategories(" art ", found).map { it.name })
     }
+
+    @Test
+    fun changedTagsAreSentWholeAndUntouchedOnesNot() {
+        val tagged = StreamDetails("Hello", chatting, tags = listOf("German", "Chill"), language = "de")
+        assertEquals(null, settingsChange(tagged, "Hello", chatting, "Just Chatting", null).tags)
+        assertEquals(listOf("German"), settingsChange(tagged, "Hello", chatting, "Just Chatting", null, tags = listOf("German")).tags)
+        assertEquals(emptyList<String>(), settingsChange(tagged, "Hello", chatting, "Just Chatting", null, tags = emptyList()).tags)
+    }
+
+    @Test
+    fun aNewLanguageIsSentAndNoneIsNoChange() {
+        val tagged = StreamDetails("Hello", chatting, language = "de")
+        assertEquals("en", settingsChange(tagged, "Hello", chatting, "Just Chatting", null, language = "en").language)
+        assertEquals(null, settingsChange(tagged, "Hello", chatting, "Just Chatting", null, language = "de").language)
+        assertEquals(null, settingsChange(tagged, "Hello", chatting, "Just Chatting", null, language = "").language)
+    }
+
+    @Test
+    fun tagsAreLettersAndDigitsOfAnyScriptUpToTwentyFive() {
+        assertEquals(listOf("Deutsch"), StreamTags.add(emptyList(), " Deutsch "))
+        assertEquals(listOf("日本語"), StreamTags.add(emptyList(), "日本語"))
+        assertEquals(listOf("Vtuber2"), StreamTags.add(emptyList(), "Vtuber2"))
+        assertEquals(null, StreamTags.add(emptyList(), "Two words"))
+        assertEquals(null, StreamTags.add(emptyList(), "no-dash"))
+        assertEquals(null, StreamTags.add(emptyList(), "a".repeat(26)))
+        assertEquals(null, StreamTags.add(emptyList(), "  "))
+    }
+
+    @Test
+    fun aTagAlreadyThereStaysOnceAndTheEleventhIsRefused() {
+        assertEquals(listOf("Chill"), StreamTags.add(listOf("Chill"), "chill"))
+        val full = (1..10).map { "Tag$it" }
+        assertEquals(null, StreamTags.add(full, "More"))
+    }
 }

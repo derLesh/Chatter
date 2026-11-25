@@ -21,6 +21,7 @@ import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.ArrowDropDown
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material.icons.filled.MailOutline
@@ -103,11 +104,9 @@ fun ChannelTopBar(
     onRemove: (String) -> Unit,
     onRename: (String) -> Unit,
     onMove: (String, Int) -> Unit,
-    /** Channels whose menu offers the channel settings. */
-    changeable: Set<String>,
-    /** A channel's menu opened; the place to find out whether it offers the channel settings. */
+    /** A channel's menu opened; the place to find out early whether its page will have a Settings tab. */
     onMenuOpen: (String) -> Unit,
-    onChannelSettings: (String) -> Unit,
+    onOpenChannel: (String) -> Unit,
     /** Null for a guest, who has no inbox. */
     onInbox: (() -> Unit)?,
     inboxUnread: Int,
@@ -179,9 +178,8 @@ fun ChannelTopBar(
                     onRemove = onRemove,
                     onRename = { expanded = false; onRename(it) },
                     onMove = onMove,
-                    changeable = changeable,
                     onMenuOpen = onMenuOpen,
-                    onChannelSettings = { expanded = false; onChannelSettings(it) },
+                    onOpenChannel = { expanded = false; onOpenChannel(it) },
                 )
             }
         },
@@ -283,9 +281,8 @@ private fun ChannelDropdown(
     onRemove: (String) -> Unit,
     onRename: (String) -> Unit,
     onMove: (String, Int) -> Unit,
-    changeable: Set<String>,
     onMenuOpen: (String) -> Unit,
-    onChannelSettings: (String) -> Unit,
+    onOpenChannel: (String) -> Unit,
 ) {
     // The window's width, not the screen's: they differ in split screen and on foldables.
     val width = with(LocalDensity.current) { LocalWindowInfo.current.containerSize.width.toDp() } - DROPDOWN_MARGIN * 2
@@ -363,6 +360,11 @@ private fun ChannelDropdown(
                                 Icon(Icons.Default.MoreVert, contentDescription = stringResource(R.string.channel_options))
                             }
                             DropdownMenu(expanded = menu, onDismissRequest = { menu = false }) {
+                                DropdownMenuItem(
+                                    text = { Text(stringResource(R.string.channel_open)) },
+                                    leadingIcon = { Icon(Icons.Default.Info, null) },
+                                    onClick = { menu = false; onOpenChannel(page) },
+                                )
                                 if (index > 0) DropdownMenuItem(
                                     text = { Text(stringResource(R.string.move_up)) },
                                     leadingIcon = { Icon(Icons.Default.KeyboardArrowUp, null) },
@@ -381,11 +383,6 @@ private fun ChannelDropdown(
                                     text = { Text(stringResource(R.string.rename_channel)) },
                                     leadingIcon = { Icon(Icons.Default.Edit, null) },
                                     onClick = { menu = false; onRename(page) },
-                                )
-                                if (group == null && page in changeable) DropdownMenuItem(
-                                    text = { Text(stringResource(R.string.channel_settings)) },
-                                    leadingIcon = { Icon(painterResource(R.drawable.ic_tune), null) },
-                                    onClick = { menu = false; onChannelSettings(page) },
                                 )
                                 DropdownMenuItem(
                                     text = { Text(stringResource(R.string.remove_channel)) },

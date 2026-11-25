@@ -1,14 +1,18 @@
 package me.lesh.chatter.ui.channels
 
-import me.lesh.chatter.ui.recap.SettingsGear
+import androidx.compose.animation.ExperimentalSharedTransitionApi
+import androidx.compose.animation.animateBounds
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -16,6 +20,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowLeft
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
@@ -29,6 +34,7 @@ import androidx.compose.material3.BadgedBox
 import androidx.compose.material3.DropdownMenuGroup
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.DropdownMenuPopup
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LocalContentColor
@@ -42,13 +48,17 @@ import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.layout.LookaheadScope
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.role
@@ -68,6 +78,8 @@ import me.lesh.chatter.channels.displayName
 import me.lesh.chatter.chat.ChatRole
 import me.lesh.chatter.chat.RoomState
 import me.lesh.chatter.irc.ConnectionState
+import me.lesh.chatter.ui.recap.SettingsGear
+import me.lesh.chatter.ui.theme.LiveRed
 import me.lesh.chatter.ui.theme.barColor
 import me.lesh.chatter.ui.theme.isAppInDarkTheme
 
@@ -103,11 +115,9 @@ fun ChannelTabBar(
     onRemove: (String) -> Unit,
     onRename: (String) -> Unit,
     onMove: (String, Int) -> Unit,
-    /** Channels whose menu offers the channel settings. */
-    changeable: Set<String>,
-    /** A channel's menu opened; the place to find out whether it offers the channel settings. */
+    /** A tab's menu opened; the place to find out early whether its page will have a Settings tab. */
     onMenuOpen: (String) -> Unit,
-    onChannelSettings: (String) -> Unit,
+    onOpenChannel: (String) -> Unit,
     /** Null for a guest, who has no inbox. */
     onInbox: (() -> Unit)?,
     inboxUnread: Int,
@@ -141,9 +151,8 @@ fun ChannelTabBar(
                     onRemove = onRemove,
                     onRename = onRename,
                     onMove = onMove,
-                    changeable = changeable,
                     onMenuOpen = onMenuOpen,
-                    onChannelSettings = onChannelSettings,
+                    onOpenChannel = onOpenChannel,
                     modifier = Modifier.weight(1f),
                 )
                 if (onInbox != null) {
@@ -169,6 +178,7 @@ fun ChannelTabBar(
     }
 }
 
+@OptIn(ExperimentalSharedTransitionApi::class)
 @Composable
 private fun ChannelTabs(
     pages: List<String>,
@@ -189,9 +199,8 @@ private fun ChannelTabs(
     onRemove: (String) -> Unit,
     onRename: (String) -> Unit,
     onMove: (String, Int) -> Unit,
-    changeable: Set<String>,
     onMenuOpen: (String) -> Unit,
-    onChannelSettings: (String) -> Unit,
+    onOpenChannel: (String) -> Unit,
     modifier: Modifier,
 ) {
     // A combined chat's channels are unknown for a moment after start; its tab would have neither
@@ -203,76 +212,72 @@ private fun ChannelTabs(
     val lastSelected = remember { SelectedTab() }
     if (selected >= 0) lastSelected.index = selected
     val channelCount = pages.count { !ChannelGroup.isKey(it) }
-    PrimaryScrollableTabRow(
-        // The row cannot show "no tab selected" (briefly after start, after a removal, or with no
-        // channels); it draws no indicator then.
-        selectedTabIndex = lastSelected.index.coerceIn(0, shown.lastIndex.coerceAtLeast(0)),
-        containerColor = MaterialTheme.colorScheme.barColor,
-        edgePadding = 4.dp,
-        minTabWidth = 0.dp,
-        indicator = {
-            if (selected >= 0) TabRowDefaults.PrimaryIndicator(
-                Modifier.tabIndicatorOffset(selected, matchContentSize = false).padding(horizontal = 12.dp),
-                width = Dp.Unspecified,
-                color = role?.color ?: MaterialTheme.colorScheme.primary,
-            )
-        },
-        divider = {},
-        modifier = modifier,
-    ) {
-        shown.forEachIndexed { index, page ->
-            val group = groups[page]
-            val members = (group?.channels ?: listOf(page)).filter { it !in hiddenUnread }
-            val isSelected = index == selected
-            // The page being read has nothing new, whatever the count says before it is cleared.
-            val mentions = if (showUnread && !isSelected) members.sumOf { unread[it] ?: 0 } else 0
-            val hasNew = showUnread && !isSelected && members.any { it in withNews }
-            val position = pages.indexOf(page)
-            ChannelTab(
-                name = group?.displayName(info) ?: info[page]?.displayName ?: page,
-                avatar = {
-                    if (group != null) GroupAvatar(group.channels, info, imageLoader, 24.dp)
-                    else ChannelAvatar(info[page], imageLoader, 24.dp)
-                },
-                selected = isSelected,
-                // Said aloud for the tab whose underline shows it.
-                roleName = role?.label?.takeIf { isSelected }?.let { stringResource(it) },
-                mentions = mentions,
-                hasNew = hasNew,
-                hasDraft = page in drafts,
-                onClick = { onSelect(page) },
-                onMenuOpen = { onMenuOpen(page) },
-                // Grouped by effect: position, identity, removal.
-                actions = listOf(
-                    listOfNotNull(
-                        TabAction(stringResource(R.string.move_left), { Icon(Icons.AutoMirrored.Filled.KeyboardArrowLeft, null) }) {
-                            onMove(page, -1)
-                        }.takeIf { position > 0 },
-                        TabAction(stringResource(R.string.move_right), { Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, null) }) {
-                            onMove(page, 1)
-                        }.takeIf { position < pages.lastIndex },
-                    ),
-                    if (group != null) listOf(
-                        TabAction(stringResource(R.string.edit), { Icon(Icons.Default.Edit, null) }) { onEditGroup(page) },
-                    ) else listOfNotNull(
-                        // Combining needs at least two channels.
-                        TabAction(stringResource(R.string.combine_channels), { Icon(painterResource(R.drawable.ic_combine_chats), null) }) {
-                            onCombine(page)
-                        }.takeIf { channelCount >= 2 },
-                        TabAction(stringResource(R.string.rename_channel), { Icon(Icons.Default.Edit, null) }) { onRename(page) },
-                        TabAction(stringResource(R.string.channel_settings), { Icon(painterResource(R.drawable.ic_tune), null) }) {
-                            onChannelSettings(page)
-                        }.takeIf { page in changeable },
-                    ),
-                    listOf(
-                        TabAction(stringResource(R.string.remove_channel), { Icon(Icons.Default.Delete, null) }) { onRemove(page) },
-                    ),
-                ).filter { it.isNotEmpty() },
-            )
-        }
-        // At the end, where the new channel will appear.
-        IconButton(onClick = onAdd) {
-            Icon(Icons.Default.Add, contentDescription = stringResource(R.string.add_channel))
+    // Moving a tab slides it and its neighbour into their new places instead of jumping there.
+    LookaheadScope {
+        val lookahead = this
+        PrimaryScrollableTabRow(
+            // The row cannot show "no tab selected" (briefly after start, after a removal, or with no
+            // channels); it draws no indicator then.
+            selectedTabIndex = lastSelected.index.coerceIn(0, shown.lastIndex.coerceAtLeast(0)),
+            containerColor = MaterialTheme.colorScheme.barColor,
+            edgePadding = 4.dp,
+            minTabWidth = 0.dp,
+            indicator = {
+                if (selected >= 0) TabRowDefaults.PrimaryIndicator(
+                    Modifier.tabIndicatorOffset(selected, matchContentSize = false).padding(horizontal = 12.dp),
+                    width = Dp.Unspecified,
+                    color = role?.color ?: MaterialTheme.colorScheme.primary,
+                )
+            },
+            divider = {},
+            modifier = modifier,
+        ) {
+            shown.forEachIndexed { index, page ->
+                // Keyed by the page, so a tab's open menu and its slide stay with it when it moves.
+                key(page) {
+                    val group = groups[page]
+                    val members = (group?.channels ?: listOf(page)).filter { it !in hiddenUnread }
+                    val isSelected = index == selected
+                    // The page being read has nothing new, whatever the count says before it is cleared.
+                    val mentions = if (showUnread && !isSelected) members.sumOf { unread[it] ?: 0 } else 0
+                    val hasNew = showUnread && !isSelected && members.any { it in withNews }
+                    val position = pages.indexOf(page)
+                    ChannelTab(
+                        name = group?.displayName(info) ?: info[page]?.displayName ?: page,
+                        avatar = { size ->
+                            if (group != null) GroupAvatar(group.channels, info, imageLoader, size)
+                            else ChannelAvatar(info[page], imageLoader, size)
+                        },
+                        selected = isSelected,
+                        // Said aloud for the tab whose underline shows it.
+                        roleName = role?.label?.takeIf { isSelected }?.let { stringResource(it) },
+                        mentions = mentions,
+                        hasNew = hasNew,
+                        hasDraft = page in drafts,
+                        onClick = { onSelect(page) },
+                        onMenuOpen = { onMenuOpen(page) },
+                        onOpenChannel = { onOpenChannel(page) },
+                        status = pageStatus(group, info[page], info),
+                        onMoveLeft = { onMove(page, -1) }.takeIf { position > 0 },
+                        onMoveRight = { onMove(page, 1) }.takeIf { position < pages.lastIndex },
+                        actions = if (group != null) listOf(
+                            TabAction(stringResource(R.string.edit), { Icon(Icons.Default.Edit, null) }) { onEditGroup(page) },
+                        ) else listOfNotNull(
+                            // Combining needs at least two channels.
+                            TabAction(stringResource(R.string.combine_channels), { Icon(painterResource(R.drawable.ic_combine_chats), null) }) {
+                                onCombine(page)
+                            }.takeIf { channelCount >= 2 },
+                            TabAction(stringResource(R.string.rename_channel), { Icon(Icons.Default.Edit, null) }) { onRename(page) },
+                        ),
+                        onRemove = { onRemove(page) },
+                        modifier = Modifier.animateBounds(lookahead),
+                    )
+                }
+            }
+            // At the end, where the new channel will appear.
+            IconButton(onClick = onAdd) {
+                Icon(Icons.Default.Add, contentDescription = stringResource(R.string.add_channel))
+            }
         }
     }
 }
@@ -284,14 +289,29 @@ private class SelectedTab(var index: Int = 0)
 private class TabAction(val label: String, val icon: @Composable () -> Unit, val onClick: () -> Unit)
 
 /**
- * One page as a tab. Not Material's Tab, which cannot be held; holding opens the page's options
- * ([actions]), one menu group per list.
+ * A page's live line under its name in the menu: a channel's viewers and category, or how many
+ * of a combined chat's channels are live; null while nothing is.
+ */
+@Composable
+private fun pageStatus(group: ChannelGroup?, channel: ChannelInfo?, info: Map<String, ChannelInfo>): String? {
+    if (group != null) {
+        val live = group.channels.count { info[it]?.isLive == true }
+        return if (live > 0) pluralStringResource(R.plurals.combined_chat_live, live, live) else null
+    }
+    if (channel?.isLive != true) return null
+    return listOf(stringResource(R.string.status_live, formatViewers(channel.viewers)), channel.game).filter { it.isNotEmpty() }.joinToString(" · ")
+}
+
+/**
+ * One page as a tab. Not Material's Tab, which cannot be held. Holding opens the page's menu: the
+ * page itself as its header, which opens its channel page, then moving it, [actions] and removing.
+ * [onMoveLeft] and [onMoveRight] are null at either end.
  */
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
 private fun ChannelTab(
     name: String,
-    avatar: @Composable () -> Unit,
+    avatar: @Composable (Dp) -> Unit,
     selected: Boolean,
     roleName: String?,
     mentions: Int,
@@ -299,7 +319,13 @@ private fun ChannelTab(
     hasDraft: Boolean,
     onClick: () -> Unit,
     onMenuOpen: () -> Unit,
-    actions: List<List<TabAction>>,
+    onOpenChannel: () -> Unit,
+    status: String?,
+    onMoveLeft: (() -> Unit)?,
+    onMoveRight: (() -> Unit)?,
+    actions: List<TabAction>,
+    onRemove: () -> Unit,
+    modifier: Modifier = Modifier,
 ) {
     var open by remember { mutableStateOf(false) }
     // Quiet tabs step well back on a dark theme, so a tab with new messages stands out even when
@@ -313,7 +339,7 @@ private fun ChannelTab(
     }
     Box(
         contentAlignment = Alignment.Center,
-        modifier = Modifier
+        modifier = modifier
             .height(56.dp)
             .semantics {
                 role = Role.Tab
@@ -332,7 +358,7 @@ private fun ChannelTab(
     ) {
         CompositionLocalProvider(LocalContentColor provides color) {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                avatar()
+                avatar(24.dp)
                 Spacer(Modifier.width(8.dp))
                 Text(
                     text = name,
@@ -362,19 +388,79 @@ private fun ChannelTab(
             }
         }
         DropdownMenuPopup(expanded = open, onDismissRequest = { open = false }) {
-            actions.forEachIndexed { g, group ->
-                if (g > 0) Spacer(Modifier.height(MenuDefaults.GroupSpacing))
-                DropdownMenuGroup(shapes = MenuDefaults.groupShape(g, actions.size)) {
-                    group.forEachIndexed { i, action ->
+            DropdownMenuGroup(shapes = MenuDefaults.groupShape(0, 1)) {
+                Column(Modifier.width(MENU_WIDTH)) {
+                    MenuHeader(name, status, avatar) { open = false; onOpenChannel() }
+                    if (onMoveLeft != null || onMoveRight != null) {
+                        Row(horizontalArrangement = Arrangement.spacedBy(6.dp), modifier = Modifier.padding(horizontal = 10.dp).padding(bottom = 10.dp)) {
+                            // Both stay, one greyed out at an end, so the arrows keep their places.
+                            MoveButton(stringResource(R.string.move_left), Icons.AutoMirrored.Filled.KeyboardArrowLeft, onMoveLeft, Modifier.weight(1f))
+                            MoveButton(stringResource(R.string.move_right), Icons.AutoMirrored.Filled.KeyboardArrowRight, onMoveRight, Modifier.weight(1f))
+                        }
+                    }
+                    HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
+                    actions.forEach { action ->
                         DropdownMenuItem(
                             text = { Text(action.label) },
                             leadingIcon = action.icon,
-                            shape = MenuDefaults.itemShape(i, group.size).shape,
                             onClick = { open = false; action.onClick() },
                         )
                     }
+                    DropdownMenuItem(
+                        text = { Text(stringResource(R.string.remove_channel)) },
+                        leadingIcon = { Icon(Icons.Default.Delete, null) },
+                        colors = MenuDefaults.itemColors(
+                            textColor = MaterialTheme.colorScheme.error,
+                            leadingIconColor = MaterialTheme.colorScheme.error,
+                        ),
+                        onClick = { open = false; onRemove() },
+                    )
                 }
             }
         }
     }
 }
+
+/** The page at the top of its menu: picture, name and live line, and an arrow to its channel page. */
+@Composable
+private fun MenuHeader(name: String, status: String?, avatar: @Composable (Dp) -> Unit, onOpen: () -> Unit) {
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(onClickLabel = stringResource(R.string.channel_open), onClick = onOpen)
+            .padding(14.dp),
+    ) {
+        avatar(44.dp)
+        Column(Modifier.weight(1f)) {
+            Text(name, style = MaterialTheme.typography.titleMedium, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            if (status != null) {
+                Text(status, style = MaterialTheme.typography.labelMedium, color = LiveRed, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            }
+        }
+        Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
+    }
+}
+
+/** One of the two arrows that move a tab, greyed out without [onClick]. */
+@Composable
+private fun MoveButton(label: String, icon: ImageVector, onClick: (() -> Unit)?, modifier: Modifier) {
+    Box(
+        contentAlignment = Alignment.Center,
+        modifier = modifier
+            .height(40.dp)
+            .clip(RoundedCornerShape(12.dp))
+            .background(MaterialTheme.colorScheme.surfaceContainerHighest)
+            .clickable(enabled = onClick != null, onClickLabel = label) { onClick?.invoke() },
+    ) {
+        Icon(
+            icon,
+            contentDescription = label,
+            tint = MaterialTheme.colorScheme.onSurface.copy(alpha = if (onClick != null) 1f else 0.38f),
+        )
+    }
+}
+
+/** Wide enough for the name and live line of a channel, like a menu with a header. */
+private val MENU_WIDTH = 260.dp

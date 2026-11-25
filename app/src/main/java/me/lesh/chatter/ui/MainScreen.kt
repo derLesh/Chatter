@@ -96,7 +96,7 @@ import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.launch
 
 @Composable
-fun MainScreen(vm: MainViewModel, onInbox: () -> Unit, onSettings: () -> Unit) {
+fun MainScreen(vm: MainViewModel, onInbox: () -> Unit, onSettings: () -> Unit, onOpenChannel: (String) -> Unit) {
     val channels by vm.channels.collectAsStateWithLifecycle()
     // The pager's pages: channels and combined chats in the user's order.
     val pageKeys by vm.pages.collectAsStateWithLifecycle()
@@ -113,7 +113,6 @@ fun MainScreen(vm: MainViewModel, onInbox: () -> Unit, onSettings: () -> Unit) {
     // The channel the title bar's chat modes and role describe; a combined chat has several.
     val activeChannel = active?.takeIf { activeGroup == null }
     val hiddenUnread by vm.hiddenUnread.collectAsStateWithLifecycle()
-    val changeable by vm.changeableChannels.collectAsStateWithLifecycle()
     val roomStates by vm.roomStates.collectAsStateWithLifecycle()
     val roles by vm.roles.collectAsStateWithLifecycle()
     val subscribed by vm.subscribedChannels.collectAsStateWithLifecycle()
@@ -323,9 +322,8 @@ fun MainScreen(vm: MainViewModel, onInbox: () -> Unit, onSettings: () -> Unit) {
                 onRemove = vm::removeChannel,
                 onRename = { sheets.renameTarget = it },
                 onMove = vm::moveChannel,
-                changeable = changeable,
-                onMenuOpen = vm::checkChannelSettings,
-                onChannelSettings = { sheets.channelSettingsTarget = it },
+                onMenuOpen = vm::prepareChannelPage,
+                onOpenChannel = onOpenChannel,
                 onInbox = onInbox.takeUnless { guest },
                 inboxUnread = inboxUnread,
                 onSettings = onSettings,
@@ -354,9 +352,8 @@ fun MainScreen(vm: MainViewModel, onInbox: () -> Unit, onSettings: () -> Unit) {
                 onRemove = vm::removeChannel,
                 onRename = { sheets.renameTarget = it },
                 onMove = vm::moveChannel,
-                changeable = changeable,
-                onMenuOpen = vm::checkChannelSettings,
-                onChannelSettings = { sheets.channelSettingsTarget = it },
+                onMenuOpen = vm::prepareChannelPage,
+                onOpenChannel = onOpenChannel,
                 onInbox = onInbox.takeUnless { guest },
                 inboxUnread = inboxUnread,
                 onSettings = onSettings,

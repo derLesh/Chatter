@@ -2,6 +2,7 @@ package me.lesh.chatter.ui
 
 import android.net.Uri
 import android.os.Bundle
+import android.os.SystemClock
 import java.io.IOException
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateMapOf
@@ -32,9 +33,11 @@ import me.lesh.chatter.auth.TokenOwner
 import me.lesh.chatter.badges.Badge
 import me.lesh.chatter.badges.BadgeProvider
 import me.lesh.chatter.channels.ChannelGroup
+import me.lesh.chatter.channels.ChannelAbout
 import me.lesh.chatter.channels.ChannelSettingsChange
 import me.lesh.chatter.channels.ChannelSettingsForm
 import me.lesh.chatter.channels.RemovedPage
+import me.lesh.chatter.channels.SettingsPart
 import me.lesh.chatter.channels.StreamCategory
 import me.lesh.chatter.channels.displayName
 import me.lesh.chatter.chat.ChatCommand
@@ -59,6 +62,8 @@ import me.lesh.chatter.chat.InboxWhisper
 import me.lesh.chatter.chat.SendLimits
 import me.lesh.chatter.chat.ScheduledMessage
 import me.lesh.chatter.chat.SendResult
+import me.lesh.chatter.chat.SharedItems
+import me.lesh.chatter.chat.SharedItemsFinder
 import me.lesh.chatter.chat.WhisperResult
 import me.lesh.chatter.crash.Crash
 import me.lesh.chatter.crash.DeviceInfo
@@ -104,8 +109,10 @@ import me.lesh.chatter.util.AppIcon
 import me.lesh.chatter.util.Autocomplete
 import me.lesh.chatter.util.INBOX_TAB_WHISPERS
 import me.lesh.chatter.util.runCatchingCancellable
+import kotlinx.coroutines.Deferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.async
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -354,7 +361,7 @@ class MainViewModel(private val c: AppContainer, savedState: SavedStateHandle) :
     val sevenTvLoggedIn: StateFlow<Boolean> get() = c.sevenTvEditing.loggedIn
     private var sevenTvLoginStarting: Job? = null
     private val emoteChanges = MutableStateFlow(0)
-    private val activeAccountId: StateFlow<String?> = c.auth.state
+    val activeAccountId: StateFlow<String?> = c.auth.state
         .map { (it as? AuthState.LoggedIn)?.account?.userId }
         .stateIn(viewModelScope, SharingStarted.Eagerly, null)
 
@@ -369,8 +376,9 @@ class MainViewModel(private val c: AppContainer, savedState: SavedStateHandle) :
         override suspend fun button(channel: String, sourceRoomId: String?, emoteId: String): EmoteButton =
             c.sevenTvEditing.button(channel, sourceRoomId, emoteId)
 
-        override suspend fun add(channel: String, sourceRoomId: String?, emoteId: String, name: String) =
+        override suspend fun add(channel: String, sourceRoomId: String?, emoteId: String, name: String) {
             editSevenTvEmote(PendingEmoteEdit.Add(channel, sourceRoomId, null, emoteId, name, activeAccountId.value, quiet = true))
+        }
     }
 
     /** The emote card's changes run here rather than on the card, which closes as they start. */
@@ -396,7 +404,7 @@ class MainViewModel(private val c: AppContainer, savedState: SavedStateHandle) :
         }
     }
 
-    private suspend fun editSevenTvEmote(edit: PendingEmoteEdit) {
+    private suspend fun editSevenTvEmote(edit: PendingEmoteEdit): EmoteEditOutcome {
         val editing = c.sevenTvEditing
         val outcome = when (edit) {
             is PendingEmoteEdit.Add ->
@@ -442,6 +450,7 @@ class MainViewModel(private val c: AppContainer, savedState: SavedStateHandle) :
             // The channel settings say beforehand that saving logs in; asking again would only be another tap.
             EmoteEditOutcome.NeedsLogin -> if (edit is PendingEmoteEdit.SwitchSet) openSevenTvLogin(edit) else _askSevenTvLogin.value = edit
         }
+        return outcome
     }
 
     fun dismissSevenTvLoginQuestion() {
@@ -490,44 +499,93 @@ class MainViewModel(private val c: AppContainer, savedState: SavedStateHandle) :
 
     // ---- Channel settings: title, category and 7TV emote set -----------------------------------
 
-    /** The channels the menu found the user may change, and the account it asked for. */
-    private val checkedChannels = MutableStateFlow<Pair<String?, Set<String>>>(null to emptySet())
-
-    /** Channels whose menu offers the channel settings, as far as a menu opened since checked. */
-    val changeableChannels: StateFlow<Set<String>> = combine(checkedChannels, activeAccountId) { (account, channels), active ->
-        if (account == active) channels else emptySet()
-    }.stateIn(viewModelScope, SharingStarted.Eagerly, emptySet())
+    suspend fun searchCategories(query: String): List<StreamCategory> = c.channelSettings.searchCategories(query)
 
     /**
-     * Finds out, as [channel]'s menu opens, whether it offers the channel settings. Asking 7TV only
-     * then keeps it off the network for channels whose menu nobody opens; 7TV's answer is kept for a
-     * few minutes, so the entry shows at once the next time.
+     * Saves [change] and returns the part of it that went through: the title, category, tags and
+     * language if Twitch took them, the 7TV set if it is switched. A switch that first needs a 7TV
+     * login is not, yet. Each part brings its own message.
      */
-    fun checkChannelSettings(channel: String) {
-        val account = activeAccountId.value ?: return
-        viewModelScope.launch {
-            val may = c.channelSettings.mayChange(channel)
-            checkedChannels.update { (checkedFor, channels) ->
-                val kept = if (checkedFor == account) channels else emptySet()
-                account to if (may) kept + channel else kept - channel
+    fun saveChannelSettings(channel: String, change: ChannelSettingsChange): Deferred<ChannelSettingsChange> {
+        val account = activeAccountId.value
+        return viewModelScope.async {
+            val streamSaved = change.changesStream && c.channelSettings.saveStream(channel, change, account)
+            if (change.changesStream) {
+                _messages.send(
+                    if (streamSaved) UiMessage(R.string.channel_settings_saved, tone = PillTone.Success) else UiMessage(R.string.channel_settings_save_failed),
+                )
             }
+            val switched = change.emoteSet?.takeIf { editSevenTvEmote(PendingEmoteEdit.SwitchSet(channel, it, account)) == EmoteEditOutcome.Done }
+            val applied = (if (streamSaved) change else ChannelSettingsChange()).copy(emoteSet = switched)
+            // The page then asks again, also when it was closed before the answers came; after a
+            // refusal too, which may mean what it showed is gone.
+            pageLoads.keys.removeAll { it.first == channel }
+            applied
         }
     }
 
-    suspend fun loadChannelSettings(channel: String): ChannelSettingsForm = c.channelSettings.load(channel)
+    // ---- Channel page: what Twitch says about a channel, and what its chat shared --------------
 
-    suspend fun searchCategories(query: String): List<StreamCategory> = c.channelSettings.searchCategories(query)
+    /**
+     * What a channel page asks Twitch and 7TV, started as soon as the page may be opened and kept
+     * a few minutes, so the page shows complete at once. [settings] holds null where the user may
+     * change nothing, and fails where that could not be found out. Touched on the main thread only.
+     */
+    private class PageLoad(val at: Long, val about: Deferred<ChannelAbout?>, val settings: Deferred<Result<ChannelSettingsForm?>>)
 
-    fun saveChannelSettings(channel: String, change: ChannelSettingsChange) {
-        val account = activeAccountId.value
-        viewModelScope.launch {
-            if (change.title != null || change.category != null) {
-                val saved = c.channelSettings.saveStream(channel, change.title, change.category, account)
-                _messages.send(
-                    if (saved) UiMessage(R.string.channel_settings_saved, tone = PillTone.Success) else UiMessage(R.string.channel_settings_save_failed),
-                )
-            }
-            change.emoteSet?.let { editSevenTvEmote(PendingEmoteEdit.SwitchSet(channel, it, account)) }
+    /** By page and the account it was loaded for; holds only the last pages held or opened. */
+    private val pageLoads = LinkedHashMap<Pair<String, String?>, PageLoad>()
+
+    /** Starts loading [page]'s channel page, as its menu opens; opening it then waits less or not at all. */
+    fun prepareChannelPage(page: String) {
+        if (!ChannelGroup.isKey(page)) pageLoad(page)
+    }
+
+    private fun pageLoad(page: String): PageLoad {
+        val now = SystemClock.elapsedRealtime()
+        pageLoads.entries.removeAll { now - it.value.at > PAGE_FRESH_MS }
+        val key = page to activeAccountId.value
+        pageLoads[key]?.let { return it }
+        while (pageLoads.size >= PAGES_KEPT) pageLoads.remove(pageLoads.keys.first())
+        return PageLoad(
+            at = now,
+            about = viewModelScope.async { runCatchingCancellable { c.channelAbout.load(page) }.getOrNull() },
+            settings = viewModelScope.async {
+                runCatchingCancellable { if (c.channelSettings.mayChange(page)) c.channelSettings.load(page) else null }
+            },
+        ).also { pageLoads[key] = it }
+    }
+
+    /**
+     * What Twitch says about [page] and, where the user may change it, its settings. What failed
+     * is not kept, so the next visit tries again.
+     */
+    suspend fun channelPage(page: String): Pair<ChannelAbout?, ChannelSettingsForm?> {
+        val load = pageLoad(page)
+        val about = load.about.await()
+        val settings = load.settings.await()
+        val form = settings.getOrNull()
+        val partFailed = form != null && (form.stream == SettingsPart.Failed || form.emoteSets == SettingsPart.Failed)
+        if (about == null || settings.isFailure || partFailed) pageLoads.values.remove(load)
+        return about to settings.getOrNull()
+    }
+
+    /**
+     * The media and links in the messages of [page], a channel or a combined chat, as its chat
+     * shows them. What counts as media is what the chat shows as a picture, GIF or video card right
+     * now; with Battery Saver or data saving on, that is nothing, so nothing is fetched for it.
+     */
+    suspend fun sharedIn(page: String): SharedItems {
+        val messages = c.chat.shownIn(page)
+        val s = settings.value
+        val previews = !powerSaveMode.value && !saveData.value
+        return withContext(Dispatchers.Default) {
+            SharedItemsFinder.find(
+                messages,
+                imageHosts = if (s.inlineImages && previews) s.imageHosts else emptyList(),
+                postSites = if (previews) s.postSites else emptySet(),
+                gifs = s.showGifs && previews,
+            )
         }
     }
 
@@ -1915,6 +1973,12 @@ class MainViewModel(private val c: AppContainer, savedState: SavedStateHandle) :
 
         /** Enough to show what a rule finds in a busy chat, few enough to try on every keystroke. */
         const val RULE_TRY_MESSAGES = 300
+
+        /** How long a channel page's answers from Twitch and 7TV are shown again without asking. */
+        const val PAGE_FRESH_MS = 5 * 60_000L
+
+        /** Channel pages whose answers are kept at once; a handful is all one sitting opens. */
+        const val PAGES_KEPT = 16
     }
 }
 
