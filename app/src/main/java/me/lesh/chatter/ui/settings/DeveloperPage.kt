@@ -9,6 +9,7 @@ import androidx.compose.ui.res.stringResource
 import me.lesh.chatter.R
 import me.lesh.chatter.ui.MainViewModel
 import me.lesh.chatter.ui.SettingsSubPage
+import java.time.LocalDate
 
 /** What only a developer needs: screens that otherwise show once, and the app's figures. Only in debug builds. */
 @Composable
@@ -30,6 +31,15 @@ internal fun DeveloperPage(vm: MainViewModel, open: (SettingsSubPage) -> Unit) {
                 trailingContent = { NavChevron() },
                 colors = transparentItem(),
                 modifier = Modifier.tileClickable(onClick = vm::showOnboardingAgain),
+            )
+        }
+        item(R.string.settings_show_recap) {
+            ListItem(
+                headlineContent = { Text(stringResource(R.string.settings_show_recap)) },
+                supportingContent = { Text(stringResource(R.string.settings_show_recap_hint)) },
+                trailingContent = { NavChevron() },
+                colors = transparentItem(),
+                modifier = Modifier.tileClickable { vm.openRecap(LocalDate.now().year) },
             )
         }
     }

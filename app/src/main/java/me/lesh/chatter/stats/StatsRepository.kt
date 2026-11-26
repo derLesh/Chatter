@@ -23,7 +23,10 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.serialization.Serializable
+import java.time.Instant
 import java.time.LocalDate
+import java.time.LocalDateTime
+import java.time.ZoneId
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.atomic.AtomicLong
 
@@ -52,7 +55,53 @@ data class Stats(
     val backgroundReceived: Map<String, Map<String, Long>> = emptyMap(),
     /** Data moved per day, on screen and in the background. Last [KEEP_DAYS] days only. */
     val traffic: Map<String, Traffic> = emptyMap(),
+    /** The same broken down per calendar year, for the look back at a year. Last [KEEP_YEARS] only. */
+    val years: Map<Int, YearStats> = emptyMap(),
 ) {
+    fun year(year: Int): YearStats = years[year] ?: YearStats()
+
+    /**
+     * Years worth a look back, newest first: past years, and the current one from December on,
+     * once at least [RECAP_MIN_SENT] messages were sent in it.
+     */
+    fun recapYears(today: LocalDate = LocalDate.now()): List<Int> =
+        years.filter { (year, stats) ->
+            stats.sent >= RECAP_MIN_SENT && (year < today.year || (year == today.year && today.monthValue == 12))
+        }.keys.sortedDescending()
+
+    /**
+     * The year whose look back is shown off from December 1 to January 10, at the gear and atop
+     * the settings: this year in December, last year in early January. Null outside that time, or
+     * when the year has too little to look back on.
+     */
+    fun featuredRecap(today: LocalDate = LocalDate.now()): Int? {
+        val year = when {
+            today.monthValue == 12 -> today.year
+            today.monthValue == 1 && today.dayOfMonth <= RECAP_LAST_JANUARY_DAY -> today.year - 1
+            else -> return null
+        }
+        return year.takeIf { it in recapYears(today) }
+    }
+
+    /**
+     * Fills in the current year from the totals the first time it is counted per year. Exact while
+     * counting began this year; otherwise only the active days carry over.
+     */
+    fun withYearSeeded(today: LocalDate = LocalDate.now()): Stats {
+        if (today.year in years) return this
+        val prefix = "${today.year}-"
+        val days = activeDays.filter { it.startsWith(prefix) }.associateWith { 0L }
+        val sinceDay = Instant.ofEpochMilli(since).atZone(ZoneId.systemDefault()).toLocalDate()
+        val sinceThisYear = since > 0 && sinceDay.year == today.year
+        val seeded = if (sinceThisYear) {
+            YearStats(
+                sent = sent, mentions = mentions, received = received, sentPerChannel = sentPerChannel, sentPerDay = days,
+                countedFrom = sinceDay.toString(),
+            )
+        } else YearStats(sentPerDay = days, countedFrom = today.toString())
+        return copy(years = years + (today.year to seeded))
+    }
+
     /** Channels by messages sent, most first. */
     val busiestChannels: List<Pair<String, Long>>
         get() = sentPerChannel.entries.sortedByDescending { it.value }.map { it.key to it.value }
@@ -91,6 +140,15 @@ data class Stats(
         /** The stats page shows a week at most. */
         const val KEEP_DAYS = 7
 
+        /** This year and the two before, so a look back stays reachable for a while. */
+        const val KEEP_YEARS = 3
+
+        /** Below this, a year has too little to look back on. */
+        const val RECAP_MIN_SENT = 10L
+
+        /** The look back is shown off until January 10. */
+        const val RECAP_LAST_JANUARY_DAY = 10
+
         /**
          * Channels in [counts] far above the rest: several times the median of the others and at
          * least [minimum], so a quiet week does not single one out for a few dozen lines.
@@ -128,7 +186,6 @@ class StatsRepository(private val store: DataStore<Preferences>, private val sco
      * since this runs for every message in every channel; [fold] merges them.
      */
     private val receivedDelta = AtomicLong()
-    private val mentionDelta = AtomicLong()
 
     /** The same for background messages, one counter per channel. */
     private val backgroundDelta = ConcurrentHashMap<String, AtomicLong>()
@@ -200,14 +257,18 @@ class StatsRepository(private val store: DataStore<Preferences>, private val sco
         }
     }
 
-    /** Counts a sent message and marks today as active. */
-    override fun countSent(channel: String) {
-        val today = LocalDate.now().toString()
+    /** Counts a sent message, the emotes in it and who it speaks to, and marks today as active. */
+    override fun countSent(channel: String, emotes: Collection<UsedEmote>, people: Collection<TalkedTo>) {
+        val now = LocalDateTime.now()
+        val today = now.toLocalDate()
+        val day = today.toString()
         _stats.update {
-            it.copy(
+            val seeded = it.withYearSeeded(today)
+            seeded.copy(
                 sent = it.sent + 1,
                 sentPerChannel = it.sentPerChannel + (channel to (it.sentPerChannel[channel] ?: 0) + 1),
-                activeDays = if (today in it.activeDays) it.activeDays else it.activeDays + today,
+                activeDays = if (day in it.activeDays) it.activeDays else it.activeDays + day,
+                years = keptYears(seeded.years + (today.year to seeded.year(today.year).withSent(channel, today, now.hour, emotes, people)), today),
             )
         }
         counted.trySend(Unit)
@@ -220,8 +281,17 @@ class StatsRepository(private val store: DataStore<Preferences>, private val sco
         counted.trySend(Unit)
     }
 
-    override fun countMention() {
-        mentionDelta.incrementAndGet()
+    /** Counts a mention and who wrote it. Folded at once, unlike received messages: mentions are few. */
+    override fun countMention(by: TalkedTo?) {
+        val today = LocalDate.now()
+        _stats.update {
+            val seeded = it.withYearSeeded(today)
+            val year = seeded.year(today.year).let { y -> y.copy(mentions = y.mentions + 1) }
+            seeded.copy(
+                mentions = it.mentions + 1,
+                years = keptYears(seeded.years + (today.year to (by?.let(year::withMentionedBy) ?: year)), today),
+            )
+        }
         counted.trySend(Unit)
     }
 
@@ -232,11 +302,10 @@ class StatsRepository(private val store: DataStore<Preferences>, private val sco
     @Synchronized
     private fun fold() {
         val received = receivedDelta.getAndSet(0)
-        val mentions = mentionDelta.getAndSet(0)
         val background = HashMap<String, Long>()
         backgroundDelta.forEach { (channel, n) -> n.getAndSet(0).takeIf { it > 0 }?.let { background[channel] = it } }
         val moved = readTraffic()
-        if (received == 0L && mentions == 0L && background.isEmpty() && moved == Traffic()) return
+        if (received == 0L && background.isEmpty() && moved == Traffic()) return
         val today = LocalDate.now()
         val day = today.toString()
         val oldest = today.minusDays(Stats.KEEP_DAYS - 1L).toString()
@@ -247,11 +316,16 @@ class StatsRepository(private val store: DataStore<Preferences>, private val sco
                 s.backgroundReceived + (day to todays)
             }
             val traffic = if (moved == Traffic()) s.traffic else s.traffic + (day to (s.traffic[day] ?: Traffic()) + moved)
-            s.copy(
+            val seeded = s.withYearSeeded(today)
+            val year = seeded.year(today.year)
+            seeded.copy(
                 received = s.received + received,
-                mentions = s.mentions + mentions,
                 backgroundReceived = counts.filterKeys { it >= oldest },
                 traffic = traffic.filterKeys { it >= oldest },
+                years = if (received == 0L) seeded.years else keptYears(
+                    seeded.years + (today.year to year.copy(received = year.received + received)),
+                    today,
+                ),
             )
         }
     }
@@ -287,10 +361,9 @@ class StatsRepository(private val store: DataStore<Preferences>, private val sco
 
     /** Discards everything and starts counting from now. */
     suspend fun reset() {
-        val fresh = Stats(since = System.currentTimeMillis())
+        val fresh = Stats(since = System.currentTimeMillis()).withYearSeeded()
         saving.withLock {
             receivedDelta.set(0)
-            mentionDelta.set(0)
             backgroundDelta.clear()
             _stats.value = fresh
             save(fresh)
@@ -300,8 +373,15 @@ class StatsRepository(private val store: DataStore<Preferences>, private val sco
 
     /** The stored stats, or new ones written right away, so "counting since" is the first start. */
     private suspend fun load(): Stats {
-        decode(store.data.first()[STATS])?.let { return it }
-        return Stats(since = System.currentTimeMillis()).also { save(it) }
+        decode(store.data.first()[STATS])?.let { stored ->
+            val today = LocalDate.now()
+            val current = stored.withYearSeeded(today).let { it.copy(years = keptYears(it.years, today)) }
+            // Stored at once: seeded from the totals, the year must not depend on a later count to
+            // be kept, or a quiet December would lose it to January's seeding.
+            if (current != stored) save(current)
+            return current
+        }
+        return Stats(since = System.currentTimeMillis()).withYearSeeded().also { save(it) }
     }
 
     private suspend fun save(stats: Stats) {
@@ -310,6 +390,10 @@ class StatsRepository(private val store: DataStore<Preferences>, private val sco
 
     private companion object {
         val STATS = stringPreferencesKey("stats")
+
+        fun keptYears(years: Map<Int, YearStats>, today: LocalDate): Map<Int, YearStats> =
+            years.filterKeys { it > today.year - Stats.KEEP_YEARS }
+
         /** How much counting a process death may lose while on screen. */
         const val SAVE_INTERVAL_MS = 30_000L
 
@@ -318,7 +402,6 @@ class StatsRepository(private val store: DataStore<Preferences>, private val sco
 
         /** Refresh rate of a screen showing the stats. */
         const val LIVE_INTERVAL_MS = 250L
-
 
         fun decode(raw: String?): Stats? =
             raw?.let { runCatching { AppJson.decodeFromString<Stats>(it) }.getOrNull() }

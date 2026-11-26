@@ -1,5 +1,7 @@
 package me.lesh.chatter.chat
 
+import me.lesh.chatter.stats.TalkedTo
+import me.lesh.chatter.stats.UsedEmote
 import me.lesh.chatter.emotes.Emote
 import me.lesh.chatter.irc.IrcMessage
 import me.lesh.chatter.settings.Settings
@@ -48,8 +50,8 @@ class IncomingMessagesTest {
         var mentions = 0
         var sent = 0
         override fun countReceived(channel: String) { received++ }
-        override fun countMention() { mentions++ }
-        override fun countSent(channel: String) { sent++ }
+        override fun countMention(by: TalkedTo?) { mentions++ }
+        override fun countSent(channel: String, emotes: Collection<UsedEmote>, people: Collection<TalkedTo>) { sent++ }
     }
 
     private val stats = CountedStats()

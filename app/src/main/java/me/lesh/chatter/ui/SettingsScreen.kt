@@ -1,5 +1,6 @@
 package me.lesh.chatter.ui
 
+import me.lesh.chatter.ui.recap.RecapFeatureCard
 import androidx.compose.animation.ExperimentalSharedTransitionApi
 import androidx.compose.animation.SharedTransitionLayout
 import androidx.compose.animation.SharedTransitionScope
@@ -418,6 +419,7 @@ private val SEARCH_INDEX: List<SearchEntry> by lazy {
         if (BuildConfig.DEBUG) {
             add(SearchEntry(R.string.settings_show_onboarding, SettingsPage.Developer, R.string.settings_show_onboarding_hint))
             add(SearchEntry(R.string.debug_stats, SettingsPage.Developer, R.string.debug_stats_hint))
+            add(SearchEntry(R.string.settings_show_recap, SettingsPage.Developer, R.string.settings_show_recap_hint))
         }
     }
 }
@@ -500,6 +502,7 @@ fun SettingsScreen(vm: MainViewModel, onBack: () -> Unit) {
     val dark = isAppInDarkTheme()
     val auth by vm.authState.collectAsStateWithLifecycle()
     val update by vm.availableUpdate.collectAsStateWithLifecycle()
+    val recap by vm.featuredRecap.collectAsStateWithLifecycle()
     val scope = rememberCoroutineScope()
     // The card on top shows what is stored right away; this only updates it now and then.
     LaunchedEffect(Unit) { vm.refreshAccounts() }
@@ -685,6 +688,9 @@ fun SettingsScreen(vm: MainViewModel, onBack: () -> Unit) {
                     null -> {
                         EnterInOrder { SearchField(searchBar) { searching = true } }
                         EnterInOrder { AccountSummaryCard(auth, vm.imageLoader) { page = SettingsPage.Account } }
+                        recap?.takeIf { !it.hidden }?.let { shown ->
+                            EnterInOrder { RecapFeatureCard(shown.year, onOpen = { vm.openRecap(shown.year) }, onHide = { vm.hideRecapCard(shown.year) }) }
+                        }
                         update?.let { EnterInOrder { UpdateCard(it, shownVersion) { subPage = SettingsSubPage.Update } } }
                         Home(settings) { page = it }
                     }

@@ -1,6 +1,7 @@
 package me.lesh.chatter.chat
 
 import me.lesh.chatter.irc.IrcMessage
+import me.lesh.chatter.stats.TalkedTo
 import java.util.UUID
 
 /** The settings as applied to arriving messages; replaced as a whole when they change. */
@@ -215,7 +216,7 @@ class IncomingMessages(
         val watched = windows.isWatching(channel)
         if (!item.isOwn && !watched) buffers.countUnread(channel)
         if (item.isMention && firstSighting(item)) {
-            stats.countMention()
+            stats.countMention(item.login?.let { TalkedTo(it.lowercase(), item.displayName ?: it) })
             onMention(item, watched, accountOf(self))
         }
     }

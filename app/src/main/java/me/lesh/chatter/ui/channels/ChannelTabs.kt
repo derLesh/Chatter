@@ -78,6 +78,7 @@ import me.lesh.chatter.channels.displayName
 import me.lesh.chatter.chat.ChatRole
 import me.lesh.chatter.chat.RoomState
 import me.lesh.chatter.irc.ConnectionState
+import me.lesh.chatter.ui.recap.SettingsGear
 import me.lesh.chatter.ui.theme.LiveRed
 import me.lesh.chatter.ui.theme.barColor
 import me.lesh.chatter.ui.theme.isAppInDarkTheme
@@ -122,6 +123,8 @@ fun ChannelTabBar(
     inboxUnread: Int,
     onSettings: () -> Unit,
     settingsBadge: Boolean = false,
+    /** Confetti on the gear: a look back at the year is ready. */
+    celebrate: Boolean = false,
     /** Pages with an unsent draft. */
     drafts: Set<String> = emptySet(),
 ) {
@@ -161,9 +164,7 @@ fun ChannelTabBar(
                 }
                 IconButton(onClick = onSettings) {
                     // The dot is the only hint out here that an update is waiting.
-                    BadgedBox(badge = { if (settingsBadge) Badge() }) {
-                        Icon(Icons.Default.Settings, contentDescription = stringResource(R.string.settings))
-                    }
+                    SettingsGear(updateDot = settingsBadge, celebrate = celebrate)
                 }
             }
             val status = when {

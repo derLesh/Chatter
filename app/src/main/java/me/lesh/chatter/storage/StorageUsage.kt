@@ -1,5 +1,6 @@
 package me.lesh.chatter.storage
 
+import me.lesh.chatter.ui.recap.SHARED_FOLDER
 import android.app.usage.StorageStatsManager
 import android.content.Context
 import android.os.Process
@@ -42,7 +43,9 @@ class StorageUsage(
                 .queryStatsForPackage(StorageManager.UUID_DEFAULT, context.packageName, Process.myUserHandle())
         }.onFailure { AppLog.w(TAG, "Android did not say how much space Chatter takes", it) }.getOrNull()
         StorageReport(
-            images = runCatching { images().size }.getOrDefault(0L),
+            // The shared pictures of the look back at the year count as pictures too.
+            images = runCatching { images().size }.getOrDefault(0L) +
+                context.cacheDir.resolve(SHARED_FOLDER).walk().filter { it.isFile }.sumOf { it.length() },
             emoteLists = (runCatching { emoteLists?.size() }.getOrNull() ?: 0L) + runCatching { keptEmoteLists.size() }.getOrDefault(0L),
             botCommands = runCatching { botCommands.size() }.getOrDefault(0L),
             saved = stats?.let { it.dataBytes - it.cacheBytes },
@@ -56,6 +59,8 @@ class StorageUsage(
         runCatching { emoteLists?.evictAll() }.onFailure { AppLog.w(TAG, "Could not clear the list cache", it) }
         keptEmoteLists.clear()
         botCommands.forget()
+        // Pictures of the look back at the year that were shared.
+        context.cacheDir.resolve(SHARED_FOLDER).deleteRecursively()
     }
 
     private companion object {
