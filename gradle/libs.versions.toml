@@ -25,12 +25,12 @@ uiautomator = "2.4.1"
 changelog = "0.1.0"
 # Only the AppFunctions compiler needs it.
 ksp = "2.3.13"
-appfunctions = "1.0.0-rc01"
+appfunctions = "1.0.0"
 # Gemini Nano through Android's AICore; beta, like the features built on it.
 mlkitGenaiPrompt = "1.0.0-beta5"
 # The QR scanner of the token login: CameraX shows the camera, ZXing reads the code, both on the
 # phone and without Google Play services.
-camerax = "1.6.2"
+camerax = "1.7.0"
 zxing = "3.5.4"
 # Custom Tabs: links open in the user's own browser over the app.
 browser = "1.10.0"
