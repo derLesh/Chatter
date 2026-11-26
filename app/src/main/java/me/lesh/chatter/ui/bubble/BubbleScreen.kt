@@ -21,7 +21,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.mutableIntStateOf
-import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
@@ -49,7 +48,7 @@ import me.lesh.chatter.ui.chat.ChatList
 import me.lesh.chatter.ui.chat.LocalLinkTabShowing
 import me.lesh.chatter.ui.chat.EmoteCardSheet
 import me.lesh.chatter.ui.chat.EmoteTap
-import me.lesh.chatter.ui.chat.EmotePickerSheet
+import me.lesh.chatter.ui.ChannelEmotePicker
 import me.lesh.chatter.ui.chat.InputBar
 import me.lesh.chatter.ui.chat.rememberChatStyle
 import me.lesh.chatter.ui.pill.PillTone
@@ -70,7 +69,6 @@ fun BubbleScreen(vm: MainViewModel, channel: String?) {
     val rewardNames by vm.rewardNames.collectAsStateWithLifecycle()
     val connection by vm.connection.collectAsStateWithLifecycle()
     val info by vm.channelInfo.collectAsStateWithLifecycle()
-    val emoteVersion by vm.emoteVersion.collectAsStateWithLifecycle()
     val chatPartners by vm.chatPartners.collectAsStateWithLifecycle()
     val roomStates by vm.roomStates.collectAsStateWithLifecycle()
     val roles by vm.roles.collectAsStateWithLifecycle()
@@ -87,7 +85,6 @@ fun BubbleScreen(vm: MainViewModel, channel: String?) {
     val style = rememberChatStyle(settings, nicknames, rewardNames, powerSave, saveData, hiddenEmotes = hiddenEmotes, hiddenBadges = hiddenBadges)
     val loader = if (settings.animatedEmotes && !powerSave && !saveData) vm.imageLoader else vm.staticImageLoader
     var emoteCard by remember { mutableStateOf<EmoteTap?>(null) }
-    var showPicker by remember { mutableStateOf(false) }
     val jump by vm.requestedMessage.collectAsStateWithLifecycle()
     val snackbar = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
@@ -146,7 +143,7 @@ fun BubbleScreen(vm: MainViewModel, channel: String?) {
                     imageLoader = loader,
                     onSuggestion = vm::applySuggestion,
                     onCancelReply = vm::cancelReply,
-                    onEmotePicker = { showPicker = true },
+                    emotePicker = { ChannelEmotePicker(vm, channel, it) },
                     onSend = vm::send,
                     recentlySent = vm::recentlySent,
                     onReuseSent = vm::reuseSent,
@@ -209,22 +206,6 @@ fun BubbleScreen(vm: MainViewModel, channel: String?) {
             onInsert = { vm.insertEmote(it) },
             onHide = vm::hideEmote,
             onDismiss = { emoteCard = null },
-        )
-    }
-    if (showPicker) {
-        val emotes = remember(channel, emoteVersion) { vm.emotesFor(channel) }
-        val emoji by produceState(emptyList()) { value = vm.emoji() }
-        val owners = remember(emoteVersion) { vm.emoteOwners() }
-        EmotePickerSheet(
-            emotes = emotes,
-            owners = owners,
-            emoji = emoji,
-            recent = vm.recentEmotes.collectAsStateWithLifecycle().value,
-            imageLoader = loader,
-            onPick = vm::insertEmote,
-            onPickEmoji = vm::insertEmoji,
-            onReload = { vm.reloadEmotes(channel) },
-            onDismiss = { showPicker = false },
         )
     }
 }

@@ -1,0 +1,1 @@
+minor: Open the emotes in place of the keyboard, so the message stays in sight while picking

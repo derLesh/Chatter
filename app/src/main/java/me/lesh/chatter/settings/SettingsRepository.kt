@@ -498,6 +498,17 @@ class SettingsRepository(
 
     suspend fun setRecapHiddenYear(year: Int) = store.edit { it[RECAP_HIDDEN_YEAR] = year }
 
+    /**
+     * How high the keyboard stood, upright and on its side, in px; 0 where it was not up yet. Not
+     * part of [Settings]: it belongs to this phone and its keyboard, not to a backup.
+     */
+    val keyboardHeights: Flow<Pair<Int, Int>> = store.data.map { (it[KEYBOARD_UPRIGHT] ?: 0) to (it[KEYBOARD_SIDEWAYS] ?: 0) }
+
+    suspend fun setKeyboardHeights(upright: Int, sideways: Int) = store.edit {
+        it[KEYBOARD_UPRIGHT] = upright
+        it[KEYBOARD_SIDEWAYS] = sideways
+    }
+
     /** Whether the onboarding was gone through. Null until [decideOnboarding] has run once. */
     val onboardingSeen: Flow<Boolean?> = store.data.map { it[ONBOARDING_SEEN] }
 
@@ -766,6 +777,8 @@ class SettingsRepository(
         val ONBOARDING_SEEN = booleanPreferencesKey("onboarding_seen")
         val RECAP_OPENED_YEAR = intPreferencesKey("recap_opened_year")
         val RECAP_HIDDEN_YEAR = intPreferencesKey("recap_hidden_year")
+        val KEYBOARD_UPRIGHT = intPreferencesKey("keyboard_height_upright")
+        val KEYBOARD_SIDEWAYS = intPreferencesKey("keyboard_height_sideways")
         val AVAILABLE_UPDATE = stringPreferencesKey("available_update")
         val OWN_APP_ICON = stringPreferencesKey("own_app_icon")
         val LAST_AUTO_APP_ICON = stringPreferencesKey("last_auto_app_icon")
