@@ -20,6 +20,7 @@ import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
@@ -132,9 +133,28 @@ import me.lesh.chatter.ui.theme.isAppInDarkTheme
 import me.lesh.chatter.ui.inbox.PersonAvatar
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import androidx.compose.animation.core.Animatable
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.ime
+import androidx.compose.foundation.layout.imeAnimationTarget
+import androidx.compose.foundation.layout.navigationBars
+import androidx.compose.runtime.snapshotFlow
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
+import androidx.compose.ui.unit.Constraints
+import kotlinx.coroutines.flow.dropWhile
+import kotlinx.coroutines.flow.first
+import kotlin.math.roundToInt
+import androidx.compose.ui.platform.LocalWindowInfo
+import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.geometry.Size
 
 /**
  * The message input with emote picker, suggestions and reply strip.
+ *
+ * [emotePicker] opens in place of the keyboard, below the input and as high as the keyboard was,
+ * so the message stays in sight while picking; the emote button then brings the keyboard back.
+ * Without it the button does nothing, as in a preview.
  *
  * On a combined chat [sendChannels] are its channels, and a picture in front of the input shows
  * [sendChannel]; tapping it picks another. Without [onCancelReply] the reply strip cannot be
@@ -178,7 +198,7 @@ fun InputBar(
     imageLoader: ImageLoader,
     onSuggestion: (Suggestion) -> Unit,
     onCancelReply: (() -> Unit)?,
-    onEmotePicker: () -> Unit,
+    emotePicker: (@Composable (Modifier) -> Unit)?,
     onSend: () -> Unit,
     recentlySent: suspend () -> List<String>,
     onReuseSent: (String) -> Unit,
@@ -207,6 +227,14 @@ fun InputBar(
     val stripe = buildStripe && BuildStripe.offered
     val choosing = sendChannels.size > 1 && sendChannel != null
     val focus = remember { FocusRequester() }
+    val keyboard = LocalSoftwareKeyboardController.current
+    var emotesOpen by remember { mutableStateOf(false) }
+    LaunchedEffect(enabled) { if (!enabled) emotesOpen = false }
+    NavigationBackHandler(
+        state = rememberNavigationEventState(currentInfo = NavigationEventInfo.None),
+        isBackEnabled = emotesOpen,
+        onBackCompleted = { emotesOpen = false },
+    )
     // Starting a reply opens the keyboard, so one tap on a message is enough to start typing.
     LaunchedEffect(replyStarts) { if (replyTo != null && enabled) focus.requestFocus() }
     var waitLeft by remember { mutableIntStateOf(0) }
@@ -321,8 +349,23 @@ fun InputBar(
                     Icon(painterResource(R.drawable.ic_shield), contentDescription = stringResource(R.string.chat_modes))
                 }
             }
-            IconButton(onClick = onEmotePicker, shapes = IconButtonDefaults.shapes(), enabled = enabled) {
-                Icon(Icons.Default.Face, contentDescription = stringResource(R.string.emotes))
+            if (emotesOpen) {
+                IconButton(onClick = { focus.requestFocus(); keyboard?.show() }, shapes = IconButtonDefaults.shapes()) {
+                    Icon(painterResource(R.drawable.ic_keyboard), contentDescription = stringResource(R.string.input_keyboard))
+                }
+            } else {
+                IconButton(
+                    onClick = {
+                        if (emotePicker != null) {
+                            keyboard?.hide()
+                            emotesOpen = true
+                        }
+                    },
+                    shapes = IconButtonDefaults.shapes(),
+                    enabled = enabled,
+                ) {
+                    Icon(Icons.Default.Face, contentDescription = stringResource(R.string.emotes))
+                }
             }
             if (onPickPicture != null) {
                 IconButton(onClick = onPickPicture, shapes = IconButtonDefaults.shapes(), enabled = enabled) {
@@ -403,6 +446,98 @@ fun InputBar(
             stripe = stripe,
             modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp).focusRequester(focus),
         )
+        if (emotePicker != null) EmotePanel(emotesOpen, onKeyboardBack = { emotesOpen = false }, content = emotePicker)
+    }
+}
+
+/**
+ * How high the keyboard stood above the navigation bar the last time it was up, in px, upright and
+ * on its side; 0 until then. Shared, since every input sits on the same keyboard, and kept across
+ * starts by [me.lesh.chatter.AppContainer].
+ */
+object KeyboardHeight {
+    var upright by mutableIntStateOf(0)
+        private set
+    var sideways by mutableIntStateOf(0)
+        private set
+
+    /** Takes the heights saved last time, unless the keyboard was up since the start. */
+    fun restore(saved: Pair<Int, Int>) {
+        if (upright == 0) upright = saved.first
+        if (sideways == 0) sideways = saved.second
+    }
+
+    fun of(sideways: Boolean): Int = if (sideways) this.sideways else upright
+
+    fun record(sideways: Boolean, px: Int) {
+        if (sideways) this.sideways = px else upright = px
+    }
+}
+
+/**
+ * The share of the window the emote panel takes until the keyboard has been up once: about what a
+ * keyboard takes upright, and on its side.
+ */
+private const val PANEL_SHARE_UPRIGHT = 0.35f
+private const val PANEL_SHARE_SIDEWAYS = 0.5f
+
+/**
+ * The emote picker where the keyboard was. It takes exactly the room the keyboard gives up, so the
+ * input above stays put: it grows while the keyboard slides down and shrinks under it when the
+ * keyboard comes back (its button, or a tap in the input), and then calls [onKeyboardBack].
+ * Opened without a keyboard it slides up on its own.
+ */
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+private fun EmotePanel(open: Boolean, onKeyboardBack: () -> Unit, content: @Composable (Modifier) -> Unit) {
+    val ime = WindowInsets.ime
+    val imeTarget = WindowInsets.imeAnimationTarget
+    val navigationBar = WindowInsets.navigationBars
+    val density = LocalDensity.current
+    val window = LocalWindowInfo.current
+    fun sideways() = window.containerSize.run { width > height }
+    // What the keyboard lifts the input by: the screen edge padding already covers the bar.
+    fun lift(insets: WindowInsets) = (insets.getBottom(density) - navigationBar.getBottom(density)).coerceAtLeast(0)
+    LaunchedEffect(Unit) {
+        snapshotFlow { lift(imeTarget) }.collect { if (it > 0) KeyboardHeight.record(sideways(), it) }
+    }
+    val reveal = remember { Animatable(0f) }
+    var shown by remember { mutableStateOf(false) }
+    LaunchedEffect(open) {
+        if (open) {
+            shown = true
+            launch { if (lift(ime) > 0) reveal.snapTo(1f) else reveal.animateTo(1f) }
+            // The keyboard is on its way down now; it counts as back once it heads up again
+            // and has arrived.
+            snapshotFlow { lift(imeTarget) }.dropWhile { it > 0 }.first { it > 0 }
+            snapshotFlow { lift(imeTarget).let { target -> target > 0 && lift(ime) >= target } }.first { it }
+            onKeyboardBack()
+        } else {
+            if (lift(ime) == 0) reveal.animateTo(0f) else reveal.snapTo(0f)
+            shown = false
+        }
+    }
+    if (!shown) return
+    val color = MaterialTheme.colorScheme.surfaceContainerLow
+    Box(
+        Modifier
+            .fillMaxWidth()
+            // The color runs on behind the navigation bar, as the keyboard's does.
+            .drawBehind {
+                if (size.height > 0) drawRect(color, size = Size(size.width, size.height + navigationBar.getBottom(this)))
+            }
+            .clipToBounds()
+            // Insets read while measuring, so the keyboard's slide moves the panel without
+            // composing the picker again every frame.
+            .layout { measurable, constraints ->
+                val full = KeyboardHeight.of(sideways()).takeIf { it > 0 }
+                    ?: (window.containerSize.height * if (sideways()) PANEL_SHARE_SIDEWAYS else PANEL_SHARE_UPRIGHT).roundToInt()
+                val height = ((full - lift(ime)).coerceAtLeast(0) * reveal.value).roundToInt()
+                val placeable = measurable.measure(Constraints.fixed(constraints.maxWidth, full))
+                layout(constraints.maxWidth, height) { placeable.place(0, 0) }
+            },
+    ) {
+        content(Modifier.fillMaxSize())
     }
 }
 

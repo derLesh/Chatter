@@ -111,7 +111,7 @@ private fun InputPreview(settings: Settings, vm: MainViewModel) {
             imageLoader = vm.imageLoader,
             onSuggestion = {},
             onCancelReply = null,
-            onEmotePicker = {},
+            emotePicker = null,
             onSend = { input = TextFieldValue("") },
             recentlySent = { sent },
             onReuseSent = { input = TextFieldValue(it, TextRange(it.length)) },

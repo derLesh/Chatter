@@ -117,6 +117,8 @@ import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.drop
+import androidx.compose.runtime.snapshotFlow
+import me.lesh.chatter.ui.chat.KeyboardHeight
 import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.flow.first
@@ -393,6 +395,13 @@ class AppContainer(
             }
         }
         scope.launch { chat.refused.collect(scheduled::onRefused) }
+        // Kept across starts, so the first emote picker after one opens as high as the keyboard.
+        scope.launch {
+            KeyboardHeight.restore(settings.keyboardHeights.first())
+            snapshotFlow { KeyboardHeight.upright to KeyboardHeight.sideways }
+                .drop(1)
+                .collect { (upright, sideways) -> settings.setKeyboardHeights(upright, sideways) }
+        }
         // The wait may have stood still while the phone slept.
         scope.launch { chat.windows.anyVisible.collect { if (it) scheduled.wakeUp() } }
         // With Chatter open the input shows it; in the background only a notification can.

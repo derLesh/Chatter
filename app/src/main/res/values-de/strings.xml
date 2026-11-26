@@ -58,6 +58,7 @@
     <string name="link_check_title">Diesen Link öffnen?</string>
     <string name="link_check_text">Der Link sieht aus wie eine andere Seite, führt aber zu:</string>
     <string name="emotes">Emotes</string>
+    <string name="input_keyboard">Tastatur</string>
     <string name="input_hint">Nachricht senden</string>
     <string name="input_hint_disabled">Nicht verbunden</string>
     <string name="input_hint_subs_only">Chat nur für Abonnenten</string>

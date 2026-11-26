@@ -44,8 +44,6 @@ import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.produceState
-import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
@@ -71,7 +69,6 @@ import me.lesh.chatter.auth.AuthState
 import me.lesh.chatter.irc.ConnectionState
 import me.lesh.chatter.ui.channels.AddChannelSheet
 import me.lesh.chatter.ui.channels.ChannelAvatar
-import me.lesh.chatter.ui.chat.EmotePickerSheet
 import me.lesh.chatter.ui.chat.InputBar
 import me.lesh.chatter.ui.pill.PillContent
 import me.lesh.chatter.ui.pill.PillSurface
@@ -101,7 +98,6 @@ fun SendPictureScreen(vm: MainViewModel) {
     var choosingChannel by rememberSaveable { mutableStateOf(false) }
     var choosingUploader by rememberSaveable { mutableStateOf(false) }
     var addingChannel by rememberSaveable { mutableStateOf(false) }
-    var pickingEmote by rememberSaveable { mutableStateOf(false) }
 
     // A channel closed meanwhile, or none known yet when the picture came in on a cold start.
     LaunchedEffect(channels, sender.channel) {
@@ -206,7 +202,15 @@ fun SendPictureScreen(vm: MainViewModel) {
                         imageLoader = vm.imageLoader,
                         onSuggestion = vm::applyPictureSuggestion,
                         onCancelReply = null,
-                        onEmotePicker = { pickingEmote = true },
+                        emotePicker = { modifier ->
+                            ChannelEmotePicker(
+                                vm,
+                                sender.channel,
+                                modifier,
+                                onPick = { vm.insertInto(sender, it.name) },
+                                onPickEmoji = { vm.insertInto(sender, it.value) },
+                            )
+                        },
                         onSend = sender::send,
                         recentlySent = { emptyList() },
                         onReuseSent = {},
@@ -268,23 +272,6 @@ fun SendPictureScreen(vm: MainViewModel) {
             imageLoader = vm.imageLoader,
             onAdd = vm::addChannel,
             onDismiss = { addingChannel = false },
-        )
-    }
-    if (pickingEmote) {
-        val emoteVersion by vm.emoteVersion.collectAsStateWithLifecycle()
-        val emotes = remember(sender.channel, emoteVersion) { vm.emotesFor(sender.channel) }
-        val emoji by produceState(emptyList()) { value = vm.emoji() }
-        val owners = remember(emoteVersion) { vm.emoteOwners() }
-        EmotePickerSheet(
-            emotes = emotes,
-            owners = owners,
-            emoji = emoji,
-            recent = vm.recentEmotes.collectAsStateWithLifecycle().value,
-            imageLoader = vm.imageLoader,
-            onPick = { vm.insertInto(sender, it.name) },
-            onPickEmoji = { vm.insertInto(sender, it.value) },
-            onReload = { vm.reloadEmotes(sender.channel) },
-            onDismiss = { pickingEmote = false },
         )
     }
 }

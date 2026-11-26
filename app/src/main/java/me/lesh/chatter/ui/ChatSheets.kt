@@ -21,7 +21,10 @@ import me.lesh.chatter.ui.chat.CatchUpSheet
 import me.lesh.chatter.ui.chat.ChannelMark
 import me.lesh.chatter.ui.chat.ChatStyle
 import me.lesh.chatter.ui.chat.EmoteCardSheet
-import me.lesh.chatter.ui.chat.EmotePickerSheet
+import me.lesh.chatter.ui.chat.EmotePicker
+import androidx.compose.ui.Modifier
+import me.lesh.chatter.emotes.Emoji
+import me.lesh.chatter.emotes.Emote
 import me.lesh.chatter.ui.chat.EmoteTap
 import me.lesh.chatter.ui.chat.HideBadgeSheet
 import me.lesh.chatter.ui.chat.NicknameSheet
@@ -40,7 +43,6 @@ class ChatSheetState {
     /** The message whose user card is open. */
     var actionItem by mutableStateOf<ChatItem?>(null)
     var emoteCard by mutableStateOf<EmoteTap?>(null)
-    var showPicker by mutableStateOf(false)
     var showAdd by mutableStateOf(false)
     var renameTarget by mutableStateOf<String?>(null)
 
@@ -183,23 +185,6 @@ fun ChatSheets(
             editing = vm.emoteEditing,
         )
     }
-    if (sheets.showPicker) {
-        val emoteVersion by vm.emoteVersion.collectAsStateWithLifecycle()
-        val emotes = remember(vm.sendChannel, emoteVersion) { vm.emotesFor(vm.sendChannel) }
-        val emoji by produceState(emptyList()) { value = vm.emoji() }
-        val owners = remember(emoteVersion) { vm.emoteOwners() }
-        EmotePickerSheet(
-            emotes = emotes,
-            owners = owners,
-            emoji = emoji,
-            recent = vm.recentEmotes.collectAsStateWithLifecycle().value,
-            imageLoader = loader,
-            onPick = vm::insertEmote,
-            onPickEmoji = vm::insertEmoji,
-            onReload = { vm.reloadEmotes(vm.sendChannel) },
-            onDismiss = { sheets.showPicker = false },
-        )
-    }
     if (sheets.showAdd) {
         AddChannelSheet(
             search = vm::searchChannels,
@@ -233,4 +218,30 @@ fun ChatSheets(
             onDismiss = { sheets.renameTarget = null },
         )
     }
+}
+
+/** The emote picker with [channel]'s emotes; picks go into the chat's input unless [onPick] and [onPickEmoji] say otherwise. */
+@Composable
+internal fun ChannelEmotePicker(
+    vm: MainViewModel,
+    channel: String?,
+    modifier: Modifier,
+    onPick: (Emote) -> Unit = vm::insertEmote,
+    onPickEmoji: (Emoji) -> Unit = vm::insertEmoji,
+) {
+    val emoteVersion by vm.emoteVersion.collectAsStateWithLifecycle()
+    val emotes = remember(channel, emoteVersion) { vm.emotesFor(channel) }
+    val emoji by produceState(emptyList()) { value = vm.emoji() }
+    val owners = remember(emoteVersion) { vm.emoteOwners() }
+    EmotePicker(
+        emotes = emotes,
+        owners = owners,
+        emoji = emoji,
+        recent = vm.recentEmotes.collectAsStateWithLifecycle().value,
+        imageLoader = vm.imageLoader,
+        onPick = onPick,
+        onPickEmoji = onPickEmoji,
+        onReload = { vm.reloadEmotes(channel) },
+        modifier = modifier,
+    )
 }

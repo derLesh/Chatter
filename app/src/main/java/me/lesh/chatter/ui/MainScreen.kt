@@ -535,7 +535,7 @@ private fun ChatInput(
         onSuggestion = vm::applySuggestion,
         // In the conversation the reply is the point; it closes with the sheet.
         onCancelReply = if (inThread) null else vm::cancelReply,
-        onEmotePicker = { sheets.showPicker = true },
+        emotePicker = { ChannelEmotePicker(vm, vm.sendChannel, it) },
         onSend = vm::send,
         recentlySent = vm::recentlySent,
         onReuseSent = vm::reuseSent,
