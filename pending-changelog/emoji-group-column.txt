@@ -1,0 +1,1 @@
+minor: Jump between emoji groups from a column in the emote picker, as with Twitch emotes

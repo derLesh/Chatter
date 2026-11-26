@@ -35,6 +35,7 @@ import me.lesh.chatter.emotes.EmoteOwner
 import me.lesh.chatter.emotes.TwitchEmoteGroup
 import me.lesh.chatter.emotes.groupTwitchEmotes
 import androidx.compose.foundation.layout.Box
+import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Spacer
@@ -97,11 +98,12 @@ private sealed interface PickerItem {
     }
 }
 
-/** What a section is called. [Channel] and [Twitch] also give the side column its picture. */
+/** What a section is called. [Channel], [Twitch] and [EmojiGroupTitle] also give the side column its picture. */
 private sealed interface SectionTitle {
     class Text(val res: Int) : SectionTitle
     class Channel(val owner: EmoteOwner) : SectionTitle
     data object Twitch : SectionTitle
+    class EmojiGroupTitle(val group: EmojiGroup) : SectionTitle
 }
 
 /** A run of the grid, under a [title] if it has one. */
@@ -132,8 +134,8 @@ private class PickerTab(
 /**
  * Bottom sheet with tabs, tapped or swiped: recently used, then one per provider with channel
  * emotes first, then emoji in their groups. Twitch emotes are grouped by channel, Twitch's own
- * last, with a column to jump between them; [owners] names the channels. Below the emotes,
- * [onReload] loads them again.
+ * last, and emoji by group, each with a column to jump between them; [owners] names the channels.
+ * Below the emotes, [onReload] loads them again.
  *
  * It opens in place of the keyboard, below the input (see [InputBar]), so the message stays in
  * sight while picking.
@@ -169,9 +171,10 @@ fun EmotePicker(
             PickerTab(
                 R.string.emoji,
                 emoji.groupBy { it.group }.map { (group, list) ->
-                    PickerSection("g:" + group.name, SectionTitle.Text(group.title), list.map { PickerItem.EmojiItem(it) })
+                    PickerSection("g:" + group.name, SectionTitle.EmojiGroupTitle(group), list.map { PickerItem.EmojiItem(it) })
                 },
                 reloadable = false,
+                sideColumn = true,
             ),
         )
     }
@@ -403,10 +406,15 @@ private fun SectionColumn(
     }
 }
 
-/** A channel's avatar, the Twitch logo, or the first emote where there is neither. */
+/** A channel's avatar, the Twitch logo, an emoji group's emoji, or the first emote where there is none. */
 @Composable
 private fun SectionIcon(section: PickerSection, selected: Boolean, imageLoader: ImageLoader) {
     val title = section.title
+    if (title is SectionTitle.EmojiGroupTitle) {
+        // The button already says the group's name.
+        Text(title.group.symbol, fontSize = 24.sp, modifier = Modifier.clearAndSetSemantics {})
+        return
+    }
     if (title is SectionTitle.Twitch) {
         Icon(
             painterResource(R.drawable.ic_site_twitch),
@@ -460,6 +468,7 @@ private fun SectionTitle.label(): String = when (this) {
     is SectionTitle.Text -> stringResource(res)
     is SectionTitle.Channel -> owner.name
     SectionTitle.Twitch -> stringResource(R.string.emotes_twitch)
+    is SectionTitle.EmojiGroupTitle -> stringResource(group.title)
 }
 
 /** Small and grey: needed when an emote is missing, not every time the picker opens. */
@@ -526,4 +535,18 @@ private val EmojiGroup.title: Int
         EmojiGroup.Objects -> R.string.emoji_objects
         EmojiGroup.Symbols -> R.string.emoji_symbols
         EmojiGroup.Flags -> R.string.emoji_flags
+    }
+
+/** What stands for the group in the side column; old emoji, so every phone draws them. */
+private val EmojiGroup.symbol: String
+    get() = when (this) {
+        EmojiGroup.Smileys -> "😀"
+        EmojiGroup.People -> "👋"
+        EmojiGroup.Animals -> "🐶"
+        EmojiGroup.Food -> "🍔"
+        EmojiGroup.Travel -> "🚗"
+        EmojiGroup.Activities -> "⚽"
+        EmojiGroup.Objects -> "💡"
+        EmojiGroup.Symbols -> "❤️"
+        EmojiGroup.Flags -> "🏁"
     }
