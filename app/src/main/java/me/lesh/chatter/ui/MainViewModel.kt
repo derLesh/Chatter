@@ -91,7 +91,6 @@ import me.lesh.chatter.settings.EmoteSize
 import me.lesh.chatter.settings.LineSpacing
 import me.lesh.chatter.settings.MobileData
 import me.lesh.chatter.settings.PostCardSettings
-import me.lesh.chatter.settings.RecentlySentButton
 import me.lesh.chatter.settings.SendLaterButton
 import me.lesh.chatter.settings.SettingsBackup
 import me.lesh.chatter.settings.SettingsRepository
@@ -1600,8 +1599,6 @@ class MainViewModel(private val c: AppContainer, savedState: SavedStateHandle) :
     fun setMentionWithAt(v: Boolean) = saveSetting { setMentionWithAt(v) }
     fun setSuggestionsOverChat(v: Boolean) = saveSetting { setSuggestionsOverChat(v) }
 
-    fun setRecentlySentButton(v: RecentlySentButton) = saveSetting { setRecentlySentButton(v) }
-    fun setChatModesButton(v: Boolean) = saveSetting { setChatModesButton(v) }
     fun setReplyCard(v: Boolean) = saveSetting { setReplyCard(v) }
     fun setBuildStripe(v: Boolean) = saveSetting { setBuildStripe(v) }
     fun setReadOnly(v: Boolean) = saveSetting { setReadOnly(v) }
@@ -1788,7 +1785,6 @@ class MainViewModel(private val c: AppContainer, savedState: SavedStateHandle) :
     fun setLinksFullScreen(v: Boolean) = saveSetting { setLinksFullScreen(v) }
     fun setChatAboveLinks(v: Boolean) = saveSetting { setChatAboveLinks(v) }
     fun setUploader(v: UploadTarget) = saveSetting { setUploader(v.id) }
-    fun setPictureButton(v: Boolean) = saveSetting { setPictureButton(v) }
     fun setRemovePictureInfo(v: Boolean) = saveSetting { setRemovePictureInfo(v) }
 
     /** The upload sites, the user's own ones and the keys given to the preset ones. */

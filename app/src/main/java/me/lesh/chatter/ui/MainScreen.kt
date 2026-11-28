@@ -522,7 +522,7 @@ private fun ChatInput(
     val roomStates by vm.roomStates.collectAsStateWithLifecycle()
     val modChannels by vm.modChannels.collectAsStateWithLifecycle()
     val chatModes = vm.sendChannel
-        ?.takeIf { settings.chatModesButton && it in modChannels }
+        ?.takeIf { it in modChannels }
         ?.let { roomStates[it] ?: RoomState() }
     InputBar(
         value = vm.input,
@@ -548,7 +548,6 @@ private fun ChatInput(
         sendChannel = vm.sendChannel,
         channelInfo = channelInfo,
         onSendChannel = vm::selectSendChannel,
-        recentlySentButton = settings.recentlySentButton,
         chatModes = chatModes,
         onChatModes = vm::changeChatModes,
         buildStripe = settings.buildStripe,
@@ -557,7 +556,7 @@ private fun ChatInput(
         replyPictureUrl = if (settings.replyCard) replyPictureUrl(vm) else null,
         onCoveredHeight = onCoveredHeight,
         suggestionsOverChat = settings.suggestionsOverChat,
-        onPickPicture = pickPicture(vm).takeIf { settings.pictureButton },
+        onPickPicture = pickPicture(vm),
     )
 }
 

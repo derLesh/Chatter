@@ -152,9 +152,8 @@ fun BubbleScreen(vm: MainViewModel, channel: String?) {
                     restriction = vm.sendChannel?.let { ch -> SendLimits.restriction(roomStates[ch], roles[ch], ch in subscribed) },
                     penalty = vm.sendChannel?.let { penalties[it] },
                     modifier = modifier.fillMaxWidth(),
-                    recentlySentButton = settings.recentlySentButton,
                     chatModes = vm.sendChannel
-                        ?.takeIf { settings.chatModesButton && it in modChannels }
+                        ?.takeIf { it in modChannels }
                         ?.let { roomStates[it] ?: RoomState() },
                     onChatModes = vm::changeChatModes,
                     buildStripe = settings.buildStripe,

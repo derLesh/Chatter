@@ -85,7 +85,9 @@
     <string name="send">Send</string>
     <string name="recently_sent">Recently sent</string>
     <string name="recently_sent_none">Nothing sent here yet</string>
-    <string name="chat_modes">Chat modes</string>
+    <string name="chat_modes">Moderation</string>
+    <string name="input_menu">More</string>
+    <string name="input_menu_close">Close menu</string>
     <string name="chat_modes_slow">Slow mode</string>
     <string name="chat_modes_followers">Followers only</string>
     <string name="chat_modes_off">Off</string>
@@ -506,8 +508,6 @@
     <string name="upload_delete_title">Delete picture?</string>
     <string name="upload_delete_in_browser">Delete in browser</string>
     <string name="upload_delete_failed">The picture could not be deleted</string>
-    <string name="settings_picture_button">Picture button</string>
-    <string name="settings_picture_button_hint">Next to the emotes. Sharing a picture to Chatter always works</string>
     <string name="uploader_add">Add uploader</string>
     <string name="uploader_remove">Remove</string>
     <string name="uploader_about">About %1$s</string>
@@ -642,13 +642,6 @@
     <string name="settings_mention_with_at">Insert names with @</string>
     <string name="settings_mention_with_at_hint">Puts an @ before the name</string>
     <string name="settings_group_input">Input</string>
-    <string name="settings_recently_sent">Recently sent</string>
-    <string name="settings_recently_sent_hint">Shows your last three messages to send again</string>
-    <string name="recently_sent_replaces_send">Send button</string>
-    <string name="recently_sent_in_input">In the field</string>
-    <string name="recently_sent_hidden">Off</string>
-    <string name="settings_chat_modes_button">Chat modes</string>
-    <string name="settings_chat_modes_button_hint">Shows mods a shield by the input for slow mode, emote-only and more</string>
     <string name="settings_reply_card">Reply card</string>
     <string name="settings_reply_card_hint">Shows who you reply to with their picture above the input</string>
     <string name="settings_build_stripe">Build stripe</string>
