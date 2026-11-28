@@ -5,6 +5,12 @@ import androidx.compose.animation.slideOutVertically
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.fadeIn
+import androidx.compose.animation.EnterExitState
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.shrinkVertically
+import androidx.compose.animation.EnterTransition
+import androidx.compose.animation.ExitTransition
 import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.core.animate
 import androidx.compose.foundation.background
@@ -34,6 +40,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
@@ -42,6 +49,7 @@ import androidx.compose.material.icons.automirrored.filled.Send
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Face
+import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material3.DropdownMenuGroup
 import androidx.compose.material3.DropdownMenuPopup
 import androidx.compose.material3.DropdownMenuPopupPositionProvider
@@ -87,9 +95,19 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.zIndex
+import androidx.compose.ui.input.pointer.PointerEventPass
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.foundation.gestures.awaitEachGesture
+import androidx.compose.foundation.gestures.awaitFirstDown
+import androidx.compose.ui.layout.LayoutCoordinates
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.isUnspecified
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
@@ -98,6 +116,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.input.TextFieldValue
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.IntOffset
@@ -123,7 +142,6 @@ import me.lesh.chatter.chat.ChatRestriction
 import me.lesh.chatter.chat.Penalty
 import me.lesh.chatter.chat.RoomState
 import me.lesh.chatter.chat.SendLimits
-import me.lesh.chatter.settings.RecentlySentButton
 import me.lesh.chatter.settings.SendLaterButton
 import me.lesh.chatter.ui.Suggestion
 import me.lesh.chatter.ui.channels.ChannelAvatar
@@ -169,13 +187,14 @@ import androidx.compose.ui.geometry.Size
  * timeout ([penalty]) counts down there too and turns sending off until it ends; a ban only says
  * so, since Twitch does not announce when it is lifted and a message is the only way to find out.
  *
- * While the input is empty a clock opens the user's last messages ([recentlySent]) above it, on
- * the send button or in the input as [recentlySentButton] says; a tap on one puts it back into
- * the input ([onReuseSent]).
- *
- * Given [chatModes], those of the channel the input sends to when the user moderates it, a shield
- * in front of the emotes opens them above the input; a change goes to [onChatModes] as the wished
- * state.
+ * While the input is empty three dots in it open a menu over the chat, growing out of them. It
+ * holds the user's last messages ([recentlySent]), of which a tap puts one back into the input
+ * ([onReuseSent]); with [onPickPicture] picking a picture to send; and given [chatModes], those of
+ * the channel the input sends to when the user moderates it, the chat modes, a change to which
+ * goes to [onChatModes] as the wished state. The last messages and the chat modes open as a panel
+ * above the input in the menu's place. A tap anywhere else closes the menu, and unlike the panels
+ * it cannot be pulled down. Without [menuOverChat] the menu pushes up what is above, for a place
+ * that would cut off what lies outside the input.
  *
  * With [sendLater] a message can be planned to go out later, and the planned ones show above the
  * input.
@@ -183,9 +202,8 @@ import androidx.compose.ui.geometry.Size
  * With [suggestionsOverChat] the suggestions take no room: they slide up above the input, over
  * the chat, so a chat that makes room for the input does not move while typing.
  *
- * With [onPickPicture] a button next to the emotes picks a picture to send. [attachedLength] is
- * what the message gets on top of the typed text, like a picture's link: it counts towards
- * Twitch's limit, and the message may go out without text.
+ * [attachedLength] is what the message gets on top of the typed text, like a picture's link: it
+ * counts towards Twitch's limit, and the message may go out without text.
  */
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
@@ -211,7 +229,6 @@ fun InputBar(
     sendChannel: String? = null,
     channelInfo: Map<String, ChannelInfo> = emptyMap(),
     onSendChannel: (String) -> Unit = {},
-    recentlySentButton: RecentlySentButton = RecentlySentButton.ReplacesSend,
     chatModes: RoomState? = null,
     onChatModes: (RoomState) -> Unit = {},
     sendLater: SendLater? = null,
@@ -220,6 +237,7 @@ fun InputBar(
     replyPictureUrl: String? = null,
     onCoveredHeight: ((Int) -> Unit)? = null,
     suggestionsOverChat: Boolean = false,
+    menuOverChat: Boolean = true,
     onPickPicture: (() -> Unit)? = null,
     attachedLength: Int = 0,
     argumentHint: ArgumentHint? = null,
@@ -265,30 +283,40 @@ fun InputBar(
     if (planning) {
         SendLaterSheet(value.text.trim(), onPlan = { sendLater?.onPlan(it) }, onDismiss = { planning = false })
     }
-    // With something attached the empty input is a message too, so Send stays.
-    val recentInInput = recentlySentButton == RecentlySentButton.InInput && value.text.isEmpty() && attachedLength == 0
-    // Slow mode's countdown keeps the button: it is what the user waits for right after sending.
-    val recentOnSend = recentlySentButton == RecentlySentButton.ReplacesSend && value.text.isEmpty() && waitLeft == 0 && attachedLength == 0
-    val offersRecent = recentInInput || recentOnSend
+    // Something attached counts as typed: the field is then about that message.
+    val offersMenu = value.text.isEmpty() && attachedLength == 0
     val scope = rememberCoroutineScope()
     // One panel at a time above the input, so the chat keeps its room.
     var openPanel by remember { mutableStateOf<InputPanel?>(null) }
+    val menuOpen = openPanel == InputPanel.Menu
+    val menuAnchor = remember { MenuAnchor() }
+    var menuOrigin by remember { mutableStateOf(Offset.Unspecified) }
+    // Not state: counts the menu's openings, so a list still loading for an earlier one is dropped.
+    val menuOpenings = remember { intArrayOf(0) }
     val recentOpen = openPanel == InputPanel.RecentlySent
     val modesOpen = openPanel == InputPanel.ChatModes
     var recent by remember { mutableStateOf(emptyList<String>()) }
-    val toggleRecent = {
-        if (recentOpen) openPanel = null
-        // Loaded before opening, so the panel unfolds at its final height.
-        else scope.launch { recent = recentlySent(); openPanel = InputPanel.RecentlySent }
+    val openRecent = {
+        // Loaded before opening, so the panel unfolds at its final height; unless the menu was
+        // closed meanwhile.
+        val opening = menuOpenings[0]
+        scope.launch {
+            val loaded = recentlySent()
+            if (openPanel == InputPanel.Menu && menuOpenings[0] == opening) {
+                recent = loaded
+                openPanel = InputPanel.RecentlySent
+            }
+        }
         Unit
     }
-    // The list belongs to the channel the input sends to, and typing takes the button away.
-    LaunchedEffect(offersRecent, enabled, sendChannel) {
-        if (recentOpen && (!offersRecent || !enabled)) openPanel = null
+    // Typing takes the dots away, and what the panels show belongs to the channel the input sends to.
+    LaunchedEffect(offersMenu, enabled) {
+        if (openPanel != null && (!offersMenu || !enabled)) openPanel = null
     }
+    LaunchedEffect(sendChannel) { openPanel = null }
     val offersModes = chatModes != null
-    LaunchedEffect(offersModes, enabled, sendChannel) {
-        if (modesOpen && (!offersModes || !enabled)) openPanel = null
+    LaunchedEffect(offersModes) {
+        if (modesOpen && !offersModes) openPanel = null
     }
     NavigationBackHandler(
         state = rememberNavigationEventState(currentInfo = NavigationEventInfo.None),
@@ -299,7 +327,48 @@ fun InputBar(
     val replyHeight = remember { intArrayOf(0) }
     val covered = if (onCoveredHeight == null) Modifier else Modifier.onSizeChanged { onCoveredHeight(it.height - replyHeight[0]) }
     // No bar of its own: the input sits on the chat background.
-    Column(modifier.then(covered)) {
+    Column(
+        modifier
+            .then(covered)
+            .onGloballyPositioned { menuAnchor.input = it }
+            // Watched, not taken: the tap still does what it does, and the dots toggle on their own.
+            // Only while the menu is open, since a watcher still takes the touches around a floating
+            // input from the chat below.
+            .then(
+                if (!menuOpen) Modifier else Modifier.pointerInput(Unit) {
+                    awaitEachGesture {
+                        val down = awaitFirstDown(requireUnconsumed = false, pass = PointerEventPass.Initial)
+                        if (!menuAnchor.onMenuOrDots(down.position)) openPanel = null
+                    }
+                },
+            ),
+    ) {
+        // A tap on the chat only closes the menu, as a tap beside a menu does.
+        if (menuOpen && menuOverChat) {
+            Box(
+                Modifier
+                    .zIndex(0.5f)
+                    .coveringAbove(LocalWindowInfo.current.containerSize.height)
+                    .pointerInput(Unit) {
+                        awaitEachGesture {
+                            awaitFirstDown().consume()
+                            openPanel = null
+                        }
+                    },
+            )
+        }
+        GrowingFromDots(menuOpen, menuOrigin, menuOverChat) {
+            // Its entries still take taps while it shrinks away, so each checks it is still open.
+            Box(Modifier.onGloballyPositioned { menuAnchor.menu = it }) {
+                InputMenu(
+                    onPickPicture = onPickPicture?.let { pick ->
+                        { if (openPanel == InputPanel.Menu) { openPanel = null; pick() } }
+                    },
+                    onRecentlySent = { if (openPanel == InputPanel.Menu) openRecent() },
+                    onChatModes = { if (openPanel == InputPanel.Menu) openPanel = InputPanel.ChatModes }.takeIf { offersModes },
+                )
+            }
+        }
         if (suggestionsOverChat) {
             val above = (argumentHint to suggestions).takeIf { argumentHint != null || suggestions.isNotEmpty() }
             RisingFromInput(above, Modifier.takingNoHeight()) { (hint, shown) ->
@@ -344,11 +413,6 @@ fun InputBar(
             if (choosing) {
                 SendChannelPicker(sendChannels, sendChannel, channelInfo, imageLoader, enabled, onSendChannel)
             }
-            if (offersModes) {
-                PanelToggle(modesOpen, enabled, onClick = { openPanel = if (modesOpen) null else InputPanel.ChatModes }) {
-                    Icon(painterResource(R.drawable.ic_shield), contentDescription = stringResource(R.string.chat_modes))
-                }
-            }
             if (emotesOpen) {
                 IconButton(onClick = { focus.requestFocus(); keyboard?.show() }, shapes = IconButtonDefaults.shapes()) {
                     Icon(painterResource(R.drawable.ic_keyboard), contentDescription = stringResource(R.string.input_keyboard))
@@ -367,11 +431,6 @@ fun InputBar(
                     Icon(Icons.Default.Face, contentDescription = stringResource(R.string.emotes))
                 }
             }
-            if (onPickPicture != null) {
-                IconButton(onClick = onPickPicture, shapes = IconButtonDefaults.shapes(), enabled = enabled) {
-                    Icon(painterResource(R.drawable.ic_image), contentDescription = stringResource(R.string.input_pick_picture))
-                }
-            }
         }
         val placeholder = @Composable {
             Text(
@@ -387,10 +446,17 @@ fun InputBar(
                 overflow = TextOverflow.Ellipsis,
             )
         }
-        // The placeholder is gone once something is typed; the timeout stays in sight here.
-        val trailing: (@Composable () -> Unit)? = if (recentInInput) {
-            { RecentlySentClock(recentOpen, enabled, toggleRecent) }
+        val toggleMenu = {
+            if (openPanel == null) {
+                menuOpenings[0]++
+                menuOrigin = menuAnchor.dotsCenter()
+            }
+            openPanel = if (openPanel == null) InputPanel.Menu else null
+        }
+        val trailing: (@Composable () -> Unit)? = if (offersMenu) {
+            { MenuDots(openPanel != null, enabled, toggleMenu, Modifier.onGloballyPositioned { menuAnchor.dots = it }) }
         } else if (timeoutLeft > 0 && value.text.isNotEmpty()) {
+            // The placeholder is gone once something is typed; the timeout stays in sight here.
             {
                 Text(
                     timeLeft(timeoutLeft),
@@ -413,22 +479,17 @@ fun InputBar(
             }
         }
         val sendButton = @Composable { modifier: Modifier ->
-            if (recentOnSend) {
-                RecentlySentClock(recentOpen, enabled, toggleRecent, modifier)
-            } else {
-                val hold = canPlan && sendLater?.button == SendLaterButton.HoldSend
-                if (canPlan && sendLater?.button == SendLaterButton.OwnButton) {
-                    // Right next to Send, as the clock in the input sits.
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        modifier = modifier,
-                    ) {
-                        SendLaterIconButton(onClick = { planning = true })
-                        SendButton(canSend, waitLeft, onSend)
-                    }
-                } else {
-                    SendButton(canSend, waitLeft, onSend, modifier.holdToSendLater(hold) { planning = true })
+            val hold = canPlan && sendLater?.button == SendLaterButton.HoldSend
+            if (canPlan && sendLater?.button == SendLaterButton.OwnButton) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = modifier,
+                ) {
+                    SendLaterIconButton(onClick = { planning = true })
+                    SendButton(canSend, waitLeft, onSend)
                 }
+            } else {
+                SendButton(canSend, waitLeft, onSend, modifier.holdToSendLater(hold) { planning = true })
             }
         }
         val keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Sentences, imeAction = ImeAction.Send)
@@ -636,13 +697,120 @@ private fun SendButton(canSend: Boolean, waitLeft: Int, onSend: () -> Unit, modi
     }
 }
 
-private enum class InputPanel { RecentlySent, ChatModes }
+private enum class InputPanel { Menu, RecentlySent, ChatModes }
 
-/** Opens and closes the [RecentlySentPanel]. */
+/** Opens the [InputMenu], and closes it or the panel picked from it. */
 @Composable
-private fun RecentlySentClock(open: Boolean, enabled: Boolean, onClick: () -> Unit, modifier: Modifier = Modifier) {
+private fun MenuDots(open: Boolean, enabled: Boolean, onClick: () -> Unit, modifier: Modifier = Modifier) {
     PanelToggle(open, enabled, onClick, modifier) {
-        Icon(painterResource(R.drawable.ic_history), contentDescription = stringResource(R.string.recently_sent))
+        Icon(Icons.Default.MoreVert, contentDescription = stringResource(if (open) R.string.input_menu_close else R.string.input_menu))
+    }
+}
+
+/** Where the dots sit across the input, so the menu can grow out of them. Read on a tap, not state. */
+private class MenuAnchor {
+    var input: LayoutCoordinates? = null
+    var dots: LayoutCoordinates? = null
+    var menu: LayoutCoordinates? = null
+
+    /**
+     * Whether [position], from the input's top left corner, lies on the dots or on the menu, as far
+     * as it has grown: while growing it still lies partly over the input.
+     */
+    fun onMenuOrDots(position: Offset): Boolean {
+        val input = input?.takeIf { it.isAttached } ?: return false
+        return listOfNotNull(dots, menu).any { it.isAttached && input.localBoundingBoxOf(it).contains(position) }
+    }
+
+    /** The dots' middle from the input's top left corner, in px; unspecified while either is not laid out. */
+    fun dotsCenter(): Offset {
+        val input = input?.takeIf { it.isAttached } ?: return Offset.Unspecified
+        val dots = dots?.takeIf { it.isAttached } ?: return Offset.Unspecified
+        return input.localPositionOf(dots, Offset(dots.size.width / 2f, dots.size.height / 2f))
+    }
+}
+
+/**
+ * The menu growing out of the dots and back into them. [dots] is their middle from the input's top
+ * left corner, below which the menu ends, so a reply or planned messages between the two are
+ * allowed for. Over the chat it takes no room; otherwise it also unfolds, so what is above moves
+ * along.
+ */
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
+@Composable
+private fun GrowingFromDots(visible: Boolean, dots: Offset, overChat: Boolean, content: @Composable () -> Unit) {
+    val motion = MaterialTheme.motionScheme
+    AnimatedVisibility(
+        visible = visible,
+        // On top of the reply and the field below it, where it starts out from the dots.
+        modifier = Modifier.zIndex(1f).then(if (overChat) Modifier.takingNoHeight() else Modifier),
+        enter = fadeIn(motion.defaultEffectsSpec()) +
+            if (overChat) EnterTransition.None else expandVertically(motion.defaultSpatialSpec(), clip = false),
+        exit = fadeOut(motion.fastEffectsSpec()) +
+            if (overChat) ExitTransition.None else shrinkVertically(motion.fastSpatialSpec(), clip = false),
+    ) {
+        val scale by transition.animateFloat(
+            transitionSpec = { if (targetState == EnterExitState.Visible) motion.defaultSpatialSpec() else motion.fastSpatialSpec() },
+        ) { if (it == EnterExitState.Visible) 1f else 0f }
+        // Scaled here rather than with scaleIn, whose pivot is a share of a size not known before
+        // the menu is laid out, while the dots lie a set distance below it.
+        Box(
+            Modifier.graphicsLayer {
+                scaleX = scale
+                scaleY = scale
+                transformOrigin = if (dots.isUnspecified || size.width == 0f || size.height == 0f) TransformOrigin(1f, 1f)
+                else TransformOrigin(dots.x / size.width, 1f + dots.y / size.height)
+            },
+        ) { content() }
+    }
+}
+
+/** What the input does besides typing, side by side as round buttons; left out when not given. */
+@Composable
+private fun InputMenu(
+    onPickPicture: (() -> Unit)?,
+    onRecentlySent: () -> Unit,
+    onChatModes: (() -> Unit)?,
+) {
+    InputPanelSurface(title = null, onClose = null) {
+        Row(Modifier.padding(horizontal = 8.dp, vertical = 4.dp)) {
+            if (onPickPicture != null) MenuEntry(R.drawable.ic_image, R.string.input_pick_picture, onPickPicture, Modifier.weight(1f, fill = false))
+            MenuEntry(R.drawable.ic_history, R.string.recently_sent, onRecentlySent, Modifier.weight(1f, fill = false))
+            if (onChatModes != null) MenuEntry(R.drawable.ic_shield, R.string.chat_modes, onChatModes, Modifier.weight(1f, fill = false))
+        }
+    }
+}
+
+/**
+ * One of the menu's round buttons. Given a weight they share a narrow window's width, which caps
+ * the width here, instead of pushing the last one out.
+ */
+@Composable
+private fun MenuEntry(icon: Int, label: Int, onClick: () -> Unit, modifier: Modifier = Modifier) {
+    Column(
+        horizontalAlignment = Alignment.CenterHorizontally,
+        modifier = modifier
+            .width(88.dp)
+            .clip(RoundedCornerShape(12.dp))
+            .clickable(role = Role.Button, onClick = onClick)
+            .padding(vertical = 8.dp),
+    ) {
+        Box(
+            Modifier
+                .size(52.dp)
+                .clip(CircleShape)
+                .background(MaterialTheme.colorScheme.secondaryContainer),
+            contentAlignment = Alignment.Center,
+        ) {
+            Icon(painterResource(icon), contentDescription = null, tint = MaterialTheme.colorScheme.onSecondaryContainer)
+        }
+        Text(
+            stringResource(label),
+            style = MaterialTheme.typography.labelMedium,
+            textAlign = TextAlign.Center,
+            maxLines = 2,
+            modifier = Modifier.padding(top = 6.dp, start = 4.dp, end = 4.dp),
+        )
     }
 }
 
@@ -710,16 +878,18 @@ private fun ChatModesPanel(modes: RoomState, onChange: (RoomState) -> Unit, onCl
 }
 
 /**
- * A panel above the input with a handle and a [title]. Dragged down it follows the finger and
- * closes ([onClose]) once pulled far or flung; a short pull springs back.
+ * A panel above the input with, if given, a [title]. With [onClose] it has a handle: dragged down
+ * it follows the finger and closes once pulled far or flung; a short pull springs back.
  */
 @Composable
-private fun InputPanelSurface(title: Int, onClose: () -> Unit, content: @Composable ColumnScope.() -> Unit) {
+private fun InputPanelSurface(title: Int?, onClose: (() -> Unit)?, content: @Composable ColumnScope.() -> Unit) {
     var pulled by remember { mutableFloatStateOf(0f) }
     val density = LocalDensity.current
     val closeAfter = with(density) { 64.dp.toPx() }
     val closeFaster = with(density) { 800.dp.toPx() }
-    val drag = rememberDraggableState { delta -> pulled = (pulled + delta).coerceAtLeast(0f) }
+    // Without onClose the drag is still taken, only to go nowhere: in the conversation's sheet it
+    // would pull the whole sheet down.
+    val drag = rememberDraggableState { delta -> if (onClose != null) pulled = (pulled + delta).coerceAtLeast(0f) }
     Surface(
         shape = RoundedCornerShape(16.dp),
         color = MaterialTheme.colorScheme.surfaceContainerHigh,
@@ -733,7 +903,7 @@ private fun InputPanelSurface(title: Int, onClose: () -> Unit, content: @Composa
                 state = drag,
                 orientation = Orientation.Vertical,
                 onDragStopped = { velocity ->
-                    if (pulled > closeAfter || velocity > closeFaster) onClose()
+                    if (pulled > closeAfter || velocity > closeFaster) onClose?.invoke()
                     // Through the drag state, so touching it again stops the spring at once.
                     else drag.drag {
                         var last = pulled
@@ -747,20 +917,26 @@ private fun InputPanelSurface(title: Int, onClose: () -> Unit, content: @Composa
             },
     ) {
         Column(Modifier.padding(bottom = 4.dp)) {
-            Box(
-                Modifier
-                    .padding(top = 8.dp)
-                    .size(width = 32.dp, height = 4.dp)
-                    .clip(RoundedCornerShape(2.dp))
-                    .background(MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f))
-                    .align(Alignment.CenterHorizontally),
-            )
-            Text(
-                stringResource(title),
-                style = MaterialTheme.typography.labelMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.padding(horizontal = 16.dp, vertical = 6.dp),
-            )
+            if (onClose != null) {
+                Box(
+                    Modifier
+                        .padding(top = 8.dp)
+                        .size(width = 32.dp, height = 4.dp)
+                        .clip(RoundedCornerShape(2.dp))
+                        .background(MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f))
+                        .align(Alignment.CenterHorizontally),
+                )
+            }
+            if (title != null) {
+                Text(
+                    stringResource(title),
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 6.dp),
+                )
+            } else {
+                Spacer(Modifier.height(if (onClose != null) 4.dp else 8.dp))
+            }
             content()
         }
     }
@@ -1100,6 +1276,12 @@ private fun ArgumentHintBar(hint: ArgumentHint) {
 }
 
 private const val MAX_FORMS_SHOWN = 3
+
+/** Like [takingNoHeight], [height] px high: as high as the window, it covers whatever is above. */
+private fun Modifier.coveringAbove(height: Int): Modifier = layout { measurable, constraints ->
+    val placeable = measurable.measure(Constraints.fixed(constraints.maxWidth, height))
+    layout(constraints.maxWidth, 0) { placeable.place(0, -height) }
+}
 
 /**
  * Reports no height and places the content right above where it would be, so it lies over what is

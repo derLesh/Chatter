@@ -22,7 +22,6 @@ import androidx.compose.ui.unit.dp
 import me.lesh.chatter.R
 import me.lesh.chatter.chat.Bot
 import me.lesh.chatter.chat.RoomState
-import me.lesh.chatter.settings.RecentlySentButton
 import me.lesh.chatter.settings.Settings
 import me.lesh.chatter.ui.MainViewModel
 import me.lesh.chatter.ui.SettingsSubPage
@@ -64,18 +63,6 @@ internal fun TypingPage(settings: Settings, vm: MainViewModel, open: (SettingsSu
     }
     SettingsGroup(R.string.settings_group_input) {
         item { Box(Modifier.padding(12.dp)) { InputPreview(settings, vm) } }
-        item(R.string.settings_recently_sent) {
-            SegmentedItem(
-                R.string.settings_recently_sent, settings.recentlySentButton, RECENTLY_SENT_BUTTONS,
-                vm::setRecentlySentButton, R.string.settings_recently_sent_hint,
-            )
-        }
-        item(R.string.settings_chat_modes_button) {
-            SwitchItem(R.string.settings_chat_modes_button, settings.chatModesButton, vm::setChatModesButton, R.string.settings_chat_modes_button_hint)
-        }
-        item(R.string.settings_picture_button) {
-            SwitchItem(R.string.settings_picture_button, settings.pictureButton, vm::setPictureButton, R.string.settings_picture_button_hint)
-        }
         item(R.string.settings_reply_card) {
             BetaSwitchItem(R.string.settings_reply_card, settings.replyCard, vm::setReplyCard, R.string.settings_reply_card_hint)
         }
@@ -89,8 +76,8 @@ internal fun TypingPage(settings: Settings, vm: MainViewModel, open: (SettingsSu
 
 /**
  * The real input on the chat's background, to try out: what is typed stays here, sending only
- * empties it, and the last messages are made up. The shield shows as for a mod, and its modes
- * change only here.
+ * empties it, and the last messages are made up. The menu has the chat modes as for a mod, and
+ * they change only here.
  */
 @Composable
 private fun InputPreview(settings: Settings, vm: MainViewModel) {
@@ -115,21 +102,16 @@ private fun InputPreview(settings: Settings, vm: MainViewModel) {
             onSend = { input = TextFieldValue("") },
             recentlySent = { sent },
             onReuseSent = { input = TextFieldValue(it, TextRange(it.length)) },
-            recentlySentButton = settings.recentlySentButton,
-            chatModes = modes.takeIf { settings.chatModesButton },
+            chatModes = modes,
             onChatModes = { modes = it },
             buildStripe = settings.buildStripe,
-            // Shown, so the switch shows what it does; a tap here picks nothing.
-            onPickPicture = {}.takeIf { settings.pictureButton },
+            // So the menu shows it; a tap here picks nothing.
+            onPickPicture = {},
+            // The rounded preview would cut off a menu lying above it.
+            menuOverChat = false,
         )
     }
 }
 
 /** What the page is about, in the way it is typed; the same in every language. */
 private const val BOT_COMMAND_EXAMPLES = "!discord, \$ping"
-
-private val RECENTLY_SENT_BUTTONS = listOf(
-    RecentlySentButton.ReplacesSend to R.string.recently_sent_replaces_send,
-    RecentlySentButton.InInput to R.string.recently_sent_in_input,
-    RecentlySentButton.Hidden to R.string.recently_sent_hidden,
-)

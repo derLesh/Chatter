@@ -88,9 +88,6 @@ enum class NameStyle { DisplayName, Login, OtherScripts, Both }
 /** How tall emotes are drawn in a message. */
 enum class EmoteSize { Normal, Large }
 
-/** Where the clock that offers the user's last messages sits: on the empty send button, in the input or nowhere. */
-enum class RecentlySentButton { ReplacesSend, InInput, Hidden }
-
 /** How a message is planned for later: with a button of its own next to Send, or by holding Send. */
 enum class SendLaterButton { OwnButton, HoldSend }
 
@@ -157,11 +154,6 @@ data class Settings(
     val mentionWithAt: Boolean = true,
     /** Suggestions lie over the chat instead of pushing it up while typing. */
     val suggestionsOverChat: Boolean = true,
-    val recentlySentButton: RecentlySentButton = RecentlySentButton.ReplacesSend,
-    /** A shield next to the emotes, in channels the user moderates, to change the chat modes. */
-    val chatModesButton: Boolean = true,
-    /** A button next to the emotes that picks a picture to send; sharing one to Chatter always works. */
-    val pictureButton: Boolean = true,
     /** Beta: who a reply answers as a card with their picture, instead of a one-line strip. */
     val replyCard: Boolean = true,
     /** A strip of the build's icon at the left of the input; only offered in Dev and Nightly. */
@@ -314,10 +306,6 @@ class SettingsRepository(
             botCommands = Bot.entries.toSet() - botCommandsOff(p[BOT_COMMANDS_OFF]),
             mentionWithAt = p[MENTION_WITH_AT] ?: true,
             suggestionsOverChat = p[SUGGESTIONS_OVER_CHAT] ?: true,
-            recentlySentButton = p[RECENTLY_SENT_BUTTON]?.let { v -> RecentlySentButton.entries.firstOrNull { it.name == v } }
-                ?: RecentlySentButton.ReplacesSend,
-            chatModesButton = p[CHAT_MODES_BUTTON] ?: true,
-            pictureButton = p[PICTURE_BUTTON] ?: true,
             replyCard = p[REPLY_CARD] ?: true,
             buildStripe = p[BUILD_STRIPE] ?: true,
             showDeleted = p[SHOW_DELETED] ?: true,
@@ -415,8 +403,6 @@ class SettingsRepository(
     }
     suspend fun setMentionWithAt(v: Boolean) = store.edit { it[MENTION_WITH_AT] = v }
     suspend fun setSuggestionsOverChat(v: Boolean) = store.edit { it[SUGGESTIONS_OVER_CHAT] = v }
-    suspend fun setRecentlySentButton(v: RecentlySentButton) = store.edit { it[RECENTLY_SENT_BUTTON] = v.name }
-    suspend fun setChatModesButton(v: Boolean) = store.edit { it[CHAT_MODES_BUTTON] = v }
     suspend fun setReplyCard(v: Boolean) = store.edit { it[REPLY_CARD] = v }
     suspend fun setBuildStripe(v: Boolean) = store.edit { it[BUILD_STRIPE] = v }
     suspend fun setReadOnly(v: Boolean) = store.edit { it[READ_ONLY] = v }
@@ -436,7 +422,6 @@ class SettingsRepository(
     }
 
     suspend fun setUploader(v: String) = store.edit { it[UPLOADER] = v }
-    suspend fun setPictureButton(v: Boolean) = store.edit { it[PICTURE_BUTTON] = v }
     suspend fun setRemovePictureInfo(v: Boolean) = store.edit { it[REMOVE_PICTURE_INFO] = v }
     suspend fun updateImageHosts(change: (List<String>) -> List<String>) =
         store.edit { it[IMAGE_HOSTS] = change(hosts(it[IMAGE_HOSTS])).joinToString(",") }
@@ -578,9 +563,6 @@ class SettingsRepository(
         p[BOT_COMMANDS_OFF] = (Bot.entries - s.botCommands).joinToString(",") { it.name }
         p[MENTION_WITH_AT] = s.mentionWithAt
         p[SUGGESTIONS_OVER_CHAT] = s.suggestionsOverChat
-        p[RECENTLY_SENT_BUTTON] = s.recentlySentButton.name
-        p[CHAT_MODES_BUTTON] = s.chatModesButton
-        p[PICTURE_BUTTON] = s.pictureButton
         p[REPLY_CARD] = s.replyCard
         p[BUILD_STRIPE] = s.buildStripe
         p[READ_ONLY] = s.readOnly
@@ -718,8 +700,6 @@ class SettingsRepository(
         val BOT_COMMANDS_OFF = stringPreferencesKey("bot_commands_off")
         val MENTION_WITH_AT = booleanPreferencesKey("mention_with_at")
         val SUGGESTIONS_OVER_CHAT = booleanPreferencesKey("suggestions_over_chat")
-        val RECENTLY_SENT_BUTTON = stringPreferencesKey("recently_sent_button")
-        val CHAT_MODES_BUTTON = booleanPreferencesKey("chat_modes_button")
         val REPLY_CARD = booleanPreferencesKey("reply_card")
         val BUILD_STRIPE = booleanPreferencesKey("build_stripe")
         val READ_ONLY = booleanPreferencesKey("read_only")
@@ -738,7 +718,6 @@ class SettingsRepository(
         val MOBILE_DATA = stringPreferencesKey("mobile_data")
         val IMAGE_HOSTS = stringPreferencesKey("image_hosts")
         val UPLOADER = stringPreferencesKey("uploader")
-        val PICTURE_BUTTON = booleanPreferencesKey("picture_button")
         val REMOVE_PICTURE_INFO = booleanPreferencesKey("remove_picture_info")
         /** Default hosts this install has been given, so each is added only once. */
         val IMAGE_HOSTS_GIVEN = stringPreferencesKey("image_hosts_given")
